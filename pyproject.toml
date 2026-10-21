@@ -1,0 +1,27 @@
+[project]
+name = "fabric-backend"
+version = "0.1.0"
+description = "Tables in Microsoft Fabric -> a GraphQL backend for Lovable, Cursor and Claude Code. One call."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "Gustav Kruse" }]
+dependencies = []
+keywords = ["microsoft-fabric", "graphql", "lovable", "mcp", "backend", "data-engineering"]
+
+[project.optional-dependencies]
+deploy = ["requests"]
+sql = ["pyodbc"]
+mcp = ["mcp>=1.2", "requests", "pyodbc"]
+test = ["pytest"]
+
+[project.scripts]
+fabric-backend = "fabric_backend.cli:main"
+fabric-backend-mcp = "fabric_backend.mcp_server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["fabric_backend*"]

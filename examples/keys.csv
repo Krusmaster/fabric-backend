@@ -1,0 +1,3 @@
+table_name,column_name
+order_items,order_id
+order_items,line_no
