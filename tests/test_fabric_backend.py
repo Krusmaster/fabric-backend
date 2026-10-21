@@ -134,8 +134,9 @@ def test_definition_shape(schema, keys):
     assert ds["sourceType"] == "SqlAnalyticsEndpoint" and ds["sourceItemId"] == "ep-1"
     objs = {o["graphqlType"]: o for o in ds["objects"]}
     assert objs["orders"]["sourceObject"] == "dbo.orders"
-    assert objs["orders"]["actions"] == {"Query": "Enabled", "Query_by_pk": "Enabled"}
-    assert objs["audit_log"]["actions"] == {"Query": "Enabled"}
+    ro = {"Create": "Disabled", "Update": "Disabled", "Delete": "Disabled"}      # spelled out: omitted => Enabled in Fabric
+    assert objs["orders"]["actions"] == {"Query": "Enabled", "Query_by_pk": "Enabled", **ro}
+    assert objs["audit_log"]["actions"] == {"Query": "Enabled", "Query_by_pk": "Disabled", **ro}
     # every endpoint column must be mapped, technical ones included; "__" is reserved in GraphQL names
     assert objs["order_items"]["fieldMappings"]["__timestamp"] == "timestamp"
     m2o = [r for r in objs["orders"]["relationships"] if r["cardinality"] == "ManyToOne"]
@@ -162,7 +163,7 @@ def test_writable_only_for_warehouse(schema, keys):
     p = plan(schema, keys)
     lh = decode(definition(p, "a", "ws", "ep", writable=True))["datasources"][0]["objects"][0]["actions"]
     wh = decode(definition(p, "a", "ws", "wh", source_type="Warehouse", writable=True))["datasources"][0]["objects"][0]["actions"]
-    assert "Create" not in lh and wh["Create"] == "Enabled" and wh["Delete"] == "Disabled"
+    assert lh["Create"] == "Disabled" and wh["Create"] == "Enabled" and wh["Update"] == "Enabled" and wh["Delete"] == "Disabled"
 
 
 def test_tables_filter_and_names(schema, keys):
@@ -202,3 +203,31 @@ def test_reserved_relationship_field_names_are_suffixed():
     p = plan(s)
     r = p.relationships[0]
     assert (r.source, r.target, r.reverse_name) == ("items", "order", "items_lines")   # "items" alone -> 500 in Fabric
+
+
+def test_find_item_by_name_skips_sql_endpoint_with_same_name(monkeypatch):
+    import importlib; dp = importlib.import_module("fabric_backend.deploy")
+
+    class R:
+        status_code = 200
+        def raise_for_status(self): pass
+        def json(self):
+            return {"value": [{"id": "ep", "displayName": "lh", "type": "SQLEndpoint"},
+                              {"id": "lh-id", "displayName": "lh", "type": "Lakehouse"}]}
+    import types, sys
+    fake = types.SimpleNamespace(get=lambda *a, **k: R())
+    monkeypatch.setitem(sys.modules, "requests", fake)
+    assert dp.find_item_by_name("ws", "lh", {})["id"] == "lh-id"
+
+
+def test_id_from_null_body():
+    from fabric_backend.deploy import _id_from
+
+    class R:
+        def __init__(self, t): self.text = t
+        def json(self):
+            import json; return json.loads(self.text)
+    assert _id_from(R("null")) is None and _id_from(R('{"id":"x"}')) == "x"
+    class Bad:
+        def json(self): raise ValueError
+    assert _id_from(Bad()) is None

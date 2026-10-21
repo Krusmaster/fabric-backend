@@ -53,8 +53,15 @@ def find_item(workspace: str, display_name: str, headers: dict, item_type: str =
     return None
 
 
-def find_item_by_name(workspace: str, display_name: str, headers: dict) -> dict | None:
-    """Any item type — used to resolve a lakehouse/warehouse given by name."""
+SOURCE_ITEM_TYPES = ("Lakehouse", "Warehouse", "SQLDatabase", "MirroredDatabase")
+
+
+def find_item_by_name(workspace: str, display_name: str, headers: dict,
+                      types: tuple[str, ...] = SOURCE_ITEM_TYPES) -> dict | None:
+    """Resolve a lakehouse/warehouse/SQL database/mirrored database given by name.
+
+    A lakehouse's SQL analytics endpoint carries the SAME display name and is listed before the
+    lakehouse, so the lookup is restricted to source item types (issue #1, bug A)."""
     import requests
     url = f"{FABRIC}/v1/workspaces/{workspace}/items"
     while url:
@@ -62,7 +69,7 @@ def find_item_by_name(workspace: str, display_name: str, headers: dict) -> dict 
         r.raise_for_status()
         body = r.json()
         for it in body.get("value", []):
-            if it.get("displayName") == display_name:
+            if it.get("displayName") == display_name and it.get("type") in types:
                 return it
         url = body.get("continuationUri")
     return None
@@ -115,7 +122,7 @@ def deploy(env: dict, workspace: str, token_provider=None, poll_seconds: int = 3
         mode = "created"
     if r.status_code not in (200, 201, 202):
         return {"status": "Failed", "mode": mode, "http": r.status_code, "body": r.text}
-    item_id = existing or (r.json().get("id") if r.text else None)
+    item_id = existing or _id_from(r)
     op = r.headers.get("x-ms-operation-id")
     if op:
         for _ in range(max_polls):
@@ -131,6 +138,15 @@ def deploy(env: dict, workspace: str, token_provider=None, poll_seconds: int = 3
         if not item_id:
             item_id = find_item(workspace, env["displayName"], headers)
     return {"status": "Succeeded", "mode": mode, "id": item_id}
+
+
+def _id_from(r) -> str | None:
+    """POST /graphQLApis answers 202 with body `null` (issue #1, bug B); the id comes from the item list after the LRO."""
+    try:
+        body = r.json()
+    except ValueError:
+        return None
+    return body.get("id") if isinstance(body, dict) else None
 
 
 def endpoint_url(workspace: str, item_id: str) -> str:

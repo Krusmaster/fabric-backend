@@ -16,7 +16,8 @@ Verified against a live item (sandbox, 2026-10-21), which corrected four things 
 - fieldMappings must list every column the SQL endpoint has, technical columns included; a leading
   "__" is stripped from the GraphQL name because GraphQL reserves that prefix
 - a relationship field named "items" collides with the connection's own `items` list (500) — see infer
-- Query_by_pk is accepted in the definition; keyless tables get Query only (no pk to query by)
+- actions left out of the definition are stored as Enabled, so all five are always spelled out;
+  on a SQL analytics endpoint the schema has no Mutation type regardless
 """
 from __future__ import annotations
 
@@ -63,9 +64,12 @@ def definition(plan: Plan, display_name: str, workspace_id: str, source_item_id:
         if wanted and t.name.lower() not in wanted:
             continue
         keyed = t.name in plan.keys
-        actions = {"Query": "Enabled", "Query_by_pk": "Enabled"} if keyed else {"Query": "Enabled"}
-        if writable and keyed and source_type in ("Warehouse", "SqlDbNative", "AzureSql"):
-            actions.update({"Create": "Enabled", "Update": "Enabled", "Delete": "Disabled"})
+        # Fabric stores any action you leave out as Enabled (issue #1, note C) — so every action is spelled out
+        can_write = writable and keyed and source_type in ("Warehouse", "SqlDbNative", "AzureSql")
+        actions = {"Query": "Enabled", "Query_by_pk": "Enabled" if keyed else "Disabled",
+                   "Create": "Enabled" if can_write else "Disabled",
+                   "Update": "Enabled" if can_write else "Disabled",
+                   "Delete": "Disabled"}
         objects[t.name] = {
             "graphqlType": graphql_name(t.name),
             "sourceObject": f"{t.schema}.{t.name}",
