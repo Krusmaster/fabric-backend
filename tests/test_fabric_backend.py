@@ -231,3 +231,41 @@ def test_id_from_null_body():
     class Bad:
         def json(self): raise ValueError
     assert _id_from(Bad()) is None
+
+
+def test_rayfin_entities_and_schema(schema, keys):
+    from fabric_backend.rayfin import rayfin_files, prop_name, class_name, rayfin_type
+    assert prop_name("customer_id") == "customerId" and prop_name("OrderID") == "orderID" and prop_name("__timestamp") == "timestamp"
+    assert class_name("order_items") == "OrderItems" and class_name("I_SALESDOCUMENT") == "ISalesdocument"
+    assert rayfin_type("decimal(15,2)") == ("decimal", "number") and rayfin_type("varchar") == ("text", "string")
+    assert rayfin_type("datetime2") == ("date", "string") and rayfin_type("bit") == ("boolean", "boolean")
+    files = rayfin_files(plan(schema, keys), "shop")
+    assert set(files) == {f"rayfin/connectors/shop/{n}.ts" for n in
+                          ["Customers", "Products", "Categories", "Orders", "OrderItems", "Addresses", "AuditLog", "schema"]} | {"rayfin/connectors/shop/README.generated.md"}
+    orders = files["rayfin/connectors/shop/Orders.ts"]
+    assert "export class Orders extends Source({ schema: 'dbo', table: 'orders', primaryKey: ['orderId'] })" in orders
+    assert "@int({ column: 'order_id' }) orderId!: number;" in orders
+    assert "@one(() => Customers) customer?: Customers;" in orders
+    assert "@many(() => OrderItems) orderItems?: OrderItems[];" in orders
+    assert "import { Customers } from './Customers.js';" in orders
+    items = files["rayfin/connectors/shop/OrderItems.ts"]
+    assert "primaryKey: ['orderId', 'lineNo']" in items and "@date({ column: '__timestamp' }) timestamp!: string;" in items
+    audit = files["rayfin/connectors/shop/AuditLog.ts"]
+    assert "primaryKey" not in audit and "// no key (rule K3)" in audit and "@one(() => Customers)" in audit
+    sch = files["rayfin/connectors/shop/schema.ts"]
+    assert "connector: 'fabric-sqlanalytics'" in sch and "entities: { Customers, Products, Categories, Orders, OrderItems, Addresses, AuditLog }" in sch
+    assert "export type ShopSchema = GraphQLBackedConnector<" in sch
+    no_rel = rayfin_files(plan(schema, keys), "shop", relationships=False)["rayfin/connectors/shop/Orders.ts"]
+    assert "@one" not in no_rel and "many" not in no_rel.split("from '@microsoft/rayfin-core'")[0]
+
+
+def test_rayfin_warehouse_type_and_rejects_semantic_model(schema, keys):
+    from fabric_backend.rayfin import rayfin_files
+    assert "connector: 'fabric-warehouse'" in rayfin_files(plan(schema, keys), "x", "Warehouse")["rayfin/connectors/x/schema.ts"]
+    with pytest.raises(ValueError):
+        rayfin_files(plan(schema, keys), "x", "AzureSql")
+
+
+def test_cli_rayfin(tmp_path):
+    assert main(["rayfin", str(EX / "columns.csv"), "--keys", str(EX / "keys.csv"), "--connector", "shop", "--out", str(tmp_path)]) == 0
+    assert (tmp_path / "rayfin/connectors/shop/Orders.ts").exists()
