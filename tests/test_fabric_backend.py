@@ -128,17 +128,18 @@ def test_declared_keys_win(schema):
 def test_definition_shape(schema, keys):
     p = plan(schema, keys)
     env = definition(p, "shop_api", "ws-1", "ep-1")
-    assert env["type"] == "GraphQLApi" and env["definition"]["format"] == "GraphQLApiV1"
+    assert env["type"] == "GraphQLApi" and "format" not in env["definition"]   # InvalidDefinitionFormat otherwise
     body = decode(env)
     ds = body["datasources"][0]
     assert ds["sourceType"] == "SqlAnalyticsEndpoint" and ds["sourceItemId"] == "ep-1"
     objs = {o["graphqlType"]: o for o in ds["objects"]}
     assert objs["orders"]["sourceObject"] == "dbo.orders"
     assert objs["orders"]["actions"] == {"Query": "Enabled", "Query_by_pk": "Enabled"}
-    assert objs["audit_log"]["actions"]["Query_by_pk"] == "Disabled"
-    assert "__timestamp" not in objs["order_items"]["fieldMappings"]
+    assert objs["audit_log"]["actions"] == {"Query": "Enabled"}
+    # every endpoint column must be mapped, technical ones included; "__" is reserved in GraphQL names
+    assert objs["order_items"]["fieldMappings"]["__timestamp"] == "timestamp"
     m2o = [r for r in objs["orders"]["relationships"] if r["cardinality"] == "ManyToOne"]
-    assert m2o == [{"field": "customer", "cardinality": "ManyToOne", "targetObject": "customers",
+    assert m2o == [{"field": "customer", "cardinality": "ManyToOne", "targetObject": "dbo.customers",
                     "sourceFields": ["customer_id"], "targetFields": ["customer_id"]}]
     o2m = {r["field"]: r for r in objs["customers"]["relationships"]}
     assert set(o2m) == {"orders", "addresses", "audit_log"}
@@ -191,3 +192,13 @@ def test_cli_plan_and_definition(tmp_path):
 def test_connection_card_lists_the_portal_clicks():
     card = connection_card("ws", "item", "shop_api")
     assert endpoint_url("ws", "item") in card and "Introspection" in card and "Run Queries and Mutations" in card
+
+
+def test_reserved_relationship_field_names_are_suffixed():
+    s = Schema.from_information_schema([
+        ("dbo", "order", "order_id", "int", 1),
+        ("dbo", "items", "item_id", "int", 1), ("dbo", "items", "order_id", "int", 2),
+    ])
+    p = plan(s)
+    r = p.relationships[0]
+    assert (r.source, r.target, r.reverse_name) == ("items", "order", "items_lines")   # "items" alone -> 500 in Fabric

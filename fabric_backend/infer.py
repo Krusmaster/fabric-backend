@@ -188,9 +188,14 @@ def _name_fields(rels: list[Relationship]) -> None:
         r.reverse_name = _gql(r.source if back[(r.target, r.source)] == 1 else f"{r.source}_by_{'_'.join(r.source_cols)}")
 
 
+RESERVED_FIELDS = {"items", "edges", "nodes", "pageinfo", "endcursor", "hasnextpage"}
+
+
 def _gql(s: str) -> str:
     s = re.sub(r"[^A-Za-z0-9_]", "_", s).lower()
-    return s if not s[:1].isdigit() else "_" + s
+    s = s if not s[:1].isdigit() else "_" + s
+    # "items" as a relationship field collides with the GraphQL connection's own `items` list (500 in Fabric)
+    return s + "_lines" if s in RESERVED_FIELDS else s
 
 
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> Plan:

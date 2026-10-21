@@ -9,6 +9,14 @@ https://learn.microsoft.com/rest/api/fabric/articles/item-management/definitions
 - Lakehouse and mirrored sources are read-only through GraphQL; `writable` only has an effect on
   Warehouse / SqlDbNative / AzureSql.
 - Each relationship becomes ManyToOne on the source and OneToMany on the target.
+
+Verified against a live item (sandbox, 2026-10-21), which corrected four things the docs do not say:
+- no "format" key in the definition (InvalidDefinitionFormat)
+- relationships[].targetObject is the target's *sourceObject* ("dbo.orders"), not its graphqlType
+- fieldMappings must list every column the SQL endpoint has, technical columns included; a leading
+  "__" is stripped from the GraphQL name because GraphQL reserves that prefix
+- a relationship field named "items" collides with the connection's own `items` list (500) — see infer
+- Query_by_pk is accepted in the definition; keyless tables get Query only (no pk to query by)
 """
 from __future__ import annotations
 
@@ -18,7 +26,6 @@ import re
 import uuid
 
 from .infer import Plan
-from .schema import TECH_COLS
 
 SCHEMA_URL = "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json"
 SOURCE_TYPES = ("SqlAnalyticsEndpoint", "Warehouse", "SqlDbNative", "AzureSql")
@@ -56,7 +63,7 @@ def definition(plan: Plan, display_name: str, workspace_id: str, source_item_id:
         if wanted and t.name.lower() not in wanted:
             continue
         keyed = t.name in plan.keys
-        actions = {"Query": "Enabled", "Query_by_pk": "Enabled" if keyed else "Disabled"}
+        actions = {"Query": "Enabled", "Query_by_pk": "Enabled"} if keyed else {"Query": "Enabled"}
         if writable and keyed and source_type in ("Warehouse", "SqlDbNative", "AzureSql"):
             actions.update({"Create": "Enabled", "Update": "Enabled", "Delete": "Disabled"})
         objects[t.name] = {
@@ -64,7 +71,7 @@ def definition(plan: Plan, display_name: str, workspace_id: str, source_item_id:
             "sourceObject": f"{t.schema}.{t.name}",
             "sourceObjectType": "Table",
             "actions": actions,
-            "fieldMappings": {c: graphql_name(c) for c in t.column_names if c.upper() not in TECH_COLS},
+            "fieldMappings": {c.name: graphql_name(c.name.lstrip("_")) for c in t.columns},
             "relationships": [],
         }
 
@@ -75,12 +82,12 @@ def definition(plan: Plan, display_name: str, workspace_id: str, source_item_id:
             continue
         objects[r.source]["relationships"].append({
             "field": r.field_name, "cardinality": "ManyToOne",
-            "targetObject": objects[r.target]["graphqlType"],
+            "targetObject": objects[r.target]["sourceObject"],
             "sourceFields": r.source_cols, "targetFields": r.target_cols,
         })
         objects[r.target]["relationships"].append({
             "field": r.reverse_name, "cardinality": "OneToMany",
-            "targetObject": objects[r.source]["graphqlType"],
+            "targetObject": objects[r.source]["sourceObject"],
             "sourceFields": r.target_cols, "targetFields": r.source_cols,
         })
 
@@ -100,7 +107,7 @@ def definition(plan: Plan, display_name: str, workspace_id: str, source_item_id:
     env = {
         "displayName": display_name,
         "type": "GraphQLApi",
-        "definition": {"format": "GraphQLApiV1", "parts": [
+        "definition": {"parts": [
             {"path": "graphql-definition.json", "payload": b64(body), "payloadType": "InlineBase64"},
             {"path": ".platform", "payload": b64(platform), "payloadType": "InlineBase64"},
         ]},
