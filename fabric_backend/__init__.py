@@ -8,7 +8,7 @@ from .deploy import deploy, connection_card, endpoint_url, source_for, find_item
 
 __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definition", "decode",
            "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from"]
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def plan_from(spark=None, execute=None, schema: str = "dbo", database: str | None = None,

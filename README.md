@@ -23,14 +23,15 @@ exists — and prints the endpoint plus the two portal clicks the API cannot do 
 %pip install git+https://github.com/Krusmaster/fabric-backend[deploy]
 import fabric_backend as fb
 
-out = fb.create(workspace="<workspace id>", source="my_lakehouse", name="shop_api", spark=spark)
+out = fb.create(workspace="<workspace id>", source="my_lakehouse", name="shop_api", spark=spark,
+                keys={"order_items": ["order_id", "line_no"]})   # composite keys cannot be guessed from names
 print(out["plan"].summary())
 print(out["card"])
 ```
 
 ```
 7 tables, 6 with keys, 6 relationships
-no key (query only, nothing can point at them): audit_log
+no key (query only; can reference others, cannot be referenced): audit_log
 GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/<ws>/graphqlapis/<id>/graphql
 Still to do in the Fabric portal (no API for these yet):
   [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)
@@ -105,12 +106,14 @@ either, open an issue; it is the one thing standing between this and zero clicks
 
 ## Status
 
-v0.1.0. Inference, definition and CLI are tested on the synthetic schema in `examples/`.
-Deployment follows the documented GraphQLApi definition and the same create/update path as
-sap-ontology's Ontology deploy. **Not yet run end to end against a live workspace** — that is
-[issue #1](https://github.com/Krusmaster/fabric-backend/issues/1), and the status line changes
-when it has been. Lovable-side: the endpoint is consumed by Lovable's standard Fabric connector;
-nothing Lovable-specific is generated.
+v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in
+place, nested queries across inferred relationships over four hops (customer → orders → lines →
+product → category). Findings and the three fixes that came out of it are in
+[issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a lakehouse's SQL endpoint
+shares its display name, a 202 create answers with an empty body, and any action left out of the
+definition is stored as *Enabled* — so all five are now always spelled out. Introspection and
+item permissions remain portal clicks. Lovable-side: the endpoint is consumed by Lovable's
+standard Fabric connector; nothing Lovable-specific is generated.
 
 ## Works on
 

@@ -53,7 +53,7 @@ class Plan:
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
         if self.keyless:
-            lines.append("no key (query only, nothing can point at them): " + ", ".join(self.keyless))
+            lines.append("no key (query only; can reference others, cannot be referenced): " + ", ".join(self.keyless))
         if self.ambiguous:
             lines.append(f"{len(self.ambiguous)} ambiguous columns not applied — see plan.ambiguous")
         return "\n".join(lines)

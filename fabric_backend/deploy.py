@@ -88,6 +88,8 @@ def sql_endpoint_id_for_lakehouse(workspace_id: str, lakehouse_id: str, headers:
 def source_for(workspace_id: str, item: dict, headers: dict) -> tuple[str, str]:
     """(source_item_id, source_type) for a lakehouse / warehouse / SQL database item dict."""
     t = item["type"]
+    if t == "SQLEndpoint":          # a source resolved to its SQL analytics endpoint: that id is the one the definition needs
+        return item["id"], "SqlAnalyticsEndpoint"
     if t == "Lakehouse":
         return sql_endpoint_id_for_lakehouse(workspace_id, item["id"], headers), "SqlAnalyticsEndpoint"
     if t == "Warehouse":

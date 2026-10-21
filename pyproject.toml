@@ -1,6 +1,6 @@
 [project]
 name = "fabric-backend"
-version = "0.1.0"
+version = "0.1.1"
 description = "Tables in Microsoft Fabric -> a GraphQL backend for Lovable, Cursor and Claude Code. One call."
 readme = "README.md"
 license = { text = "MIT" }
