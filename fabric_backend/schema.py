@@ -16,6 +16,7 @@ Nothing here infers anything. Keys and relationships are `infer.py`'s job.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 
 TECH_COLS = {"__SEQUENCE_NUMBER", "__TIMESTAMP", "__ROWMARKER__"}
 
@@ -137,6 +138,22 @@ class Schema:
                 continue
             cols = spark.catalog.listColumns(t.name, db)
             s.tables[t.name] = Table(t.name, [Column(c.name, c.dataType) for c in cols], schema=lakehouse_schema)
+        return s
+
+    @classmethod
+    def from_rayfin_metadata(cls, path, schema: str | None = None) -> "Schema":
+        """The metadata.json that `npx rayfin connector add` writes: columns, SQL types and nullability per table
+        (no keys, no foreign keys for a lakehouse — inference still runs). schema=None takes the first schema in the file."""
+        import json
+        d = json.loads(Path(path).read_text(encoding="utf-8")) if not isinstance(path, dict) else path
+        schemas = d.get("schemas", [])
+        chosen = next((x for x in schemas if schema is None or x.get("schemaName", "").lower() == schema.lower()), None)
+        if chosen is None:
+            raise ValueError(f"schema {schema!r} not in metadata.json (has {[x.get('schemaName') for x in schemas]})")
+        s = cls(schema=chosen.get("schemaName", "dbo"))
+        for t in chosen.get("tables", []):
+            s.tables[t["tableName"]] = Table(t["tableName"], [Column(c["columnName"], str(c.get("dataType", "string")).lower())
+                                                              for c in t.get("columns", [])], schema=s.schema)
         return s
 
     def to_rows(self) -> list[dict]:

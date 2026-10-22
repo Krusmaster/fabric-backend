@@ -238,20 +238,20 @@ def test_rayfin_entities_and_schema(schema, keys):
     assert prop_name("customer_id") == "customerId" and prop_name("OrderID") == "orderID" and prop_name("__timestamp") == "timestamp"
     assert class_name("order_items") == "OrderItems" and class_name("I_SALESDOCUMENT") == "ISalesdocument"
     assert rayfin_type("decimal(15,2)") == ("decimal", "number") and rayfin_type("varchar") == ("text", "string")
-    assert rayfin_type("datetime2") == ("date", "string") and rayfin_type("bit") == ("boolean", "boolean")
+    assert rayfin_type("datetime2") == ("date", "Date") and rayfin_type("bit") == ("boolean", "boolean")
     files = rayfin_files(plan(schema, keys), "shop")
     assert set(files) == {f"rayfin/connectors/shop/{n}.ts" for n in
                           ["Customers", "Products", "Categories", "Orders", "OrderItems", "Addresses", "AuditLog", "schema"]} | {"rayfin/connectors/shop/README.generated.md"}
     orders = files["rayfin/connectors/shop/Orders.ts"]
     assert "export class Orders extends Source({ schema: 'dbo', table: 'orders', primaryKey: ['orderId'] })" in orders
     assert "@int({ column: 'order_id' }) orderId!: number;" in orders
-    assert "@one(() => Customers) customer?: Customers;" in orders
-    assert "@many(() => OrderItems) orderItems?: OrderItems[];" in orders
+    assert "@one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;" in orders
+    assert "@many(() => OrderItems, { sourceFields: ['orderId'], targetFields: ['orderId'] }) orderItems?: OrderItems[];" in orders
     assert "import { Customers } from './Customers.js';" in orders
     items = files["rayfin/connectors/shop/OrderItems.ts"]
-    assert "primaryKey: ['orderId', 'lineNo']" in items and "@date({ column: '__timestamp' }) timestamp!: string;" in items
+    assert "primaryKey: ['orderId', 'lineNo']" in items and "@date({ column: '__timestamp' }) timestamp!: Date;" in items
     audit = files["rayfin/connectors/shop/AuditLog.ts"]
-    assert "primaryKey" not in audit and "// no key (rule K3)" in audit and "@one(() => Customers)" in audit
+    assert "primaryKey" not in audit and "// no key (rule K3)" in audit and "@one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] })" in audit
     sch = files["rayfin/connectors/shop/schema.ts"]
     assert "connector: 'fabric-sqlanalytics'" in sch and "entities: { Customers, Products, Categories, Orders, OrderItems, Addresses, AuditLog }" in sch
     assert "export type ShopSchema = GraphQLBackedConnector<" in sch
@@ -269,3 +269,20 @@ def test_rayfin_warehouse_type_and_rejects_semantic_model(schema, keys):
 def test_cli_rayfin(tmp_path):
     assert main(["rayfin", str(EX / "columns.csv"), "--keys", str(EX / "keys.csv"), "--connector", "shop", "--out", str(tmp_path)]) == 0
     assert (tmp_path / "rayfin/connectors/shop/Orders.ts").exists()
+
+
+def test_schema_from_rayfin_metadata(tmp_path):
+    meta = {"source": "shop", "connector": "fabric-sqlanalytics", "schemas": [{"schemaName": "shop", "tables": [
+        {"tableName": "orders", "columns": [{"columnName": "order_id", "dataType": "int", "isNullable": False},
+                                            {"columnName": "customer_id", "dataType": "int", "isNullable": True},
+                                            {"columnName": "__timestamp", "dataType": "datetime2", "isNullable": True}]},
+        {"tableName": "customers", "columns": [{"columnName": "customer_id", "dataType": "int"}, {"columnName": "name", "dataType": "varchar"}]}]}]}
+    s = Schema.from_rayfin_metadata(meta)
+    assert s.schema == "shop" and set(s.tables) == {"orders", "customers"}
+    p = plan(s)
+    assert [(r.source, r.target, r.rule) for r in p.relationships] == [("orders", "customers", "R1")]
+    import json
+    f = tmp_path / "metadata.json"; f.write_text(json.dumps(meta))
+    assert main(["rayfin", str(f), "--schema", "shop", "--connector", "shop", "--out", str(tmp_path)]) == 0
+    text = (tmp_path / "rayfin/connectors/shop/Orders.ts").read_bytes()
+    assert b"\r\n" not in text and b"schema: 'shop', table: 'orders'" in text

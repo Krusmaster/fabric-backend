@@ -9,7 +9,7 @@ import { Customers } from './Customers.js';
 export class AuditLog extends Source({ schema: 'dbo', table: 'audit_log' }) {
   @text() event!: string;
   @int({ column: 'customer_id' }) customerId!: number;
-  @date({ column: 'happened_at' }) happenedAt!: string;
+  @date({ column: 'happened_at' }) happenedAt!: Date;
 
-  @one(() => Customers) customer?: Customers;    // customer_id -> customers [R1]
+  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]
 }

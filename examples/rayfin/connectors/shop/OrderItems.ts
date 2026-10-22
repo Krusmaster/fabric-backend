@@ -12,8 +12,8 @@ export class OrderItems extends Source({ schema: 'dbo', table: 'order_items', pr
   @int({ column: 'line_no' }) lineNo!: number;
   @int({ column: 'product_id' }) productId!: number;
   @decimal() quantity!: number;
-  @date({ column: '__timestamp' }) timestamp!: string;
+  @date({ column: '__timestamp' }) timestamp!: Date;
 
-  @one(() => Orders) order?: Orders;    // order_id -> orders [R1]
-  @one(() => Products) product?: Products;    // product_id -> products [R1]
+  @one(() => Orders, { sourceFields: ['orderId'], targetFields: ['orderId'] }) order?: Orders;    // order_id -> orders [R1]
+  @one(() => Products, { sourceFields: ['productId'], targetFields: ['productId'] }) product?: Products;    // product_id -> products [R1]
 }

@@ -3,7 +3,7 @@
   fabric-backend plan   columns.csv [--keys keys.csv] [--mermaid out.mmd] [--json plan.json]
   fabric-backend definition columns.csv --name MyApi --workspace WS --source-item ID [--source-type ...] --out def.json
   fabric-backend deploy def.json --workspace WS
-  fabric-backend rayfin columns.csv [--keys keys.csv] --connector inventory [--source-type SqlAnalyticsEndpoint] [--out .]
+  fabric-backend rayfin columns.csv|metadata.json [--keys keys.csv] --connector inventory [--source-type SqlAnalyticsEndpoint] [--out .]
   fabric-backend create --workspace WS --source <lakehouse name|id> --name MyApi --odbc "<connection string>"
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
@@ -73,7 +73,9 @@ def cmd_deploy(a) -> int:
 
 
 def cmd_rayfin(a) -> int:
-    p = plan(Schema.from_information_schema(_csv(a.columns), schema=a.schema), _keys_arg(a.keys))
+    src = (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
+           else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
+    p = plan(src, _keys_arg(a.keys))
     files = rayfin_files(p, a.connector, a.source_type, relationships=not a.no_relationships)
     for path in write_rayfin(files, a.out):
         print("wrote", path)

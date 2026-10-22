@@ -10,5 +10,5 @@ export class Categories extends Source({ schema: 'dbo', table: 'categories', pri
   @int() id!: number;
   @text() name!: string;
 
-  @many(() => Products) products?: Products[];    // products.category_id [R1]
+  @many(() => Products, { sourceFields: ['id'], targetFields: ['categoryId'] }) products?: Products[];    // products.category_id [R1]
 }

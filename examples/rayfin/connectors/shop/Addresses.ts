@@ -11,5 +11,5 @@ export class Addresses extends Source({ schema: 'dbo', table: 'addresses', prima
   @int({ column: 'customer_id' }) customerId!: number;
   @text() city!: string;
 
-  @one(() => Customers) customer?: Customers;    // customer_id -> customers [R1]
+  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]
 }

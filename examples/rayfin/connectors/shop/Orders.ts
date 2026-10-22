@@ -10,9 +10,9 @@ import { OrderItems } from './OrderItems.js';
 export class Orders extends Source({ schema: 'dbo', table: 'orders', primaryKey: ['orderId'] }) {
   @int({ column: 'order_id' }) orderId!: number;
   @int({ column: 'customer_id' }) customerId!: number;
-  @date({ column: 'order_date' }) orderDate!: string;
+  @date({ column: 'order_date' }) orderDate!: Date;
   @int({ column: 'ship_to_id' }) shipToId!: number;
 
-  @one(() => Customers) customer?: Customers;    // customer_id -> customers [R1]
-  @many(() => OrderItems) orderItems?: OrderItems[];    // order_items.order_id [R1]
+  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]
+  @many(() => OrderItems, { sourceFields: ['orderId'], targetFields: ['orderId'] }) orderItems?: OrderItems[];    // order_items.order_id [R1]
 }

@@ -109,17 +109,22 @@ export class Orders extends Source({ schema: 'dbo', table: 'orders', primaryKey:
   @int({ column: 'customer_id' }) customerId!: number;
   @date({ column: 'order_date' }) orderDate!: string;
 
-  @one(() => Customers) customer?: Customers;          // customer_id -> customers [R1]
-  @many(() => OrderItems) orderItems?: OrderItems[];   // order_items.order_id [R1]
+  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;   // [R1]
+  @many(() => OrderItems, { sourceFields: ['orderId'], targetFields: ['orderId'] }) orderItems?: OrderItems[];  // [R1]
 }
 ```
 
-Offline: `fabric-backend rayfin columns.csv --keys keys.csv --connector shop --out .` — the full
-output for the synthetic schema is in `examples/rayfin/`. From an agent: the MCP tool
-`rayfin_connector`. Rayfin's docs say *don't infer a primary key from a column name*; this does,
-and prints the rule beside every key so you can take it out. `@one`/`@many` are documented for
-app-owned models; whether a connector entity accepts them is the first thing to verify
-(`relationships=False` leaves them out).
+Offline: `fabric-backend rayfin columns.csv --keys keys.csv --connector shop --out .`, or straight
+from the `metadata.json` that `npx rayfin connector add` writes (`fabric-backend rayfin
+rayfin/connectors/shop/metadata.json --schema shop ...`) — it has columns and types but no keys,
+so inference still runs. The full output for the synthetic schema is in `examples/rayfin/`. From
+an agent: the MCP tool `rayfin_connector`.
+
+Two things the Rayfin docs do not say, learned from running it: `@one`/`@many` work on connector
+entities **only with `sourceFields`/`targetFields`** — without them Rayfin invents a column
+(`customer_customer_id`) and the query fails; and `@date()` properties are typed `Date`, not
+`string`. Both are generated. The docs do say *don't infer a primary key from a column name*; this
+does, and prints the rule beside every key so you can take it out.
 
 ## Sources it can expose
 
@@ -149,8 +154,11 @@ product → category). Findings and the three fixes that came out of it are in
 [issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a lakehouse's SQL endpoint
 shares its display name, a 202 create answers with an empty body, and any action left out of the
 definition is stored as *Enabled* — so all five are now always spelled out. Introspection and
-item permissions remain portal clicks. The Rayfin output follows the documented entity shape and is
-**not yet run through `npx rayfin up`** ([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)). Lovable-side: the endpoint is consumed by Lovable's
+item permissions remain portal clicks. The Rayfin output went through `npx rayfin up` in the same sandbox on 2026-10-22
+([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)): deploy accepted, composite
+keys and `@date` columns work, the four-hop chain customer → orders → lines → product → category
+resolves through the connector's GraphQL item. Reading through the Rayfin browser client was not
+tested (app auth needs `Item.Execute.All`). Lovable-side: the endpoint is consumed by Lovable's
 standard Fabric connector; nothing Lovable-specific is generated.
 
 ## Works on

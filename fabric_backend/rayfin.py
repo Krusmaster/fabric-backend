@@ -15,12 +15,12 @@ This module writes those files from a Plan: one class per table with the right f
 the key, and the relationships the plan inferred as `@one(() => Target)` / `@many(() => Target)`.
 
 Docs used (Oct 2026): learn.microsoft.com/fabric/apps/connectors and the decorators reference
-shipped in @microsoft/rayfin-core. Verified against the docs, not yet against `npx rayfin up` —
-README "Status" says when it has been. Two things the docs leave open and this code assumes:
-- `@one` / `@many` are documented for app-owned models; whether a connector entity accepts them is
-  the first thing to verify. `relationships=False` leaves them out.
-- the docs say "don't infer a primary key from a column name". We do (rule K2) — and print the
-  rule beside every key so you can take it out.
+shipped in @microsoft/rayfin-core. Verified with `npx rayfin up` in a sandbox (2026-10-22). Two things the docs do not say:
+- `@one` / `@many` work on connector entities, but only with `{ sourceFields, targetFields }` —
+  without them Rayfin derives a column like `customer_customer_id` that the table does not have.
+- `@date()` properties are typed `Date`, not `string`, or the type check fails.
+And one thing the docs do say: "don't infer a primary key from a column name". We do (rule K2) —
+and print the rule beside every key so you can take it out.
 """
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ _TYPE_RULES = [
     (re.compile(r"^(int|integer|smallint|tinyint|bigint|long|short|byte)"), "int", "number"),
     (re.compile(r"^(decimal|numeric|money|smallmoney|float|real|double)"), "decimal", "number"),
     (re.compile(r"^(bit|boolean|bool)"), "boolean", "boolean"),
-    (re.compile(r"^(date|datetime|datetime2|smalldatetime|timestamp|time)"), "date", "string"),
+    (re.compile(r"^(date|datetime|datetime2|smalldatetime|timestamp|time)"), "date", "Date"),   # @date() is typed Date (connector contract §4)
 ]
 
 
@@ -79,6 +79,14 @@ def class_name(table: str) -> str:
     return n if not n[:1].isdigit() else "_" + n
 
 
+def _fk_fields(source: list[str], target: list[str]) -> str:
+    """Without sourceFields/targetFields Rayfin derives the FK column as <field>_<target key> (customer_customer_id),
+    which a connector table does not have; so the join columns are always spelled out."""
+    def q(xs: list[str]) -> str:
+        return "[" + ", ".join(f"'{x}'" for x in xs) + "]"
+    return f"{{ sourceFields: {q(source)}, targetFields: {q(target)} }}"
+
+
 def entity_ts(t: Table, plan: Plan, relationships: bool = True,
               role: tuple[str, list[str]] | None = ("authenticated", ["read"])) -> str:
     cls = class_name(t.name)
@@ -98,12 +106,14 @@ def entity_ts(t: Table, plan: Plan, relationships: bool = True,
         for r in plan.relationships:
             if r.source == t.name and r.target in plan.keys:
                 tc = class_name(r.target)
-                rel_lines.append(f"  @one(() => {tc}) {prop_name(r.field_name)}?: {tc};    // {'+'.join(r.source_cols)} -> {r.target} [{r.rule}]")
+                fields = _fk_fields([prop_name(c) for c in r.source_cols], [prop_name(c) for c in r.target_cols])
+                rel_lines.append(f"  @one(() => {tc}, {fields}) {prop_name(r.field_name)}?: {tc};    // {'+'.join(r.source_cols)} -> {r.target} [{r.rule}]")
                 decos_used.add("one")
                 imports.append(tc)
             elif r.target == t.name:
                 sc = class_name(r.source)
-                rel_lines.append(f"  @many(() => {sc}) {prop_name(r.reverse_name)}?: {sc}[];    // {r.source}.{'+'.join(r.source_cols)} [{r.rule}]")
+                fields = _fk_fields([prop_name(c) for c in r.target_cols], [prop_name(c) for c in r.source_cols])
+                rel_lines.append(f"  @many(() => {sc}, {fields}) {prop_name(r.reverse_name)}?: {sc}[];    // {r.source}.{'+'.join(r.source_cols)} [{r.rule}]")
                 decos_used.add("many")
                 imports.append(sc)
     if role:
@@ -200,6 +210,6 @@ def write_rayfin(files: dict[str, str], root: str | Path = ".") -> list[Path]:
     for rel, content in files.items():
         p = root / rel
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
+        p.write_text(content, encoding="utf-8", newline="\n")   # no CRLF on Windows
         out.append(p)
     return out

@@ -13,7 +13,7 @@ export class Customers extends Source({ schema: 'dbo', table: 'customers', prima
   @text() name!: string;
   @text() country!: string;
 
-  @many(() => Orders) orders?: Orders[];    // orders.customer_id [R1]
-  @many(() => Addresses) addresses?: Addresses[];    // addresses.customer_id [R1]
-  @many(() => AuditLog) auditLog?: AuditLog[];    // audit_log.customer_id [R1]
+  @many(() => Orders, { sourceFields: ['customerId'], targetFields: ['customerId'] }) orders?: Orders[];    // orders.customer_id [R1]
+  @many(() => Addresses, { sourceFields: ['customerId'], targetFields: ['customerId'] }) addresses?: Addresses[];    // addresses.customer_id [R1]
+  @many(() => AuditLog, { sourceFields: ['customerId'], targetFields: ['customerId'] }) auditLog?: AuditLog[];    // audit_log.customer_id [R1]
 }

@@ -12,6 +12,6 @@ export class Products extends Source({ schema: 'dbo', table: 'products', primary
   @text() name!: string;
   @int({ column: 'category_id' }) categoryId!: number;
 
-  @one(() => Categories) category?: Categories;    // category_id -> categories [R1]
-  @many(() => OrderItems) orderItems?: OrderItems[];    // order_items.product_id [R1]
+  @one(() => Categories, { sourceFields: ['categoryId'], targetFields: ['id'] }) category?: Categories;    // category_id -> categories [R1]
+  @many(() => OrderItems, { sourceFields: ['productId'], targetFields: ['productId'] }) orderItems?: OrderItems[];    // order_items.product_id [R1]
 }
