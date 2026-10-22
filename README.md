@@ -69,6 +69,14 @@ Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it 
 custom connector with the `https://…/mcp` URL, and the loop is browse → plan → create → query.
 The local stdio server (`fabric-backend-mcp`, ODBC string) stays for single-user use.
 
+**Sign-in with Microsoft (the Claude connector directory path).** Set `MCP_PUBLIC_URL`, `ENTRA_CLIENT_ID` and
+`ENTRA_CLIENT_SECRET` and the server switches to per-user Entra sign-in: unauthenticated calls get the `401` with
+a `resource_metadata` pointer that Claude needs, `/.well-known/oauth-protected-resource` describes the resource,
+each user's token is validated (issuer per tenant, audience = the app, signature) and exchanged on-behalf-of for
+Fabric and SQL tokens — every call runs with that user's own Fabric permissions. `deploy/` has the Entra app
+registration, Azure Container Apps hosting, a privacy policy template, a synthetic demo dataset
+(`fabric_backend.seed`) and the full submission pack.
+
 ## How the relationships are inferred
 
 A lakehouse SQL endpoint has no keys and no foreign keys, so names are all there is. Every result

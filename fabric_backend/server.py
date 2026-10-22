@@ -5,6 +5,9 @@ for Claude, Cursor and Lovable.
     FABRIC_TENANT_ID / FABRIC_CLIENT_ID / FABRIC_CLIENT_SECRET   a service principal with access to the workspaces
 
 Authentication, in order:
+  0. Entra sign-in (when MCP_PUBLIC_URL / ENTRA_CLIENT_ID / ENTRA_CLIENT_SECRET are set) — the directory path:
+     each user signs in with their own work account, the server validates the token and exchanges it
+     on-behalf-of for Fabric and SQL tokens. Unauthenticated calls get the 401 Claude needs. See entra.py.
   1. `Authorization: Bearer <token>` on the request — a Fabric API token (audience api.fabric.microsoft.com);
      `X-Fabric-SQL-Token` carries the SQL analytics endpoint token (audience database.windows.net) when the
      caller has one. This is what an OAuth front (Entra on-behalf-of) will supply.
@@ -54,6 +57,37 @@ class Auth:
         self.client = os.environ.get("FABRIC_CLIENT_ID")
         self.secret = os.environ.get("FABRIC_CLIENT_SECRET")
         self._cache: dict[str, tuple[str, float]] = {}
+        from .entra import EntraConfig
+        self.entra = EntraConfig.from_env()
+        self._validator = self._obo = None
+
+    @property
+    def validator(self):
+        if self._validator is None:
+            from .entra import Validator
+            self._validator = Validator(self.entra)
+        return self._validator
+
+    @property
+    def obo(self):
+        if self._obo is None:
+            from .entra import OnBehalfOf
+            self._obo = OnBehalfOf(self.entra)
+        return self._obo
+
+    @staticmethod
+    def _bearer(ctx) -> str | None:
+        h = (ctx.headers if ctx is not None else {}) or {}
+        a = h.get("authorization") or h.get("Authorization") or ""
+        return a[7:].strip() if a.lower().startswith("bearer ") else None
+
+    def _user_token(self, ctx, scope: str) -> str:
+        """Entra mode: the request's token is for *this app*; exchange it for the downstream audience."""
+        tok = self._bearer(ctx)
+        if not tok:
+            raise PermissionError("sign-in required")
+        claims = self.validator.validate(tok)
+        return self.obo.token(tok, claims["tid"], scope)
 
     def _client_credentials(self, scope: str) -> str:
         if not (self.tenant and self.client and self.secret):
@@ -70,13 +104,14 @@ class Auth:
         return body["access_token"]
 
     def fabric(self, ctx: Context | None) -> str:
-        h = (ctx.headers if ctx is not None else {}) or {}
-        auth = h.get("authorization") or h.get("Authorization") or ""
-        if auth.lower().startswith("bearer "):
-            return auth[7:].strip()
-        return self._client_credentials(FABRIC_SCOPE)
+        if self.entra:
+            return self._user_token(ctx, FABRIC_SCOPE)
+        tok = self._bearer(ctx)
+        return tok if tok else self._client_credentials(FABRIC_SCOPE)
 
     def sql(self, ctx: Context | None) -> str:
+        if self.entra:
+            return self._user_token(ctx, SQL_SCOPE)
         h = (ctx.headers if ctx is not None else {}) or {}
         t = h.get("x-fabric-sql-token") or h.get("X-Fabric-SQL-Token")
         return t.strip() if t else self._client_credentials(SQL_SCOPE)
@@ -239,6 +274,50 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
     return json.dumps(body, indent=2, default=str)[:60000]
 
 
+def build_app(host: str = "0.0.0.0"):
+    """The ASGI app: the MCP endpoint at /mcp, plus — in Entra mode — the protected resource metadata and a
+    401 challenge in front of /mcp for any request without a valid token (Claude starts sign-in on the 401)."""
+    import json as _json
+    from starlette.responses import JSONResponse, Response
+    from starlette.routing import Route
+
+    app = mcp.streamable_http_app(stateless_http=True, host=host)
+    cfg = auth.entra
+
+    async def health(_request):
+        return JSONResponse({"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"})
+    app.router.routes.append(Route("/healthz", health))
+    if not cfg:
+        return app
+
+    from .entra import protected_resource_metadata, challenge, TokenError
+
+    async def prm(_request):
+        return JSONResponse(protected_resource_metadata(cfg))
+    app.router.routes.append(Route("/.well-known/oauth-protected-resource", prm))
+    app.router.routes.append(Route("/.well-known/oauth-protected-resource/mcp", prm))
+
+    inner = app
+
+    async def guarded(scope, receive, send):
+        if scope["type"] == "http" and scope["path"].rstrip("/").endswith("/mcp"):
+            headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+            a = headers.get("authorization", "")
+            err = "invalid_request"
+            if a.lower().startswith("bearer "):
+                try:
+                    auth.validator.validate(a[7:].strip())
+                    return await inner(scope, receive, send)
+                except TokenError:
+                    err = "invalid_token"
+            resp = Response(_json.dumps({"error": err}), status_code=401, media_type="application/json",
+                            headers={"WWW-Authenticate": challenge(cfg, err if err == "invalid_token" else None)})
+            return await resp(scope, receive, send)
+        return await inner(scope, receive, send)
+
+    return guarded
+
+
 def main() -> None:
     import argparse
     ap = argparse.ArgumentParser(prog="fabric-backend-server")
@@ -249,7 +328,8 @@ def main() -> None:
     if a.stdio:
         mcp.run(transport="stdio")
     else:
-        mcp.run(transport="streamable-http", host=a.host, port=a.port, stateless_http=True)
+        import uvicorn
+        uvicorn.run(build_app(a.host), host=a.host, port=a.port, proxy_headers=True, forwarded_allow_ips="*")
 
 
 if __name__ == "__main__":

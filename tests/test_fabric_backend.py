@@ -311,3 +311,19 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
         a.fabric(None)                      # no header, no service principal: refuse, never guess
 
     assert "not allowed" in server.query_graphql("ws", "api", "mutation { x }", ctx=Ctx())
+
+
+def test_seed_rows_match_the_example_schema():
+    from fabric_backend.seed import rows, SCHEMAS
+    r = rows()
+    assert r == rows()                                                    # deterministic
+    cols = {}
+    for row in csv.DictReader(open(EX / "columns.csv", encoding="utf-8")):
+        cols.setdefault(row["table_name"], []).append(row["column_name"])
+    for t, spec in SCHEMAS.items():
+        names = [c.split()[0] for c in spec.split(", ")]
+        assert names == [c for c in cols[t] if not c.startswith("__")], t
+        assert all(len(x) == len(names) for x in r[t])
+    order_ids = {o[0] for o in r["orders"]}
+    assert all(i[0] in order_ids for i in r["order_items"])                 # every line has its order
+    assert {o[3] for o in r["orders"]} <= {a[0] for a in r["addresses"]}    # ship_to points at an address
