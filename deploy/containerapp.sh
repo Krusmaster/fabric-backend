@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Host the remote MCP server on Azure Container Apps, in the PUBLISHER's subscription.
 #
-#   MCP_DOMAIN=<domain> ENTRA_CLIENT_ID=... ENTRA_CLIENT_SECRET=... ./deploy/containerapp.sh
+#   MCP_DOMAIN=<domain> PRODUCT_NAME=<name> CONTACT_EMAIL=<email> COMPANY_ORGNR=<org nr> \
+#   ENTRA_CLIENT_ID=... ENTRA_CLIENT_SECRET=... ./deploy/containerapp.sh
 #
 # Scales to zero when idle; at directory volumes that is a few euros a month. TLS comes from the managed
 # certificate on the custom domain (Claude requires https).
@@ -21,6 +22,7 @@ az containerapp create -n "$APP" -g "$RG" --environment "$ENV" \
   --target-port 8000 --ingress external --min-replicas 0 --max-replicas 3 \
   --secrets entra-secret="$ENTRA_CLIENT_SECRET" \
   --env-vars MCP_PUBLIC_URL="https://$MCP_DOMAIN/mcp" ENTRA_CLIENT_ID="$ENTRA_CLIENT_ID" ENTRA_CLIENT_SECRET=secretref:entra-secret \
+             PRODUCT_NAME="${PRODUCT_NAME:?}" CONTACT_EMAIL="${CONTACT_EMAIL:?}" COMPANY_ORGNR="${COMPANY_ORGNR:-}" \
   -o none
 
 FQDN=$(az containerapp show -n "$APP" -g "$RG" --query properties.configuration.ingress.fqdn -o tsv)

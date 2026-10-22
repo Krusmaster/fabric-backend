@@ -77,3 +77,19 @@ def test_on_behalf_of_exchanges_and_caches():
     assert data["grant_type"] == "urn:ietf:params:oauth:grant-type:jwt-bearer"
     o.token("userTOKEN", TID, "https://database.windows.net/.default")
     assert len(calls) == 2                                                        # different audience, new exchange
+
+
+def test_privacy_and_docs_pages(monkeypatch):
+    from fabric_backend.pages import privacy_html, docs_html
+    monkeypatch.setenv("PRODUCT_NAME", "Testname")
+    monkeypatch.setenv("MCP_PUBLIC_URL", "https://mcp.testname.io/mcp")
+    monkeypatch.setenv("CONTACT_EMAIL", "hello@testname.io")
+    monkeypatch.setenv("ENTRA_CLIENT_ID", "cid-123")
+    p, d = privacy_html(), docs_html()
+    assert "<h1>Privacy policy — Testname</h1>" in p and "Kruse Consulting AB" in p and "{{" not in p
+    assert "Template." not in p and "hello@testname.io" in p
+    for must in ("What we process", "Kept", "Third parties", "Your rights", "Contact"):   # directory: collection, storage, sharing, retention, contact
+        assert must in p, must
+    assert "<table>" in p and "never written to disk or logs" in p
+    assert "client_id=cid-123" in d and "https://mcp.testname.io/mcp" in d and "{{" not in d
+    assert "<td><code>create_backend</code></td>" in d

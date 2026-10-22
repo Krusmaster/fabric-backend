@@ -27,3 +27,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["fabric_backend*"]
+
+[tool.setuptools.package-data]
+fabric_backend = ["page_templates/*.md"]

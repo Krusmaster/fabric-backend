@@ -287,6 +287,17 @@ def build_app(host: str = "0.0.0.0"):
     async def health(_request):
         return JSONResponse({"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"})
     app.router.routes.append(Route("/healthz", health))
+
+    from starlette.responses import HTMLResponse
+    from .pages import privacy_html, docs_html
+
+    async def privacy(_request):
+        return HTMLResponse(privacy_html())
+
+    async def docs(_request):
+        return HTMLResponse(docs_html())
+    app.router.routes.append(Route("/privacy", privacy))
+    app.router.routes.append(Route("/docs", docs))
     if not cfg:
         return app
 

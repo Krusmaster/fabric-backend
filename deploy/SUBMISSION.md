@@ -13,7 +13,7 @@ Placeholders: `{{PRODUCT}}`, `{{DOMAIN}}`, `{{CONTACT}}`.
 | 4 | Fabric trial in the AB's tenant, workspace `demo`, lakehouse `demo_lh` | Gustav | `fabric_backend.seed.seed(spark, "shop")` in a notebook |
 | 5 | Entra app | script | `MCP_PUBLIC_URL=https://{{DOMAIN}}/mcp ./deploy/entra-app.sh` |
 | 6 | Hosting + custom domain | script | `MCP_DOMAIN={{DOMAIN}} … ./deploy/containerapp.sh` |
-| 7 | Privacy policy live at https://{{DOMAIN}}/privacy, docs at https://{{DOMAIN}}/docs | Gustav | `deploy/PRIVACY.md` filled in |
+| 7 | Privacy policy and docs live | automatic | the server serves `/privacy` and `/docs`; set `PRODUCT_NAME`, `CONTACT_EMAIL`, `COMPANY_ORGNR` on the container |
 | 8 | Admin consent in the demo tenant | Gustav | consent URL printed by step 5 |
 | 9 | Test as custom connector in Claude: every tool called once | Gustav | Settings → Connectors → Add custom connector → `https://{{DOMAIN}}/mcp` |
 | 10 | Email mcp-review@anthropic.com with the client id → Anthropic-held credentials | Gustav | secret only via the channel they give |
