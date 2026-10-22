@@ -13,11 +13,13 @@ keywords = ["microsoft-fabric", "graphql", "lovable", "rayfin", "fabric-apps", "
 deploy = ["requests"]
 sql = ["pyodbc"]
 mcp = ["mcp>=1.2", "requests", "pyodbc"]
+server = ["mcp>=2", "requests", "pyodbc", "uvicorn"]
 test = ["pytest"]
 
 [project.scripts]
 fabric-backend = "fabric_backend.cli:main"
 fabric-backend-mcp = "fabric_backend.mcp_server:main"
+fabric-backend-server = "fabric_backend.server:main"
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -286,3 +286,28 @@ def test_schema_from_rayfin_metadata(tmp_path):
     assert main(["rayfin", str(f), "--schema", "shop", "--connector", "shop", "--out", str(tmp_path)]) == 0
     text = (tmp_path / "rayfin/connectors/shop/Orders.ts").read_bytes()
     assert b"\r\n" not in text and b"schema: 'shop', table: 'orders'" in text
+
+
+def test_remote_server_tools_are_annotated_and_auth_reads_headers():
+    pytest.importorskip("mcp.server.mcpserver")
+    import asyncio
+    from fabric_backend import server
+
+    async def tools():
+        return await server.mcp.list_tools()
+    ts = asyncio.run(tools())
+    assert {t.name for t in ts} == {"list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql"}
+    for t in ts:
+        assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
+    assert next(t for t in ts if t.name == "create_backend").annotations.read_only_hint is False
+    assert next(t for t in ts if t.name == "create_backend").annotations.destructive_hint is False
+
+    class Ctx:
+        headers = {"authorization": "Bearer abc", "x-fabric-sql-token": "sql123"}
+    a = server.Auth()
+    assert a.fabric(Ctx()) == "abc" and a.sql(Ctx()) == "sql123"
+    a.tenant = a.client = a.secret = None
+    with pytest.raises(RuntimeError):
+        a.fabric(None)                      # no header, no service principal: refuse, never guess
+
+    assert "not allowed" in server.query_graphql("ws", "api", "mutation { x }", ctx=Ctx())

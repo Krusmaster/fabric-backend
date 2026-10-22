@@ -53,6 +53,22 @@ Three tools: `list_tables`, `plan_backend` (keys, relationships, Mermaid — not
 `create_backend`. Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor. The agent
 can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
+## Remote server (for Claude, Cursor, Lovable — and the connector directory)
+
+```
+docker build -t fabric-backend-server . && docker run -p 8000:8000 \
+  -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
+```
+
+Streamable HTTP at `/mcp`, six tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+(the directory requires it): `list_sources`, `list_tables`, `plan_backend` (read-only, nothing
+deployed), `create_backend` (creates or updates one item, never deletes), `rayfin_connector`,
+`query_graphql` (read-only; mutations refused). Authentication: a `Authorization: Bearer` Fabric
+token on the request wins; otherwise the server's own service principal — the same model as
+Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a
+custom connector with the `https://…/mcp` URL, and the loop is browse → plan → create → query.
+The local stdio server (`fabric-backend-mcp`, ODBC string) stays for single-user use.
+
 ## How the relationships are inferred
 
 A lakehouse SQL endpoint has no keys and no foreign keys, so names are all there is. Every result
