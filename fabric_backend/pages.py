@@ -25,7 +25,8 @@ def _vars() -> dict[str, str]:
         "DATE": os.environ.get("POLICY_DATE", "2026-10-22"),
         "MCP_URL": url,
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
-    }
+    } | {"PRODUCT_LOWER": os.environ.get("PRODUCT_NAME", "fabric-backend").lower(),
+         "ORGNR_SUFFIX": (", org. nr " + os.environ["COMPANY_ORGNR"]) if os.environ.get("COMPANY_ORGNR") else ""}
 
 
 def _fill(text: str) -> str:
@@ -125,3 +126,7 @@ def privacy_html() -> str:
 
 def docs_html() -> str:
     return _page(f"{_vars()['PRODUCT']} — docs", _read("DOCS.md"))
+
+
+def landing_html() -> str:
+    return _fill(_read("landing.html"))

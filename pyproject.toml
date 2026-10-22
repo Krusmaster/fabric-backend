@@ -29,4 +29,4 @@ build-backend = "setuptools.build_meta"
 include = ["fabric_backend*"]
 
 [tool.setuptools.package-data]
-fabric_backend = ["page_templates/*.md"]
+fabric_backend = ["page_templates/*.md", "page_templates/*.html"]

@@ -289,7 +289,11 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/healthz", health))
 
     from starlette.responses import HTMLResponse
-    from .pages import privacy_html, docs_html
+    from .pages import privacy_html, docs_html, landing_html
+
+    async def landing(_request):
+        return HTMLResponse(landing_html())
+    app.router.routes.append(Route("/", landing))
 
     async def privacy(_request):
         return HTMLResponse(privacy_html())

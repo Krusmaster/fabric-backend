@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{PRODUCT}} — Fabric tables with every join explained</title>
+<meta name="description" content="{{PRODUCT}} reads your Microsoft Fabric tables, infers keys and relationships with the rule behind each one, and turns them into a GraphQL API Claude and your apps can use.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='8' cy='9' r='4' fill='%2316233D'/%3E%3Ccircle cx='24' cy='9' r='4' fill='%2316233D'/%3E%3Ccircle cx='16' cy='24' r='4' fill='%230E6E68'/%3E%3Cpath d='M8 9H24M8 9L16 24M24 9L16 24' stroke='%2316233D' stroke-width='2'/%3E%3C/svg%3E">
+<style>
+:root{
+  --paper:#F5F8FC; --grid:#D7E1EE; --grid-strong:#BFCDE0; --ink:#16233D; --ink-soft:#4A5A77;
+  --rule:#0E6E68; --rule-tint:#DDEFEC; --amb:#A85A0B; --amb-tint:#F7E9D7; --node:#FFFFFF;
+  --focus:#2F6FEB;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#0D1829; --grid:#1C2A43; --grid-strong:#2A3B5A; --ink:#E4ECF7; --ink-soft:#A3B2CB;
+    --rule:#5CC6BC; --rule-tint:#12343A; --amb:#E2A35A; --amb-tint:#3A2A14; --node:#13213A;
+    --focus:#8AB4FF;
+  }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; color:var(--ink); background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  font:17px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+a{color:inherit}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:3px solid var(--focus);outline-offset:3px;border-radius:4px}
+code,.id{font-family:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;font-size:.88em}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
+.mark{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:800;font-size:20px;letter-spacing:-.01em}
+.mark svg{width:26px;height:26px}
+nav{display:flex;gap:22px;font-size:15px}
+nav a{text-decoration:none;color:var(--ink-soft)}
+nav a:hover{color:var(--ink);text-decoration:underline}
+
+/* hero */
+.hero{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:48px;align-items:center;padding:40px 0 72px}
+h1{font-size:clamp(36px,5.2vw,60px);line-height:1.04;letter-spacing:-.025em;font-weight:850;margin:0 0 20px;max-width:12ch}
+.lede{font-size:19px;color:var(--ink-soft);max-width:36ch;margin:0 0 30px}
+.ctas{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-block;padding:12px 20px;border-radius:6px;font-weight:650;text-decoration:none;font-size:16px;border:2px solid var(--ink)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.secondary{background:var(--paper)}
+.btn:hover{transform:translateY(-1px)}
+
+/* the schema sketch */
+.sheet{background:var(--node);border:2px solid var(--ink);border-radius:2px;padding:14px 14px 10px;box-shadow:6px 6px 0 var(--grid-strong);position:relative}
+.sheet-head{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-soft);padding:0 4px 8px;border-bottom:1px dashed var(--grid-strong)}
+.sheet svg{display:block;width:100%;height:auto}
+.tbl rect{fill:var(--paper);stroke:var(--ink);stroke-width:1.6}
+.tbl .name{font-weight:750;font-size:15px;fill:var(--ink)}
+.tbl .col{font-size:11px;fill:var(--ink-soft);font-family:ui-monospace,"SF Mono",Consolas,monospace}
+.tbl.keyless rect{stroke-dasharray:5 4}
+.tbl.amb-target rect{stroke:var(--amb);stroke-dasharray:5 4;fill:var(--amb-tint)}
+.tbl.amb-target .col{fill:var(--amb)}
+.edge path{fill:none;stroke:var(--ink);stroke-width:1.6}
+.edge .tag rect{fill:var(--rule-tint);stroke:var(--rule);stroke-width:1.2}
+.edge .tag text{fill:var(--rule);font-size:12px;font-weight:700;font-family:ui-monospace,"SF Mono",Consolas,monospace}
+.edge.amb path{stroke:var(--amb);stroke-dasharray:6 5}
+.edge.amb .tag rect{fill:var(--amb-tint);stroke:var(--amb)}
+.edge.amb .tag text{fill:var(--amb)}
+.edge{cursor:help;outline:none}
+.edge:hover path,.edge:focus path,.edge.on path{stroke-width:3}
+.edge:focus,.edge:focus-visible{outline:none}
+.edge:focus-visible .tag rect{stroke:var(--focus);stroke-width:2.5}
+.why{min-height:52px;margin:8px 4px 2px;font-size:14.5px;line-height:1.45;color:var(--ink)}
+.why .id{color:var(--rule);font-weight:700}
+.why.amb .id{color:var(--amb)}
+
+/* sections */
+section{padding:56px 0;border-top:2px solid var(--ink)}
+h2{font-size:clamp(26px,3.2vw,36px);letter-spacing:-.02em;line-height:1.1;margin:0 0 10px;font-weight:800}
+.intro{color:var(--ink-soft);max-width:60ch;margin:0 0 32px}
+
+.flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;counter-reset:s}
+.flow li{counter-increment:s;padding:0 22px 0 0;position:relative}
+.flow li::before{content:counter(s);display:inline-grid;place-items:center;width:30px;height:30px;border:2px solid var(--ink);border-radius:50%;font-weight:800;font-size:14px;background:var(--paper);margin-bottom:12px}
+.flow li::after{content:"";position:absolute;top:15px;left:36px;right:8px;border-top:2px dashed var(--grid-strong)}
+.flow li:last-child::after{display:none}
+.flow q{display:block;font-weight:700;quotes:"“" "”";margin-bottom:6px}
+.flow p{margin:0;color:var(--ink-soft);font-size:15.5px}
+
+.rules{display:grid;grid-template-columns:1fr 1fr;gap:0 48px}
+.rules h3{font-size:17px;margin:0 0 6px}
+.rules dl{margin:0 0 24px;display:grid;grid-template-columns:auto 1fr;gap:8px 14px;align-items:baseline}
+.rules dt{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-weight:700;color:var(--rule)}
+.rules dd{margin:0;font-size:15.5px}
+.rules dt.a{color:var(--amb)}
+
+.nevers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:32px}
+.nevers h3{font-size:20px;margin:0 0 6px;letter-spacing:-.01em}
+.nevers p{margin:0;color:var(--ink-soft);font-size:15.5px}
+
+.close{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:24px}
+.close p{margin:0;max-width:52ch;color:var(--ink-soft)}
+
+footer{border-top:2px solid var(--ink);padding:22px 0 40px;font-size:14px;color:var(--ink-soft);display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+footer a{color:var(--ink-soft)}
+
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;gap:32px;padding-top:16px}
+  .flow{grid-template-columns:1fr 1fr;gap:28px 0}
+  .flow li:nth-child(2)::after{display:none}
+  .rules{grid-template-columns:1fr}
+  .nevers{grid-template-columns:1fr;gap:22px}
+}
+@media (max-width:520px){
+  .wrap{padding:0 16px}
+  nav{gap:14px}
+  .flow{grid-template-columns:1fr}
+  .flow li::after{display:none}
+}
+@media (prefers-reduced-motion:reduce){.btn:hover{transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a class="mark" href="/" aria-label="{{PRODUCT}} home">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="8" cy="9" r="4" fill="currentColor"/><circle cx="24" cy="9" r="4" fill="currentColor"/><circle cx="16" cy="24" r="4" fill="var(--rule)"/><path d="M8 9H24M8 9L16 24M24 9L16 24" stroke="currentColor" stroke-width="2"/></svg>
+    {{PRODUCT_LOWER}}
+  </a>
+  <nav aria-label="Main">
+    <a href="/docs">Docs</a>
+    <a href="https://github.com/Krusmaster/fabric-backend">Source</a>
+    <a href="/privacy">Privacy</a>
+  </nav>
+</header>
+
+<main>
+<div class="hero">
+  <div>
+    <h1>Your Fabric tables, with every join explained.</h1>
+    <p class="lede">{{PRODUCT}} reads a lakehouse or warehouse, works out how the tables connect, and shows the rule behind each link. Claude and your apps get a GraphQL API built on joins you can check.</p>
+    <div class="ctas">
+      <a class="btn primary" href="/docs#connect">Add to Claude</a>
+      <a class="btn secondary" href="https://github.com/Krusmaster/fabric-backend">Read the source</a>
+    </div>
+  </div>
+
+  <figure class="sheet" aria-labelledby="sheet-cap" style="margin:0">
+    <div class="sheet-head"><span id="sheet-cap">plan · shop lakehouse</span><span>7 tables · 4 links shown · 1 to confirm</span></div>
+    <svg viewBox="0 0 560 340" role="group" aria-label="Inferred schema: each link is labelled with the rule that produced it. Focus a link to read the reason.">
+      <g class="edge" tabindex="0" data-why="<span class='id'>R1</span> <code>orders.customer_id</code> is named after <code>customers</code>, whose key is <code>customer_id</code>.">
+        <path d="M200 68 H360"/><g class="tag"><rect x="263" y="54" width="34" height="22" rx="3"/><text x="280" y="69" text-anchor="middle">R1</text></g>
+      </g>
+      <g class="edge" tabindex="0" data-why="<span class='id'>R1</span> <code>order_items.order_id</code> points at <code>orders</code>. One order, many lines.">
+        <path d="M80 200 V106"/><g class="tag"><rect x="63" y="142" width="34" height="22" rx="3"/><text x="80" y="157" text-anchor="middle">R1</text></g>
+      </g>
+      <g class="edge" tabindex="0" data-why="<span class='id'>R1</span> <code>order_items.product_id</code> points at <code>products</code>.">
+        <path d="M200 238 H360"/><g class="tag"><rect x="263" y="224" width="34" height="22" rx="3"/><text x="280" y="239" text-anchor="middle">R1</text></g>
+      </g>
+      <g class="edge" tabindex="0" data-why="<span class='id'>R2</span> <code>products.category_id</code> has the same name as the key of <code>categories</code>.">
+        <path d="M410 258 V298"/><g class="tag"><rect x="420" y="267" width="34" height="22" rx="3"/><text x="437" y="282" text-anchor="middle">R2</text></g>
+      </g>
+      <g class="edge amb" tabindex="0" data-amb="1" data-why="<span class='id'>?</span> <code>orders.ship_to_id</code> could point at <code>addresses</code> or <code>stores</code>. Left out until you confirm it, because a wrong join returns rows, not errors.">
+        <path d="M170 106 V152 H232"/><g class="tag"><rect x="157" y="118" width="26" height="22" rx="3"/><text x="170" y="133" text-anchor="middle">?</text></g>
+      </g>
+
+      <g class="tbl"><rect x="20" y="30" width="180" height="76"/><text class="name" x="34" y="54">orders</text><text class="col" x="34" y="76">order_id</text><text class="col" x="34" y="94">customer_id · ship_to_id</text></g>
+      <g class="tbl"><rect x="360" y="30" width="180" height="76"/><text class="name" x="374" y="54">customers</text><text class="col" x="374" y="76">customer_id</text><text class="col" x="374" y="94">name · country</text></g>
+      <g class="tbl"><rect x="20" y="200" width="180" height="76"/><text class="name" x="34" y="224">order_items</text><text class="col" x="34" y="246">order_id + line_no</text><text class="col" x="34" y="264">product_id · quantity</text></g>
+      <g class="tbl"><rect x="360" y="200" width="180" height="58"/><text class="name" x="374" y="224">products</text><text class="col" x="374" y="246">product_id · category_id</text></g>
+      <g class="tbl"><rect x="360" y="298" width="130" height="32"/><text class="col" x="372" y="319">categories</text></g>
+      <g class="tbl keyless"><rect x="20" y="298" width="120" height="32"/><text class="col" x="32" y="319">audit_log</text></g>
+      <g class="tbl amb-target"><rect x="232" y="132" width="110" height="40"/><text class="col" x="244" y="150">addresses</text><text class="col" x="244" y="165">or stores</text></g>
+    </svg>
+    <p class="why" id="why" aria-live="polite">Every link carries the rule that made it. Point at one to read why.</p>
+  </figure>
+</div>
+
+<section aria-labelledby="h-flow">
+  <h2 id="h-flow">Four things you say to Claude</h2>
+  <p class="intro">It works in the chat you already use. Nothing is created until you ask for it, and asking again updates what is there instead of making a copy.</p>
+  <ol class="flow">
+    <li><q>Which data sources do I have in the sales workspace?</q><p>Lists lakehouses, warehouses and existing GraphQL APIs.</p></li>
+    <li><q>Plan a backend over the shop lakehouse.</q><p>Keys, links, the rule for each, and anything it is unsure about. Nothing is deployed.</p></li>
+    <li><q>Create it as shop_api.</q><p>Makes one API for GraphQL item in your workspace, with nested relationships.</p></li>
+    <li><q>Which customers ordered a trail bike in October?</q><p>Answers from your data with a read-only query.</p></li>
+  </ol>
+</section>
+
+<section aria-labelledby="h-rules">
+  <h2 id="h-rules">Rules you can read</h2>
+  <p class="intro">A lakehouse has no declared keys, so names are all there is. That is fine as long as you can see which name made which decision, and overrule it in one line.</p>
+  <div class="rules">
+    <div>
+      <h3>Keys</h3>
+      <dl>
+        <dt>K0</dt><dd>Declared primary key. Always wins.</dd>
+        <dt>K1</dt><dd>A key you gave, such as <code>order_id + line_no</code>.</dd>
+        <dt>K2</dt><dd>A column called <code>id</code> or <code>&lt;table&gt;_id</code>.</dd>
+        <dt>K3</dt><dd>No key. The table can be queried, but nothing links to it.</dd>
+      </dl>
+    </div>
+    <div>
+      <h3>Links</h3>
+      <dl>
+        <dt>R0</dt><dd>Declared foreign key. Always wins.</dd>
+        <dt>R1</dt><dd>A column named after another table.</dd>
+        <dt>R2</dt><dd>A column with the same name as another table's key.</dd>
+        <dt class="a">?</dt><dd>Two possible targets. Reported, never guessed.</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-never">
+  <h2 id="h-never">What it does not do</h2>
+  <p class="intro">You sign in with your own Microsoft work account, so every call runs with your own Fabric permissions.</p>
+  <div class="nevers">
+    <div><h3>Store your data</h3><p>No tables, no query results, no tokens on disk. Requests are logged with time and status only.</p></div>
+    <div><h3>Delete anything</h3><p>It creates or updates one GraphQL item when you ask. Queries are read-only; mutations are refused.</p></div>
+    <div><h3>Guess a join</h3><p>A column that could mean two things is shown to you and left out until you confirm it.</p></div>
+  </div>
+</section>
+
+<section class="close" aria-labelledby="h-start">
+  <div>
+    <h2 id="h-start">Start with a trial capacity</h2>
+    <p>Your Entra admin approves the connector once. Then add it in Claude and point it at any workspace you can open. The code is open source under the MIT licence.</p>
+  </div>
+  <div class="ctas">
+    <a class="btn primary" href="/docs#connect">Add to Claude</a>
+    <a class="btn secondary" href="/docs">Read the docs</a>
+  </div>
+</section>
+</main>
+
+<footer>
+  <span>{{PRODUCT}} is made by Kruse Consulting AB, Sweden{{ORGNR_SUFFIX}}.</span>
+  <span><a href="/docs">Docs</a> &nbsp; <a href="/privacy">Privacy</a> &nbsp; <a href="mailto:{{CONTACT}}">{{CONTACT}}</a></span>
+  <span>Microsoft Fabric is a trademark of Microsoft. {{PRODUCT}} is independent and not affiliated with Microsoft.</span>
+</footer>
+</div>
+
+<script>
+(function(){
+  var why = document.getElementById('why');
+  var dflt = why.innerHTML, current = null;
+  function show(g){
+    if(current) current.classList.remove('on');
+    current = g; g.classList.add('on');
+    why.innerHTML = g.getAttribute('data-why');
+    why.classList.toggle('amb', g.hasAttribute('data-amb'));
+  }
+  function reset(){ if(current) current.classList.remove('on'); current = null; why.innerHTML = dflt; why.classList.remove('amb'); }
+  document.querySelectorAll('.edge').forEach(function(g){
+    g.addEventListener('mouseenter', function(){ show(g); });
+    g.addEventListener('focus', function(){ show(g); });
+    g.addEventListener('click', function(){ show(g); });
+    g.addEventListener('blur', reset);
+  });
+  document.querySelector('.sheet svg').addEventListener('mouseleave', reset);
+})();
+</script>
+</body>
+</html>
