@@ -5,10 +5,12 @@ from .schema import Schema, Table, Column
 from .infer import plan, Plan, Relationship
 from .graphql import definition, decode, valid_item_name
 from .deploy import deploy, connection_card, endpoint_url, source_for, find_item_by_name, _headers
+from .rayfin import rayfin_files, write_rayfin
 
 __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definition", "decode",
-           "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from"]
-__version__ = "0.1.1"
+           "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from",
+           "rayfin_files", "write_rayfin"]
+__version__ = "0.2.0"
 
 
 def plan_from(spark=None, execute=None, schema: str = "dbo", database: str | None = None,
@@ -49,6 +51,8 @@ def create(workspace: str, source: str, name: str, *, spark=None, execute=None, 
     source_id, source_type = source_for(workspace, item, headers)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     out = {"plan": p, "definition": env, "source": {"id": source_id, "type": source_type}}
+    if source_type in ("SqlAnalyticsEndpoint", "Warehouse", "SqlDbNative"):
+        out["rayfin"] = rayfin_files(p, name.lower(), source_type, tables=tables)   # same plan, third consumer
     if dry_run:
         return out
     out["result"] = deploy(env, workspace, token_provider)

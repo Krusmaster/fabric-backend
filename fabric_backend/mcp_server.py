@@ -6,6 +6,7 @@ Three tools, same functions as the library:
   list_tables(workspace, source)            what is in the lakehouse / warehouse
   plan_backend(workspace, source, ...)      inferred keys + relationships, Mermaid, nothing deployed
   create_backend(workspace, source, name)   create/update the GraphQLApi item, return endpoint + checklist
+  rayfin_connector(connector, ...)          Rayfin (Fabric Apps) connector entity files from the same plan
 
 Run:  fabric-backend-mcp            (stdio; `pip install fabric-backend[mcp]`)
 Auth: a Fabric token via `az login` (FABRIC_TOKEN env var overrides). The SQL side needs an ODBC
@@ -20,6 +21,7 @@ import json
 import os
 
 from . import create, plan_from
+from .rayfin import rayfin_files
 from .deploy import token_from_az
 
 try:
@@ -81,6 +83,16 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
     return json.dumps({"summary": out["plan"].summary(), "source": out["source"],
                        "result": out.get("result"), "card": out.get("card"),
                        "skipped_relationships": out["definition"].get("skipped_relationships", [])}, indent=2)
+
+
+@mcp.tool()
+def rayfin_connector(connector: str = "data", source_type: str = "SqlAnalyticsEndpoint", schema: str = "dbo",
+                     keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                     tables: list[str] | None = None, relationships: bool = True) -> str:
+    """Generate Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with
+    inferred keys and @one/@many relationships. Returns {path: content}; write them under your app."""
+    p = plan_from(execute=_execute_factory(schema), schema=schema, keys=keys, confirmed=confirmed)
+    return json.dumps(rayfin_files(p, connector, source_type, tables=tables, relationships=relationships), indent=2)
 
 
 def main() -> None:

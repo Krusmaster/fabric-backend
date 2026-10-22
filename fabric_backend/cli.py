@@ -3,6 +3,7 @@
   fabric-backend plan   columns.csv [--keys keys.csv] [--mermaid out.mmd] [--json plan.json]
   fabric-backend definition columns.csv --name MyApi --workspace WS --source-item ID [--source-type ...] --out def.json
   fabric-backend deploy def.json --workspace WS
+  fabric-backend rayfin columns.csv|metadata.json [--keys keys.csv] --connector inventory [--source-type SqlAnalyticsEndpoint] [--out .]
   fabric-backend create --workspace WS --source <lakehouse name|id> --name MyApi --odbc "<connection string>"
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
@@ -22,6 +23,7 @@ from . import create
 from .deploy import deploy
 from .graphql import definition
 from .infer import plan
+from .rayfin import rayfin_files, write_rayfin
 from .schema import Schema
 
 
@@ -70,6 +72,16 @@ def cmd_deploy(a) -> int:
     return 0
 
 
+def cmd_rayfin(a) -> int:
+    src = (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
+           else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
+    p = plan(src, _keys_arg(a.keys))
+    files = rayfin_files(p, a.connector, a.source_type, relationships=not a.no_relationships)
+    for path in write_rayfin(files, a.out):
+        print("wrote", path)
+    return 0
+
+
 def cmd_create(a) -> int:
     import pyodbc  # optional
     conn = pyodbc.connect(a.odbc)
@@ -103,6 +115,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--out", default="graphql.json"); s.set_defaults(fn=cmd_definition)
 
     s = sub.add_parser("deploy"); s.add_argument("definition"); s.add_argument("--workspace", required=True); s.set_defaults(fn=cmd_deploy)
+
+    s = sub.add_parser("rayfin"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--connector", default="data"); s.add_argument("--source-type", default="SqlAnalyticsEndpoint")
+    s.add_argument("--no-relationships", action="store_true"); s.add_argument("--out", default="."); s.set_defaults(fn=cmd_rayfin)
 
     s = sub.add_parser("create"); s.add_argument("--workspace", required=True); s.add_argument("--source", required=True)
     s.add_argument("--name", required=True); s.add_argument("--odbc", required=True); s.add_argument("--schema", default="dbo")
