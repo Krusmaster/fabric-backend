@@ -66,6 +66,22 @@ two tables is reported, never guessed; a column no rule matches is left unlinked
 
 More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
 
+## Snowflake, Databricks and other data
+
+{{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
+
+1. **Mirror it into Fabric.** A *Mirrored database* (Snowflake, Azure SQL, Cosmos DB, SAP via Datasphere, …) or a
+   *Mirrored Azure Databricks catalog* is a source like a lakehouse: `list_sources` shows it, `plan_backend` plans it
+   and `create_backend` builds the API over its SQL analytics endpoint. Mirroring is set up once in the Fabric portal.
+2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
+   expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
+   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems; the API for GraphQL
+   item is a Fabric object, so that last step needs route 1.
+
+Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
+informational primary and foreign keys are read as declared keys (K0, R0). The mirrored-catalog route has been
+verified against recorded Fabric answers, not live yet.
+
 ## Two steps stay manual
 
 Fabric has no API for these yet, and the connector tells you when they are needed:

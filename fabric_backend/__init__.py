@@ -40,7 +40,7 @@ def create(workspace: str, source: str, name: str, *, spark=None, execute=None, 
     item = find_item_by_name(workspace, source, headers)
     if item is None:
         for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"),
-                         ("MirroredDatabase", "mirroredDatabases")):
+                         ("MirroredDatabase", "mirroredDatabases"), ("MirroredAzureDatabricksCatalog", "mirroredAzureDatabricksCatalogs")):
             import requests
             r = requests.get(f"https://api.fabric.microsoft.com/v1/workspaces/{workspace}/{route}/{source}",
                              headers=headers, timeout=30)

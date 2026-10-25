@@ -20,14 +20,17 @@ from pathlib import Path
 
 TECH_COLS = {"__SEQUENCE_NUMBER", "__TIMESTAMP", "__ROWMARKER__"}
 
+# INFORMATION_SCHEMA is the same on the Fabric SQL endpoint, SQL Server, Snowflake and Databricks (Unity Catalog);
+# the schema comparison is case-insensitive because Snowflake upper-cases unquoted names.
 COLUMNS_SQL = """
 SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, DATA_TYPE, ORDINAL_POSITION
 FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = '{schema}'
+WHERE UPPER(TABLE_SCHEMA) = UPPER('{schema}')
 ORDER BY TABLE_NAME, ORDINAL_POSITION
 """
 
-# Warehouse / SQL database only; a lakehouse SQL endpoint has no constraints.
+# Warehouse / SQL database / Databricks Unity Catalog; a lakehouse SQL endpoint has no constraints and Snowflake has no
+# KEY_COLUMN_USAGE view, so a failing query here just means "no declared keys" (from_sql catches it).
 KEYS_SQL = """
 SELECT tc.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.ORDINAL_POSITION,
        tc.CONSTRAINT_NAME, ref.TABLE_NAME AS REF_TABLE, refcol.COLUMN_NAME AS REF_COLUMN
@@ -37,7 +40,7 @@ LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc ON rc.CONSTRAINT_NAME = 
 LEFT JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS ref ON ref.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
 LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE refcol
        ON refcol.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME AND refcol.ORDINAL_POSITION = kcu.ORDINAL_POSITION
-WHERE tc.TABLE_SCHEMA = '{schema}' AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'FOREIGN KEY')
+WHERE UPPER(tc.TABLE_SCHEMA) = UPPER('{schema}') AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'FOREIGN KEY')
 ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
 """
 

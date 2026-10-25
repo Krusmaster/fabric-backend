@@ -17,6 +17,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
 - Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
 - Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
+- Snowflake and Databricks: mirrored Azure Databricks catalogs are a source item type (next to mirrored databases,
+  which cover Snowflake); the schema reader's schema match is case-insensitive on every dialect and a missing
+  `KEY_COLUMN_USAGE` view (Snowflake) means "no declared keys", so the library, CLI and stdio server plan Snowflake
+  and Unity Catalog schemas directly. Docs describe the two routes.
 - `list_workspaces`: the workspaces the signed-in account can see, with id and capacity; every other tool now takes
   the workspace by name as well as by id (a duplicate name is reported with the ids to choose from).
 - HSTS and `X-Content-Type-Options: nosniff` on every response, the MCP endpoint and the 401 challenge included.

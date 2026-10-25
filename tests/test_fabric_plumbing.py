@@ -74,11 +74,18 @@ def test_list_sources_pages_through_the_workspace(monkeypatch):
     ({"type": "Warehouse", "id": "wh-1"}, ("wh-1", "Warehouse")),
     ({"type": "SQLDatabase", "id": "db-1"}, ("db-1", "SqlDbNative")),
     ({"type": "MirroredDatabase", "id": "md-1"}, ("ep-md", "SqlAnalyticsEndpoint")),
+    ({"type": "MirroredAzureDatabricksCatalog", "id": "dbx-1"}, ("ep-dbx", "SqlAnalyticsEndpoint")),
 ])
 def test_source_for_picks_the_id_and_type_the_definition_needs(monkeypatch, item, expect):
     pages(monkeypatch, {"/lakehouses/lh-1": Resp(200, {"properties": {"sqlEndpointProperties": {"id": "ep-lh", "provisioningStatus": "Success"}}}),
-                        "/mirroredDatabases/md-1": Resp(200, {"properties": {"sqlEndpointProperties": {"id": "ep-md"}}})})
+                        "/mirroredDatabases/md-1": Resp(200, {"properties": {"sqlEndpointProperties": {"id": "ep-md"}}}),
+                        "/mirroredAzureDatabricksCatalogs/dbx-1": Resp(200, {"properties": {"catalogName": "main", "sqlEndpointProperties": {"id": "ep-dbx"}}})})
     assert dep.source_for("ws-1", item, HEADERS) == expect
+
+
+def explain_kind(exc):
+    from fabric_backend.errors import explain
+    return explain(exc)["kind"]
 
 
 def test_source_for_explains_a_provisioning_lakehouse_and_refuses_other_items(monkeypatch):
@@ -86,8 +93,9 @@ def test_source_for_explains_a_provisioning_lakehouse_and_refuses_other_items(mo
                         "/mirroredDatabases/md-2": Resp(200, {"properties": {}})})
     with pytest.raises(RuntimeError, match="no SQL analytics endpoint yet"):
         dep.source_for("ws-1", {"type": "Lakehouse", "id": "lh-2"}, HEADERS)
-    with pytest.raises(RuntimeError, match="no SQL endpoint id"):
+    with pytest.raises(RuntimeError, match="mirrored database has no SQL analytics endpoint yet"):
         dep.source_for("ws-1", {"type": "MirroredDatabase", "id": "md-2"}, HEADERS)
+    assert explain_kind(RuntimeError("mirrored Databricks catalog has no SQL analytics endpoint yet; pass its SQL analytics endpoint item")) == "source_not_ready"
     with pytest.raises(ValueError, match="cannot expose item type Notebook"):
         dep.source_for("ws-1", {"type": "Notebook", "id": "nb-1"}, HEADERS)
     # through the tool wrapper these become the kinds a user can act on
@@ -146,7 +154,8 @@ def test_resolve_source_by_name_or_id_and_reads_the_sql_endpoint_host(monkeypatc
     warehouse = {"id": "wh-1", "type": "Warehouse", "displayName": "dw", "properties": {"connectionString": "y.datawarehouse.fabric.microsoft.com"}}
     routes = {"/items": Resp(200, {"value": [{"displayName": "shop_lh", "type": "Lakehouse", "id": "lh-1"}]}),
               "/lakehouses/lh-1": Resp(200, lakehouse), "/warehouses/wh-1": Resp(200, warehouse),
-              "/lakehouses/wh-1": Resp(404, {}), "/lakehouses/ghost": Resp(404, {}), "/warehouses/ghost": Resp(404, {}), "/sqlDatabases/ghost": Resp(404, {})}
+              "/lakehouses/wh-1": Resp(404, {}), "/lakehouses/ghost": Resp(404, {}), "/warehouses/ghost": Resp(404, {}), "/sqlDatabases/ghost": Resp(404, {}),
+              "/mirroredDatabases/ghost": Resp(404, {}), "/mirroredAzureDatabricksCatalogs/ghost": Resp(404, {})}
     pages(monkeypatch, routes)
     by_name = server._resolve_source("ws-1", "shop_lh", HEADERS)
     assert by_name["type"] == "Lakehouse" and by_name["sql_host"] == "x.datawarehouse.fabric.microsoft.com" and by_name["sql_db"] == "shop_lh"
@@ -179,10 +188,10 @@ def test_schema_name_stays_inside_its_sql_literal():
         seen.append(sql)
         return []
     Schema.from_sql(execute, "o'brien'; DROP TABLE x; --")
-    assert all("TABLE_SCHEMA = 'o''brien''; DROP TABLE x; --'" in q for q in seen) and len(seen) == 2
+    assert all("TABLE_SCHEMA) = UPPER('o''brien''; DROP TABLE x; --')" in q for q in seen) and len(seen) == 2
     seen.clear()
     Schema.from_sql(execute, "dbo")
-    assert "TABLE_SCHEMA = 'dbo'" in seen[0]
+    assert "UPPER(TABLE_SCHEMA) = UPPER('dbo')" in seen[0]
 
 
 WS1, WS2, WS3 = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"
@@ -207,3 +216,39 @@ def test_list_workspaces_pages_and_tools_accept_a_workspace_name(monkeypatch):
     assert out["kind"] == "bad_input" and WS2 in out["error"] and WS3 in out["error"]
     out = json.loads(server.list_sources(""))
     assert out["kind"] == "bad_input"
+
+
+def test_snowflake_information_schema_plans_without_key_views():
+    """Snowflake upper-cases unquoted names, answers INFORMATION_SCHEMA with upper-case column names and has no
+    KEY_COLUMN_USAGE view: keys come from names (K2) and links from names (R1), as on a lakehouse."""
+    from fabric_backend.infer import plan
+
+    def execute(sql):
+        if "KEY_COLUMN_USAGE" in sql:
+            raise RuntimeError("002003 (42S02): SQL compilation error: Object 'INFORMATION_SCHEMA.KEY_COLUMN_USAGE' does not exist")
+        assert "UPPER(TABLE_SCHEMA) = UPPER('public')" in sql
+        rows = [("PUBLIC", "CUSTOMERS", "CUSTOMER_ID", "NUMBER", 1), ("PUBLIC", "CUSTOMERS", "NAME", "TEXT", 2),
+                ("PUBLIC", "ORDERS", "ORDER_ID", "NUMBER", 1), ("PUBLIC", "ORDERS", "CUSTOMER_ID", "NUMBER", 2),
+                ("PUBLIC", "ORDERS", "ORDERED_AT", "TIMESTAMP_NTZ", 3)]
+        return [{"TABLE_SCHEMA": a, "TABLE_NAME": b, "COLUMN_NAME": c, "DATA_TYPE": d, "ORDINAL_POSITION": e} for a, b, c, d, e in rows]
+    s = Schema.from_sql(execute, "public")
+    p = plan(s, None, None)
+    assert p.keys["CUSTOMERS"] == (["CUSTOMER_ID"], "K2") and p.keys["ORDERS"] == (["ORDER_ID"], "K2")
+    assert [(r.source, r.target, r.rule) for r in p.relationships] == [("ORDERS", "CUSTOMERS", "R1")]
+
+
+def test_databricks_information_schema_brings_declared_keys():
+    """Unity Catalog exposes information_schema with lower-case names and informational PK/FK constraints: K0 and R0."""
+    from fabric_backend.infer import plan
+    cols = [("sales", "customers", "customer_id", "INT", 1), ("sales", "customers", "name", "STRING", 2),
+            ("sales", "orders", "order_id", "BIGINT", 1), ("sales", "orders", "customer_id", "INT", 2), ("sales", "orders", "total", "DECIMAL(10,2)", 3)]
+    keys = [("customers", "PRIMARY KEY", "customer_id", 1, "customers_pk", None, None),
+            ("orders", "PRIMARY KEY", "order_id", 1, "orders_pk", None, None),
+            ("orders", "FOREIGN KEY", "customer_id", 1, "orders_customer_fk", "customers", "customer_id")]
+
+    def execute(sql):
+        return keys if "KEY_COLUMN_USAGE" in sql else cols
+    p = plan(Schema.from_sql(execute, "sales"), None, None)
+    assert p.keys["orders"] == (["order_id"], "K0") and p.keys["customers"] == (["customer_id"], "K0")
+    assert [(r.source, r.source_cols, r.target, r.rule) for r in p.relationships] == [("orders", ["customer_id"], "customers", "R0")]
+    assert p.schema.tables["orders"].columns[2].data_type == "decimal(10,2)"

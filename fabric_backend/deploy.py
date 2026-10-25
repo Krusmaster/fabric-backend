@@ -53,7 +53,7 @@ def find_item(workspace: str, display_name: str, headers: dict, item_type: str =
     return None
 
 
-SOURCE_ITEM_TYPES = ("Lakehouse", "Warehouse", "SQLDatabase", "MirroredDatabase")
+SOURCE_ITEM_TYPES = ("Lakehouse", "Warehouse", "SQLDatabase", "MirroredDatabase", "MirroredAzureDatabricksCatalog")
 
 
 def find_item_by_name(workspace: str, display_name: str, headers: dict,
@@ -96,14 +96,17 @@ def source_for(workspace_id: str, item: dict, headers: dict) -> tuple[str, str]:
         return item["id"], "Warehouse"
     if t == "SQLDatabase":
         return item["id"], "SqlDbNative"
-    if t == "MirroredDatabase":
-        # a mirrored database is read through its SQL analytics endpoint too; the id lives on the item
+    if t in ("MirroredDatabase", "MirroredAzureDatabricksCatalog"):
+        # mirrored data (Snowflake, Azure SQL, Cosmos DB, SAP, a Databricks catalog, ...) is read through the item's
+        # SQL analytics endpoint too; the endpoint id lives on the item
         import requests
-        r = requests.get(f"{FABRIC}/v1/workspaces/{workspace_id}/mirroredDatabases/{item['id']}", headers=headers, timeout=30)
+        route = "mirroredDatabases" if t == "MirroredDatabase" else "mirroredAzureDatabricksCatalogs"
+        r = requests.get(f"{FABRIC}/v1/workspaces/{workspace_id}/{route}/{item['id']}", headers=headers, timeout=30)
         r.raise_for_status()
         ep = r.json().get("properties", {}).get("sqlEndpointProperties", {}).get("id")
         if not ep:
-            raise RuntimeError("mirrored database has no SQL endpoint id in its properties")
+            raise RuntimeError(f"{'mirrored database' if t == 'MirroredDatabase' else 'mirrored Databricks catalog'} has no SQL "
+                               "analytics endpoint yet; pass its SQL analytics endpoint item as the source once it exists")
         return ep, "SqlAnalyticsEndpoint"
     raise ValueError(f"cannot expose item type {t} through GraphQL")
 

@@ -177,9 +177,19 @@ does, and prints the rule beside every key so you can take it out.
 | Source | `sourceType` | Writes | Rayfin connector |
 | --- | --- | --- | --- |
 | Lakehouse | SqlAnalyticsEndpoint (the endpoint's id, resolved for you) | no | `fabric-sqlanalytics` |
-| Mirrored database (incl. SAP via Datasphere) | SqlAnalyticsEndpoint | no | `fabric-sqlanalytics` |
+| Mirrored database (Snowflake, Azure SQL, Cosmos DB, SAP via Datasphere, ...) | SqlAnalyticsEndpoint | no | `fabric-sqlanalytics` |
+| Mirrored Azure Databricks catalog | SqlAnalyticsEndpoint (via the item's SQL analytics endpoint) | no | `fabric-sqlanalytics` |
 | Warehouse | Warehouse | `writable=True` → Create/Update (Delete stays off) | `fabric-warehouse` |
 | Fabric SQL database | SqlDbNative | `writable=True` | `fabric-sqldatabase` |
+
+**Snowflake and Databricks.** Two routes. (1) Mirror into Fabric (Mirrored database for Snowflake, Mirrored Azure
+Databricks catalog for Unity Catalog) and the mirrored item is a source like any other: the remote tools list it,
+plan it and build the API for GraphQL item over its SQL analytics endpoint. (2) Plan directly: `plan_from(execute=...)`,
+the CLI and the local stdio server read `INFORMATION_SCHEMA` the same way on Snowflake and Databricks as on Fabric
+(Snowflake has no `KEY_COLUMN_USAGE`, so keys come from names there; Unity Catalog's informational constraints are
+read as K0/R0). That route gives the explainable graph, the Mermaid diagram and the Rayfin entities; the API for
+GraphQL item itself is a Fabric object, so route (2) ends at `dry_run`/`definition` unless the data is mirrored.
+The mirrored-catalog route has been exercised against mocked Fabric answers, not live yet.
 
 For SAP tables the names say nothing (`VBELN`, `KUNNR`); use
 [sap-ontology](https://github.com/Krusmaster/sap-ontology), which derives the graph from SAP's own
