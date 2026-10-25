@@ -179,3 +179,20 @@ def test_mcp_and_oauth_routes_are_untouched(client):
     assert client.get("/healthz").json()["ok"] is True
     r = client.post("/mcp", json={})
     assert r.status_code in (400, 401, 406)                                              # the MCP endpoint still answers (bearer mode: no 401 gate)
+
+
+def test_explore_table_list_names_keys_in_words_with_the_rule_as_tooltip(client):
+    html = client.get("/explore").text
+    assert 'data-table="order_items"' in html and ">composite key</span>" in html and ">no key</span>" in html
+    assert '<span class="rule">K' not in html                                            # no bare K1/K2/K3 codes
+    assert 'title="Rule K1: ' in html and 'title="Rule K3: ' in html
+    assert 'class="t-ico c-coral"' in html and 'class="t-ico c-mustard"' in html          # coloured table icons
+    assert "kicker" not in html
+
+
+def test_home_hero_and_trust_row(client):
+    html = client.get("/").text
+    assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
+    assert 'class="hero-figure"' not in html and 'id="home-graph"' in html               # mascots live on the graph's wires
+    assert 'class="trust"' in html and "Your permissions, not ours" in html and "Nothing stored" in html
+    assert "Illustrative demo" in html

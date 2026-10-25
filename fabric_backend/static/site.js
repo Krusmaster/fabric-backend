@@ -14,9 +14,19 @@
   }
 
   /* ------------------------------------------------------------------ graph */
-  var WIDE = { customers: [40, 200], orders: [330, 60], order_items: [620, 60], products: [620, 320], categories: [900, 320], addresses: [330, 330], audit_log: [40, 430] };
-  var NARROW = { customers: [20, 20], orders: [250, 20], addresses: [20, 160], order_items: [250, 160], audit_log: [20, 300], products: [250, 300], categories: [250, 440] };
+  /* Tables are cards (coloured table icon, key fields marked with a key icon); connections are soft bezier wires in the
+     source table's colour with a dot at each end, the rule on a chip mid-curve and the cardinality as text.
+     Wide: left to right along customers → orders → order_items → products → categories, with audit_log and addresses on
+     a second row under customers. Narrow: one column of full-width cards, the one long wire runs in a lane on the right. */
+  var CHAIN = ['customers', 'orders', 'order_items', 'products', 'categories'];
+  var ROW2 = [['audit_log', 0], ['addresses', 1]];
+  var STACK = ['audit_log', 'customers', 'addresses', 'orders', 'order_items', 'products', 'categories'];
+  var PAINT_ORDER = ['customers', 'orders', 'order_items', 'products', 'categories', 'addresses', 'audit_log'];
+  var COLORS = ['coral', 'sage', 'lav', 'mustard'];
+  var CW = 200, GX = 86, GY = 100, NARROW_AT = 700;
   var NS = 'http://www.w3.org/2000/svg';
+  var ICON_TABLE = '<svg class="g-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1.5" y="2.5" width="13" height="11" rx="2.6" fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 6.5h13M6.2 6.5v7" stroke="currentColor" stroke-width="1.5"/></svg>';
+  var ICON_KEY = '<svg class="g-key" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><circle cx="5" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="M8 8h6.2M12.2 8v2.6M14.2 8v2" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
   function el(tag, attrs, text) {
     var e = document.createElementNS(NS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -24,66 +34,85 @@
     return e;
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function colorOf(name, i) { var k = PAINT_ORDER.indexOf(name); return COLORS[(k >= 0 ? k : i) % COLORS.length]; }
+  function keyText(t) { return !t.key.length ? 'no key' : t.key.length > 1 ? 'composite key' : 'key'; }
+  function keyTip(t, rules) { var code = t.key.length ? t.key_rule : 'K3'; return 'Rule ' + code + (rules && rules[code] ? ': ' + rules[code].replace(/`/g, '') : ''); }
 
   function Graph(container, data, opts) {
     opts = opts || {};
     var self = this;
     this.container = container; this.data = data; this.opts = opts;
-    this.handlers = {}; this.selected = null; this.accepted = {}; this.fields = false;
+    this.handlers = {}; this.selected = null; this.accepted = {}; this.zoom = null;
     container.classList.add('graph');
     container.setAttribute('role', 'group');
     container.setAttribute('aria-label', opts.label || 'Data graph: tables and the connections between them');
+    var sizer = this.sizer = document.createElement('div'); sizer.className = 'g-sizer';
     var scene = this.scene = document.createElement('div'); scene.className = 'g-scene';
-    var svg = this.svg = el('svg', { 'class': 'g-edges' });
-    container.appendChild(scene);
+    var svg = this.svg = el('svg', { 'class': 'g-edges', 'aria-hidden': 'false' });
+    sizer.appendChild(scene); container.appendChild(sizer);
     this.nodes = {};
     var tables = opts.tables ? data.tables.filter(function (t) { return opts.tables.indexOf(t.name) >= 0; }) : data.tables;
+    var maxFields = opts.maxFields || 5;
     tables.forEach(function (t, i) {
+      var color = colorOf(t.name, i);
       var b = document.createElement('button');
-      b.type = 'button'; b.className = 'g-node' + (t.key.length ? '' : ' keyless'); b.setAttribute('data-table', t.name);
-      b.setAttribute('aria-label', t.name + (t.key.length ? ', key ' + t.key.join(' + ') + ' by rule ' + t.key_rule : ', no key (rule K3)'));
-      var keyTxt = t.key.length ? t.key.join(' + ') : 'no key';
-      b.innerHTML = '<span class="g-node-head"><span class="g-node-name">' + esc(t.name) + '</span><span class="g-node-key" title="' + (t.key.length ? 'key by rule ' + t.key_rule : 'rule K3: no key') + '">' + esc(keyTxt) + '</span></span>' +
-        '<ul class="g-node-cols" aria-hidden="true">' + t.columns.map(function (c) { return '<li class="' + (c.key ? 'key' : c.linked ? 'linked' : '') + '"><span>' + esc(c.name) + '</span><span class="t">' + esc(c.type) + '</span></li>'; }).join('') + '</ul>';
+      b.type = 'button'; b.className = 'g-node c-' + color + (t.key.length ? '' : ' keyless'); b.setAttribute('data-table', t.name);
+      b.setAttribute('aria-label', t.name + ', ' + (t.key.length ? keyText(t) + ' ' + t.key.join(' + ') + ', rule ' + t.key_rule : 'no key, rule K3') + ', ' + t.columns.length + ' fields');
+      var cols = t.columns.slice(0, maxFields);
+      b.innerHTML = '<span class="g-node-head">' + ICON_TABLE + '<span class="g-node-name">' + esc(t.name) + '</span>' +
+        '</span>' +
+        '<span class="g-node-cols" aria-hidden="true">' + cols.map(function (c) {
+          return '<span class="g-col' + (c.key ? ' key' : '') + (c.linked && !c.key ? ' linked' : '') + '">' + (c.key ? ICON_KEY : '<i class="g-pad"></i>') +
+            '<span class="n">' + esc(c.name) + '</span><span class="t">' + esc(c.type) + '</span></span>';
+        }).join('') + (t.columns.length > cols.length ? '<span class="g-col more">+' + (t.columns.length - cols.length) + ' more</span>' : '') + '</span>' +
+        (t.key.length ? '' : '<span class="g-node-foot" title="' + esc(keyTip(t, data.rules)) + '">no key · query only</span>');
       scene.appendChild(b);
-      self.nodes[t.name] = { el: b, table: t, i: i };
+      self.nodes[t.name] = { el: b, table: t, i: i, color: color };
       b.addEventListener('mouseenter', function () { self.highlightTable(t.name); });
       b.addEventListener('mouseleave', function () { self.rehighlight(); });
       b.addEventListener('focus', function () { self.highlightTable(t.name); self.emit('focus', { type: 'table', table: t, el: b }); });
       b.addEventListener('blur', function () { self.rehighlight(); });
       b.addEventListener('click', function () { self.select({ type: 'table', table: t, el: b }); });
     });
-    scene.appendChild(svg);
+    scene.insertBefore(svg, scene.firstChild);
     this.edges = [];
     data.relationships.forEach(function (r) { if (self.nodes[r.source] && self.nodes[r.target]) self.edges.push({ rel: r, kind: 'rel' }); });
     (opts.suggest || []).forEach(function (s) { if (self.nodes[s.source] && self.nodes[s.target]) self.edges.push({ rel: s, kind: 'suggested' }); });
     this.edges.forEach(function (e) { self.makeEdge(e); });
-    (opts.mascots || []).forEach(function (m) {
+    this.mascotEls = (opts.mascots || []).map(function (m) {
       var d = document.createElement('div'); d.className = 'g-mascot'; d.setAttribute('aria-hidden', 'true'); d.setAttribute('data-on', m.edge);
-      d.innerHTML = M.svg(m.kind, { pose: m.pose || 'rest', idle: m.idle, label: '' }); scene.appendChild(d); self.mascotEls = (self.mascotEls || []).concat([d]);
+      d.innerHTML = M.svg(m.kind, { pose: m.pose || 'rest', idle: m.idle, label: '' }); scene.appendChild(d); return d;
     });
     container.addEventListener('keydown', function (e) { if (e.key === 'Escape') { self.clearSelection(); } });
     this.layout();
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { self.layout(true); }) : null;
-    if (ro) ro.observe(container); else window.addEventListener('resize', function () { self.layout(true); });
+    var lastW = container.clientWidth;
+    var relayout = function () { if (container.clientWidth !== lastW) { lastW = container.clientWidth; self.layout(); } };
+    if (window.ResizeObserver) new ResizeObserver(relayout).observe(container); else window.addEventListener('resize', relayout);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { self.layout(); });
   }
   Graph.prototype.on = function (ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); return this; };
   Graph.prototype.emit = function (ev, arg) { (this.handlers[ev] || []).forEach(function (f) { f(arg); }); };
   Graph.prototype.edgeId = function (r) { return r.source + '.' + r.source_cols.join('+') + '>' + r.target; };
+  Graph.prototype.edgeLabel = function (e) {
+    var r = e.rel, from = r.source + '.' + r.source_cols.join(', '), to = r.target + '.' + r.target_cols.join(', ');
+    if (e.kind === 'suggested') return this.accepted[e.id] ? 'Accepted here, not verified: ' + from + ' to ' + to
+                                                            : 'Suggested connection: ' + from + ' to ' + to + ', not linked by the engine. Review it.';
+    return from + ' points at ' + to + ', rule ' + r.rule + ', many ' + r.source + ' to one ' + r.target;
+  };
   Graph.prototype.makeEdge = function (e) {
     var self = this, r = e.rel, id = this.edgeId(r);
-    var g = el('g', { 'class': 'g-edge rule-' + r.rule + (e.kind === 'suggested' ? ' suggested' : ''), tabindex: '0', role: 'button', 'data-id': id });
-    var label = e.kind === 'suggested'
-      ? 'Suggested connection: ' + r.source + '.' + r.source_cols.join(', ') + ' to ' + r.target + '.' + r.target_cols.join(', ') + ', not linked by the engine. Review it.'
-      : r.source + '.' + r.source_cols.join(', ') + ' points at ' + r.target + '.' + r.target_cols.join(', ') + ', rule ' + r.rule;
-    g.setAttribute('aria-label', label);
-    e.wire = el('path', { 'class': 'wire' }); e.hit = el('path', { 'class': 'hit' });
-    e.dot = el('circle', { 'class': 'dot', r: 4.5 }); e.fork = el('path', { 'class': 'fork' });
-    e.n1 = el('text', { 'class': 'card-n' }, '1'); e.nN = el('text', { 'class': 'card-n' }, 'n');
-    e.tag = el('g', { 'class': 'tag' }); e.tagRect = el('rect', { width: 34, height: 20, rx: 6 }); e.tagText = el('text', { 'text-anchor': 'middle' }, e.kind === 'suggested' ? '?' : r.rule);
+    var src = this.nodes[r.source];
+    var g = el('g', { 'class': 'g-edge c-' + src.color + ' rule-' + r.rule + (e.kind === 'suggested' ? ' suggested' : ''), tabindex: '0', role: 'button', 'data-id': id });
+    e.id = id; e.el = g;
+    g.setAttribute('aria-label', this.edgeLabel(e));
+    e.hit = el('path', { 'class': 'hit' }); e.wire = el('path', { 'class': 'wire' });
+    e.dotA = el('circle', { 'class': 'dot', r: 3.6 }); e.dotB = el('circle', { 'class': 'dot', r: 3.6 });
+    e.card = el('text', { 'class': 'card-n', 'text-anchor': 'middle' });
+    e.tag = el('g', { 'class': 'tag' }); e.tagRect = el('rect', { height: 20, rx: 10 }); e.tagText = el('text', { 'text-anchor': 'middle' });
     e.tag.appendChild(e.tagRect); e.tag.appendChild(e.tagText);
-    [e.hit, e.wire, e.dot, e.fork, e.n1, e.nN, e.tag].forEach(function (x) { g.appendChild(x); });
-    this.svg.appendChild(g); e.el = g; e.id = id;
+    [e.hit, e.wire, e.dotA, e.dotB, e.card, e.tag].forEach(function (x) { g.appendChild(x); });
+    this.setTag(e);
+    this.svg.appendChild(g);
     g.addEventListener('mouseenter', function () { self.highlightEdge(e); });
     g.addEventListener('mouseleave', function () { self.rehighlight(); });
     g.addEventListener('focus', function () { self.highlightEdge(e); self.emit('focus', { type: 'edge', edge: e, el: g }); });
@@ -91,76 +120,136 @@
     g.addEventListener('click', function () { self.select({ type: 'edge', edge: e, el: g }); });
     g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); self.select({ type: 'edge', edge: e, el: g }); } });
   };
-  Graph.prototype.rect = function (name) {
-    var n = this.nodes[name]; return { x: n.x, y: n.y, w: n.el.offsetWidth || 200, h: n.el.offsetHeight || 46 };
+  Graph.prototype.setTag = function (e) {
+    var t = e.kind === 'suggested' ? (this.accepted[e.id] ? 'Accepted here (not verified)' : 'Suggested connection') : e.rel.rule;
+    e.tagText.textContent = t; e.tagW = Math.round(t.length * (e.kind === 'suggested' ? 6.6 : 7.4) + 18);
+    e.tagRect.setAttribute('width', e.tagW); e.tagRect.setAttribute('x', -e.tagW / 2); e.tagRect.setAttribute('y', -10);
+    e.tagText.setAttribute('y', 4);
   };
-  Graph.prototype.layout = function (keepView) {
-    var self = this, cw = this.container.clientWidth;
-    var map = cw < 640 ? NARROW : WIDE, fallback = 0;
-    this.narrow = cw < 640;
-    Object.keys(this.nodes).forEach(function (name) {
-      var n = self.nodes[name], p = map[name] || [40 + (fallback % 3) * 290, 60 + Math.floor(fallback++ / 3) * 150];
-      if (self.fields) p = [Math.round(p[0] * 1.3), Math.round(p[1] * 1.7)];
-      n.x = p[0]; n.y = p[1]; n.el.style.left = p[0] + 'px'; n.el.style.top = p[1] + 'px';
+  Graph.prototype.size_ = function (name) { var n = this.nodes[name]; return { w: n.el.offsetWidth || CW, h: n.el.offsetHeight || 120 }; };
+  Graph.prototype.rect = function (name) { var n = this.nodes[name]; return { x: n.x, y: n.y, w: n.w, h: n.h }; };
+  Graph.prototype.layout = function () {
+    var self = this, cw = this.container.clientWidth || 800, names = Object.keys(this.nodes);
+    var narrow = this.narrow = cw < NARROW_AT;
+    this.container.classList.toggle('narrow', narrow);
+    var top = this.mascotEls.length ? (narrow ? 70 : 74) : 22, maxX = 0, maxY = 0;
+    if (narrow) {
+      var order = STACK.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return STACK.indexOf(n) < 0; }));
+      var lane = this.edges.some(function (e) { return Math.abs(order.indexOf(e.rel.source) - order.indexOf(e.rel.target)) > 1; }) ? 52 : 0;
+      var w = Math.min(cw - 24 - lane, 420), y = top;
+      this.lane = lane;
+      order.forEach(function (n, i) {
+        var node = self.nodes[n]; node.el.style.width = w + 'px'; node.el.style.minHeight = '';
+        var s = self.size_(n); node.x = 12; node.y = y; node.w = w; node.h = s.h; node.slot = i;
+        y += s.h + 68;
+      });
+    } else {
+      var col = 0, rowH = 0;
+      var row1 = CHAIN.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return CHAIN.indexOf(n) < 0 && !ROW2.some(function (r) { return r[0] === n; }); }));
+      row1.forEach(function (n) {
+        var node = self.nodes[n]; node.el.style.width = CW + 'px'; node.el.style.minHeight = ''; var s = self.size_(n);
+        node.x = 16 + col * (CW + GX); node.y = top; node.w = CW; node.h = s.h; node.row = 1; node.slot = col++; rowH = Math.max(rowH, s.h);
+      });
+      row1.forEach(function (n) { self.nodes[n].el.style.minHeight = rowH + 'px'; self.nodes[n].h = rowH; });
+      ROW2.forEach(function (p) {
+        var node = self.nodes[p[0]]; if (!node) return;
+        node.el.style.width = CW + 'px'; var s = self.size_(p[0]);
+        node.x = 16 + p[1] * (CW + GX); node.y = top + rowH + GY; node.w = CW; node.h = s.h; node.row = 2;
+      });
+    }
+    names.forEach(function (n) {
+      var node = self.nodes[n]; node.el.style.left = node.x + 'px'; node.el.style.top = node.y + 'px';
+      maxX = Math.max(maxX, node.x + node.w); maxY = Math.max(maxY, node.y + node.h);
     });
-    var maxX = 0, maxY = 0;
-    Object.keys(this.nodes).forEach(function (name) { var r = self.rect(name); maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h); });
-    this.size = { w: maxX + 30, h: maxY + 30 };
+    this.size = { w: maxX + (narrow ? 12 + this.lane : 16), h: maxY + 18 };
     this.scene.style.width = this.size.w + 'px'; this.scene.style.height = this.size.h + 'px';
     this.svg.setAttribute('width', this.size.w); this.svg.setAttribute('height', this.size.h);
+    this.ports();
     this.edges.forEach(function (e) { self.route(e); });
-    (this.mascotEls || []).forEach(function (d) {
+    this.mascotEls.forEach(function (d, i) {
       var e = self.edges.filter(function (x) { return x.id === d.getAttribute('data-on'); })[0];
-      d.style.display = (self.narrow || !e) ? 'none' : '';
-      if (e) { // sit on a horizontal wire (left of the rule pill), or stand beside a vertical one
-        if (e.horizontal) { d.style.left = (e.mid.x - 26 - 46) + 'px'; d.style.top = (e.mid.y - 50) + 'px'; }
-        else { d.style.left = (e.mid.x + 18) + 'px'; d.style.top = (e.mid.y - 58) + 'px'; }
+      if (!e) { d.style.display = 'none'; return; }
+      d.style.display = '';
+      if (!narrow && e.horizontal) {
+        var sz = 80; d.style.width = d.style.height = sz + 'px';
+        d.style.left = (e.mid.x - sz / 2) + 'px'; d.style.top = (e.mid.y - 9 - sz * 0.9 + 1) + 'px';
+      } else { // narrow: they sit on the top edge of the first card
+        var first = self.nodes[STACK.filter(function (n) { return self.nodes[n]; })[0]] || self.nodes[Object.keys(self.nodes)[0]];
+        var s2 = 58; d.style.width = d.style.height = s2 + 'px';
+        d.style.left = (first.x + first.w * (0.2 + 0.3 * i) - s2 / 2) + 'px'; d.style.top = (first.y - s2 * 0.9 + 2) + 'px';
       }
     });
     this.fit();
   };
+  // Spread the wires that leave the same side of a card, ordered by where their other end is, so they never cross.
+  Graph.prototype.ports = function () {
+    var self = this, sides = {};
+    this.edges.forEach(function (e) {
+      var S = self.nodes[e.rel.source], T = self.nodes[e.rel.target];
+      e.horizontal = !self.narrow && S.row === 1 && T.row === 1;
+      e.lane = self.narrow && Math.abs(S.slot - T.slot) > 1;
+      if (e.horizontal || e.lane) return;
+      var up = S.y < T.y ? S : T, down = S.y < T.y ? T : S;
+      e.up = up; e.down = down;
+      [[up, 'b', down], [down, 't', up]].forEach(function (p) {
+        var k = p[0].table.name + ':' + p[1]; (sides[k] = sides[k] || []).push({ e: e, other: p[2], end: p[1] });
+      });
+    });
+    Object.keys(sides).forEach(function (k) {
+      var list = sides[k].sort(function (a, b) { return (a.other.x + a.other.w / 2) - (b.other.x + b.other.w / 2); });
+      list.forEach(function (it, i) { it.e['f' + it.end] = (i + 1) / (list.length + 1); });
+    });
+  };
   Graph.prototype.route = function (e) {
-    var r = e.rel, S = this.rect(r.source), T = this.rect(r.target);
-    var sc = { x: S.x + S.w / 2, y: S.y + S.h / 2 }, tc = { x: T.x + T.w / 2, y: T.y + T.h / 2 };
-    var dx = tc.x - sc.x, dy = tc.y - sc.y, a, b, c1, c2, dirA, dirB;
-    var horizontalGap = Math.abs(dx) - (S.w + T.w) / 2, verticalGap = Math.abs(dy) - (S.h + T.h) / 2;
-    e.horizontal = horizontalGap > verticalGap;
+    var r = e.rel, S = this.nodes[r.source], T = this.nodes[r.target], a, b, c1, c2, many, one;
+    var headY = function (n) { return n.y + 21; };
     if (e.horizontal) {
-      var sgn = dx > 0 ? 1 : -1;
-      a = { x: sc.x + sgn * S.w / 2, y: sc.y }; b = { x: tc.x - sgn * T.w / 2, y: tc.y };
-      var k = Math.max(40, Math.abs(b.x - a.x) / 2);
-      c1 = { x: a.x + sgn * k, y: a.y }; c2 = { x: b.x - sgn * k, y: b.y }; dirA = { x: sgn, y: 0 }; dirB = { x: -sgn, y: 0 };
+      var L = S.x < T.x ? S : T, R = S.x < T.x ? T : S;
+      a = { x: L.x + L.w, y: headY(L) }; b = { x: R.x, y: headY(R) };
+      var k = (b.x - a.x) * 0.42;
+      c1 = { x: a.x + k, y: a.y + 12 }; c2 = { x: b.x - k, y: b.y + 12 };
+      e.card.textContent = (L === T ? '1' : 'many') + ' — ' + (R === T ? '1' : 'many');
+    } else if (e.lane) {
+      var U = S.y < T.y ? S : T, D = S.y < T.y ? T : S;
+      a = { x: U.x + U.w, y: headY(U) }; b = { x: D.x + D.w, y: headY(D) };
+      c1 = { x: a.x + 52, y: a.y + 20 }; c2 = { x: b.x + 52, y: b.y - 20 };
     } else {
-      var sg = dy > 0 ? 1 : -1;
-      a = { x: sc.x, y: sc.y + sg * S.h / 2 }; b = { x: tc.x, y: tc.y - sg * T.h / 2 };
-      var kk = Math.max(40, Math.abs(b.y - a.y) / 2);
-      c1 = { x: a.x, y: a.y + sg * kk }; c2 = { x: b.x, y: b.y - sg * kk }; dirA = { x: 0, y: sg }; dirB = { x: 0, y: -sg };
+      a = { x: e.up.x + e.up.w * e.fb, y: e.up.y + e.up.h }; b = { x: e.down.x + e.down.w * e.ft, y: e.down.y };
+      var kk = (b.y - a.y) * 0.5;
+      c1 = { x: a.x, y: a.y + kk }; c2 = { x: b.x, y: b.y - kk };
+      e.card.textContent = (e.up === T ? '1' : 'many') + ' — ' + (e.down === T ? '1' : 'many');
     }
+    if (e.lane) e.card.textContent = '';
+    if (e.kind === 'suggested') e.card.textContent = '';
     var d = 'M' + a.x + ' ' + a.y + ' C' + c1.x + ' ' + c1.y + ' ' + c2.x + ' ' + c2.y + ' ' + b.x + ' ' + b.y;
     e.wire.setAttribute('d', d); e.hit.setAttribute('d', d);
-    e.dot.setAttribute('cx', b.x); e.dot.setAttribute('cy', b.y);
-    // crow's foot at the many side: three short lines fanning from 12px out back to the anchor
-    var px = -dirA.y, py = dirA.x, ox = a.x + dirA.x * 12, oy = a.y + dirA.y * 12;
-    e.fork.setAttribute('d', 'M' + ox + ' ' + oy + ' L' + (a.x + px * 6) + ' ' + (a.y + py * 6) + ' M' + ox + ' ' + oy + ' L' + a.x + ' ' + a.y + ' M' + ox + ' ' + oy + ' L' + (a.x - px * 6) + ' ' + (a.y - py * 6));
-    e.nN.setAttribute('x', a.x + dirA.x * 18 + px * 10); e.nN.setAttribute('y', a.y + dirA.y * 18 + py * 10 + 4);
-    e.n1.setAttribute('x', b.x + dirB.x * 14 + px * 10); e.n1.setAttribute('y', b.y + dirB.y * 14 + py * 10 + 4);
+    e.dotA.setAttribute('cx', a.x); e.dotA.setAttribute('cy', a.y); e.dotB.setAttribute('cx', b.x); e.dotB.setAttribute('cy', b.y);
     var m = bez(a, c1, c2, b, 0.5); e.mid = m;
-    e.tag.setAttribute('transform', 'translate(' + (m.x - 17) + ',' + (m.y - 10) + ')'); e.tagText.setAttribute('x', 17); e.tagText.setAttribute('y', 14);
+    var shift = (e.kind === 'suggested' && !e.horizontal && !this.narrow) ? e.tagW / 2 - 14 : 0; // wide label hangs to the right of its wire
+    e.tag.setAttribute('transform', 'translate(' + (m.x + shift).toFixed(1) + ',' + m.y.toFixed(1) + ')');
+    if (e.horizontal) { e.card.setAttribute('x', m.x); e.card.setAttribute('y', m.y + 26); e.card.setAttribute('text-anchor', 'middle'); }
+    else if (this.narrow) { e.card.setAttribute('x', m.x + e.tagW / 2 + 8); e.card.setAttribute('y', m.y + 4); e.card.setAttribute('text-anchor', 'start'); }
+    else { e.card.setAttribute('x', m.x); e.card.setAttribute('y', m.y + 26); e.card.setAttribute('text-anchor', 'middle'); }
+    if (e.lane) { // the long wire: cardinality as two short words above and below the chip, inside the lane
+      e.card.textContent = '';
+      var t1 = el('tspan', { x: m.x, y: m.y - 16 }, T.y < S.y ? '1' : 'many'), t2 = el('tspan', { x: m.x, y: m.y + 24 }, T.y < S.y ? 'many' : '1');
+      e.card.appendChild(t1); e.card.appendChild(t2); e.card.setAttribute('text-anchor', 'middle');
+    }
   };
   function bez(p0, p1, p2, p3, t) { var u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y }; }
-  Graph.prototype.fit = function () {
-    var cw = this.container.clientWidth, ch = this.container.clientHeight;
-    if (!cw || !ch) return;
-    var s = Math.min((cw - 20) / this.size.w, (ch - 20) / this.size.h, 1);
-    var tx = (cw - this.size.w * s) / 2, ty = (ch - this.size.h * s) / 2;
+  // Fit: the whole graph at the container's width (never above 1:1). Zoom: a larger scale, the panel then scrolls.
+  Graph.prototype.fit = function () { this.zoom = null; this.applyScale(); };
+  Graph.prototype.zoomBy = function (f) { this.zoom = Math.max(0.4, Math.min(1.6, (this.zoom || this.fitScale || 1) * f)); this.applyScale(); };
+  Graph.prototype.applyScale = function () {
+    var cw = this.container.clientWidth; if (!cw) return;
+    var fs = this.fitScale = Math.min(1, (cw - 4) / this.size.w), s = this.zoom || fs;
     this.scale = s;
-    this.scene.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')';
+    this.sizer.style.width = Math.ceil(this.size.w * s) + 'px'; this.sizer.style.height = Math.ceil(this.size.h * s) + 'px';
+    this.container.style.height = Math.ceil(this.size.h * fs) + 2 + 'px';
+    this.container.classList.toggle('zoomed', s > fs + 0.001);
+    this.scene.style.transform = 'scale(' + s.toFixed(3) + ')';
   };
-  Graph.prototype.setFields = function (on) {
-    this.fields = !!on; this.container.classList.toggle('show-fields', this.fields);
-    var self = this; Object.keys(this.nodes).forEach(function (n) { self.nodes[n].el.querySelector('.g-node-cols').setAttribute('aria-hidden', self.fields ? 'false' : 'true'); });
-    this.layout();
-  };
+  Graph.prototype.setFields = function () { this.layout(); };
   Graph.prototype.clearHighlight = function () {
     this.container.classList.remove('has-focus');
     this.container.querySelectorAll('.on').forEach(function (x) { x.classList.remove('on'); });
@@ -188,10 +277,10 @@
     this.selected = null; this.clearHighlight(); this.emit('select', null);
   };
   Graph.prototype.setAccepted = function (e, on) {
-    this.accepted[e.id] = !!on; e.el.classList.toggle('accepted', !!on); e.tagText.textContent = on ? '✓' : '?';
-    e.el.setAttribute('aria-label', (on ? 'Accepted in this page: ' : 'Suggested connection: ') + e.rel.source + '.' + e.rel.source_cols.join(', ') + ' to ' + e.rel.target + '.' + e.rel.target_cols.join(', ') + (on ? ' (not verified)' : ', not linked by the engine. Review it.'));
+    this.accepted[e.id] = !!on; e.el.classList.toggle('accepted', !!on);
+    this.setTag(e); e.el.setAttribute('aria-label', this.edgeLabel(e)); this.route(e);
   };
-  Graph.prototype.reset = function () { var self = this; this.clearSelection(); this.edges.forEach(function (e) { if (e.kind === 'suggested') self.setAccepted(e, false); }); this.setFields(false); };
+  Graph.prototype.reset = function () { var self = this; this.clearSelection(); this.edges.forEach(function (e) { if (e.kind === 'suggested') self.setAccepted(e, false); }); this.fit(); };
 
   function loadPlan(cb) {
     fetch('/demo/plan.json', { credentials: 'omit' }).then(function (r) { return r.json(); }).then(cb).catch(function (err) {
@@ -208,13 +297,31 @@
     }).filter(Boolean);
   }
 
+  function singular(n) { return /ies$/.test(n) ? n.slice(0, -3) + 'y' : /sses$/.test(n) ? n.slice(0, -2) : /s$/.test(n) ? n.slice(0, -1) : n; }
+  function article(w) { return /^[aeiou]/.test(w) ? 'an' : 'a'; }
+  function colOf(data, table, name) {
+    var t = data.tables.filter(function (x) { return x.name === table; })[0];
+    return t ? t.columns.filter(function (c) { return c.name === name; })[0] : null;
+  }
+  // A plain-language reason for a connection the engine made, from its rule. The wording follows infer.RULES.
+  function reason(r) {
+    var s = singular(r.source), t = singular(r.target), col = r.source_cols.join(' + '), key = r.target_cols.join(' + ');
+    var lead = 'Each ' + s.replace(/_/g, ' ') + ' belongs to one ' + t.replace(/_/g, ' ') + '. ';
+    if (r.rule === 'R1') return lead + 'The column ' + col + ' is named after the ' + r.target + ' table, and ' + r.target + ' has a single key, ' + key + '.';
+    if (r.rule === 'R2') return lead + 'The column ' + col + ' has exactly the same name as the key of ' + r.target + '.';
+    if (r.rule === 'R3') return lead + 'All of the composite key columns of ' + r.target + ' appear in ' + r.source + '.';
+    if (r.rule === 'R0') return lead + 'The source declares this foreign key.';
+    return lead;
+  }
+  function tableIcon(name, i) { return '<span class="t-ico c-' + colorOf(name, i) + '">' + ICON_TABLE + '</span>'; }
+
   /* ------------------------------------------------------------------ home */
   var home = document.querySelector('[data-page=home]');
   if (home) loadPlan(function (data) {
     var g = new Graph(document.getElementById('home-graph'), data, {
-      label: 'Data graph of the demo shop schema',
-      mascots: [{ kind: 'onto', edge: 'order_items.product_id>products', pose: 'look', idle: 'breathe' },
-                { kind: 'thinker', edge: 'orders.customer_id>customers', pose: 'rest' },
+      label: 'Data graph of the demo shop schema', suggest: suggestions(data),
+      mascots: [{ kind: 'onto', edge: 'orders.customer_id>customers', pose: 'look', idle: 'breathe' },
+                { kind: 'thinker', edge: 'order_items.product_id>products', pose: 'rest', idle: 'nod' },
                 { kind: 'builder', edge: 'products.category_id>categories', pose: 'rest' }]
     });
     var out = document.getElementById('home-why');
@@ -223,10 +330,13 @@
       if (!sel) { out.innerHTML = dflt; return; }
       if (sel.type === 'table') {
         var t = sel.table;
-        out.innerHTML = '<strong>' + esc(t.name) + '</strong> · ' + (t.key.length ? 'key <code>' + esc(t.key.join(' + ')) + '</code> by rule <code>' + t.key_rule + '</code>: ' + esc(data.rules[t.key_rule]) : 'no key by rule <code>K3</code>: ' + esc(data.rules.K3)) + '.';
+        out.innerHTML = '<strong>' + esc(t.name) + '</strong> · ' + (t.key.length ? esc(keyText(t)) + ' <code>' + esc(t.key.join(' + ')) + '</code>, rule <code>' + t.key_rule + '</code>: ' + esc(data.rules[t.key_rule].replace(/`/g, '')) : 'no key, rule <code>K3</code>: ' + esc(data.rules.K3)) + '.';
+      } else if (sel.edge.kind === 'suggested') {
+        var q = sel.edge.rel;
+        out.innerHTML = '<code>' + esc(q.source + '.' + q.source_cols.join('+')) + '</code> was not linked by the engine (' + esc(q.note) + '). <a href="/explore">Review it in the explorer</a>.';
       } else {
         var r = sel.edge.rel;
-        out.innerHTML = '<code>' + esc(r.source + '.' + r.source_cols.join('+')) + '</code> → <code>' + esc(r.target + '.' + r.target_cols.join('+')) + '</code> by rule <code>' + r.rule + '</code>: ' + esc(data.rules[r.rule]) + '.';
+        out.innerHTML = '<span class="why-rule">' + r.rule + '</span> <code>' + esc(r.source + '.' + r.source_cols.join('+')) + '</code> → <code>' + esc(r.target + '.' + r.target_cols.join('+')) + '</code>. ' + esc(reason(r));
       }
     }
     g.on('select', describe); g.on('focus', describe);
@@ -239,46 +349,58 @@
     var sug = suggestions(data);
     var g = new Graph(area, data, { label: 'Explorable data graph of the demo shop schema', suggest: sug });
     document.getElementById('plan-summary').textContent = data.summary.split('\n')[0] + (sug.length ? ' · ' + sug.length + ' column to review' : '');
-    list.innerHTML = data.tables.map(function (t) {
-      return '<li><button type="button" data-table="' + esc(t.name) + '"><span>' + esc(t.name) + '</span><span class="rule">' + (t.key.length ? t.key_rule : 'K3') + '</span></button></li>';
+    list.innerHTML = data.tables.map(function (t, i) {
+      return '<li><button type="button" data-table="' + esc(t.name) + '">' + tableIcon(t.name, i) + '<span class="nm">' + esc(t.name) + '</span><span class="rule" title="' + esc(keyTip(t, data.rules)) + '">' + keyText(t) + '</span></button></li>';
     }).join('');
     list.addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) { g.selectTable(b.getAttribute('data-table')); } });
     document.getElementById('btn-fit').addEventListener('click', function () { g.fit(); });
-    var bf = document.getElementById('btn-fields');
-    bf.addEventListener('click', function () { var on = bf.getAttribute('aria-pressed') !== 'true'; bf.setAttribute('aria-pressed', on ? 'true' : 'false'); g.setFields(on); });
-    document.getElementById('btn-reset').addEventListener('click', function () { g.reset(); bf.setAttribute('aria-pressed', 'false'); render(null); });
-    var dflt = panel.innerHTML;
-    function rule(code) { return '<p>' + esc(data.rules[code] || '') + '</p>'; }
+    document.getElementById('btn-zoom-in').addEventListener('click', function () { g.zoomBy(1.25); });
+    document.getElementById('btn-zoom-out').addEventListener('click', function () { g.zoomBy(0.8); });
+    document.getElementById('btn-reset').addEventListener('click', function () { g.reset(); render(null); });
+    var dflt = panel.innerHTML, line = document.getElementById('explore-line'), lineDflt = line.innerHTML;
+    function field(table, name) {
+      var c = colOf(data, table, name);
+      return '<li><code>' + esc(table + '.' + name) + '</code> <span class="type">' + esc(c ? c.type : '?') + '</span>' + (c && c.key ? ' <span class="muted">key</span>' : '') + '</li>';
+    }
+    function fields(r) {
+      return '<h3>Fields</h3><ul class="fields">' + r.source_cols.map(function (c) { return field(r.source, c); }).join('') +
+        r.target_cols.map(function (c) { return field(r.target, c); }).join('') + '</ul>';
+    }
     function render(sel) {
       list.querySelectorAll('button').forEach(function (b) { b.classList.toggle('selected', !!(sel && sel.type === 'table' && b.getAttribute('data-table') === sel.table.name)); });
-      if (!sel) { panel.innerHTML = dflt; M.mount(panel); return; }
+      if (!sel) { panel.innerHTML = dflt; line.innerHTML = lineDflt; M.mount(panel); return; }
       if (sel.type === 'table') {
-        var t = sel.table;
-        panel.innerHTML = '<h2>' + esc(t.name) + '</h2>' +
-          (t.key.length ? '<span class="why-rule key">' + t.key_rule + '</span>' + rule(t.key_rule) + '<dl><dt>Key</dt><dd>' + esc(t.key.join(' + ')) + '</dd>'
-                        : '<span class="why-rule">K3</span>' + rule('K3') + '<dl><dt>Key</dt><dd>none</dd>') +
-          '<dt>Columns</dt><dd>' + t.columns.map(function (c) { return esc(c.name) + ' <span class="muted">' + esc(c.type) + '</span>'; }).join('<br>') + '</dd>' +
-          '<dt>Rows</dt><dd>' + t.rows + ' <span class="muted">(synthetic)</span></dd></dl>' +
+        var t = sel.table, code = t.key.length ? t.key_rule : 'K3';
+        panel.innerHTML = '<h2>' + tableIcon(t.name, data.tables.indexOf(t)) + ' ' + esc(t.name) + '</h2><div class="why-cols"><div>' +
+          '<p class="why-head"><span class="why-rule key">' + code + '</span> <strong>' + keyText(t) + '</strong>' + (t.key.length ? ' <code>' + esc(t.key.join(' + ')) + '</code>' : '') + '</p>' +
+          '<p>' + esc(data.rules[code].replace(/`/g, '')) + '.</p>' +
           (t.key_rule === 'K1' ? '<p class="status">Composite keys cannot be guessed from names; this one was given as <code>keys={"order_items": ["order_id", "line_no"]}</code>.</p>' : '') +
-          (t.key.length ? '' : '<p class="status">Query only: it can reference other tables, but nothing can reference it.</p>');
+          (t.key.length ? '' : '<p class="status">Query only: it can reference other tables, but nothing can reference it.</p>') +
+          '</div><div><h3>Fields</h3><ul class="fields">' + t.columns.map(function (c) { return '<li><code>' + esc(c.name) + '</code> <span class="type">' + esc(c.type) + '</span>' + (c.key ? ' <span class="muted">key</span>' : c.linked ? ' <span class="muted">linked</span>' : '') + '</li>'; }).join('') + '</ul>' +
+          '<p class="status">' + t.rows + ' rows (synthetic).</p></div></div>';
+        line.innerHTML = '<strong>' + esc(t.name) + '</strong> · ' + keyText(t) + (t.key.length ? ' <code>' + esc(t.key.join(' + ')) + '</code>' : '') + ' · <a href="#why">details below</a>';
       } else if (sel.edge.kind === 'suggested') {
         var r = sel.edge.rel, acc = g.accepted[sel.edge.id];
-        panel.innerHTML = '<h2>Review this connection</h2><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'accepted' : 'not linked') + '</span>' +
-          '<p><code>' + esc(r.source + '.' + r.source_cols[0]) + '</code>: ' + esc(r.note) + '. The engine leaves it unlinked and tells you so.</p>' +
-          '<dl><dt>Demo suggestion</dt><dd>' + esc(r.target + '.' + r.target_cols[0]) + '</dd><dt>Why</dt><dd class="muted" style="font-family:inherit">the synthetic seed stores address ids in this column</dd></dl>' +
+        panel.innerHTML = '<h2>Why this connection?</h2><div class="why-cols"><div>' +
+          '<p class="why-head"><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'Accepted here (not verified)' : 'Suggested connection') + '</span></p>' +
+          '<p class="why-path"><code>' + esc(r.source + '.' + r.source_cols[0]) + ' → ' + esc(r.target + '.' + r.target_cols[0]) + '</code></p>' +
+          '<p>No rule matched: ' + esc(r.source_cols[0]) + ' is not named after another table, and it is not another table’s key name. The engine leaves it unlinked and says so. In this synthetic demo the column holds address ids, so it is offered for review.</p>' +
+          fields(r) + '</div><div>' +
           '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Review this connection.</strong><br>Your choice. Both are valid.' +
-          '<div class="choice"><button type="button" class="btn sage small" id="acc">Accept</button><button type="button" class="btn ghost small" id="skip">Skip</button></div></div></div>' +
-          '<p class="status">' + (acc ? 'Accepted here: drawn as a thin sage line. Accepted is not verified — nothing has checked the data. In the real tools this is <code>confirmed=[…]</code>.' : 'Skipped: the connection stays dashed. The choice lives only in this page.') + '</p>';
+          '<div class="choice"><button type="button" class="btn sage small" id="acc" aria-pressed="' + (acc ? 'true' : 'false') + '">Accept</button><button type="button" class="btn ghost small" id="skip">Skip</button></div></div></div>' +
+          '<p class="status">' + (acc ? 'Accepted here: drawn as a solid sage line. Accepted is not verified; nothing has checked the data. In the real tools this is <code>confirmed=[…]</code>.' : 'Skip leaves it dashed. The choice lives only in this page.') + '</p></div></div>';
+        line.innerHTML = (acc ? 'Accepted here (not verified)' : 'Suggested connection') + ': <code>' + esc(r.source + '.' + r.source_cols[0] + ' → ' + r.target + '.' + r.target_cols[0]) + '</code> · <a href="#why">review it below</a>';
         M.mount(panel);
-        panel.querySelector('#acc').addEventListener('click', function () { g.setAccepted(sel.edge, true); render(sel); });
-        panel.querySelector('#skip').addEventListener('click', function () { g.setAccepted(sel.edge, false); render(sel); });
+        panel.querySelector('#acc').addEventListener('click', function () { g.setAccepted(sel.edge, true); render(sel); panel.querySelector('#acc').focus(); });
+        panel.querySelector('#skip').addEventListener('click', function () { g.setAccepted(sel.edge, false); render(sel); panel.querySelector('#skip').focus(); });
       } else {
         var rr = sel.edge.rel;
-        panel.innerHTML = '<h2>Why this connection?</h2><span class="why-rule">' + rr.rule + '</span>' + rule(rr.rule) +
-          '<dl><dt>From</dt><dd>' + esc(rr.source + '.' + rr.source_cols.join(' + ')) + '</dd><dt>To</dt><dd>' + esc(rr.target + '.' + rr.target_cols.join(' + ')) + '</dd>' +
-          '<dt>Cardinality</dt><dd>many ' + esc(rr.source) + ' → one ' + esc(rr.target) + '</dd>' +
-          '<dt>GraphQL</dt><dd>' + esc(rr.source) + '.' + esc(rr.field) + '<br>' + esc(rr.target) + '.' + esc(rr.reverse) + '</dd></dl>' +
-          '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label="Onto"></span><div><strong>Onto’s note:</strong> a suggestion, not a guarantee. Names made this link; you can overrule it.</div></div>';
+        panel.innerHTML = '<h2>Why this connection?</h2><div class="why-cols"><div>' +
+          '<p class="why-head"><span class="why-rule" title="' + esc('Rule ' + rr.rule + ': ' + data.rules[rr.rule].replace(/`/g, '')) + '">' + rr.rule + '</span> <span class="muted">many ' + esc(rr.source) + ' → one ' + esc(singular(rr.target)) + '</span></p>' +
+          '<p class="why-path"><code>' + esc(rr.source + '.' + rr.source_cols.join(' + ')) + ' → ' + esc(rr.target + '.' + rr.target_cols.join(' + ')) + '</code></p>' +
+          '<p>' + esc(reason(rr)) + '</p>' + '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label="Onto"></span><div><strong>Onto’s note:</strong> a suggestion, not a guarantee. Names made this link; you can overrule it.</div></div></div><div>' + fields(rr) +
+          '<h3>In GraphQL</h3><ul class="fields"><li><code>' + esc(rr.source + '.' + rr.field) + '</code> <span class="type">one</span></li><li><code>' + esc(rr.target + '.' + rr.reverse) + '</code> <span class="type">many</span></li></ul></div></div>';
+        line.innerHTML = '<span class="why-rule">' + rr.rule + '</span> <code>' + esc(rr.source + '.' + rr.source_cols.join(' + ') + ' → ' + rr.target + '.' + rr.target_cols.join(' + ')) + '</code> · <a href="#why">why, below</a>';
         M.mount(panel);
       }
     }
@@ -286,8 +408,8 @@
     // Onto: follows the pointer on hover devices; a still helper on touch and for keyboard users.
     var helper = M.follower(area, { text: 'Explore this table.' });
     if (!helper) {
-      var still = document.createElement('div'); still.className = 'g-follower visible'; still.style.left = 'auto'; still.style.right = '8px'; still.style.top = 'auto'; still.style.bottom = '8px';
-      still.setAttribute('aria-hidden', 'true'); still.innerHTML = M.svg('onto', { pose: 'rest', gaze: false, label: '' }); area.appendChild(still);
+      var still = document.createElement('div'); still.className = 'g-follower visible still'; still.style.left = 'auto'; still.style.right = '4px'; still.style.top = 'auto'; still.style.bottom = '4px';
+      still.setAttribute('aria-hidden', 'true'); still.innerHTML = M.svg('onto', { pose: 'rest', label: '' }); area.appendChild(still);
       g.on('select', function (sel) { if (sel && sel.type === 'table' && M.enabled()) { M.setPose(still, 'explain'); M.say(area, sel.el, 'Explore this table.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); M.setPose(still, 'rest'); }, 2200); } });
     }
     g.on('focus', function (sel) { // keyboard users get the same help, without a pointer

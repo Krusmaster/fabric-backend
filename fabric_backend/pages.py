@@ -259,8 +259,19 @@ def _demo_vars() -> dict[str, str]:
     """Server-rendered fallbacks for the demo pages, so the table list exists before (or without) JavaScript."""
     from .demo import demo_plan
     d = demo_plan()
-    items = "".join(f'<li><button type="button" data-table="{html.escape(t["name"])}"><span>{html.escape(t["name"])}</span>'
-                    f'<span class="rule">{t["key_rule"] if t["key"] else "K3"}</span></button></li>' for t in d["tables"])
+    order = ["customers", "orders", "order_items", "products", "categories", "addresses", "audit_log"]
+    colors = ["coral", "sage", "lav", "mustard"]
+    icon = ('<svg class="g-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1.5" y="2.5" width="13" height="11" rx="2.6" '
+            'fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 6.5h13M6.2 6.5v7" stroke="currentColor" stroke-width="1.5"/></svg>')
+
+    def row(i: int, t: dict) -> str:
+        color = colors[(order.index(t["name"]) if t["name"] in order else i) % len(colors)]
+        code = t["key_rule"] if t["key"] else "K3"
+        label = "no key" if not t["key"] else "composite key" if len(t["key"]) > 1 else "key"
+        tip = html.escape(f'Rule {code}: {d["rules"].get(code, "").replace("`", "")}')
+        return (f'<li><button type="button" data-table="{html.escape(t["name"])}"><span class="t-ico c-{color}">{icon}</span>'
+                f'<span class="nm">{html.escape(t["name"])}</span><span class="rule" title="{tip}">{label}</span></button></li>')
+    items = "".join(row(i, t) for i, t in enumerate(d["tables"]))
     return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0])}
 
 
