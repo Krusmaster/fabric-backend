@@ -1,6 +1,6 @@
-# {{PRODUCT}} for Microsoft Fabric
+# {{PRODUCT}} docs
 
-Turn the tables in a Fabric lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API —
+Using {{PRODUCT}} with Microsoft Fabric: turn the tables in a lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API —
 keys and relationships inferred, with the rule behind every link shown. Use it from Claude today, and from other
 MCP clients once their sign-in redirects are registered (see *Connect*). Try the [demo](/explore) first if you
 like; it needs no account.

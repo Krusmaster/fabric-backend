@@ -161,21 +161,27 @@
       var r = area.getBoundingClientRect();
       var node = e.target.closest && e.target.closest('.g-node');
       if (state === 'aside') return;                 // stepped aside after a click; stays until the pointer leaves
-      // follow at a distance: below-right of the pointer, kept inside the area and away from the hovered card
-      var x = e.clientX - r.left + 26, y = e.clientY - r.top + 26;
-      x = Math.max(0, Math.min(x, r.width - 52)); y = Math.max(0, Math.min(y, r.height - 52));
+      var x, y;
+      if (node) {                                     // beside the hovered card, never on it: right of it, else left
+        var nr = node.getBoundingClientRect(), nx = nr.left - r.left, ny = nr.top - r.top;
+        x = nx + nr.width + 10; if (x + 52 > r.width) x = nx - 60;
+        y = ny + nr.height - 44;
+      } else {                                        // follow at a distance: below-right of the pointer
+        x = e.clientX - r.left + 34; y = e.clientY - r.top + 34;
+      }
+      x = Math.max(0, Math.min(x, r.width - 52)); y = Math.max(0, Math.min(y, r.height - 56));
       go(x, y);
       if (node !== hoverNode) {
         hoverNode = node; clearTimeout(pauseTimer); say(area, wrap, '');
         if (node) {
           setState('pause');
-          pauseTimer = setTimeout(function () {
-            if (hoverNode === node && state !== 'aside') { setState('explain'); say(area, wrap, bubbleText.replace('{table}', node.getAttribute('data-table') || 'this table'), { dx: 44, dy: 12 }); }
+          pauseTimer = setTimeout(function () {   // the bubble sits above the card, not over its text
+            if (hoverNode === node && state !== 'aside') { setState('explain'); say(area, node, bubbleText.replace('{table}', node.getAttribute('data-table') || 'this table'), { dx: 0, dy: -4 }); }
           }, 650);
         } else setState('follow');
       }
     });
-    area.addEventListener('pointerdown', function () { if (!motionOK()) return; clearTimeout(pauseTimer); say(area, wrap, ''); setState('aside'); var r = area.getBoundingClientRect(); go(r.width - 60, r.height - 60); });
+    area.addEventListener('pointerdown', function () { if (!motionOK()) return; clearTimeout(pauseTimer); say(area, wrap, ''); setState('aside'); var r = area.getBoundingClientRect(); go(r.width - 60, r.height - 72); });
     area.addEventListener('pointerleave', function () { clearTimeout(pauseTimer); say(area, wrap, ''); wrap.classList.remove('visible'); hoverNode = null; setState('rest'); });
     return { element: wrap, figure: fig, setState: setState };
   }

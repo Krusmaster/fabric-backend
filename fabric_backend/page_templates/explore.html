@@ -1,16 +1,15 @@
 <div data-page="explore">
-<section class="wrap" style="padding:20px 16px 0">
-  <div style="display:flex;flex-wrap:wrap;gap:10px 18px;align-items:baseline;justify-content:space-between">
-    <div><span class="kicker">Graph explorer</span><h1 style="font-size:clamp(30px,4vw,44px);margin-bottom:6px">Explore the demo</h1>
-    <p class="muted" style="max-width:62ch">An <strong>illustrative demo</strong> on a synthetic shop schema. Everything drawn here is the output of the real planning engine, run on the demo tables: <span id="plan-summary" class="mono">loading…</span></p></div>
-    <span class="pill demo">Illustrative demo</span>
-  </div>
+<section class="wrap" style="padding-top:20px;padding-bottom:0">
+  <span class="kicker">Graph explorer · illustrative demo</span>
+  <h1 style="font-size:clamp(30px,4vw,44px);margin-bottom:6px">Explore the demo</h1>
+  <p class="muted" style="max-width:62ch;margin-bottom:6px">A synthetic shop schema, drawn from the output of the real planning engine. Nothing here is hand-made data.</p>
+  <p class="mono tiny muted" id="plan-summary">{{DEMO_SUMMARY}}</p>
 </section>
 <div class="wrap explore">
   <aside class="ex-side" aria-label="Tables and legend">
     <h2>Tables</h2>
     <ul id="table-list" class="table-list" aria-label="Tables">{{DEMO_TABLE_LIST}}</ul>
-    <p class="legend" style="padding-top:14px"><span><i></i> rule R1–R3</span><span><i class="sug"></i> to review</span><span><i class="acc"></i> accepted here</span><span><i class="box"></i> no key</span></p>
+    <p class="legend" style="padding-top:14px"><span>K1–K3: how the key was found</span><span><i></i> rule R1–R3</span><span><i class="sug"></i> to review</span><span><i class="acc"></i> accepted here</span><span><i class="box"></i> no key</span></p>
   </aside>
   <section class="ex-graph graph-panel" aria-label="Graph">
     <div class="panel-head">
@@ -20,9 +19,10 @@
         <button type="button" class="btn ghost" id="btn-reset">Reset</button>
         <button type="button" class="btn ghost" id="btn-mermaid" title="Copy the engine's Mermaid ER diagram">Copy Mermaid</button>
       </div>
-      <span class="muted tiny">Tab moves between tables and wires · Enter selects · Esc clears</span>
+      <span class="muted tiny kbd-hint">Tab moves between tables and wires · Enter selects · Esc clears</span>
     </div>
     <div id="explore-graph" class="graph tall"></div>
+    <p class="muted tiny swipe-hint">Swipe sideways to see the whole graph.</p>
     <p class="muted tiny" style="margin:8px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
   </section>
   <aside class="ex-panel" id="why" aria-live="polite" aria-label="Why this connection">

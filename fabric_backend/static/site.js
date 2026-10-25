@@ -6,15 +6,16 @@
   /* ------------------------------------------------------------------ nav */
   var toggle = document.querySelector('.nav-toggle'), nav = document.getElementById('site-nav');
   if (toggle && nav) {
-    toggle.addEventListener('click', function () {
-      var open = nav.classList.toggle('open');
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { nav.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); toggle.focus(); } });
+    var setNav = function (open) { nav.classList.toggle('open', open); document.body.classList.toggle('nav-open', open); toggle.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+    toggle.addEventListener('click', function () { setNav(!nav.classList.contains('open')); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { setNav(false); toggle.focus(); } });
+    document.addEventListener('click', function (e) { if (nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) setNav(false); });
   }
+  // <details data-open-wide>: open by default where there is room (the permissions table on /start)
+  if (window.matchMedia('(min-width: 720px)').matches) document.querySelectorAll('details[data-open-wide]').forEach(function (d) { d.open = true; });
 
   /* ------------------------------------------------------------------ graph */
-  var WIDE = { customers: [40, 200], orders: [330, 60], order_items: [620, 60], products: [620, 320], categories: [900, 320], addresses: [330, 330], audit_log: [40, 430] };
+  var WIDE = { customers: [40, 200], orders: [380, 60], order_items: [700, 60], products: [700, 320], categories: [1020, 320], addresses: [380, 330], audit_log: [40, 430] };
   var NARROW = { customers: [20, 20], orders: [250, 20], addresses: [20, 160], order_items: [250, 160], audit_log: [20, 300], products: [250, 300], categories: [250, 440] };
   var NS = 'http://www.w3.org/2000/svg';
   function el(tag, attrs, text) {
@@ -96,8 +97,8 @@
   };
   Graph.prototype.layout = function (keepView) {
     var self = this, cw = this.container.clientWidth;
-    var map = cw < 640 ? NARROW : WIDE, fallback = 0;
-    this.narrow = cw < 640;
+    this.narrow = cw < 560;
+    var map = this.narrow ? NARROW : (this.opts.layout || WIDE), fallback = 0;
     Object.keys(this.nodes).forEach(function (name) {
       var n = self.nodes[name], p = map[name] || [40 + (fallback % 3) * 290, 60 + Math.floor(fallback++ / 3) * 150];
       if (self.fields) p = [Math.round(p[0] * 1.3), Math.round(p[1] * 1.7)];
@@ -106,15 +107,16 @@
     var maxX = 0, maxY = 0;
     Object.keys(this.nodes).forEach(function (name) { var r = self.rect(name); maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h); });
     this.size = { w: maxX + 30, h: maxY + 30 };
-    this.scene.style.width = this.size.w + 'px'; this.scene.style.height = this.size.h + 'px';
+    // the scene box stays 0×0: the scroll area of a grown graph is then exactly the transformed children
+    this.scene.style.width = '0px'; this.scene.style.height = '0px';
     this.svg.setAttribute('width', this.size.w); this.svg.setAttribute('height', this.size.h);
     this.edges.forEach(function (e) { self.route(e); });
     (this.mascotEls || []).forEach(function (d) {
       var e = self.edges.filter(function (x) { return x.id === d.getAttribute('data-on'); })[0];
       d.style.display = (self.narrow || !e) ? 'none' : '';
-      if (e) { // sit on a horizontal wire (left of the rule pill), or stand beside a vertical one
-        if (e.horizontal) { d.style.left = (e.mid.x - 26 - 46) + 'px'; d.style.top = (e.mid.y - 50) + 'px'; }
-        else { d.style.left = (e.mid.x + 18) + 'px'; d.style.top = (e.mid.y - 58) + 'px'; }
+      if (e) { // sit near the start of the wire, well away from the rule pill at its middle and from both cards
+        if (e.horizontal) { d.style.left = (e.q.x - 26) + 'px'; d.style.top = (e.q.y - 50) + 'px'; }
+        else { d.style.left = (e.q.x + 16) + 'px'; d.style.top = (e.q.y - 30) + 'px'; }
       }
     });
     this.fit();
@@ -144,15 +146,23 @@
     e.fork.setAttribute('d', 'M' + ox + ' ' + oy + ' L' + (a.x + px * 6) + ' ' + (a.y + py * 6) + ' M' + ox + ' ' + oy + ' L' + a.x + ' ' + a.y + ' M' + ox + ' ' + oy + ' L' + (a.x - px * 6) + ' ' + (a.y - py * 6));
     e.nN.setAttribute('x', a.x + dirA.x * 18 + px * 10); e.nN.setAttribute('y', a.y + dirA.y * 18 + py * 10 + 4);
     e.n1.setAttribute('x', b.x + dirB.x * 14 + px * 10); e.n1.setAttribute('y', b.y + dirB.y * 14 + py * 10 + 4);
-    var m = bez(a, c1, c2, b, 0.5); e.mid = m;
-    e.tag.setAttribute('transform', 'translate(' + (m.x - 17) + ',' + (m.y - 10) + ')'); e.tagText.setAttribute('x', 17); e.tagText.setAttribute('y', 14);
+    var m = bez(a, c1, c2, b, 0.5); e.mid = m; e.q = bez(a, c1, c2, b, 0.26);
+    var short = e.horizontal && Math.abs(b.x - a.x) < 90;             // no room on the wire: lift the pill above it
+    e.tag.setAttribute('transform', 'translate(' + (m.x - 17) + ',' + (m.y - (short ? 26 : 10)) + ')'); e.tagText.setAttribute('x', 17); e.tagText.setAttribute('y', 14);
   };
   function bez(p0, p1, p2, p3, t) { var u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y }; }
   Graph.prototype.fit = function () {
     var cw = this.container.clientWidth, ch = this.container.clientHeight;
-    if (!cw || !ch) return;
-    var s = Math.min((cw - 20) / this.size.w, (ch - 20) / this.size.h, 1);
-    var tx = (cw - this.size.w * s) / 2, ty = (ch - this.size.h * s) / 2;
+    if (!cw) return;
+    // Narrow screens and the fields view "grow": the graph never shrinks below 80 %, the container takes the
+    // height it needs and scrolls sideways if it must. Otherwise the whole plan fits the fixed panel.
+    var grow = this.narrow || this.fields;
+    var s = grow ? Math.max(0.8, Math.min((cw - 20) / this.size.w, 1)) : Math.min((cw - 20) / this.size.w, (ch - 20) / this.size.h, 1);
+    var w = this.size.w * s, h = this.size.h * s;
+    var tx = Math.max(10, (cw - w) / 2), ty = grow ? 10 : Math.max(10, (ch - h) / 2);
+    this.container.classList.toggle('grow', grow);
+    var want = grow ? Math.round(h + 20) + 'px' : '';
+    if (this.container.style.height !== want) this.container.style.height = want;
     this.scale = s;
     this.scene.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')';
   };
@@ -215,7 +225,7 @@
       label: 'Data graph of the demo shop schema',
       mascots: [{ kind: 'onto', edge: 'order_items.product_id>products', pose: 'look', idle: 'breathe' },
                 { kind: 'thinker', edge: 'orders.customer_id>customers', pose: 'rest' },
-                { kind: 'builder', edge: 'products.category_id>categories', pose: 'rest' }]
+                { kind: 'builder', edge: 'addresses.customer_id>customers', pose: 'rest' }]
     });
     var out = document.getElementById('home-why');
     var dflt = out.innerHTML;
@@ -240,7 +250,8 @@
     var g = new Graph(area, data, { label: 'Explorable data graph of the demo shop schema', suggest: sug });
     document.getElementById('plan-summary').textContent = data.summary.split('\n')[0] + (sug.length ? ' · ' + sug.length + ' column to review' : '');
     list.innerHTML = data.tables.map(function (t) {
-      return '<li><button type="button" data-table="' + esc(t.name) + '"><span>' + esc(t.name) + '</span><span class="rule">' + (t.key.length ? t.key_rule : 'K3') + '</span></button></li>';
+      var code = t.key.length ? t.key_rule : 'K3';
+      return '<li><button type="button" data-table="' + esc(t.name) + '" title="' + esc(code + ': ' + data.rules[code]) + '"><span>' + esc(t.name) + '</span><span class="rule">' + code + '</span></button></li>';
     }).join('');
     list.addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) { g.selectTable(b.getAttribute('data-table')); } });
     document.getElementById('btn-fit').addEventListener('click', function () { g.fit(); });
@@ -254,7 +265,17 @@
       else { window.prompt('Mermaid ER diagram (select and copy):', data.mermaid); done(true); }
     });
     var dflt = panel.innerHTML;
-    function rule(code) { return '<p>' + esc(data.rules[code] || '').replace(/`([^`]+)`/g, '<code>$1</code>') + '</p>'; }
+    function rule(code) { return '<p class="status">Engine wording, ' + code + ': ' + esc(data.rules[code] || '').replace(/`([^`]+)`/g, '<code>$1</code>') + '</p>'; }
+    function plain(r) { // the same rule as one human sentence, built from the data
+      var c = function (s) { return '<code>' + esc(s) + '</code>'; };
+      var src = c(r.source + '.' + r.source_cols.join(' + ')), tgt = c(r.target), tk = c(r.target_cols.join(' + '));
+      if (r.rule === 'R0') return '<p>' + src + ' is declared as a foreign key to ' + tgt + '.</p>';
+      if (r.rule === 'R1') return '<p>' + src + ' is named after ' + tgt + ', and ' + tgt + ' has a single key, ' + tk + '.</p>';
+      if (r.rule === 'R2') return '<p>' + src + ' has exactly the same name as the key of ' + tgt + ', ' + tk + ', and that name is not just <code>id</code>.</p>';
+      if (r.rule === 'R3') return '<p>All columns of the composite key of ' + tgt + ' (' + tk + ') appear in ' + c(r.source) + '.</p>';
+      if (r.rule === 'confirmed') return '<p>' + src + ' → ' + tgt + ' was given by the caller and applied as-is.</p>';
+      return '';
+    }
     function render(sel) {
       list.querySelectorAll('button').forEach(function (b) { b.classList.toggle('selected', !!(sel && sel.type === 'table' && b.getAttribute('data-table') === sel.table.name)); });
       if (!sel) { panel.innerHTML = dflt; M.mount(panel); return; }
@@ -280,13 +301,14 @@
         panel.querySelector('#skip').addEventListener('click', function () { g.setAccepted(sel.edge, false); render(sel); });
       } else {
         var rr = sel.edge.rel;
-        panel.innerHTML = '<h2>Why this connection?</h2><span class="why-rule">' + rr.rule + '</span>' + rule(rr.rule) +
+        panel.innerHTML = '<h2>Why this connection?</h2><span class="why-rule">' + rr.rule + '</span>' + plain(rr) +
           '<dl><dt>From</dt><dd>' + esc(rr.source + '.' + rr.source_cols.join(' + ')) + '</dd><dt>To</dt><dd>' + esc(rr.target + '.' + rr.target_cols.join(' + ')) + '</dd>' +
           '<dt>Cardinality</dt><dd>many ' + esc(rr.source) + ' → one ' + esc(rr.target) + '</dd>' +
           '<dt>GraphQL</dt><dd>' + esc(rr.source) + '.' + esc(rr.field) + '<br>' + esc(rr.target) + '.' + esc(rr.reverse) + '</dd></dl>' +
-          '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label="Onto"></span><div><strong>Onto’s note:</strong> a suggestion, not a guarantee. Names made this link; you can overrule it.</div></div>';
+          '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label="Onto"></span><div><strong>Onto’s note:</strong> a suggestion, not a guarantee. Names made this link; you can overrule it.</div></div>' + rule(rr.rule);
         M.mount(panel);
       }
+      if (sel && window.matchMedia('(max-width: 760px)').matches && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest', behavior: M.motionOK() ? 'smooth' : 'auto' });
     }
     g.on('select', function (sel) {
       render(sel);
@@ -306,7 +328,7 @@
     if (!helper) {
       var still = document.createElement('div'); still.className = 'g-follower visible'; still.style.left = 'auto'; still.style.right = '8px'; still.style.top = 'auto'; still.style.bottom = '8px';
       still.setAttribute('aria-hidden', 'true'); still.innerHTML = M.svg('onto', { pose: 'rest', gaze: false, label: '' }); area.appendChild(still);
-      g.on('select', function (sel) { if (sel && sel.type === 'table' && M.enabled()) { M.setPose(still, 'explain'); M.say(area, sel.el, 'Explore this table.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); M.setPose(still, 'rest'); }, 2200); } });
+      g.on('select', function (sel) { if (sel && sel.type === 'table' && M.enabled()) { M.setPose(still, 'explain'); M.say(area, sel.el, 'Key and rule below.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); M.setPose(still, 'rest'); }, 2200); } });
     }
     g.on('focus', function (sel) { // keyboard users get the same help, without a pointer
       if (sel.type === 'table' && M.enabled() && !(area.matches(':hover'))) { M.say(area, sel.el, 'Explore this table.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); }, 1800); }
@@ -316,7 +338,8 @@
   /* ------------------------------------------------------------------ partner workspace */
   var ws = document.querySelector('[data-page=workspace]');
   if (ws) loadPlan(function (data) {
-    var g = new Graph(document.getElementById('ws-graph'), data, { label: 'Example graph for the illustrative workspace', tables: ['customers', 'orders', 'order_items', 'products', 'categories'] });
+    var g = new Graph(document.getElementById('ws-graph'), data, { label: 'Example graph for the illustrative workspace', tables: ['customers', 'orders', 'order_items', 'products', 'categories'],
+      layout: { customers: [30, 30], orders: [300, 30], order_items: [570, 30], products: [570, 200], categories: [300, 200] } });
     var out = document.getElementById('ws-why'), dflt = out.textContent;
     g.on('select', function (sel) {
       if (!sel) { out.textContent = dflt; return; }

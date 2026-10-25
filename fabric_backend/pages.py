@@ -259,8 +259,8 @@ def _demo_vars() -> dict[str, str]:
     """Server-rendered fallbacks for the demo pages, so the table list exists before (or without) JavaScript."""
     from .demo import demo_plan
     d = demo_plan()
-    items = "".join(f'<li><button type="button" data-table="{html.escape(t["name"])}"><span>{html.escape(t["name"])}</span>'
-                    f'<span class="rule">{t["key_rule"] if t["key"] else "K3"}</span></button></li>' for t in d["tables"])
+    items = "".join(f'<li><button type="button" data-table="{html.escape(t["name"])}" title="{html.escape((t["key_rule"] if t["key"] else "K3") + ": " + d["rules"][t["key_rule"] if t["key"] else "K3"])}">'
+                    f'<span>{html.escape(t["name"])}</span><span class="rule">{t["key_rule"] if t["key"] else "K3"}</span></button></li>' for t in d["tables"])
     rules = {k: re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(t)) for k, t in d["rules"].items()}
     keys = "".join(f'<li><strong>{html.escape(t["name"])}</strong>: ' + (f'key <code>{html.escape(" + ".join(t["key"]))}</code> by rule <code>{t["key_rule"]}</code> ({rules[t["key_rule"]]})'
                    if t["key"] else f'no key, rule <code>K3</code> ({rules["K3"]})') + f'; columns {html.escape(", ".join(c["name"] for c in t["columns"]))}</li>'
@@ -320,9 +320,18 @@ def _rules_table() -> str:
     return "\n".join(rows)
 
 
+def _with_toc(rendered: str) -> str:
+    """A small 'on this page' list built from the h2 ids, placed after the first paragraph."""
+    heads = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', rendered)
+    if len(heads) < 3:
+        return rendered
+    toc = '<nav class="toc" aria-label="On this page"><ul>' + "".join(f'<li><a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a></li>' for i, t in heads) + "</ul></nav>"
+    return rendered.replace("</p>", "</p>" + toc, 1)
+
+
 def docs_html() -> str:
     md = _read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table())
-    body = f'<article class="wrap prose docs">{_md_to_html(_fill(md))}</article>'
+    body = f'<article class="wrap prose docs">{_with_toc(_md_to_html(_fill(md)))}</article>'
     return _shell("{{PRODUCT}} — docs", "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual.",
                   body, page="docs", nav="docs")
 
