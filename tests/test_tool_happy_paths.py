@@ -79,3 +79,14 @@ def test_a_typo_in_keys_or_confirmed_is_a_bad_input_answer_not_a_fabric_error(sh
     assert out["kind"] == "bad_input" and "'ghost'" in out["error"] and "Fabric" not in out["error"]
     out = json.loads(server.plan_backend(*shop, schema="shop", confirmed=[{"source": "orders", "source_cols": ["customer_id"], "target": "nowhere"}]))
     assert out["kind"] == "bad_input" and "nowhere" in out["error"] and "list_tables" in out["hint"]
+
+
+def test_a_tables_filter_must_name_real_tables(shop, monkeypatch):
+    monkeypatch.setattr(server, "source_for", lambda ws, item, headers: ("ep-1", "SqlAnalyticsEndpoint"))
+    monkeypatch.setattr(server, "deploy", lambda env, ws, **k: {"status": "Succeeded", "mode": "created", "id": "api-1"})
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["orders", "ghost"]))
+    assert out["kind"] == "bad_input" and "'ghost'" in out["error"] and "result" not in out       # nothing was deployed
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["ORDERS", "customers"]))
+    assert out["result"]["status"] == "Succeeded"                                                  # case does not matter
+    out = json.loads(server.rayfin_connector(*shop, connector="shop", schema="shop", tables=[]))
+    assert out["kind"] == "bad_input" and "empty" in out["error"]

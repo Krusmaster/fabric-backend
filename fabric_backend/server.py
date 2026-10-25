@@ -25,7 +25,7 @@ import os
 import struct
 import time
 
-from .infer import plan as make_plan
+from .infer import check_tables, plan as make_plan
 from .schema import Schema
 from .graphql import definition
 from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_for, SOURCE_ITEM_TYPES
@@ -252,6 +252,7 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
     the item of that name in place. Creates one item; never deletes anything. Returns the endpoint URL and the
     portal steps that remain (introspection, service principal permission)."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
     source_id, source_type = source_for(workspace, item, headers)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     result = deploy(env, workspace, token_provider=lambda: auth.fabric(ctx))
@@ -279,6 +280,7 @@ def rayfin_connector(workspace: str, source: str, connector: str = "data", schem
     """Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with inferred keys and
     @one/@many relationships (sourceFields/targetFields spelled out). Returns {path: content}; nothing is deployed."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
     st = {"Lakehouse": "SqlAnalyticsEndpoint", "MirroredDatabase": "SqlAnalyticsEndpoint", "Warehouse": "Warehouse",
           "SQLDatabase": "SqlDbNative"}.get(item["type"], "SqlAnalyticsEndpoint")
     return json.dumps(rayfin_files(p, connector, st, tables=tables, relationships=relationships), indent=2)

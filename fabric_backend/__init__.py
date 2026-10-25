@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .schema import Schema, Table, Column
-from .infer import plan, Plan, Relationship
+from .infer import plan, Plan, Relationship, check_tables
 from .graphql import definition, decode, valid_item_name
 from .deploy import deploy, connection_card, endpoint_url, source_for, find_item_by_name, _headers
 from .rayfin import rayfin_files, write_rayfin
@@ -35,6 +35,7 @@ def create(workspace: str, source: str, name: str, *, spark=None, execute=None, 
     "card"}. dry_run=True stops before deploying.
     """
     p = plan_from(spark, execute, schema, database, keys, confirmed)
+    check_tables(p.schema, tables)
     headers = _headers(token_provider)
     item = find_item_by_name(workspace, source, headers)
     if item is None:

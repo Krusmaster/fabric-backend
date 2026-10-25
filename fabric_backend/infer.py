@@ -245,6 +245,18 @@ def check_input(schema: Schema, keys: dict[str, list[str]] | None, confirmed: li
         raise PlanInputError("; ".join(problems))
 
 
+def check_tables(schema: Schema, tables: list[str] | None) -> None:
+    """A `tables=` filter must name tables that exist; a filter that matches nothing would build an empty API."""
+    if tables is None:
+        return
+    known = {t.name.lower() for t in schema}
+    missing = [str(t) for t in tables if str(t).lower() not in known]
+    if missing:
+        raise PlanInputError("tables: not in the schema: " + ", ".join(repr(m) for m in missing))
+    if not tables:
+        raise PlanInputError("tables: the list is empty; omit it to take every table")
+
+
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> Plan:
     check_input(schema, keys, confirmed)
     k = infer_keys(schema, keys)
