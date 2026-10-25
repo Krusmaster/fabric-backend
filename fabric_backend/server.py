@@ -303,14 +303,21 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/healthz", health))
 
     from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse
-    from .pages import PAGES, STATIC_TYPES, docs_html, privacy_html, render, static_file
+    from .pages import PAGES, STATIC_TYPES, docs_html, not_found_html, privacy_html, render, sitemap_xml, static_file
     from .demo import demo_plan_json
 
     PAGE_CACHE = "public, max-age=300"
+    # The pages load nothing from anywhere else, so the policy can say so. Inline style attributes are used in the
+    # templates; scripts are only the two files under /static. Applies to HTML responses only, never to /mcp.
+    PAGE_HEADERS = {
+        "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                                   "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin",
+    }
 
     def page_route(path: str, fn):
         async def handler(_request):
-            headers = {"Cache-Control": PAGE_CACHE}
+            headers = {"Cache-Control": PAGE_CACHE, **PAGE_HEADERS}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
             return HTMLResponse(fn(), headers=headers)
@@ -334,8 +341,21 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/static/{path:path}", static))
 
     async def robots(_request):
-        return PlainTextResponse("User-agent: *\nDisallow: /mascots\nDisallow: /mcp\n", headers={"Cache-Control": "public, max-age=86400"})
+        domain = os.environ.get("MCP_PUBLIC_URL", "https://example.com/mcp").split("/")[2]
+        return PlainTextResponse(f"User-agent: *\nDisallow: /mascots\nDisallow: /mcp\nSitemap: https://{domain}/sitemap.xml\n",
+                                 headers={"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/robots.txt", robots))
+
+    async def sitemap(_request):
+        return Response(sitemap_xml(), media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
+    app.router.routes.append(Route("/sitemap.xml", sitemap))
+
+    async def not_found(request, exc):
+        """A styled 404 for browsers; plain text for everything else (the MCP endpoint itself is never a 404)."""
+        if request.method in ("GET", "HEAD") and "text/html" in request.headers.get("accept", ""):
+            return HTMLResponse(not_found_html(request.url.path), status_code=404, headers={"X-Robots-Tag": "noindex", **PAGE_HEADERS})
+        return PlainTextResponse("not found", status_code=404)
+    app.add_exception_handler(404, not_found)
 
     if not cfg:
         return app

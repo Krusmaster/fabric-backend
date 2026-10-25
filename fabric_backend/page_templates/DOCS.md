@@ -1,8 +1,9 @@
 # {{PRODUCT}} for Microsoft Fabric
 
 Turn the tables in a Fabric lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API —
-keys and relationships inferred, with the rule behind every link shown. Use it from Claude, Claude Code,
-Cursor or any MCP client. Try the [demo](/explore) first if you like; it needs no account.
+keys and relationships inferred, with the rule behind every link shown. Use it from Claude today, and from other
+MCP clients once their sign-in redirects are registered (see *Connect*). Try the [demo](/explore) first if you
+like; it needs no account.
 
 ## Connect
 
@@ -10,7 +11,8 @@ Cursor or any MCP client. Try the [demo](/explore) first if you like; it needs n
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
    It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
 2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
-   `{{MCP_URL}}`. Sign in with your Microsoft work account. Claude Code and Cursor take the same URL.
+   `{{MCP_URL}}`. Sign in with your Microsoft work account. Claude Code and Cursor take the same URL, but their
+   sign-in uses a local redirect that is not registered on the Entra app yet; until it is, Claude is the tested client.
 3. **In Fabric:** you need access to the workspace you want to use, and a Fabric capacity (a trial is fine).
 
 Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start).

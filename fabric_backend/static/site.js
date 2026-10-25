@@ -248,7 +248,7 @@
     bf.addEventListener('click', function () { var on = bf.getAttribute('aria-pressed') !== 'true'; bf.setAttribute('aria-pressed', on ? 'true' : 'false'); g.setFields(on); });
     document.getElementById('btn-reset').addEventListener('click', function () { g.reset(); bf.setAttribute('aria-pressed', 'false'); render(null); });
     var dflt = panel.innerHTML;
-    function rule(code) { return '<p>' + esc(data.rules[code] || '') + '</p>'; }
+    function rule(code) { return '<p>' + esc(data.rules[code] || '').replace(/`([^`]+)`/g, '<code>$1</code>') + '</p>'; }
     function render(sel) {
       list.querySelectorAll('button').forEach(function (b) { b.classList.toggle('selected', !!(sel && sel.type === 'table' && b.getAttribute('data-table') === sel.table.name)); });
       if (!sel) { panel.innerHTML = dflt; M.mount(panel); return; }
@@ -282,7 +282,19 @@
         M.mount(panel);
       }
     }
-    g.on('select', render);
+    g.on('select', function (sel) {
+      render(sel);
+      var h = !sel ? '' : sel.type === 'table' ? '#table=' + encodeURIComponent(sel.table.name) : '#edge=' + encodeURIComponent(sel.edge.id);
+      if (history.replaceState) history.replaceState(null, '', location.pathname + location.search + h);
+    });
+    function fromHash() { // deep links: /explore#table=orders, /explore#edge=orders.customer_id>customers
+      var m = /^#(table|edge)=(.+)$/.exec(location.hash || '');
+      if (!m) return;
+      var v = decodeURIComponent(m[2]);
+      if (m[1] === 'table') g.selectTable(v);
+      else { var e = g.edges.filter(function (x) { return x.id === v; })[0]; if (e) g.select({ type: 'edge', edge: e, el: e.el }); }
+    }
+    fromHash(); window.addEventListener('hashchange', fromHash);
     // Onto: follows the pointer on hover devices; a still helper on touch and for keyboard users.
     var helper = M.follower(area, { text: 'Explore this table.' });
     if (!helper) {

@@ -70,6 +70,7 @@ def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     assert "adminconsent?client_id=cid-123" in html
     assert "What will Krusgraph access?" in html and "GraphQLApi.ReadWrite.All" in html and "user_impersonation" in html
     assert "Continue with Microsoft" not in html
+    assert "not registered on the Entra app yet" in html                                   # no claim that Claude Code sign-in works today
     for step in ("Connect your account", "Choose a workspace", "Open in Claude"):
         assert step in html
 

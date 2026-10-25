@@ -32,7 +32,8 @@ body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.6 var(--font-bod
 h1,h2,h3,h4,.wordmark,.btn,.g-node-name,.step-n{font-family:var(--font-head);font-weight:600;letter-spacing:-.005em}
 h1{font-size:clamp(38px,6vw,66px);line-height:1.02;margin:0 0 18px;max-width:14ch}
 h2{font-size:clamp(28px,3.6vw,40px);line-height:1.08;margin:0 0 10px}
-h3{font-size:22px;line-height:1.2;margin:0 0 6px}
+h3,.h3{font-size:22px;line-height:1.2;margin:0 0 6px}
+.steps-v .h3{margin:4px 0 6px}
 p{margin:0 0 1em}
 a{color:inherit;text-decoration-thickness:1.5px;text-underline-offset:3px}
 a:hover{color:var(--coral-ink)}

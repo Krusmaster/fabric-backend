@@ -14,7 +14,7 @@
     <li>
       <div class="guide" aria-hidden="true"><span data-mascot="onto" data-pose="look" data-label=""></span><span class="step-n coral">1</span></div>
       <div>
-        <h3>Connect your account</h3>
+        <h2 class="h3">Connect your account</h2>
         <p>Your Microsoft Entra admin grants consent once for your organisation: <a href="https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}">grant admin consent</a>. It allows {{PRODUCT}} to call Microsoft Fabric and SQL <em>as each signed-in user</em>, nothing more. The admin can revoke it at any time under Enterprise applications in Entra.</p>
         <p class="muted">Already consented? Then there is nothing to do in this step.</p>
       </div>
@@ -22,7 +22,7 @@
     <li>
       <div class="guide" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span><span class="step-n sage">2</span></div>
       <div>
-        <h3>Choose a workspace</h3>
+        <h2 class="h3">Choose a workspace</h2>
         <p>You need access to the Fabric workspace you want to use, and that workspace needs a Fabric capacity (a trial is fine). Have the workspace id or name ready; a lakehouse, warehouse or SQL database in it is the source.</p>
         <p class="muted">No workspace yet? The demo on <a href="/explore">/explore</a> runs on a synthetic schema and needs no account.</p>
       </div>
@@ -30,11 +30,11 @@
     <li>
       <div class="guide" aria-hidden="true"><span data-mascot="onto" data-pose="celebrate" data-label=""></span><span class="step-n lav">3</span></div>
       <div>
-        <h3>Open in Claude</h3>
+        <h2 class="h3">Open in Claude</h2>
         <p>In Claude, open <strong>Settings → Connectors → Add custom connector</strong>, give it a name and paste this URL:</p>
         <pre><code>{{MCP_URL}}</code></pre>
         <p>Claude asks you to sign in with your Microsoft work account. After that you can say <em>“List the data sources in workspace …”</em>, <em>“Plan a backend over the shop lakehouse”</em> (nothing is deployed) or <em>“Create it as shop_api”</em>.</p>
-        <p class="muted">Claude Code and Cursor work the same way with the same URL. Full usage notes are in the <a href="/docs">docs</a>.</p>
+        <p class="muted">Tested with Claude. Claude Code and Cursor use the same URL but sign in through a local redirect that is not registered on the Entra app yet; until it is, use Claude. Full usage notes are in the <a href="/docs">docs</a>.</p>
       </div>
     </li>
   </ol>
@@ -42,7 +42,7 @@
   <details id="access">
     <summary>What will {{PRODUCT}} access?</summary>
     <p>Only what the signed-in user can already reach. The Entra app asks for these delegated permissions, all granted by your admin once and all acting as the user:</p>
-    <div class="table-wrap"><table>
+    <div class="table-wrap" tabindex="0"><table>
       <thead><tr><th>Permission</th><th>Used for</th></tr></thead>
       <tbody>
         <tr><td><code>User.Read</code> (Microsoft Graph)</td><td>sign-in only</td></tr>

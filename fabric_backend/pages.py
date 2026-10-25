@@ -118,7 +118,7 @@ def _md_to_html(md: str) -> str:
                 if not re.match(r"^\|[\s\-|:]+\|$", lines[i]):
                     rows.append([c.strip() for c in lines[i].strip("|").split("|")])
                 i += 1
-            t = "<div class=\"table-wrap\"><table><thead><tr>" + "".join(f"<th>{inline(c)}</th>" for c in rows[0]) + "</tr></thead><tbody>"
+            t = "<div class=\"table-wrap\" tabindex=\"0\"><table><thead><tr>" + "".join(f"<th>{inline(c)}</th>" for c in rows[0]) + "</tr></thead><tbody>"
             t += "".join("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>" for r in rows[1:]) + "</tbody></table></div>"
             out.append(t); continue
         if re.match(r"^(\d+\.|-) ", ln):
@@ -261,7 +261,17 @@ def _demo_vars() -> dict[str, str]:
     d = demo_plan()
     items = "".join(f'<li><button type="button" data-table="{html.escape(t["name"])}"><span>{html.escape(t["name"])}</span>'
                     f'<span class="rule">{t["key_rule"] if t["key"] else "K3"}</span></button></li>' for t in d["tables"])
-    return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0])}
+    rules = {k: re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(t)) for k, t in d["rules"].items()}
+    keys = "".join(f'<li><strong>{html.escape(t["name"])}</strong>: ' + (f'key <code>{html.escape(" + ".join(t["key"]))}</code> by rule <code>{t["key_rule"]}</code> ({rules[t["key_rule"]]})'
+                   if t["key"] else f'no key, rule <code>K3</code> ({rules["K3"]})') + f'; columns {html.escape(", ".join(c["name"] for c in t["columns"]))}</li>'
+                   for t in d["tables"])
+    rels = "".join(f'<li><code>{html.escape(r["source"] + "." + "+".join(r["source_cols"]))}</code> → <code>{html.escape(r["target"] + "." + "+".join(r["target_cols"]))}</code> '
+                   f'by rule <code>{r["rule"]}</code> ({rules[r["rule"]]}); GraphQL fields <code>{html.escape(r["field"])}</code> and <code>{html.escape(r["reverse"])}</code></li>'
+                   for r in d["relationships"])
+    unlinked = "".join(f'<li><code>{html.escape(u["table"] + "." + u["column"])}</code>: {html.escape(u["note"])}</li>' for u in d["unlinked"]) or "<li>none</li>"
+    text = (f'<p class="mono">{"<br>".join(html.escape(line) for line in d["summary"].splitlines())}</p><h3>Tables and keys</h3><ul>{keys}</ul>'
+            f'<h3>Relationships</h3><ul>{rels}</ul><h3>Left unlinked</h3><ul>{unlinked}</ul>')
+    return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text}
 
 
 def render(path: str) -> str:
@@ -273,6 +283,22 @@ def render(path: str) -> str:
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     body = _fill(_conditional(body, v))
     return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"))
+
+
+def not_found_html(path: str) -> str:
+    body = f"""<section class="wrap hero"><div class="hero-grid"><div>
+<span class="kicker">404</span><h1>Nothing connects here.</h1>
+<p class="lede">There is no page at <code>{html.escape(path[:120])}</code>.</p>
+<div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/explore">Explore the demo</a><a class="btn ghost" href="/docs">Docs</a></div>
+</div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="aside" data-label=""></span></div></div></section>"""
+    return _shell("Page not found — {{PRODUCT}}", "There is no page at this address.", body, page="notfound", nav="", noindex=True)
+
+
+def sitemap_xml() -> str:
+    v = _vars()
+    urls = [p for p in PAGES if p != "/mascots"] + ["/docs", "/privacy"]
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+            + "".join(f"<url><loc>https://{v['DOMAIN']}{p}</loc></url>" for p in urls) + "</urlset>\n")
 
 
 def privacy_html() -> str:
@@ -288,6 +314,3 @@ def docs_html() -> str:
     return _shell("{{PRODUCT}} — docs", "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual.",
                   body, page="docs", nav="docs")
 
-
-def landing_html() -> str:
-    return render("/")

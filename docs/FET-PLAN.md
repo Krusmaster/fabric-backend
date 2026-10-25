@@ -114,11 +114,13 @@ The MCP server itself is not reused inside the workload; it stays as the path fo
 
 ## Open questions
 
-- **Can relationships be expressed in the GraphQL item definition through the API?** The definition supports
-  `datasources[].objects`; whether relationships land through `createGraphQLApi` / `updateDefinition` is
-  *unverified* — one community thread reports failures with full payloads [30][31]. Krusgraph's `deploy.py`
-  already sends relationships in the definition and the README reports it worked in a sandbox in October 2026;
-  reconcile the two before promising it in the workload.
+- **Can relationships be expressed in the GraphQL item definition through the API?** Microsoft's public
+  definition page documents `datasources[].objects`; whether relationships are accepted through
+  `createGraphQLApi` / `updateDefinition` is not stated there, and one community thread reports failures with full
+  payloads [30][31]. This repository's own evidence says yes: `fabric_backend/graphql.py` writes
+  ManyToOne/OneToMany relationships into the definition, and the README records a sandbox run on 2026-10-21 where
+  nested queries resolved over four inferred hops (issue #1 in this repository). Treat it as *working but
+  undocumented*: keep the sandbox test in the pilot checklist and expect the payload shape to change without notice.
 - **Which identity reaches the SQL endpoint?** The remote endpoint receives subject and app tokens and may
   exchange them for other scopes [14]; confirm that an exchange to `https://database.windows.net/.default` is
   allowed for a workload app, as it is for the MCP app today.
