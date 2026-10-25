@@ -24,7 +24,7 @@ AI_CATALOG_TYPE = "application/ai-catalog+json"
 DESCRIPTION = "Turn Microsoft Fabric tables into an explainable graph and a GraphQL API."   # ≤ 100 characters
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/explore", "/start", "/docs", "/lovable", "/privacy", "/support", "/partners", "/partners/workspace"]
+PUBLIC_PAGES = ["/", "/explore", "/start", "/docs", "/lovable", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
 
 
 def package_version() -> str:
@@ -132,6 +132,7 @@ It reads table and column names, infers keys and relationships from names (decla
 - [Docs]({o}/docs.md): connecting, what it accesses, the eleven tools with an example each, how relationships are inferred, checking a plan against the data, cold start, Fabric IQ ontology drafts, Snowflake and Databricks, the two manual steps
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): create the API for GraphQL item with {p}, then connect Lovable's Fabric connector to it
+- [Use cases]({o}/use-cases.md): ten industries (retail, manufacturing, SaaS, professional services, AML, financial crime prevention, pharmaceutical research, environment and sustainability, property, education): typical tables, the keys and links found in them with their rules, what you build
 - [Privacy policy]({o}/privacy.md): sign-in, the data path, logs, what is stored (nothing)
 
 ## Connect

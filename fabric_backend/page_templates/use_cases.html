@@ -1,0 +1,42 @@
+<div data-page="use-cases">
+<section class="hero wrap uc-hero">
+  <span class="kicker">Use cases</span>
+  <h1>Same steps. Different tables.</h1>
+  <p class="lede">{{PRODUCT}} turns tables without declared keys into an explained graph, then into what people actually use.</p>
+  <p class="intro">It reads table and column names, works out the keys and links, and gives every one the rule that produced it. You check the plan against the rows, then create what you need. The steps are the same in every industry; what differs is the tables.</p>
+  <ol class="uc-flow" aria-label="From tables to what people use">
+    <li><span class="uc-flow-n">1</span><strong>Tables</strong><span>no declared keys</span></li>
+    <li><span class="uc-flow-n">2</span><strong>Explained graph</strong><span><code>plan_backend</code>, then <code>validate_plan</code></span></li>
+    <li><span class="uc-flow-n">3</span><strong>What people use</strong><ul class="uc-outputs">{{UC_OUTPUTS}}</ul></li>
+  </ol>
+</section>
+
+<section class="wrap uc-intro" id="industries" aria-labelledby="industries-h">
+  <div class="uc-index-grid">
+    <div>
+      <h2 id="industries-h">{{UC_COUNT}} industries</h2>
+      <p class="muted">Each one has the same four parts: typical tables, what {{PRODUCT}} finds in them, what you build, and where the value is.</p>
+      {{UC_INDEX}}
+    </div>
+    <aside class="uc-legend" aria-labelledby="legend-h">
+      <div class="uc-legend-head"><h2 id="legend-h" class="h3">How to read the rules</h2><span class="uc-onto" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span></div>
+      <ul class="uc-find-list">{{UC_LEGEND}}</ul>
+      <p class="muted tiny">The full rule table is in the <a href="/docs#how-relationships-are-inferred">docs</a>. A column that could point at two tables is reported as ambiguous and left out.</p>
+    </aside>
+  </div>
+</section>
+
+{{UC_SECTIONS}}
+
+<section class="wrap" id="consultancies" aria-labelledby="consultancies-h">
+  <div class="card ready uc-cta">
+    <div>
+      <h2 id="consultancies-h">For Fabric consultancies</h2>
+      <p class="muted">{{UC_CONSULTANCY}}</p>
+      <p class="muted">To discuss a pilot, write to <a href="mailto:{{CONTACT}}?subject=Pilot%20with%20{{PRODUCT_URL}}">{{CONTACT}}</a>.</p>
+    </div>
+    <div class="ctas"><a class="btn primary" href="/start">Get started</a><a class="btn ghost" href="/docs">Read the docs</a></div>
+  </div>
+  <p class="muted tiny uc-footnote">{{UC_FOOTNOTE}}</p>
+</section>
+</div>

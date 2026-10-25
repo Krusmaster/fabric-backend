@@ -687,7 +687,7 @@ def build_app(host: str = "0.0.0.0"):
 
     from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse
     from .pages import (PAGES, STATIC_TYPES, docs_html, docs_md, lovable_html, lovable_md, not_found_html, privacy_html,
-                        privacy_md, render, start_md, static_file)
+                        privacy_md, render, start_md, static_file, use_cases_md)
     from . import discovery
     from .demo import demo_plan_json, demo_validation_json
 
@@ -728,7 +728,8 @@ def build_app(host: str = "0.0.0.0"):
         async def handler(request):
             return compressed(request, fn().encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": PAGE_CACHE})
         app.router.routes.append(Route(path, handler))
-    for path, fn in (("/docs.md", docs_md), ("/privacy.md", privacy_md), ("/start.md", start_md), ("/lovable.md", lovable_md)):
+    for path, fn in (("/docs.md", docs_md), ("/privacy.md", privacy_md), ("/start.md", start_md), ("/lovable.md", lovable_md),
+                     ("/use-cases.md", use_cases_md)):
         md_route(path, fn)
 
     async def llms(request):
@@ -736,7 +737,8 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/llms.txt", llms))
 
     async def llms_full(request):
-        parts = [("/docs.md", docs_md()), ("/start.md", start_md()), ("/lovable.md", lovable_md()), ("/privacy.md", privacy_md())]
+        parts = [("/docs.md", docs_md()), ("/start.md", start_md()), ("/lovable.md", lovable_md()), ("/use-cases.md", use_cases_md()),
+                 ("/privacy.md", privacy_md())]
         return compressed(request, discovery.llms_full_txt(parts).encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})
     app.router.routes.append(Route("/llms-full.txt", llms_full))
 

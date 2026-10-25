@@ -5,8 +5,9 @@
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
     /lovable           using the created API with Lovable's Fabric connector
+    /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
-    /docs.md, /privacy.md, /start.md, /lovable.md   the same content as Markdown (for /llms.txt and agents)
+    /docs.md, /privacy.md, /start.md, /lovable.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
@@ -44,6 +45,8 @@ PAGES = {
                   "Better connections, built together. Preview an illustrative partner workspace.", "partners"),
     "/partners/workspace": ("workspace.html", "Partner workspace preview — {{PRODUCT}}",
                             "An illustrative partner workspace: Connect, Explore, Review, Build. No partner data connected.", "partners"),
+    "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
+                   "Ten industries, one engine: typical tables, the keys and links {{PRODUCT}} finds in them with the rule behind each, what you build, and where the value is.", "usecases"),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -189,13 +192,13 @@ def site_url() -> str:
     return "https://" + _vars()["DOMAIN"]
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/use-cases")       # pages that are also served as <path>.md
 
 
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Partners")]
+    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Partners")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -264,7 +267,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/explore">Demo</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
+      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -330,6 +333,10 @@ def render(path: str) -> str:
     if "{{DEMO_" in body:
         dv = _demo_vars()
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
+    if "{{UC_" in body:
+        from .use_cases import page_vars
+        uv = page_vars()
+        body = re.sub(r"\{\{(UC_\w+)\}\}", lambda m: uv.get(m.group(1), ""), body)
     body = _fill(_conditional(body, v))
     head = json_ld() if path == "/" else ""
     return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path)
@@ -351,6 +358,12 @@ def docs_md() -> str:
 
 def lovable_md() -> str:
     return _fill(_read("LOVABLE.md"), escape=False)
+
+
+def use_cases_md() -> str:
+    from .use_cases import markdown
+    v = _vars()
+    return markdown(v["PRODUCT"], site_url(), v["CONTACT"])
 
 
 def not_found_html(path: str) -> str:
