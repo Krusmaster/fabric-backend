@@ -113,6 +113,10 @@ def suggest_composite_keys(plan: Plan) -> list[dict]:
     keyless = [t for t in plan.schema if t.name not in plan.keys]
     for t in keyless:
         refs = [r for r in plan.relationships if r.source == t.name and len(r.source_cols) == 1]
+        # header/line: prefer the reference to the table the line table is named after (order_items -> orders)
+        stem = t.name.lower().split("_")[0].rstrip("s")
+        header = [r for r in refs if r.target.lower().rstrip("s").startswith(stem) or stem.startswith(r.target.lower().rstrip("s"))]
+        refs = header or refs
         lines = [c for c in t.column_names if c.lower().replace("_", "") in line_like
                  or c.lower().endswith(("_line", "_line_no", "_seq", "_pos"))]
         for r in refs:

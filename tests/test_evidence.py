@@ -73,7 +73,7 @@ def test_identifiers_are_quoted():
 def test_composite_key_is_suggested_for_order_items():
     s = ev.suggest_composite_keys(shop_plan())
     assert {"table": "order_items", "columns": ["order_id", "line_no"]}.items() <= s[0].items()
-    assert s[0]["use"] == {"order_items": ["order_id", "line_no"]}
+    assert s[0]["use"] == {"order_items": ["order_id", "line_no"]} and len(s) == 1   # not product_id + line_no
     assert ev.suggest_composite_keys(shop_plan(keys={"order_items": ["order_id", "line_no"]})) == []
 
 
