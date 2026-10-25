@@ -17,6 +17,8 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
 - Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
 - Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
+- Engine: the R2 lookup is indexed once instead of rescanning every key per column; a 1 000-table schema plans in
+  a tenth of a second instead of ten seconds, with identical output.
 - Exact package versions for the server image in `deploy/constraints.txt` (resolved for CPython 3.12 on manylinux,
   audited); the Dockerfile and CI install with it, a weekly workflow audits it, and it is part of the source tag.
 - CI: plain `pytest` finds `deploy/` (every run since the deployment tests failed at collection); current action
