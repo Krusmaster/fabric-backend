@@ -17,6 +17,9 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
 - Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
 - Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
+- Site: robots.txt names the AI crawlers, `/llms-full.txt` serves every Markdown page in one file, llms.txt has a
+  Connect section, pages link their Markdown twin with `rel=alternate`, the home page declares the WebSite; the hero
+  names the sources it works with and the home graph scrolls inside its card on phones.
 - Snowflake and Databricks: mirrored Azure Databricks catalogs are a source item type (next to mirrored databases,
   which cover Snowflake); the schema reader's schema match is case-insensitive on every dialect and a missing
   `KEY_COLUMN_USAGE` view (Snowflake) means "no declared keys", so the library, CLI and stdio server plan Snowflake
