@@ -128,7 +128,14 @@ def deploy(env: dict, workspace: str, token_provider=None, poll_seconds: int = 3
     op = r.headers.get("x-ms-operation-id")
     if op:
         for _ in range(max_polls):
-            s = requests.get(f"{FABRIC}/v1/operations/{op}", headers=headers, timeout=30).json()
+            poll = requests.get(f"{FABRIC}/v1/operations/{op}", headers=headers, timeout=30)
+            http = getattr(poll, "status_code", 200)
+            if http in (401, 403, 404):                   # the sign-in or the access went away mid-operation: say so
+                return {"status": "Failed", "mode": mode, "operation": op, "http": http, "body": getattr(poll, "text", "")}
+            try:
+                s = poll.json() if http < 400 else {}
+            except ValueError:
+                s = {}                                     # throttled or a transient server error: keep polling
             if s.get("status") in ("Succeeded", "Failed"):
                 break
             time.sleep(poll_seconds)
