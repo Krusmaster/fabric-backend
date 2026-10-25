@@ -416,3 +416,11 @@ html[data-mascots=off] .mascot,html[data-mascots=off] .g-follower,html[data-masc
 .wire-demo{overflow:visible}
 .wire-demo path{fill:none;stroke:var(--lav);stroke-width:2.5;stroke-dasharray:6 6}
 .wire-demo.accepted path{stroke:var(--sage);stroke-dasharray:none;stroke-width:2}
+
+/* The validation table on /explore */
+.table-wrap{overflow-x:auto;margin:6px 0 14px}
+table.check{border-collapse:collapse;font-size:14px;min-width:520px;width:100%}
+table.check th,table.check td{text-align:left;padding:6px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.check th{font-weight:700;font-size:13px;color:var(--muted)}
+table.check td:nth-child(n+3):not(:last-child){font-variant-numeric:tabular-nums}
+#plan-check summary .pill{margin-left:8px;vertical-align:middle}

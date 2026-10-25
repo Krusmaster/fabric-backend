@@ -660,7 +660,7 @@ def build_app(host: str = "0.0.0.0"):
     from .pages import (PAGES, STATIC_TYPES, docs_html, docs_md, lovable_html, lovable_md, not_found_html, privacy_html,
                         privacy_md, render, start_md, static_file)
     from . import discovery
-    from .demo import demo_plan_json
+    from .demo import demo_plan_json, demo_validation_json
 
     PAGE_CACHE = "public, max-age=300"
     # The pages load nothing from anywhere else, so the policy can say so. Inline style attributes are used in the
@@ -738,6 +738,10 @@ def build_app(host: str = "0.0.0.0"):
     async def plan_json(request):
         return compressed(request, demo_plan_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
     app.router.routes.append(Route("/demo/plan.json", plan_json))
+
+    async def validation_json(request):
+        return compressed(request, demo_validation_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
+    app.router.routes.append(Route("/demo/validation.json", validation_json))
 
     TEXT_STATIC = {".css", ".js", ".svg", ".txt", ".json"}       # woff2 and png are already compressed
 

@@ -86,6 +86,8 @@ running (row 12 above).
 Expected timing: well under a second per call once warm. If the very first call after a quiet period fails, it is
 a cold start; ask again (row 12 avoids this during the window).
 
-Tool annotations: `list_workspaces`, `list_sources`, `ontology_draft`, `list_tables`, `plan_backend`, `rayfin_connector`, `query_graphql` read-only; `create_backend` write, non-destructive, idempotent.
+Tool annotations: `list_workspaces`, `list_sources`, `list_tables`, `plan_backend`, `sample_rows`, `validate_plan`, `describe_backend`, `query_graphql`, `rayfin_connector`, `ontology_draft` read-only; `create_backend` write, non-destructive, idempotent.
+
+Tools added after the 25 October run (`validate_plan`, `sample_rows`, `describe_backend`, `ontology_draft`, `list_workspaces`) are covered by the test suite with Fabric mocked; they are not part of the verified flow above, and a reviewer may try them.
 
 **9 Compliance** — seven acknowledgments; nothing in this server touches payments, media generation, or collects conversation data. `TODO(Gustav)`: tick them in the portal.

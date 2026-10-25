@@ -306,7 +306,21 @@ def _demo_vars() -> dict[str, str]:
     unlinked = "".join(f'<li><code>{html.escape(u["table"] + "." + u["column"])}</code>: {html.escape(u["note"])}</li>' for u in d["unlinked"]) or "<li>none</li>"
     text = (f'<p class="mono">{"<br>".join(html.escape(line) for line in d["summary"].splitlines())}</p><h3>Tables and keys</h3><ul>{keys}</ul>'
             f'<h3>Relationships</h3><ul>{rels}</ul><h3>Left unlinked</h3><ul>{unlinked}</ul>')
-    return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text}
+    from .demo import demo_validation
+    v = demo_validation()
+    e = html.escape
+    krows = "".join(f'<tr><td><code>{e(k["table"])}</code></td><td><code>{e(" + ".join(k["columns"]))}</code> <span class="muted">{e(k["rule"])}</span></td>'
+                    f'<td>{k["rows"]}</td><td>{k["distinct"]}</td><td>{k["nulls"]}</td><td>{e(k["verdict"])}</td></tr>' for k in v["keys"])
+    rrows = "".join(f'<tr><td><code>{e(r["source"] + "." + "+".join(r["columns"]))}</code> → <code>{e(r["target"] + "." + "+".join(r["target_columns"]))}</code> '
+                    f'<span class="muted">{e(r["rule"])}</span></td><td>{r["rows_with_value"]}</td><td>{r["orphans"]}</td><td>{e(r["verdict"])}</td></tr>'
+                    for r in v["relationships"])
+    sugg = "".join(f'<li><code>{e(x["table"])}</code>: <code>{e(" + ".join(x["columns"]))}</code> — {e(x["why"])}</li>' for x in v["suggested_keys"]) or "<li>none</li>"
+    check = (f'<p class="mono">{e(v["summary"])}</p>'
+             f'<h3>Keys</h3><div class="table-wrap"><table class="check"><thead><tr><th>Table</th><th>Key (rule)</th><th>Rows</th><th>Distinct</th><th>NULLs</th><th>Verdict</th></tr></thead><tbody>{krows}</tbody></table></div>'
+             f'<h3>Relationships</h3><div class="table-wrap"><table class="check"><thead><tr><th>Reference (rule)</th><th>Rows with a value</th><th>Orphans</th><th>Verdict</th></tr></thead><tbody>{rrows}</tbody></table></div>'
+             f'<h3>Composite keys the plan suggests before any override</h3><ul>{sugg}</ul>')
+    return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text,
+            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"])}
 
 
 def render(path: str) -> str:
@@ -322,7 +336,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the eight tools, how relationships are inferred, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the eleven tools with an example each, checking a plan against the data, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
 LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
 
 

@@ -125,11 +125,11 @@ def llms_txt() -> str:
 
 > {p} turns the tables in a Microsoft Fabric lakehouse, warehouse or SQL database into an explainable graph and an API for GraphQL item. It is a remote MCP server at {v['MCP_URL']}: you add it to Claude as a custom connector and sign in with a Microsoft Entra work account, and every call runs with that account's own Fabric permissions. Claude is the client it is built and documented for; other MCP clients take the same URL once their sign-in redirect is registered on the Entra app.
 
-It reads table and column names, infers keys and relationships from names (declared keys and foreign keys win), and shows the rule behind each one (K0–K3 for keys, R0–R3 for relationships). Ambiguous columns are reported, never guessed. Sources: lakehouses, warehouses, Fabric SQL databases, Snowflake database items, mirrored databases (Snowflake, Azure SQL, Cosmos DB, SAP), mirrored Azure Databricks catalogs and mirrored catalogs; Snowflake and Databricks schemas can also be planned where they are with the open-source library, CLI or local stdio server. Eight tools: `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing is deployed), `create_backend` (creates or updates one API for GraphQL item; never deletes), `rayfin_connector`, `ontology_draft` (the plan as a Fabric IQ ontology (preview) draft: entity types, keys, relationship types, bindings, a TTL for the portal import and the item definition; nothing deployed) and `query_graphql` (read-only; mutations are refused). Two steps stay manual in the Fabric portal because Fabric has no API for them yet: turning on introspection on the GraphQL item, and granting permissions on it to other apps or service principals. The server stores nothing; tokens are held in memory only. Open source under the MIT licence, made by Kruse Consulting AB, Sweden.
+It reads table and column names, infers keys and relationships from names (declared keys and foreign keys win), and shows the rule behind each one (K0–K3 for keys, R0–R3 for relationships). Ambiguous columns are reported, never guessed. Sources: lakehouses, warehouses, Fabric SQL databases, Snowflake database items, mirrored databases (Snowflake, Azure SQL, Cosmos DB, SAP), mirrored Azure Databricks catalogs and mirrored catalogs; Snowflake and Databricks schemas can also be planned where they are with the open-source library, CLI or local stdio server. Eleven tools: `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing is deployed; also suggests composite keys), `sample_rows` (a few rows of one table), `validate_plan` (checks every key for uniqueness and NULLs and every relationship for orphans against the rows), `create_backend` (creates or updates one API for GraphQL item; never deletes), `describe_backend` (types, fields and relationships of an existing API, read from its definition), `query_graphql` (read-only; mutations are refused), `rayfin_connector` and `ontology_draft` (the plan as a Fabric IQ ontology (preview) draft; nothing deployed). Run end to end against a live Fabric workspace with synthetic data on 25 October 2026. Two steps stay manual in the Fabric portal because Fabric has no API for them yet: turning on introspection on the GraphQL item, and granting permissions on it to other apps or service principals. The server stores nothing; tokens are held in memory only. Open source under the MIT licence, made by Kruse Consulting AB, Sweden.
 
 ## Docs
 
-- [Docs]({o}/docs.md): connecting, what it accesses, the eight tools, how relationships are inferred, Fabric IQ ontology drafts, Snowflake and Databricks, the two manual steps
+- [Docs]({o}/docs.md): connecting, what it accesses, the eleven tools with an example each, how relationships are inferred, checking a plan against the data, cold start, Fabric IQ ontology drafts, Snowflake and Databricks, the two manual steps
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): create the API for GraphQL item with {p}, then connect Lovable's Fabric connector to it
 - [Privacy policy]({o}/privacy.md): sign-in, the data path, logs, what is stored (nothing)
@@ -139,11 +139,12 @@ It reads table and column names, infers keys and relationships from names (decla
 - Claude (web, desktop, mobile): Settings → Connectors → Add custom connector → URL `{v['MCP_URL']}` → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect
 - Claude Code: `claude mcp add --transport http {v['PRODUCT_LOWER']} {v['MCP_URL']}` — same URL; its local sign-in redirect is not registered on the Entra app yet, so until it is, Claude is the tested client.
 - Cursor and other MCP clients: streamable HTTP at `{v['MCP_URL']}`, OAuth discovery at {o}/.well-known/oauth-protected-resource; same redirect caveat.
-- First call: `list_workspaces`, then `list_sources` with the workspace name, then `plan_backend` (nothing is deployed) and `create_backend`.
+- First calls: `list_workspaces`, then `list_sources` with the workspace name, `plan_backend` (nothing is deployed), `validate_plan` to check the plan against the rows, `create_backend`, then `describe_backend` before `query_graphql`.
 
 ## Demo
 
 - [Demo plan]({o}/demo/plan.json): the real planning engine's output on a synthetic shop schema (JSON, with a Mermaid ER diagram)
+- [Demo validation]({o}/demo/validation.json): what validate_plan answers for that plan, computed on the synthetic rows
 
 ## Optional
 

@@ -31,13 +31,16 @@ server has no database, keeps no files and stores nothing between requests. Deta
 
 ## What you can ask
 
-One example per tool, in the order a first session usually goes:
+One example per tool, in the order a first session usually goes (list, plan, look at rows if needed, check, create, describe, query):
 
 - `list_workspaces` — *"Which Fabric workspaces can I see?"*
 - `list_sources` — *"List the data sources in the demo workspace."*
 - `list_tables` — *"Which tables are in demo_lh, schema shop?"*
-- `plan_backend` — *"Plan a backend over demo_lh, schema shop."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns and an ER diagram. *"Treat order_id plus line_no as the key of order_items"* passes `keys`.
+- `plan_backend` — *"Plan a backend over demo_lh, schema shop."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns, suggested composite keys and an ER diagram. *"Treat order_id plus line_no as the key of order_items"* passes `keys`.
+- `sample_rows` — *"Show me a few rows of orders."* — when a column's meaning is unclear before deciding on keys.
+- `validate_plan` — *"Check the plan against the data."* — every key counted for uniqueness and NULLs, every relationship for orphans; the [demo](/explore#plan-check) shows what the answer looks like.
 - `create_backend` — *"Create it as shop_api."* — creates the API for GraphQL item, or updates it in place if the name exists.
+- `describe_backend` — *"What can I query in shop_api?"* — the types, fields and relationship names a query uses.
 - `query_graphql` — *"Using shop_api, which customers ordered a trail bike in October?"* — a read-only query; relationships nest.
 - `rayfin_connector` — *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
 - `ontology_draft` — *"Draft a Fabric IQ ontology from demo_lh."* — entity types, keys and relationship types with their rules, ready to import or create.
@@ -54,8 +57,11 @@ Every tool takes the workspace by id or display name. `schema` defaults to `dbo`
 | `list_workspaces` | — | the workspaces the signed-in account can see, with id, name and capacity | no |
 | `list_sources` | `workspace` | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | no |
 | `list_tables` | `workspace`, `source`, `schema` | tables and columns with types in one schema | no |
-| `plan_backend` | `workspace`, `source`, `schema`, `keys`, `confirmed` | inferred keys and relationships, each with its rule (K0–K3, R0–R3), ambiguous columns, keyless tables, a Mermaid ER diagram | no |
+| `plan_backend` | `workspace`, `source`, `schema`, `keys`, `confirmed` | inferred keys and relationships, each with its rule (K0–K3, R0–R3), ambiguous columns, keyless tables, suggested composite keys, a Mermaid ER diagram | no |
+| `validate_plan` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `max_items` | checks the plan against the rows: is each key unique and free of NULLs, does every reference find its target (orphan count); one small counting query per key and relationship | no |
+| `sample_rows` | `workspace`, `source`, `table`, `schema`, `n` | the first n rows (at most 20) of one table, long text shortened, to check what a column means | no |
 | `create_backend` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables` | creates the API for GraphQL item with nested relationships, or updates the item of that name in place; returns the endpoint and the two portal steps | creates/updates one item; never deletes |
+| `describe_backend` | `workspace`, `api` | types, fields and relationships of an existing API for GraphQL item, in the names a query uses, read from its definition (no introspection needed) | no |
 | `query_graphql` | `workspace`, `api`, `query`, `variables` | runs a read-only GraphQL query against an API (name or id); mutations are refused | no |
 | `rayfin_connector` | `workspace`, `source`, `connector`, `schema`, `keys`, `confirmed`, `tables`, `relationships` | Rayfin (Fabric Apps) connector entity classes and `schema.ts` | no |
 | `ontology_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | the plan as a Fabric IQ ontology (preview) draft: summary, binding checklist, a Turtle file for the portal import, the item definition | no |

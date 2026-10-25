@@ -59,5 +59,38 @@ def demo_plan() -> dict:
 
 
 @lru_cache(maxsize=1)
+def demo_validation() -> dict:
+    """What `validate_plan` answers for the demo: the same `evidence.validate` checks, run over `seed.rows()` loaded into
+    an in-memory SQLite database (the only translation: COUNT_BIG → COUNT). Computed, not hand-written."""
+    import datetime
+    import sqlite3
+    from . import evidence
+    from .seed import SCHEMAS
+    con = sqlite3.connect(":memory:")
+    con.execute("ATTACH DATABASE ':memory:' AS shop")
+    for name, ddl in SCHEMAS.items():
+        con.execute(f"CREATE TABLE shop.[{name}] ({ddl})")
+        data = [tuple(v.isoformat() if isinstance(v, (datetime.date, datetime.datetime)) else v for v in r) for r in rows()[name]]
+        con.executemany(f"INSERT INTO shop.[{name}] VALUES ({','.join('?' * len(data[0]))})", data)
+
+    def execute(sql: str):
+        cur = con.execute(sql.replace("COUNT_BIG(", "COUNT("))
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+    s = schema("shop")
+    out = evidence.validate(plan(s, keys=DEMO_KEYS), execute)
+    con.close()
+    out["suggested_keys"] = evidence.suggest_composite_keys(plan(s))        # what plan_backend suggests before any override
+    out["computed"] = ("on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same "
+                       "checks validate_plan runs on a Fabric source")
+    out["keys_given"] = DEMO_KEYS
+    return out
+
+
+@lru_cache(maxsize=1)
+def demo_validation_json() -> str:
+    return json.dumps(demo_validation(), indent=2, default=str)
+
+
 def demo_plan_json() -> str:
     return json.dumps(demo_plan(), indent=1)

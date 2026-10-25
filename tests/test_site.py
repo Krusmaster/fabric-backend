@@ -396,3 +396,34 @@ def test_fabric_iq_is_described_on_home_docs_and_llms(client):
     assert '<h2 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
     assert "ontology_draft" in client.get("/docs.md").text and "`ontology_draft`" in client.get("/llms.txt").text
     assert "Fabric IQ" in client.get("/llms-full.txt").text
+
+
+def test_demo_validation_is_computed_from_the_seed_rows_and_shown_on_explore(client):
+    from fabric_backend import demo
+    v = demo.demo_validation()
+    assert v["summary"] == "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+    assert {k["table"]: k["rows"] for k in v["keys"]}["order_items"] == 134 and all(k["nulls"] == 0 for k in v["keys"])
+    assert all(r["orphans"] == 0 for r in v["relationships"]) and v["suggested_keys"][0]["table"] == "order_items"
+    assert "synthetic demo data" in v["computed"]
+    r = client.get("/demo/validation.json")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/json") and json.loads(r.text)["summary"] == v["summary"]
+    html = client.get("/explore").text
+    assert 'id="plan-check"' in html and "computed on the synthetic demo data" in html and "validate_plan" in html
+    assert html.count("unique in all") == 6 and html.count("holds for all") == 6 and 'href="/demo/validation.json"' in html
+
+
+def test_docs_list_every_tool_the_server_defines_and_home_states_the_verification(client):
+    import re
+    from fabric_backend import server
+    defined = {m.group(1) for m in re.finditer(r"^def (\w+)\(", open(server.__file__).read(), re.M)}
+    tools = {"list_workspaces", "list_sources", "list_tables", "plan_backend", "sample_rows", "validate_plan", "create_backend",
+             "describe_backend", "query_graphql", "rayfin_connector", "ontology_draft"}
+    assert tools <= defined
+    docs = client.get("/docs").text
+    for t in tools:
+        assert f"<code>{t}</code>" in docs, t
+    assert "Cold start" in docs and "min_replicas" in docs and "25 October 2026" in docs
+    home = client.get("/").text
+    assert "validate_plan" in home and "Tested end to end against a live Fabric workspace with synthetic data, 25 October 2026" in home
+    llms = client.get("/llms.txt").text
+    assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms

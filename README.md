@@ -72,9 +72,10 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
-(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed),
-`create_backend` (creates or updates one item, never deletes), `query_graphql` (read-only; mutations refused),
+Streamable HTTP at `/mcp`, eleven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
+composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
+(creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
 `rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. The tool table with arguments
 and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
