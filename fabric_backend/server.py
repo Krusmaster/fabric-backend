@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): list_workspaces, list_sources, list_tables, plan_backend,
+Tools (all annotated for the Claude directory): list_workspaces, list_sources, list_tables, plan_backend, ontology_draft,
 create_backend, rayfin_connector, query_graphql.
 """
 from __future__ import annotations
@@ -30,6 +30,8 @@ from .schema import Schema
 from .graphql import definition
 from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_for, SOURCE_ITEM_TYPES
 from .rayfin import rayfin_files
+from . import ontology as _ontology
+from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
 
 try:
@@ -329,6 +331,67 @@ def rayfin_connector(workspace: str, source: str, connector: str = "data", schem
     st = {"Lakehouse": "SqlAnalyticsEndpoint", "MirroredDatabase": "SqlAnalyticsEndpoint", "MirroredAzureDatabricksCatalog": "SqlAnalyticsEndpoint", "Warehouse": "Warehouse",
           "SQLDatabase": "SqlDbNative"}.get(item["type"], "SqlAnalyticsEndpoint")
     return json.dumps(rayfin_files(p, connector, st, tables=tables, relationships=relationships), indent=2)
+
+
+def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
+    """Plan the source and collect what the ontology definition needs from the item: ids, name, kind, SQL endpoint host."""
+    p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    return p, dict(workspace_id=workspace_id, item_id=item.get("id", ""), item_name=item.get("displayName") or source,
+                   item_kind=item.get("type", "Lakehouse"), schema=schema, sql_endpoint=item.get("sql_host") or "")
+
+
+@mcp.tool(title="Draft a Fabric IQ ontology from the plan (nothing deployed)", annotations=RO)
+@safe
+def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                   confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
+    """The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: a summary with the
+    rule behind every key and link, the binding checklist, a Turtle file the portal's Import ontology accepts, and the
+    generation-2 item definition (TMDL parts) ready for POST /ontologies or Git. Deploys nothing. Use `tables` to keep
+    it small; the definition is the same information as plan_backend, in Fabric IQ's shape."""
+    p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+    out = {
+        "summary": _ontology.summary(p, tables),
+        "bindings": _ontology.bindings(p, args["item_name"], schema, tables),
+        "ttl": _ontology.ontology_ttl(p, name, schema, tables),
+        "definition_parts": parts,
+        "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
+                 "delegated_scope": "Item.ReadWrite.All", "body": _ontology.envelope(name, parts)},
+        "note": "Ontology (preview): format follows the item's own definition as of 2026. Creating the item needs the "
+                "Item.ReadWrite.All scope, which this connector asks for only when its operator enables create_ontology; the "
+                "portal route (Import ontology with the TTL, then bind per `bindings`) needs no extra permission.",
+    }
+    return _bounded(out, MAX_RESULT_CHARS)
+
+
+if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"):
+    @mcp.tool(title="Create or update a Fabric IQ ontology from the plan",
+              annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True))
+    @safe
+    def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                        confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
+        """Create the ontology (preview) item from the inferred plan, or update the item of that name in place. Needs the
+        Entra app to hold Item.ReadWrite.All and the account to be Contributor on the workspace. Never deletes."""
+        p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+        check_tables(p.schema, tables)
+        parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+        result = _create_ontology(_ontology.envelope(name, parts), args["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+        out = {"summary": _ontology.summary(p, tables), "result": result}
+        if result.get("status") == "Failed" and result.get("http"):
+            out.update(classify_http(int(result["http"]), result.get("body", ""), f"creating ontology {name!r} in workspace {workspace}"))
+            result.pop("body", None)
+        elif result.get("status") == "Failed":
+            err = result.get("error") if isinstance(result.get("error"), dict) else {}
+            out.update(classify_http(400, json.dumps(err) if err else "", f"creating ontology {name!r} in workspace {workspace}"))
+        elif result.get("status") == "Timeout":
+            out.update({"error": f"Fabric is still working on ontology {name!r}.", "kind": "timeout",
+                        "hint": "Check the item in the Fabric portal in a minute; re-running create_ontology updates it in place."})
+        else:
+            out["next"] = ["Open the ontology item in Fabric and review the entity types and bindings.",
+                           "Composite-key relationships and keyless tables are listed under summary.notes."]
+        return json.dumps(out, indent=2)
 
 
 @mcp.tool(title="Run a GraphQL query", annotations=RO)

@@ -33,7 +33,7 @@ STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; char
 PAGES = {
     # path: (template, title, description, nav key)
     "/": ("home.html", "{{PRODUCT}} — Microsoft Fabric, connected",
-          "Turn your Microsoft Fabric tables into an explainable graph and a GraphQL API. Every connection shows the rule that made it.", "product"),
+          "Turn your Microsoft Fabric tables into an explainable graph, a GraphQL API and a Fabric IQ ontology draft. Every connection shows the rule that made it.", "product"),
     "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
                  "An illustrative demo on a synthetic shop schema: tables, inferred connections and the rule behind each one.", "product"),
     "/start": ("start.html", "Get started — {{PRODUCT}}",
@@ -261,7 +261,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     <div>
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
       <p class="muted">{html.escape(v['PRODUCT'])} is made by Kruse Consulting AB, Sweden{html.escape(v['ORGNR_SUFFIX'])}. Open source under the MIT licence.</p>
-      <p class="muted tiny">Microsoft Fabric is a trademark of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
+      <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
       <a href="/explore">Demo</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
@@ -322,7 +322,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the seven tools, how relationships are inferred, Snowflake and Databricks via Fabric mirroring, and the two portal steps that stay manual."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the eight tools, how relationships are inferred, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
 LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
 
 

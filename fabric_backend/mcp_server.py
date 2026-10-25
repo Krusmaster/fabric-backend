@@ -24,6 +24,7 @@ from . import create, plan_from
 from .errors import safe
 from .infer import check_tables
 from .rayfin import rayfin_files
+from .ontology import bindings as ontology_bindings, ontology_ttl, summary as ontology_summary
 from .deploy import token_from_az
 
 try:
@@ -100,6 +101,19 @@ def rayfin_connector(connector: str = "data", source_type: str = "SqlAnalyticsEn
     p = plan_from(execute=_execute_factory(schema), schema=schema, keys=keys, confirmed=confirmed)
     check_tables(p.schema, tables)
     return json.dumps(rayfin_files(p, connector, source_type, tables=tables, relationships=relationships), indent=2)
+
+
+@mcp.tool()
+@safe
+def ontology_draft(name: str = "ontology", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                   confirmed: list[dict] | None = None, tables: list[str] | None = None) -> str:
+    """The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: summary, binding
+    checklist and a Turtle file for the portal's Import ontology. The full item definition needs the Fabric item ids;
+    use the remote server or `fabric_backend.ontology_files` for that."""
+    p = plan_from(execute=_execute_factory(schema), schema=schema, keys=keys, confirmed=confirmed)
+    check_tables(p.schema, tables)
+    return json.dumps({"summary": ontology_summary(p, tables), "bindings": ontology_bindings(p, os.environ.get("FABRIC_ODBC", "").split(";")[0] or "source", schema, tables),
+                       "ttl": ontology_ttl(p, name, schema, tables)}, indent=2)
 
 
 def main() -> None:

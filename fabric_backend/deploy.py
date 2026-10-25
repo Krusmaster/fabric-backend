@@ -130,25 +130,61 @@ def deploy(env: dict, workspace: str, token_provider=None, poll_seconds: int = 3
     item_id = existing or _id_from(r)
     op = r.headers.get("x-ms-operation-id")
     if op:
-        for _ in range(max_polls):
-            poll = requests.get(f"{FABRIC}/v1/operations/{op}", headers=headers, timeout=30)
-            http = getattr(poll, "status_code", 200)
-            if http in (401, 403, 404):                   # the sign-in or the access went away mid-operation: say so
-                return {"status": "Failed", "mode": mode, "operation": op, "http": http, "body": getattr(poll, "text", "")}
-            try:
-                s = poll.json() if http < 400 else {}
-            except ValueError:
-                s = {}                                     # throttled or a transient server error: keep polling
-            if s.get("status") in ("Succeeded", "Failed"):
-                break
-            time.sleep(poll_seconds)
-        else:
-            return {"status": "Timeout", "mode": mode, "operation": op}
-        if s.get("status") == "Failed":
+        s = wait_operation(op, headers, poll_seconds, max_polls)
+        if s.get("status") != "Succeeded":
             s["mode"] = mode
             return s
         if not item_id:
             item_id = find_item(workspace, env["displayName"], headers)
+    return {"status": "Succeeded", "mode": mode, "id": item_id}
+
+
+def wait_operation(op: str, headers: dict, poll_seconds: int = 3, max_polls: int = 60) -> dict:
+    """Poll a Fabric long-running operation. Succeeded/Failed as Fabric reports them; Timeout when max_polls is spent;
+    a lost sign-in or access (401/403/404) ends the wait at once as Failed with the HTTP status and body."""
+    import requests
+    s: dict = {}
+    for _ in range(max_polls):
+        poll = requests.get(f"{FABRIC}/v1/operations/{op}", headers=headers, timeout=30)
+        http = getattr(poll, "status_code", 200)
+        if http in (401, 403, 404):
+            return {"status": "Failed", "operation": op, "http": http, "body": getattr(poll, "text", "")}
+        try:
+            s = poll.json() if http < 400 else {}
+        except ValueError:
+            s = {}                                         # throttled or a transient server error: keep polling
+        if s.get("status") in ("Succeeded", "Failed"):
+            s.setdefault("operation", op)
+            return s
+        time.sleep(poll_seconds)
+    return {"status": "Timeout", "operation": op}
+
+
+def create_ontology(envelope: dict, workspace: str, token_provider=None, poll_seconds: int = 3, max_polls: int = 60,
+                    update_existing: bool = True) -> dict:
+    """POST /ontologies with a definition, or updateDefinition when an ontology of that name exists. Needs the delegated
+    scope Item.ReadWrite.All and Contributor on the workspace (the ontology item is in preview)."""
+    import requests
+    headers = _headers(token_provider)
+    existing = find_item(workspace, envelope["displayName"], headers, "Ontology") if update_existing else None
+    if existing:
+        r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/ontologies/{existing}/updateDefinition", headers=headers,
+                          json={"definition": envelope["definition"]}, timeout=60)
+        mode = "updated"
+    else:
+        r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/ontologies", headers=headers, json=envelope, timeout=60)
+        mode = "created"
+    if r.status_code not in (200, 201, 202):
+        return {"status": "Failed", "mode": mode, "http": r.status_code, "body": r.text}
+    item_id = existing or _id_from(r)
+    op = r.headers.get("x-ms-operation-id")
+    if op:
+        s = wait_operation(op, headers, poll_seconds, max_polls)
+        if s.get("status") != "Succeeded":
+            s["mode"] = mode
+            return s
+        if not item_id:
+            item_id = find_item(workspace, envelope["displayName"], headers, "Ontology")
     return {"status": "Succeeded", "mode": mode, "id": item_id}
 
 

@@ -3,20 +3,13 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
-## 0.4.0 — 2026-10-25
+## 0.5.0 — 2026-10-25
 
-- Tool errors a user can act on: every MCP tool answers a failure with `error` (plain words), `kind` (a stable code
-  such as `not_found`, `no_access`, `capacity`, `sign_in`, `consent`, `schema_not_found`, `table_not_found`,
-  `timeout`) and `hint` (what to do next). Fabric's message is quoted only after tokens and secret-bearing headers
-  are removed; stack traces never appear. The server's MCP instructions describe the format.
-- Deploy check waits for the build it just deployed: the server echoes `KRUSGRAPH_BUILD` on `/healthz`, the deploy
-  script sets it to the image's source tag in the full run and in `--update`, and the check passes only when the
-  live server reports that tag. `--status` says whether the live build is the one in the checkout.
-- `--update` respects `min_replicas` (0 scales to zero, 1 keeps an instance warm); health probes start after a
-  second instead of ten so a cold start takes seconds. Seed works on lakehouses without schemas.
-- SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
-- Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
-- Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
+- Fabric IQ: `ontology_draft` writes the plan as an ontology (preview) draft: entity types with a key and properties,
+  relationship types, data bindings, in the item's generation-2 definition (TMDL parts for `POST /ontologies` or Git),
+  plus a Turtle file for the portal's Import ontology and a binding checklist with the rule behind every key and link.
+  `create_ontology` exists behind `KRUSGRAPH_ONTOLOGY_WRITE=1` (needs `Item.ReadWrite.All`). CLI `ontology` command and
+  `fabric_backend.ontology_files`. Checked against recorded definitions, not live yet.
 - Site: robots.txt names the AI crawlers, `/llms-full.txt` serves every Markdown page in one file, llms.txt has a
   Connect section, pages link their Markdown twin with `rel=alternate`, the home page declares the WebSite; the hero
   names the sources it works with and the home graph scrolls inside its card on phones.
@@ -37,6 +30,20 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   a tenth of a second instead of ten seconds, with identical output.
 - Exact package versions for the server image in `deploy/constraints.txt` (resolved for CPython 3.12 on manylinux,
   audited); the Dockerfile and CI install with it, a weekly workflow audits it, and it is part of the source tag.
+
+## 0.4.0 — 2026-10-25
+- Tool errors a user can act on: every MCP tool answers a failure with `error` (plain words), `kind` (a stable code
+  such as `not_found`, `no_access`, `capacity`, `sign_in`, `consent`, `schema_not_found`, `table_not_found`,
+  `timeout`) and `hint` (what to do next). Fabric's message is quoted only after tokens and secret-bearing headers
+  are removed; stack traces never appear. The server's MCP instructions describe the format.
+- Deploy check waits for the build it just deployed: the server echoes `KRUSGRAPH_BUILD` on `/healthz`, the deploy
+  script sets it to the image's source tag in the full run and in `--update`, and the check passes only when the
+  live server reports that tag. `--status` says whether the live build is the one in the checkout.
+- `--update` respects `min_replicas` (0 scales to zero, 1 keeps an instance warm); health probes start after a
+  second instead of ten so a cold start takes seconds. Seed works on lakehouses without schemas.
+- SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
+- Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
+- Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
 - CI: plain `pytest` finds `deploy/` (every run since the deployment tests failed at collection); current action
   majors. Tests for the Fabric plumbing, the four tools end to end on the demo schema, the Python API, deployment
   polling and the deploy script's Python 3.8 compatibility. 202 tests.

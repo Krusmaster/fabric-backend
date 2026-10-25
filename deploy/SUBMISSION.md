@@ -72,6 +72,6 @@ Only what is actually registered on the Entra app today:
 4. *"Create it as shop_api_review."* → endpoint + the two remaining portal steps.
 5. *"Using shop_api_review: which customers have orders with a Trail bike?"* → rows via `query_graphql`.
 
-Tool annotations: `list_workspaces`, `list_sources`, `list_tables`, `plan_backend`, `rayfin_connector`, `query_graphql` read-only; `create_backend` write, non-destructive, idempotent.
+Tool annotations: `list_workspaces`, `list_sources`, `ontology_draft`, `list_tables`, `plan_backend`, `rayfin_connector`, `query_graphql` read-only; `create_backend` write, non-destructive, idempotent.
 
 **9 Compliance** — seven acknowledgments; nothing in this server touches payments, media generation, or collects conversation data. `TODO(Gustav)`: tick them in the portal.

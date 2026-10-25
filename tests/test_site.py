@@ -34,7 +34,7 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
     assert "{{" not in html and "{{/IF}}" not in html
     assert re.search(r"<title>[^<]{5,}</title>", html)
     assert re.search(r'<meta name="description" content="[^"]{20,}"', html)
-    assert "Microsoft Fabric is a trademark of Microsoft Corporation" in html
+    assert "Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation" in html
     assert 'href="/static/site.css?v=' in html and "fonts/fredoka-var.woff2" in html
     assert "fonts.googleapis.com" not in html and "fonts.gstatic.com" not in html
     for m in re.finditer(r'<(?:script|link|img)[^>]+(?:src|href)="([^"]+)"', html):     # no external resources at runtime
@@ -387,3 +387,12 @@ def test_pages_point_agents_at_their_markdown_twin_and_home_declares_the_website
     assert 'type="text/markdown"' not in home and '"@type": "WebSite"' in home
     assert 'name="robots" content="noindex' not in home
     assert 'content="index,follow' not in client.get("/mascots").text                     # noindex pages get no index directive
+
+
+def test_fabric_iq_is_described_on_home_docs_and_llms(client):
+    home = client.get("/").text
+    assert 'id="fabric-iq"' in home and 'href="/docs#fabric-iq-the-same-graph-as-an-ontology"' in home and "preview" in home
+    docs = client.get("/docs").text
+    assert '<h2 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
+    assert "ontology_draft" in client.get("/docs.md").text and "`ontology_draft`" in client.get("/llms.txt").text
+    assert "Fabric IQ" in client.get("/llms-full.txt").text

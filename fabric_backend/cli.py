@@ -82,6 +82,18 @@ def cmd_rayfin(a) -> int:
     return 0
 
 
+def cmd_ontology(a) -> int:
+    from .ontology import ontology_files
+    src = (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
+           else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
+    p = plan(src, _keys_arg(a.keys))
+    files = ontology_files(p, a.name, workspace_id=a.workspace, item_id=a.source_item, item_name=a.source_name or a.source_item,
+                           item_kind=a.source_kind, schema=a.schema, sql_endpoint=a.sql_endpoint or "")
+    for path in write_rayfin(files, a.out):                        # same writer: {relative path: text} under --out
+        print("wrote", path)
+    return 0
+
+
 def cmd_create(a) -> int:
     import pyodbc  # optional
     conn = pyodbc.connect(a.odbc)
@@ -119,6 +131,11 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("rayfin"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--connector", default="data"); s.add_argument("--source-type", default="SqlAnalyticsEndpoint")
     s.add_argument("--no-relationships", action="store_true"); s.add_argument("--out", default="."); s.set_defaults(fn=cmd_rayfin)
+
+    s = sub.add_parser("ontology"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--name", required=True); s.add_argument("--workspace", required=True); s.add_argument("--source-item", required=True)
+    s.add_argument("--source-name"); s.add_argument("--source-kind", default="Lakehouse"); s.add_argument("--sql-endpoint")
+    s.add_argument("--out", default="."); s.set_defaults(fn=cmd_ontology)
 
     s = sub.add_parser("create"); s.add_argument("--workspace", required=True); s.add_argument("--source", required=True)
     s.add_argument("--name", required=True); s.add_argument("--odbc", required=True); s.add_argument("--schema", default="dbo")

@@ -72,8 +72,8 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
-(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (read-only, nothing
+Streamable HTTP at `/mcp`, eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `ontology_draft` (read-only), `plan_backend` (read-only, nothing
 deployed), `create_backend` (creates or updates one item, never deletes), `rayfin_connector`,
 `query_graphql` (read-only; mutations refused). Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
@@ -181,6 +181,13 @@ does, and prints the rule beside every key so you can take it out.
 | Mirrored Azure Databricks catalog | SqlAnalyticsEndpoint (via the item's SQL analytics endpoint) | no | `fabric-sqlanalytics` |
 | Warehouse | Warehouse | `writable=True` → Create/Update (Delete stays off) | `fabric-warehouse` |
 | Fabric SQL database | SqlDbNative | `writable=True` | `fabric-sqldatabase` |
+
+**Fabric IQ.** `ontology_draft` (remote server), `fabric-backend ontology` (CLI) and `fabric_backend.ontology_files`
+write the plan as a Fabric IQ ontology (preview): entity types with a key and properties, relationship types, data
+bindings, in the item's generation-2 definition (TMDL parts for `POST /workspaces/{id}/ontologies` or Git) plus a
+Turtle file for the portal's *Import ontology* and a binding checklist. Creating the item needs `Item.ReadWrite.All`;
+the server offers `create_ontology` only when `KRUSGRAPH_ONTOLOGY_WRITE=1`. Checked against recorded definitions, not
+live yet.
 
 **Snowflake and Databricks.** Two routes. (1) Mirror into Fabric (Mirrored database for Snowflake, Mirrored Azure
 Databricks catalog for Unity Catalog) and the mirrored item is a source like any other: the remote tools list it,

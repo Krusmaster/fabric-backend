@@ -36,6 +36,7 @@ server has no database, keeps no files and stores nothing between requests. Deta
 - *"Create it as sales_api."* — creates a Fabric API for GraphQL item with nested relationships, or updates it in place if the name exists.
 - *"Using sales_api, which customers ordered a trail bike in October?"* — a read-only GraphQL query.
 - *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
+- *"Draft a Fabric IQ ontology from the sales lakehouse."* — entity types, keys and relationship types with their rules, ready to import or create.
 
 ## Tools
 
@@ -47,6 +48,7 @@ server has no database, keeps no files and stores nothing between requests. Deta
 | `plan_backend` | inferred keys and relationships, each with its rule (K0–K3, R0–R3); ambiguous and keyless tables | no |
 | `create_backend` | creates or updates one API for GraphQL item | creates/updates one item; never deletes |
 | `rayfin_connector` | Rayfin (Fabric Apps) connector entities | no |
+| `ontology_draft` | the plan as a Fabric IQ ontology (preview) draft: entity types, keys, relationship types, bindings, TTL and item definition | no |
 | `query_graphql` | runs a read-only query; mutations are refused | no |
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
@@ -65,6 +67,26 @@ two tables is reported, never guessed; a column no rule matches is left unlinked
 {{RULES_TABLE}}
 
 More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
+
+## Fabric IQ: the same graph as an ontology
+
+Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
+types between them, and data bindings to tables. That is the information {{PRODUCT}} already infers for a source, with
+the rule behind every key and link. `ontology_draft` writes the plan in the ontology item's own shape, nothing deployed:
+
+- a **summary** with what needs a hand (keyless tables, composite keys, composite-column relationships);
+- a **binding checklist**: entity type → table, key column, property → column, relationship → columns, each with its rule;
+- a **Turtle file** the portal's *Import ontology* accepts into an empty ontology item (entity types, properties and
+  relationship types; bindings are then done in the portal following the checklist);
+- the **item definition** (generation 2, TMDL parts) that `POST /workspaces/{id}/ontologies` and Git integration take,
+  with tables bound DirectLake-style to the source, entities with keys and properties, and the relationships.
+
+Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace.
+The connector asks for that scope only when its operator enables `create_ontology`; the portal route needs nothing
+beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take over: the ontology agent and data
+agents use it as context, and the built-in graph can be materialised from its entity and relationship types. Ontology
+is in preview and its definition format can change; the draft follows the item's own definition as of 2026 and has been
+checked against recorded definitions, not yet live from {{PRODUCT}}.
 
 ## Snowflake, Databricks and other data
 
