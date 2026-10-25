@@ -137,3 +137,34 @@ def test_schema_reader_tolerates_an_endpoint_without_constraints_and_mixed_row_s
     s = Schema.from_sql(execute, "dbo")
     assert [c.name for c in s.tables["orders"].columns] == ["order_id", "customer_id"] and "other" not in s.tables
     assert s.tables["orders"].columns[0].data_type == "int" and len(calls) == 2
+
+
+def test_resolve_source_by_name_or_id_and_reads_the_sql_endpoint_host(monkeypatch):
+    lakehouse = {"id": "lh-1", "type": "Lakehouse", "displayName": "shop_lh",
+                 "properties": {"sqlEndpointProperties": {"connectionString": "x.datawarehouse.fabric.microsoft.com", "id": "ep-1"}}}
+    warehouse = {"id": "wh-1", "type": "Warehouse", "displayName": "dw", "properties": {"connectionString": "y.datawarehouse.fabric.microsoft.com"}}
+    routes = {"/items": Resp(200, {"value": [{"displayName": "shop_lh", "type": "Lakehouse", "id": "lh-1"}]}),
+              "/lakehouses/lh-1": Resp(200, lakehouse), "/warehouses/wh-1": Resp(200, warehouse),
+              "/lakehouses/wh-1": Resp(404, {}), "/lakehouses/ghost": Resp(404, {}), "/warehouses/ghost": Resp(404, {}), "/sqlDatabases/ghost": Resp(404, {})}
+    pages(monkeypatch, routes)
+    by_name = server._resolve_source("ws-1", "shop_lh", HEADERS)
+    assert by_name["type"] == "Lakehouse" and by_name["sql_host"] == "x.datawarehouse.fabric.microsoft.com" and by_name["sql_db"] == "shop_lh"
+    by_id = server._resolve_source("ws-1", "wh-1", HEADERS)                            # not in the name list: tried as an id
+    assert by_id["type"] == "Warehouse" and by_id["sql_host"] == "y.datawarehouse.fabric.microsoft.com" and by_id["sql_db"] == "dw"
+    with pytest.raises(LookupError, match="'ghost'"):
+        server._resolve_source("ws-1", "ghost", HEADERS)
+
+
+def test_on_behalf_of_failure_is_a_token_error_without_the_assertion(monkeypatch):
+    from fabric_backend.entra import EntraConfig, OnBehalfOf, TokenError
+    cfg = EntraConfig("https://x/mcp", "client-1", "secret-1")
+    obo = OnBehalfOf(cfg)
+    body = {"error": "invalid_grant", "error_description": "AADSTS65001: The user or administrator has not consented.\nTrace ID: abc"}
+    monkeypatch.setattr(requests, "post", lambda url, **k: type("R", (), {"status_code": 400, "headers": {"content-type": "application/json; charset=utf-8"},
+                                                                         "json": lambda self: body})())
+    with pytest.raises(TokenError) as info:
+        obo.token("user-assertion-token", "tenant-1", "https://api.fabric.microsoft.com/.default")
+    msg = str(info.value)
+    assert "AADSTS65001" in msg and "Trace ID" not in msg and "user-assertion-token" not in msg
+    from fabric_backend.errors import explain
+    assert explain(info.value)["kind"] == "consent"
