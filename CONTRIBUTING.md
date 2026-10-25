@@ -36,10 +36,10 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | night session 5 (graph theory: graphs.py, suggest_relationships, analyze_schema; releases when done) |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | night session 5 (graph theory: graphs.py, suggest_relationships, analyze_schema; releases when done) |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | open |
 | Deployment | `deploy/`, `Dockerfile` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | night session 5 (graph theory: graphs.py, suggest_relationships, analyze_schema; releases when done) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
