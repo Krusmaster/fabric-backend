@@ -167,6 +167,26 @@ def test_server_check_rejects_unprotected_deployment(monkeypatch):
         d.verify_server("https://example.test", CONFIG)
 
 
+def test_server_check_covers_the_site_pages_and_the_demo(monkeypatch):
+    seen = []
+
+    def fake(url, method="GET"):
+        seen.append((method, url.replace("https://example.test", "")))
+        if url.endswith("/healthz"):
+            return 200, {}, '{"ok":true,"auth":"entra"}'
+        if "oauth-protected-resource" in url:
+            return 200, {}, '{"resource":"https://%s/mcp"}' % CONFIG["domain"]
+        if method == "POST":
+            return 401, {"WWW-Authenticate": 'Bearer resource_metadata="https://%s/.well-known/oauth-protected-resource"' % CONFIG["domain"]}, ""
+        return 200, {}, "<html>"
+
+    monkeypatch.setattr(d, "http_response", fake)
+    d.verify_server("https://example.test", CONFIG)
+    checked = {path for method, path in seen if method == "GET"}
+    assert {"/", "/explore", "/start", "/docs", "/privacy", "/demo/plan.json", "/static/site.css"} <= checked
+    assert ("POST", "/mcp") in seen
+
+
 def test_existing_unrelated_resources_are_not_overwritten():
     with pytest.raises(d.DeploymentError):
         d.assert_owned({"tags": {"managed-by": "someone-else"}}, "shared-resource")

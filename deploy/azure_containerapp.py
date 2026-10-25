@@ -196,7 +196,8 @@ def verify_server(base_url, config):
         if attempt == 17:
             raise DeploymentError("Servern blev inte klar. Kontrollera revisionen i Azure Container Apps och kör om efter rättning.")
         time.sleep(10)
-    for path in ("/", "/docs", "/privacy", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"):
+    for path in ("/", "/explore", "/start", "/docs", "/privacy", "/demo/plan.json", "/static/site.css",
+                 "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"):
         status, _, body = http_response(base_url + path)
         if status != 200:
             raise DeploymentError(f"Kontrollen av {path} gav HTTP {status}.")

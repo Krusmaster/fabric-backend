@@ -289,6 +289,9 @@ tr:last-child td{border-bottom:0}
 .mascot .m-heart,.mascot .m-confetti,.mascot .m-tool{opacity:0;transition:opacity .25s}
 .mascot[data-pose=look] .m-figure{transform:rotate(calc(var(--tilt) + 4deg))}
 .mascot[data-pose=look] .m-arm-r{transform:rotate(-30deg)}
+.mascot[data-pose=listen] .m-figure{transform:rotate(calc(var(--tilt) + 9deg)) translateX(3px)}
+.mascot[data-pose=listen] .m-arm-r{transform:rotate(-80deg) translate(2px,-6px)}
+.mascot[data-pose=listen] .m-eyes{transform:translate(calc(var(--gx) + 2px),calc(var(--gy) - 1px))}
 .mascot[data-pose=point] .m-arm-r{transform:rotate(-125deg)}
 .mascot[data-pose=point] .m-arm-l{transform:rotate(10deg)}
 .mascot[data-pose=celebrate] .m-arm-l{transform:rotate(150deg)}

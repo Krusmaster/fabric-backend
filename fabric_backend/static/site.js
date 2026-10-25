@@ -247,6 +247,12 @@
     var bf = document.getElementById('btn-fields');
     bf.addEventListener('click', function () { var on = bf.getAttribute('aria-pressed') !== 'true'; bf.setAttribute('aria-pressed', on ? 'true' : 'false'); g.setFields(on); });
     document.getElementById('btn-reset').addEventListener('click', function () { g.reset(); bf.setAttribute('aria-pressed', 'false'); render(null); });
+    var bm = document.getElementById('btn-mermaid');
+    bm.addEventListener('click', function () { // the engine's own erDiagram, from plan.json
+      var done = function (ok) { bm.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { bm.textContent = 'Copy Mermaid'; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(data.mermaid).then(function () { done(true); }, function () { done(false); });
+      else { window.prompt('Mermaid ER diagram (select and copy):', data.mermaid); done(true); }
+    });
     var dflt = panel.innerHTML;
     function rule(code) { return '<p>' + esc(data.rules[code] || '').replace(/`([^`]+)`/g, '<code>$1</code>') + '</p>'; }
     function render(sel) {
@@ -322,7 +328,7 @@
   /* ------------------------------------------------------------------ mascot review page */
   var mp = document.querySelector('[data-page=mascots]');
   if (mp) {
-    var poses = ['rest', 'look', 'point', 'celebrate', 'heart', 'notice', 'think', 'explain', 'aside', 'working', 'failure', 'calm'];
+    var poses = ['rest', 'look', 'listen', 'point', 'celebrate', 'heart', 'notice', 'think', 'explain', 'aside', 'working', 'failure', 'calm'];
     ['onto', 'thinker', 'builder'].forEach(function (k) {
       var grid = document.getElementById('grid-' + k);
       grid.innerHTML = poses.map(function (p) { return '<div class="m-cell">' + M.svg(k, { pose: p, label: k + ', ' + p }) + '<span class="lbl">' + p + '</span></div>'; }).join('');

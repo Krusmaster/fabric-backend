@@ -129,6 +129,10 @@ def test_docs_describe_the_data_path(client):
     assert 'id="what-it-accesses"' in html and "held in memory only" in html and "no database" in html
     assert "https://krusgraph.test/mcp" in html and "client_id=cid-123" in html
     assert "<td><code>create_backend</code></td>" in html
+    for code, text in infer.RULES.items():                                                 # the rules table comes from the engine
+        if code != "confirmed":
+            assert f"<td>{code}</td>" in html, code
+    assert "<code>keys</code> override from the caller" in html
 
 
 @pytest.mark.parametrize("path,ctype", [("/static/site.css", "text/css"), ("/static/site.js", "text/javascript"),

@@ -309,8 +309,20 @@ def privacy_html() -> str:
                   body, page="privacy", nav="")
 
 
+def _rules_table() -> str:
+    """The K/R rules as a Markdown table, straight from infer.RULES so the docs never drift from the engine."""
+    from .infer import RULES
+    rows = ["| Rule | Applies to | Means |", "| --- | --- | --- |"]
+    for code, text in RULES.items():
+        if code == "confirmed":
+            continue
+        rows.append(f"| {code} | {'keys' if code.startswith('K') else 'relationships'} | {text.replace('|', '/')} |")
+    return "\n".join(rows)
+
+
 def docs_html() -> str:
-    body = f'<article class="wrap prose docs">{_md_to_html(_fill(_read("DOCS.md")))}</article>'
+    md = _read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table())
+    body = f'<article class="wrap prose docs">{_md_to_html(_fill(md))}</article>'
     return _shell("{{PRODUCT}} — docs", "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual.",
                   body, page="docs", nav="docs")
 

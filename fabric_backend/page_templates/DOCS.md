@@ -52,8 +52,11 @@ server has no database, keeps no files and stores nothing between requests. Deta
 A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
 so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
 two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
-`confirmed`. The [demo](/explore) shows the rules on a synthetic schema. Full rules:
-https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
+`confirmed`. The [demo](/explore) shows the rules on a synthetic schema. The rules, in the engine's own words:
+
+{{RULES_TABLE}}
+
+More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
 
 ## Two steps stay manual
 

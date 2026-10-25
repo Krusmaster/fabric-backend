@@ -1,0 +1,71 @@
+# The website: how it is built and how to change it
+
+The site is served by the same process as the MCP server (`fabric_backend/server.py`, `build_app()`). There is
+no build step, no bundler and no external resource at runtime. This note is for whoever edits it next.
+
+## Files
+
+| Path | What |
+| --- | --- |
+| `fabric_backend/pages.py` | the page registry (`PAGES`: path → template, title, description, nav key), the shared shell (header, footer, meta tags), the small Markdown renderer for `/docs` and `/privacy`, the 404 page, the sitemap, the static-file resolver |
+| `fabric_backend/page_templates/*.html` | one body template per page; `{{VAR}}` placeholders are filled from the environment (`PRODUCT`, `CONTACT`, `MCP_URL`, `CLIENT_ID`, `GITHUB`, …); `{{#IF VAR}}…{{/IF}}` keeps a block only when the variable is set; `{{DEMO_*}}` placeholders are filled from the demo plan |
+| `fabric_backend/page_templates/DOCS.md`, `PRIVACY.md` | the two Markdown pages; `{{RULES_TABLE}}` in DOCS.md is generated from `infer.RULES` |
+| `fabric_backend/static/site.css` | design tokens (`:root`, dark values under `prefers-color-scheme: dark`), shell, components, the graph, the mascot poses and animations |
+| `fabric_backend/static/site.js` | navigation toggle, the graph renderer (`Graph`), and the per-page wiring for `/`, `/explore`, `/partners/workspace`, `/mascots` |
+| `fabric_backend/static/mascots.js` | the three figures as inline SVG (`Mascots.svg`), the off switch, gaze, the follower, the builder sequence |
+| `fabric_backend/static/fonts/` | Fredoka and Nunito, variable, subset to Latin, SIL OFL (licence files beside them) |
+| `fabric_backend/static/favicon.svg|png`, `og.svg|png` | icon and Open Graph image; the PNGs are rendered from the SVGs with Playwright |
+| `fabric_backend/demo.py` | `demo_plan()`: the real `plan()` on `seed.schema()`, served as `/demo/plan.json` |
+| `tests/test_site.py`, `tests/test_site_extras.py` | every route, headers, honesty rules, the plan JSON |
+| `tests/test_browser.py` + `tests/browser_check.js` | Playwright checks; skipped when Node + Playwright + Chromium are missing |
+| `docs/screenshots/` | the reviewed screenshots (1280 light, 1280 dark, 390 light per page, plus interaction states) |
+
+## Adding a page
+
+1. Add a body template under `page_templates/` (just the inside of `<main>`; the shell adds header and footer).
+2. Register it in `PAGES` in `pages.py` with a title, a meta description and the nav key it belongs to.
+3. The route, cache header and CSP come for free from `build_app()`. Add it to `sitemap_xml()` unless it
+   should stay unlisted (`/mascots` is excluded on purpose).
+4. Add a test in `tests/test_site.py`; the parametrised route test picks up every entry in `PAGES`.
+
+## Rules the pages keep
+
+- Nothing is claimed that the product does not do: no customer quotes, logos, numbers or "trusted by"; no
+  approval, listing or partnership claims; "Microsoft Fabric" only descriptively, with the trademark note in
+  the footer. `tests/test_site.py` checks for the obvious phrases.
+- The demo is the engine's output, not hand-drawn data. If the engine changes, `/demo/plan.json` changes and the
+  tests on it (`test_demo_plan_is_the_real_engine_output`) say so.
+- No external resources: fonts, scripts and images are served from `/static`. The CSP on HTML pages enforces it.
+- Mascots are decoration with an off switch, never the only carrier of information. Every bubble has the same
+  information in plain text next to it. `prefers-reduced-motion` turns every animation off.
+
+## The graph renderer
+
+`new KrusGraph.Graph(container, planJson, options)` positions table cards from a fixed map for the demo tables
+(`WIDE` / `NARROW` in `site.js`; unknown tables fall back to a grid), draws bezier wires between the nearest
+sides with a dot at the "one" end and a crow's foot at the "many" end, and puts the rule pill at the midpoint.
+Options: `tables` (subset), `suggest` (dashed wires for columns the engine left unlinked), `mascots` (figures
+placed on wires), `label`. Events: `select` and `focus`. Methods: `fit()`, `setFields(on)`, `reset()`,
+`selectTable(name)`, `setAccepted(edge, on)`. Nodes are buttons, wires are focusable SVG groups, so the keyboard
+reaches everything; `Esc` clears the selection.
+
+## Mascots
+
+`Mascots.svg(kind, {pose, idle, label})` returns the markup for `onto`, `thinker` or `builder`. Poses are set
+with `data-pose` and styled in `site.css`: rest, look, listen, point, celebrate, heart, notice, think, explain,
+aside, working, failure, calm. `data-idle` (`breathe`, `nod`, `bounce`) adds the one quiet motion a page may
+have. `Mascots.follower(area, {text})` makes Onto follow the pointer in a graph area (hover devices only);
+`Mascots.build(fig, 'success' | 'failure', {onState})` runs the builder sequence; `Mascots.say(container, el,
+text)` shows a bubble. The switch in the footer sets `html[data-mascots=off]` and stores the choice in
+`localStorage` under `krusgraph.mascots` (wrapped in try/catch). `/mascots` shows every pose and state.
+
+## Screenshots and checks
+
+With the server running locally (`PRODUCT_NAME=Krusgraph MCP_PUBLIC_URL=https://krusgraph.com/mcp
+ENTRA_CLIENT_ID=x ENTRA_CLIENT_SECRET=x fabric-backend-server --port 8765`):
+
+- `pytest -q` runs everything, including the browser checks when Playwright is installed
+  (`npm i -g playwright && npx playwright install chromium`, or set `PLAYWRIGHT_CHROMIUM`).
+- The screenshots in `docs/screenshots/` were taken with Playwright at 1280×900 (light and dark) and 390×900
+  (light), full page, then quantised to 8-bit PNGs. Re-take them after visual changes and look at every one.
+- An axe-core audit (WCAG 2.1 AA + best practices) ran clean on every page in all three variants.
