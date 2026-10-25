@@ -82,3 +82,6 @@ such promises today, and the website says so (contributions open soon; no paymen
   in the room or on call.
 - Claude's connector sign-in needs the Entra app to be consented in the customer's tenant; some organisations take
   days to approve that. The in-house option avoids it.
+- Things do fail in session 1: a workspace without capacity, an account without access, a source whose SQL
+  endpoint is still provisioning. Each tool answers such a call with `error`, `kind` and `hint` (what happened,
+  a stable code, what to do next), so the fix is usually a portal click rather than a debugging session.
