@@ -121,6 +121,7 @@ def test_http_pages_metadata_and_mcp_authentication(monkeypatch, keys):
             assert response.status_code == 200, path
             assert "www-authenticate" not in response.headers, path
         assert client.get("/mcp").status_code == 401
+        assert client.get("/mcp").headers["strict-transport-security"] == "max-age=31536000"      # the guard's 401 too
         for path in ("/mcp", "/mcp/"):
             response = client.post(path, json={})
             assert response.status_code == 401

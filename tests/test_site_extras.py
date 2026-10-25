@@ -33,6 +33,15 @@ def test_pages_carry_a_strict_csp_but_mcp_does_not(client):
     assert "content-security-policy" not in client.get("/demo/plan.json").headers
 
 
+def test_every_response_carries_hsts_and_nosniff(client):
+    """Site, static files, JSON, health and the MCP endpoint alike; the page CSP stays page-only."""
+    for path, method in (("/", "GET"), ("/static/site.css", "GET"), ("/demo/plan.json", "GET"), ("/healthz", "GET"),
+                         ("/nope", "GET"), ("/mcp", "POST"), ("/sitemap.xml", "GET")):
+        h = (client.post(path, json={}) if method == "POST" else client.get(path)).headers
+        assert h["strict-transport-security"] == "max-age=31536000", path
+        assert h["x-content-type-options"] == "nosniff", path
+
+
 def test_site_responses_gzip_when_asked_and_mcp_never_does(client):
     import gzip
     for path, ctype in (("/", "text/html"), ("/static/site.css", "text/css"), ("/demo/plan.json", "application/json")):

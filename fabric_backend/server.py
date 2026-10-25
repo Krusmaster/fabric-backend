@@ -364,6 +364,25 @@ def _bounded(body, limit: int) -> str:
                                     "Ask for fewer fields.", "preview": preview}, indent=2)
 
 
+def _with_security_headers(app):
+    """Every HTTP response, /mcp included: HSTS (the server is only ever reached over HTTPS; Container Apps
+    redirects plain HTTP) and nosniff. Pure ASGI so streamed MCP responses are untouched apart from the headers."""
+    from starlette.datastructures import MutableHeaders
+
+    async def wrapped(scope, receive, send):
+        if scope["type"] != "http":
+            return await app(scope, receive, send)
+
+        async def send_with_headers(message):
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+                headers.setdefault("X-Content-Type-Options", "nosniff")
+            await send(message)
+        return await app(scope, receive, send_with_headers)
+    return wrapped
+
+
 def build_app(host: str = "0.0.0.0"):
     """The ASGI app: the MCP endpoint at /mcp, plus — in Entra mode — the protected resource metadata and a
     401 challenge in front of /mcp for any request without a valid token (Claude starts sign-in on the 401)."""
@@ -483,7 +502,7 @@ def build_app(host: str = "0.0.0.0"):
     app.add_exception_handler(404, not_found)
 
     if not cfg:
-        return app
+        return _with_security_headers(app)
 
     from .entra import protected_resource_metadata, challenge, TokenError
 
@@ -510,7 +529,7 @@ def build_app(host: str = "0.0.0.0"):
             return await resp(scope, receive, send)
         return await inner(scope, receive, send)
 
-    return guarded
+    return _with_security_headers(guarded)
 
 
 def main() -> None:
