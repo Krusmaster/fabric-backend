@@ -234,7 +234,8 @@ def test_tools_still_describe_themselves_to_mcp_clients():
         body = r.text
         payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if body.startswith("event:") or "data: " in body else r.json()
         tools = {t["name"]: t for t in payload["result"]["tools"]}
-        assert set(tools) == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql", "ontology_draft", "validate_plan", "sample_rows", "describe_backend"}
+        assert set(tools) == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql", "ontology_draft", "validate_plan", "sample_rows", "describe_backend",
+                              "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift"}
         assert "workspace" in tools["list_sources"]["inputSchema"]["properties"]
         assert set(tools["create_backend"]["inputSchema"]["properties"]) >= {"workspace", "source", "name", "schema", "writable", "keys", "confirmed", "tables"}
         assert "ctx" not in tools["plan_backend"]["inputSchema"]["properties"]

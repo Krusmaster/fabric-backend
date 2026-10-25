@@ -34,6 +34,7 @@ from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
+from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 
 try:
     from mcp.server.mcpserver import MCPServer, Context
@@ -52,7 +53,11 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows, then create_backend. Before query_graphql, describe_backend gives the exact field "
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4); "
-    "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
+    "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
+    "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
+    "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
+    "plan_drift before re-running create_backend on an existing API, to see what would change. "
+    "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
     "hint (the next step that fixes it)."))
 
@@ -466,6 +471,111 @@ if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"
         return json.dumps(out, indent=2)
 
 
+# ------------------------------------------------------------------ consultant tools -------
+# Thin wrappers: the work is in semantic_model.py, paths.py, dictionary.py, dbt.py and drift.py. All read-only.
+
+
+def _api_id(workspace: str, api: str, headers: dict) -> str | None:
+    if len(api) == 36 and api.count("-") == 4:
+        return api
+    item = find_item_by_name(workspace, api, headers, ("GraphQLApi",))
+    return item["id"] if item else None
+
+
+@mcp.tool(title="Draft a Power BI semantic model (TMDL, nothing created)", annotations=RO)
+@safe
+def semantic_model_draft(workspace: str, source: str, name: str = "semantic_model", schema: str = "dbo",
+                         keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                         tables: list[str] | None = None, ctx: Context = None) -> str:
+    """The plan as a Power BI semantic model in TMDL: one table per source table in Direct Lake mode on the source's
+    SQL analytics endpoint, relationships with cardinality and filter direction (one active path per table pair, the
+    rest inactive with the reason), keyless tables without relationships into them. Returns {path: content} for the
+    definition/ folder plus README.generated.md listing every decision to check. Creates nothing in Fabric."""
+    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    out = _semantic_model.draft(p, {**info, "sql_db": info.get("item_name")}, name, tables)
+    out["note"] = ("Unit-tested against Microsoft's published TMDL samples; not yet created in a live workspace. Open the "
+                   "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
+                   "lists what to check first.")
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        parts = out["parts"]
+        out["omitted"] = sorted(k for k in parts if k.startswith("definition/tables/"))
+        out["parts"] = {k: v for k, v in parts.items() if not k.startswith("definition/tables/")}
+        out["note"] += " The table files were left out of this answer because of its size; pass `tables` to get a few at a time."
+        text = json.dumps(out, indent=2)
+    return text
+
+
+@mcp.tool(title="Shortest join path between two tables", annotations=RO)
+@safe
+def join_path(workspace: str, source: str, start: str, end: str, schema: str = "dbo",
+              keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+    """How two tables connect through the plan's relationships: the shortest chain of hops with the rule per step and
+    a ready T-SQL SELECT … JOIN … with quoted identifiers (equally short paths are all listed). When no path exists it
+    says so and suggests which relationship is missing, as a `confirmed` entry. Reads metadata only."""
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    return json.dumps(_paths.join_path(p, start, end), indent=2)
+
+
+@mcp.tool(title="Data dictionary in Markdown", annotations=RO)
+@safe
+def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                    confirmed: list[dict] | None = None, validate: bool = False, max_items: int = 60, ctx: Context = None) -> str:
+    """Hand-over documentation for the source: every table with columns and types, keys and relationships with their
+    rules, keyless tables, ambiguous columns and the ER diagram, with an empty Description column to fill in. With
+    validate=true the counts from validate_plan (key uniqueness, orphans) are included. Returns Markdown."""
+    if validate:
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            p = make_plan(s, keys, confirmed)
+            checked = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
+        finally:
+            getattr(execute, "close", lambda: None)()
+    else:
+        p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+        checked = None
+    md = _dictionary.data_dictionary(p, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"))
+    return json.dumps({"path": f"docs/{source}-{schema}-data-dictionary.md", "markdown": md, "summary": p.summary()}, indent=2)
+
+
+@mcp.tool(title="dbt schema.yml with source tests", annotations=RO)
+@safe
+def dbt_schema(workspace: str, source: str, schema: str = "dbo", source_name: str | None = None,
+               keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+               tables: list[str] | None = None, arguments_block: bool = True, ctx: Context = None) -> str:
+    """A dbt sources file for the schema: `unique` and `not_null` on every inferred key column and `relationships`
+    on every single-column relationship, in the syntax the dbt documentation gives (test arguments under
+    `arguments:`; arguments_block=false writes them top-level for dbt before 1.10.5). Composite keys and
+    composite-column relationships are noted as comments. Returns the YAML text."""
+    p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    src = source_name or schema
+    yml = _dbt.schema_yml(p, src, schema, database=item.get("sql_db") or item.get("displayName") or source,
+                         tables=tables, arguments_block=arguments_block)
+    return json.dumps({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, indent=2)
+
+
+@mcp.tool(title="Compare today's plan with an existing GraphQL API", annotations=RO)
+@safe
+def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+               confirmed: list[dict] | None = None, tables: list[str] | None = None, writable: bool = False,
+               ctx: Context = None) -> str:
+    """Today's plan against the definition of an existing API for GraphQL item (name or id): new tables and
+    columns, columns the API still maps that the source no longer has, relationships the plan no longer supports,
+    and whether a create_backend with the same name would change anything. Changes nothing."""
+    p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    workspace_id = _workspace_id(workspace, headers)
+    api_id = _api_id(workspace_id, api, headers)
+    if not api_id:
+        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                           "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
+    existing = _graphql_definition(workspace_id, api_id, headers)
+    source_id, source_type = source_for(workspace_id, item, headers)
+    return json.dumps(_drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables), indent=2)
+
+
 def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
     """graphql-definition.json of an API for GraphQL item (getDefinition, long-running when Fabric says so)."""
     import base64
@@ -517,11 +627,7 @@ def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
     uses — read from the item's definition, so it works without introspection. Use it before query_graphql."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
-    if len(api) == 36 and api.count("-") == 4:
-        api_id = api
-    else:
-        item = find_item_by_name(workspace, api, headers, ("GraphQLApi",))
-        api_id = item["id"] if item else None
+    api_id = _api_id(workspace, api, headers)
     if not api_id:
         return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
                            "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)

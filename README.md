@@ -72,11 +72,21 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, eleven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, sixteen tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
-`rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. The tool table with arguments
+`rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. Five more read-only tools turn the
+same plan into the week's deliverables, all unit-tested and not yet run against a live workspace:
+
+- `semantic_model_draft` — a Power BI semantic model in TMDL: Direct Lake tables on the SQL analytics endpoint,
+  relationships with one active path per table pair, a `README.generated.md` with the decisions to check
+  (`fabric_backend/semantic_model.py` cites the Microsoft sample definitions it follows).
+- `join_path` — the shortest chain of relationships between two tables, rule per hop, ready T-SQL; or which
+  relationship is missing.
+- `data_dictionary` — hand-over documentation in Markdown with an empty Description column; `validate=true` adds counts.
+- `dbt_schema` — a dbt sources file with `unique`, `not_null` and `relationships` tests (`fabric_backend/dbt.py` cites the dbt docs).
+- `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change. The tool table with arguments
 and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
 Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a

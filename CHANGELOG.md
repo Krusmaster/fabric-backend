@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Five read-only consultant tools from the same plan, nothing created: `semantic_model_draft` (Power BI model in TMDL,
+  Direct Lake on the SQL analytics endpoint, active/inactive relationships, README with decisions), `join_path`
+  (shortest relationship chain with T-SQL, or the missing link), `data_dictionary` (Markdown hand-over with optional
+  counts), `dbt_schema` (sources with unique/not_null/relationships tests), `plan_drift` (plan vs an existing API's
+  definition). New modules semantic_model.py, paths.py, dictionary.py, dbt.py, drift.py; server.py has thin wrappers.
 - Security review of the sign-in path (`docs/SECURITY.md`, `tests/test_security.py`): issuer tenant ids compare
   without case; an empty `Bearer` answers `invalid_request`; chunked request bodies are capped at 4 MiB like declared
   ones; the on-behalf-of cache evicts expired entries first and then the oldest half instead of emptying; a token
