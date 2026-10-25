@@ -327,3 +327,22 @@ def test_seed_rows_match_the_example_schema():
     order_ids = {o[0] for o in r["orders"]}
     assert all(i[0] in order_ids for i in r["order_items"])                 # every line has its order
     assert {o[3] for o in r["orders"]} <= {a[0] for a in r["addresses"]}    # ship_to points at an address
+
+
+def test_plan_scales_to_a_large_warehouse():
+    """Hundreds of tables must plan in well under a tool timeout; the R2 lookup is indexed, not rescanned per column."""
+    import random
+    import time
+    rnd = random.Random(7)
+    words = ["orders", "items", "customers", "products", "events", "regions", "stores", "users", "sales", "returns"]
+    names = [f"{w}{i}" for i, w in enumerate(rnd.choices(words, k=600))]
+    s = Schema(schema="dbo")
+    for name in names:
+        cols = [Column(f"{name}_id" if rnd.random() < 0.7 else "id", "int")]
+        cols += [Column(f"{names[rnd.randrange(600)]}_id" if rnd.random() < 0.3 else f"col{j}", "int") for j in range(12)]
+        s.tables[name] = Table(name, cols, schema="dbo")
+    t0 = time.perf_counter()
+    p = plan(s, None, None)
+    assert time.perf_counter() - t0 < 5                      # ~0.1 s now; it was several seconds with the per-column rescan
+    assert len(p.keys) == 600 and len(p.relationships) > 600
+    assert all(r.rule in ("R1", "R2") for r in p.relationships) and any(r.rule == "R2" for r in p.relationships)

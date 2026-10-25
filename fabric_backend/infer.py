@@ -157,9 +157,11 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
 
     single_key: dict[str, str] = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
     by_ref_name: dict[str, list[str]] = {}
-    for t in single_key:
+    by_key_name: dict[str, list[str]] = {}                                # R2 index: normalised key column -> tables
+    for t, k in single_key.items():
         for cand in _ref_candidates(t):
             by_ref_name.setdefault(cand, []).append(t)
+        by_key_name.setdefault(_norm(k), []).append(t)
 
     for t in schema:
         own_key = set(x.lower() for x in keys.get(t.name, ([], ""))[0])
@@ -173,7 +175,7 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
             targets = [b for b in by_ref_name.get(n, []) if b != t.name]  # R1
             rule = "R1"
             if not targets and n != "id":                                 # R2
-                targets = [b for b, k in single_key.items() if b != t.name and _norm(k) == n]
+                targets = [b for b in by_key_name.get(n, []) if b != t.name]
                 rule = "R2"
             if len(targets) > 1:
                 ambiguous.append({"table": t.name, "column": c, "candidates": targets, "rule": rule})
