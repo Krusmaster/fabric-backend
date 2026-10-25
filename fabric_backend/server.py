@@ -33,6 +33,7 @@ from .rayfin import rayfin_files
 from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
+from . import evidence as _evidence
 
 try:
     from mcp.server.mcpserver import MCPServer, Context
@@ -47,8 +48,10 @@ from .discovery import package_version as _package_version  # noqa: E402
 
 mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
-    "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed), then "
-    "create_backend. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
+    "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
+    "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
+    "relationships against the rows, then create_backend. Before query_graphql, describe_backend gives the exact field "
+    "names. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
     "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
     "hint (what to do next); relay the hint to the user rather than retrying blindly."))
@@ -284,8 +287,67 @@ def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[st
         "summary": p.summary(),
         "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
         "relationships": [r.__dict__ for r in p.relationships],
-        "ambiguous": p.ambiguous, "keyless": p.keyless, "mermaid": p.mermaid(),
+        "ambiguous": p.ambiguous, "keyless": p.keyless,
+        "suggested_keys": _evidence.suggest_composite_keys(p),
+        "mermaid": p.mermaid(),
     }, indent=2)
+
+
+def _connected(workspace: str, source: str, schema: str, ctx):
+    """(plan inputs) the source's schema plus an open SQL connection; the caller closes it."""
+    headers = _headers(ctx)
+    workspace = _workspace_id(workspace, headers)
+    item = _resolve_source(workspace, source, headers)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        s = Schema.from_sql(execute, schema)
+    except Exception:
+        getattr(execute, "close", lambda: None)()
+        raise
+    if len(s) == 0:
+        getattr(execute, "close", lambda: None)()
+        raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
+    return s, execute
+
+
+@mcp.tool(title="Check the plan against the data", annotations=RO)
+@safe
+def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                  confirmed: list[dict] | None = None, max_items: int = 60, ctx: Context = None) -> str:
+    """Check the plan's keys and relationships against the rows, read-only: is each key unique and free of NULLs,
+    and does every reference find its target (orphan count)? Returns counts and a verdict per key and relationship.
+    Use it before create_backend to turn name-based suggestions into evidence. Takes the same keys/confirmed as
+    plan_backend; runs one small counting query per key and per relationship (max_items caps the total)."""
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = make_plan(s, keys, confirmed)
+        out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return json.dumps(out, indent=2, default=str)
+
+
+@mcp.tool(title="Show a few rows of a table", annotations=RO)
+@safe
+def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n: int = 10, ctx: Context = None) -> str:
+    """The first n rows (at most 20) of one table, read-only, so the meaning of columns can be checked before
+    deciding on keys or relationships. Long text values are shortened."""
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        t = next((x for x in s if x.name.lower() == table.lower()), None)
+        if t is None:
+            return json.dumps({"error": f"no table {table!r} in schema {schema!r} of {source!r}",
+                               "kind": "table_not_found", "hint": "list_tables shows the tables in a schema."}, indent=2)
+        n = max(1, min(int(n), 20))
+        rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, n))
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+    def short(v):
+        v = v if isinstance(v, (int, float, bool)) or v is None else str(v)
+        return v[:200] + "…" if isinstance(v, str) and len(v) > 200 else v
+    return json.dumps({"table": t.name, "columns": t.column_names,
+                       "rows": [{k: short(v) for k, v in r.items()} for r in rows]}, indent=2, default=str)
 
 
 @mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False,
@@ -402,6 +464,68 @@ if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"
             out["next"] = ["Open the ontology item in Fabric and review the entity types and bindings.",
                            "Composite-key relationships and keyless tables are listed under summary.notes."]
         return json.dumps(out, indent=2)
+
+
+def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
+    """graphql-definition.json of an API for GraphQL item (getDefinition, long-running when Fabric says so)."""
+    import base64
+    import requests
+    from .deploy import wait_operation
+    r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/items/{api_id}/getDefinition", headers=headers, timeout=60)
+    status = getattr(r, "status_code", 200)
+    if status == 202:
+        op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
+        result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
+        if result.get("status") != "Succeeded":
+            raise RuntimeError(f"reading the API definition did not finish: {result.get('status')}")
+        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
+        status = getattr(r, "status_code", 200)
+    if status >= 400:
+        r.raise_for_status()
+    parts = (r.json().get("definition") or {}).get("parts", [])
+    part = next((x for x in parts if x.get("path") == "graphql-definition.json"), None)
+    if not part:
+        raise RuntimeError("the API has no graphql-definition.json part")
+    return json.loads(base64.b64decode(part["payload"]))
+
+
+def describe_definition(body: dict) -> dict:
+    """Types, their fields and relationships, in the names a query uses."""
+    types = []
+    for ds in body.get("datasources", []):
+        for o in ds.get("objects", []):
+            actions = o.get("actions", {})
+            types.append({
+                "type": o.get("graphqlType"),
+                # Fabric names the list query after the type in the plural: audit_log -> audit_logs, orders -> orders
+                "query_field": o.get("graphqlType") if str(o.get("graphqlType", "")).endswith("s") else f"{o.get('graphqlType')}s",
+                "source": o.get("sourceObject"),
+                "fields": list((o.get("fieldMappings") or {}).values()),
+                "relationships": [{"field": r.get("field"), "to": r.get("targetObject"), "cardinality": r.get("cardinality")}
+                                  for r in o.get("relationships", [])],
+                "by_key": actions.get("Query_by_pk") == "Enabled",
+                "writable": any(actions.get(a) == "Enabled" for a in ("Create", "Update", "Delete")),
+            })
+    return {"types": types,
+            "how_to_query": "{ <query_field>(first: 10, filter: {...}, orderBy: {...}) { items { <fields> <relationship> { ... } } } }"}
+
+
+@mcp.tool(title="Describe a GraphQL API", annotations=RO)
+@safe
+def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
+    """Types, fields and relationships of an existing API for GraphQL item (name or id), in the names a query
+    uses — read from the item's definition, so it works without introspection. Use it before query_graphql."""
+    headers = _headers(ctx)
+    workspace = _workspace_id(workspace, headers)
+    if len(api) == 36 and api.count("-") == 4:
+        api_id = api
+    else:
+        item = find_item_by_name(workspace, api, headers, ("GraphQLApi",))
+        api_id = item["id"] if item else None
+    if not api_id:
+        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                           "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
+    return json.dumps(describe_definition(_graphql_definition(workspace, api_id, headers)), indent=2)
 
 
 @mcp.tool(title="Run a GraphQL query", annotations=RO)
