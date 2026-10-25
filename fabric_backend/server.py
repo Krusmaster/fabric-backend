@@ -161,20 +161,30 @@ def _execute_factory(item: dict, sql_token: str):
     tok = sql_token.encode("utf-16-le")
     attrs = {1256: struct.pack("<i", len(tok)) + tok}      # SQL_COPT_SS_ACCESS_TOKEN
     conn = pyodbc.connect(f"Driver={{ODBC Driver 18 for SQL Server}};Server={item['sql_host']};Database={item['sql_db']};Encrypt=yes",
-                          attrs_before=attrs)
+                          attrs_before=attrs, timeout=LOGIN_TIMEOUT)     # a cold or paused endpoint fails as `timeout`, not a hang
+    conn.timeout = QUERY_TIMEOUT                                           # per statement; the driver raises HYT00, explained as `timeout`
 
     def execute(sql: str):
         cur = conn.cursor()
         cur.execute(sql)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
+    execute.close = conn.close
     return execute
+
+
+LOGIN_TIMEOUT = 30      # seconds to log in to the SQL analytics endpoint
+QUERY_TIMEOUT = 120     # seconds per metadata query
 
 
 def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
     headers = _headers(ctx)
     item = _resolve_source(workspace, source, headers)
-    s = Schema.from_sql(_execute_factory(item, auth.sql(ctx)), schema)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        s = Schema.from_sql(execute, schema)
+    finally:
+        getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
     if len(s) == 0:
         raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
     return make_plan(s, keys, confirmed), item, headers

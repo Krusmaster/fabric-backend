@@ -58,3 +58,45 @@ def test_large_results_are_cut_to_valid_json_that_says_so(monkeypatch):
     assert "truncated" not in small and len(small["data"]["orders"]["items"]) == 2
     # one enormous scalar: still valid JSON, with a preview
     assert "preview" in json.loads(server._bounded({"data": {"blob": "x" * 200000}}, 1000))
+
+
+def test_sql_connection_has_timeouts_and_is_closed_after_the_plan(monkeypatch):
+    """pyodbc is not installed in the test environment; a stand-in records what the server asks of it."""
+    import sys
+    import types
+    seen = {}
+
+    class Cursor:
+        description = [("TABLE_NAME",), ("COLUMN_NAME",)]
+        def execute(self, sql): seen["sql"] = sql
+        def fetchall(self): return [("orders", "order_id")]
+
+    class Conn:
+        timeout = None
+        closed = False
+        def cursor(self): return Cursor()
+        def close(self): self.closed = True
+
+    conn = Conn()
+
+    def connect(conn_str, **kwargs):
+        seen["conn_str"] = conn_str; seen.update(kwargs); return conn
+
+    monkeypatch.setitem(sys.modules, "pyodbc", types.SimpleNamespace(connect=connect))
+    execute = server._execute_factory({"sql_host": "x.datawarehouse.fabric.microsoft.com", "sql_db": "shop_lh"}, "sql-token")
+    assert seen["timeout"] == server.LOGIN_TIMEOUT and conn.timeout == server.QUERY_TIMEOUT
+    assert "Encrypt=yes" in seen["conn_str"] and "sql-token" not in seen["conn_str"]      # the token travels as an attribute, not in the string
+    assert 1256 in seen["attrs_before"]
+    assert execute("select 1") == [{"TABLE_NAME": "orders", "COLUMN_NAME": "order_id"}]
+    execute.close()
+    assert conn.closed
+
+    # _plan closes the connection even when the schema is empty and SchemaEmpty is raised
+    conn.closed = False
+    monkeypatch.setattr(server, "_headers", lambda ctx: {})
+    monkeypatch.setattr(server, "_resolve_source", lambda *a: {"sql_host": "h", "sql_db": "d"})
+    monkeypatch.setattr(server.auth, "sql", lambda ctx: "sql-token")
+    monkeypatch.setattr(server.Schema, "from_sql", staticmethod(lambda execute, schema: []))
+    with pytest.raises(server.SchemaEmpty):
+        server._plan("ws", "src", "dbo", None, None, None)
+    assert conn.closed
