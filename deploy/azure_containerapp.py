@@ -131,6 +131,8 @@ def plain_env(config, build=None):
     }
     if build:
         env["KRUSGRAPH_BUILD"] = build
+    if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
+        env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
     return env
 
 

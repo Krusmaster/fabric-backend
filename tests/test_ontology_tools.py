@@ -110,3 +110,26 @@ def test_cli_ontology_command_writes_the_files(tmp_path, capsys):
     assert (tmp_path / "ontology" / "shop_ontology" / "definition" / "entities" / "Orders.tmdl").exists()
     assert (tmp_path / "ontology" / "shop_ontology" / "shop_ontology.ttl").exists()
     assert "wrote" in capsys.readouterr().out
+
+
+def test_a_big_schema_keeps_summary_bindings_and_ttl_and_drops_the_definition(shop, monkeypatch):
+    import random
+    from fabric_backend.schema import Column, Schema as _Schema, Table
+    rnd = random.Random(3)
+    big = _Schema(schema="dbo")
+    names = [f"table_{i}" for i in range(120)]
+    for n in names:
+        cols = [Column(f"{n}_id", "int")] + [Column(f"{names[rnd.randrange(120)]}_id" if rnd.random() < 0.3 else f"col{j}", "int") for j in range(10)]
+        big.tables[n] = Table(n, cols, schema="dbo")
+    monkeypatch.setattr(_Schema, "from_sql", classmethod(lambda cls, execute, schema="dbo", with_keys=True: big))
+    out = json.loads(server.ontology_draft(*shop, name="big", schema="dbo"))
+    assert "definition_parts" not in out and "body" not in out["rest"] and "the definition" in out["omitted"]
+    assert out["summary"]["entity_types"] == 120 and out["bindings"] and out["rest"]["url"].endswith("/ontologies")
+    assert len(json.dumps(out, indent=2)) <= server.MAX_RESULT_CHARS
+    # a medium schema keeps the TTL and loses only the definition
+    medium = _Schema(schema="dbo")
+    for n in names[:8]:
+        medium.tables[n] = big.tables[n]
+    monkeypatch.setattr(_Schema, "from_sql", classmethod(lambda cls, execute, schema="dbo", with_keys=True: medium))
+    out = json.loads(server.ontology_draft(*shop, name="medium", schema="dbo"))
+    assert "definition_parts" not in out and out["ttl"].count(" a owl:Class ;") == 8 and "the TTL" not in out["omitted"]

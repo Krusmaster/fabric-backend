@@ -351,6 +351,8 @@ def test_company_orgnr_reaches_both_the_manifest_and_update():
     env = {e["name"]: e.get("value") for e in manifest["properties"]["template"]["containers"][0]["env"]}
     assert env["COMPANY_ORGNR"] == "123456-7890" and env["KRUSGRAPH_BUILD"] == "src-abc"
     assert "KRUSGRAPH_BUILD" not in d.plain_env(CONFIG)
+    assert "KRUSGRAPH_ONTOLOGY_WRITE" not in d.plain_env(CONFIG | {"ontology_write": False})
+    assert d.plain_env(CONFIG | {"ontology_write": True})["KRUSGRAPH_ONTOLOGY_WRITE"] == "1"
     assert d.plain_env(CONFIG | {"company_orgnr": None})["COMPANY_ORGNR"] == ""
     assert d.plain_env(CONFIG)["COMPANY_ORGNR"] == "" or d.plain_env(CONFIG)["COMPANY_ORGNR"] == CONFIG.get("company_orgnr", "")
 

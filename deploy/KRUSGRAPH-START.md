@@ -111,6 +111,10 @@ Container Apps-miljön skapas med `--logs-destination none`. Serverns konsollogg
 
 `deploy/constraints.txt` låser varje Python-paket i serverbilden till en exakt version, så två `--update` från samma utcheckning ger samma bild. CI installerar med samma fil, så en version som inte går att installera stoppar där och inte i `az acr build`. Filen ingår i byggmärket: ändras en version blir det en ny bild. Hur man uppdaterar versionerna står överst i filen; `pip-audit -r deploy/constraints.txt` kontrollerar dem mot kända sårbarheter.
 
+## Fabric IQ: skapa ontologier från connectorn
+
+`ontology_draft` finns alltid och behöver inga nya rättigheter. Verktyget `create_ontology`, som skapar eller uppdaterar ontologiobjektet direkt, visas bara när `"ontology_write": true` står i `deploy/krusgraph.json` (miljövariabeln `KRUSGRAPH_ONTOLOGY_WRITE=1`). Innan du slår på det: lägg till den delegerade rättigheten `Item.ReadWrite.All` (Power BI Service / Fabric) på Entra-appen och be om nytt admin-samtycke, annars svarar verktyget med `no_access`. Slår igenom med `--update`.
+
 ## Kallstart eller alltid varm
 
 `"min_replicas": 0` i `deploy/krusgraph.json` (standard) låter appen skala ned till noll när ingen använder den. Det är billigast, men första anropet efter en tyst stund väntar på en kallstart, och MCP-klienter som Claude ger upp efter ungefär 30 sekunder. `"min_replicas": 1` håller alltid en instans varm. Det kostar mer per månad men ger inga timeouts, och det rekommenderas när connectorn används av andra eller granskas för Claudes katalog. Ändringen slår igenom med `--update`.

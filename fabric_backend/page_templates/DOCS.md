@@ -76,8 +76,10 @@ the rule behind every key and link. `ontology_draft` writes the plan in the onto
 
 - a **summary** with what needs a hand (keyless tables, composite keys, composite-column relationships);
 - a **binding checklist**: entity type → table, key column, property → column, relationship → columns, each with its rule;
-- a **Turtle file** the portal's *Import ontology* accepts into an empty ontology item (entity types, properties and
-  relationship types; bindings are then done in the portal following the checklist);
+- a **Turtle file** the portal's *Import ontology* accepts into an empty ontology item, using the mappings Microsoft documents
+  for import (`owl:Class` → entity type, `owl:DatatypeProperty` → property, `owl:ObjectProperty` → relationship type,
+  `rdfs:label`, `rdfs:comment`, `skos:altLabel` → display name, description, synonym); bindings are then done in the portal
+  following the checklist;
 - the **item definition** (generation 2, TMDL parts) that `POST /workspaces/{id}/ontologies` and Git integration take,
   with tables bound DirectLake-style to the source, entities with keys and properties, and the relationships.
 

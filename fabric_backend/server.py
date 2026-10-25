@@ -363,7 +363,18 @@ def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: 
                 "Item.ReadWrite.All scope, which this connector asks for only when its operator enables create_ontology; the "
                 "portal route (Import ontology with the TTL, then bind per `bindings`) needs no extra permission.",
     }
-    return _bounded(out, MAX_RESULT_CHARS)
+    text = json.dumps(out, indent=2)
+    if len(text) <= MAX_RESULT_CHARS:
+        return text
+    # A big schema: keep what a person reads first. Drop the two copies of the definition, then the TTL if it still does
+    # not fit; bindings are cut per list by _bounded. Narrowing with tables= or the CLI gives the whole thing.
+    out.pop("definition_parts"); out["rest"].pop("body")
+    dropped = [f"the definition ({len(parts)} parts)"]
+    if len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS:
+        out.pop("ttl"); dropped.append("the TTL")
+    out["omitted"] = (", ".join(dropped) + " did not fit in one answer and were left out; the summary is complete. "
+                      "Narrow with tables=, or run `fabric-backend ontology` (CLI) for the files.")
+    return _bounded(out, MAX_RESULT_CHARS)                 # may still cut the binding lists, and says so under `truncated`
 
 
 if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"):
