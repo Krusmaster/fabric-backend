@@ -11,7 +11,7 @@
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
 Filled from environment: PRODUCT_NAME, CONTACT_EMAIL, COMPANY_ORGNR (optional — the org. nr line is shown only when
-set), MCP_PUBLIC_URL, ENTRA_CLIENT_ID, POLICY_DATE, PARTNER_SIGNIN (set to 1 to show the not-yet-wired
+set), MCP_PUBLIC_URL, ENTRA_CLIENT_ID, PARTNER_SIGNIN (set to 1 to show the not-yet-wired
 "Continue with Microsoft" button on /partners).
 """
 from __future__ import annotations

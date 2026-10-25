@@ -8,3 +8,4 @@ build/
 .entra-secret
 deploy/krusgraph.json
 azure-result.json
+node_modules/

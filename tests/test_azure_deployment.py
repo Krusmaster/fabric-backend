@@ -259,7 +259,7 @@ def test_update_builds_and_swaps_the_image_only(monkeypatch, tmp_path, capsys):
     for untouched in (("ad",), ("containerapp", "hostname"), ("identity",), ("role",), ("group",), ("acr", "create"), ("containerapp", "create"), ("containerapp", "env", "create")):
         assert not any(c[:len(untouched)] == untouched for c in az.calls), untouched
     out = capsys.readouterr().out
-    assert "test-secret" not in out and "UPPDATERING KLAR" in out and "bind-domain" not in out   # no first-run DNS instructions
+    assert "test-secret" not in out and "KLART:" in out and "bind-domain" not in out   # no first-run DNS instructions
     assert (tmp_path / "azure-result.json").exists()
 
 

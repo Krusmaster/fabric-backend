@@ -227,7 +227,7 @@ section{padding-top:40px;padding-bottom:40px}
 .explore{display:grid;grid-template-columns:290px minmax(0,1fr);grid-template-areas:"graph graph" "side why";gap:18px;align-items:start;padding-top:12px;padding-bottom:56px}
 .explore .ex-side{grid-area:side}.explore .ex-graph{grid-area:graph}.explore .ex-panel{grid-area:why}
 @media (max-width:860px){.explore{grid-template-columns:minmax(0,1fr);grid-template-areas:"graph" "why" "side"}}
-@media (hover:none){.kbd-hint,#btn-mermaid{display:none}}
+@media (hover:none){.kbd-hint{display:none}}
 .ex-panel .why-cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:4px 28px}
 @media (max-width:1060px){.ex-panel .why-cols{grid-template-columns:minmax(0,1fr)}}
 .ex-side,.ex-panel{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);padding:18px}

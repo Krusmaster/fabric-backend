@@ -234,7 +234,7 @@ def report(az, config, verify=True, first_run=True):
         print(json.dumps(result, indent=2))
         print("\nNästa steg: lägg in DNS-posterna i Namecheap. Därefter kör du scriptet med --bind-domain.")
     else:
-        print(f"\nUPPDATERING KLAR: {url} (domänen {config['domain']} är oförändrad).")
+        print(f"\nKLART: {url} svarar; domänen {config['domain']} är oförändrad. DNS-värdena finns i azure-result.json.")
     return result
 
 
@@ -380,7 +380,7 @@ def main():
         if args.check:
             check_entra(az, config)
         elif args.status:
-            report(az, config)
+            report(az, config, first_run=False)
         elif args.bind_domain:
             bind_domains(az, config)
         elif args.update:

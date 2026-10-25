@@ -141,10 +141,12 @@
     if (!b) { b = document.createElement('div'); b.className = 'bubble live'; b.setAttribute('role', 'status'); container.appendChild(b); }
     if (!text) { b.classList.remove('show'); return b; }
     b.textContent = text;
-    var cr = container.getBoundingClientRect(), er = el.getBoundingClientRect();
-    var left = er.left - cr.left + (opts.dx || 0), top = er.top - cr.top - 38 + (opts.dy || 0);
-    b.style.left = Math.max(6, Math.min(left, cr.width - 170)) + 'px';
-    b.style.top = Math.max(6, top) + 'px';
+    // positions are in the container's content box: add its scroll offsets (a zoomed graph scrolls)
+    var cr = container.getBoundingClientRect(), er = el.getBoundingClientRect(), sx = container.scrollLeft || 0, sy = container.scrollTop || 0;
+    var left = er.left - cr.left + sx + (opts.dx || 0), top = er.top - cr.top + sy - 38 + (opts.dy || 0);
+    if (er.top - cr.top < 44) top = er.bottom - cr.top + sy + 10;     // no room above: below the card instead
+    b.style.left = Math.max(sx + 6, Math.min(left, sx + cr.width - 170)) + 'px';
+    b.style.top = Math.max(sy + 6, top) + 'px';
     b.classList.add('show');
     return b;
   }
@@ -184,18 +186,31 @@
     area.addEventListener('pointermove', function (e) {
       if (!motionOK()) { wrap.classList.remove('visible'); return; }
       wrap.classList.add('visible');
-      var r = area.getBoundingClientRect();
+      var r = area.getBoundingClientRect(), sx = area.scrollLeft || 0, sy = area.scrollTop || 0;   // content-box coordinates
       var node = e.target.closest && e.target.closest('.g-node');
       if (state === 'aside') return;                 // stepped aside after a click; stays until the pointer leaves
       var x, y;
-      if (node) {                                     // beside the hovered card, never on it: right of it, else left
-        var nr = node.getBoundingClientRect(), nx = nr.left - r.left, ny = nr.top - r.top;
-        x = nx + nr.width + 10; if (x + 52 > r.width) x = nx - 60;
-        y = ny + nr.height - 44;
+      if (node) {                                     // beside the hovered card, never on it or on a neighbour
+        var nr = node.getBoundingClientRect(), nx = nr.left - r.left + sx, ny = nr.top - r.top + sy;
+        var others = [], all = area.querySelectorAll('.g-node, .g-edge .tag'), i;   // other cards and the rule chips
+        for (i = 0; i < all.length; i++) if (all[i] !== node) { var o = all[i].getBoundingClientRect(); others.push({ l: o.left - r.left + sx, t: o.top - r.top + sy, rr: o.right - r.left + sx, b: o.bottom - r.top + sy }); }
+        var clearance = function (cx, cy) {   // distance to the nearest obstacle; -1 when the slot leaves the visible area
+          if (cx < sx || cy < sy || cx + 52 > sx + r.width || cy + 52 > sy + r.height) return -1;
+          var best = 1e9, k, dx, dy;
+          for (k = 0; k < others.length; k++) {
+            dx = Math.max(others[k].l - (cx + 52), cx - others[k].rr, 0); dy = Math.max(others[k].t - (cy + 52), cy - others[k].b, 0);
+            best = Math.min(best, Math.hypot(dx, dy));
+          }
+          return best;
+        };
+        var slots = [[nx + nr.width + 10, ny + nr.height - 44], [nx - 60, ny + nr.height - 44], [nx + nr.width - 52, ny + nr.height + 8], [nx + nr.width - 52, ny - 58]];
+        var pick = slots[0], score = -2, s;
+        for (i = 0; i < slots.length; i++) { s = clearance(slots[i][0], slots[i][1]); if (s > score + 8) { score = s; pick = slots[i]; } }
+        x = pick[0]; y = pick[1];
       } else {                                        // follow at a distance: below-right of the pointer
-        x = e.clientX - r.left + 34; y = e.clientY - r.top + 34;
+        x = e.clientX - r.left + sx + 34; y = e.clientY - r.top + sy + 34;
       }
-      x = Math.max(0, Math.min(x, r.width - 52)); y = Math.max(0, Math.min(y, r.height - 56));
+      x = Math.max(sx, Math.min(x, sx + r.width - 52)); y = Math.max(sy, Math.min(y, sy + r.height - 56));
       go(x, y);
       if (node !== hoverNode) {
         hoverNode = node; clearTimeout(pauseTimer); say(area, wrap, '');
@@ -207,7 +222,7 @@
         } else setState('follow');
       }
     });
-    area.addEventListener('pointerdown', function () { if (!motionOK()) return; clearTimeout(pauseTimer); say(area, wrap, ''); setState('aside'); var r = area.getBoundingClientRect(); go(r.width - 60, r.height - 72); });
+    area.addEventListener('pointerdown', function () { if (!motionOK()) return; clearTimeout(pauseTimer); say(area, wrap, ''); setState('aside'); var r = area.getBoundingClientRect(); go((area.scrollLeft || 0) + r.width - 60, (area.scrollTop || 0) + r.height - 72); });
     area.addEventListener('pointerleave', function () { clearTimeout(pauseTimer); say(area, wrap, ''); wrap.classList.remove('visible'); hoverNode = null; setState('rest'); });
     return { element: wrap, figure: fig, setState: setState };
   }
