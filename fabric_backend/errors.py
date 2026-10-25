@@ -23,9 +23,9 @@ _HEADERISH = re.compile(r"(?i)(authorization|x-fabric-sql-token|client_secret|se
 MAX = 300
 
 HINTS = {
-    "sign_in": "Sign in again in Claude (Settings → Connectors → the connector → Reconnect). The sign-in has expired or was rejected.",
+    "sign_in": "Sign in again in your MCP client (in Claude: Settings → Connectors → the connector → Reconnect). The sign-in has expired or was rejected.",
     "consent": "An administrator of your Microsoft Entra organisation has to grant consent once, then sign in again.",
-    "mfa": "Your organisation requires multi-factor authentication for this app. Sign in again in Claude and complete it.",
+    "mfa": "Your organisation requires multi-factor authentication for this app. Sign in again in your MCP client and complete it.",
     "no_access": "The signed-in account cannot open it. Ask for access to the workspace (Viewer is enough to plan, Contributor to create), then try again.",
     "not_found": "Check the workspace id and the source name: list_sources shows what the signed-in account can see.",
     "capacity": "The workspace needs an active Fabric capacity (a trial capacity is fine). Assign one, or resume the paused one, and try again.",
@@ -33,7 +33,7 @@ HINTS = {
     "schema_not_found": "Use list_tables with another schema; a lakehouse's default schema is 'dbo' unless it was created with schemas.",
     "table_not_found": "Check the table name in the SQL analytics endpoint; it may not be exposed there yet.",
     "column_not_found": "Check the column names: the keys you passed must exist in the table.",
-    "sql_sign_in": "The SQL analytics endpoint refused the sign-in. Sign in again in Claude; if it persists, the account lacks access to the item.",
+    "sql_sign_in": "The SQL analytics endpoint refused the sign-in. Sign in again in your MCP client; if it persists, the account lacks access to the item.",
     "timeout": "Fabric or the SQL endpoint did not answer in time. Try again; a paused capacity or a cold SQL endpoint can cause this.",
     "unreachable": "The server could not reach Fabric. Try again in a moment.",
     "throttled": "Fabric is rate-limiting requests. Wait a little and try again.",
