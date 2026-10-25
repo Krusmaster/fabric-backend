@@ -47,6 +47,11 @@ server has no database, keeps no files and stores nothing between requests. Deta
 | `rayfin_connector` | Rayfin (Fabric Apps) connector entities | no |
 | `query_graphql` | runs a read-only query; mutations are refused | no |
 
+When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
+happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,
+`consent`, `schema_not_found`, `table_not_found` or `timeout`) and `hint` (what to do next). Tokens, request
+headers and stack traces never appear in these answers.
+
 ## How relationships are inferred
 
 A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,

@@ -93,7 +93,10 @@ server in memory only; there is no database. The same process serves the website
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
 `--check`, `--update`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
-(`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`).
+(`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`). Tool failures come back
+as `{"error", "kind", "hint"}` (`fabric_backend/errors.py`): an unknown workspace, a missing or paused
+capacity, an expired sign-in or missing consent, a missing schema or table, a timeout, each in plain words and
+never with a token, a header or a traceback.
 
 ## How the relationships are inferred
 

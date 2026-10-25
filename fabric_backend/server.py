@@ -30,6 +30,7 @@ from .schema import Schema
 from .graphql import definition
 from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_for, SOURCE_ITEM_TYPES
 from .rayfin import rayfin_files
+from .errors import SchemaEmpty, classify_http, safe
 
 try:
     from mcp.server.mcpserver import MCPServer, Context
@@ -172,6 +173,8 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
     headers = _headers(ctx)
     item = _resolve_source(workspace, source, headers)
     s = Schema.from_sql(_execute_factory(item, auth.sql(ctx)), schema)
+    if len(s) == 0:
+        raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
     return make_plan(s, keys, confirmed), item, headers
 
 
@@ -181,6 +184,7 @@ RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hin
 
 
 @mcp.tool(title="List data sources in a workspace", annotations=RO)
+@safe
 def list_sources(workspace: str, ctx: Context = None) -> str:
     """Lakehouses, warehouses, SQL databases and mirrored databases in a Fabric workspace (id), plus existing
     API for GraphQL items. Use the display name or id as `source` in the other tools."""
@@ -202,6 +206,7 @@ def list_sources(workspace: str, ctx: Context = None) -> str:
 
 
 @mcp.tool(title="List tables and columns", annotations=RO)
+@safe
 def list_tables(workspace: str, source: str, schema: str = "dbo", ctx: Context = None) -> str:
     """Tables and columns (with types) in one schema of a source. Read-only."""
     p, _, _ = _plan(workspace, source, schema, None, None, ctx)
@@ -209,6 +214,7 @@ def list_tables(workspace: str, source: str, schema: str = "dbo", ctx: Context =
 
 
 @mcp.tool(title="Plan keys and relationships (nothing deployed)", annotations=RO)
+@safe
 def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
                  confirmed: list[dict] | None = None, ctx: Context = None) -> str:
     """Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule
@@ -226,6 +232,7 @@ def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[st
 
 @mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False,
                                                                                idempotent_hint=True, open_world_hint=True))
+@safe
 def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
                    keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                    tables: list[str] | None = None, ctx: Context = None) -> str:
@@ -240,10 +247,20 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
            "skipped_relationships": env.get("skipped_relationships", [])}
     if result.get("status") == "Succeeded":
         out["card"] = connection_card(workspace, result["id"], name)
+    elif result.get("status") == "Failed" and result.get("http"):          # Fabric refused the create/update: say why
+        out.update(classify_http(int(result["http"]), result.get("body", ""), f"creating {name!r} in workspace {workspace}"))
+        result.pop("body", None)
+    elif result.get("status") == "Failed":                                  # the long-running operation failed
+        err = result.get("error") if isinstance(result.get("error"), dict) else {}
+        out.update(classify_http(400, json.dumps(err) if err else "", f"creating {name!r} in workspace {workspace}"))
+    elif result.get("status") == "Timeout":
+        out.update({"error": f"Fabric is still working on {name!r}; the operation did not finish in time.", "kind": "timeout",
+                    "hint": "Check the item in the Fabric portal in a minute; re-running create_backend updates it in place."})
     return json.dumps(out, indent=2)
 
 
 @mcp.tool(title="Generate Rayfin connector entities", annotations=RO)
+@safe
 def rayfin_connector(workspace: str, source: str, connector: str = "data", schema: str = "dbo",
                      keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                      tables: list[str] | None = None, relationships: bool = True, ctx: Context = None) -> str:
@@ -256,6 +273,7 @@ def rayfin_connector(workspace: str, source: str, connector: str = "data", schem
 
 
 @mcp.tool(title="Run a GraphQL query", annotations=RO)
+@safe
 def query_graphql(workspace: str, api: str, query: str, variables: dict | None = None, ctx: Context = None) -> str:
     """Run a read-only GraphQL query against an API for GraphQL item (name or id) in the workspace. Query fields
     are named <type>s, e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest.
@@ -283,6 +301,9 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
         return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}"})
     r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/graphqlapis/{api_id}/graphql", headers=headers,
                       json={"query": query, "variables": variables or {}}, timeout=100)
+    status = getattr(r, "status_code", 200)
+    if status in (401, 403, 404, 429) or status >= 500:
+        return json.dumps(classify_http(status, getattr(r, "text", ""), f"querying {api!r} in workspace {workspace}"), indent=2)
     try:
         body = r.json()
     except ValueError:
