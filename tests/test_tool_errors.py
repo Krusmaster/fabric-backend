@@ -238,3 +238,39 @@ def test_scrub_and_where():
     assert errors.scrub(f"token {FAKE_TOKEN} and Bearer abcdefghijkl end") == "token [token removed] and [token removed] end"
     assert errors.scrub("Authorization: Bearer x.y.z\nclient_secret=abc") == "Authorization: [removed] client_secret: [removed]"
     assert errors.where_from(server.list_tables.__wrapped__, ("ws", "lh"), {"schema": "sales"}) == "workspace 'ws', source 'lh', schema 'sales'"
+
+
+def test_error_answers_reach_an_mcp_client_as_a_normal_result(monkeypatch):
+    """Through /mcp (what Claude uses) a Fabric 404 arrives as the tool's JSON answer, not as a protocol error with
+    the exception text in it; the secret headers on the failed request never reach the client."""
+    from starlette.testclient import TestClient
+
+    def boom(*a, **k):
+        raise http_error(404, '{"errorCode":"WorkspaceNotFound","message":"Workspace ws-missing not found"}')
+    monkeypatch.setattr(server, "_headers", lambda ctx: dict(SECRET_HEADERS))
+    monkeypatch.setattr(requests, "get", boom)
+    with TestClient(server.build_app()) as client:
+        r = client.post("/mcp", json={"jsonrpc": "2.0", "id": 7, "method": "tools/call",
+                                      "params": {"name": "list_sources", "arguments": {"workspace": "ws-missing"}}},
+                        headers={"Accept": "application/json, text/event-stream"})
+        assert r.status_code == 200
+        body = r.text
+        payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if "data: " in body else r.json()
+        assert "error" not in payload, payload                                    # no JSON-RPC error
+        result = payload["result"]
+        assert not result.get("isError")
+        answer = json.loads(result["content"][0]["text"])
+        assert_answer(answer, "not_found"); assert_clean(body)
+        assert "ws-missing" in answer["error"]
+
+
+def test_server_instructions_tell_the_client_how_errors_look():
+    from starlette.testclient import TestClient
+    with TestClient(server.build_app()) as client:
+        r = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}},
+                        headers={"Accept": "application/json, text/event-stream"})
+        body = r.text
+        payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if "data: " in body else r.json()
+        text = payload["result"]["instructions"]
+        assert "hint" in text and "kind" in text and "not_found" in text

@@ -47,7 +47,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. Start with list_sources, then plan_backend (nothing is deployed), then "
     "create_backend. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
-    "ambiguous columns are reported, never guessed."))
+    "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
+    "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
+    "hint (what to do next); relay the hint to the user rather than retrying blindly."))
 
 
 # ------------------------------------------------------------------ auth ---------------------
