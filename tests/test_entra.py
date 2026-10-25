@@ -169,3 +169,21 @@ def test_privacy_and_docs_pages(monkeypatch):
     assert "<table>" in p and "never written to disk or logs" in p
     assert "client_id=cid-123" in d and "https://mcp.testname.io/mcp" in d and "{{" not in d
     assert "<td><code>create_backend</code></td>" in d
+
+
+def test_config_from_env_validates_the_public_url_and_lowercases_allowed_tenants(monkeypatch):
+    for k in ("MCP_PUBLIC_URL", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "ENTRA_ALLOWED_TENANTS"):
+        monkeypatch.delenv(k, raising=False)
+    assert EntraConfig.from_env() is None                                             # bearer / service-principal mode
+    monkeypatch.setenv("ENTRA_CLIENT_ID", CFG.client_id)
+    monkeypatch.setenv("ENTRA_CLIENT_SECRET", "s3cret")
+    monkeypatch.setenv("ENTRA_ALLOWED_TENANTS", f" {TID.upper()}, ,bbbbbbbb-0000-0000-0000-000000000000 ")
+    for bad in ("http://mcp.example.com/mcp", "https://mcp.example.com/", "https://mcp.example.com/mcp?x=1", "https://mcp.example.com/mcp#f"):
+        monkeypatch.setenv("MCP_PUBLIC_URL", bad)
+        with pytest.raises(ValueError, match="HTTPS URL ending in /mcp"):
+            EntraConfig.from_env()
+    monkeypatch.setenv("MCP_PUBLIC_URL", "https://mcp.example.com/mcp/")
+    cfg = EntraConfig.from_env()
+    assert cfg.public_url.rstrip("/") == "https://mcp.example.com/mcp" and cfg.client_secret == "s3cret"
+    assert cfg.allowed_tenants == {TID, "bbbbbbbb-0000-0000-0000-000000000000"}
+    assert "s3cret" not in repr(cfg)                                                  # the secret never prints
