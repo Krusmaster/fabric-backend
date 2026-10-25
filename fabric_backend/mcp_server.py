@@ -21,6 +21,8 @@ import json
 import os
 
 from . import create, plan_from
+from .errors import safe
+from .infer import check_tables
 from .rayfin import rayfin_files
 from .deploy import token_from_az
 
@@ -52,6 +54,7 @@ def _execute_factory(schema: str):
 
 
 @mcp.tool()
+@safe
 def list_tables(schema: str = "dbo") -> str:
     """Tables and columns in the source behind FABRIC_ODBC."""
     p = plan_from(execute=_execute_factory(schema), schema=schema)
@@ -59,6 +62,7 @@ def list_tables(schema: str = "dbo") -> str:
 
 
 @mcp.tool()
+@safe
 def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
                  confirmed: list[dict] | None = None) -> str:
     """Infer keys and relationships without deploying. Returns summary, relationships with the rule
@@ -73,6 +77,7 @@ def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
 
 
 @mcp.tool()
+@safe
 def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
                    keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                    tables: list[str] | None = None, dry_run: bool = False) -> str:
@@ -86,12 +91,14 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
 
 
 @mcp.tool()
+@safe
 def rayfin_connector(connector: str = "data", source_type: str = "SqlAnalyticsEndpoint", schema: str = "dbo",
                      keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                      tables: list[str] | None = None, relationships: bool = True) -> str:
     """Generate Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with
     inferred keys and @one/@many relationships. Returns {path: content}; write them under your app."""
     p = plan_from(execute=_execute_factory(schema), schema=schema, keys=keys, confirmed=confirmed)
+    check_tables(p.schema, tables)
     return json.dumps(rayfin_files(p, connector, source_type, tables=tables, relationships=relationships), indent=2)
 
 

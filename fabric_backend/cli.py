@@ -125,7 +125,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--writable", action="store_true"); s.add_argument("--dry-run", action="store_true"); s.set_defaults(fn=cmd_create)
 
     a = ap.parse_args(argv)
-    return a.fn(a)
+    from .infer import PlanInputError
+    try:
+        return a.fn(a)
+    except PlanInputError as e:                       # a typo in --keys or the columns file: one line, no traceback
+        print(f"fabric-backend: {e}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":
