@@ -196,7 +196,8 @@ the CLI and the local stdio server read `INFORMATION_SCHEMA` the same way on Sno
 (Snowflake has no `KEY_COLUMN_USAGE`, so keys come from names there; Unity Catalog's informational constraints are
 read as K0/R0). That route gives the explainable graph, the Mermaid diagram and the Rayfin entities; the API for
 GraphQL item itself is a Fabric object, so route (2) ends at `dry_run`/`definition` unless the data is mirrored.
-The mirrored-catalog route has been exercised against mocked Fabric answers, not live yet.
+The mirrored-catalog route follows Microsoft's published REST specification (item type, route, `sqlEndpointProperties`);
+a live run is still pending.
 
 For SAP tables the names say nothing (`VBELN`, `KUNNR`); use
 [sap-ontology](https://github.com/Krusmaster/sap-ontology), which derives the graph from SAP's own

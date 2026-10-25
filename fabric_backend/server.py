@@ -185,7 +185,8 @@ def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     props = r.json().get("properties", {})
     ep = props.get("sqlEndpointProperties") or {}
     item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
-    item["sql_db"] = item.get("displayName")
+    # a Fabric SQL database's actual database name carries a suffix (properties.databaseName); the others use the display name
+    item["sql_db"] = props.get("databaseName") or item.get("displayName")
     return item
 
 

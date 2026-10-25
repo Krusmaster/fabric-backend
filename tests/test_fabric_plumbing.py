@@ -163,6 +163,11 @@ def test_resolve_source_by_name_or_id_and_reads_the_sql_endpoint_host(monkeypatc
     assert by_id["type"] == "Warehouse" and by_id["sql_host"] == "y.datawarehouse.fabric.microsoft.com" and by_id["sql_db"] == "dw"
     with pytest.raises(LookupError, match="'ghost'"):
         server._resolve_source("ws-1", "ghost", HEADERS)
+    # a Fabric SQL database connects by its properties.databaseName (display name plus a suffix), per the REST spec
+    sqldb = {"id": "db-1", "type": "SQLDatabase", "displayName": "sales", "properties": {"connectionString": "z.database.fabric.microsoft.com", "databaseName": "sales-2f3e4d5c-aaaa", "serverFqdn": "z.database.fabric.microsoft.com"}}
+    pages(monkeypatch, {"/items": Resp(200, {"value": [{"displayName": "sales", "type": "SQLDatabase", "id": "db-1"}]}), "/sqlDatabases/db-1": Resp(200, sqldb)})
+    got = server._resolve_source("ws-1", "sales", HEADERS)
+    assert got["sql_host"] == "z.database.fabric.microsoft.com" and got["sql_db"] == "sales-2f3e4d5c-aaaa"
 
 
 def test_on_behalf_of_failure_is_a_token_error_without_the_assertion(monkeypatch):

@@ -103,8 +103,8 @@ checked against recorded definitions, not yet live from {{PRODUCT}}.
    item is a Fabric object, so that last step needs route 1.
 
 Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
-informational primary and foreign keys are read as declared keys (K0, R0). The mirrored-catalog route has been
-verified against recorded Fabric answers, not live yet.
+informational primary and foreign keys are read as declared keys (K0, R0). The mirrored-catalog route follows Microsoft's
+published REST specification (the item type, its route and its `sqlEndpointProperties`); a live run is still pending.
 
 ## Two steps stay manual
 
