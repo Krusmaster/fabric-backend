@@ -119,11 +119,12 @@ class Schema:
     @classmethod
     def from_sql(cls, execute, schema: str = "dbo", with_keys: bool = True) -> "Schema":
         """execute(sql) -> iterable of rows (tuples or dict-like)."""
-        columns = list(execute(COLUMNS_SQL.format(schema=schema)))
+        literal = schema.replace("'", "''")                      # the name goes into a quoted literal; keep it one
+        columns = list(execute(COLUMNS_SQL.format(schema=literal)))
         keys = []
         if with_keys:
             try:
-                keys = list(execute(KEYS_SQL.format(schema=schema)))
+                keys = list(execute(KEYS_SQL.format(schema=literal)))
             except Exception:  # lakehouse endpoints have no constraints; that's fine
                 keys = []
         return cls.from_information_schema(columns, keys, schema=schema)

@@ -168,3 +168,17 @@ def test_on_behalf_of_failure_is_a_token_error_without_the_assertion(monkeypatch
     assert "AADSTS65001" in msg and "Trace ID" not in msg and "user-assertion-token" not in msg
     from fabric_backend.errors import explain
     assert explain(info.value)["kind"] == "consent"
+
+
+def test_schema_name_stays_inside_its_sql_literal():
+    """The schema name comes from the tool call; a quote in it must not end the literal."""
+    seen = []
+
+    def execute(sql):
+        seen.append(sql)
+        return []
+    Schema.from_sql(execute, "o'brien'; DROP TABLE x; --")
+    assert all("TABLE_SCHEMA = 'o''brien''; DROP TABLE x; --'" in q for q in seen) and len(seen) == 2
+    seen.clear()
+    Schema.from_sql(execute, "dbo")
+    assert "TABLE_SCHEMA = 'dbo'" in seen[0]
