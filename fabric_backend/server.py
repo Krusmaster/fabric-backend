@@ -506,6 +506,11 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, discovery.llms_txt().encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})
     app.router.routes.append(Route("/llms.txt", llms))
 
+    async def llms_full(request):
+        parts = [("/docs.md", docs_md()), ("/start.md", start_md()), ("/lovable.md", lovable_md()), ("/privacy.md", privacy_md())]
+        return compressed(request, discovery.llms_full_txt(parts).encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})
+    app.router.routes.append(Route("/llms-full.txt", llms_full))
+
     async def sitemap(request):
         return compressed(request, discovery.sitemap_xml().encode("utf-8"), "application/xml", {"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/sitemap.xml", sitemap))

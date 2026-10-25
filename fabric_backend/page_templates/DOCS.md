@@ -96,8 +96,11 @@ two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} w
 
 ## For agents
 
-A Markdown version of these docs is at [/docs.md](/docs.md), and [/llms.txt](/llms.txt) lists the rest. MCP clients
-can read the server's identity and transport from its Server Card at `{{MCP_URL}}/server-card`.
+A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.txt) lists the rest and
+[/llms-full.txt](/llms-full.txt) has every page in one file. MCP clients can read the server's identity and transport
+from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
+The same URL works from the command line once a client's sign-in redirect is registered on the Entra app
+(for Claude Code: `claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`); until then Claude is the tested client.
 
 ## Support
 

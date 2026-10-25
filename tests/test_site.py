@@ -242,7 +242,7 @@ def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
         assert '<meta name="twitter:card" content="summary_large_image">' in html
         assert '<meta name="twitter:image" content="https://krusgraph.test/static/og.png">' in html
         assert re.search(r'<meta name="twitter:title" content="[^"]{5,}">', html)
-        assert 'name="robots"' not in html, path
+        assert 'content="noindex' not in html, path
         titles.add(re.search(r"<title>([^<]+)</title>", html).group(1))
     assert len(titles) == len(PUBLIC)                                                     # every title is unique
 
@@ -362,3 +362,28 @@ def test_server_json_matches_the_package_and_the_card():
     assert sj["remotes"] == [{"type": "streamable-http", "url": "https://krusgraph.com/mcp"}]
     from fabric_backend.discovery import DESCRIPTION
     assert sj["description"] == DESCRIPTION
+
+
+def test_ai_crawlers_are_named_in_robots_and_the_full_text_is_one_fetch(client):
+    t = client.get("/robots.txt").text
+    for bot in ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"):
+        assert f"User-agent: {bot}\nAllow: /\n" in t, bot
+    assert t.count("Disallow: /mcp\n") >= 5 and t.strip().endswith("sitemap.xml")
+    full = client.get("/llms-full.txt")
+    assert full.status_code == 200 and full.headers["content-type"].startswith("text/plain")
+    for marker in ("/docs.md -->", "/start.md -->", "/lovable.md -->", "/privacy.md -->", "## How relationships are inferred", "Snowflake"):
+        assert marker in full.text, marker
+    llms = client.get("/llms.txt").text
+    assert "## Connect" in llms and "/llms-full.txt" in llms and "claude mcp add --transport http" in llms and "list_workspaces" in llms
+
+
+def test_pages_point_agents_at_their_markdown_twin_and_home_declares_the_website(client):
+    for path in ("/docs", "/start", "/privacy", "/lovable"):
+        html = client.get(path).text
+        assert f'<link rel="alternate" type="text/markdown" href="{path}.md"' in html, path
+        assert 'content="index,follow,max-snippet:-1,max-image-preview:large"' in html, path
+        assert client.get(path + ".md").status_code == 200
+    home = client.get("/").text
+    assert 'type="text/markdown"' not in home and '"@type": "WebSite"' in home
+    assert 'name="robots" content="noindex' not in home
+    assert 'content="index,follow' not in client.get("/mascots").text                     # noindex pages get no index directive

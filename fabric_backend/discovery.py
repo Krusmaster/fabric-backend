@@ -1,6 +1,7 @@
 """Discovery documents for search engines and agents. All public, all derived from the same settings as the site.
 
-    /robots.txt                     crawl rules + sitemap
+    /robots.txt                     crawl rules + sitemap (AI crawlers spelled out)
+    /llms-full.txt                  every Markdown page in one file
     /sitemap.xml                    the public pages (not /mascots)
     /llms.txt                       llmstxt.org summary with links to the Markdown versions of the pages
     /mcp/server-card                MCP Server Card (SEP-2127), application/mcp-server-card+json
@@ -95,8 +96,26 @@ def sitemap_xml() -> str:
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n'
 
 
+AI_CRAWLERS = ("GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot",
+               "Google-Extended", "Applebot-Extended", "Bingbot", "DuckAssistBot", "CCBot")
+
+
 def robots_txt() -> str:
-    return f"User-agent: *\nDisallow: /mascots\nDisallow: /mcp\nAllow: /mcp/server-card\n\nSitemap: {site_url()}/sitemap.xml\n"
+    """Everyone may read the site, AI crawlers and answer engines spelled out so the policy is explicit; the mascot review
+    page and the MCP endpoint itself stay out (the server card is the machine-readable entry)."""
+    rules = "User-agent: *\nDisallow: /mascots\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+    for bot in AI_CRAWLERS:
+        rules += f"\nUser-agent: {bot}\nAllow: /\nDisallow: /mascots\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+    return rules + f"\nSitemap: {site_url()}/sitemap.xml\n"
+
+
+def llms_full_txt(parts: list[tuple[str, str]]) -> str:
+    """One document with every Markdown page, for agents that want the whole thing in one fetch."""
+    o = site_url()
+    out = [f"# {_vars()['PRODUCT']}: full documentation\n\nSame content as the pages linked from {o}/llms.txt, in one file.\n"]
+    for path, md in parts:
+        out.append(f"\n\n---\n\n<!-- {o}{path} -->\n\n{md.strip()}\n")
+    return "".join(out)
 
 
 def llms_txt() -> str:
@@ -115,12 +134,20 @@ It reads table and column names, infers keys and relationships from names (decla
 - [Use with Lovable]({o}/lovable.md): create the API for GraphQL item with {p}, then connect Lovable's Fabric connector to it
 - [Privacy policy]({o}/privacy.md): sign-in, the data path, logs, what is stored (nothing)
 
+## Connect
+
+- Claude (web, desktop, mobile): Settings → Connectors → Add custom connector → URL `{v['MCP_URL']}` → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect
+- Claude Code: `claude mcp add --transport http {v['PRODUCT_LOWER']} {v['MCP_URL']}` — same URL; its local sign-in redirect is not registered on the Entra app yet, so until it is, Claude is the tested client.
+- Cursor and other MCP clients: streamable HTTP at `{v['MCP_URL']}`, OAuth discovery at {o}/.well-known/oauth-protected-resource; same redirect caveat.
+- First call: `list_workspaces`, then `list_sources` with the workspace name, then `plan_backend` (nothing is deployed) and `create_backend`.
+
 ## Demo
 
 - [Demo plan]({o}/demo/plan.json): the real planning engine's output on a synthetic shop schema (JSON, with a Mermaid ER diagram)
 
 ## Optional
 
+- [Full documentation in one file]({o}/llms-full.txt): every page above, concatenated
 - [MCP Server Card]({v['MCP_URL'].rstrip('/')}/server-card): name, version and transport for MCP clients
 - [Source code]({GITHUB}): the engine, the inference rules and the server
 """

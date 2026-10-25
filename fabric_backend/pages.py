@@ -189,6 +189,9 @@ def site_url() -> str:
     return "https://" + _vars()["DOMAIN"]
 
 
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable")       # pages that are also served as <path>.md
+
+
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
@@ -198,6 +201,8 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     t, d = _fill(title), _fill(description)                       # _fill escapes
     canonical = html.escape(site_url() + (path or "/"), quote=True)
     og_image = html.escape(f"https://{v['DOMAIN']}/static/og.png", quote=True)
+    md_alternate = (f'<link rel="alternate" type="text/markdown" href="{path}.md" title="Markdown version">'
+                    if path in MARKDOWN_TWINS else "")                       # agents and crawlers get the text form in one hop
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -220,6 +225,8 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta name="twitter:description" content="{d}">
 <meta name="twitter:image" content="{og_image}">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
+{md_alternate}
+{"" if noindex else '<meta name="robots" content="index,follow,max-snippet:-1,max-image-preview:large">'}
 <meta name="theme-color" content="#FBF8F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1F1B19" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -315,7 +322,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the seven tools, how relationships are inferred, Snowflake and Databricks via Fabric mirroring, and the two portal steps that stay manual."
 LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
 
 
@@ -425,6 +432,8 @@ def json_ld() -> str:
          "sameAs": [GITHUB], "publisher": {"@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/"}},
         {"@context": "https://schema.org", "@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/",
          "email": v["CONTACT"], "sameAs": [GITHUB]},
+        {"@context": "https://schema.org", "@type": "WebSite", "name": v["PRODUCT"], "url": origin + "/",
+         "publisher": {"@type": "Organization", "name": "Kruse Consulting AB"}, "inLanguage": "en"},
     ]
     safe = lambda d: json.dumps(d, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")   # inert inside <script>
     return "".join('<script type="application/ld+json">' + safe(d) + "</script>" for d in data)
