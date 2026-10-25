@@ -207,7 +207,9 @@ item permissions remain portal clicks. The Rayfin output went through `npx rayfi
 keys and `@date` columns work, the four-hop chain customer → orders → lines → product → category
 resolves through the connector's GraphQL item. Reading through the Rayfin browser client was not
 tested (app auth needs `Item.Execute.All`). Lovable-side: the endpoint is consumed by Lovable's
-standard Fabric connector; nothing Lovable-specific is generated.
+standard Fabric connector; nothing Lovable-specific is generated. The changes since (the remote server, Entra
+sign-in, the site, explained errors, input checks) are covered by the test suite with Fabric and the SQL endpoint
+mocked; they have not had a live end-to-end run of their own yet.
 
 ## Development
 
