@@ -17,6 +17,8 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - SQL analytics endpoint: 30 s login timeout, 120 s per metadata query, connection closed after the plan.
 - Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
 - Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
+- The local stdio server (`fabric-backend-mcp`) answers failures with the same `error`/`kind`/`hint` as the remote
+  one and never echoes the ODBC string; the CLI prints an input error as one line and exits 2.
 - Input checks: `keys`, `confirmed` and `tables` must name tables and columns that exist (case does not matter);
   a typo is answered as `bad_input` instead of becoming a definition Fabric rejects or an API with missing tables.
   The schema name is escaped inside its SQL literal.
