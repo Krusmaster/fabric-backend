@@ -310,7 +310,46 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
         body = r.json()
     except ValueError:
         body = {"http": r.status_code, "text": r.text[:2000]}
-    return json.dumps(body, indent=2, default=str)[:60000]
+    return _bounded(body, MAX_RESULT_CHARS)
+
+
+MAX_RESULT_CHARS = 60000
+
+
+def _bounded(body, limit: int) -> str:
+    """The query result as JSON of at most `limit` characters, always valid JSON. A result that is too large has
+    its lists cut to the same number of leading items each and says so under `truncated`, instead of being
+    chopped mid-document."""
+    text = json.dumps(body, indent=2, default=str)
+    if len(text) <= limit:
+        return text
+
+    def longest(node) -> int:
+        if isinstance(node, list):
+            return max([len(node)] + [longest(x) for x in node])
+        if isinstance(node, dict):
+            return max([0] + [longest(v) for v in node.values()])
+        return 0
+
+    def cut(node, keep):
+        if isinstance(node, list):
+            return [cut(x, keep) for x in node[:keep]]
+        if isinstance(node, dict):
+            return {k: cut(v, keep) for k, v in node.items()}
+        return node
+
+    keep = longest(body)
+    while keep > 1:
+        keep //= 2
+        slim = cut(body, keep) if isinstance(body, dict) else body
+        slim = dict(slim, truncated=f"The full result was too large for one answer; every list was cut to its first {keep} items. "
+                                    "Ask for fewer fields or page with first:/after.")
+        text = json.dumps(slim, indent=2, default=str)
+        if len(text) <= limit:
+            return text
+    preview = json.dumps(body, default=str)[:limit - 400]
+    return json.dumps({"truncated": "The result was too large for one answer even with one item per list; this is the start of it. "
+                                    "Ask for fewer fields.", "preview": preview}, indent=2)
 
 
 def build_app(host: str = "0.0.0.0"):
