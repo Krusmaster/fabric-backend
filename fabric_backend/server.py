@@ -307,7 +307,7 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
     if len(api) == 36 and api.count("-") == 4:
         api_id = api
     else:
-        item = find_item_by_name(workspace, api, headers, "GraphQLApi")
+        item = find_item_by_name(workspace, api, headers, ("GraphQLApi",))
         api_id = item["id"] if item else None
     if not api_id:
         return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}"})

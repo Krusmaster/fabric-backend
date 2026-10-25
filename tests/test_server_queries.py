@@ -100,3 +100,16 @@ def test_sql_connection_has_timeouts_and_is_closed_after_the_plan(monkeypatch):
     with pytest.raises(server.SchemaEmpty):
         server._plan("ws", "src", "dbo", None, None, None)
     assert conn.closed
+
+
+def test_query_resolves_the_api_by_exact_item_type(monkeypatch):
+    """The by-name lookup takes a tuple of item types; a bare string would be a substring test on the type name."""
+    import requests
+    items = {"value": [{"displayName": "shop_api", "type": "Lakehouse", "id": "lh-1"},
+                       {"displayName": "shop_api", "type": "GraphQLApi", "id": "api-1"}]}
+    posted = []
+    monkeypatch.setattr(server, "_headers", lambda ctx: {})
+    monkeypatch.setattr(requests, "get", lambda url, **k: type("R", (), {"json": lambda self: items, "raise_for_status": lambda self: None})())
+    monkeypatch.setattr(requests, "post", lambda url, **k: posted.append(url) or type("R", (), {"status_code": 200, "json": lambda self: {"data": {}}})())
+    server.query_graphql("ws-1", "shop_api", "{ customers { items { name } } }")
+    assert posted and posted[0].endswith("/graphqlapis/api-1/graphql")
