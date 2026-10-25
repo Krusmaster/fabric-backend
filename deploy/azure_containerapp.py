@@ -268,7 +268,24 @@ def report(az, config, verify=True, first_run=True, build=None):
     else:
         served = f" med bygget {build}" if build else ""
         print(f"\nKLART: {url} svarar{served}; domänen {config['domain']} är oförändrad. DNS-värdena finns i azure-result.json.")
+        if not build:
+            print(build_status(url))
     return result
+
+
+def build_status(url):
+    """--status: is the live server built from this checkout? One line, from /healthz and the local source tag."""
+    try:
+        status, _, body = http_response(url + "/healthz")
+        live = json.loads(body).get("build") if status == 200 else None
+    except (URLError, TimeoutError, ValueError):
+        live = None
+    local = source_tag()
+    if not live:
+        return f"Servern rapporterar inget byggmärke (äldre bild). Denna utcheckning är {local}; kör --update för att driftsätta den."
+    if live == local:
+        return f"Servern kör bygget {live}, samma som denna utcheckning."
+    return f"Servern kör bygget {live}; denna utcheckning är {local}. Kör --update för att driftsätta den."
 
 
 def deploy(az, config):

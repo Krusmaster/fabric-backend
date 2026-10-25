@@ -91,6 +91,8 @@ För att få adress och DNS-värden igen:
 bash deploy/krusgraph.sh --status
 ```
 
+`--status` säger också vilket bygge servern kör och om det är samma som utcheckningen du står i; annars är det `--update` som gäller.
+
 Cloud Shell-sessionen är tillfällig. Azure-resurser och sparade hemligheter i Container Apps finns kvar när sessionen stängs. Om klonen har försvunnit: klona igen och lägg tillbaka `deploy/krusgraph.json`. Din dator behöver inte vara på när servern väl körs i Azure.
 
 ## Loggar

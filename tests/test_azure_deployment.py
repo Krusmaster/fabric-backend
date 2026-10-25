@@ -256,6 +256,20 @@ def test_cli_flags_dispatch_without_touching_the_rest(monkeypatch, flag, target)
     assert called == ["check_context", target]
 
 
+@pytest.mark.parametrize("live,local,expect", [
+    ("src-aaaa", "src-aaaa", "samma som denna utcheckning"),
+    ("src-aaaa", "src-bbbb", "src-aaaa; denna utcheckning är src-bbbb. Kör --update"),
+    (None, "src-bbbb", "inget byggmärke"),
+])
+def test_status_says_whether_the_live_build_is_this_checkout(monkeypatch, live, local, expect):
+    health = {"ok": True, "auth": "entra"} | ({"build": live} if live else {})
+    monkeypatch.setattr(d, "http_response", lambda url, method="GET": (200, {}, json.dumps(health)))
+    monkeypatch.setattr(d, "source_tag", lambda: local)
+    assert expect in d.build_status("https://example.test")
+    monkeypatch.setattr(d, "http_response", lambda url, method="GET": (_ for _ in ()).throw(d.URLError("down")))
+    assert "inget byggmärke" in d.build_status("https://example.test")     # unreachable: no crash, --status still prints the rest
+
+
 def test_update_and_full_run_are_mutually_exclusive(monkeypatch, capsys):
     monkeypatch.setattr(d.sys, "argv", ["azure_containerapp.py", "--update", "--check"])
     with pytest.raises(SystemExit):
