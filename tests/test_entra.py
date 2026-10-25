@@ -1,4 +1,5 @@
 import time
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -42,6 +43,9 @@ def test_metadata_and_challenge():
     assert c.startswith("Bearer ") and 'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"' in c
     assert 'error="invalid_token"' in challenge(CFG, "invalid_token")
     assert "adminconsent" in admin_consent_url(CFG) and CFG.client_id in admin_consent_url(CFG)
+    consent = urlsplit(admin_consent_url(CFG, TID))
+    assert consent.path == f"/{TID}/adminconsent"
+    assert parse_qs(consent.query) == {"client_id": [CFG.client_id]}
 
 
 def test_validator_accepts_good_token_and_rejects_the_rest(keys):
@@ -59,6 +63,71 @@ def test_validator_accepts_good_token_and_rejects_the_rest(keys):
     v2 = Validator(EntraConfig(CFG.public_url, CFG.client_id, CFG.client_secret, {"only-this-tenant"}), FakeJWKS(pub))
     with pytest.raises(TokenError):
         v2.validate(tok(priv))
+
+
+@pytest.mark.parametrize("scope", [None, "", "read", "user_impersonation.extra", ["user_impersonation"]])
+def test_validator_requires_delegated_permission(keys, scope):
+    priv, pub = keys
+    with pytest.raises(TokenError):
+        Validator(CFG, FakeJWKS(pub)).validate(tok(priv, scp=scope, roles=["user_impersonation"]))
+
+
+def test_validator_accepts_permission_among_other_scopes(keys):
+    priv, pub = keys
+    assert Validator(CFG, FakeJWKS(pub)).validate(tok(priv, scp="read user_impersonation"))["tid"] == TID
+
+
+def test_missing_entra_configuration_stops_public_server(monkeypatch):
+    for name in ("MCP_PUBLIC_URL", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "ENTRA_REQUIRED"):
+        monkeypatch.delenv(name, raising=False)
+    assert EntraConfig.from_env() is None
+    monkeypatch.setenv("ENTRA_REQUIRED", "true")
+    with pytest.raises(ValueError):
+        EntraConfig.from_env()
+    monkeypatch.delenv("ENTRA_REQUIRED")
+    monkeypatch.setenv("MCP_PUBLIC_URL", CFG.public_url)
+    with pytest.raises(ValueError):
+        EntraConfig.from_env()
+    monkeypatch.setenv("ENTRA_CLIENT_ID", CFG.client_id)
+    monkeypatch.setenv("ENTRA_CLIENT_SECRET", CFG.client_secret)
+    assert EntraConfig.from_env().scope == CFG.scope
+    assert CFG.client_secret not in repr(EntraConfig.from_env())
+
+
+def test_http_pages_metadata_and_mcp_authentication(monkeypatch, keys):
+    from starlette.testclient import TestClient
+    from fabric_backend import server
+    priv, pub = keys
+    a = server.Auth()
+    a.entra = CFG
+    a._validator = Validator(CFG, FakeJWKS(pub))
+    monkeypatch.setattr(server, "auth", a)
+    monkeypatch.setenv("PRODUCT_NAME", "Krusgraph")
+    monkeypatch.setenv("MCP_PUBLIC_URL", CFG.public_url)
+    with TestClient(server.build_app(), base_url="https://mcp.example.com") as client:
+        for path in ("/", "/docs", "/privacy"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert "Krusgraph" in response.text and "{{" not in response.text
+        assert client.get("/healthz").json() == {"ok": True, "auth": "entra"}
+        for path in ("/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"):
+            response = client.get(path)
+            assert response.status_code == 200
+            assert response.json()["resource"] == CFG.public_url
+        for path in ("/mcp", "/mcp/"):
+            response = client.post(path, json={})
+            assert response.status_code == 401
+            assert CFG.metadata_url in response.headers["www-authenticate"]
+        response = client.post("/mcp", json={}, headers={"Authorization": "Bearer invalid"})
+        assert response.status_code == 401
+        assert 'error="invalid_token"' in response.headers["www-authenticate"]
+        response = client.post("/mcp", json={
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                       "clientInfo": {"name": "deployment-test", "version": "1"}}},
+            headers={"Authorization": f"Bearer {tok(priv)}", "Accept": "application/json, text/event-stream"})
+        assert response.status_code == 200
+        assert '"serverInfo"' in response.text
 
 
 def test_on_behalf_of_exchanges_and_caches():

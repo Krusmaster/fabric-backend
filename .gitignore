@@ -6,3 +6,4 @@ build/
 *.egg-info/
 .venv/
 .entra-secret
+deploy/krusgraph.json

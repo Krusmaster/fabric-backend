@@ -1,0 +1,12 @@
+*
+!Dockerfile
+!pyproject.toml
+!README.md
+!fabric_backend/
+!fabric_backend/**
+**/__pycache__/
+**/*.pyc
+**/.env*
+**/*.pem
+**/*.key
+**/.entra-secret

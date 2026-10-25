@@ -7,7 +7,7 @@ Cursor or any MCP client.
 ## Connect
 
 1. **Your Entra admin grants consent once** for your organization:
-   [grant admin consent](https://login.microsoftonline.com/organizations/v2.0/adminconsent?client_id={{CLIENT_ID}}&scope=https://api.fabric.microsoft.com/.default%20https://database.windows.net/.default&redirect_uri=https://claude.ai/api/mcp/auth_callback).
+   [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
    It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
 2. **In Claude:** add the {{PRODUCT}} connector from the directory, or as a custom connector with the URL
    `{{MCP_URL}}`. Sign in with your Microsoft work account.

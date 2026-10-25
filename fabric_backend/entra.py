@@ -17,6 +17,7 @@ Configuration (environment):
   ENTRA_CLIENT_ID       the multi-tenant app's client id
   ENTRA_CLIENT_SECRET   its secret (the same one Anthropic holds; never logged)
   ENTRA_ALLOWED_TENANTS optional comma list of tenant ids; empty = any tenant whose admin consented
+  ENTRA_REQUIRED       true on public deployments; missing configuration stops startup
 """
 from __future__ import annotations
 
@@ -34,14 +35,21 @@ AUTHORITY = "https://login.microsoftonline.com"
 class EntraConfig:
     public_url: str
     client_id: str
-    client_secret: str
+    client_secret: str = field(repr=False)
     allowed_tenants: set[str] = field(default_factory=set)
 
     @classmethod
     def from_env(cls) -> "EntraConfig | None":
         url, cid, sec = (os.environ.get(k) for k in ("MCP_PUBLIC_URL", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET"))
-        if not (url and cid and sec):
+        required = os.environ.get("ENTRA_REQUIRED", "").lower() in {"1", "true", "yes"}
+        if not any((url, cid, sec)) and not required:
             return None
+        if not all(value and value.strip() for value in (url, cid, sec)):
+            raise ValueError("Entra sign-in requires MCP_PUBLIC_URL, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET")
+        from urllib.parse import urlsplit
+        parsed = urlsplit(url)
+        if parsed.scheme != "https" or not parsed.hostname or parsed.path.rstrip("/") != "/mcp" or parsed.query or parsed.fragment:
+            raise ValueError("MCP_PUBLIC_URL must be an HTTPS URL ending in /mcp")
         allowed = {t.strip().lower() for t in os.environ.get("ENTRA_ALLOWED_TENANTS", "").split(",") if t.strip()}
         return cls(url.rstrip("/"), cid, sec, allowed)
 
@@ -106,6 +114,9 @@ class Validator:
             raise TokenError("issuer does not match the token's tenant")
         if self.cfg.allowed_tenants and tid not in self.cfg.allowed_tenants:
             raise TokenError("tenant not allowed on this server")
+        scopes = claims.get("scp")
+        if not isinstance(scopes, str) or "user_impersonation" not in scopes.split():
+            raise TokenError("user_impersonation delegated permission is required")
         return claims
 
 
@@ -148,6 +159,6 @@ class OnBehalfOf:
 def admin_consent_url(cfg: EntraConfig, tenant: str = "organizations") -> str:
     """What a customer's Entra admin opens once, so their users can sign in and the app may call Fabric for them."""
     from urllib.parse import urlencode
-    return f"{AUTHORITY}/{tenant}/v2.0/adminconsent?" + urlencode({
-        "client_id": cfg.client_id, "scope": f"{FABRIC_SCOPE} {SQL_SCOPE}",
-        "redirect_uri": "https://claude.ai/api/mcp/auth_callback"})
+    # This endpoint consents the app's configured permissions across resource APIs.
+    # A v2 scope request cannot combine Fabric and SQL .default scopes.
+    return f"{AUTHORITY}/{tenant}/adminconsent?" + urlencode({"client_id": cfg.client_id})

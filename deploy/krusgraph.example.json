@@ -1,0 +1,15 @@
+{
+  "tenant_id": "<tenant_id>",
+  "subscription_id": "<subscription_id>",
+  "client_id": "<client_id>",
+  "domain": "krusgraph.com",
+  "location": "swedencentral",
+  "resource_group": "rg-krusgraph",
+  "environment": "cae-krusgraph",
+  "app": "krusgraph",
+  "registry": "<registry>",
+  "identity": "krusgraph-pull",
+  "product_name": "Krusgraph",
+  "contact_email": "hello@krusgraph.com",
+  "include_www": true
+}

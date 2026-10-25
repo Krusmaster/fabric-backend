@@ -259,10 +259,24 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
     are named <type>s, e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest.
     Mutations are refused."""
     import requests
-    if query.lstrip().lower().startswith("mutation"):
-        return json.dumps({"error": "mutations are not allowed through this tool"})
+    from graphql import GraphQLError, OperationType, parse
+    from graphql.language import FragmentDefinitionNode, OperationDefinitionNode
+    try:
+        document = parse(query, max_tokens=10000)
+    except GraphQLError:
+        return json.dumps({"error": "invalid GraphQL query"})
+    operations = [node for node in document.definitions if isinstance(node, OperationDefinitionNode)]
+    if any(node.operation != OperationType.QUERY for node in operations):
+        return json.dumps({"error": "mutations and subscriptions are not allowed through this tool"})
+    if len(operations) != 1 or any(not isinstance(node, (OperationDefinitionNode, FragmentDefinitionNode))
+                                   for node in document.definitions):
+        return json.dumps({"error": "provide exactly one GraphQL query operation"})
     headers = _headers(ctx)
-    api_id = api if len(api) == 36 and api.count("-") == 4 else find_item_by_name(workspace, api, headers, "GraphQLApi")
+    if len(api) == 36 and api.count("-") == 4:
+        api_id = api
+    else:
+        item = find_item_by_name(workspace, api, headers, "GraphQLApi")
+        api_id = item["id"] if item else None
     if not api_id:
         return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}"})
     r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/graphqlapis/{api_id}/graphql", headers=headers,
@@ -315,7 +329,7 @@ def build_app(host: str = "0.0.0.0"):
     inner = app
 
     async def guarded(scope, receive, send):
-        if scope["type"] == "http" and scope["path"].rstrip("/").endswith("/mcp"):
+        if scope["type"] == "http" and scope["path"].rstrip("/") == "/mcp":
             headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
             a = headers.get("authorization", "")
             err = "invalid_request"
