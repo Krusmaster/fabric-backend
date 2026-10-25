@@ -30,8 +30,10 @@ HINTS = {
     "not_found": "Check the workspace id and the source name: list_sources shows what the signed-in account can see.",
     "capacity": "The workspace needs an active Fabric capacity (a trial capacity is fine). Assign one, or resume the paused one, and try again.",
     "source_not_ready": "Fabric is still provisioning the SQL analytics endpoint for this source. Wait a minute and try again.",
-    "schema_not_found": "Use list_tables with another schema; a lakehouse's default schema is 'dbo' unless it was created with schemas.",
-    "table_not_found": "Check the table name in the SQL analytics endpoint; it may not be exposed there yet.",
+    "schema_not_found": "Use list_tables with another schema; a lakehouse's default schema is 'dbo' unless it was created with schemas. "
+                        "Tables created minutes ago may not be in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata.",
+    "table_not_found": "Check the table name in the SQL analytics endpoint. A table created minutes ago may not be exposed there yet: open the "
+                       "endpoint in Fabric and refresh its metadata, then try again.",
     "column_not_found": "Check the column names: the keys you passed must exist in the table.",
     "sql_sign_in": "The SQL analytics endpoint refused the sign-in. Sign in again in your MCP client; if it persists, the account lacks access to the item.",
     "timeout": "Fabric or the SQL endpoint did not answer in time. Try again; a paused capacity or a cold SQL endpoint can cause this.",
