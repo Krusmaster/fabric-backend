@@ -111,7 +111,7 @@ def assert_owned(resource, name):
 
 
 def source_tag(root=ROOT):
-    files = [root / name for name in ("Dockerfile", ".dockerignore", "pyproject.toml", "README.md")]
+    files = [root / name for name in ("Dockerfile", ".dockerignore", "pyproject.toml", "README.md", "deploy/constraints.txt")]
     files += sorted(p for p in (root / "fabric_backend").rglob("*")
                     if p.is_file() and p.suffix != ".pyc" and "__pycache__" not in p.parts)   # css, js, fonts too
     digest = hashlib.sha256()

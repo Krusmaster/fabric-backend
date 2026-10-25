@@ -92,7 +92,7 @@ server in memory only; there is no database. The same process serves the website
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
-`--check`, `--update`, `--status`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
+`--check`, `--update`, `--status`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
 (`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`). Tool failures come back
 as `{"error", "kind", "hint"}` (`fabric_backend/errors.py`): an unknown workspace, a missing or paused
 capacity, an expired sign-in or missing consent, a missing schema or table, a timeout, each in plain words and

@@ -9,7 +9,7 @@ jobs:
         with: { python-version: "3.12" }
       - uses: actions/setup-node@v5
         with: { node-version: "22" }
-      - run: pip install -e ".[server,test]"
+      - run: pip install -c deploy/constraints.txt -e ".[server,test]"     # the image's exact versions; a bad pin fails here, not in az acr build
       # The browser checks (tests/test_browser.py) run when Playwright's Chromium is present; they are skipped otherwise.
       - run: npm install --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
       - run: pytest -q

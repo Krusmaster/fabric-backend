@@ -14,8 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg2 ca-
 
 WORKDIR /app
 COPY pyproject.toml README.md ./
+COPY deploy/constraints.txt ./deploy/constraints.txt
 COPY fabric_backend ./fabric_backend
-RUN pip install --no-cache-dir ".[server]"
+RUN pip install --no-cache-dir -c deploy/constraints.txt ".[server]"     # exact versions: see deploy/constraints.txt
 
 RUN useradd --uid 10001 --create-home app
 USER 10001

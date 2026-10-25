@@ -4,6 +4,7 @@
 !README.md
 !fabric_backend/
 !fabric_backend/**
+!deploy/constraints.txt
 **/__pycache__/
 **/*.pyc
 **/.env*

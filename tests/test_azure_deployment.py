@@ -374,3 +374,24 @@ def test_deploy_script_stays_runnable_on_cloud_shells_older_python():
                {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
     import sys
     assert imported <= set(sys.stdlib_module_names), imported - set(sys.stdlib_module_names)
+
+
+def test_constraints_pin_every_server_dependency_and_change_the_source_tag(tmp_path):
+    """deploy/constraints.txt fixes the image's versions; it must cover the direct server dependencies and be part
+    of the source tag so a pin change becomes a new image."""
+    import re
+    import tomllib
+    pins = {line.split("==")[0].lower() for line in (d.ROOT / "deploy" / "constraints.txt").read_text().splitlines()
+            if line and not line.startswith("#")}
+    server = tomllib.loads((d.ROOT / "pyproject.toml").read_text())["project"]["optional-dependencies"]["server"]
+    direct = {re.split(r"[\[<>=!~ ]", dep, maxsplit=1)[0].lower() for dep in server}
+    assert direct <= pins, direct - pins
+    assert all(re.fullmatch(r"[a-z0-9_.-]+==[0-9][0-9a-z.]*", line) for line in (d.ROOT / "deploy" / "constraints.txt").read_text().splitlines()
+               if line and not line.startswith("#"))
+    for name in ("Dockerfile", ".dockerignore", "pyproject.toml", "README.md"):
+        (tmp_path / name).write_text("x")
+    (tmp_path / "deploy").mkdir(); (tmp_path / "fabric_backend").mkdir()
+    (tmp_path / "deploy" / "constraints.txt").write_text("requests==1.0\n")
+    before = d.source_tag(tmp_path)
+    (tmp_path / "deploy" / "constraints.txt").write_text("requests==1.1\n")
+    assert d.source_tag(tmp_path) != before

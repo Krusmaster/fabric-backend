@@ -107,6 +107,10 @@ Container Apps-miljön skapas med `--logs-destination none`. Serverns konsollogg
 - [Microsofts publika pris-API](https://learn.microsoft.com/en-us/rest/api/cost-management/retail-prices/azure-retail-prices)
 - [Cloud Shell: filer och lagring](https://learn.microsoft.com/en-us/azure/cloud-shell/persisting-shell-storage)
 
+## Exakta paketversioner i bilden
+
+`deploy/constraints.txt` låser varje Python-paket i serverbilden till en exakt version, så två `--update` från samma utcheckning ger samma bild. CI installerar med samma fil, så en version som inte går att installera stoppar där och inte i `az acr build`. Filen ingår i byggmärket: ändras en version blir det en ny bild. Hur man uppdaterar versionerna står överst i filen; `pip-audit -r deploy/constraints.txt` kontrollerar dem mot kända sårbarheter.
+
 ## Kallstart eller alltid varm
 
 `"min_replicas": 0` i `deploy/krusgraph.json` (standard) låter appen skala ned till noll när ingen använder den. Det är billigast, men första anropet efter en tyst stund väntar på en kallstart, och MCP-klienter som Claude ger upp efter ungefär 30 sekunder. `"min_replicas": 1` håller alltid en instans varm. Det kostar mer per månad men ger inga timeouts, och det rekommenderas när connectorn används av andra eller granskas för Claudes katalog. Ändringen slår igenom med `--update`.
