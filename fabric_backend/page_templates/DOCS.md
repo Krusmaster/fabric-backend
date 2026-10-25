@@ -3,7 +3,8 @@
 Using {{PRODUCT}} with Microsoft Fabric: turn the tables in a lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API —
 keys and relationships inferred, with the rule behind every link shown. Use it from Claude today, and from other
 MCP clients once their sign-in redirects are registered (see *Connect*). Try the [demo](/explore) first if you
-like; it needs no account.
+like; it needs no account. The connector was run end to end against a live Fabric workspace with synthetic data on
+25 October 2026: every tool, from sign-in in Claude through Entra to Fabric.
 
 ## Connect
 
@@ -30,26 +31,37 @@ server has no database, keeps no files and stores nothing between requests. Deta
 
 ## What you can ask
 
-- *"Which Fabric workspaces can I see?"* — then any tool takes the workspace by name or id.
-- *"List the data sources in the Sales workspace."*
-- *"Plan a backend over the sales lakehouse."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns and an ER diagram.
-- *"Create it as sales_api."* — creates a Fabric API for GraphQL item with nested relationships, or updates it in place if the name exists.
-- *"Using sales_api, which customers ordered a trail bike in October?"* — a read-only GraphQL query.
-- *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
-- *"Draft a Fabric IQ ontology from the sales lakehouse."* — entity types, keys and relationship types with their rules, ready to import or create.
+One example per tool, in the order a first session usually goes:
+
+- `list_workspaces` — *"Which Fabric workspaces can I see?"*
+- `list_sources` — *"List the data sources in the demo workspace."*
+- `list_tables` — *"Which tables are in demo_lh, schema shop?"*
+- `plan_backend` — *"Plan a backend over demo_lh, schema shop."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns and an ER diagram. *"Treat order_id plus line_no as the key of order_items"* passes `keys`.
+- `create_backend` — *"Create it as shop_api."* — creates the API for GraphQL item, or updates it in place if the name exists.
+- `query_graphql` — *"Using shop_api, which customers ordered a trail bike in October?"* — a read-only query; relationships nest.
+- `rayfin_connector` — *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
+- `ontology_draft` — *"Draft a Fabric IQ ontology from demo_lh."* — entity types, keys and relationship types with their rules, ready to import or create.
 
 ## Tools
 
-| Tool | Does | Changes anything |
-| --- | --- | --- |
-| `list_workspaces` | the workspaces the signed-in account can see, with id and capacity | no |
-| `list_sources` | lakehouses, warehouses, SQL and mirrored databases, existing GraphQL APIs in a workspace (id or name) | no |
-| `list_tables` | tables and columns with types | no |
-| `plan_backend` | inferred keys and relationships, each with its rule (K0–K3, R0–R3); ambiguous and keyless tables | no |
-| `create_backend` | creates or updates one API for GraphQL item | creates/updates one item; never deletes |
-| `rayfin_connector` | Rayfin (Fabric Apps) connector entities | no |
-| `ontology_draft` | the plan as a Fabric IQ ontology (preview) draft: entity types, keys, relationship types, bindings, TTL and item definition | no |
-| `query_graphql` | runs a read-only query; mutations are refused | no |
+Every tool takes the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
+(`{"order_items": ["order_id", "line_no"]}`), `confirmed` adds relationships the rules did not make
+(`[{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]`),
+`tables` limits what is built.
+
+| Tool | Arguments | Does | Changes anything |
+| --- | --- | --- | --- |
+| `list_workspaces` | — | the workspaces the signed-in account can see, with id, name and capacity | no |
+| `list_sources` | `workspace` | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | no |
+| `list_tables` | `workspace`, `source`, `schema` | tables and columns with types in one schema | no |
+| `plan_backend` | `workspace`, `source`, `schema`, `keys`, `confirmed` | inferred keys and relationships, each with its rule (K0–K3, R0–R3), ambiguous columns, keyless tables, a Mermaid ER diagram | no |
+| `create_backend` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables` | creates the API for GraphQL item with nested relationships, or updates the item of that name in place; returns the endpoint and the two portal steps | creates/updates one item; never deletes |
+| `query_graphql` | `workspace`, `api`, `query`, `variables` | runs a read-only GraphQL query against an API (name or id); mutations are refused | no |
+| `rayfin_connector` | `workspace`, `source`, `connector`, `schema`, `keys`, `confirmed`, `tables`, `relationships` | Rayfin (Fabric Apps) connector entity classes and `schema.ts` | no |
+| `ontology_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | the plan as a Fabric IQ ontology (preview) draft: summary, binding checklist, a Turtle file for the portal import, the item definition | no |
+
+`create_ontology` (creates or updates the ontology item) exists but is offered only where the operator has enabled
+it, because it needs the `Item.ReadWrite.All` scope; see *Fabric IQ* below.
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
 happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,
@@ -107,6 +119,19 @@ checked against recorded definitions, not yet live from {{PRODUCT}}.
 Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
 informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
 follow Microsoft's published REST specification; a live run of these source types is still pending.
+
+## Cold start, and `min_replicas` if you run it yourself
+
+The hosted instance runs on Azure Container Apps and may scale to zero when nobody has used it for a while. The
+first call after such a pause starts the container, which takes tens of seconds; an MCP client that gives up after
+about thirty seconds, as Claude does, may report the first call as failed. Ask again: the second call answers in
+well under a second. Health probes start one second after the container does, so a cold start is as short as the
+platform allows.
+
+If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides this:
+`0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance warm so there is never a cold
+start, at the cost of one always-on instance. The change takes effect with `--update`. A container on a VM or in
+Docker does not scale to zero and has no cold start.
 
 ## Two steps stay manual
 

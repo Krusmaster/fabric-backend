@@ -73,9 +73,10 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
 ```
 
 Streamable HTTP at `/mcp`, eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
-(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `ontology_draft` (read-only), `plan_backend` (read-only, nothing
-deployed), `create_backend` (creates or updates one item, never deletes), `rayfin_connector`,
-`query_graphql` (read-only; mutations refused). Authentication: a `Authorization: Bearer` Fabric
+(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed),
+`create_backend` (creates or updates one item, never deletes), `query_graphql` (read-only; mutations refused),
+`rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. The tool table with arguments
+and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
 Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a
 custom connector with the `https://…/mcp` URL, and the loop is browse → plan → create → query.
@@ -216,20 +217,24 @@ either, open an issue.
 
 Version history: [CHANGELOG.md](CHANGELOG.md).
 
-v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in
-place, nested queries across inferred relationships over four hops (customer → orders → lines →
-product → category). Findings and the three fixes that came out of it are in
-[issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a lakehouse's SQL endpoint
-shares its display name, a 202 create answers with an empty body, and any action left out of the
-definition is stored as *Enabled* — so all five are now always spelled out. Introspection and
-item permissions remain portal clicks. The Rayfin output went through `npx rayfin up` in the same sandbox on 2026-10-22
-([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)): deploy accepted, composite
-keys and `@date` columns work, the four-hop chain customer → orders → lines → product → category
-resolves through the connector's GraphQL item. Reading through the Rayfin browser client was not
-tested (app auth needs `Item.Execute.All`). Lovable-side: the endpoint is consumed by Lovable's
-standard Fabric connector; nothing Lovable-specific is generated. The changes since (the remote server, Entra
-sign-in, the site, explained errors, input checks) are covered by the test suite with Fabric and the SQL endpoint
-mocked; they have not had a live end-to-end run of their own yet.
+**25 October 2026, evening: first end-to-end run of the hosted connector.** Claude → Entra (a work account in the
+publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
+data from `fabric_backend/seed.py`). Every tool answered as documented: `list_tables` gave the 7 tables;
+`plan_backend` gave 7 tables, 6 with a key, 6 relationships (all R1) and `audit_log` without a key;
+`create_backend` created `shop_api` and a second run answered `mode: updated`; `query_graphql` followed three
+relationship hops and returned 13 rows; a mutation was refused; an unknown workspace came back as `not_found`.
+Work since that run (the ontology draft, Snowflake database items, mirrored catalogs, `list_workspaces`) is covered
+by the test suite with Fabric mocked and has not had a live run of its own yet.
+
+Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
+queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and
+the three fixes that came out of it are in [issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a
+lakehouse's SQL endpoint shares its display name, a 202 create answers with an empty body, and any action left out
+of the definition is stored as *Enabled* — so all five are now always spelled out. The Rayfin output went through
+`npx rayfin up` in the same sandbox on 2026-10-22 ([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)):
+deploy accepted, composite keys and `@date` columns work, the four-hop chain resolves through the connector's GraphQL
+item. Reading through the Rayfin browser client was not tested (app auth needs `Item.Execute.All`). Lovable-side: the
+endpoint is consumed by Lovable's standard Fabric connector; nothing Lovable-specific is generated.
 
 ## Development
 
