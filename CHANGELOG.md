@@ -9,7 +9,8 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   relationship types, data bindings, in the item's generation-2 definition (TMDL parts for `POST /ontologies` or Git),
   plus a Turtle file for the portal's Import ontology and a binding checklist with the rule behind every key and link.
   `create_ontology` exists behind `KRUSGRAPH_ONTOLOGY_WRITE=1` (needs `Item.ReadWrite.All`). CLI `ontology` command and
-  `fabric_backend.ontology_files`. Checked against recorded definitions, not live yet.
+  `fabric_backend.ontology_files`. Deploy config `ontology_write` turns the create tool on; a large schema's draft keeps
+  summary and bindings and says what it left out. Checked against recorded definitions, not live yet.
 - Site: robots.txt names the AI crawlers, `/llms-full.txt` serves every Markdown page in one file, llms.txt has a
   Connect section, pages link their Markdown twin with `rel=alternate`, the home page declares the WebSite; the hero
   names the sources it works with and the home graph scrolls inside its card on phones.
