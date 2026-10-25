@@ -100,7 +100,7 @@
     this.narrow = cw < 640;
     Object.keys(this.nodes).forEach(function (name) {
       var n = self.nodes[name], p = map[name] || [40 + (fallback % 3) * 290, 60 + Math.floor(fallback++ / 3) * 150];
-      if (self.fields) p = [Math.round(p[0] * 1.15), Math.round(p[1] * 1.7)];
+      if (self.fields) p = [Math.round(p[0] * 1.3), Math.round(p[1] * 1.7)];
       n.x = p[0]; n.y = p[1]; n.el.style.left = p[0] + 'px'; n.el.style.top = p[1] + 'px';
     });
     var maxX = 0, maxY = 0;
