@@ -364,14 +364,24 @@ def _bounded(body, limit: int) -> str:
                                     "Ask for fewer fields.", "preview": preview}, indent=2)
 
 
+MAX_BODY_BYTES = 4 * 1024 * 1024      # an MCP message is a few kilobytes; nothing here needs more than this
+
+
 def _with_security_headers(app):
     """Every HTTP response, /mcp included: HSTS (the server is only ever reached over HTTPS; Container Apps
-    redirects plain HTTP) and nosniff. Pure ASGI so streamed MCP responses are untouched apart from the headers."""
-    from starlette.datastructures import MutableHeaders
+    redirects plain HTTP) and nosniff. A request that announces a body over MAX_BODY_BYTES is refused with 413
+    before anything reads it. Pure ASGI so streamed MCP responses are untouched apart from the headers."""
+    from starlette.datastructures import Headers, MutableHeaders
+    from starlette.responses import JSONResponse
 
     async def wrapped(scope, receive, send):
         if scope["type"] != "http":
             return await app(scope, receive, send)
+        declared = Headers(scope=scope).get("content-length", "")
+        if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+            app_ = JSONResponse({"error": f"request body over {MAX_BODY_BYTES} bytes"}, status_code=413)
+        else:
+            app_ = app
 
         async def send_with_headers(message):
             if message["type"] == "http.response.start":
@@ -379,7 +389,7 @@ def _with_security_headers(app):
                 headers.setdefault("Strict-Transport-Security", "max-age=31536000")
                 headers.setdefault("X-Content-Type-Options", "nosniff")
             await send(message)
-        return await app(scope, receive, send_with_headers)
+        return await app_(scope, receive, send_with_headers)
     return wrapped
 
 

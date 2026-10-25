@@ -90,3 +90,25 @@ def test_heading_order_starts_at_h2_after_the_h1(client):
         levels = [int(m) for m in re.findall(r"<h([1-3])[ >]", html.split("<main", 1)[1].split("</main>")[0])]
         for a, b in zip(levels, levels[1:]):
             assert b <= a + 1, (path, levels)
+
+
+def test_oversized_bodies_are_refused_before_they_are_read():
+    """The wrapper looks at Content-Length only; a client announcing a huge body gets 413 and nothing is read."""
+    import asyncio
+    from fabric_backend import server
+    app = server.build_app()
+    sent = []
+
+    async def receive():
+        pytest.fail("the body must not be read")
+
+    async def send(message):
+        sent.append(message)
+    scope = {"type": "http", "method": "POST", "path": "/mcp", "headers": [(b"content-length", str(server.MAX_BODY_BYTES + 1).encode()),
+                                                                           (b"content-type", b"application/json")],
+             "query_string": b"", "scheme": "http", "server": ("testserver", 80), "client": ("127.0.0.1", 1), "http_version": "1.1"}
+    asyncio.run(app(scope, receive, send))
+    start = next(m for m in sent if m["type"] == "http.response.start")
+    assert start["status"] == 413
+    headers = {k.decode(): v.decode() for k, v in start["headers"]}
+    assert headers["strict-transport-security"] == "max-age=31536000"
