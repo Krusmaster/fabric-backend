@@ -35,11 +35,11 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `discovery.py`, site routes in `server.py` | open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `discovery.py`, site routes in `server.py` | night session (docs pages, /explore validation panel, screenshots), 25–26 Oct |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | maintainer session (validate_plan, describe_backend, sample_rows), 25 Oct evening |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | maintainer session (composite-key suggestions), 25 Oct evening |
 | Deployment | `deploy/`, `Dockerfile` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | night session (tool docs, reviewer steps), 25–26 Oct |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
