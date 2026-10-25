@@ -1,0 +1,60 @@
+<div data-page="home">
+<section class="hero wrap">
+  <div class="hero-grid">
+    <div>
+      <h1>Good things happen when data connects.</h1>
+      <p class="lede">Turn your Microsoft Fabric tables into an explainable graph and a GraphQL API.</p>
+      <p class="intro">{{PRODUCT}} reads the tables in a lakehouse, warehouse or SQL database, works out how they connect, and shows the rule behind every link. Then it creates the API for GraphQL item in your workspace, or just answers questions about the plan.</p>
+      <div class="ctas">
+        <a class="btn primary" href="/explore">Explore the demo</a>
+        <a class="btn secondary" href="#how">How it works</a>
+      </div>
+    </div>
+    <div class="hero-figure" aria-hidden="true">
+      <span data-mascot="onto" data-pose="look" data-idle="breathe" data-label=""></span>
+      <span data-mascot="thinker" data-pose="rest" data-label=""></span>
+      <span data-mascot="builder" data-pose="rest" data-label=""></span>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:8px">
+  <div class="graph-panel">
+    <div class="panel-head">
+      <h2>Data graph</h2>
+      <span class="pill demo">Illustrative demo · synthetic shop schema</span>
+    </div>
+    <div id="home-graph" class="graph"></div>
+    <p class="legend"><span><i></i> connection, labelled with its rule</span><span>1 · n cardinality</span><span><i class="box"></i> no key: query only</span></p>
+    <p id="home-why" class="muted" style="margin:8px 6px 2px;min-height:1.6em" aria-live="polite">Point at a table to see its connections. Select one, or a wire, to read the rule that made it.</p>
+    <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
+  </div>
+</section>
+
+<section class="wrap" id="how">
+  <span class="kicker">How it works</span>
+  <h2>Three small steps</h2>
+  <p class="intro">Nothing is created until you ask for it, and asking again updates what is there instead of making a copy.</p>
+  <ol class="steps">
+    <li><span class="step-n coral">1</span><h3>Discover</h3><p>Point it at a workspace. It lists the sources and reads table and column names, nothing else.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
+    <li><span class="step-n sage">2</span><h3>Understand</h3><p>Every key and connection comes with the rule that produced it, K0–K3 and R0–R3. Ambiguous columns are reported, never guessed.</p><span class="ex">orders.customer_id → customers · R1</span></li>
+    <li><span class="step-n lav">3</span><h3>Create</h3><p>One API for GraphQL item in your Fabric workspace, with nested relationships. Read-only queries from Claude after that.</p><span class="ex">“Create it as shop_api.”</span></li>
+  </ol>
+</section>
+
+<section class="wrap">
+  <div class="grid-3">
+    <div class="card soft"><h3>Your permissions, not ours</h3><p class="muted">You sign in with your own Microsoft work account. Every call runs with what your account can already see and do in Fabric.</p></div>
+    <div class="card soft"><h3>Nothing stored</h3><p class="muted">Metadata and the query results you ask for pass through the server; tokens live in memory only; there is no database of our own. <a href="/privacy">Privacy</a>.</p></div>
+    <div class="card soft"><h3>Open source</h3><p class="muted">MIT licence. Read the inference rules, run it locally, or host it yourself. <a href="{{GITHUB}}" rel="noopener">GitHub</a>.</p></div>
+  </div>
+</section>
+
+<section class="wrap" style="padding-top:0">
+  <div class="card" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
+    <div><h2 style="font-size:28px">Ready when you are.</h2><p class="muted" style="margin:0;max-width:52ch">Add <code>{{MCP_URL}}</code> as a custom connector in Claude and point it at a workspace you can open.</p></div>
+    <div class="ctas"><a class="btn primary" href="/start">Get started</a><a class="btn ghost" href="/docs">Read the docs</a></div>
+  </div>
+  <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/support">support the work</a> · <a href="/partners">partners</a></p>
+</section>
+</div>

@@ -2,7 +2,13 @@
 """Deploy the existing Entra app from Cloud Shell. Uses Python's standard library.
 
 Hosting incurs charges. --plan is offline; --check reads Azure without mutations.
+--update builds a new image from this checkout and points the existing container app at it; it touches no Entra
+settings, secrets, domains or certificates and never asks for the client secret.
 No Entra registration, permission, DNS or billing-account changes are made here.
+
+deploy/krusgraph.json (see krusgraph.example.json): tenant_id, subscription_id, client_id, domain, location,
+resource_group, environment, app, registry, identity, product_name, contact_email, include_www and the optional
+company_orgnr (shown on the privacy page and in the footer when set; leave "" to hide the line).
 """
 from __future__ import annotations
 
@@ -107,11 +113,20 @@ def assert_owned(resource, name):
 def source_tag(root=ROOT):
     files = [root / name for name in ("Dockerfile", ".dockerignore", "pyproject.toml", "README.md")]
     files += sorted(p for p in (root / "fabric_backend").rglob("*")
-                    if p.is_file() and p.suffix in {".py", ".html", ".md"} and "__pycache__" not in p.parts)
+                    if p.is_file() and p.suffix != ".pyc" and "__pycache__" not in p.parts)   # css, js, fonts too
     digest = hashlib.sha256()
     for path in files:
         digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes())
     return "src-" + digest.hexdigest()[:16]
+
+
+def plain_env(config):
+    """The non-secret environment of the container, from the config. Both the full run and --update set these."""
+    return {
+        "MCP_PUBLIC_URL": f"https://{config['domain']}/mcp", "ENTRA_CLIENT_ID": config["client_id"],
+        "ENTRA_REQUIRED": "true", "PRODUCT_NAME": config["product_name"],
+        "CONTACT_EMAIL": config["contact_email"], "COMPANY_ORGNR": (config.get("company_orgnr") or "").strip(),
+    }
 
 
 def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None):
@@ -121,11 +136,7 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         for name in ("customDomains", "ipSecurityRestrictions", "corsPolicy"):
             if name in old_ingress:
                 ingress[name] = old_ingress[name]
-    env = [{"name": key, "value": value} for key, value in {
-        "MCP_PUBLIC_URL": f"https://{config['domain']}/mcp", "ENTRA_CLIENT_ID": config["client_id"],
-        "ENTRA_REQUIRED": "true", "PRODUCT_NAME": config["product_name"],
-        "CONTACT_EMAIL": config["contact_email"], "COMPANY_ORGNR": config.get("company_orgnr", ""),
-    }.items()]
+    env = [{"name": key, "value": value} for key, value in plain_env(config).items()]
     env.append({"name": "ENTRA_CLIENT_SECRET", "secretRef": "entra-secret"})
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
@@ -271,12 +282,7 @@ def deploy(az, config):
         az.run("role", "assignment", "create", "--name", str(uuid.uuid5(uuid.NAMESPACE_URL, registry["id"] + identity["principalId"] + "AcrPull")),
                "--assignee-object-id", identity["principalId"], "--assignee-principal-type", "ServicePrincipal",
                "--role", "AcrPull", "--scope", registry["id"], raw=True)
-    print("Bygger servern i Azure. Detta kan ta flera minuter…", flush=True)
-    tag = source_tag()
-    az.run("acr", "build", "--registry", config["registry"], "--image", f"krusgraph:{tag}",
-           "--file", str(ROOT / "Dockerfile"), "--platform", "linux/amd64", str(ROOT), raw=True)
-    image = az.run("acr", "repository", "show", "--name", config["registry"], "--image", f"krusgraph:{tag}")
-    image_uri = f"{registry['loginServer']}/krusgraph@{image['digest']}"
+    image_uri = build_image(az, config, registry)
     environment = az.run("containerapp", "env", "show", "--name", config["environment"], "--resource-group", rg, missing_ok=True)
     assert_owned(environment, config["environment"])
     if not environment:
@@ -289,6 +295,36 @@ def deploy(az, config):
     manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing)
     apply_manifest(az, config, manifest, bool(existing))
     manifest["properties"]["configuration"]["secrets"][0].pop("value")
+    report(az, config)
+
+
+def build_image(az, config, registry):
+    """`az acr build` of this checkout; returns the immutable image reference (by digest)."""
+    print("Bygger servern i Azure. Detta kan ta flera minuter…", flush=True)
+    tag = source_tag()
+    az.run("acr", "build", "--registry", config["registry"], "--image", f"krusgraph:{tag}",
+           "--file", str(ROOT / "Dockerfile"), "--platform", "linux/amd64", str(ROOT), raw=True)
+    image = az.run("acr", "repository", "show", "--name", config["registry"], "--image", f"krusgraph:{tag}")
+    return f"{registry['loginServer']}/krusgraph@{image['digest']}"
+
+
+def update(az, config):
+    """New image from this checkout → the existing container app. Nothing else: no Entra, no secrets, no domains,
+    no certificates, and the client secret is never requested (the app keeps its secret reference)."""
+    rg = config["resource_group"]
+    existing = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
+    if not existing:
+        raise DeploymentError("Container-appen finns inte ännu. Kör en full körning (utan flagga) först.")
+    assert_owned(existing, config["app"])
+    registry = az.run("acr", "show", "--name", config["registry"], "--resource-group", rg, missing_ok=True)
+    if not registry:
+        raise DeploymentError("Bildregistret finns inte. Kör en full körning (utan flagga) först.")
+    assert_owned(registry, config["registry"])
+    image_uri = build_image(az, config, registry)
+    print("Uppdaterar container-appen till den nya bilden…", flush=True)
+    env_args = [f"{key}={value}" for key, value in plain_env(config).items()]
+    az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
+           "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--set-env-vars", *env_args, raw=True)
     report(az, config)
 
 
@@ -327,6 +363,7 @@ def main():
     mode.add_argument("--check", action="store_true", help="Kontrollera katalog och Entra-behörigheter utan att skapa resurser")
     mode.add_argument("--status", action="store_true", help="Visa serveradress och DNS-poster igen")
     mode.add_argument("--bind-domain", action="store_true", help="Anslut domänen efter att DNS-posterna har lagts in")
+    mode.add_argument("--update", action="store_true", help="Bygg en ny bild av denna utcheckning och uppdatera den befintliga appen (rör inte Entra, hemligheter eller domäner)")
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     if args.plan:
@@ -341,6 +378,8 @@ def main():
             report(az, config)
         elif args.bind_domain:
             bind_domains(az, config)
+        elif args.update:
+            update(az, config)
         else:
             deploy(az, config)
     except (DeploymentError, FileNotFoundError) as exc:

@@ -68,6 +68,15 @@ SCHEMAS = {
 }
 
 
+def schema(name: str = "shop"):
+    """The seven tables as a `Schema` (no data), for planning offline — the site's demo runs `plan()` on this."""
+    from .schema import Schema, Table, Column
+    s = Schema(schema=name)
+    for table, cols in SCHEMAS.items():
+        s.tables[table] = Table(table, [Column(c.split()[0], c.split()[1].lower()) for c in cols.split(", ")], schema=name)
+    return s
+
+
 def seed(spark, schema: str = "shop", seed_value: int = 42) -> dict[str, int]:
     """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts."""
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
