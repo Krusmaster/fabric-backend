@@ -14,8 +14,9 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - Site: robots.txt names the AI crawlers, `/llms-full.txt` serves every Markdown page in one file, llms.txt has a
   Connect section, pages link their Markdown twin with `rel=alternate`, the home page declares the WebSite; the hero
   names the sources it works with and the home graph scrolls inside its card on phones.
-- Snowflake and Databricks: mirrored Azure Databricks catalogs are a source item type (next to mirrored databases,
-  which cover Snowflake); the schema reader's schema match is case-insensitive on every dialect and a missing
+- Snowflake and Databricks: Snowflake database items, mirrored Azure Databricks catalogs and mirrored catalogs (preview) are
+  source item types next to mirrored databases, each read through its SQL analytics endpoint as Microsoft's REST
+  specification documents it; the schema reader's schema match is case-insensitive on every dialect and a missing
   `KEY_COLUMN_USAGE` view (Snowflake) means "no declared keys", so the library, CLI and stdio server plan Snowflake
   and Unity Catalog schemas directly. Docs describe the two routes.
 - `list_workspaces`: the workspaces the signed-in account can see, with id and capacity; every other tool now takes

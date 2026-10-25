@@ -58,13 +58,13 @@ def test_list_sources_pages_through_the_workspace(monkeypatch):
     first = {"value": [{"displayName": "shop_lh", "type": "Lakehouse", "id": "lh-1"},
                        {"displayName": "shop_lh", "type": "SQLEndpoint", "id": "ep-1"},
                        {"displayName": "notes", "type": "Notebook", "id": "nb-1"}], "continuationUri": "https://x/next"}
-    second = {"value": [{"displayName": "dw", "type": "Warehouse", "id": "wh-1"},
+    second = {"value": [{"displayName": "dw", "type": "Warehouse", "id": "wh-1"}, {"displayName": "sf", "type": "SnowflakeDatabase", "id": "sf-1"},
                         {"displayName": "shop_api", "type": "GraphQLApi", "id": "api-1"}]}
     pages(monkeypatch, {"/items": Resp(200, first), "/next": Resp(200, second)})
     monkeypatch.setattr(server, "_headers", lambda ctx: HEADERS)
     monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)
     out = json.loads(server.list_sources("ws-1"))
-    assert [s["name"] for s in out["sources"]] == ["shop_lh", "dw"]                 # endpoint and notebook are not sources
+    assert [s["name"] for s in out["sources"]] == ["shop_lh", "dw", "sf"]           # endpoint and notebook are not sources
     assert out["graphql_apis"] == [{"name": "shop_api", "id": "api-1"}]
 
 
@@ -75,11 +75,15 @@ def test_list_sources_pages_through_the_workspace(monkeypatch):
     ({"type": "SQLDatabase", "id": "db-1"}, ("db-1", "SqlDbNative")),
     ({"type": "MirroredDatabase", "id": "md-1"}, ("ep-md", "SqlAnalyticsEndpoint")),
     ({"type": "MirroredAzureDatabricksCatalog", "id": "dbx-1"}, ("ep-dbx", "SqlAnalyticsEndpoint")),
+    ({"type": "SnowflakeDatabase", "id": "sf-1"}, ("ep-sf", "SqlAnalyticsEndpoint")),
+    ({"type": "MirroredCatalog", "id": "mc-1"}, ("ep-mc", "SqlAnalyticsEndpoint")),
 ])
 def test_source_for_picks_the_id_and_type_the_definition_needs(monkeypatch, item, expect):
     pages(monkeypatch, {"/lakehouses/lh-1": Resp(200, {"properties": {"sqlEndpointProperties": {"id": "ep-lh", "provisioningStatus": "Success"}}}),
                         "/mirroredDatabases/md-1": Resp(200, {"properties": {"sqlEndpointProperties": {"id": "ep-md"}}}),
-                        "/mirroredAzureDatabricksCatalogs/dbx-1": Resp(200, {"properties": {"catalogName": "main", "sqlEndpointProperties": {"id": "ep-dbx"}}})})
+                        "/mirroredAzureDatabricksCatalogs/dbx-1": Resp(200, {"properties": {"catalogName": "main", "sqlEndpointProperties": {"id": "ep-dbx"}}}),
+                        "/snowflakeDatabases/sf-1": Resp(200, {"properties": {"snowflakeDatabaseName": "SALES", "defaultSchema": "PUBLIC", "sqlEndpointProperties": {"id": "ep-sf", "connectionString": "s.datawarehouse.fabric.microsoft.com", "provisioningStatus": "Success"}}}),
+                        "/mirroredCatalogs/mc-1": Resp(200, {"properties": {"sourceType": "UnityCatalog", "sqlEndpointProperties": {"id": "ep-mc"}}})})
     assert dep.source_for("ws-1", item, HEADERS) == expect
 
 
@@ -93,6 +97,11 @@ def test_source_for_explains_a_provisioning_lakehouse_and_refuses_other_items(mo
                         "/mirroredDatabases/md-2": Resp(200, {"properties": {}})})
     with pytest.raises(RuntimeError, match="no SQL analytics endpoint yet"):
         dep.source_for("ws-1", {"type": "Lakehouse", "id": "lh-2"}, HEADERS)
+    pages(monkeypatch, {"/snowflakeDatabases/sf-2": Resp(200, {"properties": {"sqlEndpointProperties": {"provisioningStatus": "InProgress"}}})})
+    with pytest.raises(RuntimeError, match="Snowflake database has no SQL analytics endpoint yet"):
+        dep.source_for("ws-1", {"type": "SnowflakeDatabase", "id": "sf-2"}, HEADERS)
+    pages(monkeypatch, {"/lakehouses/lh-2": Resp(200, {"properties": {"sqlEndpointProperties": {"provisioningStatus": "InProgress"}}}),
+                        "/mirroredDatabases/md-2": Resp(200, {"properties": {}})})
     with pytest.raises(RuntimeError, match="mirrored database has no SQL analytics endpoint yet"):
         dep.source_for("ws-1", {"type": "MirroredDatabase", "id": "md-2"}, HEADERS)
     assert explain_kind(RuntimeError("mirrored Databricks catalog has no SQL analytics endpoint yet; pass its SQL analytics endpoint item")) == "source_not_ready"
@@ -155,7 +164,8 @@ def test_resolve_source_by_name_or_id_and_reads_the_sql_endpoint_host(monkeypatc
     routes = {"/items": Resp(200, {"value": [{"displayName": "shop_lh", "type": "Lakehouse", "id": "lh-1"}]}),
               "/lakehouses/lh-1": Resp(200, lakehouse), "/warehouses/wh-1": Resp(200, warehouse),
               "/lakehouses/wh-1": Resp(404, {}), "/lakehouses/ghost": Resp(404, {}), "/warehouses/ghost": Resp(404, {}), "/sqlDatabases/ghost": Resp(404, {}),
-              "/mirroredDatabases/ghost": Resp(404, {}), "/mirroredAzureDatabricksCatalogs/ghost": Resp(404, {})}
+              "/mirroredDatabases/ghost": Resp(404, {}), "/mirroredAzureDatabricksCatalogs/ghost": Resp(404, {}),
+              "/snowflakeDatabases/ghost": Resp(404, {}), "/mirroredCatalogs/ghost": Resp(404, {})}
     pages(monkeypatch, routes)
     by_name = server._resolve_source("ws-1", "shop_lh", HEADERS)
     assert by_name["type"] == "Lakehouse" and by_name["sql_host"] == "x.datawarehouse.fabric.microsoft.com" and by_name["sql_db"] == "shop_lh"

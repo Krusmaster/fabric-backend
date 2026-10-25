@@ -40,8 +40,8 @@ def create(workspace: str, source: str, name: str, *, spark=None, execute=None, 
     headers = _headers(token_provider)
     item = find_item_by_name(workspace, source, headers)
     if item is None:
-        for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"),
-                         ("MirroredDatabase", "mirroredDatabases"), ("MirroredAzureDatabricksCatalog", "mirroredAzureDatabricksCatalogs")):
+        from .deploy import ENDPOINT_ITEM_ROUTES
+        for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"), *ENDPOINT_ITEM_ROUTES.items()):
             import requests
             r = requests.get(f"https://api.fabric.microsoft.com/v1/workspaces/{workspace}/{route}/{source}",
                              headers=headers, timeout=30)

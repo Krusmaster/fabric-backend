@@ -53,7 +53,12 @@ def find_item(workspace: str, display_name: str, headers: dict, item_type: str =
     return None
 
 
-SOURCE_ITEM_TYPES = ("Lakehouse", "Warehouse", "SQLDatabase", "MirroredDatabase", "MirroredAzureDatabricksCatalog")
+# Item types that carry tables behind a SQL analytics endpoint or a SQL connection string (Fabric REST item types).
+SOURCE_ITEM_TYPES = ("Lakehouse", "Warehouse", "SQLDatabase", "MirroredDatabase", "MirroredAzureDatabricksCatalog",
+                     "SnowflakeDatabase", "MirroredCatalog")
+# Item types whose data is read through their SQL analytics endpoint (properties.sqlEndpointProperties) → REST route.
+ENDPOINT_ITEM_ROUTES = {"MirroredDatabase": "mirroredDatabases", "MirroredAzureDatabricksCatalog": "mirroredAzureDatabricksCatalogs",
+                        "SnowflakeDatabase": "snowflakeDatabases", "MirroredCatalog": "mirroredCatalogs"}
 
 
 def find_item_by_name(workspace: str, display_name: str, headers: dict,
@@ -85,6 +90,11 @@ def sql_endpoint_id_for_lakehouse(workspace_id: str, lakehouse_id: str, headers:
     return props["id"]
 
 
+def _kind_words(t: str) -> str:
+    return {"MirroredDatabase": "mirrored database", "MirroredAzureDatabricksCatalog": "mirrored Databricks catalog",
+            "SnowflakeDatabase": "Snowflake database", "MirroredCatalog": "mirrored catalog"}.get(t, t)
+
+
 def source_for(workspace_id: str, item: dict, headers: dict) -> tuple[str, str]:
     """(source_item_id, source_type) for a lakehouse / warehouse / SQL database item dict."""
     t = item["type"]
@@ -96,17 +106,15 @@ def source_for(workspace_id: str, item: dict, headers: dict) -> tuple[str, str]:
         return item["id"], "Warehouse"
     if t == "SQLDatabase":
         return item["id"], "SqlDbNative"
-    if t in ("MirroredDatabase", "MirroredAzureDatabricksCatalog"):
-        # mirrored data (Snowflake, Azure SQL, Cosmos DB, SAP, a Databricks catalog, ...) is read through the item's
-        # SQL analytics endpoint too; the endpoint id lives on the item
+    if t in ENDPOINT_ITEM_ROUTES:
+        # mirrored or external data (Snowflake, Azure SQL, Cosmos DB, SAP, a Databricks catalog, a mirrored catalog, ...) is
+        # read through the item's SQL analytics endpoint too; the endpoint id lives on the item
         import requests
-        route = "mirroredDatabases" if t == "MirroredDatabase" else "mirroredAzureDatabricksCatalogs"
-        r = requests.get(f"{FABRIC}/v1/workspaces/{workspace_id}/{route}/{item['id']}", headers=headers, timeout=30)
+        r = requests.get(f"{FABRIC}/v1/workspaces/{workspace_id}/{ENDPOINT_ITEM_ROUTES[t]}/{item['id']}", headers=headers, timeout=30)
         r.raise_for_status()
         ep = r.json().get("properties", {}).get("sqlEndpointProperties", {}).get("id")
         if not ep:
-            raise RuntimeError(f"{'mirrored database' if t == 'MirroredDatabase' else 'mirrored Databricks catalog'} has no SQL "
-                               "analytics endpoint yet; pass its SQL analytics endpoint item as the source once it exists")
+            raise RuntimeError(f"{_kind_words(t)} has no SQL analytics endpoint yet; pass its SQL analytics endpoint item as the source once it exists")
         return ep, "SqlAnalyticsEndpoint"
     raise ValueError(f"cannot expose item type {t} through GraphQL")
 

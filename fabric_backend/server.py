@@ -28,7 +28,7 @@ import time
 from .infer import check_tables, plan as make_plan
 from .schema import Schema
 from .graphql import definition
-from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_for, SOURCE_ITEM_TYPES
+from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_for, SOURCE_ITEM_TYPES, ENDPOINT_ITEM_ROUTES
 from .rayfin import rayfin_files
 from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
@@ -170,16 +170,14 @@ def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     import requests
     item = find_item_by_name(workspace, source, headers)
     if item is None:
-        for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"),
-                         ("MirroredDatabase", "mirroredDatabases"), ("MirroredAzureDatabricksCatalog", "mirroredAzureDatabricksCatalogs")):
+        for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"), *ENDPOINT_ITEM_ROUTES.items()):
             r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{source}", headers=headers, timeout=30)
             if r.status_code == 200:
                 item = {"type": t, **r.json()}
                 break
     if item is None:
         raise LookupError(f"no lakehouse/warehouse/SQL database named or with id {source!r} in workspace {workspace}")
-    route = {"Lakehouse": "lakehouses", "Warehouse": "warehouses", "SQLDatabase": "sqlDatabases", "MirroredDatabase": "mirroredDatabases",
-             "MirroredAzureDatabricksCatalog": "mirroredAzureDatabricksCatalogs"}[item["type"]]
+    route = {"Lakehouse": "lakehouses", "Warehouse": "warehouses", "SQLDatabase": "sqlDatabases", **ENDPOINT_ITEM_ROUTES}[item["type"]]
     r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item['id']}", headers=headers, timeout=30)
     r.raise_for_status()
     props = r.json().get("properties", {})
@@ -244,9 +242,9 @@ def list_workspaces(ctx: Context = None) -> str:
 @mcp.tool(title="List data sources in a workspace", annotations=RO)
 @safe
 def list_sources(workspace: str, ctx: Context = None) -> str:
-    """Lakehouses, warehouses, SQL databases, mirrored databases (Snowflake, Azure SQL, Cosmos DB, SAP, ...) and mirrored
-    Databricks catalogs in a Fabric workspace (id or name), plus existing API for GraphQL items. Use the display name or
-    id as `source` in the other tools."""
+    """Lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases (Snowflake, Azure SQL, Cosmos DB,
+    SAP, ...), mirrored Databricks catalogs and mirrored catalogs in a Fabric workspace (id or name), plus existing API
+    for GraphQL items. Use the display name or id as `source` in the other tools."""
     import requests
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
@@ -329,7 +327,7 @@ def rayfin_connector(workspace: str, source: str, connector: str = "data", schem
     @one/@many relationships (sourceFields/targetFields spelled out). Returns {path: content}; nothing is deployed."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
-    st = {"Lakehouse": "SqlAnalyticsEndpoint", "MirroredDatabase": "SqlAnalyticsEndpoint", "MirroredAzureDatabricksCatalog": "SqlAnalyticsEndpoint", "Warehouse": "Warehouse",
+    st = {"Lakehouse": "SqlAnalyticsEndpoint", **{k: "SqlAnalyticsEndpoint" for k in ENDPOINT_ITEM_ROUTES}, "Warehouse": "Warehouse",
           "SQLDatabase": "SqlDbNative"}.get(item["type"], "SqlAnalyticsEndpoint")
     return json.dumps(rayfin_files(p, connector, st, tables=tables, relationships=relationships), indent=2)
 
