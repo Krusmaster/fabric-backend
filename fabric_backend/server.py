@@ -613,29 +613,58 @@ def _bounded(body, limit: int) -> str:
 MAX_BODY_BYTES = 4 * 1024 * 1024      # an MCP message is a few kilobytes; nothing here needs more than this
 
 
+class _BodyTooLarge(Exception):
+    pass
+
+
 def _with_security_headers(app):
     """Every HTTP response, /mcp included: HSTS (the server is only ever reached over HTTPS; Container Apps
     redirects plain HTTP) and nosniff. A request that announces a body over MAX_BODY_BYTES is refused with 413
-    before anything reads it. Pure ASGI so streamed MCP responses are untouched apart from the headers."""
+    before anything reads it, and a body that grows past the limit without announcing it (chunked transfer) is
+    cut off with 413 at the first chunk over the limit, so no request can make the server buffer more than that.
+    Pure ASGI so streamed MCP responses are untouched apart from the headers."""
     from starlette.datastructures import Headers, MutableHeaders
     from starlette.responses import JSONResponse
+
+    too_large = JSONResponse({"error": f"request body over {MAX_BODY_BYTES} bytes"}, status_code=413)
 
     async def wrapped(scope, receive, send):
         if scope["type"] != "http":
             return await app(scope, receive, send)
         declared = Headers(scope=scope).get("content-length", "")
-        if declared.isdigit() and int(declared) > MAX_BODY_BYTES:
-            app_ = JSONResponse({"error": f"request body over {MAX_BODY_BYTES} bytes"}, status_code=413)
-        else:
-            app_ = app
+        app_ = too_large if declared.isdigit() and int(declared) > MAX_BODY_BYTES else app
+        received, state = 0, {"started": False, "done": False}
 
         async def send_with_headers(message):
+            if state["done"]:                                   # the 413 is out; whatever the app sends afterwards is dropped
+                return
             if message["type"] == "http.response.start":
+                state["started"] = True
                 headers = MutableHeaders(scope=message)
                 headers.setdefault("Strict-Transport-Security", "max-age=31536000")
                 headers.setdefault("X-Content-Type-Options", "nosniff")
             await send(message)
-        return await app_(scope, receive, send_with_headers)
+
+        async def limited_receive():
+            nonlocal received
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body") or b"")
+                if received > MAX_BODY_BYTES:
+                    if not state["started"]:
+                        await too_large(scope, receive, send_with_headers)
+                    state["done"] = True
+                    raise _BodyTooLarge()
+            return message
+
+        try:
+            await app_(scope, limited_receive, send_with_headers)
+        except _BodyTooLarge:
+            pass
+        except Exception:
+            if state["done"]:                                   # the app failed on the request we cut off: already answered
+                return
+            raise
     return wrapped
 
 
@@ -782,10 +811,11 @@ def build_app(host: str = "0.0.0.0"):
         if scope["type"] == "http" and scope["path"].rstrip("/") == "/mcp":
             headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
             a = headers.get("authorization", "")
-            err = "invalid_request"
-            if a.lower().startswith("bearer "):
+            token = a[7:].strip() if a.lower().startswith("bearer ") else ""
+            err = "invalid_request"                                      # no or malformed credentials (RFC 6750 §3.1)
+            if token:
                 try:
-                    auth.validator.validate(a[7:].strip())
+                    auth.validator.validate(token)
                     return await inner(scope, receive, send)
                 except TokenError:
                     err = "invalid_token"

@@ -110,7 +110,7 @@ class Validator:
         except Exception as e:  # noqa: BLE001 — every failure is the same answer to the caller: 401
             raise TokenError(f"invalid token: {type(e).__name__}") from e
         tid = str(claims.get("tid", "")).lower()
-        if claims.get("iss") != f"{AUTHORITY}/{tid}/v2.0":
+        if str(claims.get("iss", "")).lower() != f"{AUTHORITY}/{tid}/v2.0":     # GUIDs compare without case
             raise TokenError("issuer does not match the token's tenant")
         if self.cfg.allowed_tenants and tid not in self.cfg.allowed_tenants:
             raise TokenError("tenant not allowed on this server")
@@ -120,8 +120,14 @@ class Validator:
         return claims
 
 
+MAX_CACHED_TOKENS = 5000
+
+
 class OnBehalfOf:
-    """User token -> Fabric / SQL tokens for the same user, cached per (user token, scope)."""
+    """User token -> Fabric / SQL tokens for the same user, cached per (user token, scope).
+
+    The cache key is the SHA-256 of the user's own access token, so two users — or one user after a new sign-in —
+    never share an entry; a downstream token lives in memory until shortly before it expires and nowhere else."""
 
     def __init__(self, cfg: EntraConfig, post=None) -> None:
         self.cfg = cfg
@@ -149,11 +155,17 @@ class OnBehalfOf:
             "client_id": self.cfg.client_id, "client_secret": self.cfg.client_secret,
             "assertion": user_token, "scope": scope, "requested_token_use": "on_behalf_of",
         })
-        self._cache[k] = (body["access_token"], time.time() + int(body.get("expires_in", 3600)))
-        if len(self._cache) > 5000:                          # bounded: drop expired, then oldest
+        downstream = body.get("access_token") if isinstance(body, dict) else None
+        if not isinstance(downstream, str) or not downstream:
+            raise TokenError("on-behalf-of failed: the token endpoint answered without an access token")
+        self._cache[k] = (downstream, time.time() + int(body.get("expires_in", 3600)))
+        if len(self._cache) > MAX_CACHED_TOKENS:              # bounded: drop expired entries, then the oldest half
             now = time.time()
-            self._cache = {kk: v for kk, v in self._cache.items() if v[1] > now} or {}
-        return body["access_token"]
+            live = {kk: v for kk, v in self._cache.items() if v[1] > now}
+            if len(live) > MAX_CACHED_TOKENS:
+                live = dict(sorted(live.items(), key=lambda kv: kv[1][1])[len(live) // 2:])
+            self._cache = live
+        return downstream
 
 
 def admin_consent_url(cfg: EntraConfig, tenant: str = "organizations") -> str:

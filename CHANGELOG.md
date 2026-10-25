@@ -5,6 +5,12 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Security review of the sign-in path (`docs/SECURITY.md`, `tests/test_security.py`): issuer tenant ids compare
+  without case; an empty `Bearer` answers `invalid_request`; chunked request bodies are capped at 4 MiB like declared
+  ones; the on-behalf-of cache evicts expired entries first and then the oldest half instead of emptying; a token
+  endpoint answer without `access_token` is a `TokenError`. Tests cover wrong audience/issuer/tenant/scope, expired and
+  immature tokens, `alg: none` and key confusion, altered signatures, path variants around `/mcp`, oversized headers
+  and bodies, cache isolation between users, and that no token or secret reaches logs or output.
 - Engine: an inference benchmark on Northwind, Chinook, TPC-H, AdventureWorks and Sakila (official DDL as ground
   truth, `tests/fixtures/schemas/`, numbers in `docs/INFERENCE.md`) and the rules it led to: table-wide column
   prefixes (`N_NATIONKEY`), `_code` suffixes, `<X>Header` names, abbreviations of four letters or more, a role before
