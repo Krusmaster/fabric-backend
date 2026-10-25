@@ -113,6 +113,7 @@ section{padding:48px 0}
 .card.soft{box-shadow:none;border:1px solid var(--line)}
 .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+@media (min-width:861px){.ws-grid{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}}
 @media (max-width:860px){.grid-3{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}}
 .step-n{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:50%;font-size:19px;margin-bottom:12px;color:#1B1B1F}
 .step-n.coral{background:var(--coral)}.step-n.sage{background:var(--sage)}.step-n.lav{background:var(--lav)}
