@@ -153,7 +153,8 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         rels.append(r)
 
     for c in confirmed or []:
-        add(Relationship(c["source"], list(c["source_cols"]), c["target"], list(c.get("target_cols") or c["source_cols"]), "confirmed"))
+        add(Relationship(c["source"], list(c["source_cols"]), c["target"], list(c.get("target_cols") or c["source_cols"]),
+                         "confirmed", field_name=c.get("field_name") or "", reverse_name=c.get("reverse_name") or ""))
 
     single_key: dict[str, str] = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
     by_ref_name: dict[str, list[str]] = {}
@@ -193,15 +194,36 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
     return rels, ambiguous
 
 
+_REF_SUFFIX = re.compile(r"(_?(id|key|nr|no))$", re.I)
+
+
+def _role(r: Relationship) -> str:
+    """The name a single-column reference gives its target: `ship_to_id` -> `ship_to`, `manager_id` -> `manager`.
+    Empty when the column is just the target's own name (`customer_id` -> customers), or composite."""
+    if len(r.source_cols) != 1:
+        return ""
+    stem = _REF_SUFFIX.sub("", r.source_cols[0]).strip("_")
+    if not stem or _norm(stem) in {_norm(x) for x in _singulars(r.target) | {r.target}}:
+        return ""
+    return stem
+
+
 def _name_fields(rels: list[Relationship]) -> None:
-    """GraphQL field names: `customer` on orders, `orders` on customers; disambiguate by column."""
+    """GraphQL field names: `customer` on orders, `orders` on customers. A column that names a role rather than the
+    target (`ship_to_id` -> addresses) gives the field that role's name. Names given in `confirmed` are kept.
+    Any remaining clash on the same table is disambiguated by column."""
     from collections import Counter
-    fwd = Counter((r.source, r.target) for r in rels)
-    back = Counter((r.target, r.source) for r in rels)
     for r in rels:
-        base = sorted(_singulars(r.target), key=len)[0]
-        r.field_name = _gql(base if fwd[(r.source, r.target)] == 1 else f"{base}_by_{'_'.join(r.source_cols)}")
-        r.reverse_name = _gql(r.source if back[(r.target, r.source)] == 1 else f"{r.source}_by_{'_'.join(r.source_cols)}")
+        if not r.field_name:
+            r.field_name = _gql(_role(r) or sorted(_singulars(r.target), key=len)[0])
+        if not r.reverse_name:
+            role = _role(r)
+            r.reverse_name = _gql(f"{r.source}_as_{role}" if role else r.source)
+    for attr, owner in (("field_name", "source"), ("reverse_name", "target")):
+        counts = Counter((getattr(r, owner), getattr(r, attr)) for r in rels)
+        for r in rels:
+            if counts[(getattr(r, owner), getattr(r, attr))] > 1 and r.rule != "confirmed":
+                setattr(r, attr, _gql(f"{getattr(r, attr)}_by_{'_'.join(r.source_cols)}"))
 
 
 RESERVED_FIELDS = {"items", "edges", "nodes", "pageinfo", "endcursor", "hasnextpage"}

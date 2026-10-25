@@ -62,8 +62,16 @@ def test_confirmed_relationship_applied_first(schema, keys):
                                        "target": "addresses", "target_cols": ["address_id"]}])
     r = [x for x in p.relationships if x.source_cols == ["ship_to_id"]]
     assert r and r[0].rule == "confirmed" and r[0].target == "addresses"
-    # two relationships orders -> addresses? no: only one, so field name is plain "address"
-    assert r[0].field_name == "address"
+    # the column names a role, not the table: the field is called after the role
+    assert r[0].field_name == "ship_to" and r[0].reverse_name == "orders_as_ship_to"
+
+
+def test_confirmed_field_names_are_kept(schema, keys):
+    p = plan(schema, keys, confirmed=[{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses",
+                                       "target_cols": ["address_id"], "field_name": "delivery_address",
+                                       "reverse_name": "deliveries"}])
+    r = next(x for x in p.relationships if x.source_cols == ["ship_to_id"])
+    assert (r.field_name, r.reverse_name) == ("delivery_address", "deliveries")
 
 
 def test_field_names_disambiguate_when_two_columns_point_at_same_table():
@@ -77,8 +85,8 @@ def test_field_names_disambiguate_when_two_columns_point_at_same_table():
         {"source": "flights", "source_cols": ["dest_airport_id"], "target": "airports", "target_cols": ["airport_id"]},
     ])
     names = {tuple(r.source_cols): (r.field_name, r.reverse_name) for r in p.relationships}
-    assert names[("origin_airport_id",)] == ("airport_by_origin_airport_id", "flights_by_origin_airport_id")
-    assert names[("dest_airport_id",)][0] == "airport_by_dest_airport_id"
+    assert names[("origin_airport_id",)] == ("origin_airport", "flights_as_origin_airport")
+    assert names[("dest_airport_id",)] == ("dest_airport", "flights_as_dest_airport")
 
 
 def test_same_name_as_other_tables_key_is_r2_but_plain_id_never_matches():
