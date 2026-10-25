@@ -150,7 +150,7 @@ def _read(name: str) -> str:
 
 def static_file(path: str) -> Path | None:
     """Resolve a /static/<path> request to a file inside the package's static dir, or None."""
-    if not path or path.startswith("/") or ".." in path.split("/"):
+    if not path or path.startswith("/") or path.endswith("/") or ".." in path.split("/"):
         return None
     p = (STATIC_DIR / path).resolve()
     try:
