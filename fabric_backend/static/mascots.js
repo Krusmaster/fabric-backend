@@ -4,26 +4,42 @@
    Respects prefers-reduced-motion (stills) and a visible off switch stored in localStorage (try/catch). */
 (function () {
   'use strict';
+  /* Shapes live in a 120×120 box with the ground at y=108. Each body is a soft matte stone: a radial gradient (lighter
+     top-left, tinted darker lower edge), a faint highlight oval, a blurred contact shadow, short stub arms resting
+     against the body (about 30 % of the body height) and small bead eyes with a glint. No legs, fingers, noses or mouths. */
   var KINDS = {
-    onto: { // the guide: upright, leaning forward. Taller bean.
-      fill: '#F2735C', dark: '#D9573F', light: '#FFA48F', name: 'Onto, the coral guide',
-      body: 'M60 12 C84 12 97 36 95 64 C93 92 79 110 58 110 C36 110 23 92 25 64 C27 36 38 12 60 12 Z',
-      shade: 'M30 76 C36 100 50 110 60 110 C78 110 92 96 95 70 C88 92 76 100 60 100 C46 100 36 90 30 76 Z',
-      eyes: [[50, 50], [69, 48]], armL: 'M38 70 Q24 76 22 90', armR: 'M86 66 Q98 72 100 86', shadow: [60, 110, 27, 5]
+    onto: { // the guide: an upright egg, leaning forward
+      fill: '#F2735C', light: '#FFB29A', dark: '#D9604B', cheek: '#FFD0C4', name: 'Onto, the coral guide', tilt: 6,
+      body: 'M60 20 C79 20 92 46 92 72 C92 95 78 108 60 108 C42 108 28 95 28 72 C28 46 41 20 60 20 Z',
+      eyes: [[53, 58], [70, 57]], eyeR: 3.6, blush: [[45, 67], [78, 66]],
+      armL: [31, 70, -14], armR: [89, 70, 14], armRX: 7.4, armRY: 13, hl: [46, 40, 9, 5.5, -30], shadow: [60, 109, 30, 4.5]
     },
-    thinker: { // the thinker: wider, settled.
-      fill: '#9DB8A0', dark: '#7E9C82', light: '#C5DAC7', name: 'The thinker, the sage one',
-      body: 'M60 26 C92 24 110 46 108 72 C106 98 86 110 60 110 C34 110 12 98 12 72 C12 46 30 24 60 26 Z',
-      shade: 'M16 82 C26 102 44 110 60 110 C80 110 98 100 106 80 C94 96 78 102 60 102 C42 102 26 96 16 82 Z',
-      eyes: [[48, 58], [72, 58]], armL: 'M26 80 Q14 86 12 98', armR: 'M94 80 Q106 86 108 98', shadow: [60, 111, 34, 5]
+    thinker: { // the thinker: wide, low and settled, like a cushion
+      fill: '#9DB8A0', light: '#CDDFCD', dark: '#84A188', cheek: '#F6B7A6', name: 'The thinker, the sage one', tilt: 0,
+      body: 'M60 50 C88 50 106 58 106 80 C106 100 90 108 60 108 C30 108 14 100 14 80 C14 58 32 50 60 50 Z',
+      eyes: [[49, 72], [71, 72]], eyeR: 3.6, blush: [[38, 82], [82, 82]],
+      armL: [17, 84, -24], armR: [103, 84, 24], armRX: 7.6, armRY: 11.5, hl: [38, 61, 11, 4.5, -12], shadow: [60, 109, 40, 4.5]
     },
-    builder: { // the maker: slightly tapered, tilted.
-      fill: '#A99AD8', dark: '#8C7CC4', light: '#CDC3EC', name: 'The builder, the lavender one',
-      body: 'M60 16 C78 16 88 34 91 60 C95 90 80 110 58 110 C34 110 23 90 27 60 C30 34 42 16 60 16 Z',
-      shade: 'M30 80 C38 102 48 110 58 110 C78 110 90 96 91 72 C84 92 74 100 60 100 C46 100 36 92 30 80 Z',
-      eyes: [[51, 50], [69, 50]], armL: 'M36 74 Q24 80 22 92', armR: 'M86 72 Q98 78 100 90', shadow: [60, 110, 26, 5]
+    builder: { // the maker: a soft rounded pear, slightly tapered toward a round top, leaning
+      fill: '#A99AD8', light: '#D4CBF0', dark: '#9282C6', cheek: '#F4BCD0', name: 'The builder, the lavender one', tilt: 10,
+      body: 'M60 29 C75 29 85 45 90 64 C96 88 85 108 60 108 C35 108 24 88 30 64 C35 45 45 29 60 29 Z',
+      eyes: [[52, 66], [69, 66]], eyeR: 3.5, blush: [[44, 76], [77, 76]],
+      armL: [31, 78, -14], armR: [89, 78, 14], armRX: 7.2, armRY: 12, hl: [49, 45, 7.5, 4.5, -35], shadow: [60, 109, 33, 4.5]
     }
   };
+  var uid = 0;
+
+  function arm(side, a, k, g) {
+    // a = [shoulder x, shoulder y, resting angle]; the stub hangs from the shoulder and lies against the body.
+    var x = a[0], y = a[1];
+    return '<g class="m-arm m-arm-' + side + '" style="transform-origin:' + x + 'px ' + y + 'px">' +
+      '<g transform="rotate(' + a[2] + ' ' + x + ' ' + y + ')">' +
+      '<ellipse cx="' + (x + (side === 'l' ? 1.6 : -1.6)) + '" cy="' + (y + k.armRY - 1.5) + '" rx="' + k.armRX + '" ry="' + k.armRY + '" fill="' + k.dark + '" opacity=".75" filter="url(#' + g + 'h)"/>' +
+      '<ellipse cx="' + x + '" cy="' + (y + k.armRY - 3) + '" rx="' + k.armRX + '" ry="' + k.armRY + '" fill="url(#' + g + 'a)" stroke="' + k.dark + '" stroke-width=".9" stroke-opacity=".55"/>' +
+      '<ellipse cx="' + (x - 1.5) + '" cy="' + (y + 2) + '" rx="2.4" ry="4" fill="#fff" opacity=".18"/></g>' +
+      (side === 'r' ? '<g class="m-tool" aria-hidden="true"><rect x="' + (x + 2) + '" y="' + (y + 16) + '" width="15" height="6.5" rx="2.5" fill="#5B4A3A"/><rect x="' + (x + 7) + '" y="' + (y + 20) + '" width="4" height="10" rx="2" fill="#8A6B4F"/></g>' : '') +
+      '</g>';
+  }
 
   function svg(kind, opts) {
     opts = opts || {};
@@ -33,23 +49,33 @@
     var idle = opts.idle ? ' data-idle="' + opts.idle + '"' : '';
     var gaze = opts.gaze === false ? '' : ' data-gaze';
     var cls = 'mascot ' + kind + (opts.className ? ' ' + opts.className : '');
+    var g = 'm' + (++uid) + '-';
     var eyes = k.eyes.map(function (e) {
-      return '<circle class="m-eye" cx="' + e[0] + '" cy="' + e[1] + '" r="4.2"/>' +
-             '<circle class="m-glint" cx="' + (e[0] + 1.4) + '" cy="' + (e[1] - 1.4) + '" r="1.1"/>';
+      return '<circle class="m-eye" cx="' + e[0] + '" cy="' + e[1] + '" r="' + k.eyeR + '"/>' +
+             '<circle class="m-glint" cx="' + (e[0] + 1.2) + '" cy="' + (e[1] - 1.3) + '" r="1.15"/>';
     }).join('');
+    var blush = k.blush.map(function (b) { return '<ellipse cx="' + b[0] + '" cy="' + b[1] + '" rx="5" ry="2.8" fill="' + k.cheek + '" opacity=".55" filter="url(#' + g + 'h)"/>'; }).join('');
+    var hl = k.hl;
+    var aria = label ? ' role="img" aria-label="' + label + '"' : ' aria-hidden="true"';
     return '<svg class="' + cls + '" data-kind="' + kind + '" data-pose="' + pose + '"' + idle + gaze +
-      ' viewBox="0 0 120 120" role="img" aria-label="' + label + '" focusable="false">' +
-      '<ellipse class="m-shadow" cx="' + k.shadow[0] + '" cy="' + k.shadow[1] + '" rx="' + k.shadow[2] + '" ry="' + k.shadow[3] + '"/>' +
+      ' viewBox="0 0 120 120"' + aria + ' focusable="false" style="--tilt:' + k.tilt + 'deg">' +
+      '<defs>' +
+        '<radialGradient id="' + g + 'b" cx="36%" cy="28%" r="78%" fx="34%" fy="24%">' +
+          '<stop offset="0" stop-color="' + k.light + '"/><stop offset=".5" stop-color="' + k.fill + '"/><stop offset="1" stop-color="' + k.dark + '"/></radialGradient>' +
+        '<radialGradient id="' + g + 'a" cx="35%" cy="25%" r="85%"><stop offset="0" stop-color="' + k.light + '"/><stop offset=".45" stop-color="' + k.fill + '"/><stop offset="1" stop-color="' + k.dark + '"/></radialGradient>' +
+        '<filter id="' + g + 's" x="-30%" y="-200%" width="160%" height="500%"><feGaussianBlur stdDeviation="2.6"/></filter>' +
+        '<filter id="' + g + 'h" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>' +
+      '</defs>' +
+      '<ellipse class="m-shadow" cx="' + k.shadow[0] + '" cy="' + k.shadow[1] + '" rx="' + k.shadow[2] + '" ry="' + k.shadow[3] + '" fill="' + k.dark + '" filter="url(#' + g + 's)"/>' +
       '<g class="m-figure">' +
         '<g class="m-confetti" aria-hidden="true">' +
-          '<circle cx="30" cy="22" r="3" fill="#F2735C"/><circle cx="60" cy="8" r="3" fill="#9DB8A0"/><circle cx="92" cy="20" r="3" fill="#A99AD8"/>' +
-          '<circle cx="44" cy="6" r="2" fill="#A99AD8"/><circle cx="78" cy="4" r="2" fill="#F2735C"/></g>' +
-        '<g class="m-body"><path d="' + k.body + '" fill="' + k.fill + '"/><path d="' + k.shade + '" fill="' + k.dark + '" opacity=".55"/>' +
-          '<ellipse cx="46" cy="34" rx="10" ry="5" fill="' + k.light + '" opacity=".35" transform="rotate(-25 46 34)"/></g>' +
-        '<g class="m-arm m-arm-l"><path d="' + k.armL + '" fill="none" stroke="' + k.dark + '" stroke-width="9" stroke-linecap="round"/></g>' +
-        '<g class="m-arm m-arm-r"><path d="' + k.armR + '" fill="none" stroke="' + k.dark + '" stroke-width="9" stroke-linecap="round"/>' +
-          '<g class="m-tool" aria-hidden="true"><rect x="94" y="78" width="16" height="7" rx="2" fill="#1B1B1F" opacity=".8" transform="rotate(-20 100 82)"/></g></g>' +
-        '<g class="m-heart" aria-hidden="true"><path d="M60 92 C52 84 44 80 44 72 C44 66 50 63 54 66 C57 68 60 72 60 72 C60 72 63 68 66 66 C70 63 76 66 76 72 C76 80 68 84 60 92 Z" fill="#F2735C" stroke="#fff" stroke-width="2.5"/></g>' +
+          '<circle cx="28" cy="26" r="3" fill="#F2735C"/><circle cx="60" cy="8" r="3" fill="#9DB8A0"/><circle cx="94" cy="22" r="3" fill="#A99AD8"/>' +
+          '<circle cx="42" cy="10" r="2" fill="#E3A93B"/><circle cx="80" cy="6" r="2" fill="#F2735C"/></g>' +
+        '<g class="m-body"><path d="' + k.body + '" fill="url(#' + g + 'b)"/>' +
+          '<ellipse cx="' + hl[0] + '" cy="' + hl[1] + '" rx="' + hl[2] + '" ry="' + hl[3] + '" fill="#fff" opacity=".42" filter="url(#' + g + 'h)" transform="rotate(' + hl[4] + ' ' + hl[0] + ' ' + hl[1] + ')"/>' +
+          blush + '</g>' +
+        arm('l', k.armL, k, g) + arm('r', k.armR, k, g) +
+        '<g class="m-heart" aria-hidden="true"><path d="M60 98 C53 91 46 88 46 81 C46 76 51 73 55 76 C57.5 77.8 60 81 60 81 C60 81 62.5 77.8 65 76 C69 73 74 76 74 81 C74 88 67 91 60 98 Z" fill="#F2735C" stroke="#fff" stroke-width="2.5"/></g>' +
         '<g class="m-eyes">' + eyes + '</g>' +
       '</g></svg>';
   }
@@ -131,7 +157,7 @@
     var wrap = document.createElement('div');
     wrap.className = 'g-follower';
     wrap.setAttribute('aria-hidden', 'true');
-    wrap.innerHTML = svg('onto', { pose: 'rest', gaze: false, label: '' });
+    wrap.innerHTML = svg('onto', { pose: 'rest', label: '' });
     area.appendChild(wrap);
     var fig = wrap.firstChild, target = null, pos = null, state = 'rest', hoverNode = null, pauseTimer = 0, animating = 0;
     var bubbleText = opts.text || 'Explore this table.';

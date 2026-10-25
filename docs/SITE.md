@@ -7,16 +7,18 @@ no build step, no bundler and no external resource at runtime. This note is for 
 
 | Path | What |
 | --- | --- |
-| `fabric_backend/pages.py` | the page registry (`PAGES`: path → template, title, description, nav key), the shared shell (header, footer, meta tags), the small Markdown renderer for `/docs` and `/privacy`, the 404 page, the sitemap, the static-file resolver |
-| `fabric_backend/page_templates/*.html` | one body template per page; `{{VAR}}` placeholders are filled from the environment (`PRODUCT`, `PRODUCT_URL`, `CONTACT`, `MCP_URL`, `CLIENT_ID`, `GITHUB`, …) and HTML-escaped; `{{#IF VAR}}…{{/IF}}` keeps a block only when the variable is set; `{{DEMO_*}}` placeholders are filled from the demo plan |
-| `fabric_backend/page_templates/DOCS.md`, `PRIVACY.md` | the two Markdown pages; `{{RULES_TABLE}}` in DOCS.md is generated from `infer.RULES` |
+| `fabric_backend/pages.py` | the page registry (`PAGES`: path → template, title, description, nav key), the shared shell (header, footer, meta tags), canonical/Open Graph/Twitter tags, JSON-LD for `/`, the small Markdown renderer for `/docs`, `/privacy` and `/lovable`, the Markdown versions of the pages (`/docs.md`, `/start.md`, …), the 404 page, the static-file resolver |
+| `fabric_backend/discovery.py` | everything for crawlers and agents: `/sitemap.xml` (`PUBLIC_PAGES`), `/robots.txt`, `/llms.txt`, the MCP Server Card (`/mcp/server-card`) and the AI Catalog (`/.well-known/ai-catalog.json`) |
+| `fabric_backend/page_templates/*.html` | one body template per page; `{{VAR}}` placeholders are filled from the environment (`PRODUCT`, `PRODUCT_URL`, `CONTACT`, `MCP_URL`, `CLIENT_ID`, `GITHUB`, …) and HTML-escaped (the Markdown pages escape while rendering); `{{#IF VAR}}…{{/IF}}` keeps a block only when the variable is set; `{{DEMO_*}}` placeholders are filled from the demo plan |
+| `fabric_backend/page_templates/DOCS.md`, `PRIVACY.md`, `LOVABLE.md` | the Markdown pages (served as HTML and as `.md`); `{{RULES_TABLE}}` in DOCS.md is generated from `infer.RULES` |
 | `fabric_backend/static/site.css` | design tokens (`:root`, dark values under `prefers-color-scheme: dark`), shell, components, the graph, the mascot poses and animations |
 | `fabric_backend/static/site.js` | navigation toggle, the graph renderer (`Graph`), and the per-page wiring for `/`, `/explore`, `/partners/workspace`, `/mascots` |
 | `fabric_backend/static/mascots.js` | the three figures as inline SVG (`Mascots.svg`), the off switch, gaze, the follower, the builder sequence |
 | `fabric_backend/static/fonts/` | Fredoka and Nunito, variable, subset to Latin, SIL OFL (licence files beside them) |
 | `fabric_backend/static/favicon.svg|png`, `og.svg|png` | icon and Open Graph image; the PNGs are rendered from the SVGs with Playwright |
 | `fabric_backend/demo.py` | `demo_plan()`: the real `plan()` on `seed.schema()`, served as `/demo/plan.json`; its `suggestions` list is the one hand-written demo hint (for the unlinked `orders.ship_to_id`) and is labelled "demo hint, not inferred" wherever it is shown |
-| `tests/test_site.py`, `tests/test_site_extras.py` | every route, headers, honesty rules, the plan JSON |
+| `tests/test_site.py`, `tests/test_site_extras.py` | every route, headers, honesty rules, the plan JSON, discovery documents |
+| `server.json`, `docs/PUBLISHING.md` | the MCP Registry entry and how to publish it (not published) |
 | `tests/test_browser.py` + `tests/browser_check.js` | Playwright checks; skipped when Node + Playwright + Chromium are missing |
 | `docs/screenshots/` | the reviewed screenshots (1280 light, 1280 dark, 390 light per page, plus interaction states) |
 
@@ -24,8 +26,9 @@ no build step, no bundler and no external resource at runtime. This note is for 
 
 1. Add a body template under `page_templates/` (just the inside of `<main>`; the shell adds header and footer).
 2. Register it in `PAGES` in `pages.py` with a title, a meta description and the nav key it belongs to.
-3. The route, cache header and CSP come for free from `build_app()`. Add it to `sitemap_xml()` unless it
-   should stay unlisted (`/mascots` is excluded on purpose).
+3. The route, cache header and CSP come for free from `build_app()`. Add it to `PUBLIC_PAGES` in `discovery.py`
+   unless it should stay unlisted (`/mascots` is excluded on purpose), and link a `.md` version from `/llms.txt`
+   if agents should read it.
 4. Add a test in `tests/test_site.py`; the parametrised route test picks up every entry in `PAGES`.
 
 ## Rules the pages keep
@@ -41,16 +44,17 @@ no build step, no bundler and no external resource at runtime. This note is for 
 
 ## The graph renderer
 
-`new KrusGraph.Graph(container, planJson, options)` positions table cards from a fixed map for the demo tables
-(`WIDE` / `NARROW` in `site.js`; unknown tables fall back to a grid), draws bezier wires between the nearest
-sides with a dot at the "one" end and a crow's foot at the "many" end, and puts the rule pill at the midpoint.
-Options: `tables` (subset), `layout` (a position map for a subset), `suggest` (dashed wires from the plan's demo
-hints), `mascots` (figures placed near the start of a wire), `label`. Events: `select` and `focus`. Methods:
-`fit()`, `setFields(on)`, `reset()`, `selectTable(name)`, `setAccepted(edge, on)`. Nodes are buttons, wires are
-focusable SVG groups, so the keyboard reaches everything; `Esc` clears the selection. Below 560 px of width, or
-when fields are shown, the graph "grows": it never scales below 80 %, the panel takes the height it needs and
-scrolls sideways. Wires and other non-text graphics use the `--wire*` tokens, which clear 3:1 in both modes.
-`/explore#table=orders` and `/explore#edge=orders.customer_id>customers` are deep links.
+`new KrusGraph.Graph(container, planJson, options)` draws table cards (coloured table icon, key fields with a key
+icon). Wide containers: left to right along `CHAIN` in `site.js` with `ROW2` underneath; narrow containers (< 700
+px): one column in `STACK` order, with wires between non-neighbours in side lanes. Wires are bezier curves in the
+source table's colour with a dot at each end, the rule on a chip and the cardinality as text; ports on a shared
+card side are ordered so wires do not cross. Options: `tables` (subset), `suggest` (dashed wires from the plan's demo
+hints for columns the engine left unlinked), `mascots` (figures on top-row wire chips, or `near` a table), `padBottom`, `label`. Events:
+`select` and `focus`. Methods: `fit()`, `zoomBy(f)`, `reset()`, `selectTable(name)`, `setAccepted(edge, on)`. Nodes are buttons, wires are focusable SVG groups, so the keyboard
+reaches everything; `Esc` clears the selection.
+The panel takes the height the graph needs; the zoom buttons make it scroll. Wires and other non-text graphics
+use the darker `--*-d` colour tokens. `/explore#table=orders` and `/explore#edge=orders.customer_id>customers` are
+deep links.
 
 ## Mascots
 

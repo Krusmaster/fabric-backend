@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const base = process.argv[2];
 const exe = process.argv[3];
-const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/mascots'];
+const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots'];
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const errors = [], facts = {};
@@ -41,7 +41,7 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   facts.acceptedClass = await page.getAttribute('.g-edge.suggested', 'class');
   await page.click('#btn-reset');
   facts.afterResetClass = await page.getAttribute('.g-edge.suggested', 'class');
-  await page.click('#btn-fields');
+  // fields are always on the table cards now (there is no Show fields toggle); the check below still asserts they show
   facts.fieldsShown = await page.evaluate(() => getComputedStyle(document.querySelector('.g-node-cols')).display);
   // keyboard: the first Tab stops inside the graph are tables, not wires
   await page.click('#btn-reset'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab'); await page.keyboard.press('Tab');

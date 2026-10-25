@@ -114,6 +114,13 @@ def test_http_pages_metadata_and_mcp_authentication(monkeypatch, keys):
             response = client.get(path)
             assert response.status_code == 200
             assert response.json()["resource"] == CFG.public_url
+        # discovery documents stay public in Entra mode: the guard covers exactly /mcp, nothing under it
+        for path in ("/mcp/server-card", "/.well-known/ai-catalog.json", "/llms.txt", "/sitemap.xml", "/robots.txt",
+                     "/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/lovable"):
+            response = client.get(path)
+            assert response.status_code == 200, path
+            assert "www-authenticate" not in response.headers, path
+        assert client.get("/mcp").status_code == 401
         for path in ("/mcp", "/mcp/"):
             response = client.post(path, json={})
             assert response.status_code == 401

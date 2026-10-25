@@ -40,7 +40,9 @@ except ImportError as e:  # pragma: no cover
 FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 SQL_SCOPE = "https://database.windows.net/.default"
 
-mcp = MCPServer("fabric-backend", instructions=(
+from .discovery import package_version as _package_version  # noqa: E402
+
+mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. Start with list_sources, then plan_backend (nothing is deployed), then "
     "create_backend. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
@@ -303,7 +305,9 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/healthz", health))
 
     from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse
-    from .pages import PAGES, STATIC_TYPES, docs_html, not_found_html, privacy_html, render, sitemap_xml, static_file
+    from .pages import (PAGES, STATIC_TYPES, docs_html, docs_md, lovable_html, lovable_md, not_found_html, privacy_html,
+                        privacy_md, render, start_md, static_file)
+    from . import discovery
     from .demo import demo_plan_json
 
     PAGE_CACHE = "public, max-age=300"
@@ -336,6 +340,43 @@ def build_app(host: str = "0.0.0.0"):
         page_route(path, (lambda p: lambda: render(p))(path))
     page_route("/privacy", privacy_html)
     page_route("/docs", docs_html)
+    page_route("/lovable", lovable_html)
+
+    # The same content as Markdown, for /llms.txt and agents.
+    def md_route(path: str, fn):
+        async def handler(request):
+            return compressed(request, fn().encode("utf-8"), "text/markdown; charset=utf-8", {"Cache-Control": PAGE_CACHE})
+        app.router.routes.append(Route(path, handler))
+    for path, fn in (("/docs.md", docs_md), ("/privacy.md", privacy_md), ("/start.md", start_md), ("/lovable.md", lovable_md)):
+        md_route(path, fn)
+
+    async def llms(request):
+        return compressed(request, discovery.llms_txt().encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})
+    app.router.routes.append(Route("/llms.txt", llms))
+
+    async def sitemap(request):
+        return compressed(request, discovery.sitemap_xml().encode("utf-8"), "application/xml", {"Cache-Control": "public, max-age=86400"})
+    app.router.routes.append(Route("/sitemap.xml", sitemap))
+
+    # MCP Server Card (SEP-2127) at <streamable-http-url>/server-card and the AI Catalog that points at it. Public by
+    # design: the auth guard below covers exactly /mcp, nothing under it. CORS, caching and ETag as docs/discovery.md says.
+    CARD_HEADERS = {"Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET",
+                    "Access-Control-Allow-Headers": "Content-Type, If-None-Match", "Access-Control-Expose-Headers": "ETag",
+                    "Cache-Control": "public, max-age=3600"}
+
+    def card_route(path: str, doc, media_type: str):
+        async def handler(request):
+            if request.method == "OPTIONS":
+                return Response(status_code=204, headers=CARD_HEADERS)
+            body = discovery.card_json(doc())
+            tag = discovery.etag(body)
+            headers = dict(CARD_HEADERS, ETag=tag)
+            if tag in [t.strip() for t in request.headers.get("if-none-match", "").split(",")]:
+                return Response(status_code=304, headers=headers)
+            return Response(body, media_type=media_type, headers=headers)
+        app.router.routes.append(Route(path, handler, methods=["GET", "HEAD", "OPTIONS"]))
+    card_route("/mcp/server-card", discovery.server_card, discovery.SERVER_CARD_TYPE)
+    card_route("/.well-known/ai-catalog.json", discovery.ai_catalog, discovery.AI_CATALOG_TYPE)
 
     async def plan_json(request):
         return compressed(request, demo_plan_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
@@ -354,14 +395,8 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/static/{path:path}", static))
 
     async def robots(_request):
-        domain = os.environ.get("MCP_PUBLIC_URL", "https://example.com/mcp").split("/")[2]
-        return PlainTextResponse(f"User-agent: *\nDisallow: /mascots\nDisallow: /mcp\nSitemap: https://{domain}/sitemap.xml\n",
-                                 headers={"Cache-Control": "public, max-age=86400"})
+        return PlainTextResponse(discovery.robots_txt(), headers={"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/robots.txt", robots))
-
-    async def sitemap(_request):
-        return Response(sitemap_xml(), media_type="application/xml", headers={"Cache-Control": "public, max-age=86400"})
-    app.router.routes.append(Route("/sitemap.xml", sitemap))
 
     async def not_found(request, exc):
         """A styled 404 for browsers; plain text for everything else (the MCP endpoint itself is never a 404)."""

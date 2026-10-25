@@ -22,7 +22,7 @@ def client(monkeypatch):
         yield c
 
 
-ALL_PAGES = sorted(set(PAGES) | {"/docs", "/privacy"})
+ALL_PAGES = sorted(set(PAGES) | {"/docs", "/privacy", "/lovable"})
 
 
 @pytest.mark.parametrize("path", ALL_PAGES)
@@ -38,6 +38,8 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
     assert 'href="/static/site.css?v=' in html and "fonts/fredoka-var.woff2" in html
     assert "fonts.googleapis.com" not in html and "fonts.gstatic.com" not in html
     for m in re.finditer(r'<(?:script|link|img)[^>]+(?:src|href)="([^"]+)"', html):     # no external resources at runtime
+        if m.group(0).startswith('<link rel="canonical"'):                               # a URL, not something loaded
+            continue
         assert not m.group(1).startswith(("http://", "https://", "//")), m.group(0)
     assert 'data-mascot-toggle' in html                                                  # the visible off switch
     # only descriptive use of Microsoft; no approval / listing / partner claims
@@ -201,3 +203,159 @@ def test_mcp_and_oauth_routes_are_untouched(client):
     assert client.get("/healthz").json()["ok"] is True
     r = client.post("/mcp", json={})
     assert r.status_code in (400, 401, 406)                                              # the MCP endpoint still answers (bearer mode: no 401 gate)
+
+
+def test_explore_table_list_names_keys_in_words_with_the_rule_as_tooltip(client):
+    html = client.get("/explore").text
+    assert 'data-table="order_items"' in html and ">composite key</span>" in html and ">no key</span>" in html
+    assert '<span class="rule">K' not in html                                            # no bare K1/K2/K3 codes
+    assert 'title="Rule K1: ' in html and 'title="Rule K3: ' in html
+    assert 'class="t-ico c-coral"' in html and 'class="t-ico c-mustard"' in html          # coloured table icons
+    assert "kicker" not in html
+
+
+def test_home_hero_and_trust_row(client):
+    html = client.get("/").text
+    assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
+    assert 'class="hero-figure"' not in html and 'id="home-graph"' in html               # mascots live on the graph's wires
+    assert 'class="trust"' in html and "Your permissions, not ours" in html and "Nothing stored" in html
+    assert "Illustrative demo" in html
+
+
+# ------------------------------------------------------------------ SEO and agent discovery ---------------------
+
+PUBLIC = ["/", "/explore", "/start", "/docs", "/lovable", "/privacy", "/support", "/partners", "/partners/workspace"]
+
+
+def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
+    titles = set()
+    for path in PUBLIC:
+        html = client.get(path).text
+        assert '<html lang="en">' in html
+        canonical = "https://krusgraph.test" + path
+        assert f'<link rel="canonical" href="{canonical}">' in html, path
+        assert f'<meta property="og:url" content="{canonical}">' in html, path
+        assert '<meta property="og:image" content="https://krusgraph.test/static/og.png">' in html
+        assert '<meta name="twitter:card" content="summary_large_image">' in html
+        assert '<meta name="twitter:image" content="https://krusgraph.test/static/og.png">' in html
+        assert re.search(r'<meta name="twitter:title" content="[^"]{5,}">', html)
+        assert 'name="robots"' not in html, path
+        titles.add(re.search(r"<title>([^<]+)</title>", html).group(1))
+    assert len(titles) == len(PUBLIC)                                                     # every title is unique
+
+
+def test_json_ld_on_home_only_and_only_facts(client):
+    html = client.get("/").text
+    blocks = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)]
+    app = next(b for b in blocks if b["@type"] == "SoftwareApplication")
+    org = next(b for b in blocks if b["@type"] == "Organization")
+    assert app["name"] == "Krusgraph" and app["applicationCategory"] == "DeveloperApplication" and app["operatingSystem"] == "Web"
+    assert app["offers"]["price"] == "0" and "MIT" in app["offers"]["description"]
+    assert app["url"] == "https://krusgraph.test/" and "https://github.com/Krusmaster/fabric-backend" in app["sameAs"]
+    assert org["name"] == "Kruse Consulting AB" and org["email"] == "hello@krusgraph.test"
+    text = json.dumps(blocks).lower()
+    for banned in ("aggregaterating", "ratingvalue", "review", "downloads", "interactioncount"):
+        assert banned not in text, banned
+    assert "application/ld+json" not in client.get("/docs").text
+
+
+def test_sitemap_lists_public_pages_only(client):
+    r = client.get("/sitemap.xml")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
+    locs = re.findall(r"<loc>([^<]+)</loc>", r.text)
+    assert locs == ["https://krusgraph.test" + p for p in PUBLIC]
+    assert r.text.count("<lastmod>") == len(PUBLIC) and "mascots" not in r.text
+    for loc in locs:
+        assert client.get(loc.replace("https://krusgraph.test", "")).status_code == 200
+
+
+def test_robots_points_at_sitemap_and_keeps_mascots_out(client):
+    t = client.get("/robots.txt").text
+    assert "Disallow: /mascots" in t and "Sitemap: https://krusgraph.test/sitemap.xml" in t
+    assert "Allow: /mcp/server-card" in t
+
+
+def test_llms_txt_follows_the_format_and_links_markdown(client):
+    r = client.get("/llms.txt")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/plain")
+    t = r.text
+    assert t.startswith("# Krusgraph\n\n> ")
+    for tool in ("list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql"):
+        assert f"`{tool}`" in t
+    assert "https://krusgraph.test/mcp" in t and "Microsoft Entra work account" in t and "introspection" in t
+    links = re.findall(r"\]\((https://krusgraph\.test/[^)]+)\)", t)
+    for md in ("/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/demo/plan.json", "/mcp/server-card"):
+        assert "https://krusgraph.test" + md in links, md
+
+
+@pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
+                                         ("/start.md", "# Small steps. Useful connections."), ("/lovable.md", "# Use Krusgraph with Lovable")])
+def test_markdown_versions(client, path, needle):
+    r = client.get(path)
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
+    assert needle in r.text and "{{" not in r.text and "<svg" not in r.text and "<div" not in r.text
+
+
+def test_start_md_keeps_the_permissions_table(client):
+    t = client.get("/start.md").text
+    assert "| Permission | Used for |\n| --- | --- |\n| `User.Read` (Microsoft Graph) | sign-in only |" in t
+    assert "```\nhttps://krusgraph.test/mcp\n```" in t and "](https://krusgraph.test/docs)" in t
+
+
+def test_lovable_page_is_linked_and_makes_no_connector_claim(client):
+    assert 'href="/lovable"' in client.get("/").text                                      # footer
+    assert 'href="/lovable"' in client.get("/docs").text
+    html = client.get("/lovable").text
+    assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html
+    for step in ("Create the API with Krusgraph", "Turn on introspection in Fabric", "Add it in Lovable"):
+        assert step in html
+    assert "untested" in html and "dynamic client registration" in html
+
+
+def test_server_card_is_public_and_follows_the_discovery_doc(client):
+    r = client.get("/mcp/server-card", headers={"Accept": "application/mcp-server-card+json"})
+    assert r.status_code == 200 and r.headers["content-type"] == "application/mcp-server-card+json"
+    assert r.headers["access-control-allow-origin"] == "*" and r.headers["access-control-allow-methods"] == "GET"
+    assert r.headers["access-control-expose-headers"] == "ETag" and "If-None-Match" in r.headers["access-control-allow-headers"]
+    assert r.headers["cache-control"] == "public, max-age=3600" and r.headers["etag"]
+    card = r.json()
+    assert card["$schema"] == "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json"
+    assert card["name"] == "test.krusgraph/krusgraph" and card["title"] == "Krusgraph"
+    assert 0 < len(card["description"]) <= 100 and card["websiteUrl"] == "https://krusgraph.test/"
+    assert card["repository"] == {"url": "https://github.com/Krusmaster/fabric-backend", "source": "github"}
+    remote = card["remotes"][0]
+    assert remote["type"] == "streamable-http" and remote["url"] == "https://krusgraph.test/mcp"
+    assert remote["supportedProtocolVersions"] and all(re.match(r"^\d{4}-\d{2}-\d{2}$", v) for v in remote["supportedProtocolVersions"])
+    assert "tools" not in card                                                             # primitives are listed at runtime
+    import tomllib
+    from pathlib import Path
+    assert card["version"] == tomllib.loads((Path(__file__).resolve().parent.parent / "pyproject.toml").read_text())["project"]["version"]
+    again = client.get("/mcp/server-card", headers={"If-None-Match": r.headers["etag"]})
+    assert again.status_code == 304 and again.headers["etag"] == r.headers["etag"]
+    pre = client.options("/mcp/server-card")
+    assert pre.status_code == 204 and pre.headers["access-control-allow-origin"] == "*"
+
+
+def test_ai_catalog_points_at_the_server_card(client):
+    r = client.get("/.well-known/ai-catalog.json")
+    assert r.status_code == 200 and r.headers["content-type"] == "application/ai-catalog+json"
+    assert r.headers["access-control-allow-origin"] == "*" and r.headers["cache-control"] == "public, max-age=3600"
+    entry = r.json()["entries"][0]
+    assert r.json()["specVersion"] == "1.0"
+    assert entry == {"identifier": "urn:air:krusgraph.test:mcp:krusgraph", "type": "application/mcp-server-card+json",
+                     "url": "https://krusgraph.test/mcp/server-card"}
+
+
+def test_server_json_matches_the_package_and_the_card():
+    import tomllib
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    sj = json.loads((root / "server.json").read_text())
+    version = tomllib.loads((root / "pyproject.toml").read_text())["project"]["version"]
+    assert sj["$schema"] == "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
+    assert sj["name"] == "com.krusgraph/krusgraph" and sj["version"] == version and len(sj["description"]) <= 100
+    import fabric_backend
+    assert fabric_backend.__version__ == version                                          # the card and serverInfo read this
+    assert sj["remotes"] == [{"type": "streamable-http", "url": "https://krusgraph.com/mcp"}]
+    from fabric_backend.discovery import DESCRIPTION
+    assert sj["description"] == DESCRIPTION
