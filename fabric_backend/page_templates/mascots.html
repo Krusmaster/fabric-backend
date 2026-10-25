@@ -1,0 +1,49 @@
+<div data-page="mascots">
+<section class="wrap" style="padding:20px 16px 0">
+  <span class="pill demo">Review page · demo states · not linked from the site</span>
+  <h1 style="font-size:clamp(30px,4vw,44px);margin-top:12px">Our mascots</h1>
+  <p class="intro">Three soft stones with bead eyes and short arms. No legs, fingers, noses or mouths: the expression comes from the gaze, the tilt and the rhythm. Every figure below is inline SVG with separate layers for shadow, body, arms and eyes; poses are CSS, behaviours are a little JS. Turn them off with the footer switch; <code>prefers-reduced-motion</code> gives stills.</p>
+</section>
+<section class="wrap" style="padding-top:8px">
+  <h2>Onto <span class="pill coral">coral · the guide</span></h2><p class="muted">Upright and leaning forward. Explore, listen, thank you (holds a heart).</p>
+  <div class="m-grid" id="grid-onto"></div>
+  <h2 style="margin-top:32px">The thinker <span class="pill sage">sage</span></h2><p class="muted">Wider and settled. Nods quietly.</p>
+  <div class="m-grid" id="grid-thinker"></div>
+  <h2 style="margin-top:32px">The builder <span class="pill demo">lavender</span></h2><p class="muted">Slightly tapered and tilted. Gets a little extra bounce.</p>
+  <div class="m-grid" id="grid-builder"></div>
+</section>
+<section class="wrap" style="padding-top:8px">
+  <div class="scene">
+    <h2 style="font-size:24px">Onto follows the pointer <span class="pill demo">demo</span></h2>
+    <p class="muted">rest → notice → follow → pause at a table → explain → step aside. Pointer events are off on the figure: it never covers a button or blocks a click. On touch it stands still and helps on tap.</p>
+    <div id="m-follow" class="graph short"></div>
+    <p id="m-follow-state" class="state-line">state: rest</p>
+  </div>
+  <div class="scene">
+    <h2 style="font-size:24px">The thinker: Accept or Skip <span class="pill demo">demo</span></h2>
+    <p class="muted">notice → consider → explain (“Review this connection.”) → your choice. Accept draws a thin sage line; Skip leaves it dashed. Both are valid. Accepted is not verified.</p>
+    <div class="stage">
+      <span id="m-think" data-mascot="thinker" data-pose="rest" data-label="The thinker"></span>
+      <svg id="m-wire" class="wire-demo" viewBox="0 0 240 60" width="240" height="60" aria-label="A connection between orders.ship_to_id and addresses.address_id"><text x="0" y="14" class="mono" style="font:700 11px monospace;fill:currentColor">orders.ship_to_id</text><path d="M10 30 C70 30 150 30 230 30"/><text x="80" y="56" style="font:700 11px monospace;fill:currentColor">addresses.address_id</text></svg>
+      <div>
+        <button type="button" class="btn ghost small" id="m-think-start">Start the sequence</button>
+        <div id="m-choice" class="choice" hidden><button type="button" class="btn sage small" id="m-accept">Accept</button><button type="button" class="btn ghost small" id="m-skip">Skip</button></div>
+      </div>
+    </div>
+    <p id="m-think-state" class="state-line">state: rest</p>
+  </div>
+  <div class="scene">
+    <h2 style="font-size:24px">The builder: Create API <span class="pill demo">demo · no Fabric call is made</span></h2>
+    <p class="muted">ready → you start → working → success (a small celebration) or failure (helpful: View details, Try again) → back to calm. The status stays after the figure calms down. No celebration on failure.</p>
+    <div class="stage">
+      <span id="m-build" data-mascot="builder" data-pose="rest" data-label="The builder"></span>
+      <div class="choice"><button type="button" class="btn primary small" id="m-sim-ok">Simulate success</button><button type="button" class="btn ghost small" id="m-sim-err">Simulate failure</button></div>
+    </div>
+    <p id="m-build-state" class="state-line">state: ready</p>
+    <div id="m-ok" class="result ok"><strong>Created shop_api (demo).</strong> Endpoint and the two remaining portal steps would be listed here.</div>
+    <div id="m-err" class="result err"><strong>Could not create shop_api (demo).</strong> <span class="muted">The workspace has no capacity assigned.</span>
+      <div class="choice"><button type="button" class="btn ghost small" id="m-details">View details</button><button type="button" class="btn primary small" id="m-retry">Try again</button></div>
+      <pre id="m-detail-text" hidden style="margin-top:10px">demo: HTTP 400 WorkspaceNotOnCapacity — assign a capacity to the workspace, then try again</pre></div>
+  </div>
+</section>
+</div>

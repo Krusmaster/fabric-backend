@@ -302,20 +302,41 @@ def build_app(host: str = "0.0.0.0"):
         return JSONResponse({"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"})
     app.router.routes.append(Route("/healthz", health))
 
-    from starlette.responses import HTMLResponse
-    from .pages import privacy_html, docs_html, landing_html
+    from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse
+    from .pages import PAGES, STATIC_TYPES, docs_html, privacy_html, render, static_file
+    from .demo import demo_plan_json
 
-    async def landing(_request):
-        return HTMLResponse(landing_html())
-    app.router.routes.append(Route("/", landing))
+    PAGE_CACHE = "public, max-age=300"
 
-    async def privacy(_request):
-        return HTMLResponse(privacy_html())
+    def page_route(path: str, fn):
+        async def handler(_request):
+            headers = {"Cache-Control": PAGE_CACHE}
+            if path == "/mascots":
+                headers["X-Robots-Tag"] = "noindex, nofollow"
+            return HTMLResponse(fn(), headers=headers)
+        app.router.routes.append(Route(path, handler))
 
-    async def docs(_request):
-        return HTMLResponse(docs_html())
-    app.router.routes.append(Route("/privacy", privacy))
-    app.router.routes.append(Route("/docs", docs))
+    for path in PAGES:
+        page_route(path, (lambda p: lambda: render(p))(path))
+    page_route("/privacy", privacy_html)
+    page_route("/docs", docs_html)
+
+    async def plan_json(_request):
+        return Response(demo_plan_json(), media_type="application/json", headers={"Cache-Control": "public, max-age=3600"})
+    app.router.routes.append(Route("/demo/plan.json", plan_json))
+
+    async def static(request):
+        p = static_file(request.path_params.get("path", ""))
+        if p is None:
+            return PlainTextResponse("not found", status_code=404)
+        cache = "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
+        return FileResponse(str(p), media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache})
+    app.router.routes.append(Route("/static/{path:path}", static))
+
+    async def robots(_request):
+        return PlainTextResponse("User-agent: *\nDisallow: /mascots\nDisallow: /mcp\n", headers={"Cache-Control": "public, max-age=86400"})
+    app.router.routes.append(Route("/robots.txt", robots))
+
     if not cfg:
         return app
 

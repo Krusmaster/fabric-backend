@@ -71,6 +71,20 @@ class Plan:
         return "\n".join(out)
 
 
+# The rules, in the words of the docstring above. The site's demo and the MCP tools quote these, so the
+# wording users read is the wording the engine documents. Kept in sync by a test.
+RULES = {
+    "K0": "declared primary key",
+    "K1": "`keys` override from the caller",
+    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`",
+    "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
+    "R0": "declared foreign key",
+    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` where B has a single key",
+    "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
+    "R3": "all of B's composite key columns appear in A",
+    "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
+}
+
 _SPLIT = re.compile(r"[^a-z0-9]+")
 
 
