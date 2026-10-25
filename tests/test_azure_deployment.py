@@ -362,3 +362,15 @@ def test_min_replicas_and_fast_probes():
     startup = next(p for p in d.probes() if p["type"] == "Startup")
     assert startup["initialDelaySeconds"] <= 2 and startup["periodSeconds"] <= 2
     assert startup["initialDelaySeconds"] + startup["periodSeconds"] * startup["failureThreshold"] >= 60   # still patient
+
+
+def test_deploy_script_stays_runnable_on_cloud_shells_older_python():
+    """Cloud Shell's python3 can be older than CI's; the script is standard library only and must parse as 3.8 syntax."""
+    import ast
+    src = (d.ROOT / "deploy" / "azure_containerapp.py").read_text(encoding="utf-8")
+    ast.parse(src, feature_version=(3, 8))
+    tree = ast.parse(src)
+    imported = {n.names[0].name.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.Import)} | \
+               {n.module.split(".")[0] for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
+    import sys
+    assert imported <= set(sys.stdlib_module_names), imported - set(sys.stdlib_module_names)
