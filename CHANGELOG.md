@@ -5,6 +5,13 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Creating tools with a dry run first: `create_semantic_model` (SemanticModel item from the TMDL draft via
+  `POST /semanticModels` / `updateDefinition`), `create_views` (`CREATE OR ALTER VIEW` in a schema of its own on the SQL
+  analytics endpoint or warehouse: a wide view per fact table, one per hard-to-read relationship; never DROP), and
+  `create_data_agent` (a Fabric data agent through the staging REST API: instructions from the plan, the source as data
+  source with the tables selected, example question/T-SQL pairs, publish); `app_starter` (read-only) for an app on a
+  created API. A 401/403 from a create answers `kind: consent` naming the missing delegated permission; `docs/SCOPES.md`
+  lists permissions per tool and the `az` commands. The SQL connection gained a `statement` runner for DDL.
 - Five read-only consultant tools from the same plan, nothing created: `semantic_model_draft` (Power BI model in TMDL,
   Direct Lake on the SQL analytics endpoint, active/inactive relationships, README with decisions), `join_path`
   (shortest relationship chain with T-SQL, or the missing link), `data_dictionary` (Markdown hand-over with optional

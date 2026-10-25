@@ -72,7 +72,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, sixteen tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, twenty tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -86,7 +86,22 @@ same plan into the week's deliverables, all unit-tested and not yet run against 
   relationship is missing.
 - `data_dictionary` — hand-over documentation in Markdown with an empty Description column; `validate=true` adds counts.
 - `dbt_schema` — a dbt sources file with `unique`, `not_null` and `relationships` tests (`fabric_backend/dbt.py` cites the dbt docs).
-- `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change. The tool table with arguments
+- `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change.
+
+Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
+would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
+mocked, not yet run against a live workspace. The delegated permissions they need, against what the app has today, and
+the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
+
+- `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
+  `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (not granted today).
+- `create_views` — `CREATE OR ALTER VIEW` in a schema of its own (`krusgraph`) on the SQL analytics endpoint or
+  warehouse: a wide view per fact table and one per hard-to-read relationship; needs no new scope, only the SQL right to
+  create objects.
+- `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
+  data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
+- `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries and the portal checklist for an
+  app on a created API. The tool table with arguments
 and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
 Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a

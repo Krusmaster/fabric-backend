@@ -35,6 +35,8 @@ from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
+from . import views as _views, data_agent as _data_agent, app_starter as _app_starter
+from .deploy import create_semantic_model as _create_semantic_model
 
 try:
     from mcp.server.mcpserver import MCPServer, Context
@@ -56,7 +58,11 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
     "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
     "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
-    "plan_drift before re-running create_backend on an existing API, to see what would change. "
+    "plan_drift before re-running create_backend on an existing API, to see what would change. Creating more than the API: "
+    "create_semantic_model (a Power BI semantic model item from the TMDL draft), create_views (wide T-SQL views in a schema of "
+    "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — each "
+    "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details and queries "
+    "for an app on a created API. "
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
     "hint (the next step that fixes it)."))
@@ -212,7 +218,13 @@ def _execute_factory(item: dict, sql_token: str):
         cur.execute(sql)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    def statement(sql: str) -> None:                                       # DDL (CREATE OR ALTER VIEW): no rows, committed
+        cur = conn.cursor()
+        cur.execute(sql)
+        conn.commit()
     execute.close = conn.close
+    execute.statement = statement
     return execute
 
 
@@ -574,6 +586,153 @@ def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys:
     existing = _graphql_definition(workspace_id, api_id, headers)
     source_id, source_type = source_for(workspace_id, item, headers)
     return json.dumps(_drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables), indent=2)
+
+
+# ------------------------------------------------------------------ creating tools ---------
+# Same pattern as create_backend: create or update in place under a name, never delete, dry_run first.
+
+WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
+
+
+def _consent(result: dict, scope: str, where: str) -> dict | None:
+    """A 401/403 from a create call is almost always a missing delegated permission: say exactly which one."""
+    http = result.get("http")
+    if http in (401, 403):
+        return {"error": f"Fabric refused {where} (HTTP {http}): the token does not carry the delegated permission this needs.",
+                "kind": "consent",
+                "hint": f"The Entra app needs the delegated permission {scope} and an administrator's consent, then sign in again. "
+                        "docs/SCOPES.md in the repository lists the exact az commands."}
+    return None
+
+
+def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:
+    out["result"] = {k: v for k, v in result.items() if k != "body"}
+    if result.get("status") != "Succeeded":
+        consent = _consent(result, scope, where)
+        if consent:
+            out.update(consent)
+        elif result.get("http"):
+            out.update(classify_http(int(result["http"]), result.get("body", ""), where))
+        elif result.get("status") == "Timeout":
+            out.update({"error": f"Fabric is still working on {where}; the operation did not finish in time.", "kind": "timeout",
+                        "hint": "Check the item in the Fabric portal in a minute; running the tool again updates it in place."})
+        else:
+            err = result.get("error") if isinstance(result.get("error"), dict) else {}
+            out.update(classify_http(400, json.dumps(err) if err else "", where))
+    return json.dumps(out, indent=2, default=str)
+
+
+@mcp.tool(title="Create or update a Power BI semantic model (dry run by default)", annotations=WRITE)
+@safe
+def create_semantic_model(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                          confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
+                          ctx: Context = None) -> str:
+    """Create a Fabric SemanticModel item from the TMDL draft (Direct Lake on the source's SQL analytics endpoint), or
+    update the item of that name in place; never deletes. dry_run=true (the default) returns exactly what would be
+    sent — the parts and the REST call — without creating anything. Needs the delegated permission
+    SemanticModel.ReadWrite.All or Item.ReadWrite.All and Contributor on the workspace. After creation the model may
+    need a first refresh (framing) and, in the portal, a connection/credential for the endpoint."""
+    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    draft = _semantic_model.draft(p, {**info, "sql_db": info.get("item_name")}, name, tables)
+    body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
+    out = {"summary": draft["summary"], "dry_run": dry_run,
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels",
+                    "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels/{{id}}/updateDefinition",
+                    "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All", "parts": [x["path"] for x in body["definition"]["parts"]]},
+           "after_creation": ["Refresh the model once (framing) so its Direct Lake tables are processed; until then queries fall back or fail.",
+                              "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
+                              "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
+           "note": "Unit-tested against Microsoft's sample definitions; not yet created in a live workspace."}
+    if dry_run:
+        out["parts"] = draft["parts"]
+        out["rest"]["body_preview"] = {"displayName": body["displayName"], "definition": {"format": "TMDL", "parts": "<base64 parts, see parts>"}}
+        text = json.dumps(out, indent=2)
+        if len(text) > MAX_RESULT_CHARS:
+            out["omitted"] = sorted(k for k in draft["parts"] if k.startswith("definition/tables/"))
+            out["parts"] = {k: v for k, v in draft["parts"].items() if not k.startswith("definition/tables/")}
+            text = json.dumps(out, indent=2)
+        return text
+    result = _create_semantic_model(body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
+
+
+@mcp.tool(title="Create or alter T-SQL views in a schema of their own (dry run by default)", annotations=WRITE)
+@safe
+def create_views(workspace: str, source: str, schema: str = "dbo", views_schema: str = "krusgraph",
+                 keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, dry_run: bool = True,
+                 ctx: Context = None) -> str:
+    """Wide views over the plan in the source's SQL analytics endpoint or warehouse, only inside `views_schema`
+    (created if missing): one per fact table with its dimensions joined in, plus one per relationship that is hard
+    to read from the names. CREATE OR ALTER VIEW only — never DROP, never anything outside that schema; identifiers
+    come from the source's metadata. dry_run=true returns the SQL. Needs rights to create objects on the endpoint
+    (Contributor on the workspace is enough for a warehouse or a lakehouse's endpoint)."""
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = make_plan(s, keys, confirmed)
+        stmts = _views.statements(p, views_schema)
+        out = {"summary": p.summary(), "schema": views_schema, "dry_run": dry_run, "schema_sql": stmts["schema_sql"], "views": stmts["views"],
+               "note": "Views are allowed on a lakehouse SQL analytics endpoint, a warehouse and the endpoints of mirrored and SQL "
+                       "database items (read-only data, writable T-SQL objects). Unit-tested on SQLite and against the shop schema; "
+                       "not yet run against a live workspace."}
+        if dry_run or not stmts["views"]:
+            if not stmts["views"]:
+                out["note"] = "No fact table (two or more references out, none in) and no hard-to-read relationship in the plan: nothing to create. " + out["note"]
+            return json.dumps(out, indent=2)
+        run = getattr(execute, "statement", None) or execute
+        try:
+            out["applied"] = _views.apply(stmts, run)
+            out["result"] = {"status": "Succeeded", "views": len(stmts["views"]), "schema": views_schema}
+        except Exception as e:  # noqa: BLE001 — explained, with the fallback the docs leave
+            from .errors import explain
+            out.update(explain(e, f"creating views in schema {views_schema!r} on {source!r}"))
+            out["hint"] = (out.get("hint", "") + " If this endpoint refuses CREATE VIEW (a mirrored or SQL database endpoint, or missing rights), "
+                           "create the views in a warehouse in the same workspace instead: the SQL is unchanged.").strip()
+        return json.dumps(out, indent=2, default=str)
+    finally:
+        getattr(execute, "close", lambda: None)()
+
+
+@mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
+@safe
+def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                      confirmed: list[dict] | None = None, publish: bool = True, dry_run: bool = True, ctx: Context = None) -> str:
+    """A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its
+    instructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL
+    pairs, then published. Created through the public staging REST API; re-running updates the same agent, data
+    source and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls
+    to review. Needs the delegated permission Item.ReadWrite.All (or DataAgent.ReadWrite.All for the staging calls)."""
+    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    spec = _data_agent.draft(p, info, name, schema)
+    out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
+           "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
+           "note": "Unit-tested with the REST calls mocked; not yet created in a live workspace. The portal shows the agent's data source, "
+                   "selected tables and example queries under its staging configuration; publish makes them live."}
+    if dry_run:
+        return json.dumps(out, indent=2)
+    headers = _headers(ctx)
+    try:
+        result = _data_agent.apply(spec, info["workspace_id"], headers, publish=publish)
+    except _data_agent.RestError as e:
+        result = {"status": "Failed", "http": e.status, "body": e.body, "step": e.what}
+    return _finish_create(out, result, "Item.ReadWrite.All (or DataAgent.ReadWrite.All)", f"creating the data agent {name!r}")
+
+
+@mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
+@safe
+def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
+    """Everything needed to start an app on a created API for GraphQL item, read from its definition: a Lovable
+    prompt describing the data model and the main views, a connection description, five GraphQL queries that walk
+    the relationships, and the manual portal steps (introspection, permissions). Generates text only."""
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    api_id = _api_id(workspace_id, api, headers)
+    if not api_id:
+        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                           "hint": "list_sources lists the GraphQL APIs in a workspace; create_backend creates one."}, indent=2)
+    description = describe_definition(_graphql_definition(workspace_id, api_id, headers))
+    from .deploy import endpoint_url
+    return json.dumps(_app_starter.starter(description, endpoint_url(workspace_id, api_id), api, workspace_id), indent=2)
 
 
 def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:

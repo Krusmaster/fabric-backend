@@ -103,6 +103,27 @@ def active_relationships(plan: Plan, rels: list[Relationship]) -> tuple[list[Rel
     return active, inactive
 
 
+def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
+    """The body for POST /workspaces/{id}/semanticModels and the `definition` for updateDefinition: every
+    definition/*.tmdl part and definition.pbism as InlineBase64, plus the .platform part (type SemanticModel), the
+    layout of GetSemanticModelDefinitionDefault.json / CreateSemanticModel.json in fabric-rest-api-specs. The
+    README is not a definition part and is left out."""
+    import base64
+    import json
+
+    def b64(text: str) -> str:
+        return base64.b64encode(text.encode("utf-8")).decode()
+    platform = {"$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+                "metadata": {"type": "SemanticModel", "displayName": name},
+                "config": {"version": "2.0", "logicalId": str(uuid.uuid5(uuid.NAMESPACE_URL, "semanticmodel|" + name))}}
+    rest = [{"path": p, "payload": b64(c), "payloadType": "InlineBase64"} for p, c in sorted(parts.items()) if p != "README.generated.md"]
+    rest.append({"path": ".platform", "payload": b64(json.dumps(platform, indent=2)), "payloadType": "InlineBase64"})
+    body = {"displayName": name, "definition": {"format": "TMDL", "parts": rest}}
+    if description:
+        body["description"] = description
+    return body
+
+
 def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint (from server._ontology_inputs); returns
     {"parts": {path: content}, "summary": {...}}."""

@@ -196,6 +196,42 @@ def create_ontology(envelope: dict, workspace: str, token_provider=None, poll_se
     return {"status": "Succeeded", "mode": mode, "id": item_id}
 
 
+def create_item_with_definition(route: str, item_type: str, envelope: dict, workspace: str, token_provider=None,
+                                poll_seconds: int = 3, max_polls: int = 60, update_existing: bool = True) -> dict:
+    """POST /workspaces/{ws}/{route} with a definition, or POST .../{route}/{id}/updateDefinition when an item of that
+    name and type exists (the pattern of create_backend and create_ontology; fabric-rest-api-specs <item>/swagger.json).
+    Never deletes. Returns status + id + mode, or Failed with the HTTP status and body for the error layer."""
+    import requests
+    headers = _headers(token_provider)
+    existing = find_item(workspace, envelope["displayName"], headers, item_type) if update_existing else None
+    if existing:
+        r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{existing}/updateDefinition", headers=headers,
+                          json={"definition": envelope["definition"]}, timeout=60)
+        mode = "updated"
+    else:
+        r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/{route}", headers=headers, json=envelope, timeout=60)
+        mode = "created"
+    if r.status_code not in (200, 201, 202):
+        return {"status": "Failed", "mode": mode, "http": r.status_code, "body": r.text}
+    item_id = existing or _id_from(r)
+    op = r.headers.get("x-ms-operation-id")
+    if op:
+        s = wait_operation(op, headers, poll_seconds, max_polls)
+        if s.get("status") != "Succeeded":
+            s["mode"] = mode
+            return s
+        if not item_id:
+            item_id = find_item(workspace, envelope["displayName"], headers, item_type)
+    return {"status": "Succeeded", "mode": mode, "id": item_id}
+
+
+def create_semantic_model(envelope: dict, workspace: str, token_provider=None, poll_seconds: int = 3, max_polls: int = 60,
+                          update_existing: bool = True) -> dict:
+    """POST /semanticModels (Items_CreateSemanticModel) or updateDefinition (Items_UpdateSemanticModelDefinition);
+    delegated scope SemanticModel.ReadWrite.All or Item.ReadWrite.All, Contributor on the workspace."""
+    return create_item_with_definition("semanticModels", "SemanticModel", envelope, workspace, token_provider, poll_seconds, max_polls, update_existing)
+
+
 def _id_from(r) -> str | None:
     """POST /graphQLApis answers 202 with body `null` (issue #1, bug B); the id comes from the item list after the LRO."""
     try:
