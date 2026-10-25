@@ -3,7 +3,7 @@
   fabric-backend plan   columns.csv [--keys keys.csv] [--mermaid out.mmd] [--json plan.json]
   fabric-backend definition columns.csv --name MyApi --workspace WS --source-item ID [--source-type ...] --out def.json
   fabric-backend deploy def.json --workspace WS
-  fabric-backend rayfin columns.csv|metadata.json [--keys keys.csv] --connector inventory [--source-type SqlAnalyticsEndpoint] [--out .]
+  fabric-backend rayfin columns.csv|metadata.json [--keys keys.csv] --connector sales [--source-type SqlAnalyticsEndpoint] [--out .]
   fabric-backend create --workspace WS --source <lakehouse name|id> --name MyApi --odbc "<connection string>"
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with

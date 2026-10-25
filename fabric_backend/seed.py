@@ -14,16 +14,16 @@ import random
 from datetime import date, datetime, timedelta
 
 CUSTOMERS = [
-    (1, "Alpine Bikes", "CH"), (2, "Fjord Outdoor", "NO"), (3, "Lakeside Tea House", "SE"), (4, "Bergwerk Sport", "CH"),
-    (5, "Nordic Pedal", "SE"), (6, "Valais Velo", "CH"), (7, "Baltic Leaf", "FI"), (8, "Jura Cycles", "CH"),
-    (9, "Gotland Gear", "SE"), (10, "Engadin Tea Co", "CH"),
+    (1, "Harbour Bikes", "DE"), (2, "Fjord Outdoor", "NO"), (3, "Lakeside Tea House", "SE"), (4, "Elbe Sport", "DE"),
+    (5, "Nordic Pedal", "SE"), (6, "Rhine Velo", "DE"), (7, "Baltic Leaf", "FI"), (8, "Heath Cycles", "DE"),
+    (9, "Gotland Gear", "SE"), (10, "Moorland Tea Co", "DE"),
 ]
 CATEGORIES = [(1, "Bikes"), (2, "Tea"), (3, "Accessories")]
 PRODUCTS = [
     (1, "Trail bike", 1), (2, "City bike", 1), (3, "Green tea 100 g", 2), (4, "Black tea 100 g", 2),
     (5, "Rooibos 100 g", 2), (6, "Helmet", 3), (7, "Bottle", 3), (8, "Lights set", 3),
 ]
-CITIES = {"CH": ["Bern", "Zurich", "Sion", "Chur"], "SE": ["Uppsala", "Visby", "Lund"], "NO": ["Bergen"], "FI": ["Turku"]}
+CITIES = {"DE": ["Hamburg", "Leipzig", "Freiburg", "Kiel"], "SE": ["Uppsala", "Visby", "Lund"], "NO": ["Bergen"], "FI": ["Turku"]}
 
 
 def rows(seed_value: int = 42) -> dict[str, list[tuple]]:
