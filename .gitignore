@@ -7,3 +7,4 @@ build/
 .venv/
 .entra-secret
 deploy/krusgraph.json
+azure-result.json

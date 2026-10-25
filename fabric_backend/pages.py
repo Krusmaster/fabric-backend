@@ -26,8 +26,7 @@ HERE = Path(__file__).resolve().parent
 STATIC_DIR = HERE / "static"
 
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
-                ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8",
-                ".json": "application/json", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json"}
+                ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8", ".json": "application/json"}
 
 PAGES = {
     # path: (template, title, description, nav key)
@@ -49,18 +48,17 @@ PAGES = {
 
 
 def _vars() -> dict[str, str]:
+    from urllib.parse import quote
     url = os.environ.get("MCP_PUBLIC_URL", "https://example.com/mcp")
     domain = url.split("/")[2]
     product = os.environ.get("PRODUCT_NAME", "fabric-backend")
     orgnr = os.environ.get("COMPANY_ORGNR", "").strip()
     return {
-        "PRODUCT": product, "PRODUCT_LOWER": product.lower(),
+        "PRODUCT": product, "PRODUCT_LOWER": product.lower(), "PRODUCT_URL": quote(product),
         "DOMAIN": domain,
         "CONTACT": os.environ.get("CONTACT_EMAIL", "contact@" + domain),
-        "ORGNR": orgnr,
         "ORGNR_SUFFIX": (", org. nr " + orgnr) if orgnr else "",
         "ORGNR_PAREN": (" (org. nr " + orgnr + ")") if orgnr else "",
-        "DATE": os.environ.get("POLICY_DATE", "2026-10-25"),
         "MCP_URL": url,
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
@@ -69,9 +67,10 @@ def _vars() -> dict[str, str]:
     }
 
 
-def _fill(text: str) -> str:
+def _fill(text: str, escape: bool = True) -> str:
+    """{{VAR}} → value. HTML-escaped by default (templates); the Markdown pages escape during rendering instead."""
     v = _vars()
-    return re.sub(r"\{\{(\w+)\}\}", lambda m: v.get(m.group(1), m.group(0)), text)
+    return re.sub(r"\{\{(\w+)\}\}", lambda m: (html.escape(v[m.group(1)], quote=True) if escape else v[m.group(1)]) if m.group(1) in v else m.group(0), text)
 
 
 def _conditional(text: str, v: dict[str, str]) -> str:
@@ -92,7 +91,7 @@ def _md_to_html(md: str) -> str:
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:)[^)]+)\)", r'<a href="\2">\1</a>', s)
+        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
         s = re.sub(r"(?<![\"'>])(https://[^\s<]+[^\s<.,)])", r'<a href="\1">\1</a>', s)
         return s
 
@@ -142,22 +141,22 @@ def _md_to_html(md: str) -> str:
 # ------------------------------------------------------------------ files -----------------------------------------
 
 def _read(name: str) -> str:
-    for p in (HERE / "page_templates" / name, HERE.parent / "deploy" / name):
-        if p.exists():
-            return p.read_text(encoding="utf-8")
+    p = HERE / "page_templates" / name
+    if p.exists():
+        return p.read_text(encoding="utf-8")
     return resources.files("fabric_backend").joinpath("page_templates", name).read_text(encoding="utf-8")
 
 
 def static_file(path: str) -> Path | None:
     """Resolve a /static/<path> request to a file inside the package's static dir, or None."""
-    if not path or path.startswith("/") or path.endswith("/") or ".." in path.split("/"):
+    if not path or len(path) > 200 or path.startswith("/") or path.endswith("/") or ".." in path.split("/"):
         return None
-    p = (STATIC_DIR / path).resolve()
     try:
+        p = (STATIC_DIR / path).resolve()
         p.relative_to(STATIC_DIR.resolve())
-    except ValueError:
+        return p if p.is_file() and p.suffix in STATIC_TYPES else None
+    except (ValueError, OSError):              # outside the static dir, a null byte, an over-long name
         return None
-    return p if p.is_file() and p.suffix in STATIC_TYPES else None
 
 
 _ASSET_V: str | None = None
@@ -188,7 +187,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     links = [("product", "/", "Product"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Partners")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
-    t, d = html.escape(_fill(title)), html.escape(_fill(description), quote=True)
+    t, d = _fill(title), _fill(description)                       # _fill escapes
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -304,7 +303,7 @@ def sitemap_xml() -> str:
 def privacy_html() -> str:
     md = _read("PRIVACY.md")
     md = re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M)       # drop the template note
-    body = f'<article class="wrap prose">{_md_to_html(_fill(md))}</article>'
+    body = f'<article class="wrap prose">{_md_to_html(_fill(md, escape=False))}</article>'
     return _shell("Privacy policy — {{PRODUCT}}", "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only.",
                   body, page="privacy", nav="")
 
@@ -331,7 +330,7 @@ def _with_toc(rendered: str) -> str:
 
 def docs_html() -> str:
     md = _read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table())
-    body = f'<article class="wrap prose docs">{_with_toc(_md_to_html(_fill(md)))}</article>'
+    body = f'<article class="wrap prose docs">{_with_toc(_md_to_html(_fill(md, escape=False)))}</article>'
     return _shell("{{PRODUCT}} — docs", "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual.",
                   body, page="docs", nav="docs")
 

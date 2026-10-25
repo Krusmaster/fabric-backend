@@ -65,8 +65,8 @@
     });
     container.addEventListener('keydown', function (e) { if (e.key === 'Escape') { self.clearSelection(); } });
     this.layout();
-    var ro = window.ResizeObserver ? new ResizeObserver(function () { self.layout(true); }) : null;
-    if (ro) ro.observe(container); else window.addEventListener('resize', function () { self.layout(true); });
+    var ro = window.ResizeObserver ? new ResizeObserver(function () { self.layout(); }) : null;
+    if (ro) ro.observe(container); else window.addEventListener('resize', function () { self.layout(); });
   }
   Graph.prototype.on = function (ev, fn) { (this.handlers[ev] = this.handlers[ev] || []).push(fn); return this; };
   Graph.prototype.emit = function (ev, arg) { (this.handlers[ev] || []).forEach(function (f) { f(arg); }); };
@@ -95,7 +95,7 @@
   Graph.prototype.rect = function (name) {
     var n = this.nodes[name]; return { x: n.x, y: n.y, w: n.el.offsetWidth || 200, h: n.el.offsetHeight || 46 };
   };
-  Graph.prototype.layout = function (keepView) {
+  Graph.prototype.layout = function () {
     var self = this, cw = this.container.clientWidth;
     this.narrow = cw < 560;
     var map = this.narrow ? NARROW : (this.opts.layout || WIDE), fallback = 0;
@@ -209,13 +209,12 @@
     });
   }
   function suggestions(data) {
-    // The one column the engine leaves unlinked in the demo. The target is a *demo suggestion* (the seed stores address
-    // ids there), shown dashed; accepting it is the page-local equivalent of passing confirmed=[...] to the tools.
-    var map = { 'orders.ship_to_id': { target: 'addresses', target_cols: ['address_id'] } };
-    return (data.unlinked || []).map(function (u) {
-      var s = map[u.table + '.' + u.column]; if (!s) return null;
-      return { source: u.table, source_cols: [u.column], target: s.target, target_cols: s.target_cols, rule: 'suggested', note: u.note, field: s.target.replace(/s$/, ''), reverse: u.table + '_by_' + u.column };
-    }).filter(Boolean);
+    // Dashed wires: the demo hints that plan.json carries for columns the engine left unlinked. They are labelled as
+    // hints, not inference; accepting one is the page-local equivalent of passing confirmed=[...] to the tools.
+    return (data.suggestions || []).map(function (s) {
+      var u = (data.unlinked || []).filter(function (x) { return x.table === s.table && x.column === s.column; })[0];
+      return { source: s.table, source_cols: [s.column], target: s.target, target_cols: s.target_cols, rule: 'suggested', note: u ? u.note : '', why: s.why, origin: s.source };
+    });
   }
 
   /* ------------------------------------------------------------------ home */
@@ -292,7 +291,7 @@
         var r = sel.edge.rel, acc = g.accepted[sel.edge.id];
         panel.innerHTML = '<h2>Review this connection</h2><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'accepted' : 'not linked') + '</span>' +
           '<p><code>' + esc(r.source + '.' + r.source_cols[0]) + '</code>: ' + esc(r.note) + '. The engine leaves it unlinked and tells you so.</p>' +
-          '<dl><dt>Demo suggestion</dt><dd>' + esc(r.target + '.' + r.target_cols[0]) + '</dd><dt>Why</dt><dd class="muted" style="font-family:inherit">the synthetic seed stores address ids in this column</dd></dl>' +
+          '<dl><dt>Demo hint</dt><dd>' + esc(r.target + '.' + r.target_cols[0]) + '</dd><dt>Why</dt><dd class="muted" style="font-family:inherit">' + esc(r.why || '') + ' (' + esc(r.origin || 'demo hint') + ')</dd></dl>' +
           '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Review this connection.</strong><br>Your choice. Both are valid.' +
           '<div class="choice"><button type="button" class="btn sage small" id="acc">Accept</button><button type="button" class="btn ghost small" id="skip">Skip</button></div></div></div>' +
           '<p class="status">' + (acc ? 'Accepted here: drawn as a thin sage line. Accepted is not verified — nothing has checked the data. In the real tools this is <code>confirmed=[…]</code>.' : 'Skipped: the connection stays dashed. The choice lives only in this page.') + '</p>';
@@ -318,7 +317,7 @@
     function fromHash() { // deep links: /explore#table=orders, /explore#edge=orders.customer_id>customers
       var m = /^#(table|edge)=(.+)$/.exec(location.hash || '');
       if (!m) return;
-      var v = decodeURIComponent(m[2]);
+      var v; try { v = decodeURIComponent(m[2]); } catch (err) { return; }     // a mangled link is not an error
       if (m[1] === 'table') g.selectTable(v);
       else { var e = g.edges.filter(function (x) { return x.id === v; })[0]; if (e) g.select({ type: 'edge', edge: e, el: e.el }); }
     }

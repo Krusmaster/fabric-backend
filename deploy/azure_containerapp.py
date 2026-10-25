@@ -221,17 +221,20 @@ def dns_records(config, app, environment):
     return records
 
 
-def report(az, config, verify=True):
+def report(az, config, verify=True, first_run=True):
     app = az.run("containerapp", "show", "-n", config["app"], "-g", config["resource_group"])
     env = az.run("containerapp", "env", "show", "-n", config["environment"], "-g", config["resource_group"])
     url = "https://" + app["properties"]["configuration"]["ingress"]["fqdn"]
     if verify:
         verify_server(url, config)
     result = {"preview_url": url, "domain": config["domain"], "dns": dns_records(config, app, env)}
-    (ROOT / "azure-result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    print("\nSTART KLART – kopiera följande offentliga värden till chatten:")
-    print(json.dumps(result, indent=2))
-    print("\nNästa steg: lägg in DNS-posterna i Namecheap. Därefter kör du scriptet med --bind-domain.")
+    (ROOT / "azure-result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")   # git-ignored
+    if first_run:
+        print("\nSTART KLART – kopiera följande offentliga värden till chatten:")
+        print(json.dumps(result, indent=2))
+        print("\nNästa steg: lägg in DNS-posterna i Namecheap. Därefter kör du scriptet med --bind-domain.")
+    else:
+        print(f"\nUPPDATERING KLAR: {url} (domänen {config['domain']} är oförändrad).")
     return result
 
 
@@ -321,12 +324,13 @@ def update(az, config):
     if not registry:
         raise DeploymentError("Bildregistret finns inte. Kör en full körning (utan flagga) först.")
     assert_owned(registry, config["registry"])
+    az.run("extension", "add", "--name", "containerapp", "--upgrade", "--yes", raw=True)     # no interactive install prompt later
     image_uri = build_image(az, config, registry)
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
-    env_args = [f"{key}={value}" for key, value in plain_env(config).items()]
+    env_args = [f"{key}={value}" for key, value in plain_env(config).items()]     # KEY= sets an empty value; the server treats it as unset
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--set-env-vars", *env_args, raw=True)
-    report(az, config)
+    report(az, config, first_run=False)
 
 
 def bind_domains(az, config):

@@ -220,6 +220,8 @@ class FakeUpdateHosting:
     def run(self, *args, **kwargs):
         self.calls.append(args)
         assert "entra-secret" not in " ".join(map(str, args)) or args[:2] == ("containerapp", "show")
+        if args[0] == "extension":
+            return None
         if args[:2] == ("containerapp", "show"):
             return {"id": "app-id", "tags": dict(d.OWNER_TAG), "properties": {"configuration": {"ingress": {"fqdn": "app.test.azurecontainerapps.io",
                     "customDomains": [{"name": "krusgraph.com", "bindingType": "SniEnabled"}]}, "secrets": [{"name": "entra-secret"}]},
@@ -256,7 +258,9 @@ def test_update_builds_and_swaps_the_image_only(monkeypatch, tmp_path, capsys):
     assert not any(e.startswith("ENTRA_CLIENT_SECRET") for e in env)
     for untouched in (("ad",), ("containerapp", "hostname"), ("identity",), ("role",), ("group",), ("acr", "create"), ("containerapp", "create"), ("containerapp", "env", "create")):
         assert not any(c[:len(untouched)] == untouched for c in az.calls), untouched
-    assert "test-secret" not in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "test-secret" not in out and "UPPDATERING KLAR" in out and "bind-domain" not in out   # no first-run DNS instructions
+    assert (tmp_path / "azure-result.json").exists()
 
 
 def test_update_refuses_before_the_first_full_run(monkeypatch):

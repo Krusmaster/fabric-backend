@@ -61,7 +61,7 @@ Three tools: `list_tables`, `plan_backend` (keys, relationships, Mermaid — not
 `create_backend`. Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor. The agent
 can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
-## Remote server (Krusgraph: for Claude, Cursor, Lovable — and a connector directory submission)
+## Remote server (Krusgraph: for Claude today, other MCP clients once their sign-in redirects are registered)
 
 The hosted instance is `https://krusgraph.com/mcp`. Add it in Claude under Settings → Connectors → Add custom
 connector and sign in with your Microsoft work account; your Entra admin consents once
@@ -92,7 +92,7 @@ server in memory only; there is no database. The same process serves the website
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
-`--check`, `--update`; see `deploy/KRUSGRAPH-START.md`), the privacy policy, the synthetic demo dataset
+`--check`, `--update`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
 (`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`).
 
 ## How the relationships are inferred

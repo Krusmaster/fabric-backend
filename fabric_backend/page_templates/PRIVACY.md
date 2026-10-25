@@ -54,4 +54,4 @@ and there is no analytics or tracking.
 about you beyond the live console stream described above. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: {{DATE}}.
+**Changes.** We date every change to this page. Last updated: 2026-10-25.

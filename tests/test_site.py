@@ -41,8 +41,7 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
         assert not m.group(1).startswith(("http://", "https://", "//")), m.group(0)
     assert 'data-mascot-toggle' in html                                                  # the visible off switch
     # only descriptive use of Microsoft; no approval / listing / partner claims
-    for banned in ("approved by Microsoft", "certified by Microsoft.</p>".replace("certified by Microsoft.</p>", "Microsoft partner"),
-                   "listed in the Claude directory", "trusted by", "Microsoft Partner"):
+    for banned in ("approved by Microsoft", "Microsoft partner", "listed in the Claude directory", "trusted by", "Microsoft Partner"):
         assert banned.lower() not in html.lower().replace("not affiliated with, endorsed by or certified by microsoft", ""), banned
 
 
@@ -148,7 +147,8 @@ def test_static_files_are_served_with_cache_headers(client, path, ctype):
     assert client.get(path + "?v=abc").headers["cache-control"] == "public, max-age=31536000, immutable"
 
 
-@pytest.mark.parametrize("path", ["/static/../pyproject.toml", "/static/fonts/../../server.py", "/static/", "/static/nope.css", "/static/site.css/"])
+@pytest.mark.parametrize("path", ["/static/../pyproject.toml", "/static/fonts/../../server.py", "/static/", "/static/nope.css", "/static/site.css/",
+                                  "/static/%00", "/static/a%00b.css", "/static/" + "x" * 300 + ".css", "/static/" + "y" * 100 + "/" + "z" * 150 + ".css"])
 def test_static_refuses_traversal_and_unknown_files(client, path):
     assert client.get(path).status_code == 404
 
@@ -168,6 +168,8 @@ def test_demo_plan_is_the_real_engine_output(client):
     keys = {t["name"]: (t["key"], t["key_rule"]) for t in d["tables"]}
     assert keys["order_items"] == (["order_id", "line_no"], "K1") and keys["audit_log"] == ([], "K3")
     assert d["rules"] == infer.RULES
+    assert d["suggestions"] == [{"table": "orders", "column": "ship_to_id", "target": "addresses", "target_cols": ["address_id"],
+                                 "source": "demo hint, not inferred", "why": "the synthetic seed stores address ids in this column"}]
     # no real-looking data: the synthetic seed only
     text = json.dumps(d)
     assert "shop" in text and "@" not in text
@@ -179,6 +181,20 @@ def test_rule_wording_matches_the_engine_docstring():
         if code == "confirmed":
             continue
         assert text.split(" (")[0].split(" — ")[0] in doc, code
+
+
+def test_operator_values_are_escaped_in_templates(monkeypatch):
+    monkeypatch.setenv("PRODUCT_NAME", "A&B <x>")
+    monkeypatch.setenv("MCP_PUBLIC_URL", "https://krusgraph.test/mcp")
+    monkeypatch.setenv("CONTACT_EMAIL", 'me"@krusgraph.test')
+    with TestClient(server.build_app()) as c:
+        for path in ("/", "/support", "/docs", "/privacy"):
+            html = c.get(path).text
+            assert "<x>" not in html and "A&amp;B &lt;x&gt;" in html, path
+        for path in ("/", "/support"):                                                   # templates: attribute-safe too
+            html = c.get(path).text
+            assert 'me"@' not in html and "me&quot;@" in html, path
+        assert "subject=Supporting%20A%26B%20%3Cx%3E" in c.get("/support").text
 
 
 def test_mcp_and_oauth_routes_are_untouched(client):

@@ -12,7 +12,7 @@ connector is submitted, not accepted, until Anthropic says so.
 | # | Step | Who | Status |
 | --- | --- | --- | --- |
 | 1 | Product name + domain registered | Gustav | done: Krusgraph, krusgraph.com (not "Fabric …", a Microsoft trademark) |
-| 2 | Entra tenant for the AB, domain verified in it | Gustav | done (`MS=ms61673308` TXT record kept in DNS) |
+| 2 | Entra tenant for the AB, domain verified in it | Gustav | done (the Microsoft domain-verification TXT record stays in DNS) |
 | 3 | Azure subscription on the AB | Gustav | done; budget alert `TODO(Gustav)` |
 | 4 | Fabric trial in the AB's tenant, workspace `demo`, lakehouse `demo_lh` | Gustav | `TODO(Gustav)`: run `fabric_backend.seed.seed(spark, "shop")` in a notebook attached to `demo_lh` |
 | 5 | Entra app (multi-tenant, token v2, Application ID URI `https://krusgraph.com/mcp`, scope `user_impersonation`) | Gustav | done; `deploy/krusgraph.sh --check` verifies it and the six delegated permissions |

@@ -63,13 +63,13 @@ cp ~/krusgraph.json deploy/           # om Cloud Shell har tömts
 bash deploy/krusgraph.sh --check && bash deploy/krusgraph.sh --update
 ```
 
-`--update` bygger en ny bild med `az acr build`, uppdaterar container-appen till den nya bilden (ny revision) och sätter de icke-hemliga miljövariablerna (`PRODUCT_NAME`, `CONTACT_EMAIL`, `COMPANY_ORGNR`, `MCP_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `ENTRA_REQUIRED`) från konfigurationen. Det rör inte Entra, hemligheter, domäner eller certifikat och frågar aldrig efter hemligheten; appens befintliga hemlighetsreferens behålls. Efteråt kontrolleras startsidan, `/docs`, `/privacy`, OAuth-metadatan och MCP-inloggningskravet på Azure-adressen. Om appen inte finns ännu stoppar `--update` och hänvisar till den fulla körningen.
+`--update` bygger en ny bild med `az acr build`, uppdaterar container-appen till den nya bilden (ny revision) och sätter de icke-hemliga miljövariablerna (`PRODUCT_NAME`, `CONTACT_EMAIL`, `COMPANY_ORGNR`, `MCP_PUBLIC_URL`, `ENTRA_CLIENT_ID`, `ENTRA_REQUIRED`) från konfigurationen. Det rör inte Entra, hemligheter, domäner eller certifikat och frågar aldrig efter hemligheten; appens befintliga hemlighetsreferens behålls. Efteråt kontrolleras startsidan, `/explore`, `/start`, `/docs`, `/privacy`, demons plan-JSON, stilmallen, OAuth-metadatan och MCP-inloggningskravet på Azure-adressen. `azure-result.json` skrivs om (filen är git-ignorerad). Om appen inte finns ännu stoppar `--update` och hänvisar till den fulla körningen.
 
 ## Efter första körningen
 
 När scriptet visar **START KLART** har startsidan och MCP-inloggningskravet kontrollerats på Azure-adressen. Kopiera det offentliga resultatet med `preview_url` och `dns` till chatten. Resultatet sparas också i `azure-result.json`.
 
-I Namecheap ska den gamla URL-omdirigeringen på `@` ersättas med den utskrivna A-posten. `www` ska få det utskrivna CNAME-värdet i stället för parkeringssidan. Lägg till TXT-posterna `asuid` och `asuid.www`. Behåll domänverifieringen `MS=ms61673308` och e-postposterna.
+I Namecheap ska den gamla URL-omdirigeringen på `@` ersättas med den utskrivna A-posten. `www` ska få det utskrivna CNAME-värdet i stället för parkeringssidan. Lägg till TXT-posterna `asuid` och `asuid.www`. Behåll Microsofts domänverifiering (TXT-posten som börjar med `MS=`) och e-postposterna.
 
 När DNS-posterna är införda, kör:
 

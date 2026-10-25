@@ -42,6 +42,11 @@ def demo_plan() -> dict:
             if c.lower().endswith(("_id", "_key", "_no", "_nr")):
                 unlinked.append({"table": t.name, "column": c,
                                  "note": "no rule matched: not named after another table, and not another table's key name"})
+    # A hint for the one unlinked column, so the page can offer Accept/Skip. This is NOT engine output: the seed
+    # happens to store address ids in orders.ship_to_id. It is labelled as a demo hint wherever it is shown.
+    hints = [{"table": "orders", "column": "ship_to_id", "target": "addresses", "target_cols": ["address_id"],
+              "source": "demo hint, not inferred", "why": "the synthetic seed stores address ids in this column"}]
+    suggestions = [h for h in hints if any(u["table"] == h["table"] and u["column"] == h["column"] for u in unlinked)]
     return {
         "name": "shop", "label": "Illustrative demo", "engine": "fabric_backend.infer.plan",
         "keys_given": DEMO_KEYS, "summary": p.summary(), "rules": RULES,
@@ -49,7 +54,7 @@ def demo_plan() -> dict:
         "relationships": [{"source": r.source, "source_cols": r.source_cols, "target": r.target,
                            "target_cols": r.target_cols, "rule": r.rule, "field": r.field_name,
                            "reverse": r.reverse_name} for r in p.relationships],
-        "ambiguous": p.ambiguous, "keyless": p.keyless, "unlinked": unlinked, "mermaid": p.mermaid(),
+        "ambiguous": p.ambiguous, "keyless": p.keyless, "unlinked": unlinked, "suggestions": suggestions, "mermaid": p.mermaid(),
     }
 
 
