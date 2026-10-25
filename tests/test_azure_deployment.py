@@ -187,6 +187,28 @@ def test_server_check_covers_the_site_pages_and_the_demo(monkeypatch):
     assert ("POST", "/mcp") in seen
 
 
+def test_server_check_waits_for_the_new_revision(monkeypatch):
+    """Right after an update the old revision may still answer: /explore 404 at first, then 200."""
+    calls = {"explore": 0}
+
+    def fake(url, method="GET"):
+        if url.endswith("/healthz"):
+            return 200, {}, '{"ok":true,"auth":"entra"}'
+        if url.endswith("/explore"):
+            calls["explore"] += 1
+            return (404, {}, "") if calls["explore"] < 3 else (200, {}, "<html>")
+        if "oauth-protected-resource" in url:
+            return 200, {}, '{"resource":"https://%s/mcp"}' % CONFIG["domain"]
+        if method == "POST":
+            return 401, {"WWW-Authenticate": 'Bearer resource_metadata="https://%s/.well-known/oauth-protected-resource"' % CONFIG["domain"]}, ""
+        return 200, {}, "<html>"
+
+    monkeypatch.setattr(d, "http_response", fake)
+    monkeypatch.setattr(d.time, "sleep", lambda s: None)
+    d.verify_server("https://example.test", CONFIG)
+    assert calls["explore"] >= 3
+
+
 @pytest.mark.parametrize("flag,target", [("--update", "update"), ("--check", "check_entra"), ("--status", "report"), ("--bind-domain", "bind_domains")])
 def test_cli_flags_dispatch_without_touching_the_rest(monkeypatch, flag, target):
     called = []

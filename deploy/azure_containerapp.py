@@ -196,11 +196,27 @@ def verify_server(base_url, config):
         if attempt == 17:
             raise DeploymentError("Servern blev inte klar. Kontrollera revisionen i Azure Container Apps och kör om efter rättning.")
         time.sleep(10)
-    for path in ("/", "/explore", "/start", "/docs", "/privacy", "/demo/plan.json", "/static/site.css",
-                 "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"):
+    # Right after an update the old revision can still answer /healthz for a while; wait until the new pages
+    # are served instead of failing on the first 404.
+    paths = ("/", "/explore", "/start", "/docs", "/privacy", "/demo/plan.json", "/static/site.css",
+             "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp")
+    for attempt in range(18):
+        failing = None
+        for path in paths:
+            try:
+                status, _, body = http_response(base_url + path)
+            except (URLError, TimeoutError):
+                status = 0
+            if status != 200:
+                failing = (path, status)
+                break
+        if failing is None:
+            break
+        if attempt == 17:
+            raise DeploymentError(f"Kontrollen av {failing[0]} gav HTTP {failing[1]}.")
+        time.sleep(10)
+    for path in paths:
         status, _, body = http_response(base_url + path)
-        if status != 200:
-            raise DeploymentError(f"Kontrollen av {path} gav HTTP {status}.")
         if "oauth-protected-resource" in path and json.loads(body).get("resource") != f"https://{config['domain']}/mcp":
             raise DeploymentError("Serverns OAuth-adress stämmer inte med domänen.")
     status, headers, _ = http_response(base_url + "/mcp", "POST")
