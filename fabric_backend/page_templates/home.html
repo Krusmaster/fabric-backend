@@ -8,6 +8,7 @@
       <a class="btn primary" href="/explore">Explore the demo</a>
       <a class="btn secondary" href="#how">How it works</a>
     </div>
+    <p class="sources-line"><b>Works with</b> lakehouses, warehouses and Fabric SQL databases, and with data mirrored into Fabric from Snowflake, Azure SQL, Cosmos DB, SAP and Databricks catalogs.</p>
   </div>
   <div class="wrap wide">
     <div class="graph-panel hero-panel">
@@ -18,6 +19,7 @@
       <div id="home-graph" class="graph"></div>
       <p class="legend"><span><i></i> connection, with its rule</span><span><b class="mono">1 — many</b> cardinality</span><span><i class="sug"></i> suggested, to review</span><span><i class="box"></i> no key: query only</span></p>
       <p id="home-why" class="why-line" aria-live="polite">Point at a table to see its connections. Select one, or a wire, to read the rule that made it.</p>
+      <p class="muted tiny graph-more">Scroll inside the graph, or <a href="/explore">open the full demo</a>.</p>
       <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
     </div>
   </div>
@@ -25,7 +27,7 @@
 
 <section class="wrap" id="how">
   <h2>Three small steps</h2>
-  <p class="intro">It lists the sources in a lakehouse, warehouse or SQL database, plans the connections, then creates the API for GraphQL item in your workspace, or just answers questions about the plan. Nothing is created until you ask for it, and asking again updates what is there instead of making a copy.</p>
+  <p class="intro">It lists the sources in a lakehouse, warehouse, SQL database or mirrored database, plans the connections, then creates the API for GraphQL item in your workspace, or just answers questions about the plan. Nothing is created until you ask for it, and asking again updates what is there instead of making a copy.</p>
   <ol class="steps">
     <li><span class="step-n coral">1</span><h3>Discover</h3><p>Point it at a workspace. It lists the sources and reads table and column names, nothing else.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
     <li><span class="step-n sage">2</span><h3>Understand</h3><p>Every key and connection comes with the rule that produced it, K0–K3 and R0–R3. Ambiguous columns are reported, never guessed.</p><span class="ex">orders.customer_id → customers · R1</span></li>

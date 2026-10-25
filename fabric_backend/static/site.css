@@ -152,6 +152,12 @@ section{padding-top:40px;padding-bottom:40px}
 /* graph panel (home, explore, workspace): the one panel with a soft shadow */
 .graph-panel{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--line);padding:14px;position:relative}
 @media (max-width:719px){.graph-panel{padding:10px;border-radius:18px}}
+/* On a phone the home graph stacks every table in one lane; cap it so the landing page keeps its rhythm and let it scroll inside. */
+.graph-more{display:none}
+@media (max-width:719px){.hero-panel .graph:not(.zoomed){max-height:68vh;overflow:auto;touch-action:pan-y}.hero-panel .graph-more{display:block;margin:6px 6px 0}
+  .hero-panel .graph:not(.zoomed)::after{content:"";display:block;position:sticky;bottom:0;height:36px;margin-top:-36px;background:linear-gradient(to bottom,transparent,var(--card-2));pointer-events:none}}
+.sources-line{margin:14px auto 0;max-width:60ch;font-size:14px;color:var(--muted);text-align:center}
+.sources-line b{font-weight:600;color:var(--ink)}
 .graph-panel .panel-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;padding:4px 6px 12px}
 .graph-panel .panel-head h2,.graph-panel .panel-head h3{margin:0;font-size:20px}
 .graph{position:relative;overflow:hidden;background:var(--card-2);border-radius:16px;min-height:120px;touch-action:pan-y}
