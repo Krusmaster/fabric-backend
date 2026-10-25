@@ -120,23 +120,28 @@ def source_tag(root=ROOT):
     return "src-" + digest.hexdigest()[:16]
 
 
-def plain_env(config):
-    """The non-secret environment of the container, from the config. Both the full run and --update set these."""
-    return {
+def plain_env(config, build=None):
+    """The non-secret environment of the container, from the config. Both the full run and --update set these.
+    `build` is the source tag of the image being deployed; the server reports it on /healthz so the check below
+    can tell the new revision from the old one."""
+    env = {
         "MCP_PUBLIC_URL": f"https://{config['domain']}/mcp", "ENTRA_CLIENT_ID": config["client_id"],
         "ENTRA_REQUIRED": "true", "PRODUCT_NAME": config["product_name"],
         "CONTACT_EMAIL": config["contact_email"], "COMPANY_ORGNR": (config.get("company_orgnr") or "").strip(),
     }
+    if build:
+        env["KRUSGRAPH_BUILD"] = build
+    return env
 
 
-def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None):
+def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None, build=None):
     ingress = {"external": True, "targetPort": 8000, "transport": "http", "allowInsecure": False}
     if existing:
         old_ingress = existing["properties"]["configuration"].get("ingress") or {}
         for name in ("customDomains", "ipSecurityRestrictions", "corsPolicy"):
             if name in old_ingress:
                 ingress[name] = old_ingress[name]
-    env = [{"name": key, "value": value} for key, value in plain_env(config).items()]
+    env = [{"name": key, "value": value} for key, value in plain_env(config, build).items()]
     env.append({"name": "ENTRA_CLIENT_SECRET", "secretRef": "entra-secret"})
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
@@ -183,17 +188,26 @@ def http_response(url, method="GET"):
         return response.status, response.headers, response.read().decode("utf-8")
 
 
-def verify_server(base_url, config):
+def verify_server(base_url, config, build=None):
+    """The deployed server answers as the Entra-protected Krusgraph. With `build` (the source tag just deployed),
+    the check also waits until /healthz reports that build, so an old revision still answering cannot pass."""
+    served = None
     for attempt in range(18):
         try:
             status, _, body = http_response(base_url + "/healthz")
             if status == 200:
-                if json.loads(body) != {"ok": True, "auth": "entra"}:
+                health = json.loads(body)
+                if not isinstance(health, dict) or health.get("ok") is not True or health.get("auth") != "entra":
                     raise DeploymentError("Servern svarar men Microsoft-inloggningen är inte aktiverad.")
-                break
+                served = health.get("build")
+                if not build or served == build:
+                    break
         except (URLError, TimeoutError, ValueError):
             pass
         if attempt == 17:
+            if build and served is not None and served != build:
+                raise DeploymentError(f"Servern svarar fortfarande med den gamla bilden ({served or 'utan byggmärke'}, väntade {build}). "
+                                      "Kontrollera att den nya revisionen startade i Azure Container Apps.")
             raise DeploymentError("Servern blev inte klar. Kontrollera revisionen i Azure Container Apps och kör om efter rättning.")
         time.sleep(10)
     # Right after an update the old revision can still answer /healthz for a while; wait until the new pages
@@ -237,20 +251,23 @@ def dns_records(config, app, environment):
     return records
 
 
-def report(az, config, verify=True, first_run=True):
+def report(az, config, verify=True, first_run=True, build=None):
     app = az.run("containerapp", "show", "-n", config["app"], "-g", config["resource_group"])
     env = az.run("containerapp", "env", "show", "-n", config["environment"], "-g", config["resource_group"])
     url = "https://" + app["properties"]["configuration"]["ingress"]["fqdn"]
     if verify:
-        verify_server(url, config)
+        verify_server(url, config, build)
     result = {"preview_url": url, "domain": config["domain"], "dns": dns_records(config, app, env)}
+    if build:
+        result["build"] = build
     (ROOT / "azure-result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")   # git-ignored
     if first_run:
         print("\nSTART KLART – kopiera följande offentliga värden till chatten:")
         print(json.dumps(result, indent=2))
         print("\nNästa steg: lägg in DNS-posterna i Namecheap. Därefter kör du scriptet med --bind-domain.")
     else:
-        print(f"\nKLART: {url} svarar; domänen {config['domain']} är oförändrad. DNS-värdena finns i azure-result.json.")
+        served = f" med bygget {build}" if build else ""
+        print(f"\nKLART: {url} svarar{served}; domänen {config['domain']} är oförändrad. DNS-värdena finns i azure-result.json.")
     return result
 
 
@@ -302,7 +319,8 @@ def deploy(az, config):
         az.run("role", "assignment", "create", "--name", str(uuid.uuid5(uuid.NAMESPACE_URL, registry["id"] + identity["principalId"] + "AcrPull")),
                "--assignee-object-id", identity["principalId"], "--assignee-principal-type", "ServicePrincipal",
                "--role", "AcrPull", "--scope", registry["id"], raw=True)
-    image_uri = build_image(az, config, registry)
+    tag = source_tag()
+    image_uri = build_image(az, config, registry, tag)
     environment = az.run("containerapp", "env", "show", "--name", config["environment"], "--resource-group", rg, missing_ok=True)
     assert_owned(environment, config["environment"])
     if not environment:
@@ -312,16 +330,15 @@ def deploy(az, config):
     existing = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
     assert_owned(existing, config["app"])
     print("Startar hemsidan och MCP-servern…", flush=True)
-    manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing)
+    manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing, tag)
     apply_manifest(az, config, manifest, bool(existing))
     manifest["properties"]["configuration"]["secrets"][0].pop("value")
-    report(az, config)
+    report(az, config, build=tag)
 
 
-def build_image(az, config, registry):
-    """`az acr build` of this checkout; returns the immutable image reference (by digest)."""
-    print("Bygger servern i Azure. Detta kan ta flera minuter…", flush=True)
-    tag = source_tag()
+def build_image(az, config, registry, tag):
+    """`az acr build` of this checkout as krusgraph:<tag>; returns the immutable image reference (by digest)."""
+    print(f"Bygger servern i Azure ({tag}). Detta kan ta flera minuter…", flush=True)
     az.run("acr", "build", "--registry", config["registry"], "--image", f"krusgraph:{tag}",
            "--file", str(ROOT / "Dockerfile"), "--platform", "linux/amd64", str(ROOT), raw=True)
     image = az.run("acr", "repository", "show", "--name", config["registry"], "--image", f"krusgraph:{tag}")
@@ -341,12 +358,13 @@ def update(az, config):
         raise DeploymentError("Bildregistret finns inte. Kör en full körning (utan flagga) först.")
     assert_owned(registry, config["registry"])
     az.run("extension", "add", "--name", "containerapp", "--upgrade", "--yes", raw=True)     # no interactive install prompt later
-    image_uri = build_image(az, config, registry)
+    tag = source_tag()
+    image_uri = build_image(az, config, registry, tag)
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
-    env_args = [f"{key}={value}" for key, value in plain_env(config).items()]     # KEY= sets an empty value; the server treats it as unset
+    env_args = [f"{key}={value}" for key, value in plain_env(config, tag).items()]     # KEY= sets an empty value; the server treats it as unset
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--set-env-vars", *env_args, raw=True)
-    report(az, config, first_run=False)
+    report(az, config, first_run=False, build=tag)
 
 
 def bind_domains(az, config):

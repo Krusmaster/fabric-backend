@@ -199,8 +199,11 @@ def test_operator_values_are_escaped_in_templates(monkeypatch):
         assert "subject=Supporting%20A%26B%20%3Cx%3E" in c.get("/support").text
 
 
-def test_mcp_and_oauth_routes_are_untouched(client):
+def test_mcp_and_oauth_routes_are_untouched(client, monkeypatch):
     assert client.get("/healthz").json()["ok"] is True
+    assert "build" not in client.get("/healthz").json()
+    monkeypatch.setenv("KRUSGRAPH_BUILD", "src-0123456789abcdef")
+    assert client.get("/healthz").json()["build"] == "src-0123456789abcdef"
     r = client.post("/mcp", json={})
     assert r.status_code in (400, 401, 406)                                              # the MCP endpoint still answers (bearer mode: no 401 gate)
 

@@ -322,7 +322,10 @@ def build_app(host: str = "0.0.0.0"):
     cfg = auth.entra
 
     async def health(_request):
-        return JSONResponse({"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"})
+        body = {"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"}
+        if os.environ.get("KRUSGRAPH_BUILD"):      # the source tag the deploy script built; lets it tell revisions apart
+            body["build"] = os.environ["KRUSGRAPH_BUILD"]
+        return JSONResponse(body)
     app.router.routes.append(Route("/healthz", health))
 
     from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse

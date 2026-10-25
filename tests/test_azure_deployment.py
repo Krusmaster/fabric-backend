@@ -147,7 +147,7 @@ def test_deploy_can_be_rerun_and_reports_apex_dns_without_secret(monkeypatch, tm
     monkeypatch.setattr(d, "ROOT", tmp_path)
     monkeypatch.setattr(d, "check_entra", lambda *args: None)
     monkeypatch.setattr(d, "source_tag", lambda: "src-test")
-    monkeypatch.setattr(d, "verify_server", lambda *args: None)
+    monkeypatch.setattr(d, "verify_server", lambda *args, **kwargs: None)
     monkeypatch.setenv("ENTRA_CLIENT_SECRET", "test-secret")
     d.deploy(az, CONFIG)
     d.deploy(az, CONFIG)
@@ -209,6 +209,42 @@ def test_server_check_waits_for_the_new_revision(monkeypatch):
     assert calls["explore"] >= 3
 
 
+def test_server_check_waits_for_the_build_it_deployed(monkeypatch):
+    """After an update the old revision answers /healthz first (old build tag, or none); the check waits for the new tag."""
+    answers = iter(['{"ok":true,"auth":"entra"}', '{"ok":true,"auth":"entra","build":"src-old"}',
+                    '{"ok":true,"auth":"entra","build":"src-new"}'])
+    seen = {"healthz": 0}
+
+    def fake(url, method="GET"):
+        if url.endswith("/healthz"):
+            seen["healthz"] += 1
+            return 200, {}, next(answers, '{"ok":true,"auth":"entra","build":"src-new"}')
+        if "oauth-protected-resource" in url:
+            return 200, {}, '{"resource":"https://%s/mcp"}' % CONFIG["domain"]
+        if method == "POST":
+            return 401, {"WWW-Authenticate": 'Bearer resource_metadata="https://%s/.well-known/oauth-protected-resource"' % CONFIG["domain"]}, ""
+        return 200, {}, "<html>"
+
+    monkeypatch.setattr(d, "http_response", fake)
+    monkeypatch.setattr(d.time, "sleep", lambda s: None)
+    d.verify_server("https://example.test", CONFIG, "src-new")
+    assert seen["healthz"] == 3
+
+
+def test_server_check_fails_when_the_old_build_keeps_answering(monkeypatch):
+    monkeypatch.setattr(d, "http_response", lambda *args: (200, {}, '{"ok":true,"auth":"entra","build":"src-old"}'))
+    monkeypatch.setattr(d.time, "sleep", lambda s: None)
+    with pytest.raises(d.DeploymentError, match="src-old.*src-new"):
+        d.verify_server("https://example.test", CONFIG, "src-new")
+    # Without a build to wait for (--status, --bind-domain) any healthy build passes, and so does a server without a tag.
+    monkeypatch.setattr(d, "http_response", lambda url, method="GET": (
+        (200, {}, '{"ok":true,"auth":"entra"}') if url.endswith("/healthz")
+        else (200, {}, '{"resource":"https://%s/mcp"}' % CONFIG["domain"]) if "oauth-protected-resource" in url
+        else (401, {"WWW-Authenticate": 'Bearer resource_metadata="https://%s/.well-known/oauth-protected-resource"' % CONFIG["domain"]}, "") if method == "POST"
+        else (200, {}, "<html>")))
+    d.verify_server("https://example.test", CONFIG)
+
+
 @pytest.mark.parametrize("flag,target", [("--update", "update"), ("--check", "check_entra"), ("--status", "report"), ("--bind-domain", "bind_domains")])
 def test_cli_flags_dispatch_without_touching_the_rest(monkeypatch, flag, target):
     called = []
@@ -265,7 +301,8 @@ def test_update_builds_and_swaps_the_image_only(monkeypatch, tmp_path, capsys):
     az = FakeUpdateHosting()
     monkeypatch.setattr(d, "ROOT", tmp_path)
     monkeypatch.setattr(d, "source_tag", lambda: "src-new")
-    monkeypatch.setattr(d, "verify_server", lambda *args: None)
+    verified = []
+    monkeypatch.setattr(d, "verify_server", lambda url, config, build=None: verified.append(build))
     monkeypatch.setattr(d.getpass, "getpass", lambda *a, **k: pytest.fail("--update must never ask for the secret"))
     monkeypatch.delenv("ENTRA_CLIENT_SECRET", raising=False)
     config = CONFIG | {"company_orgnr": "123456-7890"}
@@ -277,12 +314,14 @@ def test_update_builds_and_swaps_the_image_only(monkeypatch, tmp_path, capsys):
     assert "--yaml" not in update_call and "--secrets" not in " ".join(update_call)
     env = update_call[update_call.index("--set-env-vars") + 1:]
     assert "COMPANY_ORGNR=123456-7890" in env and "PRODUCT_NAME=Krusgraph" in env and f"MCP_PUBLIC_URL=https://{CONFIG['domain']}/mcp" in env
+    assert "KRUSGRAPH_BUILD=src-new" in env and "krusgraph:src-new" in next(c for c in az.calls if c[:2] == ("acr", "build"))
     assert not any(e.startswith("ENTRA_CLIENT_SECRET") for e in env)
     for untouched in (("ad",), ("containerapp", "hostname"), ("identity",), ("role",), ("group",), ("acr", "create"), ("containerapp", "create"), ("containerapp", "env", "create")):
         assert not any(c[:len(untouched)] == untouched for c in az.calls), untouched
     out = capsys.readouterr().out
     assert "test-secret" not in out and "KLART:" in out and "bind-domain" not in out   # no first-run DNS instructions
-    assert (tmp_path / "azure-result.json").exists()
+    assert verified == ["src-new"]           # the check waited for the build it just deployed, not any healthy one
+    assert json.loads((tmp_path / "azure-result.json").read_text())["build"] == "src-new" and "src-new" in out
 
 
 def test_update_refuses_before_the_first_full_run(monkeypatch):
@@ -293,8 +332,9 @@ def test_update_refuses_before_the_first_full_run(monkeypatch):
 
 
 def test_company_orgnr_reaches_both_the_manifest_and_update():
-    manifest = d.make_manifest(CONFIG | {"company_orgnr": " 123456-7890 "}, "env", "identity", "registry", "image", "s")
+    manifest = d.make_manifest(CONFIG | {"company_orgnr": " 123456-7890 "}, "env", "identity", "registry", "image", "s", build="src-abc")
     env = {e["name"]: e.get("value") for e in manifest["properties"]["template"]["containers"][0]["env"]}
-    assert env["COMPANY_ORGNR"] == "123456-7890"
+    assert env["COMPANY_ORGNR"] == "123456-7890" and env["KRUSGRAPH_BUILD"] == "src-abc"
+    assert "KRUSGRAPH_BUILD" not in d.plain_env(CONFIG)
     assert d.plain_env(CONFIG | {"company_orgnr": None})["COMPANY_ORGNR"] == ""
     assert d.plain_env(CONFIG)["COMPANY_ORGNR"] == "" or d.plain_env(CONFIG)["COMPANY_ORGNR"] == CONFIG.get("company_orgnr", "")

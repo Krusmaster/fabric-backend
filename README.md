@@ -90,7 +90,7 @@ Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `
 `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata and requested query results pass through the
 server in memory only; there is no database. The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
-`PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `PARTNER_SIGNIN=1` shows a
+`PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
 `--check`, `--update`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
 (`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`). Tool failures come back
