@@ -171,6 +171,13 @@ def rayfin_files(plan: Plan, connector: str = "data", source_type: str = "SqlAna
     if source_type not in CONNECTOR_TYPES:
         raise ValueError(f"source_type must be one of {list(CONNECTOR_TYPES)} (semantic models are DAX, not entities)")
     wanted = {x.lower() for x in tables} if tables else None
+    if wanted:
+        # Only relationships between generated tables: an @one/@many to a class that is not generated would be an
+        # import of a file that does not exist, and the Rayfin project would not build.
+        import copy
+        plan = copy.copy(plan)
+        plan.relationships = [r for r in plan.relationships
+                              if r.source.lower() in wanted and r.target.lower() in wanted]
     files: dict[str, str] = {}
     classes: list[str] = []
     for t in plan.schema:

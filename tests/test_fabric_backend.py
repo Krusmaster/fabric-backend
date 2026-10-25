@@ -367,3 +367,19 @@ def test_keys_and_confirmed_that_name_missing_tables_or_columns_are_rejected_up_
         plan(s, None, [{"source": "orders"}])
     with pytest.raises(PlanInputError, match="keys: table 'orders' has an empty column list"):
         plan(s, {"orders": []}, None)
+
+
+def test_rayfin_table_filter_drops_relationships_to_tables_not_generated():
+    from fabric_backend.seed import SCHEMAS
+    from fabric_backend.schema import Schema
+    from fabric_backend.infer import plan as make_plan
+    from fabric_backend.rayfin import rayfin_files
+    cols = [("shop", t, c.split(" ")[0], c.split(" ")[1].lower(), i + 1)
+            for t, s in SCHEMAS.items() for i, c in enumerate(s.split(", "))]
+    p = make_plan(Schema.from_information_schema(cols, schema="shop"), keys={"order_items": ["order_id", "line_no"]})
+    files = rayfin_files(p, tables=["orders", "customers"])
+    customers = files["rayfin/connectors/data/Customers.ts"]
+    assert "Addresses" not in customers and "AuditLog" not in customers and "OrderItems" not in files["rayfin/connectors/data/Orders.ts"]
+    assert "@many(() => Orders" in customers and "@one(() => Customers" in files["rayfin/connectors/data/Orders.ts"]
+    assert "2 entities, 1 relationships" in files["rayfin/connectors/data/README.generated.md"]
+    assert len(p.relationships) == 6                                   # the caller's plan is not changed

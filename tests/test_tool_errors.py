@@ -281,3 +281,12 @@ def test_server_instructions_tell_the_client_how_errors_look():
         payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if "data: " in body else r.json()
         text = payload["result"]["instructions"]
         assert "hint" in text and "kind" in text and "not_found" in text
+
+
+def test_mutation_refusal_has_the_same_error_shape():
+    import json as _json
+    from fabric_backend import server
+    out = _json.loads(server.query_graphql.__wrapped__("ws", "api", "mutation { deleteCustomers(customer_id: 1) { result } }")
+                      if hasattr(server.query_graphql, "__wrapped__")
+                      else server.query_graphql("ws", "api", "mutation { deleteCustomers(customer_id: 1) { result } }"))
+    assert out["kind"] == "read_only" and out["hint"] and "only reads" in out["error"]

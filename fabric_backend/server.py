@@ -420,7 +420,10 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
         return json.dumps({"error": "invalid GraphQL query"})
     operations = [node for node in document.definitions if isinstance(node, OperationDefinitionNode)]
     if any(node.operation != OperationType.QUERY for node in operations):
-        return json.dumps({"error": "mutations and subscriptions are not allowed through this tool"})
+        return json.dumps({"error": "Mutations and subscriptions are not allowed through this tool; it only reads.",
+                           "kind": "read_only",
+                           "hint": "Ask a question instead (a query). Changes to data belong in Fabric itself or in an app "
+                                   "that uses the API with its own permissions."})
     if len(operations) != 1 or any(not isinstance(node, (OperationDefinitionNode, FragmentDefinitionNode))
                                    for node in document.definitions):
         return json.dumps({"error": "provide exactly one GraphQL query operation"})
