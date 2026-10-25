@@ -1,0 +1,18 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "com.krusgraph/krusgraph",
+  "title": "Krusgraph",
+  "description": "Turn Microsoft Fabric tables into an explainable graph and a GraphQL API.",
+  "version": "0.2.0",
+  "websiteUrl": "https://krusgraph.com/",
+  "repository": {
+    "url": "https://github.com/Krusmaster/fabric-backend",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://krusgraph.com/mcp"
+    }
+  ]
+}

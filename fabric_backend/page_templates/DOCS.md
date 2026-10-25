@@ -60,6 +60,16 @@ Fabric has no API for these yet, and the connector tells you when they are neede
 1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
 2. **Permissions** on the item for other apps or service principals that should query it.
 
+## Use with Lovable
+
+Lovable's Microsoft Fabric connector reads an existing API for GraphQL item. {{PRODUCT}} creates that item; after the
+two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} with Lovable](/lovable).
+
+## For agents
+
+A Markdown version of these docs is at [/docs.md](/docs.md), and [/llms.txt](/llms.txt) lists the rest. MCP clients
+can read the server's identity and transport from its Server Card at `{{MCP_URL}}/server-card`.
+
 ## Support
 
 {{CONTACT}} · [Support the work](/support) · Source (MIT): https://github.com/Krusmaster/fabric-backend

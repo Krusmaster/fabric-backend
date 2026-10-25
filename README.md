@@ -214,6 +214,11 @@ The website pages are templates in `fabric_backend/page_templates/`, the stylesh
 `fabric_backend.seed.schema()`, so the demo shows what the engine says. `/mascots` is an unlinked, `noindex`
 review page for the three figures. Screenshots used for the visual review are in `docs/screenshots/`.
 
+For search engines and agents (`fabric_backend/discovery.py`, all public): `/sitemap.xml`, `/robots.txt`, `/llms.txt`
+with Markdown versions of the pages (`/docs.md`, `/start.md`, `/privacy.md`, `/lovable.md`), an MCP Server Card at
+`/mcp/server-card` and an AI Catalog at `/.well-known/ai-catalog.json`. The auth guard covers exactly `/mcp`.
+`server.json` is the MCP Registry entry; publishing it is described in `docs/PUBLISHING.md` (not done).
+
 ## Works on
 
 | | |

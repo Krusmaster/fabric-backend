@@ -4,7 +4,9 @@
     /start             get started          /support            support
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
+    /lovable           using the created API with Lovable's Fabric connector
     /mascots           mascot review page (noindex, unlinked)
+    /docs.md, /privacy.md, /start.md, /lovable.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
@@ -183,12 +185,20 @@ _LOGO = """<svg class="logo-mark" viewBox="0 0 40 40" aria-hidden="true" focusab
 _GITHUB_ICON = """<svg viewBox="0 0 16 16" width="20" height="20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>"""
 
 
-def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "") -> str:
+def site_url() -> str:
+    """The public origin, e.g. https://krusgraph.com, taken from MCP_PUBLIC_URL."""
+    return "https://" + _vars()["DOMAIN"]
+
+
+def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
+           path: str = "") -> str:
     v = _vars()
     links = [("product", "/", "Product"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Partners")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = html.escape(_fill(title)), html.escape(_fill(description), quote=True)
+    canonical = html.escape(site_url() + (path or "/"), quote=True)
+    og_image = f"https://{v['DOMAIN']}/static/og.png"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -197,12 +207,20 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <title>{t}</title>
 <meta name="description" content="{d}">
 {robots}
+<link rel="canonical" href="{canonical}">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="{html.escape(v['PRODUCT'])}">
+<meta property="og:url" content="{canonical}">
 <meta property="og:title" content="{t}">
 <meta property="og:description" content="{d}">
-<meta property="og:image" content="https://{v['DOMAIN']}/static/og.png">
+<meta property="og:image" content="{og_image}">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: Microsoft Fabric, connected.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{t}">
+<meta name="twitter:description" content="{d}">
+<meta name="twitter:image" content="{og_image}">
+<link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt">
 <meta name="theme-color" content="#FBF8F5" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1F1B19" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
@@ -240,7 +258,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric is a trademark of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/explore">Demo</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
+      <a href="/explore">Demo</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -283,21 +301,94 @@ def render(path: str) -> str:
         dv = _demo_vars()
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     body = _fill(_conditional(body, v))
-    return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"))
+    head = json_ld() if path == "/" else ""
+    return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path)
+
+
+PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual."
+LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
+
+
+def privacy_md() -> str:
+    md = _read("PRIVACY.md")
+    return _fill(re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M))   # drop the template note
+
+
+def docs_md() -> str:
+    return _fill(_read("DOCS.md"))
+
+
+def lovable_md() -> str:
+    return _fill(_read("LOVABLE.md"))
 
 
 def privacy_html() -> str:
-    md = _read("PRIVACY.md")
-    md = re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M)       # drop the template note
-    body = f'<article class="wrap prose">{_md_to_html(_fill(md))}</article>'
-    return _shell("Privacy policy — {{PRODUCT}}", "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only.",
-                  body, page="privacy", nav="")
+    body = f'<article class="wrap prose">{_md_to_html(privacy_md())}</article>'
+    return _shell("Privacy policy — {{PRODUCT}}", PRIVACY_DESC, body, page="privacy", nav="", path="/privacy")
 
 
 def docs_html() -> str:
-    body = f'<article class="wrap prose docs">{_md_to_html(_fill(_read("DOCS.md")))}</article>'
-    return _shell("{{PRODUCT}} — docs", "Connect {{PRODUCT}} to Claude, what it can access, the six tools, how relationships are inferred and the two portal steps that stay manual.",
-                  body, page="docs", nav="docs")
+    body = f'<article class="wrap prose docs">{_md_to_html(docs_md())}</article>'
+    return _shell("{{PRODUCT}} — docs", DOCS_DESC, body, page="docs", nav="docs", path="/docs")
+
+
+def lovable_html() -> str:
+    body = f'<article class="wrap prose docs">{_md_to_html(lovable_md())}</article>'
+    return _shell("Use {{PRODUCT}} with Lovable", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable")
+
+
+def start_md() -> str:
+    """The get-started page as Markdown, converted from the same template the HTML page uses."""
+    v = _vars()
+    return _html_to_md(_fill(_conditional(_read("start.html"), v)), "https://" + v["DOMAIN"])
+
+
+def _html_to_md(src: str, origin: str) -> str:
+    """Just enough HTML → Markdown for the site's own templates (headings, paragraphs, lists, links, code, tables)."""
+    s = re.sub(r"<(svg|script|style|button)\b.*?</\1>", "", src, flags=re.S)
+    s = re.sub(r'<span[^>]*data-mascot[^>]*></span>', "", s)
+    s = re.sub(r'<span class="kicker">.*?</span>', "", s)
+    s = re.sub(r"<summary>(.*?)</summary>", r"\n\n## \1\n\n", s, flags=re.S)
+    s = re.sub(r"<pre><code>(.*?)</code></pre>", lambda m: "\n\n```\n" + m.group(1).strip() + "\n```\n\n", s, flags=re.S)
+    s = re.sub(r"<h1[^>]*>(.*?)</h1>", r"\n\n# \1\n\n", s, flags=re.S)
+    s = re.sub(r"<h2[^>]*>(.*?)</h2>", r"\n\n## \1\n\n", s, flags=re.S)
+    s = re.sub(r"<h3[^>]*>(.*?)</h3>", r"\n\n### \1\n\n", s, flags=re.S)
+    s = re.sub(r"<tr>(.*?)</tr>", lambda m: "| " + " | ".join(c.strip() for c in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", m.group(1), flags=re.S)) + " |\n", s, flags=re.S)
+    s = re.sub(r"(<thead>\s*)(\|.*?\|)\n", lambda m: m.group(2) + "\n" + "|" + " --- |" * m.group(2).count(" | ") + " --- |\n", s, flags=re.S)
+    s = re.sub(r'<a href="(/[^"]*)"', lambda m: f'<a href="{origin}{m.group(1)}"', s)
+    s = re.sub(r'<a href="([^"]+)"[^>]*>(.*?)</a>', r"[\2](\1)", s, flags=re.S)
+    s = re.sub(r"</?(strong|b)>", "**", s)
+    s = re.sub(r"</?em>", "*", s)
+    s = re.sub(r"</?code>", "`", s)
+    s = re.sub(r'<span class="step-n[^"]*">\d+</span>', "", s)
+    s = re.sub(r"<li>", "\n- ", s)
+    s = re.sub(r"<p[^>]*>", "\n\n", s)
+    s = re.sub(r"<[^>]+>", "", s)
+    s = html.unescape(s)
+    s = re.sub(r"[ \t]+\n", "\n", s)
+    s = re.sub(r"\n[ \t]+", "\n", s)
+    s = re.sub(r"^-\s*$", "", s, flags=re.M)                                  # list items that only held a heading
+    s = re.sub(r"\n{3,}", "\n\n", s)
+    s = re.sub(r"\|\n\n(?=\|)", "|\n", s)                                        # table rows stay together
+    return s.strip() + "\n"
+
+
+def json_ld() -> str:
+    """Structured data for the home page: the application and the company. Facts only; no ratings or numbers."""
+    import json
+    v = _vars()
+    origin = site_url()
+    data = [
+        {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": v["PRODUCT"],
+         "applicationCategory": "DeveloperApplication", "operatingSystem": "Web", "url": origin + "/",
+         "description": _fill(PAGES["/"][2]), "license": "https://opensource.org/licenses/MIT",
+         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "SEK", "description": "MIT open source"},
+         "sameAs": [GITHUB], "publisher": {"@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/"}},
+        {"@context": "https://schema.org", "@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/",
+         "email": v["CONTACT"], "sameAs": [GITHUB]},
+    ]
+    return "".join('<script type="application/ld+json">' + json.dumps(d, ensure_ascii=False).replace("</", "<\\/") + "</script>" for d in data)
 
 
 def landing_html() -> str:

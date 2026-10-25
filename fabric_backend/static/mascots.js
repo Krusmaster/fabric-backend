@@ -9,22 +9,22 @@
      against the body (about 30 % of the body height) and small bead eyes with a glint. No legs, fingers, noses or mouths. */
   var KINDS = {
     onto: { // the guide: an upright egg, leaning forward
-      fill: '#F2735C', light: '#FBB4A2', dark: '#D8604B', cheek: '#FFD0C4', name: 'Onto, the coral guide', tilt: 6,
+      fill: '#F2735C', light: '#FFB29A', dark: '#D9604B', cheek: '#FFD0C4', name: 'Onto, the coral guide', tilt: 6,
       body: 'M60 20 C79 20 92 46 92 72 C92 95 78 108 60 108 C42 108 28 95 28 72 C28 46 41 20 60 20 Z',
       eyes: [[53, 58], [70, 57]], eyeR: 3.6, blush: [[45, 67], [78, 66]],
       armL: [31, 70, -14], armR: [89, 70, 14], armRX: 7.4, armRY: 13, hl: [46, 40, 9, 5.5, -30], shadow: [60, 109, 30, 4.5]
     },
     thinker: { // the thinker: wide, low and settled, like a cushion
-      fill: '#9DB8A0', light: '#CFE0D0', dark: '#7D9C82', cheek: '#F6B7A6', name: 'The thinker, the sage one', tilt: 0,
+      fill: '#9DB8A0', light: '#CDDFCD', dark: '#84A188', cheek: '#F6B7A6', name: 'The thinker, the sage one', tilt: 0,
       body: 'M60 50 C88 50 106 58 106 80 C106 100 90 108 60 108 C30 108 14 100 14 80 C14 58 32 50 60 50 Z',
       eyes: [[49, 72], [71, 72]], eyeR: 3.6, blush: [[38, 82], [82, 82]],
       armL: [17, 84, -24], armR: [103, 84, 24], armRX: 7.6, armRY: 11.5, hl: [38, 61, 11, 4.5, -12], shadow: [60, 109, 40, 4.5]
     },
-    builder: { // the maker: a tapered drop that leans
-      fill: '#A99AD8', light: '#D6CEF2', dark: '#8C7BC4', cheek: '#F4BCD0', name: 'The builder, the lavender one', tilt: 7,
-      body: 'M62 16 C68 30 92 54 92 78 C92 97 78 108 60 108 C41 108 28 97 28 78 C28 55 55 32 62 16 Z',
-      eyes: [[52, 70], [69, 70]], eyeR: 3.5, blush: [[44, 80], [77, 80]],
-      armL: [31, 80, -14], armR: [89, 80, 14], armRX: 7, armRY: 12, hl: [48, 52, 7, 4.5, -40], shadow: [60, 109, 29, 4.5]
+    builder: { // the maker: a soft rounded pear, slightly tapered toward a round top, leaning
+      fill: '#A99AD8', light: '#D4CBF0', dark: '#9282C6', cheek: '#F4BCD0', name: 'The builder, the lavender one', tilt: 10,
+      body: 'M60 29 C75 29 85 45 90 64 C96 88 85 108 60 108 C35 108 24 88 30 64 C35 45 45 29 60 29 Z',
+      eyes: [[52, 66], [69, 66]], eyeR: 3.5, blush: [[44, 76], [77, 76]],
+      armL: [31, 78, -14], armR: [89, 78, 14], armRX: 7.2, armRY: 12, hl: [49, 45, 7.5, 4.5, -35], shadow: [60, 109, 33, 4.5]
     }
   };
   var uid = 0;
@@ -35,7 +35,7 @@
     return '<g class="m-arm m-arm-' + side + '" style="transform-origin:' + x + 'px ' + y + 'px">' +
       '<g transform="rotate(' + a[2] + ' ' + x + ' ' + y + ')">' +
       '<ellipse cx="' + (x + (side === 'l' ? 1.6 : -1.6)) + '" cy="' + (y + k.armRY - 1.5) + '" rx="' + k.armRX + '" ry="' + k.armRY + '" fill="' + k.dark + '" opacity=".75" filter="url(#' + g + 'h)"/>' +
-      '<ellipse cx="' + x + '" cy="' + (y + k.armRY - 3) + '" rx="' + k.armRX + '" ry="' + k.armRY + '" fill="url(#' + g + 'a)"/>' +
+      '<ellipse cx="' + x + '" cy="' + (y + k.armRY - 3) + '" rx="' + k.armRX + '" ry="' + k.armRY + '" fill="url(#' + g + 'a)" stroke="' + k.dark + '" stroke-width=".9" stroke-opacity=".55"/>' +
       '<ellipse cx="' + (x - 1.5) + '" cy="' + (y + 2) + '" rx="2.4" ry="4" fill="#fff" opacity=".18"/></g>' +
       (side === 'r' ? '<g class="m-tool" aria-hidden="true"><rect x="' + (x + 2) + '" y="' + (y + 16) + '" width="15" height="6.5" rx="2.5" fill="#5B4A3A"/><rect x="' + (x + 7) + '" y="' + (y + 20) + '" width="4" height="10" rx="2" fill="#8A6B4F"/></g>' : '') +
       '</g>';

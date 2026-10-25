@@ -17,10 +17,11 @@
   /* Tables are cards (coloured table icon, key fields marked with a key icon); connections are soft bezier wires in the
      source table's colour with a dot at each end, the rule on a chip mid-curve and the cardinality as text.
      Wide: left to right along customers → orders → order_items → products → categories, with audit_log and addresses on
-     a second row under customers. Narrow: one column of full-width cards, the one long wire runs in a lane on the right. */
+     a second row under customers. Narrow: one column of full-width cards in chain order; wires between cards that are not
+     neighbours run in lanes beside the cards (the longest on the left, the rest nested on the right, so none cross). */
   var CHAIN = ['customers', 'orders', 'order_items', 'products', 'categories'];
   var ROW2 = [['audit_log', 0], ['addresses', 1]];
-  var STACK = ['audit_log', 'customers', 'addresses', 'orders', 'order_items', 'products', 'categories'];
+  var STACK = ['customers', 'orders', 'order_items', 'products', 'categories', 'addresses', 'audit_log'];
   var PAINT_ORDER = ['customers', 'orders', 'order_items', 'products', 'categories', 'addresses', 'audit_log'];
   var COLORS = ['coral', 'sage', 'lav', 'mustard'];
   var CW = 200, GX = 86, GY = 100, NARROW_AT = 700;
@@ -81,7 +82,9 @@
     this.edges.forEach(function (e) { self.makeEdge(e); });
     this.mascotEls = (opts.mascots || []).map(function (m) {
       var d = document.createElement('div'); d.className = 'g-mascot'; d.setAttribute('aria-hidden', 'true'); d.setAttribute('data-on', m.edge);
-      d.innerHTML = M.svg(m.kind, { pose: m.pose || 'rest', idle: m.idle, label: '' }); scene.appendChild(d); return d;
+      if (m.near) d.setAttribute('data-near', m.near);
+      if (m.near) d.style.setProperty('--gaze-x', '-1.4px');
+      d.innerHTML = M.svg(m.kind, { pose: m.pose || 'rest', idle: m.idle, label: '' }); scene.appendChild(d); d.kind = m.kind; return d;
     });
     container.addEventListener('keydown', function (e) { if (e.key === 'Escape') { self.clearSelection(); } });
     this.layout();
@@ -132,15 +135,21 @@
     var self = this, cw = this.container.clientWidth || 800, names = Object.keys(this.nodes);
     var narrow = this.narrow = cw < NARROW_AT;
     this.container.classList.toggle('narrow', narrow);
-    var top = this.mascotEls.length ? (narrow ? 70 : 74) : 22, maxX = 0, maxY = 0;
+    var top = this.mascotEls.length ? (narrow ? 76 : 64) : 22, maxX = 0, maxY = 0;
     if (narrow) {
       var order = STACK.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return STACK.indexOf(n) < 0; }));
-      var lane = this.edges.some(function (e) { return Math.abs(order.indexOf(e.rel.source) - order.indexOf(e.rel.target)) > 1; }) ? 52 : 0;
-      var w = Math.min(cw - 24 - lane, 420), y = top;
-      this.lane = lane;
+      var span = function (e) { return Math.abs(order.indexOf(e.rel.source) - order.indexOf(e.rel.target)); };
+      var lanes = this.edges.filter(function (e) { return span(e) > 1; }).sort(function (a, b) { return span(b) - span(a); });
+      var right = lanes.length > 1 ? lanes.slice(1) : lanes, left = lanes.length > 1 ? [lanes[0]] : [];
+      this.edges.forEach(function (e) { e.laneSide = null; });
+      left.forEach(function (e) { e.laneSide = 'l'; e.depth = 0; });
+      right.forEach(function (e, i) { e.laneSide = 'r'; e.depth = right.length - 1 - i; });   // longest = outermost
+      var LW = 26, leftW = left.length ? 30 : 0, rightW = right.length ? 8 + LW * right.length : 0;
+      this.lane = { l: leftW, r: rightW };
+      var w = Math.min(cw - 24 - leftW - rightW, 420), y = top;
       order.forEach(function (n, i) {
         var node = self.nodes[n]; node.el.style.width = w + 'px'; node.el.style.minHeight = '';
-        var s = self.size_(n); node.x = 12; node.y = y; node.w = w; node.h = s.h; node.slot = i;
+        var s = self.size_(n); node.x = 12 + leftW; node.y = y; node.w = w; node.h = s.h; node.slot = i;
         y += s.h + 68;
       });
     } else {
@@ -161,22 +170,26 @@
       var node = self.nodes[n]; node.el.style.left = node.x + 'px'; node.el.style.top = node.y + 'px';
       maxX = Math.max(maxX, node.x + node.w); maxY = Math.max(maxY, node.y + node.h);
     });
-    this.size = { w: maxX + (narrow ? 12 + this.lane : 16), h: maxY + 18 };
+    this.size = { w: maxX + (narrow ? 12 + this.lane.r : 16), h: maxY + 18 + (narrow ? (this.opts.padBottom || 0) : 0) };
     this.scene.style.width = this.size.w + 'px'; this.scene.style.height = this.size.h + 'px';
     this.svg.setAttribute('width', this.size.w); this.svg.setAttribute('height', this.size.h);
     this.ports();
     this.edges.forEach(function (e) { self.route(e); });
+    var floor = 0; names.forEach(function (n) { if (self.nodes[n].row === 2) floor = Math.max(floor, self.nodes[n].y + self.nodes[n].h); });
     this.mascotEls.forEach(function (d, i) {
-      var e = self.edges.filter(function (x) { return x.id === d.getAttribute('data-on'); })[0];
-      if (!e) { d.style.display = 'none'; return; }
+      var e = self.edges.filter(function (x) { return x.id === d.getAttribute('data-on'); })[0], near = self.nodes[d.getAttribute('data-near')];
+      if (!e && !near) { d.style.display = 'none'; return; }
       d.style.display = '';
-      if (!narrow && e.horizontal) {
-        var sz = 80; d.style.width = d.style.height = sz + 'px';
+      if (!narrow && near && floor) { // stands on the floor of the empty corner, under its table
+        var sf = 104; d.style.width = d.style.height = sf + 'px';
+        d.style.left = (near.x + near.w / 2 - sf / 2) + 'px'; d.style.top = (floor - sf * 0.93) + 'px';
+      } else if (!narrow && e && e.horizontal) { // sits on the rule chip of a top-row wire
+        var sz = d.kind === 'thinker' ? 104 : 100; d.style.width = d.style.height = sz + 'px';
         d.style.left = (e.mid.x - sz / 2) + 'px'; d.style.top = (e.mid.y - 9 - sz * 0.9 + 1) + 'px';
-      } else { // narrow: they sit on the top edge of the first card
+      } else { // narrow: a small row above the first card, clear of its border
         var first = self.nodes[STACK.filter(function (n) { return self.nodes[n]; })[0]] || self.nodes[Object.keys(self.nodes)[0]];
-        var s2 = 58; d.style.width = d.style.height = s2 + 'px';
-        d.style.left = (first.x + first.w * (0.2 + 0.3 * i) - s2 / 2) + 'px'; d.style.top = (first.y - s2 * 0.9 + 2) + 'px';
+        var s2 = 60; d.style.width = d.style.height = s2 + 'px';
+        d.style.left = (first.x + first.w * (0.2 + 0.3 * i) - s2 / 2) + 'px'; d.style.top = (first.y - 7 - s2 * 0.95) + 'px';
       }
     });
     this.fit();
@@ -187,8 +200,14 @@
     this.edges.forEach(function (e) {
       var S = self.nodes[e.rel.source], T = self.nodes[e.rel.target];
       e.horizontal = !self.narrow && S.row === 1 && T.row === 1;
-      e.lane = self.narrow && Math.abs(S.slot - T.slot) > 1;
-      if (e.horizontal || e.lane) return;
+      e.lane = !!(self.narrow && e.laneSide);
+      if (e.lane) {
+        var U = S.y < T.y ? S : T, D = S.y < T.y ? T : S;
+        e.up = U; e.down = D;
+        [[U, 'u'], [D, 'd']].forEach(function (p) { var k = p[0].table.name + ':' + e.laneSide; (sides[k] = sides[k] || []).push({ e: e, end: p[1], lane: true }); });
+        return;
+      }
+      if (e.horizontal) return;
       var up = S.y < T.y ? S : T, down = S.y < T.y ? T : S;
       e.up = up; e.down = down;
       [[up, 'b', down], [down, 't', up]].forEach(function (p) {
@@ -196,6 +215,11 @@
       });
     });
     Object.keys(sides).forEach(function (k) {
+      if (sides[k][0].lane) { // lane ends: at the upper card the outer wire leaves highest, at the lower card it arrives lowest
+        var ls = sides[k].sort(function (a, b) { return (a.end === 'u' ? b.e.depth - a.e.depth : a.e.depth - b.e.depth); });
+        ls.forEach(function (it, i) { it.e['y' + it.end] = 19 + 15 * i; });
+        return;
+      }
       var list = sides[k].sort(function (a, b) { return (a.other.x + a.other.w / 2) - (b.other.x + b.other.w / 2); });
       list.forEach(function (it, i) { it.e['f' + it.end] = (i + 1) / (list.length + 1); });
     });
@@ -210,16 +234,33 @@
       c1 = { x: a.x + k, y: a.y + 12 }; c2 = { x: b.x - k, y: b.y + 12 };
       e.card.textContent = (L === T ? '1' : 'many') + ' — ' + (R === T ? '1' : 'many');
     } else if (e.lane) {
-      var U = S.y < T.y ? S : T, D = S.y < T.y ? T : S;
-      a = { x: U.x + U.w, y: headY(U) }; b = { x: D.x + D.w, y: headY(D) };
-      c1 = { x: a.x + 52, y: a.y + 20 }; c2 = { x: b.x + 52, y: b.y - 20 };
+      var U = e.up, D = e.down, rs = e.laneSide === 'r';
+      var sx = rs ? U.x + U.w : U.x, lx = rs ? sx + 18 + 26 * e.depth : sx - 18;
+      a = { x: sx, y: U.y + e.yu }; b = { x: sx, y: D.y + e.yd };
+      var dl = 'M' + a.x + ' ' + a.y + ' Q' + lx + ' ' + a.y + ' ' + lx + ' ' + (a.y + 16) + ' L' + lx + ' ' + (b.y - 16) + ' Q' + lx + ' ' + b.y + ' ' + b.x + ' ' + b.y;
+      e.wire.setAttribute('d', dl); e.hit.setAttribute('d', dl);
+      e.dotA.setAttribute('cx', a.x); e.dotA.setAttribute('cy', a.y); e.dotB.setAttribute('cx', b.x); e.dotB.setAttribute('cy', b.y);
+      var my = a.y + (b.y - a.y) * (e.depth ? 0.38 : 0.6);
+      e.mid = { x: lx, y: my };
+      e.card.textContent = ''; e.card.removeAttribute('transform');
+      if (e.kind === 'suggested') { // the wide label sits in the gap just above the lower card, ending at its lane
+        var gy = D.y - 34;
+        e.tag.setAttribute('transform', 'translate(' + (rs ? lx + 10 - e.tagW / 2 : lx - 10 + e.tagW / 2) + ',' + gy + ')');
+      } else {
+        e.tag.setAttribute('transform', 'translate(' + lx + ',' + my.toFixed(1) + ')');
+        var cx = lx + (rs ? 11 : -11), cy = my + 52;
+        e.card.textContent = (U === T ? '1' : 'many') + ' — ' + (D === T ? '1' : 'many');
+        e.card.setAttribute('x', cx); e.card.setAttribute('y', cy); e.card.setAttribute('text-anchor', 'middle');
+        e.card.setAttribute('transform', 'rotate(90 ' + cx + ' ' + cy + ')');
+      }
+      return;
     } else {
       a = { x: e.up.x + e.up.w * e.fb, y: e.up.y + e.up.h }; b = { x: e.down.x + e.down.w * e.ft, y: e.down.y };
       var kk = (b.y - a.y) * 0.5;
       c1 = { x: a.x, y: a.y + kk }; c2 = { x: b.x, y: b.y - kk };
       e.card.textContent = (e.up === T ? '1' : 'many') + ' — ' + (e.down === T ? '1' : 'many');
     }
-    if (e.lane) e.card.textContent = '';
+    e.card.removeAttribute('transform');
     if (e.kind === 'suggested') e.card.textContent = '';
     var d = 'M' + a.x + ' ' + a.y + ' C' + c1.x + ' ' + c1.y + ' ' + c2.x + ' ' + c2.y + ' ' + b.x + ' ' + b.y;
     e.wire.setAttribute('d', d); e.hit.setAttribute('d', d);
@@ -230,11 +271,6 @@
     if (e.horizontal) { e.card.setAttribute('x', m.x); e.card.setAttribute('y', m.y + 26); e.card.setAttribute('text-anchor', 'middle'); }
     else if (this.narrow) { e.card.setAttribute('x', m.x + e.tagW / 2 + 8); e.card.setAttribute('y', m.y + 4); e.card.setAttribute('text-anchor', 'start'); }
     else { e.card.setAttribute('x', m.x); e.card.setAttribute('y', m.y + 26); e.card.setAttribute('text-anchor', 'middle'); }
-    if (e.lane) { // the long wire: cardinality as two short words above and below the chip, inside the lane
-      e.card.textContent = '';
-      var t1 = el('tspan', { x: m.x, y: m.y - 16 }, T.y < S.y ? '1' : 'many'), t2 = el('tspan', { x: m.x, y: m.y + 24 }, T.y < S.y ? 'many' : '1');
-      e.card.appendChild(t1); e.card.appendChild(t2); e.card.setAttribute('text-anchor', 'middle');
-    }
   };
   function bez(p0, p1, p2, p3, t) { var u = 1 - t; return { x: u * u * u * p0.x + 3 * u * u * t * p1.x + 3 * u * t * t * p2.x + t * t * t * p3.x, y: u * u * u * p0.y + 3 * u * u * t * p1.y + 3 * u * t * t * p2.y + t * t * t * p3.y }; }
   // Fit: the whole graph at the container's width (never above 1:1). Zoom: a larger scale, the panel then scrolls.
@@ -322,7 +358,7 @@
       label: 'Data graph of the demo shop schema', suggest: suggestions(data),
       mascots: [{ kind: 'onto', edge: 'orders.customer_id>customers', pose: 'look', idle: 'breathe' },
                 { kind: 'thinker', edge: 'order_items.product_id>products', pose: 'rest', idle: 'nod' },
-                { kind: 'builder', edge: 'products.category_id>categories', pose: 'rest' }]
+                { kind: 'builder', edge: 'products.category_id>categories', near: 'categories', pose: 'look', idle: 'bounce' }]
     });
     var out = document.getElementById('home-why');
     var dflt = out.innerHTML;
@@ -347,7 +383,7 @@
   if (explore) loadPlan(function (data) {
     var area = document.getElementById('explore-graph'), panel = document.getElementById('why'), list = document.getElementById('table-list');
     var sug = suggestions(data);
-    var g = new Graph(area, data, { label: 'Explorable data graph of the demo shop schema', suggest: sug });
+    var g = new Graph(area, data, { label: 'Explorable data graph of the demo shop schema', suggest: sug, padBottom: 52 });   // room for the still helper on touch
     document.getElementById('plan-summary').textContent = data.summary.split('\n')[0] + (sug.length ? ' · ' + sug.length + ' column to review' : '');
     list.innerHTML = data.tables.map(function (t, i) {
       return '<li><button type="button" data-table="' + esc(t.name) + '">' + tableIcon(t.name, i) + '<span class="nm">' + esc(t.name) + '</span><span class="rule" title="' + esc(keyTip(t, data.rules)) + '">' + keyText(t) + '</span></button></li>';
