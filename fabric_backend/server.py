@@ -35,7 +35,7 @@ from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
-from . import views as _views, data_agent as _data_agent, app_starter as _app_starter
+from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs
 from .deploy import create_semantic_model as _create_semantic_model
 
 try:
@@ -62,7 +62,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "create_semantic_model (a Power BI semantic model item from the TMDL draft), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — each "
     "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details and queries "
-    "for an app on a created API. "
+    "for an app on a created API. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
+    "subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks "
+    "candidate columns and checks the best against the data, suggesting only. "
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
     "hint (the next step that fixes it)."))
@@ -540,6 +542,39 @@ def join_path(workspace: str, source: str, start: str, end: str, schema: str = "
     says so and suggests which relationship is missing, as a `confirmed` entry. Reads metadata only."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     return json.dumps(_paths.join_path(p, start, end), indent=2)
+
+
+@mcp.tool(title="Analyse the schema as a graph (roles, centrality, areas, ambiguity)", annotations=RO)
+@safe
+def analyze_schema(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                   confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+    """The plan as a graph, from metadata only (no data queries): each table's role (fact, dimension, bridge,
+    isolated) with the numbers behind it, the ten most central tables (in/out degree, betweenness, PageRank),
+    subject areas, cycles and table pairs with more than one path (where a Power BI model gets ambiguous filter
+    paths), and the relationships that can be active at once in a semantic model with the rest explained as inactive.
+    Use it first on a lakehouse you do not know."""
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    out = _graphs.analyze(p)
+    out["summary"] = p.summary().splitlines()[0] + "; " + out["summary"]
+    return json.dumps(out, indent=2)
+
+
+@mcp.tool(title="Suggest missing relationships, checked against the data", annotations=RO)
+@safe
+def suggest_relationships(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                          confirmed: list[dict] | None = None, check: int = 15, ctx: Context = None) -> str:
+    """Columns that could point at another table's key but are in no relationship, ranked by name similarity, type
+    and triangular closure, then the best `check` (default 15) counted against the data: the share of the column's
+    values that exist in the target key and how many distinct values it has. Suggestions only — nothing is applied;
+    each one carries a ready `confirmed` entry for plan_backend or create_backend. Read-only counting queries."""
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p = make_plan(s, keys, confirmed)
+        out = _graphs.suggest(p, execute, check=max(0, min(int(check), 100)))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    out["summary"] = p.summary().splitlines()[0] + f"; {len(out['candidates'])} candidate(s), {out['checked_against_data']} checked against the data"
+    return json.dumps(out, indent=2, default=str)
 
 
 @mcp.tool(title="Data dictionary in Markdown", annotations=RO)

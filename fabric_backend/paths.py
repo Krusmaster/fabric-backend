@@ -116,7 +116,20 @@ def missing_link_suggestions(plan: Plan, start: str, end: str, limit: int = 5) -
     return out[:limit]
 
 
-def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100) -> dict:
+def _steps(plan: Plan, start: str, p: list[tuple[Relationship, bool]], verified: set) -> list[dict]:
+    from .graphs import certainty
+    steps, node = [], start
+    for r, fwd in p:
+        nxt = r.target if fwd else r.source
+        w = certainty(r, verified)
+        steps.append({"from": node, "to": nxt, "on": [f"{a} = {b}" for a, b in zip(r.source_cols, r.target_cols)] if fwd
+                      else [f"{b} = {a}" for a, b in zip(r.source_cols, r.target_cols)],
+                      "rule": r.rule, "certainty": w, "cost": round(1 / w, 4), "direction": "many-to-one" if fwd else "one-to-many"})
+        node = nxt
+    return steps
+
+
+def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100, validation: dict | None = None) -> dict:
     names = {t.name.lower(): t.name for t in plan.schema}
     missing = [x for x in (start, end) if x.lower() not in names]
     if missing:
@@ -125,18 +138,28 @@ def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100) 
     start, end = names[start.lower()], names[end.lower()]
     if start == end:
         return {"start": start, "end": end, "paths": [], "note": "start and end are the same table"}
+    from .graphs import _verified, safest_path
+    verified = _verified(validation)
     paths = shortest_paths(plan, start, end, limit)
     out: dict = {"start": start, "end": end, "paths": []}
     for p in paths:
-        steps, node = [], start
-        for r, fwd in p:
-            nxt = r.target if fwd else r.source
-            steps.append({"from": node, "to": nxt, "on": [f"{a} = {b}" for a, b in zip(r.source_cols, r.target_cols)] if fwd
-                          else [f"{b} = {a}" for a, b in zip(r.source_cols, r.target_cols)],
-                          "rule": r.rule, "direction": "many-to-one" if fwd else "one-to-many"})
-            node = nxt
+        steps = _steps(plan, start, p, verified)
         out["paths"].append({"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
-                             "sql": sql_for(plan, start, p, top)})
+                             "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, p, top)})
+    safest = safest_path(plan, start, end, validation)
+    if safest:
+        chain = [(s["rel"], s["forward"]) for s in safest]
+        steps = _steps(plan, start, chain, verified)
+        out["safest"] = {"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
+                         "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, chain, top)}
+        shortest_cost = min(p["cost"] for p in out["paths"])
+        if out["safest"]["cost"] < shortest_cost - 1e-9:
+            weakest = min((s for p in out["paths"] for s in p["steps"]), key=lambda s: s["certainty"])
+            out["safest"]["why"] = (f"the shortest path uses a {weakest['rule']} link ({weakest['from']} -> {weakest['to']}, certainty "
+                                    f"{weakest['certainty']}); the safest takes {out['safest']['hops']} hop(s) over links of certainty "
+                                    f"{min(s['certainty'] for s in steps)} or more (cost {out['safest']['cost']} against {shortest_cost})")
+        else:
+            out["safest"]["why"] = "the shortest path is also the safest"
     if not paths:
         out["note"] = f"no chain of relationships connects {start} and {end}"
         out["suggestions"] = missing_link_suggestions(plan, start, end)

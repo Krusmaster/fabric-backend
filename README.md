@@ -72,7 +72,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, twenty tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, twenty-two tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -101,7 +101,30 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries and the portal checklist for an
-  app on a created API. The tool table with arguments
+  app on a created API.
+
+Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested,
+not yet run against a live workspace):
+
+- `analyze_schema` — table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central
+  tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which
+  relationships can be active at once in a semantic model (maximum spanning forest by certainty).
+- `suggest_relationships` — columns that could point at another table's key but are in no relationship, ranked by name,
+  type and triangular closure, the best fifteen checked against the data (inclusion share, distinct values); suggests only.
+
+### How the graph is weighted
+
+| Origin of a relationship | Certainty | Used for |
+| --- | --- | --- |
+| Declared foreign key (R0) or `confirmed` | 1.0 | |
+| Any rule, when `validate_plan` found no orphans | 0.9 | safest `join_path`, active relationships in `semantic_model_draft` |
+| R1 (column named after the table) | 0.8 | |
+| R2 (column with the target key's name) | 0.6 | |
+| R3 (composite key present), R4 (role prefix or abbreviation) | 0.5 | |
+
+Cost is 1/certainty; the shortest path counts hops, the safest path minimises cost, and when they differ `join_path`
+says why. Roles come from in/out degree, betweenness and the share of measure-like columns; subject areas from label
+propagation with a fixed order; ambiguity from the relationships a spanning forest leaves out (each closes a cycle). The tool table with arguments
 and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
 Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a

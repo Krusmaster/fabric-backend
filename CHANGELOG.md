@@ -5,6 +5,13 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Graph theory on the plan (`fabric_backend/graphs.py`, pure Python, deterministic): certainty per rule (R0/confirmed 1.0,
+  verified 0.9, R1 0.8, R2 0.6, R3/R4 0.5) and cost 1/certainty; `analyze_schema` (roles with the numbers behind them,
+  degree/betweenness/PageRank, subject areas by label propagation, cycles and multi-path pairs, maximum spanning forest
+  of active relationships); `suggest_relationships` (candidate columns ranked by name, type and triangular closure,
+  checked against the data with an inclusion count in evidence.py; suggestions only). `join_path` adds the safest path
+  next to the shortest; `semantic_model_draft` takes its active set and table roles from the graph; `data_dictionary`
+  gets a roles/areas/ambiguity section.
 - Review pass: the semantic model draft writes `schemaName` for a lakehouse created with schemas (the REST property
   `properties.defaultSchema`, lakehouse/definitions.json) and omits it for one without, instead of guessing from the
   schema name alone; the Direct Lake expression opens the database name the SQL endpoint actually has (a Fabric SQL

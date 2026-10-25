@@ -42,6 +42,14 @@ def relationship_sql(schema: str, source: str, source_cols: list[str], target: s
             f"WHERE {has_value}")
 
 
+def inclusion_sql(schema: str, source: str, column: str, target: str, key: str) -> str:
+    """Inclusion check for a candidate relationship: how many non-NULL values of source.column exist in target.key,
+    and how many distinct values the column has. One counting statement, read-only."""
+    return (f"SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.{qi(key)}) AS matched, COUNT_BIG(DISTINCT s.{qi(column)}) AS distinct_values "
+            f"FROM {_t(schema, source)} AS s LEFT JOIN (SELECT DISTINCT {qi(key)} FROM {_t(schema, target)}) AS t "
+            f"ON s.{qi(column)} = t.{qi(key)} WHERE s.{qi(column)} IS NOT NULL")
+
+
 def sample_sql(schema: str, table: str, columns: list[str], n: int) -> str:
     return f"SELECT TOP ({int(n)}) {', '.join(qi(c) for c in columns)} FROM {_t(schema, table)}"
 

@@ -74,6 +74,8 @@ Every tool takes the workspace by id or display name. `schema` defaults to `dbo`
 | `create_views` | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor); unit-tested on SQLite, not yet run against a live workspace | creates/alters views in that schema only; never drops |
 | `create_data_agent` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `publish`, `dry_run` | creates or updates a Fabric data agent through the staging REST API: the plan as instructions, the source as data source with the plan's tables selected, 5–10 question/T-SQL examples, then publishes; `dry_run=true` returns instructions, examples and the calls; needs `Item.ReadWrite.All`; unit-tested with the calls mocked, not yet run against a live workspace | creates/updates one item and its staging config; never deletes |
 | `app_starter` | `workspace`, `api` | from an existing API's definition: a Lovable prompt with the data model and main views, a connection description, five GraphQL queries walking the relationships, the manual portal steps | no |
+| `analyze_schema` | `workspace`, `source`, `schema`, `keys`, `confirmed` | the plan as a graph, metadata only: table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which relationships can be active at once; unit-tested | no |
+| `suggest_relationships` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `check` | columns that could point at another table's key but are in no relationship, ranked by name, type and triangular closure, the best `check` counted against the data (inclusion share, distinct values); each with a ready `confirmed` entry; suggests only, never applies; unit-tested | no (counting queries) |
 
 `create_ontology` (creates or updates the ontology item) exists but is offered only where the operator has enabled
 it, because it needs the `Item.ReadWrite.All` scope; see *Fabric IQ* below.
@@ -94,6 +96,34 @@ two tables is reported, never guessed; a column no rule matches is left unlinked
 {{RULES_TABLE}}
 
 More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
+
+## How {{PRODUCT}} uses graph theory
+
+The plan is a graph: tables are nodes, relationships are edges from the many side to the one side, and every edge
+carries a certainty from its rule (declared or confirmed 1.0; checked against the data 0.9; R1 0.8; R2 0.6; R3 and
+R4 0.5). `fabric_backend/graphs.py` is plain Python and deterministic: the same plan always gives the same answer.
+What each method does for you, in plain terms:
+
+- **Roles** (`analyze_schema`): a table that points at several others and nothing points at is a fact table; one that
+  is pointed at and points at little is a dimension; a table whose key is just two references (a junction) is a bridge.
+  The numbers that decided each role are in the answer, so you can disagree.
+- **Centrality**: in/out degree says what a table refers to and what refers to it; betweenness says how often a
+  table sits on the route between two others; PageRank on the directed graph says where the references end up
+  (shared dimensions score high). The top ten is where to start reading an unknown schema.
+- **Subject areas**: label propagation on the undirected graph groups tables that are more connected to each other
+  than to the rest; each area is named after its most central table. A first cut at the domains in a lakehouse.
+- **Ambiguity**: every relationship beyond a spanning forest closes a cycle, and any two tables on a cycle can be
+  reached two ways. That is exactly what makes filter paths ambiguous in a Power BI model, so the answer lists the
+  cycles and the pairs, and the maximum spanning forest (highest certainty first) says which relationships can be active
+  at once; `semantic_model_draft` uses it for active/inactive.
+- **Paths** (`join_path`): the shortest path counts hops; the safest path (Dijkstra on cost = 1/certainty) prefers
+  declared and R1 links. When they differ the answer says why.
+- **Link prediction** (`suggest_relationships`): a column with a reference suffix and the type of another table's
+  key, in no relationship yet, is a candidate; a name that resembles the target, or a target the table already
+  reaches in two hops, ranks it higher; then the data decides — the share of its values that exist in the target key.
+  Nothing is applied; you pass the suggestion you accept as `confirmed`.
+
+Unit-tested on the synthetic shop schema and the public benchmark schemas; not yet run against a live workspace.
 
 ## Fabric IQ: the same graph as an ontology
 

@@ -59,6 +59,17 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
         out += ["", "| From | Columns | To | Rows with a value | Orphans | Verdict |", "| --- | --- | --- | --- | --- | --- |"]
         for r in validation.get("relationships", []):
             out.append(f"| {_cell(r['source'])} | {_cell('+'.join(r['columns']))} | {_cell(r['target'])} | {r['rows_with_value']} | {r['orphans']} | {_cell(r['verdict'])} |")
+    from . import graphs
+    a = graphs.analyze(plan, validation)
+    out += ["", "## Roles, subject areas and ambiguity", "", a["summary"], "", "| Table | Role | Why |", "| --- | --- | --- |"]
+    out += [f"| {_cell(t.name)} | {a['roles'][t.name]['role']} | {_cell(a['roles'][t.name]['why'])} |" for t in plan.schema]
+    out += ["", "Subject areas (label propagation on the relationship graph, named after the most central table):", ""]
+    out += [f"- {g['name']}: {', '.join(g['tables'])}" for g in a["areas"]]
+    out += ["", a["ambiguity"]["note"] + "."]
+    out += [f"- cycle through {' - '.join(c['tables'])}, closed by {c['closed_by']}" for c in a["ambiguity"]["cycles"]]
+    if a["inactive_relationships"]:
+        out += ["", "Relationships a semantic model would have to leave inactive (lower certainty on a cycle):", ""]
+        out += [f"- {e['source']}.{'+'.join(e['columns'])} -> {e['target']} ({e['rule']}, certainty {e['certainty']}): {e['why']}" for e in a["inactive_relationships"]]
     out += ["", "## Diagram", "", "```mermaid", plan.mermaid(), "```", "",
             "## Rules", "", "| Rule | Meaning |", "| --- | --- |"]
     out += [f"| {code} | {_cell(text)} |" for code, text in RULES.items()]

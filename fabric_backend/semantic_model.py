@@ -71,36 +71,13 @@ def _tag(*parts: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "krusgraph-semantic-model|" + "|".join(parts)))
 
 
-def active_relationships(plan: Plan, rels: list[Relationship]) -> tuple[list[Relationship], list[tuple[Relationship, str]]]:
-    """Which relationships can be active at once. A tabular model allows one active path between two tables, so a
-    second relationship on the same pair and any relationship that would close a cycle are made inactive.
-    Order of preference: declared/confirmed, then R1, R2, R4, R3 — the plan's own confidence order; within a rule,
-    relationships leaving the table with the most references first (the fact table keeps its direct links, a
-    second path through a shared dimension goes inactive), then by name so the result is deterministic."""
-    rank = {"R0": 0, "confirmed": 0, "R1": 1, "R2": 2, "R4": 3, "R3": 4}
-    out_degree: dict[str, int] = {}
-    for r in rels:
-        out_degree[r.source] = out_degree.get(r.source, 0) + 1
-    parent: dict[str, str] = {}
-
-    def find(x: str) -> str:
-        while parent.setdefault(x, x) != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    active, inactive = [], []
-    for r in sorted(rels, key=lambda r: (rank.get(r.rule, 9), -out_degree[r.source], r.source, r.target, r.source_cols)):
-        a, b = find(r.source), find(r.target)
-        if a == b:
-            why = ("a relationship between these two tables is already active"
-                   if any(x.source == r.source and x.target == r.target for x in active)
-                   else "it would close a cycle, making filter paths ambiguous")
-            inactive.append((r, why))
-            continue
-        parent[a] = b
-        active.append(r)
-    return active, inactive
+def active_relationships(plan: Plan, rels: list[Relationship], validation: dict | None = None) -> tuple[list[Relationship], list[tuple[Relationship, str]]]:
+    """Which relationships can be active at once: the maximum spanning forest by certainty from graphs.py (a tabular
+    model allows one active path between two tables). The rest are inactive with the reason."""
+    from . import graphs
+    es = [e for e in graphs.edges(plan, validation) if e["rel"] in rels]
+    active, inactive = graphs.spanning_forest(plan, es)
+    return [e["rel"] for e in active], [(e["rel"], e["why"]) for e in inactive]
 
 
 def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
@@ -124,9 +101,13 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
     return body
 
 
-def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None) -> dict:
-    """info: item_name, item_kind, schema, sql_endpoint (from server._ontology_inputs); returns
-    {"parts": {path: content}, "summary": {...}}."""
+def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None) -> dict:
+    """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
+    {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
+    links it confirmed when the active set is chosen."""
+    from . import graphs
+    analysis = graphs.analyze(plan, validation)
+    role_of = {t: r["role"] for t, r in analysis["roles"].items()}
     wanted = {t.lower() for t in tables} if tables else None
     chosen = [t for t in plan.schema if not wanted or t.name.lower() in wanted]
     names = {t.name for t in chosen}
@@ -143,7 +124,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     single = [r for r in plan.relationships if r.source in names and r.target in names
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
     composite = [r for r in plan.relationships if r.source in names and r.target in names and r not in single]
-    active, inactive = active_relationships(plan, single)
+    active, inactive = active_relationships(plan, single, validation)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
     parts: dict[str, str] = {}
@@ -179,7 +160,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         lines += [f"\tpartition {tmdl_name(t.name)} = entity", "\t\tmode: directLake", "\t\tsource", f"\t\t\tentityName: {t.name}"]
         if with_schema:
             lines.append(f"\t\t\tschemaName: {schema}")
-        lines += [f"\t\t\texpressionSource: {EXPRESSION}", "", "\tannotation PBI_ResultType = Table", ""]
+        lines += [f"\t\t\texpressionSource: {EXPRESSION}", "", "\tannotation PBI_ResultType = Table", "",
+                  f"\tannotation Krusgraph_Role = {role_of.get(t.name, 'other')}", ""]
         parts[f"definition/tables/{t.name}.tmdl"] = "\n".join(lines)
 
     rel_lines: list[str] = []
@@ -207,7 +189,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
               f"Tables: {len(chosen)}. Relationships: {len(active)} active, {len(inactive)} inactive, {len(composite)} not expressible. "
               "The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, "
               "then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule.", "",
-              "## Relationships", "", "| From | To | Rule | Active |", "| --- | --- | --- | --- |"]
+              "## Table roles (from the plan's graph, see analyze_schema)", "", "| Table | Role | Why |", "| --- | --- | --- |"]
+    readme += [f"| `{t.name}` | {analysis['roles'][t.name]['role']} | {analysis['roles'][t.name]['why']} |" for t in chosen]
+    readme += ["", "Fact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns "
+               "are the ones to turn into measures.", "",
+               "## Relationships", "", "| From | To | Rule | Active |", "| --- | --- | --- | --- |"]
     for r in active:
         readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | yes |")
     for r, why in inactive:
@@ -234,7 +220,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "Microsoft's published sample definitions listed in fabric_backend/semantic_model.py.",
                "", "## Files", ""] + [f"- `{p}`" for p in parts] + [""]
     parts["README.generated.md"] = "\n".join(readme)
-    summary = {"tables": len(chosen), "relationships_active": len(active), "relationships_inactive": len(inactive),
+    summary = {"tables": len(chosen), "roles": {t.name: role_of.get(t.name) for t in chosen},
+               "relationships_active": len(active), "relationships_inactive": len(inactive),
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive]}
