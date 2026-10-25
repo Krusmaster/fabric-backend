@@ -10,7 +10,7 @@ from .rayfin import rayfin_files, write_rayfin
 __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definition", "decode",
            "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from",
            "rayfin_files", "write_rayfin"]
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 
 def plan_from(spark=None, execute=None, schema: str = "dbo", database: str | None = None,

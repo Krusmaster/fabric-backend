@@ -315,12 +315,21 @@ def build_app(host: str = "0.0.0.0"):
         "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin",
     }
 
+    import gzip as _gzip
+
+    def compressed(request, body: bytes, media_type: str, headers: dict, status: int = 200) -> Response:
+        """gzip for the site's text responses when the client accepts it. Only these routes; never /mcp."""
+        if len(body) > 1024 and "gzip" in request.headers.get("accept-encoding", ""):
+            body = _gzip.compress(body, compresslevel=6)
+            headers = {**headers, "Content-Encoding": "gzip"}
+        return Response(body, status_code=status, media_type=media_type, headers={**headers, "Vary": "Accept-Encoding"})
+
     def page_route(path: str, fn):
-        async def handler(_request):
+        async def handler(request):
             headers = {"Cache-Control": PAGE_CACHE, **PAGE_HEADERS}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
-            return HTMLResponse(fn(), headers=headers)
+            return compressed(request, fn().encode("utf-8"), "text/html; charset=utf-8", headers)
         app.router.routes.append(Route(path, handler))
 
     for path in PAGES:
@@ -328,15 +337,19 @@ def build_app(host: str = "0.0.0.0"):
     page_route("/privacy", privacy_html)
     page_route("/docs", docs_html)
 
-    async def plan_json(_request):
-        return Response(demo_plan_json(), media_type="application/json", headers={"Cache-Control": "public, max-age=3600"})
+    async def plan_json(request):
+        return compressed(request, demo_plan_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
     app.router.routes.append(Route("/demo/plan.json", plan_json))
+
+    TEXT_STATIC = {".css", ".js", ".svg", ".txt", ".json"}       # woff2 and png are already compressed
 
     async def static(request):
         p = static_file(request.path_params.get("path", ""))
         if p is None:
             return PlainTextResponse("not found", status_code=404)
         cache = "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
+        if p.suffix in TEXT_STATIC:
+            return compressed(request, p.read_bytes(), STATIC_TYPES[p.suffix], {"Cache-Control": cache})
         return FileResponse(str(p), media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache})
     app.router.routes.append(Route("/static/{path:path}", static))
 

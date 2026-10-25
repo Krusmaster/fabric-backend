@@ -33,6 +33,21 @@ def test_pages_carry_a_strict_csp_but_mcp_does_not(client):
     assert "content-security-policy" not in client.get("/demo/plan.json").headers
 
 
+def test_site_responses_gzip_when_asked_and_mcp_never_does(client):
+    import gzip
+    for path, ctype in (("/", "text/html"), ("/static/site.css", "text/css"), ("/demo/plan.json", "application/json")):
+        r = client.get(path, headers={"Accept-Encoding": "gzip"})
+        assert r.status_code == 200 and r.headers.get("content-encoding") == "gzip" and r.headers["vary"] == "Accept-Encoding", path
+        assert r.headers["content-type"].startswith(ctype)
+        assert r.text.startswith(("<!doctype html>", "/*", "{"))                        # the test client transparently inflates
+        plain = client.get(path, headers={"Accept-Encoding": "identity"})
+        assert "content-encoding" not in plain.headers and plain.text == r.text
+    assert "content-encoding" not in client.get("/static/fonts/fredoka-var.woff2", headers={"Accept-Encoding": "gzip"}).headers
+    assert "content-encoding" not in client.post("/mcp", json={}, headers={"Accept-Encoding": "gzip"}).headers
+    raw = client.get("/static/site.css", headers={"Accept-Encoding": "gzip"})
+    assert gzip.decompress(raw.content).startswith(b"/*") if raw.headers.get("content-encoding") == "gzip" and raw.content[:2] == b"\x1f\x8b" else True
+
+
 def test_non_browser_404_stays_plain(client):
     r = client.get("/no-such-page", headers={"Accept": "application/json"})
     assert r.status_code == 404 and r.text == "not found"

@@ -187,6 +187,24 @@ def test_server_check_covers_the_site_pages_and_the_demo(monkeypatch):
     assert ("POST", "/mcp") in seen
 
 
+@pytest.mark.parametrize("flag,target", [("--update", "update"), ("--check", "check_entra"), ("--status", "report"), ("--bind-domain", "bind_domains")])
+def test_cli_flags_dispatch_without_touching_the_rest(monkeypatch, flag, target):
+    called = []
+    for name in ("update", "check_entra", "report", "bind_domains", "deploy"):
+        monkeypatch.setattr(d, name, (lambda n: lambda *a, **k: called.append(n))(name))
+    monkeypatch.setattr(d.Azure, "check_context", lambda self: called.append("check_context"))
+    monkeypatch.setattr(d.sys, "argv", ["azure_containerapp.py", "--config", str(_CONFIG_FILE), flag])
+    d.main()
+    assert called == ["check_context", target]
+
+
+def test_update_and_full_run_are_mutually_exclusive(monkeypatch, capsys):
+    monkeypatch.setattr(d.sys, "argv", ["azure_containerapp.py", "--update", "--check"])
+    with pytest.raises(SystemExit):
+        d.main()
+    assert "not allowed with" in capsys.readouterr().err
+
+
 def test_existing_unrelated_resources_are_not_overwritten():
     with pytest.raises(d.DeploymentError):
         d.assert_owned({"tags": {"managed-by": "someone-else"}}, "shared-resource")
