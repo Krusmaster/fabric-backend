@@ -194,6 +194,8 @@ either, open an issue.
 
 ## Status
 
+Version history: [CHANGELOG.md](CHANGELOG.md).
+
 v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in
 place, nested queries across inferred relationships over four hops (customer → orders → lines →
 product → category). Findings and the three fixes that came out of it are in
