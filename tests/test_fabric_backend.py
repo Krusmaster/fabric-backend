@@ -347,3 +347,23 @@ def test_plan_scales_to_a_large_warehouse():
     assert time.perf_counter() - t0 < 5                      # ~0.1 s now; it was several seconds with the per-column rescan
     assert len(p.keys) == 600 and len(p.relationships) > 600
     assert all(r.rule in ("R1", "R2") for r in p.relationships)
+
+
+def test_keys_and_confirmed_that_name_missing_tables_or_columns_are_rejected_up_front():
+    from fabric_backend import seed
+    from fabric_backend.infer import PlanInputError
+    s = seed.schema("shop")
+    plan(s, {"ORDER_ITEMS": ["Order_ID", "line_no"]}, [{"source": "Orders", "source_cols": ["CUSTOMER_ID"], "target": "customers"}])  # case-insensitive: fine
+    import pytest
+    with pytest.raises(PlanInputError, match="keys: column 'ghost' is not in table 'orders'"):
+        plan(s, {"orders": ["ghost"]}, None)
+    with pytest.raises(PlanInputError, match="keys: table 'nowhere' is not in the schema"):
+        plan(s, {"nowhere": ["id"]}, None)
+    with pytest.raises(PlanInputError, match="confirmed\\[0\\]: column 'ghost_col' is not in table 'orders'"):
+        plan(s, None, [{"source": "orders", "source_cols": ["ghost_col"], "target": "customers", "target_cols": ["customer_id"]}])
+    with pytest.raises(PlanInputError, match="target table 'nowhere' is not in the schema"):
+        plan(s, None, [{"source": "orders", "source_cols": ["customer_id"], "target": "nowhere"}])
+    with pytest.raises(PlanInputError, match="needs source, source_cols and target"):
+        plan(s, None, [{"source": "orders"}])
+    with pytest.raises(PlanInputError, match="keys: table 'orders' has an empty column list"):
+        plan(s, {"orders": []}, None)

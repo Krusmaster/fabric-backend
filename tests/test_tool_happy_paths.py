@@ -72,3 +72,10 @@ def test_rayfin_connector_writes_entities_for_the_endpoint_type(shop):
     out = json.loads(server.rayfin_connector(*shop, connector="shop", schema="shop"))
     assert {"rayfin/connectors/shop/schema.ts", "rayfin/connectors/shop/Orders.ts", "rayfin/connectors/shop/README.generated.md"} <= set(out)
     assert "Orders" in out["rayfin/connectors/shop/Orders.ts"] and "order_id" in out["rayfin/connectors/shop/Orders.ts"]
+
+
+def test_a_typo_in_keys_or_confirmed_is_a_bad_input_answer_not_a_fabric_error(shop):
+    out = json.loads(server.plan_backend(*shop, schema="shop", keys={"orders": ["ghost"]}))
+    assert out["kind"] == "bad_input" and "'ghost'" in out["error"] and "Fabric" not in out["error"]
+    out = json.loads(server.plan_backend(*shop, schema="shop", confirmed=[{"source": "orders", "source_cols": ["customer_id"], "target": "nowhere"}]))
+    assert out["kind"] == "bad_input" and "nowhere" in out["error"] and "list_tables" in out["hint"]

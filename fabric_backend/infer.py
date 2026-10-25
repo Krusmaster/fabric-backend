@@ -214,7 +214,39 @@ def _gql(s: str) -> str:
     return s + "_lines" if s in RESERVED_FIELDS else s
 
 
+class PlanInputError(ValueError):
+    """`keys=` or `confirmed=` names a table or column that is not in the schema (or an entry is malformed)."""
+
+
+def check_input(schema: Schema, keys: dict[str, list[str]] | None, confirmed: list[dict] | None) -> None:
+    """Every table and column the caller names must exist, so a typo is reported here and never reaches Fabric
+    as a definition that refers to a column that is not there."""
+    tables = {t.name.lower(): t for t in schema}
+    problems: list[str] = []
+    for name, cols in (keys or {}).items():
+        t = tables.get(str(name).lower())
+        if t is None:
+            problems.append(f"keys: table {name!r} is not in the schema")
+        elif not cols:
+            problems.append(f"keys: table {name!r} has an empty column list")
+        else:
+            problems += [f"keys: column {c!r} is not in table {name!r}" for c in cols if not t.has(str(c))]
+    for i, c in enumerate(confirmed or []):
+        if not isinstance(c, dict) or not c.get("source") or not c.get("target") or not c.get("source_cols"):
+            problems.append(f"confirmed[{i}]: each entry needs source, source_cols and target")
+            continue
+        for side, cols in (("source", c["source_cols"]), ("target", c.get("target_cols") or c["source_cols"])):
+            t = tables.get(str(c[side]).lower())
+            if t is None:
+                problems.append(f"confirmed[{i}]: {side} table {c[side]!r} is not in the schema")
+            else:
+                problems += [f"confirmed[{i}]: column {col!r} is not in table {c[side]!r}" for col in cols if not t.has(str(col))]
+    if problems:
+        raise PlanInputError("; ".join(problems))
+
+
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> Plan:
+    check_input(schema, keys, confirmed)
     k = infer_keys(schema, keys)
     rels, amb = infer_relationships(schema, k, confirmed)
     return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k])

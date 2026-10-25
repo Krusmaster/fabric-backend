@@ -49,7 +49,7 @@ server has no database, keeps no files and stores nothing between requests. Deta
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
 happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,
-`consent`, `schema_not_found`, `table_not_found` or `timeout`) and `hint` (what to do next). Tokens, request
+`consent`, `schema_not_found`, `table_not_found`, `bad_input` or `timeout`) and `hint` (what to do next). Tokens, request
 headers and stack traces never appear in these answers. A query result too large for one answer comes back as valid
 JSON with every list cut to its first items and a `truncated` note saying so; page with `first:`/`after` for the rest.
 

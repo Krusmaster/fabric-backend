@@ -6,7 +6,7 @@ next). Nothing else leaves the server: no tokens, no request headers, no stack t
 quoted only after `scrub()`, which strips anything that looks like a bearer token and caps the length.
 
 Kinds: sign_in, consent, no_access, not_found, capacity, source_not_ready, schema_not_found, table_not_found,
-column_not_found, sql_sign_in, timeout, unreachable, throttled, fabric_unavailable, unsupported, server_config,
+column_not_found, sql_sign_in, timeout, unreachable, throttled, fabric_unavailable, unsupported, bad_input, server_config,
 fabric_error, sql_error, unexpected.
 """
 from __future__ import annotations
@@ -39,6 +39,7 @@ HINTS = {
     "throttled": "Fabric is rate-limiting requests. Wait a little and try again.",
     "fabric_unavailable": "Fabric answered with a server error. Try again in a few minutes.",
     "unsupported": "Choose a lakehouse, warehouse, SQL database or mirrored database as the source.",
+    "bad_input": "Check the keys and confirmed you passed: table and column names must match list_tables (case does not matter).",
     "server_config": "This is a configuration problem on the connector itself, not with your account. Contact the operator.",
     "fabric_error": "Check the message from Fabric above; list_sources and list_tables show what the account can see.",
     "sql_error": "Check the message from the SQL analytics endpoint above.",
@@ -148,6 +149,8 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
     low = text.lower()
     if isinstance(exc, SchemaEmpty):
         return _answer("schema_not_found", text)
+    if type(exc).__name__ == "PlanInputError":
+        return _answer("bad_input", text)
     if isinstance(exc, PermissionError):
         return _answer("sign_in", "No signed-in user on this request.")
     if type(exc).__name__ == "TokenError":
