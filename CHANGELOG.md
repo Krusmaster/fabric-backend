@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Review pass: the semantic model draft writes `schemaName` for a lakehouse created with schemas (the REST property
+  `properties.defaultSchema`, lakehouse/definitions.json) and omits it for one without, instead of guessing from the
+  schema name alone; the Direct Lake expression opens the database name the SQL endpoint actually has (a Fabric SQL
+  database's `properties.databaseName`), as `_resolve_source` already resolved it.
 - Creating tools with a dry run first: `create_semantic_model` (SemanticModel item from the TMDL draft via
   `POST /semanticModels` / `updateDefinition`), `create_views` (`CREATE OR ALTER VIEW` in a schema of its own on the SQL
   analytics endpoint or warehouse: a wide view per fact table, one per hard-to-read relationship; never DROP), and

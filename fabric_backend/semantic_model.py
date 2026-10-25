@@ -135,7 +135,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     endpoint = info.get("sql_endpoint") or "<sql analytics endpoint host>"
     database = info.get("sql_db") or info.get("item_name") or "<source item name>"
     # schemaName: a lakehouse created without schemas exposes its tables as dbo and has no schemaName in TMDL
-    with_schema = not (kind == "Lakehouse" and schema.lower() == "dbo")
+    # (direct-lake-power-bi-desktop.md); one created with schemas (REST: properties.defaultSchema present) has it,
+    # dbo included. Without that flag, a lakehouse's dbo is taken as "no schemas" and any other schema as schema-enabled.
+    schemas_enabled = info.get("schemas_enabled")
+    with_schema = bool(schemas_enabled) if schemas_enabled is not None else not (kind == "Lakehouse" and schema.lower() == "dbo")
 
     single = [r for r in plan.relationships if r.source in names and r.target in names
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
@@ -223,7 +226,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with "
                "duplicates when the model is framed; run `validate_plan` first.",
                f"- `schemaName`: {'written for every partition' if with_schema else 'omitted because a lakehouse without schemas exposes dbo without one'} "
-               "(docs: direct-lake-power-bi-desktop.md). If the lakehouse was created with schemas, add `schemaName: dbo`.",
+               "(docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). "
+               "If this is wrong for your lakehouse, add or remove the `schemaName` lines.",
                "- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.",
                "- Dates are `dateTime` (TMDL has no date type); no date table and no measures are generated.",
                "- The TMDL language reference itself could not be fetched when this generator was written; the syntax follows "

@@ -169,8 +169,13 @@ def test_resolve_source_by_name_or_id_and_reads_the_sql_endpoint_host(monkeypatc
     pages(monkeypatch, routes)
     by_name = server._resolve_source("ws-1", "shop_lh", HEADERS)
     assert by_name["type"] == "Lakehouse" and by_name["sql_host"] == "x.datawarehouse.fabric.microsoft.com" and by_name["sql_db"] == "shop_lh"
+    assert by_name["schemas_enabled"] is False                                          # no properties.defaultSchema: created without schemas
     by_id = server._resolve_source("ws-1", "wh-1", HEADERS)                            # not in the name list: tried as an id
     assert by_id["type"] == "Warehouse" and by_id["sql_host"] == "y.datawarehouse.fabric.microsoft.com" and by_id["sql_db"] == "dw"
+    assert by_id["schemas_enabled"] is True                                             # warehouses always have schemas
+    lakehouse["properties"]["defaultSchema"] = "dbo"                                    # a lakehouse created with schemas
+    assert server._resolve_source("ws-1", "shop_lh", HEADERS)["schemas_enabled"] is True
+    del lakehouse["properties"]["defaultSchema"]
     with pytest.raises(LookupError, match="'ghost'"):
         server._resolve_source("ws-1", "ghost", HEADERS)
     # a Fabric SQL database connects by its properties.databaseName (display name plus a suffix), per the REST spec

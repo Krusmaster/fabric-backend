@@ -105,6 +105,12 @@ def test_semantic_model_quotes_names_maps_types_and_omits_schema_for_plain_lakeh
     assert semantic_model.data_type("numeric(18,2)") == "decimal" and semantic_model.data_type("string") == "string"
     assert semantic_model.data_type("DATE") == "dateTime" and semantic_model.data_type("bigint") == "int64"
     check_tmdl(t)
+    # a lakehouse created with schemas (REST: properties.defaultSchema) keeps schemaName, dbo included
+    out = semantic_model.draft(plan(s), {**INFO, "schema": "dbo", "item_kind": "Lakehouse", "schemas_enabled": True}, "m")
+    assert "\t\t\tschemaName: dbo\n" in out["parts"]["definition/tables/Orders.tmdl"]
+    # a Fabric SQL database's database name (properties.databaseName, with its suffix) is what the expression opens
+    out = semantic_model.draft(plan(s), {**INFO, "item_kind": "SQLDatabase", "sql_db": "shopdb-1234-abcd"}, "m")
+    assert 'Sql.Database("x.datawarehouse.fabric.microsoft.com", "shopdb-1234-abcd")' in out["parts"]["definition/expressions.tmdl"]
 
 
 def test_semantic_model_makes_second_paths_inactive_and_skips_composite_relationships(tpch, sakila):

@@ -199,6 +199,9 @@ def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
     # a Fabric SQL database's actual database name carries a suffix (properties.databaseName); the others use the display name
     item["sql_db"] = props.get("databaseName") or item.get("displayName")
+    # a lakehouse created with schemas carries properties.defaultSchema (lakehouse/definitions.json: "returned only for
+    # schema enabled lakehouse"); the TMDL partitions need schemaName in that case, and must not have it otherwise
+    item["schemas_enabled"] = item["type"] != "Lakehouse" or "defaultSchema" in props
     return item
 
 
@@ -411,12 +414,21 @@ def rayfin_connector(workspace: str, source: str, connector: str = "data", schem
     return json.dumps(rayfin_files(p, connector, st, tables=tables, relationships=relationships), indent=2)
 
 
-def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
-    """Plan the source and collect what the ontology definition needs from the item: ids, name, kind, SQL endpoint host."""
+def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
+    """Plan the source and collect what a definition needs from the item: ids, name, kind, SQL endpoint host, the
+    database name the endpoint opens, and whether the lakehouse was created with schemas."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     workspace_id = _workspace_id(workspace, headers)
     return p, dict(workspace_id=workspace_id, item_id=item.get("id", ""), item_name=item.get("displayName") or source,
-                   item_kind=item.get("type", "Lakehouse"), schema=schema, sql_endpoint=item.get("sql_host") or "")
+                   item_kind=item.get("type", "Lakehouse"), schema=schema, sql_endpoint=item.get("sql_host") or "",
+                   sql_db=item.get("sql_db") or item.get("displayName") or source,
+                   schemas_enabled=item.get("schemas_enabled", item.get("type", "Lakehouse") != "Lakehouse"))
+
+
+def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
+    """The subset ontology.envelope takes as keyword arguments."""
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    return p, {k: info[k] for k in ("workspace_id", "item_id", "item_name", "item_kind", "schema", "sql_endpoint")}
 
 
 @mcp.tool(title="Draft a Fabric IQ ontology from the plan (nothing deployed)", annotations=RO)
@@ -503,9 +515,9 @@ def semantic_model_draft(workspace: str, source: str, name: str = "semantic_mode
     SQL analytics endpoint, relationships with cardinality and filter direction (one active path per table pair, the
     rest inactive with the reason), keyless tables without relationships into them. Returns {path: content} for the
     definition/ folder plus README.generated.md listing every decision to check. Creates nothing in Fabric."""
-    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
-    out = _semantic_model.draft(p, {**info, "sql_db": info.get("item_name")}, name, tables)
+    out = _semantic_model.draft(p, info, name, tables)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples; not yet created in a live workspace. Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
                    "lists what to check first.")
@@ -632,9 +644,9 @@ def create_semantic_model(workspace: str, source: str, name: str, schema: str = 
     sent — the parts and the REST call — without creating anything. Needs the delegated permission
     SemanticModel.ReadWrite.All or Item.ReadWrite.All and Contributor on the workspace. After creation the model may
     need a first refresh (framing) and, in the portal, a connection/credential for the endpoint."""
-    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
-    draft = _semantic_model.draft(p, {**info, "sql_db": info.get("item_name")}, name, tables)
+    draft = _semantic_model.draft(p, info, name, tables)
     body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
     out = {"summary": draft["summary"], "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels",
@@ -702,7 +714,7 @@ def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo
     pairs, then published. Created through the public staging REST API; re-running updates the same agent, data
     source and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls
     to review. Needs the delegated permission Item.ReadWrite.All (or DataAgent.ReadWrite.All for the staging calls)."""
-    p, info = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     spec = _data_agent.draft(p, info, name, schema)
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
