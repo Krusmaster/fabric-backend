@@ -18,6 +18,7 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 - Waiting for Fabric's long-running operation tolerates 429/5xx and reports a lost sign-in at once.
 - Large `query_graphql` results come back as valid JSON with lists cut to their first items and a `truncated` note.
 - HSTS and `X-Content-Type-Options: nosniff` on every response, the MCP endpoint and the 401 challenge included.
+- A request that announces a body over 4 MB is refused with 413 before anything reads it.
 - The local stdio server (`fabric-backend-mcp`) answers failures with the same `error`/`kind`/`hint` as the remote
   one and never echoes the ODBC string; the CLI prints an input error as one line and exits 2.
 - Input checks: `keys`, `confirmed` and `tables` must name tables and columns that exist (case does not matter);
