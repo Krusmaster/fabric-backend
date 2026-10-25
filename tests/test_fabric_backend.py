@@ -308,7 +308,8 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
     assert next(t for t in ts if t.name == "create_backend").annotations.read_only_hint is False
-    assert next(t for t in ts if t.name == "create_backend").annotations.destructive_hint is False
+    # it can overwrite an existing API definition in place, so Claude asks before each call (directory review criteria)
+    assert next(t for t in ts if t.name == "create_backend").annotations.destructive_hint is True
 
     class Ctx:
         headers = {"authorization": "Bearer abc", "x-fabric-sql-token": "sql123"}

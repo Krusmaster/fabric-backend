@@ -54,7 +54,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4); "
     "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
-    "hint (what to do next); relay the hint to the user rather than retrying blindly."))
+    "hint (the next step that fixes it)."))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -350,7 +350,7 @@ def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n:
                        "rows": [{k: short(v) for k, v in r.items()} for r in rows]}, indent=2, default=str)
 
 
-@mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False,
+@mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True,
                                                                                idempotent_hint=True, open_world_hint=True))
 @safe
 def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
@@ -440,7 +440,7 @@ def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: 
 
 if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"):
     @mcp.tool(title="Create or update a Fabric IQ ontology from the plan",
-              annotations=ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True))
+              annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True))
     @safe
     def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
                         confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
@@ -531,16 +531,18 @@ def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
 @mcp.tool(title="Run a GraphQL query", annotations=RO)
 @safe
 def query_graphql(workspace: str, api: str, query: str, variables: dict | None = None, ctx: Context = None) -> str:
-    """Run a read-only GraphQL query against an API for GraphQL item (name or id) in the workspace. Query fields
-    are named <type>s, e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest.
-    Mutations are refused."""
+    """Run a read-only GraphQL query against a Microsoft Fabric API for GraphQL item (name or id) in the workspace,
+    see https://learn.microsoft.com/fabric/data-engineering/api-graphql-overview. Query fields are named <type>s,
+    e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest; describe_backend lists the
+    exact names. Mutations and subscriptions are refused."""
     import requests
     from graphql import GraphQLError, OperationType, parse
     from graphql.language import FragmentDefinitionNode, OperationDefinitionNode
     try:
         document = parse(query, max_tokens=10000)
-    except GraphQLError:
-        return json.dumps({"error": "invalid GraphQL query"})
+    except GraphQLError as e:
+        return json.dumps({"error": f"The query is not valid GraphQL: {e.message}", "kind": "invalid_query",
+                           "hint": "Fix the syntax; describe_backend lists the types, fields and relationships to use."})
     operations = [node for node in document.definitions if isinstance(node, OperationDefinitionNode)]
     if any(node.operation != OperationType.QUERY for node in operations):
         return json.dumps({"error": "Mutations and subscriptions are not allowed through this tool; it only reads.",
@@ -549,7 +551,8 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
                                    "that uses the API with its own permissions."})
     if len(operations) != 1 or any(not isinstance(node, (OperationDefinitionNode, FragmentDefinitionNode))
                                    for node in document.definitions):
-        return json.dumps({"error": "provide exactly one GraphQL query operation"})
+        return json.dumps({"error": "Send exactly one GraphQL query operation (fragments are allowed).", "kind": "invalid_query",
+                           "hint": "Split several operations into separate calls."})
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     if len(api) == 36 and api.count("-") == 4:
