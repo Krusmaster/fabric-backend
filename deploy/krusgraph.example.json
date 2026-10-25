@@ -12,5 +12,6 @@
   "product_name": "Krusgraph",
   "contact_email": "hello@krusgraph.com",
   "company_orgnr": "",
-  "include_www": true
+  "include_www": true,
+  "min_replicas": 0
 }

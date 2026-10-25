@@ -77,12 +77,33 @@ def schema(name: str = "shop"):
     return s
 
 
+def schemas_enabled(spark) -> bool:
+    """True when the attached lakehouse was created with "Lakehouse schemas" (it then has a `dbo` schema).
+
+    Without schemas, `CREATE SCHEMA x` makes a separate Spark database whose tables the lakehouse's SQL analytics
+    endpoint never shows, so Krusgraph (which reads through that endpoint) would find nothing."""
+    try:
+        names = {str(r[0]).lower().split(".")[-1].strip("`") for r in spark.sql("SHOW SCHEMAS").collect()}
+    except Exception:                                                    # noqa: BLE001 - be permissive, decide below
+        return False
+    return "dbo" in names
+
+
 def seed(spark, schema: str = "shop", seed_value: int = 42) -> dict[str, int]:
-    """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts."""
-    spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
+    """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts.
+
+    On a lakehouse without schemas the tables go to the default schema (`dbo` as seen by the SQL endpoint) instead,
+    with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then."""
+    target = schema
+    if schema.lower() != "dbo" and not schemas_enabled(spark):
+        print(f"This lakehouse was created without 'Lakehouse schemas', so a '{schema}' schema would be invisible "
+              f"to its SQL endpoint. Writing the tables to the default schema instead: use schema='dbo' in Krusgraph.")
+        target = None
+    else:
+        spark.sql(f"CREATE SCHEMA IF NOT EXISTS {schema}")
     counts = {}
     for name, data in rows(seed_value).items():
         df = spark.createDataFrame(data, SCHEMAS[name])
-        df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{schema}.{name}")
+        df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{target}.{name}" if target else name)
         counts[name] = len(data)
     return counts

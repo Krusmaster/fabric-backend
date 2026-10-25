@@ -330,6 +330,7 @@ def test_update_builds_and_swaps_the_image_only(monkeypatch, tmp_path, capsys):
     assert "COMPANY_ORGNR=123456-7890" in env and "PRODUCT_NAME=Krusgraph" in env and f"MCP_PUBLIC_URL=https://{CONFIG['domain']}/mcp" in env
     assert "KRUSGRAPH_BUILD=src-new" in env and "krusgraph:src-new" in next(c for c in az.calls if c[:2] == ("acr", "build"))
     assert not any(e.startswith("ENTRA_CLIENT_SECRET") for e in env)
+    assert update_call[update_call.index("--min-replicas") + 1] == "0"          # default: scale to zero
     for untouched in (("ad",), ("containerapp", "hostname"), ("identity",), ("role",), ("group",), ("acr", "create"), ("containerapp", "create"), ("containerapp", "env", "create")):
         assert not any(c[:len(untouched)] == untouched for c in az.calls), untouched
     out = capsys.readouterr().out
@@ -352,3 +353,12 @@ def test_company_orgnr_reaches_both_the_manifest_and_update():
     assert "KRUSGRAPH_BUILD" not in d.plain_env(CONFIG)
     assert d.plain_env(CONFIG | {"company_orgnr": None})["COMPANY_ORGNR"] == ""
     assert d.plain_env(CONFIG)["COMPANY_ORGNR"] == "" or d.plain_env(CONFIG)["COMPANY_ORGNR"] == CONFIG.get("company_orgnr", "")
+
+
+def test_min_replicas_and_fast_probes():
+    assert d.min_replicas(CONFIG) == 0 and d.min_replicas(CONFIG | {"min_replicas": 1}) == 1
+    with pytest.raises(d.DeploymentError):
+        d.min_replicas(CONFIG | {"min_replicas": 5})
+    startup = next(p for p in d.probes() if p["type"] == "Startup")
+    assert startup["initialDelaySeconds"] <= 2 and startup["periodSeconds"] <= 2
+    assert startup["initialDelaySeconds"] + startup["periodSeconds"] * startup["failureThreshold"] >= 60   # still patient

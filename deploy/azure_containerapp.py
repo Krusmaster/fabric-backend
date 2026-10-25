@@ -155,15 +155,29 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
                 "revisionSuffix": "r" + uuid.uuid4().hex[:12],
                 "containers": [{"name": config["app"], "image": image, "env": env,
                                 "resources": {"cpu": 0.25, "memory": "0.5Gi"},
-                                "probes": [{"type": kind, "httpGet": {"path": "/healthz", "port": 8000},
-                                            "initialDelaySeconds": 10, "periodSeconds": 10,
-                                            "timeoutSeconds": 3, "failureThreshold": 12 if kind == "Startup" else 3}
-                                           for kind in ("Startup", "Readiness", "Liveness")]}],
-                "scale": {"minReplicas": 0, "maxReplicas": 2,
+                                "probes": probes()}],
+                "scale": {"minReplicas": min_replicas(config), "maxReplicas": 2,
                           "rules": [{"name": "http", "http": {"metadata": {"concurrentRequests": "10"}}}]},
             },
         },
     }
+
+
+def min_replicas(config) -> int:
+    """0 = scale to zero when idle (cheapest; the first request after a quiet spell waits for a cold start).
+    1 = always one warm instance, so MCP clients that give up after ~30 s never see a cold start."""
+    value = int(config.get("min_replicas", 0))
+    if value not in (0, 1, 2):
+        raise DeploymentError("min_replicas ska vara 0, 1 eller 2.")
+    return value
+
+
+def probes():
+    """Probe /healthz quickly after start so a scaled-from-zero instance takes traffic in seconds, not after 10–20 s."""
+    timing = {"Startup": (1, 2, 60), "Readiness": (1, 5, 3), "Liveness": (10, 10, 3)}
+    return [{"type": kind, "httpGet": {"path": "/healthz", "port": 8000}, "initialDelaySeconds": delay,
+             "periodSeconds": period, "timeoutSeconds": 3, "failureThreshold": failures}
+            for kind, (delay, period, failures) in timing.items()]
 
 
 def apply_manifest(az, config, manifest, exists):
@@ -380,7 +394,8 @@ def update(az, config):
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
     env_args = [f"{key}={value}" for key, value in plain_env(config, tag).items()]     # KEY= sets an empty value; the server treats it as unset
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
-           "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--set-env-vars", *env_args, raw=True)
+           "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--min-replicas", str(min_replicas(config)),
+           "--set-env-vars", *env_args, raw=True)
     report(az, config, first_run=False, build=tag)
 
 
