@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): list_sources, list_tables, plan_backend,
+Tools (all annotated for the Claude directory): list_workspaces, list_sources, list_tables, plan_backend,
 create_backend, rayfin_connector, query_graphql.
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ from .discovery import package_version as _package_version  # noqa: E402
 
 mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
-    "plus Rayfin connector entities. Start with list_sources, then plan_backend (nothing is deployed), then "
+    "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed), then "
     "create_backend. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
     "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
@@ -131,6 +131,38 @@ def _headers(ctx) -> dict:
 
 # ------------------------------------------------------------------ fabric helpers -----------
 
+_GUID = __import__("re").compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def _workspaces(headers: dict) -> list[dict]:
+    """Every workspace the signed-in account can see: id, name, type, capacity."""
+    import requests
+    out, url = [], f"{FABRIC}/v1/workspaces"
+    while url:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += [{"name": w.get("displayName"), "id": w.get("id"), "type": w.get("type"), "capacity_id": w.get("capacityId")}
+                for w in body.get("value", [])]
+        url = body.get("continuationUri")
+    return out
+
+
+def _workspace_id(workspace: str, headers: dict) -> str:
+    """Tools take a workspace id or its display name; a name is looked up (case does not matter)."""
+    from .infer import PlanInputError
+    w = (workspace or "").strip()
+    if _GUID.match(w):
+        return w
+    if not w:
+        raise PlanInputError("workspace: give the workspace id or its name; list_workspaces shows both")
+    hits = [x for x in _workspaces(headers) if (x["name"] or "").lower() == w.lower()]
+    if len(hits) == 1:
+        return hits[0]["id"]
+    if not hits:
+        raise LookupError(f"no workspace named {w!r} is visible to the signed-in account; list_workspaces shows what is")
+    raise PlanInputError(f"{len(hits)} workspaces are named {w!r}; use the id instead: " + ", ".join(h["id"] for h in hits))
+
 def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     """Lakehouse / warehouse / SQL database by name or id → item dict with sql endpoint host."""
     import requests
@@ -179,6 +211,7 @@ QUERY_TIMEOUT = 120     # seconds per metadata query
 
 def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
     headers = _headers(ctx)
+    workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
     execute = _execute_factory(item, auth.sql(ctx))
     try:
@@ -195,14 +228,23 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
 RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
 
 
+@mcp.tool(title="List workspaces", annotations=RO)
+@safe
+def list_workspaces(ctx: Context = None) -> str:
+    """The Fabric workspaces the signed-in account can see, with id, name and capacity. Start here if you do not
+    know the workspace id; the other tools take the id or the name."""
+    return json.dumps({"workspaces": _workspaces(_headers(ctx))}, indent=2)
+
+
 @mcp.tool(title="List data sources in a workspace", annotations=RO)
 @safe
 def list_sources(workspace: str, ctx: Context = None) -> str:
-    """Lakehouses, warehouses, SQL databases and mirrored databases in a Fabric workspace (id), plus existing
+    """Lakehouses, warehouses, SQL databases and mirrored databases in a Fabric workspace (id or name), plus existing
     API for GraphQL items. Use the display name or id as `source` in the other tools."""
     import requests
     headers = _headers(ctx)
-    out = {"sources": [], "graphql_apis": []}
+    workspace = _workspace_id(workspace, headers)
+    out = {"workspace": workspace, "sources": [], "graphql_apis": []}
     url = f"{FABRIC}/v1/workspaces/{workspace}/items"
     while url:
         r = requests.get(url, headers=headers, timeout=30)
@@ -306,6 +348,7 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
                                    for node in document.definitions):
         return json.dumps({"error": "provide exactly one GraphQL query operation"})
     headers = _headers(ctx)
+    workspace = _workspace_id(workspace, headers)
     if len(api) == 36 and api.count("-") == 4:
         api_id = api
     else:

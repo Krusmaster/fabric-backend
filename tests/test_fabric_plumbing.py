@@ -62,6 +62,7 @@ def test_list_sources_pages_through_the_workspace(monkeypatch):
                         {"displayName": "shop_api", "type": "GraphQLApi", "id": "api-1"}]}
     pages(monkeypatch, {"/items": Resp(200, first), "/next": Resp(200, second)})
     monkeypatch.setattr(server, "_headers", lambda ctx: HEADERS)
+    monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)
     out = json.loads(server.list_sources("ws-1"))
     assert [s["name"] for s in out["sources"]] == ["shop_lh", "dw"]                 # endpoint and notebook are not sources
     assert out["graphql_apis"] == [{"name": "shop_api", "id": "api-1"}]
@@ -182,3 +183,27 @@ def test_schema_name_stays_inside_its_sql_literal():
     seen.clear()
     Schema.from_sql(execute, "dbo")
     assert "TABLE_SCHEMA = 'dbo'" in seen[0]
+
+
+WS1, WS2, WS3 = "11111111-1111-1111-1111-111111111111", "22222222-2222-2222-2222-222222222222", "33333333-3333-3333-3333-333333333333"
+
+
+def test_list_workspaces_pages_and_tools_accept_a_workspace_name(monkeypatch):
+    first = {"value": [{"displayName": "Sales", "type": "Workspace", "id": WS1, "capacityId": "cap-1"}], "continuationUri": "https://x/ws2"}
+    second = {"value": [{"displayName": "Finance", "type": "Workspace", "id": WS2, "capacityId": "cap-1"},
+                        {"displayName": "Finance", "type": "Workspace", "id": WS3}]}
+    pages(monkeypatch, {"/v1/workspaces": Resp(200, first), "/ws2": Resp(200, second),
+                        f"/workspaces/{WS1}/items": Resp(200, {"value": [{"displayName": "sales_lh", "type": "Lakehouse", "id": "lh-1"}]})})
+    monkeypatch.setattr(server, "_headers", lambda ctx: HEADERS)
+    out = json.loads(server.list_workspaces())
+    assert [w["name"] for w in out["workspaces"]] == ["Sales", "Finance", "Finance"] and out["workspaces"][0]["capacity_id"] == "cap-1"
+    assert server._workspace_id(WS1, HEADERS) == WS1                                   # an id needs no lookup
+    assert server._workspace_id(" sales ", HEADERS) == WS1                              # a name does, case-insensitively
+    out = json.loads(server.list_sources("Sales"))
+    assert out["workspace"] == WS1 and out["sources"][0]["name"] == "sales_lh"
+    out = json.loads(server.list_sources("Marketing"))
+    assert out["kind"] == "not_found" and "list_workspaces" in out["error"]
+    out = json.loads(server.list_sources("finance"))
+    assert out["kind"] == "bad_input" and WS2 in out["error"] and WS3 in out["error"]
+    out = json.loads(server.list_sources(""))
+    assert out["kind"] == "bad_input"

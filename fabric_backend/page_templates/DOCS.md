@@ -30,7 +30,8 @@ server has no database, keeps no files and stores nothing between requests. Deta
 
 ## What you can ask
 
-- *"List the data sources in workspace <id>."*
+- *"Which Fabric workspaces can I see?"* — then any tool takes the workspace by name or id.
+- *"List the data sources in the Sales workspace."*
 - *"Plan a backend over the sales lakehouse."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns and an ER diagram.
 - *"Create it as sales_api."* — creates a Fabric API for GraphQL item with nested relationships, or updates it in place if the name exists.
 - *"Using sales_api, which customers ordered a trail bike in October?"* — a read-only GraphQL query.
@@ -40,7 +41,8 @@ server has no database, keeps no files and stores nothing between requests. Deta
 
 | Tool | Does | Changes anything |
 | --- | --- | --- |
-| `list_sources` | lakehouses, warehouses, SQL and mirrored databases, existing GraphQL APIs in a workspace | no |
+| `list_workspaces` | the workspaces the signed-in account can see, with id and capacity | no |
+| `list_sources` | lakehouses, warehouses, SQL and mirrored databases, existing GraphQL APIs in a workspace (id or name) | no |
 | `list_tables` | tables and columns with types | no |
 | `plan_backend` | inferred keys and relationships, each with its rule (K0–K3, R0–R3); ambiguous and keyless tables | no |
 | `create_backend` | creates or updates one API for GraphQL item | creates/updates one item; never deletes |

@@ -9,6 +9,13 @@ import requests
 from fabric_backend import errors, server
 from fabric_backend.entra import TokenError
 
+
+@pytest.fixture(autouse=True)
+def _workspace_ids_pass_through(monkeypatch):
+    """These tests mock Fabric per route; a workspace given as a plain string is used as the id."""
+    monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)
+
+
 FAKE_TOKEN = "eyJhbGciOiJSUzI1NiJ9.eyJhdWQiOiJmYWtlIn0.c2lnbmF0dXJlLXNpZ25hdHVyZQ"
 SECRET_HEADERS = {"Authorization": f"Bearer {FAKE_TOKEN}", "X-Fabric-SQL-Token": "sqltoken-should-never-show"}
 
@@ -227,7 +234,7 @@ def test_tools_still_describe_themselves_to_mcp_clients():
         body = r.text
         payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if body.startswith("event:") or "data: " in body else r.json()
         tools = {t["name"]: t for t in payload["result"]["tools"]}
-        assert set(tools) == {"list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql"}
+        assert set(tools) == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql"}
         assert "workspace" in tools["list_sources"]["inputSchema"]["properties"]
         assert set(tools["create_backend"]["inputSchema"]["properties"]) >= {"workspace", "source", "name", "schema", "writable", "keys", "confirmed", "tables"}
         assert "ctx" not in tools["plan_backend"]["inputSchema"]["properties"]

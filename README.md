@@ -72,8 +72,8 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, six tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
-(the directory requires it): `list_sources`, `list_tables`, `plan_backend` (read-only, nothing
+Streamable HTTP at `/mcp`, seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+(the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (read-only, nothing
 deployed), `create_backend` (creates or updates one item, never deletes), `rayfin_connector`,
 `query_graphql` (read-only; mutations refused). Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as

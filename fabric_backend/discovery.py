@@ -106,11 +106,11 @@ def llms_txt() -> str:
 
 > {p} turns the tables in a Microsoft Fabric lakehouse, warehouse or SQL database into an explainable graph and an API for GraphQL item. It is a remote MCP server at {v['MCP_URL']}: you add it to Claude as a custom connector and sign in with a Microsoft Entra work account, and every call runs with that account's own Fabric permissions. Claude is the client it is built and documented for; other MCP clients take the same URL once their sign-in redirect is registered on the Entra app.
 
-It reads table and column names, infers keys and relationships from names (declared keys and foreign keys win), and shows the rule behind each one (K0–K3 for keys, R0–R3 for relationships). Ambiguous columns are reported, never guessed. Six tools: `list_sources`, `list_tables`, `plan_backend` (nothing is deployed), `create_backend` (creates or updates one API for GraphQL item; never deletes), `rayfin_connector` and `query_graphql` (read-only; mutations are refused). Two steps stay manual in the Fabric portal because Fabric has no API for them yet: turning on introspection on the GraphQL item, and granting permissions on it to other apps or service principals. The server stores nothing; tokens are held in memory only. Open source under the MIT licence, made by Kruse Consulting AB, Sweden.
+It reads table and column names, infers keys and relationships from names (declared keys and foreign keys win), and shows the rule behind each one (K0–K3 for keys, R0–R3 for relationships). Ambiguous columns are reported, never guessed. Seven tools: `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing is deployed), `create_backend` (creates or updates one API for GraphQL item; never deletes), `rayfin_connector` and `query_graphql` (read-only; mutations are refused). Two steps stay manual in the Fabric portal because Fabric has no API for them yet: turning on introspection on the GraphQL item, and granting permissions on it to other apps or service principals. The server stores nothing; tokens are held in memory only. Open source under the MIT licence, made by Kruse Consulting AB, Sweden.
 
 ## Docs
 
-- [Docs]({o}/docs.md): connecting, what it accesses, the six tools, how relationships are inferred, the two manual steps
+- [Docs]({o}/docs.md): connecting, what it accesses, the seven tools, how relationships are inferred, the two manual steps
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): create the API for GraphQL item with {p}, then connect Lovable's Fabric connector to it
 - [Privacy policy]({o}/privacy.md): sign-in, the data path, logs, what is stored (nothing)

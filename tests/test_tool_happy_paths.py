@@ -8,6 +8,13 @@ from fabric_backend import seed, server
 from fabric_backend.schema import Schema
 
 
+@pytest.fixture(autouse=True)
+def _workspace_ids_pass_through(monkeypatch):
+    """These tests mock Fabric per route; a workspace given as a plain string is used as the id."""
+    monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)
+
+
+
 @pytest.fixture
 def shop(monkeypatch):
     """A lakehouse called shop_lh whose SQL endpoint serves the seven demo tables."""

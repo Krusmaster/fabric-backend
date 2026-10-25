@@ -46,7 +46,7 @@ write-up of what the engine got right, what it left unlinked, and what they had 
 
 ## How a pilot runs
 
-1. **Connect** (session 1, first half): admin consent, add the connector in Claude, `list_sources`, pick the source.
+1. **Connect** (session 1, first half): admin consent, add the connector in Claude, `list_workspaces`, `list_sources`, pick the source.
 2. **Explore**: `plan_backend` on the schema. Read the summary together: how many keys were found, which tables
    are keyless, which columns are ambiguous or unlinked.
 3. **Review**: go through every R2/R3 relationship and every ambiguous or unlinked column. Decide `keys=` for

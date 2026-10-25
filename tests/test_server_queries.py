@@ -5,6 +5,13 @@ import pytest
 from fabric_backend import server
 
 
+@pytest.fixture(autouse=True)
+def _workspace_ids_pass_through(monkeypatch):
+    """These tests mock Fabric per route; a workspace given as a plain string is used as the id."""
+    monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)
+
+
+
 @pytest.mark.parametrize("query", [
     "# comment\nmutation { deleteCustomers { id } }",
     "\ufeff, mutation Write { createCustomers { id } }",
