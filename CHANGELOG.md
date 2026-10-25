@@ -3,6 +3,15 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
+## Unreleased
+
+- Engine: an inference benchmark on Northwind, Chinook, TPC-H, AdventureWorks and Sakila (official DDL as ground
+  truth, `tests/fixtures/schemas/`, numbers in `docs/INFERENCE.md`) and the rules it led to: table-wide column
+  prefixes (`N_NATIONKEY`), `_code` suffixes, `<X>Header` names, abbreviations of four letters or more, a role before
+  the target's name (`manager_staff_id` → staff, rule R4), junction keys (K4) and header-plus-line keys (K5). The shop
+  schema's `order_items` now gets `order_id + line_no` by rule K5 without an override. GraphQL field names for
+  previously matched columns are unchanged. `plan_backend` suggests `reference + start_date` keys for history tables.
+
 ## 0.5.0 — 2026-10-25
 
 - Fabric IQ: `ontology_draft` writes the plan as an ontology (preview) draft: entity types with a key and properties,

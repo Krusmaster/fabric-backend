@@ -9,7 +9,7 @@ free text — and returns a handful of counts, not rows.
 """
 from __future__ import annotations
 
-from .infer import Plan
+from .infer import _HISTORY, _norm, Plan
 
 
 def qi(name: str) -> str:
@@ -124,4 +124,11 @@ def suggest_composite_keys(plan: Plan) -> list[dict]:
                 out.append({"table": t.name, "columns": [r.source_cols[0], line],
                             "why": f"{r.source_cols[0]} points at {r.target} and {line} numbers the rows within it",
                             "use": {t.name: [r.source_cols[0], line]}})
+        # history: one reference plus the column that starts the validity period (product_cost_history: product_id + start_date)
+        starts = [c for c in t.column_names if _HISTORY.search(_norm(c))]
+        if refs and starts and not lines:
+            r, start = refs[0], starts[0]
+            out.append({"table": t.name, "columns": [r.source_cols[0], start],
+                        "why": f"{r.source_cols[0]} points at {r.target} and {start} starts a validity period; check that no two rows share both",
+                        "use": {t.name: [r.source_cols[0], start]}})
     return out

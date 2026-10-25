@@ -403,7 +403,7 @@ def test_demo_validation_is_computed_from_the_seed_rows_and_shown_on_explore(cli
     v = demo.demo_validation()
     assert v["summary"] == "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
     assert {k["table"]: k["rows"] for k in v["keys"]}["order_items"] == 134 and all(k["nulls"] == 0 for k in v["keys"])
-    assert all(r["orphans"] == 0 for r in v["relationships"]) and v["suggested_keys"][0]["table"] == "order_items"
+    assert all(r["orphans"] == 0 for r in v["relationships"]) and v["suggested_keys"] == []       # K5 infers order_id + line_no
     assert "synthetic demo data" in v["computed"]
     r = client.get("/demo/validation.json")
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/json") and json.loads(r.text)["summary"] == v["summary"]

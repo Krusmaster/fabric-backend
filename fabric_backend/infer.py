@@ -4,19 +4,32 @@ A lakehouse SQL endpoint has no primary keys and no foreign keys. A warehouse ma
 (NOT ENFORCED) — if so, they win. Otherwise we go by names, in this order, and every result says
 which rule produced it so you can overrule it.
 
+Names are compared without case, separators or a table-wide column prefix (TPC-H style `N_NATIONKEY` in
+NATION is read as `nationkey`), and a table named `<X>Header` also answers to `<X>`.
+
 Keys (per table):
   K0  declared primary key
   K1  `keys` override from the caller
-  K2  a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`
+  K2  a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, or an abbreviation of the table name
+      (four letters or more) with one of those suffixes: `cust_key` in customer. An abbreviation that is another
+      table's name (`ps_partkey` in PARTSUPP names PART) is a reference, not a key.
   K3  nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it
+  K4  junction: no column names a key and the table starts with two or more reference columns; together they are the key
+      (film_actor: actor_id + film_id). Not applied to history tables (a column named start_*, valid_from,
+      effective_* or *_from), whose key also needs the date.
+  K5  line: no column names a key; the reference to the header table plus a line-number column
+      (line_no, position, seq…). The header is the table the line table is named after (order_items → orders),
+      else the first reference column.
 
 Relationships (per column of a table A that is not A's own key):
   R0  declared foreign key
-  R1  column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` where B has a single key
+  R1  column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no) where B has a single key
   R2  column has exactly the same name as B's single key column, and that name is not just `id`
       (`customer_id` in orders -> customers.customer_id; `id` never matches)
   R3  all of B's composite key columns appear in A (header/items: order_id+line in order_items
       vs order_id in orders is R1; sales_org+plant in both is R3)
+  R4  weaker name match when R1 and R2 find nothing: a role before B's name (`manager_staff_id` → staff, `ShipToAddressID` → Address)
+      or an abbreviation of B of four letters or more (`o_custkey` → customer)
 A column that could point at two tables is reported as ambiguous and not applied.
 """
 from __future__ import annotations
@@ -76,20 +89,41 @@ class Plan:
 RULES = {
     "K0": "declared primary key",
     "K1": "`keys` override from the caller",
-    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`",
+    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, "
+          "`<table>_nr`, `<table>_no`, or an abbreviation of the table name (four letters or more) with one of those suffixes",
     "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
+    "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key "
+          "(not applied to history tables with a start_*/valid_from/effective_* column)",
+    "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
     "R0": "declared foreign key",
-    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` where B has a single key",
+    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no) where B has a single key",
     "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
     "R3": "all of B's composite key columns appear in A",
+    "R4": "weaker name match when R1 and R2 find nothing: a role before B's name (`manager_staff_id` → staff) or an abbreviation "
+          "of B of four letters or more (`o_custkey` → customer)",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
 }
 
 _SPLIT = re.compile(r"[^a-z0-9]+")
+_SUFFIXES = ("id", "key", "code", "nr", "no")
+_SUFFIX_RE = re.compile(r"^(.*?)(id|key|code|nr|no)$")
+_HEADER = ("header", "hdr")
+_PREFIX = re.compile(r"^([a-z]{1,4})_(?=.)")
+_LINE_LIKE = {"line", "lineno", "linenumber", "linenr", "linenum", "position", "pos", "seq", "sequence", "seqno",
+              "itemno", "rowno", "rownumber"}
+_HISTORY = re.compile(r"^(start|validfrom|effective)|from$")
+_MIN_ABBREVIATION = 4
 
 
 def _norm(s: str) -> str:
     return _SPLIT.sub("", s.lower())
+
+
+def _words(name: str) -> list[str]:
+    """`ShipToAddressID` -> [ship, to, address, id]; `manager_staff_id` -> [manager, staff, id]."""
+    s = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", name)
+    s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", s)
+    return [w for w in _SPLIT.split(s.lower()) if w]
 
 
 def _singulars(name: str) -> set[str]:
@@ -104,20 +138,93 @@ def _singulars(name: str) -> set[str]:
     return out
 
 
+def _bases(table: str) -> set[str]:
+    """The normalised names a key or reference may use for `table`: its singular forms, and the same without a
+    trailing `header` (SalesOrderHeader is keyed by SalesOrderID and referenced as SalesOrderID)."""
+    out = {_norm(x) for x in _singulars(table)}
+    n = table.lower()
+    for h in _HEADER:
+        for sep in ("_", ""):
+            if n.endswith(sep + h) and len(n) > len(h) + len(sep):
+                out |= {_norm(x) for x in _singulars(n[: -len(h) - len(sep)])}
+    return {b for b in out if b}
+
+
 def _key_candidates(table: str) -> set[str]:
-    c = set()
-    for base in _singulars(table):
-        b = _norm(base)
-        c.update({"id", b + "id", b + "key", b + "nr", b + "no"})
+    c = {"id"}
+    for b in _bases(table):
+        c.update(b + suf for suf in _SUFFIXES)
     return c
 
 
 def _ref_candidates(target: str) -> set[str]:
     c = set()
-    for base in _singulars(target):
-        b = _norm(base)
-        c.update({b + "id", b + "key", b + "nr", b + "no"})
+    for b in _bases(target):
+        c.update(b + suf for suf in _SUFFIXES)
     return c
+
+
+def _table_prefix(t: Table) -> str:
+    """`n_` when every column of NATION is N_…: a prefix shared by all columns is not part of the name."""
+    if len(t.columns) < 2:
+        return ""
+    found = set()
+    for c in t.column_names:
+        m = _PREFIX.match(c.lower())
+        if not m:
+            return ""
+        found.add(m.group(1))
+    return found.pop() if len(found) == 1 else ""
+
+
+def _strip_prefix(col: str, prefix: str) -> str:
+    return col[len(prefix) + 1:] if prefix and col.lower().startswith(prefix + "_") else col
+
+
+def _bare(t: Table, prefix: str) -> dict[str, str]:
+    """column name -> normalised name without the table-wide prefix."""
+    return {c: _norm(_strip_prefix(c, prefix)) for c in t.column_names}
+
+
+def _stem(col: str) -> tuple[list[str], str]:
+    """Words before the reference suffix, and the suffix: `ShipToAddressID` -> ([ship, to, address], "id"),
+    `custkey` -> ([cust], "key"); ([], "") when the column carries no such suffix."""
+    words = _words(col)
+    if not words:
+        return [], ""
+    if words[-1] in _SUFFIXES:
+        return words[:-1], words[-1]
+    m = _SUFFIX_RE.match(words[-1])
+    if m and m.group(1):
+        return words[:-1] + [m.group(1)], m.group(2)
+    return [], ""
+
+
+def _first_word(table: str) -> str:
+    w = _words(table)
+    return w[0] if w else ""
+
+
+def _abbreviates(stem: str, table: str) -> bool:
+    """`cust` abbreviates `customer` (the first word of the table's name): a proper prefix of at least four letters."""
+    first = _first_word(table)
+    return len(stem) >= _MIN_ABBREVIATION and len(stem) < len(first) and first.startswith(stem)
+
+
+def _role_targets(stem: list[str], tables: dict[str, set[str]]) -> list[str]:
+    """`[ship, to, address]` ends with the base `address` on a word boundary, with a role before it -> [Address].
+    The longest base wins; two different tables with the same longest base are both returned (ambiguous)."""
+    best, hits = 0, []
+    for table, bases in tables.items():
+        for k in range(1, len(stem)):
+            tail = "".join(stem[k:])
+            if tail in bases:
+                if len(tail) > best:
+                    best, hits = len(tail), [table]
+                elif len(tail) == best and table not in hits:
+                    hits.append(table)
+                break
+    return hits
 
 
 def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None) -> dict[str, tuple[list[str], str]]:
@@ -129,10 +236,19 @@ def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None) -> dict
         elif t.keys:
             out[t.name] = (list(t.keys), "K0")
         else:
+            bare = _bare(t, _table_prefix(t))
             cands = _key_candidates(t.name)
-            hits = [c for c in t.column_names if _norm(c) in cands]
+            hits = [c for c in t.column_names if bare[c] in cands]
             # prefer the most specific name: <table>_id over id
-            hits.sort(key=lambda c: (_norm(c) == "id", len(c)))
+            hits.sort(key=lambda c: (bare[c] == "id", len(c)))
+            if not hits:                                                   # abbreviation: cust_key in customer
+                others = set().union(*(_bases(o.name) for o in schema if o.name != t.name)) if len(schema) > 1 else set()
+                for c in t.column_names:
+                    stem, suf = _stem(_strip_prefix(c, _table_prefix(t)))
+                    # ps_partkey in PARTSUPP names PART, another table: a reference, not an abbreviated key
+                    if suf and len(stem) == 1 and _abbreviates(stem[0], t.name) and stem[0] not in others:
+                        hits.append(c)
+                hits.sort(key=len)
             if hits:
                 out[t.name] = ([hits[0]], "K2")
     return out
@@ -156,28 +272,40 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         add(Relationship(c["source"], list(c["source_cols"]), c["target"], list(c.get("target_cols") or c["source_cols"]),
                          "confirmed", field_name=c.get("field_name") or "", reverse_name=c.get("reverse_name") or ""))
 
+    prefixes = {t.name: _table_prefix(t) for t in schema}
+    bares = {t.name: _bare(t, prefixes[t.name]) for t in schema}
     single_key: dict[str, str] = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
     by_ref_name: dict[str, list[str]] = {}
     by_key_name: dict[str, list[str]] = {}                                # R2 index: normalised key column -> tables
+    bases_of: dict[str, set[str]] = {}
     for t, k in single_key.items():
         for cand in _ref_candidates(t):
             by_ref_name.setdefault(cand, []).append(t)
-        by_key_name.setdefault(_norm(k), []).append(t)
+        by_key_name.setdefault(bares.get(t, {}).get(k, _norm(k)), []).append(t)
+        bases_of[t] = _bases(t)
 
     for t in schema:
         own_key = set(x.lower() for x in keys.get(t.name, ([], ""))[0])
+        bare = bares[t.name]
         for cols, target, tcols in t.foreign_keys:                     # R0
             if target in schema:
                 add(Relationship(t.name, cols, target, tcols, "R0"))
         for c in t.column_names:
             if c.lower() in own_key and len(own_key) == 1:
                 continue
-            n = _norm(c)
+            n = bare[c]
             targets = [b for b in by_ref_name.get(n, []) if b != t.name]  # R1
             rule = "R1"
             if not targets and n != "id":                                 # R2
                 targets = [b for b in by_key_name.get(n, []) if b != t.name]
                 rule = "R2"
+            if not targets:                                               # R4: role before the name, or abbreviation
+                stem, suf = _stem(_strip_prefix(c, prefixes[t.name]))
+                if suf:
+                    targets = [b for b in _role_targets(stem, bases_of) if b != t.name]
+                    if not targets and len(stem) == 1:
+                        targets = [b for b in single_key if b != t.name and _abbreviates(stem[0], b)]
+                    rule = "R4"
             if len(targets) > 1:
                 ambiguous.append({"table": t.name, "column": c, "candidates": targets, "rule": rule})
                 continue
@@ -187,37 +315,83 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         for b, (bk, _) in keys.items():                                  # R3
             if b == t.name or len(bk) < 2:
                 continue
-            if all(t.has(k) for k in bk) and set(x.lower() for x in bk) != own_key:
-                add(Relationship(t.name, [t.col(k) for k in bk], b, list(bk), "R3"))
+            bbare = bares[b]
+            wanted = [bbare.get(k, _norm(k)) for k in bk]
+            mine = {v: k for k, v in bare.items()}
+            if all(w in mine for w in wanted) and set(x.lower() for x in bk) != own_key:
+                add(Relationship(t.name, [mine[w] for w in wanted], b, list(bk), "R3"))
 
-    _name_fields(rels)
+    _name_fields(rels, prefixes)
     return rels, ambiguous
 
 
-_REF_SUFFIX = re.compile(r"(_?(id|key|nr|no))$", re.I)
+def _line_like(col: str) -> bool:
+    """`line_no`, `LineNumber`, `position`, `order_line`, `item_seq`: the last word (or two) names a line number."""
+    w = _words(col)
+    return bool(w) and (w[-1] in _LINE_LIKE or "".join(w[-2:]) in _LINE_LIKE)
 
 
-def _role(r: Relationship) -> str:
-    """The name a single-column reference gives its target: `ship_to_id` -> `ship_to`, `manager_id` -> `manager`.
-    Empty when the column is just the target's own name (`customer_id` -> customers), or composite."""
+def composite_keys(schema: Schema, keys: dict[str, tuple[list[str], str]],
+                   rels: list[Relationship]) -> dict[str, tuple[list[str], str]]:
+    """K5 and K4 for the tables still without a key, from the single-column references already inferred."""
+    out: dict[str, tuple[list[str], str]] = {}
+    for t in schema:
+        if t.name in keys:
+            continue
+        prefix = _table_prefix(t)
+        bare = _bare(t, prefix)
+        refs = [r for r in rels if r.source == t.name and len(r.source_cols) == 1 and r.rule != "confirmed"]
+        if not refs:
+            continue
+        ref_cols = [r.source_cols[0] for r in refs]
+        lines = [c for c in t.column_names if c not in ref_cols and _line_like(_strip_prefix(c, prefix))]
+        if lines:                                                                                          # K5
+            stem = _first_word(t.name).rstrip("s")
+            header = [r for r in refs if _first_word(r.target).rstrip("s").startswith(stem)
+                      or stem.startswith(_first_word(r.target).rstrip("s"))]
+            ref = min(header or refs, key=lambda r: t.column_names.index(r.source_cols[0]))
+            out[t.name] = ([ref.source_cols[0], lines[0]], "K5")
+            continue
+        if any(_HISTORY.search(bare[c]) for c in t.column_names):
+            continue
+        leading = []
+        for c in t.column_names:                                                                           # K4
+            if c in ref_cols:
+                leading.append(c)
+            else:
+                break
+        if len(leading) >= 2:
+            out[t.name] = (leading, "K4")
+    return out
+
+
+_REF_SUFFIX = re.compile(r"(_?(id|key|code|nr|no))$", re.I)
+
+
+def _role(r: Relationship, prefix: str = "") -> str:
+    """The name a single-column reference gives its target: `ship_to_id` -> `ship_to`, `manager_id` -> `manager`,
+    `origin_airport_id` -> `origin_airport`. Empty when the column is just the target's own name (`customer_id` ->
+    customers, `o_custkey` -> customer), or composite."""
     if len(r.source_cols) != 1:
         return ""
-    stem = _REF_SUFFIX.sub("", r.source_cols[0]).strip("_")
-    if not stem or _norm(stem) in {_norm(x) for x in _singulars(r.target) | {r.target}}:
+    col = _strip_prefix(r.source_cols[0], prefix)
+    stem = _REF_SUFFIX.sub("", col).strip("_")
+    if not stem or _norm(stem) in _bases(r.target) | {_norm(r.target)} or _abbreviates(_norm(stem), r.target):
         return ""
     return stem
 
 
-def _name_fields(rels: list[Relationship]) -> None:
+def _name_fields(rels: list[Relationship], prefixes: dict[str, str] | None = None) -> None:
     """GraphQL field names: `customer` on orders, `orders` on customers. A column that names a role rather than the
     target (`ship_to_id` -> addresses) gives the field that role's name. Names given in `confirmed` are kept.
     Any remaining clash on the same table is disambiguated by column."""
     from collections import Counter
+    prefixes = prefixes or {}
     for r in rels:
+        role = _role(r, prefixes.get(r.source, ""))
         if not r.field_name:
-            r.field_name = _gql(_role(r) or sorted(_singulars(r.target), key=len)[0])
+            r.field_name = _gql(role or sorted(_singulars(r.target), key=len)[0])
         if not r.reverse_name:
-            role = _role(r)
             r.reverse_name = _gql(f"{r.source}_as_{role}" if role else r.source)
     for attr, owner in (("field_name", "source"), ("reverse_name", "target")):
         counts = Counter((getattr(r, owner), getattr(r, attr)) for r in rels)
@@ -283,6 +457,10 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
     check_input(schema, keys, confirmed)
     k = infer_keys(schema, keys)
     rels, amb = infer_relationships(schema, k, confirmed)
+    extra = composite_keys(schema, k, rels)
+    if extra:                                   # K4/K5 keys can be R3 targets: run the relationships once more
+        k.update(extra)
+        rels, amb = infer_relationships(schema, k, confirmed)
     return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k])
 
 

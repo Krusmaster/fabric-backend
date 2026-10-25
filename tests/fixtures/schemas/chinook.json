@@ -1,0 +1,478 @@
+{
+ "name": "chinook",
+ "tables": [
+  {
+   "name": "Album",
+   "schema": "dbo",
+   "columns": [
+    [
+     "AlbumId",
+     "int"
+    ],
+    [
+     "Title",
+     "nvarchar"
+    ],
+    [
+     "ArtistId",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "AlbumId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ArtistId"
+     ],
+     "ref_table": "Artist",
+     "ref_columns": [
+      "ArtistId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Artist",
+   "schema": "dbo",
+   "columns": [
+    [
+     "ArtistId",
+     "int"
+    ],
+    [
+     "Name",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "ArtistId"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Customer",
+   "schema": "dbo",
+   "columns": [
+    [
+     "CustomerId",
+     "int"
+    ],
+    [
+     "FirstName",
+     "nvarchar"
+    ],
+    [
+     "LastName",
+     "nvarchar"
+    ],
+    [
+     "Company",
+     "nvarchar"
+    ],
+    [
+     "Address",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "State",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "Phone",
+     "nvarchar"
+    ],
+    [
+     "Fax",
+     "nvarchar"
+    ],
+    [
+     "Email",
+     "nvarchar"
+    ],
+    [
+     "SupportRepId",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "CustomerId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "SupportRepId"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "EmployeeId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Employee",
+   "schema": "dbo",
+   "columns": [
+    [
+     "EmployeeId",
+     "int"
+    ],
+    [
+     "LastName",
+     "nvarchar"
+    ],
+    [
+     "FirstName",
+     "nvarchar"
+    ],
+    [
+     "Title",
+     "nvarchar"
+    ],
+    [
+     "ReportsTo",
+     "int"
+    ],
+    [
+     "BirthDate",
+     "datetime"
+    ],
+    [
+     "HireDate",
+     "datetime"
+    ],
+    [
+     "Address",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "State",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "Phone",
+     "nvarchar"
+    ],
+    [
+     "Fax",
+     "nvarchar"
+    ],
+    [
+     "Email",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "EmployeeId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ReportsTo"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "EmployeeId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Genre",
+   "schema": "dbo",
+   "columns": [
+    [
+     "GenreId",
+     "int"
+    ],
+    [
+     "Name",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "GenreId"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Invoice",
+   "schema": "dbo",
+   "columns": [
+    [
+     "InvoiceId",
+     "int"
+    ],
+    [
+     "CustomerId",
+     "int"
+    ],
+    [
+     "InvoiceDate",
+     "datetime"
+    ],
+    [
+     "BillingAddress",
+     "nvarchar"
+    ],
+    [
+     "BillingCity",
+     "nvarchar"
+    ],
+    [
+     "BillingState",
+     "nvarchar"
+    ],
+    [
+     "BillingCountry",
+     "nvarchar"
+    ],
+    [
+     "BillingPostalCode",
+     "nvarchar"
+    ],
+    [
+     "Total",
+     "numeric"
+    ]
+   ],
+   "primary_key": [
+    "InvoiceId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CustomerId"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "CustomerId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "InvoiceLine",
+   "schema": "dbo",
+   "columns": [
+    [
+     "InvoiceLineId",
+     "int"
+    ],
+    [
+     "InvoiceId",
+     "int"
+    ],
+    [
+     "TrackId",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "numeric"
+    ],
+    [
+     "Quantity",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "InvoiceLineId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "InvoiceId"
+     ],
+     "ref_table": "Invoice",
+     "ref_columns": [
+      "InvoiceId"
+     ]
+    },
+    {
+     "columns": [
+      "TrackId"
+     ],
+     "ref_table": "Track",
+     "ref_columns": [
+      "TrackId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "MediaType",
+   "schema": "dbo",
+   "columns": [
+    [
+     "MediaTypeId",
+     "int"
+    ],
+    [
+     "Name",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "MediaTypeId"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Playlist",
+   "schema": "dbo",
+   "columns": [
+    [
+     "PlaylistId",
+     "int"
+    ],
+    [
+     "Name",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "PlaylistId"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "PlaylistTrack",
+   "schema": "dbo",
+   "columns": [
+    [
+     "PlaylistId",
+     "int"
+    ],
+    [
+     "TrackId",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "PlaylistId",
+    "TrackId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "PlaylistId"
+     ],
+     "ref_table": "Playlist",
+     "ref_columns": [
+      "PlaylistId"
+     ]
+    },
+    {
+     "columns": [
+      "TrackId"
+     ],
+     "ref_table": "Track",
+     "ref_columns": [
+      "TrackId"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Track",
+   "schema": "dbo",
+   "columns": [
+    [
+     "TrackId",
+     "int"
+    ],
+    [
+     "Name",
+     "nvarchar"
+    ],
+    [
+     "AlbumId",
+     "int"
+    ],
+    [
+     "MediaTypeId",
+     "int"
+    ],
+    [
+     "GenreId",
+     "int"
+    ],
+    [
+     "Composer",
+     "nvarchar"
+    ],
+    [
+     "Milliseconds",
+     "int"
+    ],
+    [
+     "Bytes",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "numeric"
+    ]
+   ],
+   "primary_key": [
+    "TrackId"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "AlbumId"
+     ],
+     "ref_table": "Album",
+     "ref_columns": [
+      "AlbumId"
+     ]
+    },
+    {
+     "columns": [
+      "GenreId"
+     ],
+     "ref_table": "Genre",
+     "ref_columns": [
+      "GenreId"
+     ]
+    },
+    {
+     "columns": [
+      "MediaTypeId"
+     ],
+     "ref_table": "MediaType",
+     "ref_columns": [
+      "MediaTypeId"
+     ]
+    }
+   ]
+  }
+ ]
+}

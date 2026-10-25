@@ -17,7 +17,7 @@ def test_local_tools_plan_the_source_behind_the_odbc_string(local_shop):
     out = json.loads(mcp_server.list_tables("shop"))
     assert set(out) == {"customers", "categories", "products", "orders", "order_items", "addresses", "audit_log"}
     out = json.loads(mcp_server.plan_backend("shop"))
-    assert out["summary"].startswith("7 tables, 5 with keys, 6 relationships") and "erDiagram" in out["mermaid"]
+    assert out["summary"].startswith("7 tables, 6 with keys, 6 relationships") and "erDiagram" in out["mermaid"]
     out = json.loads(mcp_server.rayfin_connector("shop", schema="shop", tables=["orders"]))
     assert "rayfin/connectors/shop/Orders.ts" in out and "rayfin/connectors/shop/Customers.ts" not in out
 

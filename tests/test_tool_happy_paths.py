@@ -35,13 +35,14 @@ def test_list_tables_names_every_demo_table_with_typed_columns(shop):
 
 def test_plan_backend_reports_rules_ambiguity_and_a_diagram(shop):
     out = json.loads(server.plan_backend(*shop, schema="shop"))
-    assert out["summary"].startswith("7 tables, 5 with keys, 6 relationships")
+    assert out["summary"].startswith("7 tables, 6 with keys, 6 relationships")
     assert out["keys"]["orders"]["columns"] == ["order_id"] and out["keys"]["orders"]["rule"].startswith("K")
     rels = {(r["source"], tuple(r["source_cols"])): r for r in out["relationships"]}
     assert rels[("products", ("category_id",))]["target"] == "categories" and rels[("products", ("category_id",))]["rule"] == "R1"
-    assert all(r["rule"] in {"R0", "R1", "R2", "R3"} for r in out["relationships"])     # every link says which rule made it
+    assert all(r["rule"] in {"R0", "R1", "R2", "R3", "R4"} for r in out["relationships"])     # every link says which rule made it
     assert "erDiagram" in out["mermaid"]
-    assert out["ambiguous"] == [] and set(out["keyless"]) == {"order_items", "audit_log"}
+    assert out["ambiguous"] == [] and out["keyless"] == ["audit_log"]
+    assert out["keys"]["order_items"] == {"columns": ["order_id", "line_no"], "rule": "K5"}   # header reference + line number
     # composite key override and a confirmed link both reach the engine
     with_keys = json.loads(server.plan_backend(*shop, schema="shop", keys={"order_items": ["order_id", "line_no"]}))
     assert with_keys["keys"]["order_items"]["columns"] == ["order_id", "line_no"]

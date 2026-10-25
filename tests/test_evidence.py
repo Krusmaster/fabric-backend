@@ -71,10 +71,28 @@ def test_identifiers_are_quoted():
 
 
 def test_composite_key_is_suggested_for_order_items():
-    s = ev.suggest_composite_keys(shop_plan())
+    p = shop_plan()
+    assert p.keys["order_items"] == (["order_id", "line_no"], "K5")           # rule K5 now infers it; nothing left to suggest
+    assert ev.suggest_composite_keys(p) == []
+    del p.keys["order_items"]                                                  # a plan without it: the suggestion is the same key
+    s = ev.suggest_composite_keys(p)
     assert {"table": "order_items", "columns": ["order_id", "line_no"]}.items() <= s[0].items()
     assert s[0]["use"] == {"order_items": ["order_id", "line_no"]} and len(s) == 1   # not product_id + line_no
     assert ev.suggest_composite_keys(shop_plan(keys={"order_items": ["order_id", "line_no"]})) == []
+
+
+def test_history_tables_get_a_reference_plus_start_date_suggestion():
+    from fabric_backend.infer import plan
+    from fabric_backend.schema import Schema
+    s = Schema.from_information_schema([
+        ("dbo", "products", "product_id", "int", 1), ("dbo", "products", "name", "varchar", 2),
+        ("dbo", "product_cost_history", "product_id", "int", 1), ("dbo", "product_cost_history", "start_date", "date", 2),
+        ("dbo", "product_cost_history", "end_date", "date", 3), ("dbo", "product_cost_history", "cost", "decimal", 4),
+    ])
+    p = plan(s)
+    assert "product_cost_history" in p.keyless                                  # K4/K5 do not guess history keys
+    s = ev.suggest_composite_keys(p)
+    assert len(s) == 1 and s[0]["use"] == {"product_cost_history": ["product_id", "start_date"]} and "validity" in s[0]["why"]
 
 
 def test_describe_definition_reads_back_what_create_backend_writes():

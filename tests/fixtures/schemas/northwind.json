@@ -1,0 +1,614 @@
+{
+ "name": "northwind",
+ "tables": [
+  {
+   "name": "Employees",
+   "schema": null,
+   "columns": [
+    [
+     "EmployeeID",
+     "int"
+    ],
+    [
+     "LastName",
+     "nvarchar"
+    ],
+    [
+     "FirstName",
+     "nvarchar"
+    ],
+    [
+     "Title",
+     "nvarchar"
+    ],
+    [
+     "TitleOfCourtesy",
+     "nvarchar"
+    ],
+    [
+     "BirthDate",
+     "datetime"
+    ],
+    [
+     "HireDate",
+     "datetime"
+    ],
+    [
+     "Address",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "Region",
+     "nvarchar"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "HomePhone",
+     "nvarchar"
+    ],
+    [
+     "Extension",
+     "nvarchar"
+    ],
+    [
+     "Photo",
+     "image"
+    ],
+    [
+     "Notes",
+     "ntext"
+    ],
+    [
+     "ReportsTo",
+     "int"
+    ],
+    [
+     "PhotoPath",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "EmployeeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ReportsTo"
+     ],
+     "ref_table": "Employees",
+     "ref_columns": [
+      "EmployeeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Categories",
+   "schema": null,
+   "columns": [
+    [
+     "CategoryID",
+     "int"
+    ],
+    [
+     "CategoryName",
+     "nvarchar"
+    ],
+    [
+     "Description",
+     "ntext"
+    ],
+    [
+     "Picture",
+     "image"
+    ]
+   ],
+   "primary_key": [
+    "CategoryID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Customers",
+   "schema": null,
+   "columns": [
+    [
+     "CustomerID",
+     "nchar"
+    ],
+    [
+     "CompanyName",
+     "nvarchar"
+    ],
+    [
+     "ContactName",
+     "nvarchar"
+    ],
+    [
+     "ContactTitle",
+     "nvarchar"
+    ],
+    [
+     "Address",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "Region",
+     "nvarchar"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "Phone",
+     "nvarchar"
+    ],
+    [
+     "Fax",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "CustomerID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Shippers",
+   "schema": null,
+   "columns": [
+    [
+     "ShipperID",
+     "int"
+    ],
+    [
+     "CompanyName",
+     "nvarchar"
+    ],
+    [
+     "Phone",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "ShipperID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Suppliers",
+   "schema": null,
+   "columns": [
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "CompanyName",
+     "nvarchar"
+    ],
+    [
+     "ContactName",
+     "nvarchar"
+    ],
+    [
+     "ContactTitle",
+     "nvarchar"
+    ],
+    [
+     "Address",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "Region",
+     "nvarchar"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "Phone",
+     "nvarchar"
+    ],
+    [
+     "Fax",
+     "nvarchar"
+    ],
+    [
+     "HomePage",
+     "ntext"
+    ]
+   ],
+   "primary_key": [
+    "SupplierID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Orders",
+   "schema": null,
+   "columns": [
+    [
+     "OrderID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "nchar"
+    ],
+    [
+     "EmployeeID",
+     "int"
+    ],
+    [
+     "OrderDate",
+     "datetime"
+    ],
+    [
+     "RequiredDate",
+     "datetime"
+    ],
+    [
+     "ShippedDate",
+     "datetime"
+    ],
+    [
+     "ShipVia",
+     "int"
+    ],
+    [
+     "Freight",
+     "money"
+    ],
+    [
+     "ShipName",
+     "nvarchar"
+    ],
+    [
+     "ShipAddress",
+     "nvarchar"
+    ],
+    [
+     "ShipCity",
+     "nvarchar"
+    ],
+    [
+     "ShipRegion",
+     "nvarchar"
+    ],
+    [
+     "ShipPostalCode",
+     "nvarchar"
+    ],
+    [
+     "ShipCountry",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "OrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "EmployeeID"
+     ],
+     "ref_table": "Employees",
+     "ref_columns": [
+      "EmployeeID"
+     ]
+    },
+    {
+     "columns": [
+      "ShipVia"
+     ],
+     "ref_table": "Shippers",
+     "ref_columns": [
+      "ShipperID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Products",
+   "schema": null,
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "ProductName",
+     "nvarchar"
+    ],
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "CategoryID",
+     "int"
+    ],
+    [
+     "QuantityPerUnit",
+     "nvarchar"
+    ],
+    [
+     "UnitPrice",
+     "money"
+    ],
+    [
+     "UnitsInStock",
+     "smallint"
+    ],
+    [
+     "UnitsOnOrder",
+     "smallint"
+    ],
+    [
+     "ReorderLevel",
+     "smallint"
+    ],
+    [
+     "Discontinued",
+     "bit"
+    ]
+   ],
+   "primary_key": [
+    "ProductID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CategoryID"
+     ],
+     "ref_table": "Categories",
+     "ref_columns": [
+      "CategoryID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierID"
+     ],
+     "ref_table": "Suppliers",
+     "ref_columns": [
+      "SupplierID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Order Details",
+   "schema": null,
+   "columns": [
+    [
+     "OrderID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "money"
+    ],
+    [
+     "Quantity",
+     "smallint"
+    ],
+    [
+     "Discount",
+     "real"
+    ]
+   ],
+   "primary_key": [
+    "OrderID",
+    "ProductID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "OrderID"
+     ],
+     "ref_table": "Orders",
+     "ref_columns": [
+      "OrderID"
+     ]
+    },
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Products",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CustomerCustomerDemo",
+   "schema": "dbo",
+   "columns": [
+    [
+     "CustomerID",
+     "nchar"
+    ],
+    [
+     "CustomerTypeID",
+     "nchar"
+    ]
+   ],
+   "primary_key": [
+    "CustomerID",
+    "CustomerTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CustomerTypeID"
+     ],
+     "ref_table": "CustomerDemographics",
+     "ref_columns": [
+      "CustomerTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CustomerDemographics",
+   "schema": "dbo",
+   "columns": [
+    [
+     "CustomerTypeID",
+     "nchar"
+    ],
+    [
+     "CustomerDesc",
+     "ntext"
+    ]
+   ],
+   "primary_key": [
+    "CustomerTypeID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Region",
+   "schema": "dbo",
+   "columns": [
+    [
+     "RegionID",
+     "int"
+    ],
+    [
+     "RegionDescription",
+     "nchar"
+    ]
+   ],
+   "primary_key": [
+    "RegionID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Territories",
+   "schema": "dbo",
+   "columns": [
+    [
+     "TerritoryID",
+     "nvarchar"
+    ],
+    [
+     "TerritoryDescription",
+     "nchar"
+    ],
+    [
+     "RegionID",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "TerritoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "RegionID"
+     ],
+     "ref_table": "Region",
+     "ref_columns": [
+      "RegionID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "EmployeeTerritories",
+   "schema": "dbo",
+   "columns": [
+    [
+     "EmployeeID",
+     "int"
+    ],
+    [
+     "TerritoryID",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "EmployeeID",
+    "TerritoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "EmployeeID"
+     ],
+     "ref_table": "Employees",
+     "ref_columns": [
+      "EmployeeID"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "Territories",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -13,7 +13,7 @@ from functools import lru_cache
 from .infer import RULES, plan
 from .seed import rows, schema
 
-DEMO_KEYS = {"order_items": ["order_id", "line_no"]}      # composite keys cannot be guessed from names (K1)
+DEMO_KEYS = {"order_items": ["order_id", "line_no"]}      # given explicitly so the demo shows a K1 override (K5 would infer the same)
 
 
 def demo_plan() -> dict:

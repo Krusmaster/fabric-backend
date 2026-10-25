@@ -51,7 +51,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows, then create_backend. Before query_graphql, describe_backend gives the exact field "
-    "names. Every inferred key/relationship carries the rule that produced it (K0–K3, R0–R3); "
+    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4); "
     "ambiguous columns are reported, never guessed. A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
     "hint (what to do next); relay the hint to the user rather than retrying blindly."))
@@ -279,7 +279,7 @@ def list_tables(workspace: str, source: str, schema: str = "dbo", ctx: Context =
 def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
                  confirmed: list[dict] | None = None, ctx: Context = None) -> str:
     """Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule
-    that produced it (K0–K3 / R0–R3), ambiguous columns to confirm, keyless tables, and a Mermaid ER diagram.
+    that produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, and a Mermaid ER diagram.
     Pass `keys` for composite keys ({"order_items": ["order_id","line_no"]}) and `confirmed` for relationships
     the rules missed. Deploys nothing."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)

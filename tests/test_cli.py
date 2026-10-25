@@ -16,7 +16,7 @@ def test_plan_prints_the_summary_and_every_link_with_its_rule(tmp_path, capsys):
     columns = write_columns(tmp_path / "columns.csv")
     assert cli.main(["plan", columns, "--schema", "shop"]) == 0
     out = capsys.readouterr().out
-    assert out.startswith("7 tables, 5 with keys, 6 relationships") and "orders.customer_id -> customers.customer_id  [R1]" in out
+    assert out.startswith("7 tables, 6 with keys, 6 relationships") and "orders.customer_id -> customers.customer_id  [R1]" in out
 
 
 def test_a_typo_in_keys_is_one_line_on_stderr_not_a_traceback(tmp_path, capsys):

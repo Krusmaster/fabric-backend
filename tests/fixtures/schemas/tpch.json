@@ -1,0 +1,411 @@
+{
+ "name": "tpch",
+ "tables": [
+  {
+   "name": "NATION",
+   "schema": null,
+   "columns": [
+    [
+     "N_NATIONKEY",
+     "integer"
+    ],
+    [
+     "N_NAME",
+     "char"
+    ],
+    [
+     "N_REGIONKEY",
+     "integer"
+    ],
+    [
+     "N_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "N_NATIONKEY"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "N_REGIONKEY"
+     ],
+     "ref_table": "REGION",
+     "ref_columns": [
+      "R_REGIONKEY"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "REGION",
+   "schema": null,
+   "columns": [
+    [
+     "R_REGIONKEY",
+     "integer"
+    ],
+    [
+     "R_NAME",
+     "char"
+    ],
+    [
+     "R_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "R_REGIONKEY"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "PART",
+   "schema": null,
+   "columns": [
+    [
+     "P_PARTKEY",
+     "integer"
+    ],
+    [
+     "P_NAME",
+     "varchar"
+    ],
+    [
+     "P_MFGR",
+     "char"
+    ],
+    [
+     "P_BRAND",
+     "char"
+    ],
+    [
+     "P_TYPE",
+     "varchar"
+    ],
+    [
+     "P_SIZE",
+     "integer"
+    ],
+    [
+     "P_CONTAINER",
+     "char"
+    ],
+    [
+     "P_RETAILPRICE",
+     "decimal"
+    ],
+    [
+     "P_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "P_PARTKEY"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "SUPPLIER",
+   "schema": null,
+   "columns": [
+    [
+     "S_SUPPKEY",
+     "integer"
+    ],
+    [
+     "S_NAME",
+     "char"
+    ],
+    [
+     "S_ADDRESS",
+     "varchar"
+    ],
+    [
+     "S_NATIONKEY",
+     "integer"
+    ],
+    [
+     "S_PHONE",
+     "char"
+    ],
+    [
+     "S_ACCTBAL",
+     "decimal"
+    ],
+    [
+     "S_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "S_SUPPKEY"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "S_NATIONKEY"
+     ],
+     "ref_table": "NATION",
+     "ref_columns": [
+      "N_NATIONKEY"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PARTSUPP",
+   "schema": null,
+   "columns": [
+    [
+     "PS_PARTKEY",
+     "integer"
+    ],
+    [
+     "PS_SUPPKEY",
+     "integer"
+    ],
+    [
+     "PS_AVAILQTY",
+     "integer"
+    ],
+    [
+     "PS_SUPPLYCOST",
+     "decimal"
+    ],
+    [
+     "PS_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "PS_PARTKEY",
+    "PS_SUPPKEY"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "PS_SUPPKEY"
+     ],
+     "ref_table": "SUPPLIER",
+     "ref_columns": [
+      "S_SUPPKEY"
+     ]
+    },
+    {
+     "columns": [
+      "PS_PARTKEY"
+     ],
+     "ref_table": "PART",
+     "ref_columns": [
+      "P_PARTKEY"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CUSTOMER",
+   "schema": null,
+   "columns": [
+    [
+     "C_CUSTKEY",
+     "integer"
+    ],
+    [
+     "C_NAME",
+     "varchar"
+    ],
+    [
+     "C_ADDRESS",
+     "varchar"
+    ],
+    [
+     "C_NATIONKEY",
+     "integer"
+    ],
+    [
+     "C_PHONE",
+     "char"
+    ],
+    [
+     "C_ACCTBAL",
+     "decimal"
+    ],
+    [
+     "C_MKTSEGMENT",
+     "char"
+    ],
+    [
+     "C_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "C_CUSTKEY"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "C_NATIONKEY"
+     ],
+     "ref_table": "NATION",
+     "ref_columns": [
+      "N_NATIONKEY"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ORDERS",
+   "schema": null,
+   "columns": [
+    [
+     "O_ORDERKEY",
+     "integer"
+    ],
+    [
+     "O_CUSTKEY",
+     "integer"
+    ],
+    [
+     "O_ORDERSTATUS",
+     "char"
+    ],
+    [
+     "O_TOTALPRICE",
+     "decimal"
+    ],
+    [
+     "O_ORDERDATE",
+     "date"
+    ],
+    [
+     "O_ORDERPRIORITY",
+     "char"
+    ],
+    [
+     "O_CLERK",
+     "char"
+    ],
+    [
+     "O_SHIPPRIORITY",
+     "integer"
+    ],
+    [
+     "O_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "O_ORDERKEY"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "O_CUSTKEY"
+     ],
+     "ref_table": "CUSTOMER",
+     "ref_columns": [
+      "C_CUSTKEY"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "LINEITEM",
+   "schema": null,
+   "columns": [
+    [
+     "L_ORDERKEY",
+     "integer"
+    ],
+    [
+     "L_PARTKEY",
+     "integer"
+    ],
+    [
+     "L_SUPPKEY",
+     "integer"
+    ],
+    [
+     "L_LINENUMBER",
+     "integer"
+    ],
+    [
+     "L_QUANTITY",
+     "decimal"
+    ],
+    [
+     "L_EXTENDEDPRICE",
+     "decimal"
+    ],
+    [
+     "L_DISCOUNT",
+     "decimal"
+    ],
+    [
+     "L_TAX",
+     "decimal"
+    ],
+    [
+     "L_RETURNFLAG",
+     "char"
+    ],
+    [
+     "L_LINESTATUS",
+     "char"
+    ],
+    [
+     "L_SHIPDATE",
+     "date"
+    ],
+    [
+     "L_COMMITDATE",
+     "date"
+    ],
+    [
+     "L_RECEIPTDATE",
+     "date"
+    ],
+    [
+     "L_SHIPINSTRUCT",
+     "char"
+    ],
+    [
+     "L_SHIPMODE",
+     "char"
+    ],
+    [
+     "L_COMMENT",
+     "varchar"
+    ]
+   ],
+   "primary_key": [
+    "L_ORDERKEY",
+    "L_LINENUMBER"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "L_ORDERKEY"
+     ],
+     "ref_table": "ORDERS",
+     "ref_columns": [
+      "O_ORDERKEY"
+     ]
+    },
+    {
+     "columns": [
+      "L_PARTKEY",
+      "L_SUPPKEY"
+     ],
+     "ref_table": "PARTSUPP",
+     "ref_columns": [
+      "PS_PARTKEY",
+      "PS_SUPPKEY"
+     ]
+    }
+   ]
+  }
+ ]
+}

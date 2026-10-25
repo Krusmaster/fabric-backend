@@ -1,0 +1,3548 @@
+{
+ "name": "adventureworks",
+ "tables": [
+  {
+   "name": "DatabaseLog",
+   "schema": "dbo",
+   "columns": [
+    [
+     "DatabaseLogID",
+     "int"
+    ],
+    [
+     "PostTime",
+     "datetime"
+    ],
+    [
+     "DatabaseUser",
+     "sysname"
+    ],
+    [
+     "Event",
+     "sysname"
+    ],
+    [
+     "Schema",
+     "sysname"
+    ],
+    [
+     "Object",
+     "sysname"
+    ],
+    [
+     "TSQL",
+     "nvarchar"
+    ],
+    [
+     "XmlEvent",
+     "xml"
+    ]
+   ],
+   "primary_key": [
+    "DatabaseLogID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ErrorLog",
+   "schema": "dbo",
+   "columns": [
+    [
+     "ErrorLogID",
+     "int"
+    ],
+    [
+     "ErrorTime",
+     "datetime"
+    ],
+    [
+     "UserName",
+     "sysname"
+    ],
+    [
+     "ErrorNumber",
+     "int"
+    ],
+    [
+     "ErrorSeverity",
+     "int"
+    ],
+    [
+     "ErrorState",
+     "int"
+    ],
+    [
+     "ErrorProcedure",
+     "nvarchar"
+    ],
+    [
+     "ErrorLine",
+     "int"
+    ],
+    [
+     "ErrorMessage",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "ErrorLogID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Address",
+   "schema": "Person",
+   "columns": [
+    [
+     "AddressID",
+     "int"
+    ],
+    [
+     "AddressLine1",
+     "nvarchar"
+    ],
+    [
+     "AddressLine2",
+     "nvarchar"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "StateProvinceID",
+     "int"
+    ],
+    [
+     "PostalCode",
+     "nvarchar"
+    ],
+    [
+     "SpatialLocation",
+     "geography"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "AddressID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "StateProvinceID"
+     ],
+     "ref_table": "StateProvince",
+     "ref_columns": [
+      "StateProvinceID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "AddressType",
+   "schema": "Person",
+   "columns": [
+    [
+     "AddressTypeID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "AddressTypeID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "AWBuildVersion",
+   "schema": "dbo",
+   "columns": [
+    [
+     "SystemInformationID",
+     "tinyint"
+    ],
+    [
+     "Database Version",
+     "nvarchar"
+    ],
+    [
+     "VersionDate",
+     "datetime"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SystemInformationID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "BillOfMaterials",
+   "schema": "Production",
+   "columns": [
+    [
+     "BillOfMaterialsID",
+     "int"
+    ],
+    [
+     "ProductAssemblyID",
+     "int"
+    ],
+    [
+     "ComponentID",
+     "int"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "UnitMeasureCode",
+     "nchar"
+    ],
+    [
+     "BOMLevel",
+     "smallint"
+    ],
+    [
+     "PerAssemblyQty",
+     "decimal"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BillOfMaterialsID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductAssemblyID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "ComponentID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "UnitMeasureCode"
+     ],
+     "ref_table": "UnitMeasure",
+     "ref_columns": [
+      "UnitMeasureCode"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BusinessEntity",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "BusinessEntityAddress",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "AddressID",
+     "int"
+    ],
+    [
+     "AddressTypeID",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "AddressID",
+    "AddressTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "AddressID"
+     ],
+     "ref_table": "Address",
+     "ref_columns": [
+      "AddressID"
+     ]
+    },
+    {
+     "columns": [
+      "AddressTypeID"
+     ],
+     "ref_table": "AddressType",
+     "ref_columns": [
+      "AddressTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "BusinessEntity",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BusinessEntityContact",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "PersonID",
+     "int"
+    ],
+    [
+     "ContactTypeID",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "PersonID",
+    "ContactTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "PersonID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "ContactTypeID"
+     ],
+     "ref_table": "ContactType",
+     "ref_columns": [
+      "ContactTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "BusinessEntity",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ContactType",
+   "schema": "Person",
+   "columns": [
+    [
+     "ContactTypeID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ContactTypeID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "CountryRegionCurrency",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CountryRegionCode",
+     "nvarchar"
+    ],
+    [
+     "CurrencyCode",
+     "nchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CountryRegionCode",
+    "CurrencyCode"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CountryRegionCode"
+     ],
+     "ref_table": "CountryRegion",
+     "ref_columns": [
+      "CountryRegionCode"
+     ]
+    },
+    {
+     "columns": [
+      "CurrencyCode"
+     ],
+     "ref_table": "Currency",
+     "ref_columns": [
+      "CurrencyCode"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CountryRegion",
+   "schema": "Person",
+   "columns": [
+    [
+     "CountryRegionCode",
+     "nvarchar"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CountryRegionCode"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "CreditCard",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CreditCardID",
+     "int"
+    ],
+    [
+     "CardType",
+     "nvarchar"
+    ],
+    [
+     "CardNumber",
+     "nvarchar"
+    ],
+    [
+     "ExpMonth",
+     "tinyint"
+    ],
+    [
+     "ExpYear",
+     "smallint"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CreditCardID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Culture",
+   "schema": "Production",
+   "columns": [
+    [
+     "CultureID",
+     "nchar"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CultureID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Currency",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CurrencyCode",
+     "nchar"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CurrencyCode"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "CurrencyRate",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CurrencyRateID",
+     "int"
+    ],
+    [
+     "CurrencyRateDate",
+     "datetime"
+    ],
+    [
+     "FromCurrencyCode",
+     "nchar"
+    ],
+    [
+     "ToCurrencyCode",
+     "nchar"
+    ],
+    [
+     "AverageRate",
+     "money"
+    ],
+    [
+     "EndOfDayRate",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CurrencyRateID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "FromCurrencyCode"
+     ],
+     "ref_table": "Currency",
+     "ref_columns": [
+      "CurrencyCode"
+     ]
+    },
+    {
+     "columns": [
+      "ToCurrencyCode"
+     ],
+     "ref_table": "Currency",
+     "ref_columns": [
+      "CurrencyCode"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Customer",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "PersonID",
+     "int"
+    ],
+    [
+     "StoreID",
+     "int"
+    ],
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "AccountNumber",
+     "computed"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "CustomerID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "PersonID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "StoreID"
+     ],
+     "ref_table": "Store",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "SalesTerritory",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Department",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "DepartmentID",
+     "smallint"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "GroupName",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "DepartmentID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Document",
+   "schema": "Production",
+   "columns": [
+    [
+     "DocumentNode",
+     "hierarchyid"
+    ],
+    [
+     "DocumentLevel",
+     "computed"
+    ],
+    [
+     "Title",
+     "nvarchar"
+    ],
+    [
+     "Owner",
+     "int"
+    ],
+    [
+     "FolderFlag",
+     "bit"
+    ],
+    [
+     "FileName",
+     "nvarchar"
+    ],
+    [
+     "FileExtension",
+     "nvarchar"
+    ],
+    [
+     "Revision",
+     "nchar"
+    ],
+    [
+     "ChangeNumber",
+     "int"
+    ],
+    [
+     "Status",
+     "tinyint"
+    ],
+    [
+     "DocumentSummary",
+     "nvarchar"
+    ],
+    [
+     "Document",
+     "varbinary"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "DocumentNode"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Owner"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "EmailAddress",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "EmailAddressID",
+     "int"
+    ],
+    [
+     "EmailAddress",
+     "nvarchar"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "EmailAddressID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Employee",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "NationalIDNumber",
+     "nvarchar"
+    ],
+    [
+     "LoginID",
+     "nvarchar"
+    ],
+    [
+     "OrganizationNode",
+     "hierarchyid"
+    ],
+    [
+     "OrganizationLevel",
+     "computed"
+    ],
+    [
+     "JobTitle",
+     "nvarchar"
+    ],
+    [
+     "BirthDate",
+     "date"
+    ],
+    [
+     "MaritalStatus",
+     "nchar"
+    ],
+    [
+     "Gender",
+     "nchar"
+    ],
+    [
+     "HireDate",
+     "date"
+    ],
+    [
+     "SalariedFlag",
+     "flag"
+    ],
+    [
+     "VacationHours",
+     "smallint"
+    ],
+    [
+     "SickLeaveHours",
+     "smallint"
+    ],
+    [
+     "CurrentFlag",
+     "flag"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "EmployeeDepartmentHistory",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "DepartmentID",
+     "smallint"
+    ],
+    [
+     "ShiftID",
+     "tinyint"
+    ],
+    [
+     "StartDate",
+     "date"
+    ],
+    [
+     "EndDate",
+     "date"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "StartDate",
+    "DepartmentID",
+    "ShiftID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "DepartmentID"
+     ],
+     "ref_table": "Department",
+     "ref_columns": [
+      "DepartmentID"
+     ]
+    },
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "ShiftID"
+     ],
+     "ref_table": "Shift",
+     "ref_columns": [
+      "ShiftID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "EmployeePayHistory",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "RateChangeDate",
+     "datetime"
+    ],
+    [
+     "Rate",
+     "money"
+    ],
+    [
+     "PayFrequency",
+     "tinyint"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "RateChangeDate"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Illustration",
+   "schema": "Production",
+   "columns": [
+    [
+     "IllustrationID",
+     "int"
+    ],
+    [
+     "Diagram",
+     "xml"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "IllustrationID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "JobCandidate",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "JobCandidateID",
+     "int"
+    ],
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "Resume",
+     "xml"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "JobCandidateID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Location",
+   "schema": "Production",
+   "columns": [
+    [
+     "LocationID",
+     "smallint"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "CostRate",
+     "smallmoney"
+    ],
+    [
+     "Availability",
+     "decimal"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "LocationID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Password",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "PasswordHash",
+     "varchar"
+    ],
+    [
+     "PasswordSalt",
+     "varchar"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Person",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "PersonType",
+     "nchar"
+    ],
+    [
+     "NameStyle",
+     "namestyle"
+    ],
+    [
+     "Title",
+     "nvarchar"
+    ],
+    [
+     "FirstName",
+     "name"
+    ],
+    [
+     "MiddleName",
+     "name"
+    ],
+    [
+     "LastName",
+     "name"
+    ],
+    [
+     "Suffix",
+     "nvarchar"
+    ],
+    [
+     "EmailPromotion",
+     "int"
+    ],
+    [
+     "AdditionalContactInfo",
+     "xml"
+    ],
+    [
+     "Demographics",
+     "xml"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "BusinessEntity",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PersonCreditCard",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "CreditCardID",
+     "int"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "CreditCardID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "CreditCardID"
+     ],
+     "ref_table": "CreditCard",
+     "ref_columns": [
+      "CreditCardID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PersonPhone",
+   "schema": "Person",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "PhoneNumber",
+     "phone"
+    ],
+    [
+     "PhoneNumberTypeID",
+     "int"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "PhoneNumber",
+    "PhoneNumberTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Person",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "PhoneNumberTypeID"
+     ],
+     "ref_table": "PhoneNumberType",
+     "ref_columns": [
+      "PhoneNumberTypeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PhoneNumberType",
+   "schema": "Person",
+   "columns": [
+    [
+     "PhoneNumberTypeID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "PhoneNumberTypeID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Product",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ProductNumber",
+     "nvarchar"
+    ],
+    [
+     "MakeFlag",
+     "flag"
+    ],
+    [
+     "FinishedGoodsFlag",
+     "flag"
+    ],
+    [
+     "Color",
+     "nvarchar"
+    ],
+    [
+     "SafetyStockLevel",
+     "smallint"
+    ],
+    [
+     "ReorderPoint",
+     "smallint"
+    ],
+    [
+     "StandardCost",
+     "money"
+    ],
+    [
+     "ListPrice",
+     "money"
+    ],
+    [
+     "Size",
+     "nvarchar"
+    ],
+    [
+     "SizeUnitMeasureCode",
+     "nchar"
+    ],
+    [
+     "WeightUnitMeasureCode",
+     "nchar"
+    ],
+    [
+     "Weight",
+     "decimal"
+    ],
+    [
+     "DaysToManufacture",
+     "int"
+    ],
+    [
+     "ProductLine",
+     "nchar"
+    ],
+    [
+     "Class",
+     "nchar"
+    ],
+    [
+     "Style",
+     "nchar"
+    ],
+    [
+     "ProductSubcategoryID",
+     "int"
+    ],
+    [
+     "ProductModelID",
+     "int"
+    ],
+    [
+     "SellStartDate",
+     "datetime"
+    ],
+    [
+     "SellEndDate",
+     "datetime"
+    ],
+    [
+     "DiscontinuedDate",
+     "datetime"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "SizeUnitMeasureCode"
+     ],
+     "ref_table": "UnitMeasure",
+     "ref_columns": [
+      "UnitMeasureCode"
+     ]
+    },
+    {
+     "columns": [
+      "WeightUnitMeasureCode"
+     ],
+     "ref_table": "UnitMeasure",
+     "ref_columns": [
+      "UnitMeasureCode"
+     ]
+    },
+    {
+     "columns": [
+      "ProductModelID"
+     ],
+     "ref_table": "ProductModel",
+     "ref_columns": [
+      "ProductModelID"
+     ]
+    },
+    {
+     "columns": [
+      "ProductSubcategoryID"
+     ],
+     "ref_table": "ProductSubcategory",
+     "ref_columns": [
+      "ProductSubcategoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductCategory",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductCategoryID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductCategoryID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ProductCostHistory",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "StandardCost",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "StartDate"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductDescription",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductDescriptionID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductDescriptionID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ProductDocument",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "DocumentNode",
+     "hierarchyid"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "DocumentNode"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "DocumentNode"
+     ],
+     "ref_table": "Document",
+     "ref_columns": [
+      "DocumentNode"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductInventory",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "LocationID",
+     "smallint"
+    ],
+    [
+     "Shelf",
+     "nvarchar"
+    ],
+    [
+     "Bin",
+     "tinyint"
+    ],
+    [
+     "Quantity",
+     "smallint"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "LocationID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LocationID"
+     ],
+     "ref_table": "Location",
+     "ref_columns": [
+      "LocationID"
+     ]
+    },
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductListPriceHistory",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "ListPrice",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "StartDate"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductModel",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductModelID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "CatalogDescription",
+     "xml"
+    ],
+    [
+     "Instructions",
+     "xml"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductModelID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ProductModelIllustration",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductModelID",
+     "int"
+    ],
+    [
+     "IllustrationID",
+     "int"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductModelID",
+    "IllustrationID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductModelID"
+     ],
+     "ref_table": "ProductModel",
+     "ref_columns": [
+      "ProductModelID"
+     ]
+    },
+    {
+     "columns": [
+      "IllustrationID"
+     ],
+     "ref_table": "Illustration",
+     "ref_columns": [
+      "IllustrationID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductModelProductDescriptionCulture",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductModelID",
+     "int"
+    ],
+    [
+     "ProductDescriptionID",
+     "int"
+    ],
+    [
+     "CultureID",
+     "nchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductModelID",
+    "ProductDescriptionID",
+    "CultureID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductDescriptionID"
+     ],
+     "ref_table": "ProductDescription",
+     "ref_columns": [
+      "ProductDescriptionID"
+     ]
+    },
+    {
+     "columns": [
+      "CultureID"
+     ],
+     "ref_table": "Culture",
+     "ref_columns": [
+      "CultureID"
+     ]
+    },
+    {
+     "columns": [
+      "ProductModelID"
+     ],
+     "ref_table": "ProductModel",
+     "ref_columns": [
+      "ProductModelID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductPhoto",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductPhotoID",
+     "int"
+    ],
+    [
+     "ThumbNailPhoto",
+     "varbinary"
+    ],
+    [
+     "ThumbnailPhotoFileName",
+     "nvarchar"
+    ],
+    [
+     "LargePhoto",
+     "varbinary"
+    ],
+    [
+     "LargePhotoFileName",
+     "nvarchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductPhotoID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ProductProductPhoto",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "ProductPhotoID",
+     "int"
+    ],
+    [
+     "Primary",
+     "flag"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "ProductPhotoID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "ProductPhotoID"
+     ],
+     "ref_table": "ProductPhoto",
+     "ref_columns": [
+      "ProductPhotoID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductReview",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductReviewID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "ReviewerName",
+     "name"
+    ],
+    [
+     "ReviewDate",
+     "datetime"
+    ],
+    [
+     "EmailAddress",
+     "nvarchar"
+    ],
+    [
+     "Rating",
+     "int"
+    ],
+    [
+     "Comments",
+     "nvarchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductReviewID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductSubcategory",
+   "schema": "Production",
+   "columns": [
+    [
+     "ProductSubcategoryID",
+     "int"
+    ],
+    [
+     "ProductCategoryID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductSubcategoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductCategoryID"
+     ],
+     "ref_table": "ProductCategory",
+     "ref_columns": [
+      "ProductCategoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ProductVendor",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "AverageLeadTime",
+     "int"
+    ],
+    [
+     "StandardPrice",
+     "money"
+    ],
+    [
+     "LastReceiptCost",
+     "money"
+    ],
+    [
+     "LastReceiptDate",
+     "datetime"
+    ],
+    [
+     "MinOrderQty",
+     "int"
+    ],
+    [
+     "MaxOrderQty",
+     "int"
+    ],
+    [
+     "OnOrderQty",
+     "int"
+    ],
+    [
+     "UnitMeasureCode",
+     "nchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ProductID",
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "UnitMeasureCode"
+     ],
+     "ref_table": "UnitMeasure",
+     "ref_columns": [
+      "UnitMeasureCode"
+     ]
+    },
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Vendor",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PurchaseOrderDetail",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "PurchaseOrderDetailID",
+     "int"
+    ],
+    [
+     "DueDate",
+     "datetime"
+    ],
+    [
+     "OrderQty",
+     "smallint"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "money"
+    ],
+    [
+     "LineTotal",
+     "computed"
+    ],
+    [
+     "ReceivedQty",
+     "decimal"
+    ],
+    [
+     "RejectedQty",
+     "decimal"
+    ],
+    [
+     "StockedQty",
+     "computed"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "PurchaseOrderID",
+    "PurchaseOrderDetailID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "PurchaseOrderID"
+     ],
+     "ref_table": "PurchaseOrderHeader",
+     "ref_columns": [
+      "PurchaseOrderID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PurchaseOrderHeader",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "RevisionNumber",
+     "tinyint"
+    ],
+    [
+     "Status",
+     "tinyint"
+    ],
+    [
+     "EmployeeID",
+     "int"
+    ],
+    [
+     "VendorID",
+     "int"
+    ],
+    [
+     "ShipMethodID",
+     "int"
+    ],
+    [
+     "OrderDate",
+     "datetime"
+    ],
+    [
+     "ShipDate",
+     "datetime"
+    ],
+    [
+     "SubTotal",
+     "money"
+    ],
+    [
+     "TaxAmt",
+     "money"
+    ],
+    [
+     "Freight",
+     "money"
+    ],
+    [
+     "TotalDue",
+     "computed"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "PurchaseOrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "EmployeeID"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "VendorID"
+     ],
+     "ref_table": "Vendor",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "ShipMethodID"
+     ],
+     "ref_table": "ShipMethod",
+     "ref_columns": [
+      "ShipMethodID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesOrderDetail",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SalesOrderID",
+     "int"
+    ],
+    [
+     "SalesOrderDetailID",
+     "int"
+    ],
+    [
+     "CarrierTrackingNumber",
+     "nvarchar"
+    ],
+    [
+     "OrderQty",
+     "smallint"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "SpecialOfferID",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "money"
+    ],
+    [
+     "UnitPriceDiscount",
+     "money"
+    ],
+    [
+     "LineTotal",
+     "computed"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SalesOrderID",
+    "SalesOrderDetailID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "SalesOrderID"
+     ],
+     "ref_table": "SalesOrderHeader",
+     "ref_columns": [
+      "SalesOrderID"
+     ]
+    },
+    {
+     "columns": [
+      "SpecialOfferID",
+      "ProductID"
+     ],
+     "ref_table": "SpecialOfferProduct",
+     "ref_columns": [
+      "SpecialOfferID",
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesOrderHeader",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SalesOrderID",
+     "int"
+    ],
+    [
+     "RevisionNumber",
+     "tinyint"
+    ],
+    [
+     "OrderDate",
+     "datetime"
+    ],
+    [
+     "DueDate",
+     "datetime"
+    ],
+    [
+     "ShipDate",
+     "datetime"
+    ],
+    [
+     "Status",
+     "tinyint"
+    ],
+    [
+     "OnlineOrderFlag",
+     "flag"
+    ],
+    [
+     "SalesOrderNumber",
+     "computed"
+    ],
+    [
+     "PurchaseOrderNumber",
+     "ordernumber"
+    ],
+    [
+     "AccountNumber",
+     "accountnumber"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "SalesPersonID",
+     "int"
+    ],
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "BillToAddressID",
+     "int"
+    ],
+    [
+     "ShipToAddressID",
+     "int"
+    ],
+    [
+     "ShipMethodID",
+     "int"
+    ],
+    [
+     "CreditCardID",
+     "int"
+    ],
+    [
+     "CreditCardApprovalCode",
+     "varchar"
+    ],
+    [
+     "CurrencyRateID",
+     "int"
+    ],
+    [
+     "SubTotal",
+     "money"
+    ],
+    [
+     "TaxAmt",
+     "money"
+    ],
+    [
+     "Freight",
+     "money"
+    ],
+    [
+     "TotalDue",
+     "computed"
+    ],
+    [
+     "Comment",
+     "nvarchar"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SalesOrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BillToAddressID"
+     ],
+     "ref_table": "Address",
+     "ref_columns": [
+      "AddressID"
+     ]
+    },
+    {
+     "columns": [
+      "ShipToAddressID"
+     ],
+     "ref_table": "Address",
+     "ref_columns": [
+      "AddressID"
+     ]
+    },
+    {
+     "columns": [
+      "CreditCardID"
+     ],
+     "ref_table": "CreditCard",
+     "ref_columns": [
+      "CreditCardID"
+     ]
+    },
+    {
+     "columns": [
+      "CurrencyRateID"
+     ],
+     "ref_table": "CurrencyRate",
+     "ref_columns": [
+      "CurrencyRateID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "SalesPersonID"
+     ],
+     "ref_table": "SalesPerson",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "ShipMethodID"
+     ],
+     "ref_table": "ShipMethod",
+     "ref_columns": [
+      "ShipMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "SalesTerritory",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesOrderHeaderSalesReason",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SalesOrderID",
+     "int"
+    ],
+    [
+     "SalesReasonID",
+     "int"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SalesOrderID",
+    "SalesReasonID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "SalesReasonID"
+     ],
+     "ref_table": "SalesReason",
+     "ref_columns": [
+      "SalesReasonID"
+     ]
+    },
+    {
+     "columns": [
+      "SalesOrderID"
+     ],
+     "ref_table": "SalesOrderHeader",
+     "ref_columns": [
+      "SalesOrderID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesPerson",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "SalesQuota",
+     "money"
+    ],
+    [
+     "Bonus",
+     "money"
+    ],
+    [
+     "CommissionPct",
+     "smallmoney"
+    ],
+    [
+     "SalesYTD",
+     "money"
+    ],
+    [
+     "SalesLastYear",
+     "money"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "SalesTerritory",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesPersonQuotaHistory",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "QuotaDate",
+     "datetime"
+    ],
+    [
+     "SalesQuota",
+     "money"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "QuotaDate"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "SalesPerson",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesReason",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SalesReasonID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ReasonType",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SalesReasonID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "SalesTaxRate",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SalesTaxRateID",
+     "int"
+    ],
+    [
+     "StateProvinceID",
+     "int"
+    ],
+    [
+     "TaxType",
+     "tinyint"
+    ],
+    [
+     "TaxRate",
+     "smallmoney"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SalesTaxRateID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "StateProvinceID"
+     ],
+     "ref_table": "StateProvince",
+     "ref_columns": [
+      "StateProvinceID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesTerritory",
+   "schema": "Sales",
+   "columns": [
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "CountryRegionCode",
+     "nvarchar"
+    ],
+    [
+     "Group",
+     "nvarchar"
+    ],
+    [
+     "SalesYTD",
+     "money"
+    ],
+    [
+     "SalesLastYear",
+     "money"
+    ],
+    [
+     "CostYTD",
+     "money"
+    ],
+    [
+     "CostLastYear",
+     "money"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "TerritoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CountryRegionCode"
+     ],
+     "ref_table": "CountryRegion",
+     "ref_columns": [
+      "CountryRegionCode"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SalesTerritoryHistory",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID",
+    "StartDate",
+    "TerritoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "SalesPerson",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "SalesTerritory",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ScrapReason",
+   "schema": "Production",
+   "columns": [
+    [
+     "ScrapReasonID",
+     "smallint"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ScrapReasonID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Shift",
+   "schema": "HumanResources",
+   "columns": [
+    [
+     "ShiftID",
+     "tinyint"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "StartTime",
+     "time"
+    ],
+    [
+     "EndTime",
+     "time"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ShiftID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ShipMethod",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "ShipMethodID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ShipBase",
+     "money"
+    ],
+    [
+     "ShipRate",
+     "money"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ShipMethodID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "ShoppingCartItem",
+   "schema": "Sales",
+   "columns": [
+    [
+     "ShoppingCartItemID",
+     "int"
+    ],
+    [
+     "ShoppingCartID",
+     "nvarchar"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "DateCreated",
+     "datetime"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "ShoppingCartItemID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SpecialOffer",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SpecialOfferID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "DiscountPct",
+     "smallmoney"
+    ],
+    [
+     "Type",
+     "nvarchar"
+    ],
+    [
+     "Category",
+     "nvarchar"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "MinQty",
+     "int"
+    ],
+    [
+     "MaxQty",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SpecialOfferID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "SpecialOfferProduct",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SpecialOfferID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "SpecialOfferID",
+    "ProductID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "SpecialOfferID"
+     ],
+     "ref_table": "SpecialOffer",
+     "ref_columns": [
+      "SpecialOfferID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StateProvince",
+   "schema": "Person",
+   "columns": [
+    [
+     "StateProvinceID",
+     "int"
+    ],
+    [
+     "StateProvinceCode",
+     "nchar"
+    ],
+    [
+     "CountryRegionCode",
+     "nvarchar"
+    ],
+    [
+     "IsOnlyStateProvinceFlag",
+     "flag"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "TerritoryID",
+     "int"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "StateProvinceID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "CountryRegionCode"
+     ],
+     "ref_table": "CountryRegion",
+     "ref_columns": [
+      "CountryRegionCode"
+     ]
+    },
+    {
+     "columns": [
+      "TerritoryID"
+     ],
+     "ref_table": "SalesTerritory",
+     "ref_columns": [
+      "TerritoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Store",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "SalesPersonID",
+     "int"
+    ],
+    [
+     "Demographics",
+     "xml"
+    ],
+    [
+     "rowguid",
+     "uniqueidentifier"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "BusinessEntity",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    },
+    {
+     "columns": [
+      "SalesPersonID"
+     ],
+     "ref_table": "SalesPerson",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TransactionHistory",
+   "schema": "Production",
+   "columns": [
+    [
+     "TransactionID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "ReferenceOrderID",
+     "int"
+    ],
+    [
+     "ReferenceOrderLineID",
+     "int"
+    ],
+    [
+     "TransactionDate",
+     "datetime"
+    ],
+    [
+     "TransactionType",
+     "nchar"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "ActualCost",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "TransactionID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TransactionHistoryArchive",
+   "schema": "Production",
+   "columns": [
+    [
+     "TransactionID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "ReferenceOrderID",
+     "int"
+    ],
+    [
+     "ReferenceOrderLineID",
+     "int"
+    ],
+    [
+     "TransactionDate",
+     "datetime"
+    ],
+    [
+     "TransactionType",
+     "nchar"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "ActualCost",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "TransactionID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "UnitMeasure",
+   "schema": "Production",
+   "columns": [
+    [
+     "UnitMeasureCode",
+     "nchar"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "UnitMeasureCode"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Vendor",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "BusinessEntityID",
+     "int"
+    ],
+    [
+     "AccountNumber",
+     "accountnumber"
+    ],
+    [
+     "Name",
+     "name"
+    ],
+    [
+     "CreditRating",
+     "tinyint"
+    ],
+    [
+     "PreferredVendorStatus",
+     "flag"
+    ],
+    [
+     "ActiveFlag",
+     "flag"
+    ],
+    [
+     "PurchasingWebServiceURL",
+     "nvarchar"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "BusinessEntityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "BusinessEntityID"
+     ],
+     "ref_table": "BusinessEntity",
+     "ref_columns": [
+      "BusinessEntityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "WorkOrder",
+   "schema": "Production",
+   "columns": [
+    [
+     "WorkOrderID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "OrderQty",
+     "int"
+    ],
+    [
+     "StockedQty",
+     "computed"
+    ],
+    [
+     "ScrappedQty",
+     "smallint"
+    ],
+    [
+     "StartDate",
+     "datetime"
+    ],
+    [
+     "EndDate",
+     "datetime"
+    ],
+    [
+     "DueDate",
+     "datetime"
+    ],
+    [
+     "ScrapReasonID",
+     "smallint"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "WorkOrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "ProductID"
+     ],
+     "ref_table": "Product",
+     "ref_columns": [
+      "ProductID"
+     ]
+    },
+    {
+     "columns": [
+      "ScrapReasonID"
+     ],
+     "ref_table": "ScrapReason",
+     "ref_columns": [
+      "ScrapReasonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "WorkOrderRouting",
+   "schema": "Production",
+   "columns": [
+    [
+     "WorkOrderID",
+     "int"
+    ],
+    [
+     "ProductID",
+     "int"
+    ],
+    [
+     "OperationSequence",
+     "smallint"
+    ],
+    [
+     "LocationID",
+     "smallint"
+    ],
+    [
+     "ScheduledStartDate",
+     "datetime"
+    ],
+    [
+     "ScheduledEndDate",
+     "datetime"
+    ],
+    [
+     "ActualStartDate",
+     "datetime"
+    ],
+    [
+     "ActualEndDate",
+     "datetime"
+    ],
+    [
+     "ActualResourceHrs",
+     "decimal"
+    ],
+    [
+     "PlannedCost",
+     "money"
+    ],
+    [
+     "ActualCost",
+     "money"
+    ],
+    [
+     "ModifiedDate",
+     "datetime"
+    ]
+   ],
+   "primary_key": [
+    "WorkOrderID",
+    "ProductID",
+    "OperationSequence"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LocationID"
+     ],
+     "ref_table": "Location",
+     "ref_columns": [
+      "LocationID"
+     ]
+    },
+    {
+     "columns": [
+      "WorkOrderID"
+     ],
+     "ref_table": "WorkOrder",
+     "ref_columns": [
+      "WorkOrderID"
+     ]
+    }
+   ]
+  }
+ ]
+}

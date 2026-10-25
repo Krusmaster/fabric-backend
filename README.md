@@ -33,7 +33,7 @@ exists — and prints the endpoint plus the two portal clicks the API cannot do 
 import fabric_backend as fb
 
 out = fb.create(workspace="<workspace id>", source="my_lakehouse", name="shop_api", spark=spark,
-                keys={"order_items": ["order_id", "line_no"]})   # composite keys cannot be guessed from names
+                keys={"order_items": ["order_id", "line_no"]})   # optional here: rule K5 infers this one; `keys` overrides
 print(out["plan"].summary())
 print(out["card"])
 ```
@@ -109,8 +109,14 @@ carries the rule that produced it, and you can overrule any of them.
 | --- | --- | --- | --- | --- |
 | K0 | declared primary key | | R0 | declared foreign key |
 | K1 | `keys={"order_items": ["order_id", "line_no"]}` | | R1 | column `<table>_id` / `<singular>_id` → that table's single key |
-| K2 | `id`, `<table>_id`, `<singular>_id`, `<table>_key` | | R2 | same name as another table's single key (`werks` → plant); plain `id` never matches |
+| K2 | `id`, `<table>_id`, `<singular>_id`, `<table>_key`, `<table>_code`, or an abbreviation of four letters or more (`cust_key`) | | R2 | same name as another table's single key (`werks` → plant); plain `id` never matches |
 | K3 | none → query only, nothing can point at it | | R3 | all columns of another table's composite key are present |
+| K4 | junction: the table starts with two or more reference columns (`film_actor`: `actor_id` + `film_id`) | | R4 | weaker match when R1/R2 find nothing: a role before the name (`manager_staff_id` → staff) or an abbreviation (`o_custkey` → customer) |
+| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | | |
+
+Names are compared without case, separators or a table-wide column prefix (`N_NATIONKEY` in `NATION` reads as
+`nationkey`), and `<X>Header` also answers to `<X>`. How well this works on Northwind, Chinook, TPC-H,
+AdventureWorks and Sakila, from names alone, is measured in [docs/INFERENCE.md](docs/INFERENCE.md).
 
 A column that could point at two tables (`user_id` with both `users` and `user` present) is
 reported under `plan.ambiguous` and not applied. A column no rule matches (`ship_to_id` in the demo schema) is

@@ -19,7 +19,7 @@ def test_plan_from_needs_a_source_and_plans_the_demo_schema():
     with pytest.raises(ValueError, match="spark= .* or execute="):
         fabric_backend.plan_from()
     p = fabric_backend.plan_from(execute=execute_for(seed.schema("shop")), schema="shop")
-    assert p.summary().startswith("7 tables, 5 with keys, 6 relationships")
+    assert p.summary().startswith("7 tables, 6 with keys, 6 relationships")
 
 
 def test_create_dry_run_builds_everything_but_deploys_nothing(monkeypatch):
