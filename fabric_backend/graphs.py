@@ -377,10 +377,33 @@ def _type_similarity(a: str, b: str) -> float:
     return 0.0
 
 
+# Role words that name what a column points at without naming the table: `ship_to_id` holds an address, `manager_id` a
+# person. Only for ranking candidates (never applied as a relationship); a match counts 0.6, less than the table's own
+# name (a share of shared words, 1.0 for all) or an abbreviation of it (0.7).
+ROLE_WORDS = [
+    ({"ship", "shipping", "bill", "billing", "deliver", "delivery", "mail", "mailing", "postal", "invoice", "home"},
+     {"address", "location", "site"}, "an address role (ship-to, bill-to, mail-to)"),
+    ({"manager", "owner", "author", "creator", "created", "modified", "updated", "assignee", "assigned", "approver",
+      "approved", "reviewer", "reporter", "supervisor", "requester", "rep", "agent", "seller", "buyer", "contact"},
+     {"user", "employee", "staff", "person", "people", "member", "account"}, "a role held by a person"),
+]
+ROLE_MATCH = 0.6
+CLOSURE_WEIGHT = 1.0          # times the certainty product of the two links that close the triangle
+BRIDGE_PENALTY = 0.5          # the two tables are already joined through a line or junction table
+FACT_TARGET_PENALTY = 0.5     # the target looks like a fact table (two or more references out, none in)
+SECOND_LINK_PENALTY = 0.25    # the source already refers to this target through another column
+EVIDENCE_WEIGHT = 3.0         # final score = score + EVIDENCE_WEIGHT * inclusion * min(1, distinct values / EVIDENCE_DISTINCT)
+EVIDENCE_DISTINCT = 10
+
+
+def _table_words(table: str) -> set[str]:
+    return set(_words(table)) | {s for b in _singulars(table) for s in _words(b)}
+
+
 def _name_similarity(column: str, table: str) -> float:
     stem, _ = _stem(column)
     words = set(stem) if stem else set(_words(column))
-    tw = set(_words(table)) | {s for b in _singulars(table) for s in _words(b)}
+    tw = _table_words(table)
     if not words or not tw:
         return 0.0
     if any(_abbreviates(w, table) for w in words):
@@ -389,14 +412,65 @@ def _name_similarity(column: str, table: str) -> float:
     return round(len(inter) / len(words | tw), 2) if inter else 0.0
 
 
+def _role_similarity(column: str, table: str, key: str) -> tuple[float, str]:
+    """(0.6, reason) when a role word of the column names what the target holds, judged by the target's name and the
+    words of its key column (`ship_to_id` -> addresses keyed by `address_id`); (0.0, "") otherwise."""
+    stem, _ = _stem(column)
+    words = set(stem) if stem else set(_words(column))
+    target_words = _table_words(table) | {s for w in _words(key) for s in _singulars(w)}
+    for roles, nouns, why in ROLE_WORDS:
+        if words & roles and target_words & nouns:
+            return ROLE_MATCH, why
+    return 0.0, ""
+
+
+def _closure(out: dict[str, list[dict]], source: str, target: str) -> tuple[float, str]:
+    """Weighted triangular closure: the strongest pair of existing links that would close a triangle with source -> target,
+    scored by the product of their certainties. Two shapes: source -> B -> target (two hops), and source -> P <- target
+    (both already point at the same parent: orders -> customers <- addresses makes orders.ship_to_id -> addresses likely)."""
+    best, via = 0.0, ""
+    for e in out[source]:
+        for e2 in out[e["target"]]:
+            if e2["target"] == target and e["certainty"] * e2["certainty"] > best:
+                best, via = e["certainty"] * e2["certainty"], f"{source} -> {e['target']} -> {target}"
+        for e2 in out[target]:
+            if e2["target"] == e["target"] and e["certainty"] * e2["certainty"] > best:
+                best, via = e["certainty"] * e2["certainty"], f"{source} -> {e['target']} <- {target}"
+    return round(best, 4), via
+
+
+def _penalties(out: dict[str, list[dict]], inn: dict[str, list[dict]], source: str, target: str) -> tuple[float, list[str]]:
+    """What the plan's cardinalities say against source -> target: the two are already many-to-many through a line or
+    junction table; the target is a fact table; the source already points at the target through another column."""
+    total, why = 0.0, []
+    bridges = sorted({e["source"] for e in inn[source]} & {e["source"] for e in inn[target]})
+    if bridges:
+        total += BRIDGE_PENALTY
+        why.append(f"{bridges[0]} already joins {source} and {target} (many-to-many through it)")
+    if len(out[target]) >= 2 and not inn[target]:
+        total += FACT_TARGET_PENALTY
+        why.append(f"{target} looks like a fact table ({len(out[target])} references out, none in)")
+    already = [c for e in out[source] if e["target"] == target for c in e["columns"]]
+    if already:
+        total += SECOND_LINK_PENALTY
+        why.append(f"{source} already refers to {target} through {', '.join(already)}")
+    return total, why
+
+
 def candidates(plan: Plan, limit: int = 50) -> list[dict]:
     """Columns that could point at another table's single-column key and are in no relationship yet, ranked without
-    data: name similarity (role stem vs table name words, abbreviations), type similarity, and triangular closure
-    (A already refers to B, and B refers to C: A.x -> C is likelier when x resembles C)."""
+    data. score = 3 x name + type + closure + 0.5 for a reference suffix - penalties, where
+      name     the best of: the column's words against the target's name (the share of shared words), an abbreviation
+               of it (0.7), or a role word that names what the target holds (0.6, ROLE_WORDS; judged by the target's
+               name and its key column: `ship_to_id` -> addresses keyed by `address_id`)
+      type     1.0 for the same type, 0.8 for the same family
+      closure  the certainty product of the two links that would close a triangle (source -> B -> target, or
+               source -> P <- target)
+      penalty  0.5 when a line/junction table already joins source and target, 0.5 when the target is a fact table,
+               0.25 when the source already refers to the target through another column."""
     es = edges(plan)
-    out, _, _ = _adjacency(plan, es)
+    out, inn, _ = _adjacency(plan, es)
     linked = {(e["source"], c.lower()) for e in es for c in e["columns"]}
-    reach2 = {t.name: {e2["target"] for e in out[t.name] for e2 in out[e["target"]]} for t in plan.schema}
     single = {t: cols[0] for t, (cols, _) in plan.keys.items() if len(cols) == 1}
     types = {(t.name, c.name): c.data_type for t in plan.schema for c in t.columns}
     found = []
@@ -412,23 +486,38 @@ def candidates(plan: Plan, limit: int = 50) -> list[dict]:
                 ts = _type_similarity(c.data_type, types[(target, tkey)])
                 if ts == 0.0:
                     continue
-                ns = _name_similarity(c.name, target)
+                direct = _name_similarity(c.name, target)
+                role, role_why = _role_similarity(c.name, target, tkey)
+                ns = max(direct, role)
                 if ns == 0.0 and not suffix and c.name.lower() != tkey.lower():
                     continue                                                   # a plain attribute of the same type: not a candidate
-                tri = 1.0 if target in reach2[t.name] else 0.0
-                score = round(3 * ns + ts + tri + (0.5 if suffix else 0.0), 2)
+                closure, via = _closure(out, t.name, target)
+                penalty, against = _penalties(out, inn, t.name, target)
+                score = round(3 * ns + ts + CLOSURE_WEIGHT * closure + (0.5 if suffix else 0.0) - penalty, 2)
+                basis = "" if not ns else ("role word" if role > direct else "abbreviation" if direct == 0.7 else "name")
                 found.append({"source": t.name, "source_cols": [c.name], "target": target, "target_cols": [tkey], "score": score,
-                              "name_similarity": ns, "type_similarity": ts, "triangular_closure": bool(tri),
+                              "name_similarity": ns, "name_basis": basis, "type_similarity": ts,
+                              "triangular_closure": bool(closure), "closure": closure, "closure_via": via, "penalties": against,
                               "why": (f"{t.name}.{c.name} ({_type(c.data_type)}) is in no relationship and matches the type of {target}.{tkey}"
-                                      + (f"; its name resembles {target} ({ns})" if ns else "")
-                                      + (f"; {t.name} already reaches {target} in two hops" if tri else ""))})
+                                      + (f"; its name resembles {target} ({ns})" if ns and basis != "role word" else "")
+                                      + (f"; {role_why} ({ns})" if basis == "role word" else "")
+                                      + (f"; closes a triangle {via} (certainty {closure})" if closure else "")
+                                      + "".join(f"; but {a}" for a in against))})
     found.sort(key=lambda f: (-f["score"], f["source"], f["source_cols"], f["target"]))
     return found[:limit]
 
 
+def evidence_strength(ev: dict | None) -> float:
+    """Inclusion damped by how many distinct values back it: 100% of two distinct values proves little."""
+    if not ev or not ev.get("inclusion"):
+        return 0.0
+    return round(ev["inclusion"] * min(1.0, (ev.get("distinct_values") or 0) / EVIDENCE_DISTINCT), 4)
+
+
 def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
     """Candidates, and for the best `check` of them the inclusion evidence from the data when `execute` is given.
-    Nothing is applied: each suggestion carries a ready `confirmed` entry."""
+    After the check the order is by final_score = score + 3 x inclusion x min(1, distinct values / 10), so the data and
+    the names decide together. Nothing is applied: each suggestion carries a ready `confirmed` entry."""
     from . import evidence
     cands = candidates(plan, limit)
     checked = 0
@@ -443,9 +532,12 @@ def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
                                 "inclusion": round(matched / with_value, 4) if with_value else None,
                                 "verdict": ("every value exists in the target key" if with_value and matched == with_value else
                                             "no rows with a value" if not with_value else f"{with_value - matched} value(s) not in the target key")}
+        if execute is not None:
+            cand["final_score"] = round(cand["score"] + EVIDENCE_WEIGHT * evidence_strength(cand.get("evidence")), 2)
     if execute is not None:
-        cands.sort(key=lambda c: (-(c.get("evidence", {}).get("inclusion") or 0), -c["score"], c["source"], c["source_cols"], c["target"]))
+        cands.sort(key=lambda c: (-c["final_score"], -c["score"], c["source"], c["source_cols"], c["target"]))
     return {"candidates": cands, "checked_against_data": checked,
             "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or "
                     "create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with "
-                    "many distinct values is strong evidence, 100% with two distinct values is not."}
+                    "many distinct values is strong evidence, 100% with two distinct values is not. After the data check the "
+                    "order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score."}

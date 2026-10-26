@@ -207,21 +207,56 @@ def test_inclusion_sql_and_suggestions_find_ship_to_on_the_seed_data(shop_plan):
 
 
 def test_candidates_rank_by_name_type_and_triangular_closure():
-    # rep_id: a reference suffix, no table it names; person_ref: resembles persons by name but has no reference suffix
+    # rep_id: a reference suffix and a role word (rep) that names a person; person_ref: resembles persons by name (an
+    # abbreviation) but has no reference suffix. Both close the triangle orders -> customers -> persons (R1 0.8 x R1 0.8).
     s = schema(("orders", [("order_id", "int"), ("customer_id", "int"), ("rep_id", "int"), ("person_ref", "int"), ("note", "varchar")]),
                ("customers", [("customer_id", "int"), ("person_id", "int")]),
                ("persons", [("person_id", "int"), ("name", "varchar")]),
                ("tags", [("tag_id", "varchar"), ("label", "varchar")]))
     c = graphs.candidates(plan(s))
     top = c[0]
-    assert (top["source"], top["source_cols"], top["target"]) == ("orders", ["person_ref"], "persons")               # name + triangle
-    assert top["triangular_closure"] is True and top["name_similarity"] == 0.7 and top["type_similarity"] == 1.0 and top["score"] == 4.1
+    assert (top["source"], top["source_cols"], top["target"]) == ("orders", ["rep_id"], "persons")                   # role word + suffix + triangle
+    assert top["name_basis"] == "role word" and top["name_similarity"] == 0.6 and top["closure"] == 0.64 and top["score"] == 3.94
+    assert top["closure_via"] == "orders -> customers -> persons" and "a role held by a person" in top["why"]
+    ref = next(x for x in c if x["source_cols"] == ["person_ref"])
+    assert ref["target"] == "persons" and ref["triangular_closure"] is True and ref["name_similarity"] == 0.7 and ref["name_basis"] == "abbreviation"
+    assert ref["type_similarity"] == 1.0 and ref["score"] == 3.74                                                     # 3 x 0.7 + 1 + 0.64, no suffix
     reps = [(x["target"], x["score"]) for x in c if x["source_cols"] == ["rep_id"]]
-    assert reps[0] == ("persons", 2.5) and reps[1] == ("customers", 1.5)                                           # the triangle ranks persons first
+    assert reps == [("persons", 3.94), ("customers", 1.25)]                                                        # customers: already referenced
+    assert next(x for x in c if x["source_cols"] == ["rep_id"] and x["target"] == "customers")["penalties"] == [
+        "orders already refers to customers through customer_id"]
     assert not any(x["target"] == "tags" for x in c)                                                              # varchar key, int column
     assert not any(x["source_cols"] == ["note"] for x in c)                                                       # a plain attribute
     assert not any(x["source_cols"] == ["customer_id"] and x["source"] == "orders" for x in c)                     # already a relationship
     assert graphs.suggest(plan(s), check=0)["checked_against_data"] == 0
+
+
+def test_ship_to_ranks_addresses_first_without_data(shop_plan):
+    # The live run on 26 October gave every candidate for orders.ship_to_id the same 1.5 before the data check.
+    c = [x for x in graphs.candidates(shop_plan) if x["source_cols"] == ["ship_to_id"]]
+    assert [x["target"] for x in c] == ["addresses", "categories", "customers", "products"]
+    best = c[0]
+    assert best["name_basis"] == "role word" and best["closure_via"] == "orders -> customers <- addresses" and best["closure"] == 0.64
+    assert best["score"] == 3.94 and best["score"] > 2 * max(x["score"] for x in c[1:])
+    assert "an address role (ship-to, bill-to, mail-to)" in best["why"] and "closes a triangle" in best["why"]
+    against = {x["target"]: x["penalties"] for x in c}
+    assert against["customers"] == ["orders already refers to customers through customer_id"]
+    assert against["products"] == ["order_items already joins orders and products (many-to-many through it)"]
+    assert against["addresses"] == [] and against["categories"] == []
+
+
+def test_final_ranking_combines_inclusion_and_name_score(shop_plan):
+    out = graphs.suggest(shop_plan, sqlite_execute())
+    ship = [x for x in out["candidates"] if x["source_cols"] == ["ship_to_id"]]
+    assert ship[0]["target"] == "addresses" and ship[0]["final_score"] == round(ship[0]["score"] + 3.0, 2)    # 100% of 15 distinct values
+    for x in ship[1:]:
+        assert x["final_score"] == round(x["score"] + 3.0 * graphs.evidence_strength(x["evidence"]), 2) < ship[0]["final_score"]
+    assert [x["final_score"] for x in out["candidates"]] == sorted((x["final_score"] for x in out["candidates"]), reverse=True)
+    assert "final_score" in out["note"]
+    # two distinct values that all match prove little: the inclusion is damped to a fifth
+    assert graphs.evidence_strength({"inclusion": 1.0, "distinct_values": 2}) == 0.2
+    assert graphs.evidence_strength({"inclusion": None, "distinct_values": 0}) == 0.0 and graphs.evidence_strength(None) == 0.0
+    assert all("final_score" not in x for x in graphs.suggest(shop_plan)["candidates"])                        # no data, no final score
 
 
 # ------------------------------------------------------------------ dictionary section -----------
