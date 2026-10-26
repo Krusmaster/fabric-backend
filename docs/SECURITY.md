@@ -97,7 +97,11 @@ two minutes before it expires. The server stores nothing on disk and never write
    issued token were ever rejected as immature, a leeway of a few seconds is the fix (`jwt.decode(..., leeway=…)`).
 8. **`KRUSGRAPH_DEBUG_ERRORS`** adds the exception class name to tool errors. It is off by default and should stay
    off in production; it never adds messages or tokens.
-9. **HSTS** is `max-age=31536000` without `includeSubDomains`/`preload`; the apex serves the site and the MCP
+9. **Dynamic client registration facade** (`KRUSGRAPH_DCR=1`, off by default). It hands the one Entra app's public
+   client id to any client whose redirect URIs are all on `KRUSGRAPH_DCR_REDIRECTS`; PKCE and Entra's exact redirect
+   matching are the controls, and loopback entries match any port. Keep the list short and review it; the design and
+   the open points (resource indicator, issuer) are in `docs/AUTH-DCR.md`. Unit-tested only.
+10. **HSTS** is `max-age=31536000` without `includeSubDomains`/`preload`; the apex serves the site and the MCP
    endpoint, and nothing else is under the domain. Adding preload is a DNS/ownership decision, not a code one.
 
 ## Rerunning

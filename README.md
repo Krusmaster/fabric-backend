@@ -77,7 +77,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, twenty-two tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, twenty-three tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -105,8 +105,14 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
-- `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries and the portal checklist for an
-  app on a created API.
+- `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
+  backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
+  app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
+  per-user alternative (Supabase Auth with Entra, the user's own token forwarded). The backend part is unit-tested.
+- `app_readiness` (read-only) — what an app still needs on an existing API: keyless types, unlinked types, write access
+  from the definition, introspection from one probe query, and "unknown" with the click path for what Fabric's API
+  cannot read (permissions, the tenant setting). Unit-tested. The whole Lovable chain, step by step with owners and
+  blockers, is in [docs/LOVABLE-END-TO-END.md](docs/LOVABLE-END-TO-END.md).
 
 Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested and
 run against the demo workspace (synthetic shop data) on 26 October 2026):
@@ -143,7 +149,11 @@ each user's token is validated (issuer per tenant, audience = the app, signature
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
 Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
 `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata and requested query results pass through the
-server in memory only; there is no database. The same process serves the website (`/`, `/explore`, `/start`,
+server in memory only; there is no database. Agents outside Claude (Lovable's custom MCP connector, Cursor) need to
+register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_DCR=1` with `KRUSGRAPH_DCR_REDIRECTS` turns on a
+registration facade that answers the Entra app's public client id for allowed redirect URIs and publishes RFC 8414
+metadata pointing at Entra's endpoints, storing nothing ([docs/AUTH-DCR.md](docs/AUTH-DCR.md); off by default,
+unit-tested, not yet tried with a real agent). The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE=1` (deploy config `ontology_write`) offers `create_ontology`; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,

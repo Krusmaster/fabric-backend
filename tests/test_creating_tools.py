@@ -382,3 +382,27 @@ def test_creating_tools_are_listed_with_write_annotations_and_dry_run_default():
     assert tools["app_starter"]["annotations"]["readOnlyHint"] is True
     for word in ("create_semantic_model", "create_views", "create_data_agent", "app_starter"):
         assert word in server.mcp.instructions
+
+
+def test_app_starter_backend_keeps_every_secret_out_of_the_browser():
+    p = plan(seed.schema("shop"), confirmed=SHIP_TO)
+    desc = server.describe_definition(decode(definition(p, "shop_api", WS, "ep", "SqlAnalyticsEndpoint")))
+    endpoint = f"https://api.fabric.microsoft.com/v1/workspaces/{WS}/graphqlapis/x/graphql"
+    s = app_starter.starter(desc, endpoint, "shop_api", WS)
+    fn = s["backend"]["edge_function"]["source"]
+    front = s["backend"]["frontend"]["source"]
+    assert s["backend"]["edge_function"]["path"] == "supabase/functions/fabric-graphql/index.ts"
+    for name in ("ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "FABRIC_GRAPHQL_ENDPOINT"):
+        assert f'Deno.env.get("{name}")' in fn and name in s["backend"]["secrets"]
+    assert endpoint in fn and "client_credentials" in fn and "https://api.fabric.microsoft.com/.default" in fn
+    assert re.search(r"(mutation|subscription)", fn) and "Deno.serve" in fn
+    assert not re.search(r"client_secret\s*[:=]\s*['\"][^'\"<]", fn)                     # no literal secret value anywhere
+    assert not re.search(r"[0-9a-f]{32}|[A-Za-z0-9~._-]{40,}", fn.replace(WS, ""))          # nor anything that looks like one
+    assert "login.microsoftonline.com" not in front and "api.fabric.microsoft.com" not in front and "SECRET" not in front
+    assert 'supabase.functions.invoke("fabric-graphql"' in front
+    assert fn in s["lovable_prompt"] and front in s["lovable_prompt"] and "ask me to add them, do not put values in code" in s["lovable_prompt"]
+    per_user = s["backend"]["per_user_alternative"]
+    assert "GraphQLApi.Execute.All" in per_user["source"] and "x-fabric-token" in per_user["source"] and "unverified" in per_user
+    assert "docs.lovable.dev/integrations/microsoft-fabric" in s["backend"]["lovable_connector"]
+    assert any("Service principals can use Fabric APIs" in c for c in s["checklist"]) and any("app_readiness" in c for c in s["checklist"])
+    assert "unit-tested only" in s["note"]

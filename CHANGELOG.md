@@ -5,6 +5,16 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Lovable on Fabric without getting stuck: `docs/LOVABLE-END-TO-END.md` maps every step of the chain with its owner,
+  whether it is automated and what blocks, with sources. New read-only tool `app_readiness` (keyless and unlinked types,
+  write access, one introspection probe, "unknown" with the click path for what Fabric's API cannot read). `app_starter`
+  adds the backend piece: a Supabase edge function (client credentials, secrets as Supabase secrets, mutations refused),
+  the frontend helper, the per-user alternative and a checklist that starts with the app's own Entra registration.
+  Dynamic client registration for agents outside Claude behind `KRUSGRAPH_DCR=1` (`fabric_backend/dcr.py`, design and
+  alternatives in `docs/AUTH-DCR.md`): RFC 8414 metadata pointing at Entra, an RFC 7591 registration endpoint that
+  answers the app's public client id for allow-listed redirect URIs, nothing stored; off by default, Claude's sign-in
+  unchanged. Introspection cannot be set through the Fabric REST API (spec read 26 October 2026), so it stays a
+  documented click.
 - Review fixes in the stdio server and CLI: the CLI's `semantic-model` writes `schemaName` exactly when the lakehouse has
   schemas (it never did for a lakehouse); a Rayfin `metadata.json` source labels every command's output with the schema
   it read, and `plan`/`definition` accept it too; `views` prints `GO` between batches; a missing `FABRIC_ODBC` answers

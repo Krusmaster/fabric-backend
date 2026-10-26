@@ -21,6 +21,8 @@ create_backend, rayfin_connector, query_graphql.
 from __future__ import annotations
 
 import json
+
+import requests
 import os
 import struct
 import time
@@ -35,7 +37,7 @@ from .deploy import create_ontology as _create_ontology
 from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
-from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs
+from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from .deploy import create_semantic_model as _create_semantic_model
 
 try:
@@ -61,8 +63,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "plan_drift before re-running create_backend on an existing API, to see what would change. Creating more than the API: "
     "create_semantic_model (a Power BI semantic model item from the TMDL draft), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — each "
-    "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details and queries "
-    "for an app on a created API. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
+    "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details, queries and "
+    "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
+    "it (introspection, permissions, keys, relationships) with the next step per item. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
     "subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks "
     "candidate columns and checks the best against the data, suggesting only. "
     "A call that cannot be completed answers with error (plain words), "
@@ -832,6 +835,32 @@ def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
     return json.dumps(_app_starter.starter(description, endpoint_url(workspace_id, api_id), api, workspace_id), indent=2)
 
 
+@mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
+@safe
+def app_readiness(workspace: str, api: str, ctx: Context = None) -> str:
+    """For an existing API for GraphQL item (name or id): what is in place and what is missing before an app can use it.
+    Reads the item's definition (types without a key, types in no relationship, write access) and sends one
+    introspection query to the endpoint to see whether introspection is on; permissions and the tenant setting for
+    service principals cannot be read through the Fabric API and are reported as unknown with the portal path.
+    Each item carries its next step."""
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    api_id = _api_id(workspace_id, api, headers)
+    if not api_id:
+        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                           "hint": "list_sources lists the GraphQL APIs in a workspace; create_backend creates one."}, indent=2)
+    description = describe_definition(_graphql_definition(workspace_id, api_id, headers))
+    from .deploy import endpoint_url
+    endpoint = endpoint_url(workspace_id, api_id)
+    r = requests.post(endpoint, headers=headers, json={"query": _readiness.INTROSPECTION_QUERY, "variables": {}}, timeout=60)
+    status = getattr(r, "status_code", 200)
+    try:
+        body = r.json() if status < 400 else {}
+    except ValueError:
+        body = {}
+    return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
 def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
     """graphql-definition.json of an API for GraphQL item (getDefinition, long-running when Fabric says so)."""
     import base64
@@ -1174,11 +1203,32 @@ def build_app(host: str = "0.0.0.0"):
         return _with_security_headers(app)
 
     from .entra import protected_resource_metadata, challenge, TokenError
+    from . import dcr as _dcr
 
     async def prm(_request):
-        return JSONResponse(protected_resource_metadata(cfg))
+        meta = protected_resource_metadata(cfg)
+        if _dcr.enabled():                                        # agents that register themselves find the facade first
+            meta["authorization_servers"] = [_dcr.origin(cfg)] + meta["authorization_servers"]
+        return JSONResponse(meta)
     app.router.routes.append(Route("/.well-known/oauth-protected-resource", prm))
     app.router.routes.append(Route("/.well-known/oauth-protected-resource/mcp", prm))
+
+    if _dcr.enabled():                                            # KRUSGRAPH_DCR=1: see fabric_backend/dcr.py and docs/AUTH-DCR.md
+        async def asm(_request):
+            return JSONResponse(_dcr.authorization_server_metadata(cfg))
+
+        async def register(request):
+            raw = await request.body()
+            if len(raw) > _dcr.MAX_BODY:
+                return JSONResponse({"error": "invalid_client_metadata", "error_description": "request too large"}, status_code=413)
+            try:
+                body = _json.loads(raw) if raw else {}
+            except ValueError:
+                body = None
+            status, out = _dcr.register(cfg, body)
+            return JSONResponse(out, status_code=status, headers={"Cache-Control": "no-store"})
+        app.router.routes.append(Route("/.well-known/oauth-authorization-server", asm))
+        app.router.routes.append(Route("/oauth/register", register, methods=["POST"]))
 
     inner = app
 
