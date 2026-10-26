@@ -36,10 +36,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -125,10 +121,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -169,10 +161,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -237,10 +225,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -345,10 +329,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -409,10 +389,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -552,10 +528,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -786,10 +758,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -1042,10 +1010,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -1140,10 +1104,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -1184,10 +1144,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -1444,10 +1400,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -2200,10 +2152,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -2234,10 +2182,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -2278,10 +2222,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -2322,10 +2262,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [
@@ -2687,10 +2623,6 @@
     [
      "ValidTo",
      "datetime2"
-    ],
-    [
-     "PERIOD",
-     "for"
     ]
    ],
    "primary_key": [

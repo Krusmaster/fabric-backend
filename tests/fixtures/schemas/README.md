@@ -30,7 +30,7 @@ two self-references).
 
 ## Notes on what the ground truth is
 
-- **WideWorldImporters** is Microsoft's current sample; the OLTP SSDT project declares every primary and foreign key
+- **WideWorldImporters** is Microsoft's current sample; its system-versioned tables declare `PERIOD FOR SYSTEM_TIME (ValidFrom, ValidTo)`, which the extractor skips (it is not a column). It the OLTP SSDT project declares every primary and foreign key
   inline. 33 tables after leaving out the temporal history tables and the load-simulation schema; the `LastEditedBy`
   columns (foreign keys to `People`) are 30 of its 98 declared foreign keys. **WideWorldImportersDW** is its star
   schema: 14 Dimension and Fact tables; the fact tables have composite primary keys of the surrogate key plus the

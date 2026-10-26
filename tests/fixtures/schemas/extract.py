@@ -86,6 +86,8 @@ def extract(files: list[str]) -> dict:
                 if head.startswith(("CONSTRAINT", "PRIMARY KEY", "FOREIGN KEY", "CHECK", "UNIQUE", "INDEX", "KEY ")):
                     _constraint(t, s, tables)
                     continue
+                if head.startswith("PERIOD FOR"):               # system-versioned tables: PERIOD FOR SYSTEM_TIME (ValidFrom, ValidTo) is not a column
+                    continue
                 cm = TYPE_RE.match(s)
                 if not cm:
                     continue
