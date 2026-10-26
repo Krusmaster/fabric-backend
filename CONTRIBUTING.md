@@ -47,5 +47,6 @@ and set it back to "open" when you are done.
 ## Verified, and how
 
 When you state that something works, say where and when it was verified: unit tests, a local server, or the live
-service against a Fabric workspace with synthetic data. The first live end-to-end run (all six tools, Claude →
-Entra → Fabric) was on 25 October 2026.
+service against a Fabric workspace with synthetic data. The hosted connector's first connection (Claude → Entra →
+Fabric) was on 25 October 2026; what counts as tested end to end is the run of 26 October 2026 (14 steps, read-only or
+dry run, no creating call). `docs/LIVE-TEST.md` is the checklist for the next run.
