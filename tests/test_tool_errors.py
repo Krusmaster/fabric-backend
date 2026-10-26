@@ -188,6 +188,8 @@ def test_unexpected_exceptions_never_show_a_traceback(monkeypatch):
 
 
 def test_create_backend_explains_a_refused_create(monkeypatch):
+    monkeypatch.setattr(server, "_headers", lambda ctx: dict(SECRET_HEADERS))
+    monkeypatch.setattr(server, "_workspace_id", lambda workspace, headers: workspace)       # the id lookup comes first
     monkeypatch.setattr(server, "_plan", lambda *a: (_plan_stub(), {"type": "Lakehouse", "id": "lh"}, dict(SECRET_HEADERS)))
     monkeypatch.setattr(server, "source_for", lambda *a: ("ep-1", "SqlAnalyticsEndpoint"))
     monkeypatch.setattr(server, "deploy", lambda *a, **k: {"status": "Failed", "mode": "created", "http": 403,

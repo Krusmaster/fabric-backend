@@ -499,6 +499,7 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
     the update would drop relationships it has (often ones confirmed earlier), nothing is written: the answer lists
     them with ready `confirmed` entries; pass those to keep them, or allow_removals=true to drop them on purpose.
     Returns the endpoint URL and the portal steps that remain (introspection, service principal permission)."""
+    workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     source_id, source_type = source_for(workspace, item, headers)

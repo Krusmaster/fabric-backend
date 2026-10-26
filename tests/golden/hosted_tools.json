@@ -1488,9 +1488,18 @@
  },
  {
   "answer": {
-   "error": "Workspace 'demo', source 'demo_lh', schema 'shop', name 'shop_api_v2' was not found (HTTP 404: The requested workspace was not found).",
-   "hint": "Check the workspace id and the source name: list_sources shows what the signed-in account can see.",
-   "kind": "not_found"
+   "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "result": {
+    "id": "new-graphQLApis",
+    "mode": "created",
+    "status": "Succeeded"
+   },
+   "skipped_relationships": [],
+   "source": {
+    "id": "aaaaaaaa-0000-0000-0000-000000000002",
+    "type": "SqlAnalyticsEndpoint"
+   },
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
    "name": "shop_api_v2",
@@ -1513,16 +1522,72 @@
    ],
    [
     "GET",
-    "/v1/workspaces/demo/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items?type=GraphQLApi"
+   ],
+   [
+    "POST",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
    ]
   ],
   "tool": "create_backend"
  },
  {
   "answer": {
-   "error": "Workspace 'demo', source 'demo_lh', schema 'shop', name 'shop_api' was not found (HTTP 404: The requested workspace was not found).",
-   "hint": "Check the workspace id and the source name: list_sources shows what the signed-in account can see.",
-   "kind": "not_found"
+   "error": "updating 'shop_api' would remove 2 relationship(s) the API has today; nothing was written.",
+   "hint": "To keep them, call create_backend again with confirmed=keep_with_confirmed (added to any confirmed you already pass). To drop them on purpose, call it with allow_removals=true.",
+   "keep_with_confirmed": [
+    {
+     "field_name": "ship_to",
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    }
+   ],
+   "kind": "would_remove",
+   "relationships_lost": [
+    {
+     "columns": [
+      "address_id"
+     ],
+     "field": "orders_as_ship_to",
+     "table": "shop.addresses",
+     "target": "shop.orders",
+     "why": "the plan does not infer it today (it was given as `confirmed` when the API was built, or a key or rule changed); pass it in `confirmed` to keep it"
+    },
+    {
+     "columns": [
+      "ship_to_id"
+     ],
+     "confirmed": {
+      "field_name": "ship_to",
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "addresses",
+      "target_cols": [
+       "address_id"
+      ]
+     },
+     "field": "ship_to",
+     "table": "shop.orders",
+     "target": "shop.addresses",
+     "why": "the plan does not infer it today (it was given as `confirmed` when the API was built, or a key or rule changed); pass it in `confirmed` to keep it"
+    }
+   ]
   },
   "args": {
    "name": "shop_api",
@@ -1545,7 +1610,15 @@
    ],
    [
     "GET",
-    "/v1/workspaces/demo/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "POST",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/getDefinition"
    ]
   ],
   "tool": "create_backend"
@@ -6228,6 +6301,26 @@
  },
  {
   "created": [
+   {
+    "body": {
+     "definition": {
+      "parts": [
+       {
+        "path": "graphql-definition.json",
+        "payload": "eyIkc2NoZW1hIjoiaHR0cHM6Ly9kZXZlbG9wZXIubWljcm9zb2Z0LmNvbS9qc29uLXNjaGVtYXMvZmFicmljL2l0ZW0vZ3JhcGhxbEFwaS9kZWZpbml0aW9uLzEuMC4wL3NjaGVtYS5qc29uIiwiZGF0YXNvdXJjZXMiOlt7InNvdXJjZUl0ZW1JZCI6ImFhYWFhYWFhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMiIsInNvdXJjZVdvcmtzcGFjZUlkIjoiMTExMTExMTEtMjIyMi0zMzMzLTQ0NDQtNTU1NTU1NTU1NTU1Iiwic291cmNlVHlwZSI6IlNxbEFuYWx5dGljc0VuZHBvaW50Iiwib2JqZWN0cyI6W3siZ3JhcGhxbFR5cGUiOiJjdXN0b21lcnMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLmN1c3RvbWVycyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsiY3VzdG9tZXJfaWQiOiJjdXN0b21lcl9pZCIsIm5hbWUiOiJuYW1lIiwiY291bnRyeSI6ImNvdW50cnkifSwicmVsYXRpb25zaGlwcyI6W3siZmllbGQiOiJhZGRyZXNzZXMiLCJjYXJkaW5hbGl0eSI6Ik9uZVRvTWFueSIsInRhcmdldE9iamVjdCI6InNob3AuYWRkcmVzc2VzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfSx7ImZpZWxkIjoib3JkZXJzIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLm9yZGVycyIsInNvdXJjZUZpZWxkcyI6WyJjdXN0b21lcl9pZCJdLCJ0YXJnZXRGaWVsZHMiOlsiY3VzdG9tZXJfaWQiXX0seyJmaWVsZCI6ImF1ZGl0X2xvZyIsImNhcmRpbmFsaXR5IjoiT25lVG9NYW55IiwidGFyZ2V0T2JqZWN0Ijoic2hvcC5hdWRpdF9sb2ciLCJzb3VyY2VGaWVsZHMiOlsiY3VzdG9tZXJfaWQiXSwidGFyZ2V0RmllbGRzIjpbImN1c3RvbWVyX2lkIl19XX0seyJncmFwaHFsVHlwZSI6ImNhdGVnb3JpZXMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLmNhdGVnb3JpZXMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7ImlkIjoiaWQiLCJuYW1lIjoibmFtZSJ9LCJyZWxhdGlvbnNoaXBzIjpbeyJmaWVsZCI6InByb2R1Y3RzIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLnByb2R1Y3RzIiwic291cmNlRmllbGRzIjpbImlkIl0sInRhcmdldEZpZWxkcyI6WyJjYXRlZ29yeV9pZCJdfV19LHsiZ3JhcGhxbFR5cGUiOiJwcm9kdWN0cyIsInNvdXJjZU9iamVjdCI6InNob3AucHJvZHVjdHMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7InByb2R1Y3RfaWQiOiJwcm9kdWN0X2lkIiwibmFtZSI6Im5hbWUiLCJjYXRlZ29yeV9pZCI6ImNhdGVnb3J5X2lkIn0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY2F0ZWdvcnkiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY2F0ZWdvcmllcyIsInNvdXJjZUZpZWxkcyI6WyJjYXRlZ29yeV9pZCJdLCJ0YXJnZXRGaWVsZHMiOlsiaWQiXX0seyJmaWVsZCI6Im9yZGVyX2l0ZW1zIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLm9yZGVyX2l0ZW1zIiwic291cmNlRmllbGRzIjpbInByb2R1Y3RfaWQiXSwidGFyZ2V0RmllbGRzIjpbInByb2R1Y3RfaWQiXX1dfSx7ImdyYXBocWxUeXBlIjoiYWRkcmVzc2VzIiwic291cmNlT2JqZWN0Ijoic2hvcC5hZGRyZXNzZXMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7ImFkZHJlc3NfaWQiOiJhZGRyZXNzX2lkIiwiY3VzdG9tZXJfaWQiOiJjdXN0b21lcl9pZCIsImNpdHkiOiJjaXR5In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfV19LHsiZ3JhcGhxbFR5cGUiOiJvcmRlcnMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLm9yZGVycyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsib3JkZXJfaWQiOiJvcmRlcl9pZCIsImN1c3RvbWVyX2lkIjoiY3VzdG9tZXJfaWQiLCJvcmRlcl9kYXRlIjoib3JkZXJfZGF0ZSIsInNoaXBfdG9faWQiOiJzaGlwX3RvX2lkIn0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfSx7ImZpZWxkIjoib3JkZXJfaXRlbXMiLCJjYXJkaW5hbGl0eSI6Ik9uZVRvTWFueSIsInRhcmdldE9iamVjdCI6InNob3Aub3JkZXJfaXRlbXMiLCJzb3VyY2VGaWVsZHMiOlsib3JkZXJfaWQiXSwidGFyZ2V0RmllbGRzIjpbIm9yZGVyX2lkIl19XX0seyJncmFwaHFsVHlwZSI6Im9yZGVyX2l0ZW1zIiwic291cmNlT2JqZWN0Ijoic2hvcC5vcmRlcl9pdGVtcyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsib3JkZXJfaWQiOiJvcmRlcl9pZCIsImxpbmVfbm8iOiJsaW5lX25vIiwicHJvZHVjdF9pZCI6InByb2R1Y3RfaWQiLCJxdWFudGl0eSI6InF1YW50aXR5In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoib3JkZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3Aub3JkZXJzIiwic291cmNlRmllbGRzIjpbIm9yZGVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJvcmRlcl9pZCJdfSx7ImZpZWxkIjoicHJvZHVjdCIsImNhcmRpbmFsaXR5IjoiTWFueVRvT25lIiwidGFyZ2V0T2JqZWN0Ijoic2hvcC5wcm9kdWN0cyIsInNvdXJjZUZpZWxkcyI6WyJwcm9kdWN0X2lkIl0sInRhcmdldEZpZWxkcyI6WyJwcm9kdWN0X2lkIl19XX0seyJncmFwaHFsVHlwZSI6ImF1ZGl0X2xvZyIsInNvdXJjZU9iamVjdCI6InNob3AuYXVkaXRfbG9nIiwic291cmNlT2JqZWN0VHlwZSI6IlRhYmxlIiwiYWN0aW9ucyI6eyJRdWVyeSI6IkVuYWJsZWQiLCJRdWVyeV9ieV9wayI6IkRpc2FibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsiZXZlbnQiOiJldmVudCIsImN1c3RvbWVyX2lkIjoiY3VzdG9tZXJfaWQiLCJoYXBwZW5lZF9hdCI6ImhhcHBlbmVkX2F0In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfV19XX1dfQ==",
+        "payloadType": "InlineBase64"
+       },
+       {
+        "path": ".platform",
+        "payload": "eyIkc2NoZW1hIjoiaHR0cHM6Ly9kZXZlbG9wZXIubWljcm9zb2Z0LmNvbS9qc29uLXNjaGVtYXMvZmFicmljL2dpdEludGVncmF0aW9uL3BsYXRmb3JtUHJvcGVydGllcy8yLjAuMC9zY2hlbWEuanNvbiIsIm1ldGFkYXRhIjp7InR5cGUiOiJHcmFwaFFMQXBpIiwiZGlzcGxheU5hbWUiOiJzaG9wX2FwaV92MiJ9LCJjb25maWciOnsidmVyc2lvbiI6IjIuMCIsImxvZ2ljYWxJZCI6IjUxYTk1NmI4LTMxY2UtNWZhZC1hOWM1LWYwYWIwOWU4NDQ1YSJ9fQ==",
+        "payloadType": "InlineBase64"
+       }
+      ]
+     },
+     "displayName": "shop_api_v2"
+    },
+    "route": "graphQLApis"
+   },
    {
     "body": {
      "definition": {
