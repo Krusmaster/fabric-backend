@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Site: `/local` (the local server over ODBC: SQL Server with Windows sign-in or a Fabric SQL endpoint, what it needs,
+  the Claude Desktop configuration, what works locally, the CSV path), the MCP Registry listing named on the home page,
+  the docs page and llms.txt, the Claude plugin mentioned as coming soon. `docs/PRICING-NOTES.md` (internal): what a
+  free and a paid tier could contain, what would have to be measured per user, what it requires; nothing built.
 - `lineage` (read-only, new): which GraphQL APIs, semantic models, views and data agents in the workspace build on a
   source's tables, from each object's own definition (`fabric_backend/lineage.py`), with what a change to one table
   reaches; `plan_drift` adds `impact` for the tables and columns a re-run would drop. `docs/MULTI-SOURCE.md` is the
