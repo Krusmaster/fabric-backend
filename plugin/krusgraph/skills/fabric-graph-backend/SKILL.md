@@ -64,6 +64,15 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
 - **Nightly drift monitor:** `drift_monitor_draft` shows the notebook, the pipeline and the schedule;
   `create_drift_monitor` creates them. The webhook address is never passed to a tool: tell the user to set
   `webhook_url` on the pipeline in Fabric.
+- **Gold views:** `gold_views_draft` shows materialized lake views over the silver tables (a lakehouse with schemas),
+  one per fact table, with the plan's keys and relationships as data quality rules; `create_gold_views` creates the
+  notebook that makes them. Run the silver notebook first.
+- **An existing semantic model:** `compare_semantic_model(model)` lists what the model lacks or gets wrong against the
+  plan. Without the permission it answers `kind: consent`; the model's TMDL files passed as `tmdl` need none.
+- **Changes through Git:** `export_item_definitions` gives what the creating tools would create as folders in Fabric's
+  Git format, for the user's own repository.
+- **Personal data:** columns that look like personal data by name come back masked or left out; pass
+  `show_personal_data=true` only when the user asks to see them.
 
 ## A lakehouse nobody has documented: five first questions
 
@@ -75,7 +84,8 @@ relationship), `data_dictionary` (the hand-over document with everything above).
 ## When to stop and confirm with the user
 
 - Before `create_backend`, `create_semantic_model`, `create_ontology`, `create_views`, `create_data_agent`,
-  `create_silver_notebook` or `create_drift_monitor` run for real.
+  `create_silver_notebook`, `create_drift_monitor` or `create_gold_views` run for real.
+- Before passing `show_personal_data=true`.
 - Before accepting any suggested relationship or composite key into `confirmed` / `keys`.
 - When `validate_plan` finds duplicates or orphans, or `plan_drift` lists removals.
 - When a tool answers `kind: consent`, `sign_in`, `no_access` or `capacity`: the hint names what the user or an admin
