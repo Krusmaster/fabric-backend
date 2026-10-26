@@ -110,15 +110,22 @@ def test_docs_have_the_first_questions_and_the_first_time_errors(client):
     assert "first-time-errors" not in errors._answer("timeout", "x")["hint"]
 
 
-def test_support_page_takes_no_payment_and_names_no_amounts(client):
+def test_support_page_is_a_help_page_without_contributions(client):
     html = client.get("/support").text
-    assert "Help keep Krusgraph going" in html and "I’m building Krusgraph through Kruse Consulting AB" in html
-    assert "SEK" not in html and "free either way" not in html and "free forever" not in html.lower()   # no amounts until payments exist
-    assert "Online contributions aren’t available yet" in html and "Contact Gustav" in html and "mailto:hello@krusgraph.test" in html
+    assert "<h1>Get help with Krusgraph</h1>" in html and "<title>Get help with Krusgraph</title>" in html
+    assert "mailto:hello@krusgraph.test?subject=Help%20with%20Krusgraph" in html
+    assert "<code>error</code>, <code>kind</code> and <code>hint</code>" in html and "no promised response time" in html
+    assert 'href="https://github.com/Krusmaster/fabric-backend/issues"' in html and 'href="/docs#first-time-errors"' in html
+    for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
+        assert f"<code>{kind}</code>" in html, kind
+    main = html.split('<main id="main"')[1].split("</main>")[0].lower()
+    for gone in (r"contribution", r"contribute\b", r"donat", r"\bsek\b", r"\bfund", r"payment", r"help keep"):   # "Contributor" is a Fabric role
+        assert not re.search(gone, main), gone
     assert "<form" not in html and "card number" not in html.lower()
-    for card in ("Examples you can try", "Setup guides", "Maintenance"):
-        assert card in html
-    assert 'href="https://github.com/Krusmaster/fabric-backend/issues"' in html
+    docs = client.get("/docs.md").text
+    assert "Support the work" not in docs and "Help keep" not in docs and "[Get help](/support)" in docs
+    for t in (client.get("/llms.txt").text, client.get("/llms-full.txt").text, client.get("/").text):
+        assert "Support the work" not in t and "contribution" not in t.lower() and "help keep" not in t.lower()
 
 
 def test_partner_sign_in_button_only_with_flag(client, monkeypatch):
@@ -231,7 +238,7 @@ def test_operator_values_are_escaped_in_templates(monkeypatch):
         for path in ("/", "/support"):                                                   # templates: attribute-safe too
             html = c.get(path).text
             assert 'me"@' not in html and "me&quot;@" in html, path
-        assert "subject=Supporting%20A%26B%20%3Cx%3E" in c.get("/support").text
+        assert "subject=Help%20with%20A%26B%20%3Cx%3E" in c.get("/support").text
 
 
 def test_mcp_and_oauth_routes_are_untouched(client, monkeypatch):

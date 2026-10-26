@@ -265,7 +265,7 @@ the same three fields.
 
 If the hosted service has been idle, the first request may take longer while Azure starts the container. If that
 request times out, try again after a short pause. If the problem continues, check the error message or
-[contact support](mailto:{{CONTACT}}).
+[get help](/support).
 
 If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides whether it
 scales to zero: `0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance running so idle
@@ -300,4 +300,6 @@ coming soon (Planned); it is not published yet.
 
 ## Support
 
-Email Gustav at {{CONTACT}} · [Help keep {{PRODUCT}} going](/support) · Source (MIT): https://github.com/Krusmaster/fabric-backend
+[Get help](/support): email Gustav at {{CONTACT}} with the `error`, `kind` and `hint` from the tool's answer (there is no
+promised response time), or report a bug or a plan that came out wrong on
+[GitHub Issues](https://github.com/Krusmaster/fabric-backend/issues). Source (MIT): https://github.com/Krusmaster/fabric-backend

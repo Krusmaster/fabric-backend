@@ -72,7 +72,8 @@ either direction and will be revised after three pilots.
 | **Partner-led pilot** (proposal: the partner's own rate; Krusgraph charges nothing) | a consultancy runs the pilot with their customer using this package | tests whether partners pick it up without a programme |
 
 What is *not* proposed: per-seat licences, per-query fees or a hosted tier with SLAs. There is nothing behind
-such promises today, and the website says so (contributions open soon; no payment connected).
+such promises today, and the website makes none (no payment is connected, and /support is a help page with no
+promised response time).
 
 ## Risks to name up front
 

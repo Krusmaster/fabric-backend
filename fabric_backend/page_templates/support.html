@@ -3,24 +3,37 @@
   <div class="hero-grid">
     <div>
       <span class="kicker">Support</span>
-      <h1>Help keep {{PRODUCT}} going</h1>
-      <p class="lede">I’m building {{PRODUCT}} through Kruse Consulting AB. It’s open source, and support helps cover hosting, maintenance and the time it takes to write useful examples.</p>
+      <h1>Get help with {{PRODUCT}}</h1>
+      <p class="lede">Stuck on a sign-in, a permission or a plan that came out wrong? Here’s how to get help, and what to include so the problem is easier to find.</p>
     </div>
     <div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="listen" data-label=""></span><span data-mascot="thinker" data-pose="rest" data-idle="nod" data-label=""></span></div>
   </div>
 </section>
 <section class="wrap" style="padding-top:0">
-  <div class="card">
-    <h2 style="font-size:26px">Online contributions aren’t available yet</h2>
-    <p class="muted" style="max-width:60ch">No payment method is connected. If you’d like to help fund the project, email me at {{CONTACT}}.</p>
-    <div class="ctas"><a class="btn primary" href="mailto:{{CONTACT}}?subject=Supporting%20{{PRODUCT_URL}}">Contact Gustav</a></div>
+  <div class="grid-2">
+    <div class="card" id="contact">
+      <h2 class="h3">Email Gustav</h2>
+      <p class="muted">Write to {{CONTACT}}. If a tool answered with an error, include the three fields from that answer, <code>error</code>, <code>kind</code> and <code>hint</code>, together with the tool’s name and what you asked Claude. Leave out tokens, passwords and customer data.</p>
+      <p class="muted">There is no support agreement and no promised response time.</p>
+      <div class="ctas"><a class="btn primary" href="mailto:{{CONTACT}}?subject=Help%20with%20{{PRODUCT_URL}}">Email Gustav</a></div>
+    </div>
+    <div class="card" id="report">
+      <h2 class="h3">Report a bug or a schema that came out wrong</h2>
+      <p class="muted">Open an issue on GitHub. For a plan that came out wrong, include the table and column names involved (anonymised if you need to), the key or relationship {{PRODUCT}} proposed or missed, and the rule it gave. Never post customer data or real workspace ids.</p>
+      <div class="ctas"><a class="btn secondary" href="{{GITHUB}}/issues" rel="noopener">Open a GitHub issue</a></div>
+    </div>
   </div>
-  <h2 style="margin-top:32px">What support helps with</h2>
-  <div class="grid-3">
-    <div class="card soft"><span class="step-n coral" aria-hidden="true">✦</span><h3>Examples you can try</h3><p class="muted">Small datasets that show composite keys, ambiguous columns and relationships that need a closer look.</p></div>
-    <div class="card soft"><span class="step-n sage" aria-hidden="true">✦</span><h3>Setup guides</h3><p class="muted">Clear instructions for connecting Claude and understanding the Microsoft permissions involved.</p></div>
-    <div class="card soft"><span class="step-n lav" aria-hidden="true">✦</span><h3>Maintenance</h3><p class="muted">Keeping {{PRODUCT}} working as Fabric and MCP change, and covering the hosted service.</p></div>
+  <div class="card soft" id="first-errors" style="margin-top:20px">
+    <h2 class="h3">The most common first errors</h2>
+    <p class="muted">A tool that cannot finish answers with a <code>kind</code>. These are the ones people meet first:</p>
+    <ul style="margin:0 0 12px;padding-left:20px;line-height:1.7">
+      <li><code>sign_in</code>: the connector’s sign-in has expired or was never completed. In Claude, disconnect and reconnect {{PRODUCT}}, then finish the Microsoft sign-in.</li>
+      <li><code>consent</code>: your Entra admin hasn’t approved {{PRODUCT}} yet, or the tool needs a permission the hosted app doesn’t have. Send your admin the consent link on <a href="/start">Connect to Claude</a>.</li>
+      <li><code>no_access</code>: the workspace or item isn’t shared with you. Ask its owner for Viewer to read and plan, or Contributor to create.</li>
+      <li><code>capacity</code>: the workspace has no active Fabric capacity. Assign or resume one under Workspace settings → License info.</li>
+      <li><code>schema_not_found</code>: the schema has no tables for this sign-in. A lakehouse without schemas keeps its tables in <code>dbo</code>.</li>
+    </ul>
+    <p class="muted" style="margin-bottom:0">The exact steps for each are in the docs: <a href="/docs#first-time-errors">First-time errors</a>.</p>
   </div>
-  <p class="muted" style="margin-top:28px;max-width:60ch">You can also help by <a href="{{GITHUB}}/issues" rel="noopener">reporting a bug</a>, improving the docs or sharing an anonymised schema that {{PRODUCT}} struggled with.</p>
 </section>
 </div>
