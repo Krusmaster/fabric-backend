@@ -71,8 +71,20 @@ def _fabric_body(text: str) -> tuple[str, str]:
     return "", scrub(text)
 
 
+FIRST_TIME = ("sign_in", "consent", "mfa", "no_access", "capacity", "schema_not_found", "sql_sign_in")   # what a new user meets first
+
+
+def docs_url(anchor: str = "") -> str:
+    """The operator's docs page (the origin of MCP_PUBLIC_URL; krusgraph.com when unset), with an anchor."""
+    origin = os.environ.get("MCP_PUBLIC_URL", "https://krusgraph.com/mcp").split("/mcp")[0].rstrip("/") or "https://krusgraph.com"
+    return f"{origin}/docs" + (f"#{anchor}" if anchor else "")
+
+
 def _answer(kind: str, error: str) -> dict:
-    return {"error": error, "kind": kind, "hint": HINTS.get(kind, HINTS["unexpected"])}
+    hint = HINTS.get(kind, HINTS["unexpected"])
+    if kind in FIRST_TIME:
+        hint += f" Step by step: {docs_url('first-time-errors')}"
+    return {"error": error, "kind": kind, "hint": hint}
 
 
 def classify_http(status: int, body_text: str = "", where: str = "the request") -> dict:

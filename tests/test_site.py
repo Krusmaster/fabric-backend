@@ -75,6 +75,25 @@ def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     assert "Tested with" not in html and "tested with" not in html                          # the Claude end-to-end test is still on the to-do list
     for step in ("Connect your account", "Choose a workspace", "Open in Claude"):
         assert step in html
+    assert html.count('class="start-step"') == 3 and 'data-pane="3"' in html and "Explore a sample first" in html
+    assert "Why each one:" in html and "create_backend</code> alone" in html and "Item.ReadWrite.All" in html   # every scope with its reason
+    assert "Design preview" not in html and 'type="password"' not in html                                       # no fake sign-in
+
+
+def test_docs_have_the_first_questions_and_the_first_time_errors(client):
+    docs = client.get("/docs").text
+    assert "Five first questions on a lakehouse nobody has documented" in docs
+    for tool in ("analyze_schema", "plan_backend", "validate_plan", "suggest_relationships", "data_dictionary"):
+        assert f"({'<code>' + tool + '</code>'}" in docs or f"<code>{tool}</code>" in docs
+    assert '<h2 id="first-time-errors">' in docs
+    for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
+        assert f"<code>{kind}</code>" in docs
+    assert "Workspace settings → License info" in docs and "Disconnect" in docs
+    from fabric_backend import errors
+    assert errors.docs_url("first-time-errors").endswith("/docs#first-time-errors")
+    for kind in errors.FIRST_TIME:
+        assert errors._answer(kind, "x")["hint"].endswith("/docs#first-time-errors")
+    assert "first-time-errors" not in errors._answer("timeout", "x")["hint"]
 
 
 def test_support_page_shows_amounts_but_takes_no_payment(client):

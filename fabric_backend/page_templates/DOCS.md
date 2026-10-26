@@ -47,6 +47,14 @@ One example per tool, in the order a first session usually goes (list, plan, loo
 - `rayfin_connector` — *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
 - `ontology_draft` — *"Draft a Fabric IQ ontology from demo_lh."* — entity types, keys and relationship types with their rules, ready to import or create.
 
+**Five first questions on a lakehouse nobody has documented** (each pays off on its own; together they take about ten minutes):
+
+1. *"Read demo_lh, schema shop, as a graph: which tables are facts, which are dimensions, and what are the subject areas?"* (`analyze_schema`)
+2. *"Plan the keys and relationships for schema shop and tell me which rule made each one."* (`plan_backend`)
+3. *"Check that plan against the data: are the keys unique and do the references hold?"* (`validate_plan`)
+4. *"Which columns look like they should point at another table but are in no relationship?"* (`suggest_relationships`)
+5. *"Write the data dictionary for schema shop."* (`data_dictionary`; `dbt_schema` when the team tests with dbt)
+
 ## Tools
 
 Every tool takes the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
@@ -189,6 +197,23 @@ checked against recorded definitions, not yet live from {{PRODUCT}}.
 Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
 informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
 follow Microsoft's published REST specification; a live run of these source types is still pending.
+
+## First-time errors
+
+What a new user meets first, what the tool answers (`kind`) and exactly what to do. Every such answer carries this
+section's link in its `hint`.
+
+| `kind` | What happened | What to do, in order |
+| --- | --- | --- |
+| `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Settings → Connectors → {{PRODUCT}} → Disconnect**, then **Connect** again and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
+| `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology` and `create_data_agent` the answer names the missing scope (`Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
+| `no_access` | You can sign in, but this workspace or item is not shared with you (HTTP 403) | Ask the workspace owner for a role on the workspace: **Viewer** is enough for everything that reads and plans, **Contributor** for `create_backend`, `create_views` and the other creating tools. Then run the same request again; `list_workspaces` shows what you can see. |
+| `capacity` | The workspace has no active Fabric capacity (paused, not assigned, or expired trial) | In Fabric: **Workspace settings → License info**, assign a capacity or resume the paused one; a trial capacity is enough. Lakehouse SQL endpoints answer again a minute after the capacity is up. |
+| `schema_not_found` | The schema has no tables for this sign-in | A lakehouse without "Lakehouse schemas" has everything in `dbo`; one created with schemas has them by name (`list_tables` with another schema). Tables created minutes ago are not in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata, then try again. |
+| `sql_sign_in` | The SQL analytics endpoint refused the token | Reconnect the connector; if it persists, the account lacks access to the item itself (share the lakehouse or warehouse, not only the workspace). |
+
+Everything else (`not_found`, `timeout`, `throttled`, `bad_input`, …) is explained in the answer itself; the format is
+the same three fields.
 
 ## Cold start, and `min_replicas` if you run it yourself
 

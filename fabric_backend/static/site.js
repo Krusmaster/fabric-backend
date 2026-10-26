@@ -423,6 +423,20 @@
     g.on('select', describe); g.on('focus', describe);
   });
 
+  /* ------------------------------------------------------------------ start: one step at a time (all three without JS) */
+  var startPage = document.querySelector('[data-page=start]');
+  if (startPage) {
+    document.documentElement.classList.add('js');
+    var stepBtns = startPage.querySelectorAll('.start-step'), panes = startPage.querySelectorAll('.start-pane');
+    var showStep = function (n) {
+      stepBtns.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-step') === n ? 'true' : 'false'); });
+      panes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== n; });
+    };
+    stepBtns.forEach(function (b) { b.addEventListener('click', function () { showStep(b.getAttribute('data-step')); if (window.location.hash !== '#step-' + b.getAttribute('data-step')) history.replaceState(null, '', '#step-' + b.getAttribute('data-step')); }); });
+    var m = /^#step-([123])$/.exec(window.location.hash);
+    showStep(m ? m[1] : '1');
+  }
+
   /* ------------------------------------------------------------------ explore */
   var explore = document.querySelector('[data-page=explore]');
   if (explore) loadPlan(function (data) {

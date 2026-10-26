@@ -74,7 +74,11 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "candidate columns and checks the best against the data, suggesting only. "
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
-    "hint (the next step that fixes it)."))
+    "hint (the next step that fixes it). Five first questions that pay off on a lakehouse nobody has documented: "
+    "(1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys "
+    "and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; "
+    "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
+    "hand-over document with everything above."))
 
 
 # ------------------------------------------------------------------ auth ---------------------

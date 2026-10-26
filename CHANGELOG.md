@@ -5,6 +5,12 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- A faster first time: `/start` follows the design sketch (the three steps beside the current step, one at a time
+  with JavaScript and all three without it; the real actions are the admin-consent link and the connector URL, no
+  sign-in on the site) and its "What will Krusgraph access?" names every scope with the tools that use it, including
+  the one the app does not ask for. The first-time error kinds (`sign_in`, `consent`, `no_access`, `capacity`,
+  `schema_not_found`, `sql_sign_in`) carry a link to the new docs section "First-time errors", which gives the exact
+  clicks per kind. Five first questions for an undocumented lakehouse in the server instructions and on the docs page.
 - Fewer tokens per answer (before/after per tool in `docs/INFERENCE.md`): `analyze_schema` no longer repeats the
   constant rule weights and the three per-table centrality maps (the ten most central tables keep their numbers, every
   role its own); `plan_backend` leaves empty notes out and takes `mermaid=false`; `semantic_model_draft`,
