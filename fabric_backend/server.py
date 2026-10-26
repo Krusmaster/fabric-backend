@@ -638,7 +638,8 @@ def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys:
 # ------------------------------------------------------------------ creating tools ---------
 # Same pattern as create_backend: create or update in place under a name, never delete, dry_run first.
 
-WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
+# Write tools can replace an existing definition (a model, a view, an agent) in place, so Claude asks before each call.
+WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)
 
 
 def _consent(result: dict, scope: str, where: str) -> dict | None:

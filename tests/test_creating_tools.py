@@ -376,7 +376,7 @@ def test_creating_tools_are_listed_with_write_annotations_and_dry_run_default():
         tools = {t["name"]: t for t in payload["result"]["tools"]}
     for name in ("create_semantic_model", "create_views", "create_data_agent"):
         a = tools[name]["annotations"]
-        assert a["readOnlyHint"] is False and a["destructiveHint"] is False and a["idempotentHint"] is True, name
+        assert a["readOnlyHint"] is False and a["destructiveHint"] is True and a["idempotentHint"] is True, name
         assert tools[name]["inputSchema"]["properties"]["dry_run"]["default"] is True, name
         assert tools[name]["title"]
     assert tools["app_starter"]["annotations"]["readOnlyHint"] is True
