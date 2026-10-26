@@ -1,0 +1,17 @@
+{
+  "name": "krusgraph",
+  "displayName": "Krusgraph",
+  "version": "0.6.0",
+  "description": "Turn the tables of a Microsoft Fabric lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API: plan keys and relationships with the rule behind each one, check them against the data, create the API, and hand over a semantic model, data dictionary and dbt tests from the same plan.",
+  "author": {
+    "name": "Kruse Consulting AB",
+    "url": "https://krusgraph.com"
+  },
+  "homepage": "https://krusgraph.com",
+  "repository": "https://github.com/Krusmaster/fabric-backend",
+  "license": "MIT",
+  "keywords": ["microsoft-fabric", "graphql", "lakehouse", "data-model", "semantic-model", "dbt", "power-bi"],
+  "documentationUrl": "https://krusgraph.com/docs",
+  "supportUrl": "https://krusgraph.com/support",
+  "privacyPolicyUrl": "https://krusgraph.com/privacy"
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "krusgraph": {
+      "type": "http",
+      "url": "https://krusgraph.com/mcp"
+    }
+  }
+}
