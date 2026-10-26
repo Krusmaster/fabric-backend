@@ -34,7 +34,7 @@ def test_manifest_is_valid_json_with_the_fields_the_directory_reads():
     assert m["author"]["name"] == "Kruse Consulting AB" and m["author"]["url"] == "https://krusgraph.com"
     assert urlsplit(m["homepage"]).scheme == "https" and m["homepage"].startswith("https://krusgraph.com")
     assert m["license"] == "MIT" and m["privacyPolicyUrl"] == "https://krusgraph.com/privacy"
-    # where a user gets help: the issue tracker, not /support (the page about supporting the project, a concept for now)
+    # where a user reports a problem: the issue tracker (decided 26 October 2026); /support is the help page, "Get help with Krusgraph"
     assert m["supportUrl"] == "https://github.com/Krusmaster/fabric-backend/issues"
     assert re.fullmatch(r"\d+\.\d+\.\d+", m["version"])
     assert len(m["description"]) >= 40

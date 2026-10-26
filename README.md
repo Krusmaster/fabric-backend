@@ -102,7 +102,7 @@ same plan into the week's deliverables, all unit-tested and run against the demo
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked. On 26 October 2026 `create_views` ran for real on the demo lakehouse (schema and view created and read back); the two others answered `consent` (HTTP 403) because the app lacks the permission. The delegated permissions they need, against what the app has today, and
+mocked. On 26 October 2026 `create_views` ran as a dry run against the demo lakehouse; creating with it, and the other two, are unit-tested only. The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
@@ -331,7 +331,9 @@ either, open an issue.
 
 Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
 (Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned):
-https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 26 October run below.
+https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 26 October run below and covers only the
+tools that ran in it; `create_backend` is marked Experimental, because it is not among them. `docs/LIVE-TEST.md` is the
+checklist for the next run.
 
 **25 October 2026, evening: first end-to-end run of the hosted connector.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
@@ -342,21 +344,18 @@ relationship hops and returned 13 rows; a mutation was refused; an unknown works
 Work since that run (the ontology draft, Snowflake database items, mirrored catalogs) is covered by the test suite
 with Fabric mocked and has not had a live run of its own yet.
 
-**26 October 2026: the consultant, graph and dry-run tools against the same workspace.** From Claude through the
-hosted connector, read-only or dry run, nothing created: `list_workspaces` and `list_sources` found the workspace and
-`shop_api`; `validate_plan` answered 6 of 6 keys unique and 6 of 6 relationships without orphans; `semantic_model_draft`
-and `create_semantic_model` (dry run) wrote the seven Direct Lake tables with `schemaName: shop` and six active
-relationships; `join_path` gave the four-hop chain customers → categories with its T-SQL; `data_dictionary`
-(`validate=true`), `dbt_schema`, `analyze_schema` (three fact tables, four dimensions, no cycles) and `create_views`
-(dry run, one wide view) answered as the unit tests predict; `suggest_relationships` checked four candidates for
-`orders.ship_to_id` against the data and only `addresses.address_id` held for every value; `plan_drift` on `shop_api`
-reported the `ship_to_id → addresses` relationship the API carries and the plan does not infer, with the `confirmed`
-entry to keep it; `describe_backend`, `app_starter` and `create_data_agent` (dry run) read and drafted from the live
-items. Then with `dry_run=false`: `create_views` created schema `krusgraph` and `vw_order_items` on the lakehouse's SQL
-analytics endpoint, and `list_tables` / `sample_rows` on that schema read the view back (16 columns, joined rows);
-`create_semantic_model` and `create_data_agent` got HTTP 403 from Fabric and answered `kind: consent` naming the
-permission to add, as [docs/SCOPES.md](docs/SCOPES.md) predicts. Not yet run: those two creates once the permissions
-are granted, and the local stdio server against a real ODBC connection.
+**26 October 2026: 14 steps against the same workspace, no creating call.** From Claude through the hosted connector,
+read-only or dry run, nothing created. Run and passed: `list_workspaces` and `list_sources` (the workspace and
+`shop_api`), `sample_rows`, `plan_backend`, `validate_plan` (6 of 6 keys unique, 6 of 6 relationships without orphans),
+`suggest_relationships` (four candidates for `orders.ship_to_id`; only `addresses.address_id` held for every value),
+`analyze_schema` (three fact tables, four dimensions, no cycles), `join_path` (the four-hop chain customers →
+categories with its T-SQL), `describe_backend`, `query_graphql`, `semantic_model_draft` (the seven Direct Lake tables
+with `schemaName: shop` and six active relationships), `data_dictionary`, `dbt_schema`, `create_views` (dry run only:
+the SQL of one wide view, nothing created), `plan_drift` (on `shop_api`: the `ship_to_id → addresses` relationship the
+API carries and the plan does not infer, with the `confirmed` entry to keep it) and `app_starter`. Not run that day:
+`list_tables` as a tool of its own, `create_backend`, `create_semantic_model`, `create_data_agent`, `ontology_draft`,
+`create_ontology`, `rayfin_connector`, the tools added since, and the local stdio server against a real ODBC
+connection. Three things that run found are fixed since and unit-tested only (the rows in `docs/LIVE-TEST.md`).
 
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and

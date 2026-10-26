@@ -2,13 +2,27 @@
 
 The hosted connector at `{{MCP_URL}}` reads Fabric through your Microsoft sign-in. The same engine also runs on your own
 machine as a small MCP server over one ODBC connection: against a SQL Server you reach with Windows sign-in, an Azure
-SQL database, or a Fabric SQL analytics endpoint. Nothing leaves your machine except the queries to that database;
-there is no account with us and no sign-in with Microsoft. Keys and relationships are inferred the same way, with the
-same rules (K0–K5, R0–R4), and the drafts are written to your disk.
+SQL database, or a Fabric SQL analytics endpoint. There is no account with us, and nothing goes to the hosted service
+or to Kruse Consulting AB. Keys and relationships are inferred the same way, with the same rules (K0–K5, R0–R4).
 
-Status: the local server is unit-tested against recorded SQL Server metadata (declared keys, several schemas, names
-with spaces, `nvarchar(max)`, `datetimeoffset`, `uniqueidentifier`, computed columns, views) and against a Fabric
-SQL analytics endpoint in the test suite; it has not yet been run against a live SQL Server by us.
+**What leaves your machine**, as the code does it:
+
+- **The queries to the database in `FABRIC_ODBC`, and their results.** A SQL Server you reach with Windows sign-in stays
+  on your network. An Azure SQL database or a Fabric SQL analytics endpoint is in Microsoft's cloud, and the ODBC driver
+  signs you in with Microsoft (`Authentication=ActiveDirectoryInteractive`).
+- **The answers, to your MCP client.** Whatever a tool answers goes to the client, and Claude Desktop sends it to Anthropic
+  as part of the conversation, like any tool result: table and column names, the counts from the checks, and the rows
+  `sample_rows` returns. Columns whose
+  name looks like personal data come back masked unless you ask with `show_personal_data=true`.
+- **`create_backend` only:** it calls the Fabric REST API with a token from `az login` (or `FABRIC_TOKEN`) to create or
+  update the API for GraphQL item. No other local tool calls Fabric's REST API.
+
+The local server writes nothing to your disk; the drafts come back in the answer. The command line
+(`fabric-backend plan … --out …`, below) writes the files you name.
+
+Status: **Experimental.** The local server is unit-tested against recorded SQL Server metadata (declared keys, several
+schemas, names with spaces, `nvarchar(max)`, `datetimeoffset`, `uniqueidentifier`, computed columns, views) and against
+a Fabric SQL analytics endpoint in the test suite; it has not yet been run against a live SQL Server by us.
 
 ## What you need
 
@@ -55,23 +69,24 @@ Restart Claude Desktop and ask, for example, *"Plan the tables in schema dbo"* o
 
 `list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`,
 `analyze_schema`, `suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER
-VIEW` in a schema of its own, never DROP), `answer_query_draft` (a question as T-SQL over the safest join path; runs nothing)
+VIEW` in a schema of its own, never DROP), `create_backend` (calls Fabric, see above), `answer_query_draft` (a question as T-SQL over the safest join path; runs nothing)
 and, for a lakehouse, `silver_notebook_draft` (the notebook that builds silver tables; nothing created). On SQL Server, declared primary and foreign keys are read and become K0 and
 R0; relationships into another schema are left out rather than guessed.
 
 Two drafts are Fabric-specific and answer with an explanation when `FABRIC_SOURCE_KIND` is `SQLServer`: the Power BI
 semantic model in Direct Lake mode (it needs a Fabric SQL analytics endpoint; open the tables in Power BI Desktop
 instead, or mirror the database into Fabric) and the Fabric IQ ontology. The tools that need Fabric item ids
-(`create_backend`, `describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`,
-`create_data_agent`, `lineage`, `create_silver_notebook` and the drift monitor) live in the hosted connector only.
+(`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`, `create_data_agent`,
+`lineage`, `create_silver_notebook` and the drift monitor) live in the hosted connector only.
 
 ## The 20-minute demo
 
 `fabric-backend demo` opens one local page on 127.0.0.1: connect a SQL Server over ODBC or a folder of CSV / Excel
 files (or try the synthetic shop schema), see the map with the rule behind every connection, check the plan against the
 rows with Accept and Skip on each suggestion, and get five questions answered on the data with the SQL shown, plus the
-exports (data dictionary, dbt tests, a Lovable prompt). No account, no cloud. The script for running it with a customer
-is in the repository: `docs/DEMO-20-MIN.md`.
+exports (data dictionary, dbt tests, a Lovable prompt). No account and no service of ours: the page is served on
+127.0.0.1, loads nothing from elsewhere, and talks only to the database or the files you choose. Status: Experimental
+(unit-tested). The script for running it with a customer is in the repository: `docs/DEMO-20-MIN.md`.
 
 ## Without any connection: the CSV path
 

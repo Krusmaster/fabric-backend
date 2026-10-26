@@ -1,6 +1,6 @@
 """The 20-minute demo on your own laptop: `fabric-backend demo`.
 
-One local page (127.0.0.1 only, nothing leaves the machine, no account, no cloud) in the graph explorer's design, four
+One local page (127.0.0.1 only; it talks to nothing but the database or files you connect; no account, no service of ours) in the graph explorer's design, four
 steps with a time budget each:
 
   1. Connect   a SQL Server over ODBC with a read-only sign-in, a folder of CSV / Excel files (loaded into a local
@@ -36,7 +36,7 @@ from .schema import Schema
 HOST = "127.0.0.1"                                   # the one address the demo listens on; not configurable on purpose
 DEFAULT_PORT = 8765
 STEPS = [  # the time budget adds up to the twenty minutes
-    {"n": 1, "key": "connect", "title": "Connect", "minutes": 4, "what": "Point the demo at the customer's data. Nothing leaves this machine."},
+    {"n": 1, "key": "connect", "title": "Connect", "minutes": 4, "what": "Point the demo at the customer's data. The page talks only to that database or folder."},
     {"n": 2, "key": "map", "title": "The map", "minutes": 4, "what": "Keys and relationships, each with the rule that made it. Roles and subject areas."},
     {"n": 3, "key": "health", "title": "Health check", "minutes": 7, "what": "The plan checked against the rows. Each finding: what we saw, what it means, the next step, the evidence."},
     {"n": 4, "key": "value", "title": "The value", "minutes": 5, "what": "Five questions the data can answer, run here with the SQL shown. Exports for the hand-over."},

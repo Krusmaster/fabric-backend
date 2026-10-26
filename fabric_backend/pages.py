@@ -5,7 +5,7 @@
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
     /lovable           using the created API with Lovable's Fabric connector
-    /local             the local server: SQL Server, data stays on your machine
+    /local             the local server over ODBC, and exactly what leaves the machine
     /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
     /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
@@ -210,7 +210,7 @@ MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cas
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Partners")]
+    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Pilot projects")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -281,7 +281,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Partners</a>
+      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Pilot projects</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -374,7 +374,7 @@ def lovable_md() -> str:
     return _fill(_read("LOVABLE.md"), escape=False)
 
 
-LOCAL_DESC = "Run {{PRODUCT}} on your own machine against SQL Server or a Fabric SQL endpoint over ODBC: the same rules, nothing leaves your machine, no account with us."
+LOCAL_DESC = "Run {{PRODUCT}} on your own machine against SQL Server or a Fabric SQL endpoint over ODBC: the same rules, no account with us, and exactly what leaves the machine."
 
 
 def local_md() -> str:
@@ -481,7 +481,6 @@ def json_ld() -> str:
         {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": v["PRODUCT"],
          "applicationCategory": "DeveloperApplication", "operatingSystem": "Web", "url": origin + "/",
          "description": _fill(PAGES["/"][2], escape=False), "license": "https://opensource.org/licenses/MIT",
-         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "SEK", "description": "MIT open source"},
          "sameAs": [GITHUB], "publisher": {"@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/"}},
         {"@context": "https://schema.org", "@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/",
          "email": v["CONTACT"], "sameAs": [GITHUB]},

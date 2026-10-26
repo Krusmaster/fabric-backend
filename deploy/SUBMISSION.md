@@ -16,7 +16,7 @@ Anthropic says so. No password, secret or workspace id belongs here.
 | 2 | F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop` seeded from `fabric_backend.seed` | done; the capacity runs for the whole review window |
 | 3 | Entra app (multi-tenant, token v2, Application ID URI `https://krusgraph.com/mcp`, scope `user_impersonation`), admin consent in the demo tenant | done; `deploy/krusgraph.sh --check` verifies it |
 | 4 | Hosting, custom domain, `min_replicas: 1` | done; `--update` after every change the portal should see |
-| 5 | Every tool run as a custom connector in Claude against `demo` | done 26 Oct 2026 (14 steps, all passed; create tools as dry runs) |
+| 5 | Run as a custom connector in Claude against `demo` / `demo_lh` / `shop` (14 steps, no creating call): `list_workspaces`, `list_sources`, `sample_rows`, `plan_backend`, `validate_plan`, `suggest_relationships`, `analyze_schema`, `join_path`, `describe_backend`, `query_graphql`, `semantic_model_draft`, `data_dictionary`, `dbt_schema`, `create_views` (dry run only), `plan_drift`, `app_starter` | done 26 Oct 2026, all passed. Not run: `list_tables` as its own tool, `create_backend`, `create_semantic_model`, `create_data_agent`, `ontology_draft`, `create_ontology`, `rayfin_connector` and the tools added since (docs/LIVE-TEST.md) |
 | 6 | Reviewer account in the AB's tenant: no admin role, Viewer on `demo` only, no MFA prompt | done 26 Oct 2026; see "Reviewer sign-in" |
 | 7 | Every tool has `annotations.title`, read-only/destructive hints, descriptions that describe and do not direct | done (the portal's Tools step showed no suggestions) |
 | 8 | Site icon at `/favicon.ico` (the directory shows the server's favicon) | done |

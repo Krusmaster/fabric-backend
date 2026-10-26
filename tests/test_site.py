@@ -295,7 +295,7 @@ def test_json_ld_on_home_only_and_only_facts(client):
     app = next(b for b in blocks if b["@type"] == "SoftwareApplication")
     org = next(b for b in blocks if b["@type"] == "Organization")
     assert app["name"] == "Krusgraph" and app["applicationCategory"] == "DeveloperApplication" and app["operatingSystem"] == "Web"
-    assert app["offers"]["price"] == "0" and "MIT" in app["offers"]["description"]
+    assert "offers" not in app                                                           # no price line (decided 26 October 2026)
     assert app["url"] == "https://krusgraph.test/" and "https://github.com/Krusmaster/fabric-backend" in app["sameAs"]
     assert org["name"] == "Kruse Consulting AB" and org["email"] == "hello@krusgraph.test"
     text = json.dumps(blocks).lower()
@@ -521,7 +521,15 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
     for tool in ("lineage", "app_readiness"):
         assert tools[tool].startswith("Experimental"), tool
-    assert "## Test status" in md and "26 October 2026" in md and "22 tools that existed then" in md
+    assert "## Test status" in md and "26 October 2026" in md and "in 14 steps without any creating call" in md
+    assert "22 tools" not in md and "for real" not in md
+    for tool in ("create_backend", "list_tables"):
+        assert tools[tool].startswith("Experimental"), tool                              # not among the 14 steps of 26 October
+    assert tools["create_views"].startswith("Tested end to end (dry run)") and tools["ontology_draft"] == "Draft only"
+    tested = {t for t, s in tools.items() if s.startswith("Tested end to end")}
+    assert tested == {"list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
+                      "analyze_schema", "join_path", "describe_backend", "query_graphql", "data_dictionary", "dbt_schema",
+                      "create_views", "plan_drift", "app_starter"} | ({"semantic_model_draft"} & tested)
     assert "`create_backend` does not run it for you" in md                               # validation is a step you ask for
 
 

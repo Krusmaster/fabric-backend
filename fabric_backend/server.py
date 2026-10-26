@@ -989,8 +989,8 @@ def create_semantic_model(workspace: str, source: str, name: str, schema: str = 
            "after_creation": ["Refresh the model once (framing) so its Direct Lake tables are processed; until then queries fall back or fail.",
                               "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
                               "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
-           "note": "Unit-tested against Microsoft's sample definitions; the dry run has answered from a live workspace (26 October 2026); "
-                   "the create itself answered kind=consent there (HTTP 403) because the app lacks the permission, see docs/SCOPES.md."}
+           "note": "Unit-tested against Microsoft's sample definitions; not yet run against a live workspace. Without the permission the "
+                   "create answers kind=consent naming it, see docs/SCOPES.md."}
     if dry_run:
         out["parts"] = draft["parts"]
         out["rest"]["body_preview"] = {"displayName": body["displayName"], "definition": {"format": "TMDL", "parts": "<base64 parts, see parts>"}}
@@ -1022,7 +1022,7 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
         out = {"summary": p.summary(), "schema": views_schema, "dry_run": dry_run, "schema_sql": stmts["schema_sql"], "views": stmts["views"],
                "note": "Views are allowed on a lakehouse SQL analytics endpoint, a warehouse and the endpoints of mirrored and SQL "
                        "database items (read-only data, writable T-SQL objects). Unit-tested on SQLite and against the shop schema; "
-                       "ran for real on a live lakehouse SQL analytics endpoint on 26 October 2026 (schema and one wide view created, read back with list_tables and sample_rows)."}
+                       "the dry run answered from a live lakehouse on 26 October 2026; creating has not run against a live endpoint yet."}
         if dry_run or not stmts["views"]:
             if not stmts["views"]:
                 out["note"] = "No fact table (two or more references out, none in) and no hard-to-read relationship in the plan: nothing to create. " + out["note"]
@@ -1055,8 +1055,8 @@ def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo
     spec = _data_agent.draft(p, info, name, schema)
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
-           "note": "Unit-tested with the REST calls mocked; the dry run has answered from a live workspace (26 October 2026); the create "
-                   "itself answered kind=consent there (HTTP 403) because the app lacks the permission, see docs/SCOPES.md. The portal shows the agent's data source, "
+           "note": "Unit-tested with the REST calls mocked; not yet run against a live workspace. Without the permission the create "
+                   "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
     if dry_run:
         return json.dumps(out, indent=2)
