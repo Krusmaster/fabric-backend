@@ -23,7 +23,7 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
 | `create_views` | none — T-SQL on the SQL analytics endpoint / warehouse | Azure SQL `user_impersonation` (have), plus the SQL right to create objects: Contributor on the workspace, or `CREATE VIEW` / `ALTER SCHEMA` granted on the endpoint | yes (scope); rights are per workspace |
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | **no** |
-| `create_ontology` (behind `KRUSGRAPH_ONTOLOGY_WRITE=1`) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | **no** |
+| `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | **no** |
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `Item.Read.All` | yes |
 | all `*_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `plan_drift` | metadata reads only | what the app has | yes |
 

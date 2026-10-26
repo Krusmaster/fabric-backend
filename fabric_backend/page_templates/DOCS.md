@@ -75,14 +75,12 @@ Every tool takes the workspace by id or display name. `schema` defaults to `dbo`
 | `create_semantic_model` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Power BI semantic model item from the TMDL draft (Direct Lake on the SQL analytics endpoint) or updates the one of that name in place; `dry_run=true` (default) returns the parts and the REST call only; needs `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`; unit-tested; dry run answered from a live workspace on 26 October 2026, the create itself answered `consent` (HTTP 403) there because the app lacks the permission | creates/updates one item; never deletes |
 | `create_views` | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor); unit-tested on SQLite; ran for real on a live lakehouse SQL analytics endpoint on 26 October 2026 (schema and one wide view created, read back with `list_tables` and `sample_rows`) | creates/alters views in that schema only; never drops |
 | `create_data_agent` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `publish`, `dry_run` | creates or updates a Fabric data agent through the staging REST API: the plan as instructions, the source as data source with the plan's tables selected, 5–10 question/T-SQL examples, then publishes; `dry_run=true` returns instructions, examples and the calls; needs `Item.ReadWrite.All`; unit-tested with the calls mocked; dry run answered from a live workspace on 26 October 2026, the create itself answered `consent` (HTTP 403) there because the app lacks the permission | creates/updates one item and its staging config; never deletes |
+| `create_ontology` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Fabric IQ ontology (preview) item from the plan or updates the one of that name in place: entity types with keys and properties, relationship types and Direct Lake-style bindings in the item's generation-2 definition; `dry_run=true` (default) returns the parts and the REST call only; needs `Item.ReadWrite.All` and Contributor on the workspace (`POST /workspaces/{id}/ontologies`, `updateDefinition`; fabric-rest-api-specs read 26 October 2026); unit-tested, not yet run live | creates/updates one item; never deletes |
 | `app_starter` | `workspace`, `api` | from an existing API's definition: a Lovable prompt with the data model and main views, a connection description, five GraphQL queries walking the relationships, the portal checklist, and the backend an app needs so that no secret reaches the browser: a Supabase edge function (service principal, client credentials, secrets as Supabase secrets), the frontend helper, and the per-user alternative; the prompt and queries ran against a live API on 26 October 2026, the backend part is unit-tested | no |
 | `app_readiness` | `workspace`, `api` | what an app still needs on an existing API: types without a key, types in no relationship, write access (from the definition), whether introspection is on (one introspection query to the endpoint), and "unknown" with the portal path for what the Fabric API cannot read (permissions, the tenant setting for service principals); a next step per item; unit-tested | no (one introspection query) |
 | `analyze_schema` | `workspace`, `source`, `schema`, `keys`, `confirmed` | the plan as a graph, metadata only: table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which relationships can be active at once; unit-tested | no |
 | `lineage` | `workspace`, `source`, `schema`, `table` | which objects in the workspace build on the source's tables: GraphQL APIs (from their definition), semantic models (from their TMDL definition), views on the SQL analytics endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their definition, marked as not certain); a graph of tables and objects, the objects per table, the tables used by nothing, the items that could not be read; with `table`, what a change to it reaches; unit-tested, not yet run against a live workspace | no |
 | `suggest_relationships` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `check` | columns that could point at another table's key but are in no relationship, ranked by name, type and triangular closure, the best `check` counted against the data (inclusion share, distinct values); each with a ready `confirmed` entry; suggests only, never applies; unit-tested | no (counting queries) |
-
-`create_ontology` (creates or updates the ontology item) exists but is offered only where the operator has enabled
-it, because it needs the `Item.ReadWrite.All` scope; see *Fabric IQ* below.
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
 happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,
@@ -131,6 +129,17 @@ Unit-tested on the synthetic shop schema and the public benchmark schemas; `anal
 were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
 every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates.
 
+## One plan, five Fabric pieces
+
+Everything {{PRODUCT}} creates comes from one plan: the keys and relationships inferred from a source, with the rule behind
+each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan, each with a
+dry run first: `create_backend` makes the **API for GraphQL** with nested relationships; `create_semantic_model` the
+**Power BI semantic model** in Direct Lake mode with the same relationships; `create_ontology` the **Fabric IQ ontology**
+with entity types, keys, relationship types and bindings; `create_views` the **wide T-SQL views** on the SQL analytics
+endpoint; `create_data_agent` the **data agent** with the plan as instructions and examples. Change the plan once (a
+confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and `lineage` tell you what a change
+reaches. The pieces agree with each other because none of them was modelled by hand.
+
 ## Fabric IQ: the same graph as an ontology
 
 Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
@@ -146,9 +155,11 @@ the rule behind every key and link. `ontology_draft` writes the plan in the onto
 - the **item definition** (generation 2, TMDL parts) that `POST /workspaces/{id}/ontologies` and Git integration take,
   with tables bound DirectLake-style to the source, entities with keys and properties, and the relationships.
 
-Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace.
-The connector asks for that scope only when its operator enables `create_ontology`; the portal route needs nothing
-beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take over: the ontology agent and data
+Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace,
+and the workspace on a Fabric capacity (`POST /workspaces/{id}/ontologies`, `updateDefinition`; Microsoft's REST
+specification, read 26 October 2026). `create_ontology` does that with a dry run by default; without the permission it
+answers `consent` naming the scope. The portal route (Import ontology with the Turtle file) needs nothing beyond what
+you already have. Once an ontology exists, Fabric IQ's own pieces take over: the ontology agent and data
 agents use it as context, and the built-in graph can be materialised from its entity and relationship types. Ontology
 is in preview and its definition format can change; the draft follows the item's own definition as of 2026 and has been
 checked against recorded definitions, not yet live from {{PRODUCT}}.

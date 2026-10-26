@@ -71,7 +71,7 @@ def test_skill_names_only_tools_the_server_defines_and_says_when_to_confirm():
     tools = {n for n in named if n in {"list_workspaces", "list_sources", "list_tables", "plan_backend", "sample_rows", "validate_plan",
                                        "create_backend", "describe_backend", "query_graphql", "rayfin_connector", "ontology_draft",
                                        "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift", "create_semantic_model",
-                                       "create_views", "create_data_agent", "app_starter", "app_readiness", "analyze_schema", "suggest_relationships"}}
+                                       "create_views", "create_data_agent", "app_starter", "app_readiness", "analyze_schema", "suggest_relationships", "create_ontology", "lineage"}}
     assert {"plan_backend", "validate_plan", "sample_rows", "suggest_relationships", "plan_drift", "create_backend", "describe_backend",
             "query_graphql", "semantic_model_draft", "data_dictionary", "dbt_schema", "analyze_schema", "join_path", "app_readiness"} <= tools
     assert tools <= defined

@@ -41,17 +41,46 @@ def test_ontology_draft_returns_summary_bindings_ttl_definition_and_the_rest_cal
     assert bad["kind"] == "bad_input"
 
 
-def test_create_ontology_is_offered_only_when_the_operator_enables_it():
+def test_create_ontology_is_offered_with_a_dry_run_by_default_and_write_hints():
     from starlette.testclient import TestClient
     with TestClient(server.build_app()) as client:
         r = client.post("/mcp", json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
                         headers={"Accept": "application/json, text/event-stream"})
         body = r.text
         payload = json.loads(body.split("data: ", 1)[1].split("\n", 1)[0]) if "data: " in body else r.json()
-        names = {t["name"] for t in payload["result"]["tools"]}
-        assert "ontology_draft" in names and "create_ontology" not in names            # KRUSGRAPH_ONTOLOGY_WRITE is unset in tests
-        draft = next(t for t in payload["result"]["tools"] if t["name"] == "ontology_draft")
-        assert draft["annotations"]["readOnlyHint"] is True
+        tools = {t["name"]: t for t in payload["result"]["tools"]}
+        assert "ontology_draft" in tools and "create_ontology" in tools
+        assert tools["ontology_draft"]["annotations"]["readOnlyHint"] is True
+        create = tools["create_ontology"]
+        assert create["annotations"]["readOnlyHint"] is False and create["annotations"]["destructiveHint"] is True
+        assert create["inputSchema"]["properties"]["dry_run"]["default"] is True
+        assert "Item.ReadWrite.All" in create["description"] and "never" in create["description"]
+
+
+def test_create_ontology_dry_run_returns_the_parts_and_the_rest_call_and_creates_nothing(shop, monkeypatch):
+    monkeypatch.setattr(server, "_create_ontology", lambda *a, **k: pytest.fail("a dry run must not call Fabric"))
+    out = json.loads(server.create_ontology(*shop, name="shop_ontology", schema="shop"))
+    assert out["dry_run"] is True and out["summary"]["entity_types"] == 7
+    assert out["rest"]["url"].endswith("/workspaces/11111111-1111-1111-1111-111111111111/ontologies") and out["rest"]["update"].endswith("/ontologies/{id}/updateDefinition")
+    assert out["rest"]["delegated_scope"] == "Item.ReadWrite.All" and out["rest"]["workspace_role"] == "Contributor" and "preview" in out["rest"]["spec"]
+    assert {"model.tmdl", "database.tmdl", "namespaces/default.tmdl", ".platform", "entities/Orders.tmdl", "tables/Orders.tmdl", "relationships.tmdl"} <= set(out["parts"])
+    assert out["rest"]["parts"] == list(out["parts"])
+    bad = json.loads(server.create_ontology(*shop, name="x", schema="shop", tables=["ghost"]))
+    assert bad["kind"] == "bad_input"
+
+
+def test_create_ontology_without_the_permission_answers_consent_naming_the_scope(shop, monkeypatch):
+    calls = []
+    monkeypatch.setattr(server, "_create_ontology", lambda env, ws, token_provider=None: calls.append(env) or {"status": "Failed", "mode": "created", "http": 403, "body": "InsufficientScopes"})
+    out = json.loads(server.create_ontology(*shop, name="shop_ontology", schema="shop", dry_run=False))
+    assert out["kind"] == "consent" and "Item.ReadWrite.All" in out["hint"] and "body" not in out["result"] and out["result"]["http"] == 403
+    assert calls[0]["displayName"] == "shop_ontology" and calls[0]["definition"]["parts"][0]["payloadType"] == "InlineBase64"
+    monkeypatch.setattr(server, "_create_ontology", lambda env, ws, token_provider=None: {"status": "Succeeded", "mode": "updated", "id": "ont-1"})
+    out = json.loads(server.create_ontology(*shop, name="shop_ontology", schema="shop", dry_run=False))
+    assert out["result"] == {"status": "Succeeded", "mode": "updated", "id": "ont-1"} and out["after_creation"] and "kind" not in out
+    monkeypatch.setattr(server, "_create_ontology", lambda env, ws, token_provider=None: {"status": "Timeout", "mode": "created"})
+    out = json.loads(server.create_ontology(*shop, name="shop_ontology", schema="shop", dry_run=False))
+    assert out["kind"] == "timeout"
 
 
 class Resp:

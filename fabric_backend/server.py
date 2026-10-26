@@ -61,8 +61,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
     "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
     "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
-    "plan_drift before re-running create_backend on an existing API, to see what would change. Creating more than the API: "
-    "create_semantic_model (a Power BI semantic model item from the TMDL draft), create_views (wide T-SQL views in a schema of "
+    "plan_drift before re-running create_backend on an existing API, to see what would change. One plan, five Fabric pieces: "
+    "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
+    "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — each "
     "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -260,6 +261,7 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
 # ------------------------------------------------------------------ tools --------------------
 
 RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
+WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)   # the creating tools: dry run by default, never delete
 
 
 def _titled_tool(register):
@@ -520,32 +522,42 @@ def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: 
     return _bounded(out, MAX_RESULT_CHARS)                 # may still cut the binding lists, and says so under `truncated`
 
 
-if os.environ.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in ("1", "true", "yes"):
-    @mcp.tool(title="Create or update a Fabric IQ ontology from the plan",
-              annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True))
-    @safe
-    def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                        confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
-        """Create the ontology (preview) item from the inferred plan, or update the item of that name in place. Needs the
-        Entra app to hold Item.ReadWrite.All and the account to be Contributor on the workspace. Never deletes."""
-        p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
-        check_tables(p.schema, tables)
-        parts = _ontology.ontology_parts(p, name, tables=tables, **args)
-        result = _create_ontology(_ontology.envelope(name, parts), args["workspace_id"], token_provider=lambda: auth.fabric(ctx))
-        out = {"summary": _ontology.summary(p, tables), "result": result}
-        if result.get("status") == "Failed" and result.get("http"):
-            out.update(classify_http(int(result["http"]), result.get("body", ""), f"creating ontology {name!r} in workspace {workspace}"))
-            result.pop("body", None)
-        elif result.get("status") == "Failed":
-            err = result.get("error") if isinstance(result.get("error"), dict) else {}
-            out.update(classify_http(400, json.dumps(err) if err else "", f"creating ontology {name!r} in workspace {workspace}"))
-        elif result.get("status") == "Timeout":
-            out.update({"error": f"Fabric is still working on ontology {name!r}.", "kind": "timeout",
-                        "hint": "Check the item in the Fabric portal in a minute; re-running create_ontology updates it in place."})
-        else:
-            out["next"] = ["Open the ontology item in Fabric and review the entity types and bindings.",
-                           "Composite-key relationships and keyless tables are listed under summary.notes."]
-        return json.dumps(out, indent=2)
+@mcp.tool(title="Create or update a Fabric IQ ontology from the plan (dry run by default)", annotations=WRITE)
+@safe
+def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                    confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
+                    ctx: Context = None) -> str:
+    """Create the Fabric IQ ontology (preview) item from the plan, or update the item of that name in place; never
+    deletes. dry_run=true (the default) returns the definition parts and the REST call without creating anything.
+    POST /workspaces/{id}/ontologies and .../updateDefinition need the delegated permission Item.ReadWrite.All and
+    Contributor on the workspace, and the workspace must be on a Fabric capacity (fabric-rest-api-specs,
+    ontology/swagger.json). Entity types with keys and properties, relationship types and the bindings come from the
+    same plan as the GraphQL API, the semantic model, the views and the data agent."""
+    p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+    body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema})")
+    out = {"summary": _ontology.summary(p, tables), "dry_run": dry_run,
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
+                    "update": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies/{{id}}/updateDefinition",
+                    "delegated_scope": "Item.ReadWrite.All", "workspace_role": "Contributor", "parts": list(parts),
+                    "spec": ("microsoft/fabric-rest-api-specs ontology/swagger.json: Items_CreateOntology and Items_UpdateOntologyDefinition, "
+                             "long-running operations, item in preview; read 26 October 2026 (commit a96c37a)")},
+           "after_creation": ["Open the ontology item in Fabric and review the entity types, keys and relationship types; keyless tables and composite keys are under summary.notes.",
+                              "Check the data bindings per entity (the definition binds Direct Lake-style to the source item).",
+                              "Fabric IQ's ontology agent and data agents can then use the ontology as context."],
+           "note": ("Ontology (preview): the definition follows the generation-2 layout of the specification's example (model, database, namespaces, "
+                    "entities, tables, relationships), checked against recorded definitions. The dry run and the create have not yet run against a live workspace.")}
+    if dry_run:
+        out["parts"] = parts
+        text = json.dumps(out, indent=2)
+        if len(text) > MAX_RESULT_CHARS:
+            out["omitted"] = sorted(k for k in parts if k.startswith(("entities/", "tables/")))
+            out["parts"] = {k: v for k, v in parts.items() if not k.startswith(("entities/", "tables/"))}
+            text = json.dumps(out, indent=2)
+        return text
+    result = _create_ontology(body, args["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, "Item.ReadWrite.All", f"creating the ontology {name!r}")
 
 
 # ------------------------------------------------------------------ consultant tools -------
@@ -698,7 +710,6 @@ def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys:
 # Same pattern as create_backend: create or update in place under a name, never delete, dry_run first.
 
 # Write tools can replace an existing definition (a model, a view, an agent) in place, so Claude asks before each call.
-WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)
 
 
 def _consent(result: dict, scope: str, where: str) -> dict | None:

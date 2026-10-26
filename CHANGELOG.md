@@ -5,6 +5,13 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- `create_ontology` is a regular tool now, dry run by default, no environment flag: it creates the Fabric IQ ontology
+  (preview) item from the plan or updates the one of that name (`POST /workspaces/{id}/ontologies`, `updateDefinition`;
+  delegated scope `Item.ReadWrite.All`, Contributor on the workspace, a Fabric capacity; checked in
+  microsoft/fabric-rest-api-specs `ontology/swagger.json` on 26 October 2026, where the item is marked preview and the
+  generation-2 example has the same part layout as the draft). Without the permission it answers `consent` naming the
+  scope. The instructions and the docs page tell the one-plan story: API for GraphQL, Power BI semantic model, Fabric IQ
+  ontology, wide views and data agent from the same plan, each with a dry run first. Twenty-five tools.
 - `fabric-backend demo`: the 20-minute demo on a laptop (`fabric_backend/demo_app.py`, `docs/DEMO-20-MIN.md`). One local
   page on 127.0.0.1 in the graph explorer's design, four steps with a time budget: connect (a SQL Server over ODBC, a
   folder of CSV / Excel files loaded into SQLite in memory with a standard-library .xlsx reader, a columns list, or the

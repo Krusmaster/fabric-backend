@@ -81,7 +81,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, twenty-four tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, twenty-five tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -165,7 +165,7 @@ registration facade that answers the Entra app's public client id for allowed re
 metadata pointing at Entra's endpoints, storing nothing ([docs/AUTH-DCR.md](docs/AUTH-DCR.md); off by default,
 unit-tested, not yet tried with a real agent). The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
-`PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE=1` (deploy config `ontology_write`) offers `create_ontology`; `PARTNER_SIGNIN=1` shows a
+`PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE` (deploy config `ontology_write`) is no longer read: `create_ontology` is always offered, dry run by default; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
 `--check`, `--update`, `--status`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
 (`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`). Tool failures come back
@@ -275,8 +275,8 @@ does, and prints the rule beside every key so you can take it out.
 write the plan as a Fabric IQ ontology (preview): entity types with a key and properties, relationship types, data
 bindings, in the item's generation-2 definition (TMDL parts for `POST /workspaces/{id}/ontologies` or Git) plus a
 Turtle file for the portal's *Import ontology* and a binding checklist. Creating the item needs `Item.ReadWrite.All`;
-the server offers `create_ontology` only when `KRUSGRAPH_ONTOLOGY_WRITE=1`. Checked against recorded definitions, not
-live yet.
+`create_ontology` creates or updates the item from the same plan (dry run by default; without the permission it answers
+`consent` naming the scope). Checked against recorded definitions and the specification's examples, not live yet.
 
 **Snowflake and Databricks.** Two routes. (1) Bring it into Fabric (a Snowflake database item or a Mirrored database for
 Snowflake, a Mirrored Azure Databricks catalog or a Mirrored catalog for Unity Catalog) and the item is a source like any other: the remote tools list it,
