@@ -5,8 +5,6 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-import yaml
-
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN = ROOT / "plugin" / "krusgraph"
 
@@ -16,8 +14,14 @@ def frontmatter(path: Path) -> dict:
     assert text.startswith("---\n"), path
     head, _, body = text[4:].partition("\n---\n")
     assert body.strip(), path
-    data = yaml.safe_load(head)
-    assert isinstance(data, dict), path
+    data = {}
+    for line in head.splitlines():                       # the plugin's frontmatter is flat `key: value` lines; no YAML library in CI
+        key, sep, value = line.partition(":")
+        assert sep and key.strip(), (path, line)
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        data[key.strip()] = value
     return data
 
 
