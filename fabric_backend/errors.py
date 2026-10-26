@@ -7,7 +7,8 @@ quoted only after `scrub()`, which strips anything that looks like a bearer toke
 
 Kinds: sign_in, consent, no_access, not_found, capacity, source_not_ready, schema_not_found, table_not_found,
 column_not_found, sql_sign_in, timeout, unreachable, throttled, fabric_unavailable, unsupported, bad_input, server_config,
-fabric_error, sql_error, unexpected.
+fabric_error, sql_error, unexpected; and two the server's own tool wrapper answers with: rate_limited (limits.py, with
+retry_after in seconds) and upgrade (entitlements.py, off unless KRUSGRAPH_ENTITLEMENTS=1).
 """
 from __future__ import annotations
 
@@ -46,6 +47,8 @@ HINTS = {
     "fabric_error": "Check the message from Fabric above; list_sources and list_tables show what the account can see.",
     "sql_error": "Check the message from the SQL analytics endpoint above.",
     "unexpected": "Try again. If it keeps failing, report the kind and the message to the operator.",
+    "rate_limited": "Wait the number of seconds in retry_after and try again.",
+    "upgrade": "This feature is part of the paid plan; the hint names the page with the plans.",
 }
 
 
@@ -167,6 +170,8 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         return _answer("bad_input", text)
     if isinstance(exc, PermissionError):
         return _answer("sign_in", "No signed-in user on this request.")
+    if type(exc).__name__ == "KeyVaultError":
+        return _answer("server_config", f"The connector could not read its own sign-in secret from Azure Key Vault: {text}")
     if type(exc).__name__ == "TokenError":
         hit = _aadsts(text)
         if hit:

@@ -5,6 +5,23 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Operations before real customers (unit-tested; nothing deployed or run against Azure). Fair-use limits per signed-in
+  user (`oid`) and per organisation (`tid`): token buckets, 30/minute and 600/hour per user, 120/minute and 3000/hour per
+  organisation by default, configurable or off (`KRUSGRAPH_RATE_*`); a refused call runs nothing and answers
+  `kind: rate_limited` with `retry_after`, and only tool calls count, so `initialize`, `tools/list` and Claude's 401
+  sign-in challenge are untouched. Anonymous usage statistics (`fabric_backend/usage.py`): one JSON line per tool call
+  with tool, outcome kind, duration and dry run, optionally a salted organisation hash, nothing about users or data;
+  `/metrics` in the Prometheus format, a 404 unless a token is configured. `/health` for uptime checks, without sign-in
+  and without anything about the server. The Entra client secret can be read from Azure Key Vault with the container
+  app's managed identity (`fabric_backend/keyvault.py`; as before when not configured), and
+  `deploy/krusgraph.sh --key-vault` sets that up. `/privacy` lists exactly what is counted and says whether console
+  logs are kept, from the deployment's own settings. `docs/OPERATIONS.md` has the commands, in order, for Key Vault,
+  Log Analytics, the 5xx alert and the availability alert; `docs/SECURITY.md` says what is closed and what is open.
+- A dormant paid-plan check (`fabric_backend/entitlements.py`, off unless `KRUSGRAPH_ENTITLEMENTS=1`): per organisation,
+  from an environment variable or Azure Table Storage; paid features answer `kind: upgrade` with a link to a pricing
+  page that does not exist yet, dry runs stay free. With the flag off nothing changes, and a test locks that.
+  `docs/PRICING-NOTES.md` says how to switch it on.
+
 - A faster first time: `/start` follows the design sketch (the three steps beside the current step, one at a time
   with JavaScript and all three without it; the real actions are the admin-consent link and the connector URL, no
   sign-in on the site) and its "What will Krusgraph access?" names every scope with the tools that use it, including

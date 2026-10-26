@@ -71,7 +71,17 @@ def _vars() -> dict[str, str]:
         "GITHUB": GITHUB,
         "ASSET_V": asset_version(),
         "PARTNER_SIGNIN": "1" if os.environ.get("PARTNER_SIGNIN", "").strip() in {"1", "true", "yes"} else "",
+        # the privacy page states what this deployment keeps: console logs in Log Analytics or nowhere, org hashes or none
+        "LOGS_KEPT_DAYS": _days(os.environ.get("KRUSGRAPH_LOG_RETENTION_DAYS", "")),
+        "LOGS_NOT_KEPT": "" if _days(os.environ.get("KRUSGRAPH_LOG_RETENTION_DAYS", "")) else "1",
+        "USAGE_ORG": "1" if os.environ.get("KRUSGRAPH_USAGE_SALT", "").strip() else "",
+        "RATE_LIMITS": "" if os.environ.get("KRUSGRAPH_RATE_LIMITS", "1").strip().lower() in {"0", "off", "false", "no"} else "1",
     }
+
+
+def _days(value: str) -> str:
+    value = value.strip()
+    return value if value.isdigit() and int(value) > 0 else ""
 
 
 def _fill(text: str, escape: bool = True) -> str:
@@ -352,7 +362,7 @@ LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUC
 
 
 def privacy_md() -> str:
-    md = _read("PRIVACY.md")
+    md = _conditional(_read("PRIVACY.md"), _vars())
     return _fill(re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M), escape=False)   # drop the template note
 
 

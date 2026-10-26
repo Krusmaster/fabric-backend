@@ -14,5 +14,7 @@
   "company_orgnr": "",
   "include_www": true,
   "min_replicas": 0,
-  "ontology_write": false
+  "ontology_write": false,
+  "key_vault": "",
+  "log_retention_days": 0
 }

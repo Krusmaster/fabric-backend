@@ -39,6 +39,7 @@ from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact
+from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
 
 try:
@@ -268,13 +269,71 @@ RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hin
 WRITE = ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True)   # the creating tools: dry run by default, never delete
 
 
+limiter = _limits.Limiter.from_env()          # None when KRUSGRAPH_RATE_LIMITS=0; applies only to signed-in (Entra) calls
+
+
+def _identity(ctx) -> dict | None:
+    """oid and tid of the signed-in user on this call, from the token the 401 guard accepted; None outside Entra mode
+    or without a valid token (the tool itself then answers sign_in, as before)."""
+    if not auth.entra:
+        return None
+    tok = Auth._bearer(ctx)
+    if not tok:
+        return None
+    try:
+        claims = auth.validator.validate(tok)
+    except Exception:  # noqa: BLE001 — not ours to answer here; the tool's own sign-in check does
+        return None
+    return {"oid": claims.get("oid") or claims.get("sub"), "tid": claims.get("tid")}
+
+
+def _instrumented(fn, name: str):
+    """Around every tool: the fair-use limit per user and organisation (limits.py), the paid-feature check when
+    KRUSGRAPH_ENTITLEMENTS=1 (entitlements.py), and one anonymous usage record (usage.py: tool, outcome kind,
+    duration, dry run). A refused call answers in the tool's own error format and runs nothing. The signature is
+    the tool's own (functools.wraps), so the MCP schema and the ctx injection are unchanged."""
+    import functools
+    import inspect
+    sig = inspect.signature(fn)
+    dry_default = sig.parameters["dry_run"].default if "dry_run" in sig.parameters else None
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        start = time.monotonic()
+        who = _identity(kwargs.get("ctx"))
+        dry_run = None
+        if dry_default is not None:
+            try:
+                dry_run = bool(sig.bind_partial(*args, **kwargs).arguments.get("dry_run", dry_default))
+            except TypeError:
+                dry_run = bool(dry_default)
+        refusal = None
+        if who and limiter is not None:
+            hit = limiter.check(who.get("oid"), who.get("tid"))
+            refusal = _limits.answer(hit) if hit else None
+        if refusal is None and _entitlements.enabled():
+            refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
+        text = json.dumps(refusal, indent=2) if refusal is not None else fn(*args, **kwargs)
+        try:
+            _usage.usage.record(name, _usage.outcome_of(text), time.monotonic() - start, dry_run, (who or {}).get("tid"))
+        except Exception:  # noqa: BLE001 — counting must never break a call
+            pass
+        return text
+    return wrapper
+
+
 def _titled_tool(register):
     """The Claude directory reads a tool's name from annotations.title, not only from the tool's title: copy the
-    title into the annotations of every tool, so each listing shows a human-readable name."""
+    title into the annotations of every tool, so each listing shows a human-readable name. Every tool is registered
+    through _instrumented (limits, entitlements, usage)."""
     def tool(*args, title: str | None = None, annotations: ToolAnnotations | None = None, **kwargs):
         if title:
             annotations = (annotations or ToolAnnotations()).model_copy(update={"title": title})
-        return register(*args, title=title, annotations=annotations, **kwargs)
+        decorator = register(*args, title=title, annotations=annotations, **kwargs)
+
+        def wrap(fn):
+            return decorator(_instrumented(fn, kwargs.get("name") or fn.__name__))
+        return wrap
     return tool
 
 
@@ -1173,7 +1232,7 @@ def build_app(host: str = "0.0.0.0"):
     """The ASGI app: the MCP endpoint at /mcp, plus — in Entra mode — the protected resource metadata and a
     401 challenge in front of /mcp for any request without a valid token (Claude starts sign-in on the 401)."""
     import json as _json
-    from starlette.responses import JSONResponse, Response
+    from starlette.responses import JSONResponse, PlainTextResponse, Response
     from starlette.routing import Route
 
     app = mcp.streamable_http_app(stateless_http=True, host=host)
@@ -1184,9 +1243,28 @@ def build_app(host: str = "0.0.0.0"):
         if os.environ.get("KRUSGRAPH_BUILD"):      # the source tag the deploy script built; lets it tell revisions apart
             body["build"] = os.environ["KRUSGRAPH_BUILD"]
         return JSONResponse(body)
-    app.router.routes.append(Route("/healthz", health))
+    app.router.routes.append(Route("/healthz", health))   # the container probes and the deploy script's build check
 
-    from starlette.responses import FileResponse, HTMLResponse, PlainTextResponse
+    async def health_public(_request):
+        """For uptime monitors and the Azure Monitor availability test: no sign-in, nothing about the server."""
+        return JSONResponse({"status": "ok"}, headers={"Cache-Control": "no-store"})
+    app.router.routes.append(Route("/health", health_public, methods=["GET", "HEAD"]))
+
+    async def metrics(request):
+        """Usage totals (usage.py) in the Prometheus text format. Off unless KRUSGRAPH_METRICS_TOKEN is set (32
+        characters or more); then only for a request carrying it as a bearer token. Otherwise this path is a 404."""
+        import hmac
+        expected = os.environ.get("KRUSGRAPH_METRICS_TOKEN", "").strip()
+        if len(expected) < 32:
+            return PlainTextResponse("not found", status_code=404)
+        a = request.headers.get("authorization", "")
+        given = a[7:].strip() if a.lower().startswith("bearer ") else ""
+        if not given or not hmac.compare_digest(given.encode(), expected.encode()):
+            return PlainTextResponse("unauthorized", status_code=401, headers={"Cache-Control": "no-store"})
+        return PlainTextResponse(_usage.usage.prometheus(), media_type="text/plain; version=0.0.4", headers={"Cache-Control": "no-store"})
+    app.router.routes.append(Route("/metrics", metrics))
+
+    from starlette.responses import FileResponse, HTMLResponse
     from .pages import (PAGES, STATIC_TYPES, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
                         privacy_md, render, start_md, static_file, use_cases_md)
     from . import discovery
@@ -1371,7 +1449,10 @@ def main() -> None:
         mcp.run(transport="stdio")
     else:
         import uvicorn
-        uvicorn.run(build_app(a.host), host=a.host, port=a.port, proxy_headers=True, forwarded_allow_ips="*")
+        # KRUSGRAPH_ACCESS_LOG=0 drops uvicorn's per-request access line (it carries the client's IP address); the deploy
+        # script sets it when console logs go to Log Analytics, so no IP address is kept there (docs/OPERATIONS.md).
+        access_log = os.environ.get("KRUSGRAPH_ACCESS_LOG", "1").strip().lower() not in {"0", "off", "false", "no"}
+        uvicorn.run(build_app(a.host), host=a.host, port=a.port, proxy_headers=True, forwarded_allow_ips="*", access_log=access_log)
 
 
 if __name__ == "__main__":

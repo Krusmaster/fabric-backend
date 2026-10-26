@@ -16,6 +16,8 @@ Configuration (environment):
   MCP_PUBLIC_URL        https://<your domain>/mcp — must also be an Application ID URI on the app
   ENTRA_CLIENT_ID       the multi-tenant app's client id
   ENTRA_CLIENT_SECRET   its secret (the same one Anthropic holds; never logged)
+  ENTRA_CLIENT_SECRET_KEYVAULT_URI  optional: read the secret from Azure Key Vault with the container app's managed
+                        identity instead (keyvault.py); when set, ENTRA_CLIENT_SECRET is not needed and not used
   ENTRA_ALLOWED_TENANTS optional comma list of tenant ids; empty = any tenant whose admin consented
   ENTRA_REQUIRED       true on public deployments; missing configuration stops startup
 """
@@ -37,21 +39,29 @@ class EntraConfig:
     client_id: str
     client_secret: str = field(repr=False)
     allowed_tenants: set[str] = field(default_factory=set)
+    secret_reader: object = field(default=None, repr=False, compare=False)    # keyvault.SecretReader when configured
+
+    def secret(self, refresh: bool = False) -> str:
+        """The client secret: from Key Vault when ENTRA_CLIENT_SECRET_KEYVAULT_URI is set, else the configured value."""
+        return self.secret_reader.get(refresh) if self.secret_reader is not None else self.client_secret
 
     @classmethod
     def from_env(cls) -> "EntraConfig | None":
         url, cid, sec = (os.environ.get(k) for k in ("MCP_PUBLIC_URL", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET"))
+        from . import keyvault
+        reader = keyvault.from_env()                     # ValueError at startup for a malformed URI
         required = os.environ.get("ENTRA_REQUIRED", "").lower() in {"1", "true", "yes"}
-        if not any((url, cid, sec)) and not required:
+        if not any((url, cid, sec, reader)) and not required:
             return None
-        if not all(value and value.strip() for value in (url, cid, sec)):
-            raise ValueError("Entra sign-in requires MCP_PUBLIC_URL, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET")
+        if not all(value and value.strip() for value in (url, cid)) or not (reader or (sec and sec.strip())):
+            raise ValueError("Entra sign-in requires MCP_PUBLIC_URL, ENTRA_CLIENT_ID and ENTRA_CLIENT_SECRET "
+                             "(or ENTRA_CLIENT_SECRET_KEYVAULT_URI)")
         from urllib.parse import urlsplit
         parsed = urlsplit(url)
         if parsed.scheme != "https" or not parsed.hostname or parsed.path.rstrip("/") != "/mcp" or parsed.query or parsed.fragment:
             raise ValueError("MCP_PUBLIC_URL must be an HTTPS URL ending in /mcp")
         allowed = {t.strip().lower() for t in os.environ.get("ENTRA_ALLOWED_TENANTS", "").split(",") if t.strip()}
-        return cls(url.rstrip("/"), cid, sec, allowed)
+        return cls(url.rstrip("/"), cid, "" if reader else sec, allowed, reader)
 
     @property
     def scope(self) -> str:
@@ -145,16 +155,25 @@ class OnBehalfOf:
                              f"{(body.get('error_description') or '').splitlines()[0] if body else ''}".strip(" —"))
         return r.json()
 
+    def _exchange(self, user_token: str, tenant: str, scope: str, refresh: bool = False) -> dict:
+        return self._http_post(f"{AUTHORITY}/{tenant}/oauth2/v2.0/token", {
+            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            "client_id": self.cfg.client_id, "client_secret": self.cfg.secret(refresh),
+            "assertion": user_token, "scope": scope, "requested_token_use": "on_behalf_of",
+        })
+
     def token(self, user_token: str, tenant: str, scope: str) -> str:
         k = (hashlib.sha256(user_token.encode()).hexdigest(), scope)
         hit = self._cache.get(k)
         if hit and hit[1] - 120 > time.time():
             return hit[0]
-        body = self._http_post(f"{AUTHORITY}/{tenant}/oauth2/v2.0/token", {
-            "grant_type": "urn:ietf:params:oauth:grant-type:jwt-bearer",
-            "client_id": self.cfg.client_id, "client_secret": self.cfg.client_secret,
-            "assertion": user_token, "scope": scope, "requested_token_use": "on_behalf_of",
-        })
+        try:
+            body = self._exchange(user_token, tenant, scope)
+        except TokenError as e:
+            # A secret rotated in Key Vault: Entra says the one we hold is wrong or expired; read it again once.
+            if getattr(self.cfg, "secret_reader", None) is None or not any(c in str(e) for c in ("AADSTS7000215", "AADSTS7000222", "invalid_client")):
+                raise
+            body = self._exchange(user_token, tenant, scope, refresh=True)
         downstream = body.get("access_token") if isinstance(body, dict) else None
         if not isinstance(downstream, str) or not downstream:
             raise TokenError("on-behalf-of failed: the token endpoint answered without an access token")

@@ -71,6 +71,15 @@ two minutes before it expires. The server stores nothing on disk and never write
 - Discovery documents (`/.well-known/oauth-protected-resource`, `/mcp/server-card`, `llms.txt`, the site) stay
   public; the guard covers exactly `/mcp` and `/mcp/`, and the MCP transport is reachable nowhere else.
 
+## Closed on 26 October 2026 (round n10, unit-tested, not yet deployed)
+
+| Was open | Now | Where | Test |
+| --- | --- | --- | --- |
+| 3. Rate limiting | Per user (`oid`) and per organisation (`tid`): token buckets, defaults 30/minute and 600/hour per user, 120/minute and 3000/hour per organisation, configurable or off (`KRUSGRAPH_RATE_*`). A refused call runs nothing and answers `kind: rate_limited` with `retry_after`. Only tool calls count, after the 401 guard: `initialize`, `tools/list`, the site and the sign-in challenge are never limited. Ids are kept as salted hashes in memory. | `fabric_backend/limits.py`, the tool wrapper in `server.py` | `test_rate_limit_through_mcp_never_touches_the_401_flow` and the `limits` tests in `tests/test_operations.py` |
+| 4. Secret storage | The client secret can live in Azure Key Vault, read with the container app's managed identity (`ENTRA_CLIENT_SECRET_KEYVAULT_URI`, `AZURE_CLIENT_ID`); cached in memory for an hour, re-read when Entra rejects it (rotation without a new revision). Without the setting, as before. `deploy/krusgraph.sh --key-vault` sets it up; removing the old container-app secret is a manual step after checking. | `fabric_backend/keyvault.py`, `entra.py`, `deploy/azure_containerapp.py`, `docs/OPERATIONS.md` | the Key Vault and `--key-vault` tests in `tests/test_operations.py` |
+| (new) Monitoring | `/health` without sign-in that says nothing about the server; az commands for a 5xx alert on the container app and an availability test with an alert in `docs/OPERATIONS.md` (parameters checked against the azure-cli source, not run). | `server.py`, `docs/OPERATIONS.md` | `test_health_needs_no_sign_in_and_says_nothing_about_the_server` |
+| (new) Usage statistics | One line per tool call with tool, outcome kind, duration and dry run, optionally a salted organisation hash; `/metrics` is a 404 unless a 32+ character token is set, then bearer-only. No user id, no IP, no names, no queries or results; the privacy page lists the fields and changes with the settings. When console logs go to Log Analytics, the access line with IP addresses is turned off. | `fabric_backend/usage.py`, `PRIVACY.md` | `test_no_content_reaches_the_usage_line_or_metrics`, `test_privacy_page_lists_exactly_what_is_counted_and_follows_the_settings` |
+
 ## Open questions (not fixable from this repository, or a product decision)
 
 1. **Revocation.** A token stays valid until its `exp` (Entra access tokens: 60–90 minutes). Disabling a user or
@@ -79,13 +88,15 @@ two minutes before it expires. The server stores nothing on disk and never write
 2. **Header limits at the edge.** Inside the container, h11 answered a 100 KB header normally and refused a 1 MB
    header line with 400. Azure Container Apps' ingress (Envoy) has its own request-header limits in front of that;
    they are not configurable from this repository and were not verified.
-3. **Rate limiting.** The app does not throttle. Each invalid token costs one RSA verification (about a
-   millisecond) and no network call; a sustained flood is a CPU and ingress question for Container Apps, not an
-   authentication one. Fabric's own 429s are passed on as `kind: throttled`.
-4. **Secret storage.** `ENTRA_CLIENT_SECRET` is an environment variable on the Container App. Anyone who can read
-   the app's configuration can read it. A Key Vault reference (`secretRef` to a Key Vault secret with a managed
-   identity) would narrow that; it is a change to `deploy/`, not to this code, and the secret Anthropic holds is
-   the same value in any case.
+3. **Rate limiting (partly closed, above).** Signed-in tool calls are limited per user and per organisation. Still
+   open: unauthenticated requests are not limited by the app (each invalid token costs one RSA verification, about a
+   millisecond, and no network call; a flood is a CPU and ingress question for Container Apps); the counters are per
+   replica, so with two replicas a user can briefly reach twice the limit; bearer/service-principal mode (no Entra)
+   has no identity to limit by. Fabric's own 429s are passed on as `kind: throttled`.
+4. **Secret storage (closed once `--key-vault` has run, above).** Until then `ENTRA_CLIENT_SECRET` is a container-app
+   secret, readable by anyone who can read the app's configuration. After it, anyone with "Key Vault Secrets User" on
+   the vault or the right to change the app's identity can read it. The secret Anthropic holds for the directory is the
+   same value in any case, so a rotation means giving Anthropic the new value too.
 5. **Bearer mode.** Without Entra configuration the server trusts whatever bearer token and `x-fabric-sql-token`
    header the caller sends and forwards them to Fabric and SQL. That is the local/private-network mode and must
    not be exposed publicly; `ENTRA_REQUIRED=true` (set by the deploy script) makes a missing Entra configuration
@@ -103,9 +114,17 @@ two minutes before it expires. The server stores nothing on disk and never write
    the open points (resource indicator, issuer) are in `docs/AUTH-DCR.md`. Unit-tested only.
 10. **HSTS** is `max-age=31536000` without `includeSubDomains`/`preload`; the apex serves the site and the MCP
    endpoint, and nothing else is under the domain. Adding preload is a DNS/ownership decision, not a code one.
+11. **The alerts and Log Analytics are not set up yet.** `docs/OPERATIONS.md` has the commands; until they are run,
+   a 5xx or an outage is noticed only by users, and the usage lines exist only in the live console stream.
+12. **`/metrics` and the usage salt are container-app secrets.** Like the client secret before Key Vault, anyone who
+   can read the app's configuration can read them; neither gives access to customer data (the salt lets someone with
+   a tenant id check whether that organisation appears in the usage lines).
+13. **The paid-plan check is dormant.** `KRUSGRAPH_ENTITLEMENTS=1` makes it decide per tenant id from an environment
+   variable or Azure Table Storage; with the table, a storage outage refuses the paid features (never the free ones)
+   for as long as it lasts. Not exercised against a real table.
 
 ## Rerunning
 
 ```
-python -m pytest -q tests/test_security.py tests/test_entra.py tests/test_site_extras.py
+python -m pytest -q tests/test_security.py tests/test_entra.py tests/test_site_extras.py tests/test_operations.py
 ```
