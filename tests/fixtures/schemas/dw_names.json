@@ -1,0 +1,146 @@
+{
+ "name": "dw_names",
+ "synthetic": "Star-schema naming (synthetic, written by hand for the benchmark): dim_/fact_ prefixes, _sk surrogate and _bk business keys, a date_key role column.",
+ "tables": [
+  {
+   "name": "dim_customer",
+   "schema": "dw",
+   "columns": [
+    [
+     "customer_sk",
+     "int"
+    ],
+    [
+     "customer_bk",
+     "nvarchar"
+    ],
+    [
+     "customer_name",
+     "nvarchar"
+    ],
+    [
+     "country",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "customer_sk"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "dim_product",
+   "schema": "dw",
+   "columns": [
+    [
+     "product_sk",
+     "int"
+    ],
+    [
+     "product_bk",
+     "nvarchar"
+    ],
+    [
+     "product_name",
+     "nvarchar"
+    ],
+    [
+     "category",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "product_sk"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "dim_date",
+   "schema": "dw",
+   "columns": [
+    [
+     "date_key",
+     "int"
+    ],
+    [
+     "full_date",
+     "date"
+    ],
+    [
+     "year",
+     "int"
+    ],
+    [
+     "month",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "date_key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "fact_sales",
+   "schema": "dw",
+   "columns": [
+    [
+     "sales_id",
+     "bigint"
+    ],
+    [
+     "customer_sk",
+     "int"
+    ],
+    [
+     "product_sk",
+     "int"
+    ],
+    [
+     "order_date_key",
+     "int"
+    ],
+    [
+     "quantity",
+     "int"
+    ],
+    [
+     "amount",
+     "decimal"
+    ]
+   ],
+   "primary_key": [
+    "sales_id"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "customer_sk"
+     ],
+     "ref_table": "dim_customer",
+     "ref_columns": [
+      "customer_sk"
+     ]
+    },
+    {
+     "columns": [
+      "product_sk"
+     ],
+     "ref_table": "dim_product",
+     "ref_columns": [
+      "product_sk"
+     ]
+    },
+    {
+     "columns": [
+      "order_date_key"
+     ],
+     "ref_table": "dim_date",
+     "ref_columns": [
+      "date_key"
+     ]
+    }
+   ]
+  }
+ ]
+}

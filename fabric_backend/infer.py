@@ -5,14 +5,18 @@ A lakehouse SQL endpoint has no primary keys and no foreign keys. A warehouse ma
 which rule produced it so you can overrule it.
 
 Names are compared without case, separators or a table-wide column prefix (TPC-H style `N_NATIONKEY` in
-NATION is read as `nationkey`), and a table named `<X>Header` also answers to `<X>`.
+NATION is read as `nationkey`), after transliteration of å ä ö ü ß, and a table named `<X>Header` also answers to
+`<X>`; a leading kind word (`dim_`, `fact_`, `tbl_`, `stg_`, `vw_`, `ref_`, `lkp_`) is not part of a table's name. When a
+literal name finds nothing, the same comparison is made through the synonym table SYNONYMS (abbreviations, Swedish and
+German business words); every such match is reported under plan.synonyms and on the relationship's `note`.
 
 Keys (per table):
   K0  declared primary key
   K1  `keys` override from the caller
-  K2  a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, or an abbreviation of the table name
+  K2  a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name
       (four letters or more) with one of those suffixes: `cust_key` in customer. An abbreviation that is another
-      table's name (`ps_partkey` in PARTSUPP names PART) is a reference, not a key.
+      table's name (`ps_partkey` in PARTSUPP names PART) is a reference, not a key. When nothing matches literally, the
+      same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`.
   K3  nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it
   K4  junction: no column names a key and the table starts with two or more reference columns; together they are the key
       (film_actor: actor_id + film_id). Not applied to history tables (a column named start_*, valid_from,
@@ -23,13 +27,16 @@ Keys (per table):
 
 Relationships (per column of a table A that is not A's own key):
   R0  declared foreign key
-  R1  column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no) where B has a single key
+  R1  column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key
   R2  column has exactly the same name as B's single key column, and that name is not just `id`
       (`customer_id` in orders -> customers.customer_id; `id` never matches)
   R3  all of B's composite key columns appear in A (header/items: order_id+line in order_items
       vs order_id in orders is R1; sales_org+plant in both is R3)
-  R4  weaker name match when R1 and R2 find nothing: a role before B's name (`manager_staff_id` → staff, `ShipToAddressID` → Address)
-      or an abbreviation of B of four letters or more (`o_custkey` → customer)
+  R4  weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`,
+      `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff,
+      `ShipToAddressID` → Address), or an abbreviation of B of four letters or more (`o_custkey` → customer); never
+      across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`). When two tables answer to the
+      same name, the one whose key carries the column's suffix wins; otherwise the column is ambiguous.
 A column that could point at two tables is reported as ambiguous and not applied.
 """
 from __future__ import annotations
@@ -46,9 +53,10 @@ class Relationship:
     source_cols: list[str]
     target: str                      # the table being pointed at (the "one" side)
     target_cols: list[str]
-    rule: str                        # R0..R3
+    rule: str                        # R0..R4, or "confirmed"
     field_name: str = ""             # GraphQL field on the source, e.g. "customer"
     reverse_name: str = ""           # GraphQL field on the target, e.g. "orders"
+    note: str = ""                   # how the name was read when it was not literal: "through the synonym table: kund -> customer"
 
     @property
     def key(self) -> tuple:
@@ -62,6 +70,7 @@ class Plan:
     relationships: list[Relationship] = field(default_factory=list)
     ambiguous: list[dict] = field(default_factory=list)
     keyless: list[str] = field(default_factory=list)
+    synonyms: list[dict] = field(default_factory=list)    # keys and relationships that rest on the synonym table (SYNONYMS)
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -69,6 +78,8 @@ class Plan:
             lines.append("no key (query only; can reference others, cannot be referenced): " + ", ".join(self.keyless))
         if self.ambiguous:
             lines.append(f"{len(self.ambiguous)} ambiguous columns not applied — see plan.ambiguous")
+        if self.synonyms:
+            lines.append(f"{len(self.synonyms)} name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms")
         return "\n".join(lines)
 
     def mermaid(self) -> str:
@@ -90,45 +101,94 @@ RULES = {
     "K0": "declared primary key",
     "K1": "`keys` override from the caller",
     "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, "
-          "`<table>_nr`, `<table>_no`, or an abbreviation of the table name (four letters or more) with one of those suffixes",
+          "`<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those "
+          "suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the "
+          "synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
     "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
     "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key "
           "(not applied to history tables with a start_*/valid_from/effective_* column)",
     "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
     "R0": "declared foreign key",
-    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no) where B has a single key",
+    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key",
     "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
     "R3": "all of B's composite key columns appear in A",
-    "R4": "weaker name match when R1 and R2 find nothing: a role before B's name (`manager_staff_id` → staff) or an abbreviation "
-          "of B of four letters or more (`o_custkey` → customer)",
+    "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → "
+          "`customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four "
+          "letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
 }
 
 _SPLIT = re.compile(r"[^a-z0-9]+")
-_SUFFIXES = ("id", "key", "code", "nr", "no")
-_SUFFIX_RE = re.compile(r"^(.*?)(id|key|code|nr|no)$")
+_SUFFIXES = ("id", "key", "code", "nr", "no", "sk", "bk")
+_SUFFIX_RE = re.compile(r"^(.*?)(id|key|code|nr|no|sk|bk)$")
 _HEADER = ("header", "hdr")
+_TRANSLIT = str.maketrans({"å": "a", "ä": "a", "ö": "o", "ü": "u", "ß": "ss", "é": "e", "è": "e", "ø": "o", "æ": "ae"})
+_IRREGULAR = {"people": "person", "children": "child", "men": "man", "women": "woman", "indices": "index", "matrices": "matrix",
+              "criteria": "criterion", "mice": "mouse", "geese": "goose", "staff": "staff", "data": "data"}
+TABLE_PREFIXES = ("tbl", "t", "dim", "fact", "stg", "vw", "v", "ref", "lkp")      # a leading word that says what kind of table, not what it holds
+
+# The synonym table: a word as it appears in a name -> the English singular the rest of the names use. Abbreviations
+# first, then Swedish and German business words in singular and plural (after transliteration, so `leverantörer` is
+# `leverantorer`). Used by K2, R1, R2 and R4 when the raw name finds nothing; every such match is reported in
+# plan.synonyms and on the relationship's `note`, so a user can see that the link rests on this table.
+SYNONYMS = {
+    # abbreviations
+    "cust": "customer", "prod": "product", "ord": "order", "emp": "employee", "inv": "invoice", "acct": "account", "acc": "account",
+    "addr": "address", "cat": "category", "dept": "department", "dep": "department", "supp": "supplier", "vend": "vendor",
+    "whs": "warehouse", "mgr": "manager", "org": "organization", "terr": "territory", "trans": "transaction", "txn": "transaction",
+    "ctry": "country", "cntry": "country", "curr": "currency", "loc": "location", "proj": "project", "pos": "position",
+    # Swedish
+    "kund": "customer", "kunder": "customer", "artikel": "product", "artiklar": "product", "produkt": "product", "produkter": "product",
+    "ordrar": "order", "faktura": "invoice", "fakturor": "invoice", "leverantor": "supplier", "leverantorer": "supplier",
+    "anstalld": "employee", "anstallda": "employee", "medarbetare": "employee", "lager": "warehouse", "avdelning": "department",
+    "avdelningar": "department", "adress": "address", "adresser": "address", "land": "country", "lander": "country", "konto": "account",
+    "konton": "account", "betalning": "payment", "betalningar": "payment", "projekt": "project", "kategori": "category",
+    "kategorier": "category", "butik": "store", "butiker": "store", "region": "region", "regioner": "region", "valuta": "currency",
+    "valutor": "currency", "avtal": "contract", "person": "person", "personer": "person", "foretag": "company", "bolag": "company",
+    # German
+    "kunde": "customer", "kunden": "customer", "bestellung": "order", "bestellungen": "order", "auftrag": "order", "auftraege": "order",
+    "auftrage": "order", "rechnung": "invoice", "rechnungen": "invoice", "lieferant": "supplier", "lieferanten": "supplier",
+    "mitarbeiter": "employee", "abteilung": "department", "abteilungen": "department", "adresse": "address", "adressen": "address",
+    "laender": "country", "konten": "account", "zahlung": "payment", "zahlungen": "payment", "produkte": "product", "kategorien": "category",
+    "filiale": "store", "filialen": "store", "waehrung": "currency", "wahrung": "currency", "waehrungen": "currency", "vertrag": "contract",
+    "vertraege": "contract", "vertrage": "contract", "firma": "company", "firmen": "company", "personen": "person", "standort": "location",
+    "standorte": "location",
+}
 _PREFIX = re.compile(r"^([a-z]{1,4})_(?=.)")
 _LINE_LIKE = {"line", "lineno", "linenumber", "linenr", "linenum", "position", "pos", "seq", "sequence", "seqno",
-              "itemno", "rowno", "rownumber"}
+              "itemno", "rowno", "rownumber", "rad", "radnr", "radnummer", "zeile", "zeilennr", "zeilennummer", "posnr", "positionsnr"}
 _HISTORY = re.compile(r"^(start|validfrom|effective)|from$")
 _MIN_ABBREVIATION = 4
 
 
 def _norm(s: str) -> str:
-    return _SPLIT.sub("", s.lower())
+    return _SPLIT.sub("", s.lower().translate(_TRANSLIT))
 
 
 def _words(name: str) -> list[str]:
-    """`ShipToAddressID` -> [ship, to, address, id]; `manager_staff_id` -> [manager, staff, id]."""
+    """`ShipToAddressID` -> [ship, to, address, id]; `manager_staff_id` -> [manager, staff, id]; `Leverantörer` -> [leverantorer]."""
     s = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", name)
     s = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", s)
-    return [w for w in _SPLIT.split(s.lower()) if w]
+    return [w for w in _SPLIT.split(s.lower().translate(_TRANSLIT)) if w]
+
+
+def _canon(words: list[str]) -> str:
+    """The words with each one replaced by its synonym-table entry, joined: [kund, nr] -> customernr; [cust] -> customer."""
+    return "".join(SYNONYMS.get(w, w) for w in words)
+
+
+def _content_words(table: str) -> list[str]:
+    """The words of a table name without a leading kind prefix: dim_customer -> [customer], tbl_orders -> [orders]."""
+    w = _words(table)
+    return w[1:] if len(w) > 1 and w[0] in TABLE_PREFIXES else w
 
 
 def _singulars(name: str) -> set[str]:
     n = name.lower()
     out = {n}
+    for plural, singular in _IRREGULAR.items():
+        if n.endswith(plural) and (len(n) == len(plural) or not n[-len(plural) - 1].isalpha()) or n == plural:
+            out.add(n[: -len(plural)] + singular)
     if n.endswith("ies"):
         out.add(n[:-3] + "y")
     if n.endswith("sses") or n.endswith("xes") or n.endswith("ches") or n.endswith("shes"):
@@ -139,29 +199,54 @@ def _singulars(name: str) -> set[str]:
 
 
 def _bases(table: str) -> set[str]:
-    """The normalised names a key or reference may use for `table`: its singular forms, and the same without a
-    trailing `header` (SalesOrderHeader is keyed by SalesOrderID and referenced as SalesOrderID)."""
+    """The normalised names a key or reference may use for `table`: its singular forms, the same without a
+    trailing `header` (SalesOrderHeader is keyed by SalesOrderID and referenced as SalesOrderID), and the same
+    without a leading kind prefix (dim_customer answers to customer)."""
     out = {_norm(x) for x in _singulars(table)}
     n = table.lower()
     for h in _HEADER:
         for sep in ("_", ""):
             if n.endswith(sep + h) and len(n) > len(h) + len(sep):
                 out |= {_norm(x) for x in _singulars(n[: -len(h) - len(sep)])}
+    content = _content_words(table)
+    if content != _words(table):
+        out |= {_norm(x) for x in _singulars("".join(content))}
     return {b for b in out if b}
 
 
-def _key_candidates(table: str) -> set[str]:
-    c = {"id"}
-    for b in _bases(table):
+def _canon_bases(table: str) -> set[str]:
+    """The bases a key or reference may use for `table` through the synonym table: kunder -> customer, Kunden ->
+    customer, dim_kund -> customer. Only the forms the raw bases do not already contain."""
+    words = _content_words(table)
+    canon = _canon(words)
+    raw = _bases(table)
+    out = {_norm(x) for x in _singulars(canon)} if canon != "".join(words) else set()
+    for h in _HEADER:                                               # orderheader -> order, through the synonym too
+        if len(words) > 1 and words[-1] == h:
+            c = _canon(words[:-1])
+            if c != "".join(words[:-1]):
+                out |= {_norm(x) for x in _singulars(c)}
+    return {b for b in out if b and b not in raw}
+
+
+def _key_candidates(table: str, synonyms: bool = False) -> set[str]:
+    c = {"id"} if not synonyms else set()
+    for b in (_canon_bases(table) if synonyms else _bases(table)):
         c.update(b + suf for suf in _SUFFIXES)
     return c
 
 
-def _ref_candidates(target: str) -> set[str]:
+def _ref_candidates(target: str, synonyms: bool = False) -> set[str]:
     c = set()
-    for b in _bases(target):
+    for b in (_canon_bases(target) if synonyms else _bases(target)):
         c.update(b + suf for suf in _SUFFIXES)
     return c
+
+
+def _canon_column(col: str) -> str:
+    """The column name with its words passed through the synonym table: KundNr -> customernr, Kunde_ID -> customerid,
+    cust_key -> customerkey. Equal to the plain normalised name when no word is in the table."""
+    return _canon(_words(col))
 
 
 def _table_prefix(t: Table) -> str:
@@ -206,9 +291,13 @@ def _first_word(table: str) -> str:
 
 
 def _abbreviates(stem: str, table: str) -> bool:
-    """`cust` abbreviates `customer` (the first word of the table's name): a proper prefix of at least four letters."""
+    """`cust` abbreviates `customer` (the first word of the table's name): a proper prefix of at least four letters,
+    or an entry of the synonym table that names the table's first word (`ord` -> order, `emp` -> employee)."""
     first = _first_word(table)
-    return len(stem) >= _MIN_ABBREVIATION and len(stem) < len(first) and first.startswith(stem)
+    if len(stem) >= _MIN_ABBREVIATION and len(stem) < len(first) and first.startswith(stem):
+        return True
+    canon = SYNONYMS.get(stem)
+    return bool(canon) and canon != stem and canon in _singulars(first) | {_canon([first])}
 
 
 def _role_targets(stem: list[str], tables: dict[str, set[str]]) -> list[str]:
@@ -227,7 +316,7 @@ def _role_targets(stem: list[str], tables: dict[str, set[str]]) -> list[str]:
     return hits
 
 
-def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None) -> dict[str, tuple[list[str], str]]:
+def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None, notes: list[dict] | None = None) -> dict[str, tuple[list[str], str]]:
     keys = {k.lower(): v for k, v in (keys or {}).items()}
     out: dict[str, tuple[list[str], str]] = {}
     for t in schema:
@@ -236,26 +325,46 @@ def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None) -> dict
         elif t.keys:
             out[t.name] = (list(t.keys), "K0")
         else:
-            bare = _bare(t, _table_prefix(t))
+            prefix = _table_prefix(t)
+            bare = _bare(t, prefix)
             cands = _key_candidates(t.name)
             hits = [c for c in t.column_names if bare[c] in cands]
             # prefer the most specific name: <table>_id over id
             hits.sort(key=lambda c: (bare[c] == "id", len(c)))
+            via = ""
+            if not hits:                                                   # the synonym table: KundNr in kunder, cust_id in dim_customer
+                syn = _key_candidates(t.name, synonyms=True) | cands
+                hits = [c for c in t.column_names if _canon_column(_strip_prefix(c, prefix)) in syn and bare[c] != "id"]
+                hits.sort(key=len)
+                via = "synonym"
             if not hits:                                                   # abbreviation: cust_key in customer
-                others = set().union(*(_bases(o.name) for o in schema if o.name != t.name)) if len(schema) > 1 else set()
+                others = set().union(*(_bases(o.name) | _canon_bases(o.name) for o in schema if o.name != t.name)) if len(schema) > 1 else set()
                 for c in t.column_names:
-                    stem, suf = _stem(_strip_prefix(c, _table_prefix(t)))
+                    stem, suf = _stem(_strip_prefix(c, prefix))
                     # ps_partkey in PARTSUPP names PART, another table: a reference, not an abbreviated key
                     if suf and len(stem) == 1 and _abbreviates(stem[0], t.name) and stem[0] not in others:
                         hits.append(c)
                 hits.sort(key=len)
+                via = "abbreviation"
             if hits:
                 out[t.name] = ([hits[0]], "K2")
+                if via == "synonym" and notes is not None:
+                    notes.append({"table": t.name, "column": hits[0], "rule": "K2", "via": _synonym_words(t.name, hits[0])})
     return out
 
 
+def _synonym_words(*names: str) -> str:
+    """Which entries of the synonym table a match rested on: `kunder -> customer, kund -> customer`."""
+    used = []
+    for name in names:
+        for w in _content_words(name):
+            if w in SYNONYMS and SYNONYMS[w] != w and f"{w} -> {SYNONYMS[w]}" not in used:
+                used.append(f"{w} -> {SYNONYMS[w]}")
+    return ", ".join(used)
+
+
 def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
-                        confirmed: list[dict] | None = None) -> tuple[list[Relationship], list[dict]]:
+                        confirmed: list[dict] | None = None, notes: list[dict] | None = None) -> tuple[list[Relationship], list[dict]]:
     """confirmed: [{"source": "orders", "source_cols": ["customer_id"], "target": "customers",
     "target_cols": ["customer_id"]}] — applied as-is, before inference, and never contradicted."""
     rels: list[Relationship] = []
@@ -277,12 +386,19 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
     single_key: dict[str, str] = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
     by_ref_name: dict[str, list[str]] = {}
     by_key_name: dict[str, list[str]] = {}                                # R2 index: normalised key column -> tables
+    by_syn_ref: dict[str, list[str]] = {}                                 # the same two indexes through the synonym table
+    by_syn_key: dict[str, list[str]] = {}
     bases_of: dict[str, set[str]] = {}
+    key_suffix: dict[str, str] = {}
     for t, k in single_key.items():
         for cand in _ref_candidates(t):
             by_ref_name.setdefault(cand, []).append(t)
+        for cand in _ref_candidates(t, synonyms=True):
+            by_syn_ref.setdefault(cand, []).append(t)
         by_key_name.setdefault(bares.get(t, {}).get(k, _norm(k)), []).append(t)
-        bases_of[t] = _bases(t)
+        by_syn_key.setdefault(_canon_column(_strip_prefix(k, prefixes.get(t, ""))), []).append(t)
+        bases_of[t] = _bases(t) | _canon_bases(t)
+        key_suffix[t] = _stem(_strip_prefix(k, prefixes.get(t, "")))[1]
 
     for t in schema:
         own_key = set(x.lower() for x in keys.get(t.name, ([], ""))[0])
@@ -294,24 +410,51 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
             if c.lower() in own_key and len(own_key) == 1:
                 continue
             n = bare[c]
+            via = ""
             targets = [b for b in by_ref_name.get(n, []) if b != t.name]  # R1
             rule = "R1"
             if not targets and n != "id":                                 # R2
                 targets = [b for b in by_key_name.get(n, []) if b != t.name]
                 rule = "R2"
+            if not targets and n != "id":                                 # R4 (a): the R1 and R2 shapes through the synonym table
+                cn = _canon_column(_strip_prefix(c, prefixes[t.name]))
+                targets = [b for b in by_syn_ref.get(cn, []) + by_ref_name.get(cn, []) if b != t.name]
+                if not targets:
+                    targets = [b for b in by_syn_key.get(cn, []) if b != t.name]
+                rule = "R4"
+                if targets:
+                    via = "synonym"
+                    stem, suf = _stem(_strip_prefix(c, prefixes[t.name]))
+                    if suf and len(stem) == 1:                           # prod_id with both products and producers: still ambiguous
+                        targets += [b for b in single_key if b != t.name and b not in targets and _abbreviates(stem[0], b)]
             if not targets:                                               # R4: role before the name, or abbreviation
                 stem, suf = _stem(_strip_prefix(c, prefixes[t.name]))
                 if suf:
-                    targets = [b for b in _role_targets(stem, bases_of) if b != t.name]
+                    cstem = [SYNONYMS.get(w, w) for w in stem]
+                    targets = [b for b in _role_targets(stem, bases_of) if b != t.name] or [b for b in _role_targets(cstem, bases_of) if b != t.name]
                     if not targets and len(stem) == 1:
                         targets = [b for b in single_key if b != t.name and _abbreviates(stem[0], b)]
+                    # the weakest rule does not cross suffixes: `WWI Order ID` is not a reference to a table keyed by `Order Key`
+                    targets = [b for b in targets if not key_suffix.get(b) or key_suffix[b] == suf or {key_suffix[b], suf} <= {"id", "key", "sk"} and key_suffix[b] == suf]
                     rule = "R4"
+                    if targets and cstem != stem:
+                        via = "synonym"
+            if len(targets) > 1:                                         # two tables answer to the name: the one whose key carries
+                suf = _stem(_strip_prefix(c, prefixes[t.name]))[1]       # the column's suffix wins (customer_sk -> dim_customer, not customers)
+                narrowed = [b for b in targets if key_suffix.get(b) == suf]
+                if len(narrowed) == 1:
+                    targets = narrowed
             if len(targets) > 1:
                 ambiguous.append({"table": t.name, "column": c, "candidates": targets, "rule": rule})
                 continue
             if targets:
                 b = targets[0]
-                add(Relationship(t.name, [c], b, [single_key[b]], rule))
+                r = Relationship(t.name, [c], b, [single_key[b]], rule)
+                if via == "synonym":
+                    r.note = "through the synonym table: " + (_synonym_words(c, b) or "a translated or abbreviated name")
+                    if notes is not None:
+                        notes.append({"table": t.name, "column": c, "target": b, "rule": rule, "via": _synonym_words(c, b)})
+                add(r)
         for b, (bk, _) in keys.items():                                  # R3
             if b == t.name or len(bk) < 2:
                 continue
@@ -455,13 +598,16 @@ def check_tables(schema: Schema, tables: list[str] | None) -> None:
 
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> Plan:
     check_input(schema, keys, confirmed)
-    k = infer_keys(schema, keys)
-    rels, amb = infer_relationships(schema, k, confirmed)
+    notes: list[dict] = []
+    k = infer_keys(schema, keys, notes)
+    rel_notes: list[dict] = []
+    rels, amb = infer_relationships(schema, k, confirmed, rel_notes)
     extra = composite_keys(schema, k, rels)
     if extra:                                   # K4/K5 keys can be R3 targets: run the relationships once more
         k.update(extra)
-        rels, amb = infer_relationships(schema, k, confirmed)
-    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k])
+        rel_notes = []
+        rels, amb = infer_relationships(schema, k, confirmed, rel_notes)
+    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes)
 
 
 def _m(s: str) -> str:

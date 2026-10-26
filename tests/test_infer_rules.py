@@ -60,9 +60,12 @@ def test_abbreviated_key_and_reference_need_four_letters_and_no_other_table_of_t
     assert [r.field_name for r in p.relationships] == ["customer"]            # the field is named after the table
     p = plan(schema(("customers", ["customer_id", "name"]), ("orders", ["order_id", "cust_id"])))
     assert rels(p)[("orders", ("cust_id",))] == ("customers", "R4") and p.relationships[0].field_name == "customer"
-    # three letters are not enough
-    p = plan(schema(("employees", ["emp_id", "name"]), ("orders", ["order_id", "emp_id"])))
-    assert "employees" in p.keyless and ("orders", ("emp_id",)) not in rels(p)
+    # three letters are not enough on their own; `emp` is in the synonym table, `wrk` is not
+    p = plan(schema(("employees", ["emp_id", "name"]), ("orders", ["order_id", "emp_nr"]), ("workers", ["wrk_id", "name"]), ("shifts", ["shift_id", "wrk_id"])))
+    assert p.keys["employees"] == (["emp_id"], "K2") and rels(p)[("orders", ("emp_nr",))] == ("employees", "R4")
+    assert p.relationships[0].note == "through the synonym table: emp -> employee"
+    assert p.synonyms[0] == {"table": "employees", "column": "emp_id", "rule": "K2", "via": "emp -> employee"}
+    assert "workers" in p.keyless and ("shifts", ("wrk_id",)) not in rels(p)
     # PARTSUPP: part_ abbreviates partsupp, but PART is a table — so ps_partkey is a reference and the key is K4
     p = plan(schema(("PART", ["P_PARTKEY", "P_NAME"]), ("SUPPLIER", ["S_SUPPKEY", "S_NAME"]),
                     ("PARTSUPP", ["PS_PARTKEY", "PS_SUPPKEY", "PS_AVAILQTY"]),

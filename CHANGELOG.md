@@ -5,6 +5,19 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Naming from the real world (`fabric_backend/infer.py`): a documented synonym table (abbreviations such as `cust`,
+  `prod`, `ord`, `emp`; Swedish and German business words in singular and plural), transliteration of `å ä ö ü ß`,
+  irregular English plurals (`People` → `person`), the table-kind prefixes `dim_`/`fact_`/`tbl_`/`stg_`/`vw_`, the
+  `_sk`/`_bk` key suffixes, Swedish and German line words for K5, a suffix tie-break between two tables that answer to
+  the same name, and a suffix guard for the weakest rule. Synonym matches count as R4, carry a `note` on the
+  relationship and are listed under `plan.synonyms`; the five public benchmark schemas are unchanged to the number.
+  Benchmark: WideWorldImporters (OLTP, 33 tables) and WideWorldImportersDW (star schema, 14 tables) from Microsoft's
+  samples, plus four synthetic naming fixtures; before/after per schema in `docs/INFERENCE.md`.
+- Compact answers for large schemas (`fabric_backend/compact.py`): `list_tables`, `plan_backend` and `analyze_schema`
+  (remote and stdio) take `tables` (names or fnmatch patterns) and `detail` (`auto` = full up to 60 tables and a
+  summary above, `full`, `summary`); every answer is bounded at 60 000 characters, a plan that is too large loses its
+  diagram first, and the cut says to narrow with `tables`. Measured on 300 and 1 000 synthetic tables in
+  `docs/INFERENCE.md` (plan_backend 443 kB → 44 kB, analyze_schema 747 kB → 21 kB at 300 tables).
 - `create_ontology` is a regular tool now, dry run by default, no environment flag: it creates the Fabric IQ ontology
   (preview) item from the plan or updates the one of that name (`POST /workspaces/{id}/ontologies`, `updateDefinition`;
   delegated scope `Item.ReadWrite.All`, Contributor on the workspace, a Fabric capacity; checked in

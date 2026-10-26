@@ -38,7 +38,7 @@ from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
-from . import lineage as _lineage
+from . import lineage as _lineage, compact as _compact
 from .deploy import create_semantic_model as _create_semantic_model
 
 try:
@@ -311,29 +311,36 @@ def list_sources(workspace: str, ctx: Context = None) -> str:
 
 @mcp.tool(title="List tables and columns", annotations=RO)
 @safe
-def list_tables(workspace: str, source: str, schema: str = "dbo", ctx: Context = None) -> str:
-    """Tables and columns (with types) in one schema of a source. Read-only."""
+def list_tables(workspace: str, source: str, schema: str = "dbo", tables: list[str] | None = None, detail: str = "auto",
+                ctx: Context = None) -> str:
+    """Tables and columns (with types) in one schema of a source. Read-only. `tables` narrows the answer to names or
+    patterns (["sales_*"]); `detail` is "auto" (full up to 60 tables, then a summary with the column count per table),
+    "full" or "summary"."""
     p, _, _ = _plan(workspace, source, schema, None, None, ctx)
-    return json.dumps({t.name: [[c.name, c.data_type] for c in t.columns] for t in p.schema}, indent=2)
+    keep = _compact.match_tables(p.schema, tables)
+    if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
+        return _bounded(_compact.tables_summary(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _bounded(_compact.tables_full(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @mcp.tool(title="Plan keys and relationships (nothing deployed)", annotations=RO)
 @safe
 def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                 confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+                 confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto",
+                 ctx: Context = None) -> str:
     """Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule
-    that produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, and a Mermaid ER diagram.
-    Pass `keys` for composite keys ({"order_items": ["order_id","line_no"]}) and `confirmed` for relationships
-    the rules missed. Deploys nothing."""
+    that produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, names read through the synonym
+    table, and a Mermaid ER diagram. Pass `keys` for composite keys ({"order_items": ["order_id","line_no"]}) and
+    `confirmed` for relationships the rules missed. `tables` narrows the answer to names or patterns (["sales_*"]);
+    the plan is still made from the whole schema. `detail` is "auto" (full up to 60 tables, then one line per key
+    and relationship without field names or diagram), "full" or "summary". Deploys nothing."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
-    return json.dumps({
-        "summary": p.summary(),
-        "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
-        "relationships": [r.__dict__ for r in p.relationships],
-        "ambiguous": p.ambiguous, "keyless": p.keyless,
-        "suggested_keys": _evidence.suggest_composite_keys(p),
-        "mermaid": p.mermaid(),
-    }, indent=2)
+    keep = _compact.match_tables(p.schema, tables)
+    shown = _compact.sub_plan(p, keep)
+    suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
+    if _compact.pick_detail(detail, len(shown.schema)) == "summary":
+        return _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _bounded(_compact.plan_full(shown, suggested), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
 
 
 def _connected(workspace: str, source: str, schema: str, ctx):
@@ -611,16 +618,22 @@ def join_path(workspace: str, source: str, start: str, end: str, schema: str = "
 @mcp.tool(title="Analyse the schema as a graph (roles, centrality, areas, ambiguity)", annotations=RO)
 @safe
 def analyze_schema(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                   confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+                   confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto",
+                   ctx: Context = None) -> str:
     """The plan as a graph, from metadata only (no data queries): each table's role (fact, dimension, bridge,
     isolated) with the numbers behind it, the ten most central tables (in/out degree, betweenness, PageRank),
     subject areas, cycles and table pairs with more than one path (where a Power BI model gets ambiguous filter
     paths), and the relationships that can be active at once in a semantic model with the rest explained as inactive.
-    Useful on a lakehouse nobody has documented."""
+    Useful on a lakehouse nobody has documented. `tables` narrows the answer to names or patterns; `detail` is
+    "auto" (full up to 60 tables, then tables grouped by role, the central tables, areas by size and counts), "full"
+    or "summary"."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    keep = _compact.match_tables(p.schema, tables)
     out = _graphs.analyze(p)
     out["summary"] = p.summary().splitlines()[0] + "; " + out["summary"]
-    return json.dumps(out, indent=2)
+    if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
+        return _bounded(_compact.analysis_summary(out, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _bounded(_compact.analysis_filtered(out, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @mcp.tool(title="Suggest missing relationships, checked against the data", annotations=RO)
@@ -1073,40 +1086,9 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
 MAX_RESULT_CHARS = 60000
 
 
-def _bounded(body, limit: int) -> str:
-    """The query result as JSON of at most `limit` characters, always valid JSON. A result that is too large has
-    its lists cut to the same number of leading items each and says so under `truncated`, instead of being
-    chopped mid-document."""
-    text = json.dumps(body, indent=2, default=str)
-    if len(text) <= limit:
-        return text
-
-    def longest(node) -> int:
-        if isinstance(node, list):
-            return max([len(node)] + [longest(x) for x in node])
-        if isinstance(node, dict):
-            return max([0] + [longest(v) for v in node.values()])
-        return 0
-
-    def cut(node, keep):
-        if isinstance(node, list):
-            return [cut(x, keep) for x in node[:keep]]
-        if isinstance(node, dict):
-            return {k: cut(v, keep) for k, v in node.items()}
-        return node
-
-    keep = longest(body)
-    while keep > 1:
-        keep //= 2
-        slim = cut(body, keep) if isinstance(body, dict) else body
-        slim = dict(slim, truncated=f"The full result was too large for one answer; every list was cut to its first {keep} items. "
-                                    "Ask for fewer fields or page with first:/after.")
-        text = json.dumps(slim, indent=2, default=str)
-        if len(text) <= limit:
-            return text
-    preview = json.dumps(body, default=str)[:limit - 400]
-    return json.dumps({"truncated": "The result was too large for one answer even with one item per list; this is the start of it. "
-                                    "Ask for fewer fields.", "preview": preview}, indent=2)
+def _bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
+    """JSON of at most `limit` characters, always valid (fabric_backend.compact.bounded)."""
+    return _compact.bounded(body, limit, hint, drop)
 
 
 MAX_BODY_BYTES = 4 * 1024 * 1024      # an MCP message is a few kilobytes; nothing here needs more than this

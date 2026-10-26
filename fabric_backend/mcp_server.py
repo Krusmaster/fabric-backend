@@ -40,7 +40,7 @@ from .rayfin import rayfin_files
 from .ontology import bindings as ontology_bindings, ontology_ttl, summary as ontology_summary
 from .deploy import token_from_az
 from . import evidence as _evidence, semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary
-from . import dbt as _dbt, graphs as _graphs, views as _views
+from . import dbt as _dbt, graphs as _graphs, views as _views, compact as _compact
 
 try:
     from mcp.server.mcpserver import MCPServer as _Server          # mcp >= 2
@@ -51,6 +51,7 @@ except ImportError:  # pragma: no cover
         raise SystemExit("pip install 'fabric-backend[mcp]'") from e
 
 mcp = _Server("fabric-backend")
+MAX_RESULT_CHARS = 60000                                  # the same bound as the remote server
 
 try:
     from mcp.types import ToolAnnotations
@@ -166,25 +167,31 @@ def _source_info(schema: str) -> dict:
 
 @_tool("List tables", RO)
 @safe
-def list_tables(schema: str = "dbo") -> str:
-    """Tables and columns in the source behind FABRIC_ODBC."""
+def list_tables(schema: str = "dbo", tables: list[str] | None = None, detail: str = "auto") -> str:
+    """Tables and columns (with types) in the source behind FABRIC_ODBC. `tables` narrows the answer to names or
+    patterns (["sales_*"]); `detail` is "auto" (full up to 60 tables, then the column count per table), "full" or "summary"."""
     p = _plan(schema)
-    return json.dumps({t.name: t.column_names for t in p.schema}, indent=2)
+    keep = _compact.match_tables(p.schema, tables)
+    if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
+        return _compact.bounded(_compact.tables_summary(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _compact.bounded(_compact.tables_full(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @_tool("Plan keys and relationships", RO)
 @safe
 def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                 confirmed: list[dict] | None = None) -> str:
-    """Infer keys and relationships without deploying. Returns summary, relationships with the rule
-    that produced each, ambiguous columns to confirm, and a Mermaid ER diagram."""
+                 confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto") -> str:
+    """Infer keys and relationships without deploying. Returns summary, keys and relationships with the rule that
+    produced each, ambiguous columns to confirm, names read through the synonym table, suggested composite keys and a
+    Mermaid ER diagram. `tables` narrows the answer to names or patterns; `detail` is "auto" (full up to 60 tables,
+    then one line per key and relationship), "full" or "summary"."""
     p = _plan(schema, keys=keys, confirmed=confirmed)
-    return json.dumps({
-        "summary": p.summary(),
-        "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
-        "relationships": [r.__dict__ for r in p.relationships],
-        "ambiguous": p.ambiguous, "keyless": p.keyless, "mermaid": p.mermaid(),
-    }, indent=2)
+    keep = _compact.match_tables(p.schema, tables)
+    shown = _compact.sub_plan(p, keep)
+    suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
+    if _compact.pick_detail(detail, len(shown.schema)) == "summary":
+        return _compact.bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _compact.bounded(_compact.plan_full(shown, suggested), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
 
 
 @_tool("Create or update the GraphQL API", WRITE)
@@ -309,13 +316,18 @@ def dbt_schema(schema: str = "dbo", source_name: str | None = None, keys: dict[s
 
 @_tool("Analyze the schema as a graph", RO)
 @safe
-def analyze_schema(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> str:
+def analyze_schema(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                   tables: list[str] | None = None, detail: str = "auto") -> str:
     """The plan as a graph, metadata only: table roles with the numbers behind them, the most central tables,
-    subject areas, cycles and multi-path pairs, and which relationships can be active at once."""
+    subject areas, cycles and multi-path pairs, and which relationships can be active at once. `tables` narrows
+    the answer to names or patterns; `detail` is "auto" (full up to 60 tables, then a summary), "full" or "summary"."""
     p = _plan(schema, keys=keys, confirmed=confirmed)
+    keep = _compact.match_tables(p.schema, tables)
     out = _graphs.analyze(p)
     out["summary"] = p.summary().splitlines()[0] + "; " + out["summary"]
-    return json.dumps(out, indent=2)
+    if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
+        return _compact.bounded(_compact.analysis_summary(out, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _compact.bounded(_compact.analysis_filtered(out, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @_tool("Suggest missing relationships", RO)

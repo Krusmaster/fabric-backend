@@ -218,6 +218,11 @@ suggestion when there is none), `dictionary` (Markdown), `dbt` (sources yml, `--
 1.10.5), `analyze` (roles, central tables, areas, ambiguity; `--json` for the full graph) and `views` (the
 `CREATE OR ALTER VIEW` statements to run yourself, `GO` between the batches). `fabric-backend --help` lists them.
 
+When a literal name finds nothing, a small documented synonym table is tried (abbreviations such as `cust`, `prod`, `ord`,
+`emp`; Swedish and German business words; `dim_`/`fact_`/`tbl_` prefixes; `_sk`/`_bk` suffixes), after transliteration of
+`å ä ö ü ß`. Such a match counts as R4, carries a `note` on the relationship and is listed under `plan.synonyms`. The
+benchmark in `docs/INFERENCE.md` shows before and after on eleven schemas.
+
 ## Same plan, second output: Rayfin (Fabric Apps) connector entities
 
 [Rayfin](https://www.microsoft.com/microsoft-fabric/features/rayfin) is Microsoft's open-source

@@ -1,0 +1,195 @@
+"""Compact answers for large schemas: `detail="summary"` and a `tables` pattern filter for list_tables, plan_backend and
+analyze_schema (remote and stdio servers).
+
+An agent pays for every token of an answer and has a bounded context. On the synthetic shop schema the full answers are
+a few kilobytes; on 300 tables plan_backend is ~400 kB and analyze_schema ~800 kB, on 1 000 tables 1.4 MB and 3 MB
+(measured 26 October 2026, docs/INFERENCE.md). So:
+
+- `detail="auto"` (the default) answers in full up to COMPACT_ABOVE tables and in summary form above that, and says so;
+  `detail="full"` and `detail="summary"` force either.
+- `tables=["sales_*", "customers"]` narrows the answer to the tables that match (fnmatch patterns, case-insensitive,
+  exact names allowed); the plan itself is still made from the whole schema, so relationships into other tables are kept.
+"""
+from __future__ import annotations
+
+import json
+from fnmatch import fnmatchcase
+
+from .infer import Plan, PlanInputError
+from .schema import Schema
+
+COMPACT_ABOVE = 60
+DETAILS = ("auto", "full", "summary")
+
+
+def pick_detail(detail: str | None, n_tables: int) -> str:
+    d = (detail or "auto").strip().lower()
+    if d not in DETAILS:
+        raise PlanInputError(f"detail: {detail!r} is not one of {', '.join(DETAILS)}")
+    if d == "auto":
+        return "summary" if n_tables > COMPACT_ABOVE else "full"
+    return d
+
+
+def match_tables(schema: Schema, patterns: list[str] | None) -> set[str] | None:
+    """The table names that match any pattern; None when no filter was given."""
+    if patterns is None:
+        return None
+    if not isinstance(patterns, (list, tuple)) or not patterns:
+        raise PlanInputError("tables: give a non-empty list of names or patterns such as [\"sales_*\"], or omit it")
+    names = [t.name for t in schema]
+    out: set[str] = set()
+    for pat in patterns:
+        p = str(pat).lower()
+        hits = [n for n in names if fnmatchcase(n.lower(), p)]
+        if not hits:
+            raise PlanInputError(f"tables: nothing matches {pat!r}; the schema has {len(names)} tables such as {', '.join(names[:5])}")
+        out.update(hits)
+    return out
+
+
+def sub_plan(p: Plan, keep: set[str] | None) -> Plan:
+    """The plan restricted to `keep` for display: those tables, the relationships with at least one end among them."""
+    if keep is None:
+        return p
+    s = Schema(tables={n: t for n, t in p.schema.tables.items() if n in keep}, schema=p.schema.schema)
+    return Plan(s, {t: k for t, k in p.keys.items() if t in keep},
+                [r for r in p.relationships if r.source in keep or r.target in keep],
+                [a for a in p.ambiguous if a["table"] in keep], [t for t in p.keyless if t in keep],
+                [x for x in p.synonyms if x.get("table") in keep])
+
+
+NARROW_HINT = "Narrow the answer with tables=[\"pattern*\"] (names or fnmatch patterns), or ask for one area at a time."
+
+
+def rel_line(r) -> str:
+    """`orders.customer_id -> customers [R1]`: the target's key column is under keys, so it is not repeated here."""
+    return f"{r.source}.{'+'.join(r.source_cols)} -> {r.target} [{r.rule}]" + (f" ({r.note})" if getattr(r, "note", "") else "")
+
+
+def plan_summary(p: Plan, suggested_keys: list[dict], scope_note: str = "") -> dict:
+    """plan_backend in summary form: one line per key and relationship, no field names, no diagram."""
+    return {
+        "summary": p.summary(),
+        "detail": "summary",
+        "keys": {t: f"{'+'.join(k)} ({r})" for t, (k, r) in p.keys.items()},
+        "relationships": [rel_line(r) for r in p.relationships],
+        "ambiguous": [f"{a['table']}.{a['column']} could point at {', '.join(a['candidates'])} ({a.get('rule', '')})" for a in p.ambiguous],
+        "keyless": p.keyless,
+        "suggested_keys": [f"{s['table']}: {'+'.join(s['columns'])} ({s['why']})" for s in suggested_keys],
+        "synonyms": [f"{x['table']}.{x['column']}" + (f" -> {x['target']}" if x.get("target") else "") + f" [{x['rule']}] via {x['via']}" for x in p.synonyms],
+        "note": ("Summary form" + (f" ({scope_note})" if scope_note else "") + ": detail=\"full\" adds the GraphQL field names, the suggested-key "
+                 "details and the Mermaid ER diagram; tables=[\"pattern*\"] narrows the answer to matching tables."),
+    }
+
+
+def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict:
+    out = {
+        "summary": p.summary(),
+        "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
+        "relationships": [r.__dict__ for r in p.relationships],
+        "ambiguous": p.ambiguous, "keyless": p.keyless,
+        "suggested_keys": suggested_keys,
+    }
+    if p.synonyms:
+        out["synonyms"] = p.synonyms
+    if mermaid:
+        out["mermaid"] = p.mermaid()
+    return out
+
+
+def tables_summary(schema: Schema, keep: set[str] | None = None) -> dict:
+    tables = [t for t in schema if keep is None or t.name in keep]
+    return {"tables": len(tables), "columns": sum(len(t.columns) for t in tables),
+            "per_table": {t.name: len(t.columns) for t in tables},
+            "note": "Summary form: detail=\"full\" lists every column with its type; tables=[\"pattern*\"] narrows the answer."}
+
+
+def tables_full(schema: Schema, keep: set[str] | None = None) -> dict:
+    return {t.name: [[c.name, c.data_type] for c in t.columns] for t in schema if keep is None or t.name in keep}
+
+
+def analysis_summary(a: dict, keep: set[str] | None = None, top: int = 10, inactive: int = 30) -> dict:
+    """analyze_schema in summary form: tables grouped by role, the central tables, areas by size, counts for the rest."""
+    roles = a.get("roles", {})
+    by_role: dict[str, list[str]] = {}
+    for t, r in roles.items():
+        if keep is None or t in keep:
+            by_role.setdefault(r["role"], []).append(t)
+    central = [{"table": c["table"], "role": c["role"], "pagerank": c["pagerank"], "in": c["in"], "out": c["out"]}
+               for c in a.get("centrality", {}).get("top", []) if keep is None or c["table"] in keep][:top]
+    areas = [{"name": g["name"], "central_table": g["central_table"], "tables": len(g["tables"]), "first": g["tables"][:8]}
+             for g in a.get("areas", []) if keep is None or any(t in keep for t in g["tables"])]
+    amb = a.get("ambiguity", {})
+    inact = [e for e in a.get("inactive_relationships", []) if keep is None or e["source"] in keep or e["target"] in keep]
+    act = [e for e in a.get("active_relationships", []) if keep is None or e["source"] in keep or e["target"] in keep]
+    return {
+        "summary": a.get("summary", ""), "detail": "summary",
+        "roles": {k: sorted(v) for k, v in sorted(by_role.items())},
+        "central": central,
+        "areas": sorted(areas, key=lambda g: -g["tables"]),
+        "ambiguity": {"cycles": len(amb.get("cycles", [])), "pairs_with_multiple_paths": len(amb.get("pairs_with_multiple_paths", [])),
+                      "first_pairs": amb.get("pairs_with_multiple_paths", [])[:10], "note": amb.get("note", "")},
+        "active_relationships": len(act),
+        "inactive_relationships": {"count": len(inact),
+                                   "first": [f"{e['source']}.{'+'.join(e['columns'])} -> {e['target']} [{e['rule']} {e['certainty']}]: {e.get('why', '')}" for e in inact[:inactive]]},
+        "note": ("Summary form: detail=\"full\" gives the reasons per table, every centrality measure, every cycle and every inactive "
+                 "relationship; tables=[\"pattern*\"] narrows the answer."),
+    }
+
+
+def analysis_filtered(a: dict, keep: set[str] | None) -> dict:
+    if keep is None:
+        return a
+    out = dict(a)
+    out["roles"] = {t: r for t, r in a["roles"].items() if t in keep}
+    c = a["centrality"]
+    out["centrality"] = {"top": [x for x in c["top"] if x["table"] in keep], **{k: {t: v for t, v in c[k].items() if t in keep} for k in ("degree", "betweenness", "pagerank")}}
+    out["areas"] = [g for g in a["areas"] if any(t in keep for t in g["tables"])]
+    for k in ("active_relationships", "inactive_relationships"):
+        out[k] = [e for e in a[k] if e["source"] in keep or e["target"] in keep]
+    return out
+
+
+def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
+    """JSON of at most `limit` characters, always valid JSON. A result that is too large first loses the keys in `drop`
+    (the Mermaid diagram of a plan), then has its lists cut to the same number of leading items each, and says so
+    under `truncated`, instead of being chopped mid-document."""
+    text = json.dumps(body, indent=2, default=str)
+    if len(text) <= limit:
+        return text
+    dropped = [k for k in drop if isinstance(body, dict) and k in body]
+    omitted = ""
+    if dropped:
+        omitted = f"{', '.join(dropped)} omitted; "
+        body = {k: v for k, v in body.items() if k not in dropped}
+        body["truncated"] = f"{', '.join(dropped)} omitted: the full result was too large for one answer. " + hint
+        text = json.dumps(body, indent=2, default=str)
+        if len(text) <= limit:
+            return text
+
+    def longest(node) -> int:
+        if isinstance(node, list):
+            return max([len(node)] + [longest(x) for x in node])
+        if isinstance(node, dict):
+            return max([0] + [longest(v) for v in node.values()])
+        return 0
+
+    def cut(node, keep):
+        if isinstance(node, list):
+            return [cut(x, keep) for x in node[:keep]]
+        if isinstance(node, dict):
+            return {k: cut(v, keep) for k, v in node.items()}
+        return node
+
+    keep = longest(body)
+    while keep > 1:
+        keep //= 2
+        slim = cut(body, keep) if isinstance(body, dict) else body
+        slim = dict(slim, truncated=f"{omitted}the full result was too large for one answer; every list was cut to its first {keep} items. " + hint)
+        text = json.dumps(slim, indent=2, default=str)
+        if len(text) <= limit:
+            return text
+    preview = json.dumps(body, default=str)[:max(200, limit // 2 - 400)]
+    return json.dumps({"truncated": "The result was too large for one answer even with one item per list; this is the start of it. "
+                                    "Ask for fewer fields.", "preview": preview}, indent=2)

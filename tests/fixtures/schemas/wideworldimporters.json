@@ -1,0 +1,2814 @@
+{
+ "name": "wideworldimporters",
+ "tables": [
+  {
+   "name": "Cities",
+   "schema": "Application",
+   "columns": [
+    [
+     "CityID",
+     "int"
+    ],
+    [
+     "CityName",
+     "nvarchar"
+    ],
+    [
+     "StateProvinceID",
+     "int"
+    ],
+    [
+     "Location",
+     "sys"
+    ],
+    [
+     "LatestRecordedPopulation",
+     "bigint"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "CityID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "StateProvinceID"
+     ],
+     "ref_table": "StateProvinces",
+     "ref_columns": [
+      "StateProvinceID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Countries",
+   "schema": "Application",
+   "columns": [
+    [
+     "CountryID",
+     "int"
+    ],
+    [
+     "CountryName",
+     "nvarchar"
+    ],
+    [
+     "FormalName",
+     "nvarchar"
+    ],
+    [
+     "IsoAlpha3Code",
+     "nvarchar"
+    ],
+    [
+     "IsoNumericCode",
+     "int"
+    ],
+    [
+     "CountryType",
+     "nvarchar"
+    ],
+    [
+     "LatestRecordedPopulation",
+     "bigint"
+    ],
+    [
+     "Continent",
+     "nvarchar"
+    ],
+    [
+     "Region",
+     "nvarchar"
+    ],
+    [
+     "Subregion",
+     "nvarchar"
+    ],
+    [
+     "Border",
+     "sys"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "CountryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "DeliveryMethods",
+   "schema": "Application",
+   "columns": [
+    [
+     "DeliveryMethodID",
+     "int"
+    ],
+    [
+     "DeliveryMethodName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "DeliveryMethodID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Logs",
+   "schema": "Application",
+   "columns": [
+    [
+     "Message",
+     "nvarchar"
+    ],
+    [
+     "Level",
+     "varchar"
+    ],
+    [
+     "EventTime",
+     "datetime2"
+    ],
+    [
+     "LogEvent",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [],
+   "foreign_keys": []
+  },
+  {
+   "name": "PaymentMethods",
+   "schema": "Application",
+   "columns": [
+    [
+     "PaymentMethodID",
+     "int"
+    ],
+    [
+     "PaymentMethodName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "PaymentMethodID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "People",
+   "schema": "Application",
+   "columns": [
+    [
+     "PersonID",
+     "int"
+    ],
+    [
+     "FullName",
+     "nvarchar"
+    ],
+    [
+     "PreferredName",
+     "nvarchar"
+    ],
+    [
+     "SearchName",
+     "computed"
+    ],
+    [
+     "IsPermittedToLogon",
+     "bit"
+    ],
+    [
+     "LogonName",
+     "nvarchar"
+    ],
+    [
+     "IsExternalLogonProvider",
+     "bit"
+    ],
+    [
+     "HashedPassword",
+     "varbinary"
+    ],
+    [
+     "IsSystemUser",
+     "bit"
+    ],
+    [
+     "IsEmployee",
+     "bit"
+    ],
+    [
+     "IsSalesperson",
+     "bit"
+    ],
+    [
+     "UserPreferences",
+     "nvarchar"
+    ],
+    [
+     "PhoneNumber",
+     "nvarchar"
+    ],
+    [
+     "FaxNumber",
+     "nvarchar"
+    ],
+    [
+     "EmailAddress",
+     "nvarchar"
+    ],
+    [
+     "Photo",
+     "varbinary"
+    ],
+    [
+     "CustomFields",
+     "nvarchar"
+    ],
+    [
+     "OtherLanguages",
+     "computed"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "PersonID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StateProvinces",
+   "schema": "Application",
+   "columns": [
+    [
+     "StateProvinceID",
+     "int"
+    ],
+    [
+     "StateProvinceCode",
+     "nvarchar"
+    ],
+    [
+     "StateProvinceName",
+     "nvarchar"
+    ],
+    [
+     "CountryID",
+     "int"
+    ],
+    [
+     "SalesTerritory",
+     "nvarchar"
+    ],
+    [
+     "Border",
+     "sys"
+    ],
+    [
+     "LatestRecordedPopulation",
+     "bigint"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "StateProvinceID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "CountryID"
+     ],
+     "ref_table": "Countries",
+     "ref_columns": [
+      "CountryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SystemParameters",
+   "schema": "Application",
+   "columns": [
+    [
+     "SystemParameterID",
+     "int"
+    ],
+    [
+     "DeliveryAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "DeliveryAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "DeliveryCityID",
+     "int"
+    ],
+    [
+     "DeliveryPostalCode",
+     "nvarchar"
+    ],
+    [
+     "DeliveryLocation",
+     "sys"
+    ],
+    [
+     "PostalAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "PostalAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "PostalCityID",
+     "int"
+    ],
+    [
+     "PostalPostalCode",
+     "nvarchar"
+    ],
+    [
+     "ApplicationSettings",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "SystemParameterID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    },
+    {
+     "columns": [
+      "PostalCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "TransactionTypes",
+   "schema": "Application",
+   "columns": [
+    [
+     "TransactionTypeID",
+     "int"
+    ],
+    [
+     "TransactionTypeName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "TransactionTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PurchaseOrderLines",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "PurchaseOrderLineID",
+     "int"
+    ],
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "OrderedOuters",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "ReceivedOuters",
+     "int"
+    ],
+    [
+     "PackageTypeID",
+     "int"
+    ],
+    [
+     "ExpectedUnitPricePerOuter",
+     "decimal"
+    ],
+    [
+     "LastReceiptDate",
+     "date"
+    ],
+    [
+     "IsOrderLineFinalized",
+     "bit"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "PurchaseOrderLineID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "PackageTypeID"
+     ],
+     "ref_table": "PackageTypes",
+     "ref_columns": [
+      "PackageTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "PurchaseOrderID"
+     ],
+     "ref_table": "PurchaseOrders",
+     "ref_columns": [
+      "PurchaseOrderID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PurchaseOrders",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "OrderDate",
+     "date"
+    ],
+    [
+     "DeliveryMethodID",
+     "int"
+    ],
+    [
+     "ContactPersonID",
+     "int"
+    ],
+    [
+     "ExpectedDeliveryDate",
+     "date"
+    ],
+    [
+     "SupplierReference",
+     "nvarchar"
+    ],
+    [
+     "IsOrderFinalized",
+     "bit"
+    ],
+    [
+     "Comments",
+     "nvarchar"
+    ],
+    [
+     "InternalComments",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "PurchaseOrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "ContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryMethodID"
+     ],
+     "ref_table": "DeliveryMethods",
+     "ref_columns": [
+      "DeliveryMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierID"
+     ],
+     "ref_table": "Suppliers",
+     "ref_columns": [
+      "SupplierID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SupplierCategories",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "SupplierCategoryID",
+     "int"
+    ],
+    [
+     "SupplierCategoryName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "SupplierCategoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SupplierTransactions",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "SupplierTransactionID",
+     "int"
+    ],
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "TransactionTypeID",
+     "int"
+    ],
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "PaymentMethodID",
+     "int"
+    ],
+    [
+     "SupplierInvoiceNumber",
+     "nvarchar"
+    ],
+    [
+     "TransactionDate",
+     "date"
+    ],
+    [
+     "AmountExcludingTax",
+     "decimal"
+    ],
+    [
+     "TaxAmount",
+     "decimal"
+    ],
+    [
+     "TransactionAmount",
+     "decimal"
+    ],
+    [
+     "OutstandingBalance",
+     "decimal"
+    ],
+    [
+     "FinalizationDate",
+     "date"
+    ],
+    [
+     "IsFinalized",
+     "computed"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "SupplierTransactionID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "PaymentMethodID"
+     ],
+     "ref_table": "PaymentMethods",
+     "ref_columns": [
+      "PaymentMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "PurchaseOrderID"
+     ],
+     "ref_table": "PurchaseOrders",
+     "ref_columns": [
+      "PurchaseOrderID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierID"
+     ],
+     "ref_table": "Suppliers",
+     "ref_columns": [
+      "SupplierID"
+     ]
+    },
+    {
+     "columns": [
+      "TransactionTypeID"
+     ],
+     "ref_table": "TransactionTypes",
+     "ref_columns": [
+      "TransactionTypeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Suppliers",
+   "schema": "Purchasing",
+   "columns": [
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "SupplierName",
+     "nvarchar"
+    ],
+    [
+     "SupplierCategoryID",
+     "int"
+    ],
+    [
+     "PrimaryContactPersonID",
+     "int"
+    ],
+    [
+     "AlternateContactPersonID",
+     "int"
+    ],
+    [
+     "DeliveryMethodID",
+     "int"
+    ],
+    [
+     "DeliveryCityID",
+     "int"
+    ],
+    [
+     "PostalCityID",
+     "int"
+    ],
+    [
+     "SupplierReference",
+     "nvarchar"
+    ],
+    [
+     "BankAccountName",
+     "nvarchar"
+    ],
+    [
+     "BankAccountBranch",
+     "nvarchar"
+    ],
+    [
+     "BankAccountCode",
+     "nvarchar"
+    ],
+    [
+     "BankAccountNumber",
+     "nvarchar"
+    ],
+    [
+     "BankInternationalCode",
+     "nvarchar"
+    ],
+    [
+     "PaymentDays",
+     "int"
+    ],
+    [
+     "InternalComments",
+     "nvarchar"
+    ],
+    [
+     "PhoneNumber",
+     "nvarchar"
+    ],
+    [
+     "FaxNumber",
+     "nvarchar"
+    ],
+    [
+     "WebsiteURL",
+     "nvarchar"
+    ],
+    [
+     "DeliveryAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "DeliveryAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "DeliveryPostalCode",
+     "nvarchar"
+    ],
+    [
+     "DeliveryLocation",
+     "sys"
+    ],
+    [
+     "PostalAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "PostalAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "PostalPostalCode",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "SupplierID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "AlternateContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryMethodID"
+     ],
+     "ref_table": "DeliveryMethods",
+     "ref_columns": [
+      "DeliveryMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "PostalCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    },
+    {
+     "columns": [
+      "PrimaryContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierCategoryID"
+     ],
+     "ref_table": "SupplierCategories",
+     "ref_columns": [
+      "SupplierCategoryID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "BuyingGroups",
+   "schema": "Sales",
+   "columns": [
+    [
+     "BuyingGroupID",
+     "int"
+    ],
+    [
+     "BuyingGroupName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "BuyingGroupID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CustomerCategories",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CustomerCategoryID",
+     "int"
+    ],
+    [
+     "CustomerCategoryName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "CustomerCategoryID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "CustomerTransactions",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CustomerTransactionID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "TransactionTypeID",
+     "int"
+    ],
+    [
+     "InvoiceID",
+     "int"
+    ],
+    [
+     "PaymentMethodID",
+     "int"
+    ],
+    [
+     "TransactionDate",
+     "date"
+    ],
+    [
+     "AmountExcludingTax",
+     "decimal"
+    ],
+    [
+     "TaxAmount",
+     "decimal"
+    ],
+    [
+     "TransactionAmount",
+     "decimal"
+    ],
+    [
+     "OutstandingBalance",
+     "decimal"
+    ],
+    [
+     "FinalizationDate",
+     "date"
+    ],
+    [
+     "IsFinalized",
+     "computed"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "CustomerTransactionID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "InvoiceID"
+     ],
+     "ref_table": "Invoices",
+     "ref_columns": [
+      "InvoiceID"
+     ]
+    },
+    {
+     "columns": [
+      "PaymentMethodID"
+     ],
+     "ref_table": "PaymentMethods",
+     "ref_columns": [
+      "PaymentMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "TransactionTypeID"
+     ],
+     "ref_table": "TransactionTypes",
+     "ref_columns": [
+      "TransactionTypeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Customers",
+   "schema": "Sales",
+   "columns": [
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "CustomerName",
+     "nvarchar"
+    ],
+    [
+     "BillToCustomerID",
+     "int"
+    ],
+    [
+     "CustomerCategoryID",
+     "int"
+    ],
+    [
+     "BuyingGroupID",
+     "int"
+    ],
+    [
+     "PrimaryContactPersonID",
+     "int"
+    ],
+    [
+     "AlternateContactPersonID",
+     "int"
+    ],
+    [
+     "DeliveryMethodID",
+     "int"
+    ],
+    [
+     "DeliveryCityID",
+     "int"
+    ],
+    [
+     "PostalCityID",
+     "int"
+    ],
+    [
+     "CreditLimit",
+     "decimal"
+    ],
+    [
+     "AccountOpenedDate",
+     "date"
+    ],
+    [
+     "StandardDiscountPercentage",
+     "decimal"
+    ],
+    [
+     "IsStatementSent",
+     "bit"
+    ],
+    [
+     "IsOnCreditHold",
+     "bit"
+    ],
+    [
+     "PaymentDays",
+     "int"
+    ],
+    [
+     "PhoneNumber",
+     "nvarchar"
+    ],
+    [
+     "FaxNumber",
+     "nvarchar"
+    ],
+    [
+     "DeliveryRun",
+     "nvarchar"
+    ],
+    [
+     "RunPosition",
+     "nvarchar"
+    ],
+    [
+     "WebsiteURL",
+     "nvarchar"
+    ],
+    [
+     "DeliveryAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "DeliveryAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "DeliveryPostalCode",
+     "nvarchar"
+    ],
+    [
+     "DeliveryLocation",
+     "sys"
+    ],
+    [
+     "PostalAddressLine1",
+     "nvarchar"
+    ],
+    [
+     "PostalAddressLine2",
+     "nvarchar"
+    ],
+    [
+     "PostalPostalCode",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "CustomerID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "AlternateContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "BillToCustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "BuyingGroupID"
+     ],
+     "ref_table": "BuyingGroups",
+     "ref_columns": [
+      "BuyingGroupID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerCategoryID"
+     ],
+     "ref_table": "CustomerCategories",
+     "ref_columns": [
+      "CustomerCategoryID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryMethodID"
+     ],
+     "ref_table": "DeliveryMethods",
+     "ref_columns": [
+      "DeliveryMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "PostalCityID"
+     ],
+     "ref_table": "Cities",
+     "ref_columns": [
+      "CityID"
+     ]
+    },
+    {
+     "columns": [
+      "PrimaryContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "InvoiceLines",
+   "schema": "Sales",
+   "columns": [
+    [
+     "InvoiceLineID",
+     "int"
+    ],
+    [
+     "InvoiceID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "PackageTypeID",
+     "int"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "decimal"
+    ],
+    [
+     "TaxRate",
+     "decimal"
+    ],
+    [
+     "TaxAmount",
+     "decimal"
+    ],
+    [
+     "LineProfit",
+     "decimal"
+    ],
+    [
+     "ExtendedPrice",
+     "decimal"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "InvoiceLineID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "InvoiceID"
+     ],
+     "ref_table": "Invoices",
+     "ref_columns": [
+      "InvoiceID"
+     ]
+    },
+    {
+     "columns": [
+      "PackageTypeID"
+     ],
+     "ref_table": "PackageTypes",
+     "ref_columns": [
+      "PackageTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Invoices",
+   "schema": "Sales",
+   "columns": [
+    [
+     "InvoiceID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "BillToCustomerID",
+     "int"
+    ],
+    [
+     "OrderID",
+     "int"
+    ],
+    [
+     "DeliveryMethodID",
+     "int"
+    ],
+    [
+     "ContactPersonID",
+     "int"
+    ],
+    [
+     "AccountsPersonID",
+     "int"
+    ],
+    [
+     "SalespersonPersonID",
+     "int"
+    ],
+    [
+     "PackedByPersonID",
+     "int"
+    ],
+    [
+     "InvoiceDate",
+     "date"
+    ],
+    [
+     "CustomerPurchaseOrderNumber",
+     "nvarchar"
+    ],
+    [
+     "IsCreditNote",
+     "bit"
+    ],
+    [
+     "CreditNoteReason",
+     "nvarchar"
+    ],
+    [
+     "Comments",
+     "nvarchar"
+    ],
+    [
+     "DeliveryInstructions",
+     "nvarchar"
+    ],
+    [
+     "InternalComments",
+     "nvarchar"
+    ],
+    [
+     "TotalDryItems",
+     "int"
+    ],
+    [
+     "TotalChillerItems",
+     "int"
+    ],
+    [
+     "DeliveryRun",
+     "nvarchar"
+    ],
+    [
+     "RunPosition",
+     "nvarchar"
+    ],
+    [
+     "ReturnedDeliveryData",
+     "nvarchar"
+    ],
+    [
+     "ConfirmedDeliveryTime",
+     "computed"
+    ],
+    [
+     "ConfirmedReceivedBy",
+     "computed"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "InvoiceID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "AccountsPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "BillToCustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "ContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "DeliveryMethodID"
+     ],
+     "ref_table": "DeliveryMethods",
+     "ref_columns": [
+      "DeliveryMethodID"
+     ]
+    },
+    {
+     "columns": [
+      "OrderID"
+     ],
+     "ref_table": "Orders",
+     "ref_columns": [
+      "OrderID"
+     ]
+    },
+    {
+     "columns": [
+      "PackedByPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "SalespersonPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "OrderLines",
+   "schema": "Sales",
+   "columns": [
+    [
+     "OrderLineID",
+     "int"
+    ],
+    [
+     "OrderID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "PackageTypeID",
+     "int"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "UnitPrice",
+     "decimal"
+    ],
+    [
+     "TaxRate",
+     "decimal"
+    ],
+    [
+     "PickedQuantity",
+     "int"
+    ],
+    [
+     "PickingCompletedWhen",
+     "datetime2"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "OrderLineID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "OrderID"
+     ],
+     "ref_table": "Orders",
+     "ref_columns": [
+      "OrderID"
+     ]
+    },
+    {
+     "columns": [
+      "PackageTypeID"
+     ],
+     "ref_table": "PackageTypes",
+     "ref_columns": [
+      "PackageTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Orders",
+   "schema": "Sales",
+   "columns": [
+    [
+     "OrderID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "SalespersonPersonID",
+     "int"
+    ],
+    [
+     "PickedByPersonID",
+     "int"
+    ],
+    [
+     "ContactPersonID",
+     "int"
+    ],
+    [
+     "BackorderOrderID",
+     "int"
+    ],
+    [
+     "OrderDate",
+     "date"
+    ],
+    [
+     "ExpectedDeliveryDate",
+     "date"
+    ],
+    [
+     "CustomerPurchaseOrderNumber",
+     "nvarchar"
+    ],
+    [
+     "IsUndersupplyBackordered",
+     "bit"
+    ],
+    [
+     "Comments",
+     "nvarchar"
+    ],
+    [
+     "DeliveryInstructions",
+     "nvarchar"
+    ],
+    [
+     "InternalComments",
+     "nvarchar"
+    ],
+    [
+     "PickingCompletedWhen",
+     "datetime2"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "OrderID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "BackorderOrderID"
+     ],
+     "ref_table": "Orders",
+     "ref_columns": [
+      "OrderID"
+     ]
+    },
+    {
+     "columns": [
+      "ContactPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "PickedByPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "SalespersonPersonID"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "SpecialDeals",
+   "schema": "Sales",
+   "columns": [
+    [
+     "SpecialDealID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "BuyingGroupID",
+     "int"
+    ],
+    [
+     "CustomerCategoryID",
+     "int"
+    ],
+    [
+     "StockGroupID",
+     "int"
+    ],
+    [
+     "DealDescription",
+     "nvarchar"
+    ],
+    [
+     "StartDate",
+     "date"
+    ],
+    [
+     "EndDate",
+     "date"
+    ],
+    [
+     "DiscountAmount",
+     "decimal"
+    ],
+    [
+     "DiscountPercentage",
+     "decimal"
+    ],
+    [
+     "UnitPrice",
+     "decimal"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "SpecialDealID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "BuyingGroupID"
+     ],
+     "ref_table": "BuyingGroups",
+     "ref_columns": [
+      "BuyingGroupID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerCategoryID"
+     ],
+     "ref_table": "CustomerCategories",
+     "ref_columns": [
+      "CustomerCategoryID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "StockGroupID"
+     ],
+     "ref_table": "StockGroups",
+     "ref_columns": [
+      "StockGroupID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ColdRoomTemperatures",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "ColdRoomTemperatureID",
+     "bigint"
+    ],
+    [
+     "ColdRoomSensorNumber",
+     "int"
+    ],
+    [
+     "RecordedWhen",
+     "datetime2"
+    ],
+    [
+     "Temperature",
+     "decimal"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "ColdRoomTemperatureID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Colors",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "ColorID",
+     "int"
+    ],
+    [
+     "ColorName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "ColorID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "PackageTypes",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "PackageTypeID",
+     "int"
+    ],
+    [
+     "PackageTypeName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "PackageTypeID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StockGroups",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "StockGroupID",
+     "int"
+    ],
+    [
+     "StockGroupName",
+     "nvarchar"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "StockGroupID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StockItemHoldings",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "QuantityOnHand",
+     "int"
+    ],
+    [
+     "BinLocation",
+     "nvarchar"
+    ],
+    [
+     "LastStocktakeQuantity",
+     "int"
+    ],
+    [
+     "LastCostPrice",
+     "decimal"
+    ],
+    [
+     "ReorderLevel",
+     "int"
+    ],
+    [
+     "TargetStockLevel",
+     "int"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "StockItemID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StockItemStockGroups",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "StockItemStockGroupID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "StockGroupID",
+     "int"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "StockItemStockGroupID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "StockGroupID"
+     ],
+     "ref_table": "StockGroups",
+     "ref_columns": [
+      "StockGroupID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StockItemTransactions",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "StockItemTransactionID",
+     "int"
+    ],
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "TransactionTypeID",
+     "int"
+    ],
+    [
+     "CustomerID",
+     "int"
+    ],
+    [
+     "InvoiceID",
+     "int"
+    ],
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "PurchaseOrderID",
+     "int"
+    ],
+    [
+     "TransactionOccurredWhen",
+     "datetime2"
+    ],
+    [
+     "Quantity",
+     "decimal"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "LastEditedWhen",
+     "datetime2"
+    ]
+   ],
+   "primary_key": [
+    "StockItemTransactionID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "CustomerID"
+     ],
+     "ref_table": "Customers",
+     "ref_columns": [
+      "CustomerID"
+     ]
+    },
+    {
+     "columns": [
+      "InvoiceID"
+     ],
+     "ref_table": "Invoices",
+     "ref_columns": [
+      "InvoiceID"
+     ]
+    },
+    {
+     "columns": [
+      "PurchaseOrderID"
+     ],
+     "ref_table": "PurchaseOrders",
+     "ref_columns": [
+      "PurchaseOrderID"
+     ]
+    },
+    {
+     "columns": [
+      "StockItemID"
+     ],
+     "ref_table": "StockItems",
+     "ref_columns": [
+      "StockItemID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierID"
+     ],
+     "ref_table": "Suppliers",
+     "ref_columns": [
+      "SupplierID"
+     ]
+    },
+    {
+     "columns": [
+      "TransactionTypeID"
+     ],
+     "ref_table": "TransactionTypes",
+     "ref_columns": [
+      "TransactionTypeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "StockItems",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "StockItemID",
+     "int"
+    ],
+    [
+     "StockItemName",
+     "nvarchar"
+    ],
+    [
+     "SupplierID",
+     "int"
+    ],
+    [
+     "ColorID",
+     "int"
+    ],
+    [
+     "UnitPackageID",
+     "int"
+    ],
+    [
+     "OuterPackageID",
+     "int"
+    ],
+    [
+     "Brand",
+     "nvarchar"
+    ],
+    [
+     "Size",
+     "nvarchar"
+    ],
+    [
+     "LeadTimeDays",
+     "int"
+    ],
+    [
+     "QuantityPerOuter",
+     "int"
+    ],
+    [
+     "IsChillerStock",
+     "bit"
+    ],
+    [
+     "Barcode",
+     "nvarchar"
+    ],
+    [
+     "TaxRate",
+     "decimal"
+    ],
+    [
+     "UnitPrice",
+     "decimal"
+    ],
+    [
+     "RecommendedRetailPrice",
+     "decimal"
+    ],
+    [
+     "TypicalWeightPerUnit",
+     "decimal"
+    ],
+    [
+     "MarketingComments",
+     "nvarchar"
+    ],
+    [
+     "InternalComments",
+     "nvarchar"
+    ],
+    [
+     "Photo",
+     "varbinary"
+    ],
+    [
+     "CustomFields",
+     "nvarchar"
+    ],
+    [
+     "Tags",
+     "computed"
+    ],
+    [
+     "SearchDetails",
+     "computed"
+    ],
+    [
+     "LastEditedBy",
+     "int"
+    ],
+    [
+     "ValidFrom",
+     "datetime2"
+    ],
+    [
+     "ValidTo",
+     "datetime2"
+    ],
+    [
+     "PERIOD",
+     "for"
+    ]
+   ],
+   "primary_key": [
+    "StockItemID"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LastEditedBy"
+     ],
+     "ref_table": "People",
+     "ref_columns": [
+      "PersonID"
+     ]
+    },
+    {
+     "columns": [
+      "ColorID"
+     ],
+     "ref_table": "Colors",
+     "ref_columns": [
+      "ColorID"
+     ]
+    },
+    {
+     "columns": [
+      "OuterPackageID"
+     ],
+     "ref_table": "PackageTypes",
+     "ref_columns": [
+      "PackageTypeID"
+     ]
+    },
+    {
+     "columns": [
+      "SupplierID"
+     ],
+     "ref_table": "Suppliers",
+     "ref_columns": [
+      "SupplierID"
+     ]
+    },
+    {
+     "columns": [
+      "UnitPackageID"
+     ],
+     "ref_table": "PackageTypes",
+     "ref_columns": [
+      "PackageTypeID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "VehicleTemperatures",
+   "schema": "Warehouse",
+   "columns": [
+    [
+     "VehicleTemperatureID",
+     "bigint"
+    ],
+    [
+     "VehicleRegistration",
+     "nvarchar"
+    ],
+    [
+     "ChillerSensorNumber",
+     "int"
+    ],
+    [
+     "RecordedWhen",
+     "datetime2"
+    ],
+    [
+     "Temperature",
+     "decimal"
+    ],
+    [
+     "FullSensorData",
+     "nvarchar"
+    ],
+    [
+     "IsCompressed",
+     "bit"
+    ],
+    [
+     "CompressedSensorData",
+     "varbinary"
+    ]
+   ],
+   "primary_key": [
+    "VehicleTemperatureID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "SampleVersion",
+   "schema": "dbo",
+   "columns": [
+    [
+     "MajorSampleVersion",
+     "int"
+    ],
+    [
+     "MinorSampleVersion",
+     "int"
+    ],
+    [
+     "MinSQLServerBuild",
+     "nvarchar"
+    ],
+    [
+     "RowCount",
+     "int"
+    ]
+   ],
+   "primary_key": [],
+   "foreign_keys": []
+  }
+ ]
+}

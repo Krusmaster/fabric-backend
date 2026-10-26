@@ -1,0 +1,217 @@
+{
+ "name": "nordic_sv",
+ "synthetic": "Swedish business names (synthetic, written by hand for the benchmark): KundNr, ArtikelNr, Leverantör, Fakturor; the declared keys are the ground truth the names express.",
+ "tables": [
+  {
+   "name": "Kunder",
+   "schema": "sv",
+   "columns": [
+    [
+     "KundNr",
+     "int"
+    ],
+    [
+     "Namn",
+     "nvarchar"
+    ],
+    [
+     "Land",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "KundNr"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Leverantörer",
+   "schema": "sv",
+   "columns": [
+    [
+     "LeverantörID",
+     "int"
+    ],
+    [
+     "Namn",
+     "nvarchar"
+    ],
+    [
+     "Ort",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "LeverantörID"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Artiklar",
+   "schema": "sv",
+   "columns": [
+    [
+     "ArtikelNr",
+     "int"
+    ],
+    [
+     "Benämning",
+     "nvarchar"
+    ],
+    [
+     "LeverantörID",
+     "int"
+    ],
+    [
+     "Pris",
+     "decimal"
+    ]
+   ],
+   "primary_key": [
+    "ArtikelNr"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "LeverantörID"
+     ],
+     "ref_table": "Leverantörer",
+     "ref_columns": [
+      "LeverantörID"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Ordrar",
+   "schema": "sv",
+   "columns": [
+    [
+     "OrderNr",
+     "int"
+    ],
+    [
+     "KundNr",
+     "int"
+    ],
+    [
+     "Orderdatum",
+     "date"
+    ],
+    [
+     "Status",
+     "nvarchar"
+    ]
+   ],
+   "primary_key": [
+    "OrderNr"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "KundNr"
+     ],
+     "ref_table": "Kunder",
+     "ref_columns": [
+      "KundNr"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Orderrader",
+   "schema": "sv",
+   "columns": [
+    [
+     "OrderNr",
+     "int"
+    ],
+    [
+     "Radnr",
+     "int"
+    ],
+    [
+     "ArtikelNr",
+     "int"
+    ],
+    [
+     "Antal",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "OrderNr",
+    "Radnr"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "OrderNr"
+     ],
+     "ref_table": "Ordrar",
+     "ref_columns": [
+      "OrderNr"
+     ]
+    },
+    {
+     "columns": [
+      "ArtikelNr"
+     ],
+     "ref_table": "Artiklar",
+     "ref_columns": [
+      "ArtikelNr"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Fakturor",
+   "schema": "sv",
+   "columns": [
+    [
+     "FakturaNr",
+     "int"
+    ],
+    [
+     "OrderNr",
+     "int"
+    ],
+    [
+     "Kund_ID",
+     "int"
+    ],
+    [
+     "Belopp",
+     "decimal"
+    ],
+    [
+     "Förfallodatum",
+     "date"
+    ]
+   ],
+   "primary_key": [
+    "FakturaNr"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "OrderNr"
+     ],
+     "ref_table": "Ordrar",
+     "ref_columns": [
+      "OrderNr"
+     ]
+    },
+    {
+     "columns": [
+      "Kund_ID"
+     ],
+     "ref_table": "Kunder",
+     "ref_columns": [
+      "KundNr"
+     ]
+    }
+   ]
+  }
+ ]
+}

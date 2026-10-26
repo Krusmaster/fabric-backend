@@ -20,7 +20,8 @@ from fabric_backend.infer import plan
 from fabric_backend.schema import Schema
 
 FIXTURES = Path(__file__).parent / "fixtures" / "schemas"
-NAMES = ("northwind", "chinook", "tpch", "adventureworks", "sakila")
+NAMES = ("northwind", "chinook", "tpch", "adventureworks", "sakila", "wideworldimporters", "wideworldimportersdw")
+SYNTHETIC = ("nordic_sv", "nordic_de", "dw_names", "app_names")      # written by hand for the naming rules; no public source
 
 
 def load(name: str) -> dict:
@@ -71,10 +72,22 @@ EXPECTED = {
                        "fks_declared": 90, "rel_hits": 62, "rel_missed": 28, "rel_wrong": 17, "ambiguous": 0},
     "sakila": {"tables": 16, "keys_declared": 16, "key_hits": 15, "key_wrong": 0, "key_missed": 1,
                "fks_declared": 22, "rel_hits": 22, "rel_missed": 0, "rel_wrong": 1, "ambiguous": 0},
+    "wideworldimporters": {"tables": 33, "keys_declared": 31, "key_hits": 30, "key_wrong": 0, "key_missed": 1,
+                           "fks_declared": 98, "rel_hits": 65, "rel_missed": 33, "rel_wrong": 0, "ambiguous": 0},
+    "wideworldimportersdw": {"tables": 14, "keys_declared": 13, "key_hits": 8, "key_wrong": 5, "key_missed": 0,
+                             "fks_declared": 29, "rel_hits": 26, "rel_missed": 3, "rel_wrong": 0, "ambiguous": 0},
+    "nordic_sv": {"tables": 6, "keys_declared": 6, "key_hits": 6, "key_wrong": 0, "key_missed": 0,
+                  "fks_declared": 6, "rel_hits": 6, "rel_missed": 0, "rel_wrong": 0, "ambiguous": 0},
+    "nordic_de": {"tables": 5, "keys_declared": 5, "key_hits": 5, "key_wrong": 0, "key_missed": 0,
+                  "fks_declared": 5, "rel_hits": 4, "rel_missed": 1, "rel_wrong": 0, "ambiguous": 0},
+    "dw_names": {"tables": 4, "keys_declared": 4, "key_hits": 4, "key_wrong": 0, "key_missed": 0,
+                 "fks_declared": 3, "rel_hits": 3, "rel_missed": 0, "rel_wrong": 0, "ambiguous": 0},
+    "app_names": {"tables": 7, "keys_declared": 7, "key_hits": 7, "key_wrong": 0, "key_missed": 0,
+                  "fks_declared": 8, "rel_hits": 6, "rel_missed": 2, "rel_wrong": 0, "ambiguous": 0},
 }
 
 
-@pytest.mark.parametrize("name", NAMES)
+@pytest.mark.parametrize("name", NAMES + SYNTHETIC)
 def test_scores_are_the_documented_ones(name):
     got = score(load(name))
     numbers = {k: v for k, v in got.items() if not k.startswith(("missed_", "wrong_"))}
@@ -97,7 +110,7 @@ def test_shop_schema_is_not_degraded():
 def markdown() -> str:
     head = "| Schema | Tables | Keys declared | Keys hit | Keys wrong | Keys missed | FKs declared | Rels hit | Rels missed | Rels wrong | Ambiguous |"
     out = [head, "|" + " --- |" * 11]
-    for n in NAMES:
+    for n in NAMES + SYNTHETIC:
         s = score(load(n))
         out.append(f"| {n} | {s['tables']} | {s['keys_declared']} | {s['key_hits']} | {s['key_wrong']} | {s['key_missed']} | "
                    f"{s['fks_declared']} | {s['rel_hits']} | {s['rel_missed']} | {s['rel_wrong']} | {s['ambiguous']} |")
@@ -106,6 +119,6 @@ def markdown() -> str:
 
 if __name__ == "__main__":
     print(markdown())
-    for n in NAMES:
+    for n in NAMES + SYNTHETIC:
         s = score(load(n))
         print(f"\n## {n}\nmissed keys: {s['missed_keys']}\nmissed rels: {s['missed_rels']}\nwrong rels: {s['wrong_rels']}")

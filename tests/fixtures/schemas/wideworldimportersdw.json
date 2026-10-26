@@ -1,0 +1,1327 @@
+{
+ "name": "wideworldimportersdw",
+ "tables": [
+  {
+   "name": "City",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "City Key",
+     "int"
+    ],
+    [
+     "WWI City ID",
+     "int"
+    ],
+    [
+     "City",
+     "nvarchar"
+    ],
+    [
+     "State Province",
+     "nvarchar"
+    ],
+    [
+     "Country",
+     "nvarchar"
+    ],
+    [
+     "Continent",
+     "nvarchar"
+    ],
+    [
+     "Sales Territory",
+     "nvarchar"
+    ],
+    [
+     "Region",
+     "nvarchar"
+    ],
+    [
+     "Subregion",
+     "nvarchar"
+    ],
+    [
+     "Location",
+     "sys"
+    ],
+    [
+     "Latest Recorded Population",
+     "bigint"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "City Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Customer",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Customer Key",
+     "int"
+    ],
+    [
+     "WWI Customer ID",
+     "int"
+    ],
+    [
+     "Customer",
+     "nvarchar"
+    ],
+    [
+     "Bill To Customer",
+     "nvarchar"
+    ],
+    [
+     "Category",
+     "nvarchar"
+    ],
+    [
+     "Buying Group",
+     "nvarchar"
+    ],
+    [
+     "Primary Contact",
+     "nvarchar"
+    ],
+    [
+     "Postal Code",
+     "nvarchar"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Customer Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Date",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Date",
+     "date"
+    ],
+    [
+     "DateKey",
+     "int"
+    ],
+    [
+     "Day Number",
+     "int"
+    ],
+    [
+     "Day",
+     "nvarchar"
+    ],
+    [
+     "Day of Year",
+     "nvarchar"
+    ],
+    [
+     "Day of Year Number",
+     "int"
+    ],
+    [
+     "Day of Week",
+     "nvarchar"
+    ],
+    [
+     "Day of Week Number",
+     "int"
+    ],
+    [
+     "Week of Year",
+     "nvarchar"
+    ],
+    [
+     "Month",
+     "nvarchar"
+    ],
+    [
+     "Short Month",
+     "nvarchar"
+    ],
+    [
+     "Quarter",
+     "nvarchar"
+    ],
+    [
+     "Half of Year",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Month",
+     "date"
+    ],
+    [
+     "Beginning of Quarter",
+     "date"
+    ],
+    [
+     "Beginning of Half Year",
+     "date"
+    ],
+    [
+     "Beginning of Year",
+     "date"
+    ],
+    [
+     "Beginning of Month Label",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Month Label Short",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Quarter Label",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Quarter Label Short",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Half Year Label",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Half Year Label Short",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Year Label",
+     "nvarchar"
+    ],
+    [
+     "Beginning of Year Label Short",
+     "nvarchar"
+    ],
+    [
+     "Calendar Day Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Day Label Short",
+     "nvarchar"
+    ],
+    [
+     "Calendar Week Number",
+     "int"
+    ],
+    [
+     "Calendar Week Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Month Number",
+     "int"
+    ],
+    [
+     "Calendar Month Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Month Year Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Quarter Number",
+     "int"
+    ],
+    [
+     "Calendar Quarter Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Quarter Year Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Half of Year Number",
+     "int"
+    ],
+    [
+     "Calendar Half of Year Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Year Half of Year Label",
+     "nvarchar"
+    ],
+    [
+     "Calendar Year",
+     "int"
+    ],
+    [
+     "Calendar Year Label",
+     "nvarchar"
+    ],
+    [
+     "Fiscal Month Number",
+     "int"
+    ],
+    [
+     "Fiscal Month Label",
+     "nvarchar"
+    ],
+    [
+     "Fiscal Quarter Number",
+     "int"
+    ],
+    [
+     "Fiscal Quarter Label",
+     "nvarchar"
+    ],
+    [
+     "Fiscal Half of Year Number",
+     "int"
+    ],
+    [
+     "Fiscal Half of Year Label",
+     "nvarchar"
+    ],
+    [
+     "Fiscal Year",
+     "int"
+    ],
+    [
+     "Fiscal Year Label",
+     "nvarchar"
+    ],
+    [
+     "Date Key",
+     "int"
+    ],
+    [
+     "Year Week Key",
+     "int"
+    ],
+    [
+     "Year Month Key",
+     "int"
+    ],
+    [
+     "Year Quarter Key",
+     "int"
+    ],
+    [
+     "Year Half of Year Key",
+     "int"
+    ],
+    [
+     "Year Key",
+     "int"
+    ],
+    [
+     "Beginning of Month Key",
+     "int"
+    ],
+    [
+     "Beginning of Quarter Key",
+     "int"
+    ],
+    [
+     "Beginning of Half Year Key",
+     "int"
+    ],
+    [
+     "Beginning of Year Key",
+     "int"
+    ],
+    [
+     "Fiscal Year Month Key",
+     "int"
+    ],
+    [
+     "Fiscal Year Quarter Key",
+     "int"
+    ],
+    [
+     "Fiscal Year Half of Year Key",
+     "int"
+    ],
+    [
+     "ISO Week Number",
+     "int"
+    ]
+   ],
+   "primary_key": [],
+   "foreign_keys": []
+  },
+  {
+   "name": "Employee",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Employee Key",
+     "int"
+    ],
+    [
+     "WWI Employee ID",
+     "int"
+    ],
+    [
+     "Employee",
+     "nvarchar"
+    ],
+    [
+     "Preferred Name",
+     "nvarchar"
+    ],
+    [
+     "Is Salesperson",
+     "bit"
+    ],
+    [
+     "Photo",
+     "varbinary"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Employee Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Payment Method",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Payment Method Key",
+     "int"
+    ],
+    [
+     "WWI Payment Method ID",
+     "int"
+    ],
+    [
+     "Payment Method",
+     "nvarchar"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Payment Method Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Stock Item",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "WWI Stock Item ID",
+     "int"
+    ],
+    [
+     "Stock Item",
+     "nvarchar"
+    ],
+    [
+     "Color",
+     "nvarchar"
+    ],
+    [
+     "Selling Package",
+     "nvarchar"
+    ],
+    [
+     "Buying Package",
+     "nvarchar"
+    ],
+    [
+     "Brand",
+     "nvarchar"
+    ],
+    [
+     "Size",
+     "nvarchar"
+    ],
+    [
+     "Lead Time Days",
+     "int"
+    ],
+    [
+     "Quantity Per Outer",
+     "int"
+    ],
+    [
+     "Is Chiller Stock",
+     "bit"
+    ],
+    [
+     "Barcode",
+     "nvarchar"
+    ],
+    [
+     "Tax Rate",
+     "decimal"
+    ],
+    [
+     "Unit Price",
+     "decimal"
+    ],
+    [
+     "Recommended Retail Price",
+     "decimal"
+    ],
+    [
+     "Typical Weight Per Unit",
+     "decimal"
+    ],
+    [
+     "Photo",
+     "varbinary"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Stock Item Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Supplier",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Supplier Key",
+     "int"
+    ],
+    [
+     "WWI Supplier ID",
+     "int"
+    ],
+    [
+     "Supplier",
+     "nvarchar"
+    ],
+    [
+     "Category",
+     "nvarchar"
+    ],
+    [
+     "Primary Contact",
+     "nvarchar"
+    ],
+    [
+     "Supplier Reference",
+     "nvarchar"
+    ],
+    [
+     "Payment Days",
+     "int"
+    ],
+    [
+     "Postal Code",
+     "nvarchar"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Supplier Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Transaction Type",
+   "schema": "Dimension",
+   "columns": [
+    [
+     "Transaction Type Key",
+     "int"
+    ],
+    [
+     "WWI Transaction Type ID",
+     "int"
+    ],
+    [
+     "Transaction Type",
+     "nvarchar"
+    ],
+    [
+     "Valid From",
+     "datetime2"
+    ],
+    [
+     "Valid To",
+     "datetime2"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Transaction Type Key"
+   ],
+   "foreign_keys": []
+  },
+  {
+   "name": "Movement",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Movement Key",
+     "bigint"
+    ],
+    [
+     "Date Key",
+     "date"
+    ],
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "Customer Key",
+     "int"
+    ],
+    [
+     "Supplier Key",
+     "int"
+    ],
+    [
+     "Transaction Type Key",
+     "int"
+    ],
+    [
+     "WWI Stock Item Transaction ID",
+     "int"
+    ],
+    [
+     "WWI Invoice ID",
+     "int"
+    ],
+    [
+     "WWI Purchase Order ID",
+     "int"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Movement Key",
+    "Date Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Stock Item Key"
+     ],
+     "ref_table": "Stock Item",
+     "ref_columns": [
+      "Stock Item Key"
+     ]
+    },
+    {
+     "columns": [
+      "Supplier Key"
+     ],
+     "ref_table": "Supplier",
+     "ref_columns": [
+      "Supplier Key"
+     ]
+    },
+    {
+     "columns": [
+      "Transaction Type Key"
+     ],
+     "ref_table": "Transaction Type",
+     "ref_columns": [
+      "Transaction Type Key"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Order",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Order Key",
+     "bigint"
+    ],
+    [
+     "City Key",
+     "int"
+    ],
+    [
+     "Customer Key",
+     "int"
+    ],
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "Order Date Key",
+     "date"
+    ],
+    [
+     "Picked Date Key",
+     "date"
+    ],
+    [
+     "Salesperson Key",
+     "int"
+    ],
+    [
+     "Picker Key",
+     "int"
+    ],
+    [
+     "WWI Order ID",
+     "int"
+    ],
+    [
+     "WWI Backorder ID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "Package",
+     "nvarchar"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "Unit Price",
+     "decimal"
+    ],
+    [
+     "Tax Rate",
+     "decimal"
+    ],
+    [
+     "Total Excluding Tax",
+     "decimal"
+    ],
+    [
+     "Tax Amount",
+     "decimal"
+    ],
+    [
+     "Total Including Tax",
+     "decimal"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Order Key",
+    "Order Date Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "City Key"
+     ],
+     "ref_table": "City",
+     "ref_columns": [
+      "City Key"
+     ]
+    },
+    {
+     "columns": [
+      "Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "Order Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Picked Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Picker Key"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "Employee Key"
+     ]
+    },
+    {
+     "columns": [
+      "Salesperson Key"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "Employee Key"
+     ]
+    },
+    {
+     "columns": [
+      "Stock Item Key"
+     ],
+     "ref_table": "Stock Item",
+     "ref_columns": [
+      "Stock Item Key"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Purchase",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Purchase Key",
+     "bigint"
+    ],
+    [
+     "Date Key",
+     "date"
+    ],
+    [
+     "Supplier Key",
+     "int"
+    ],
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "WWI Purchase Order ID",
+     "int"
+    ],
+    [
+     "Ordered Outers",
+     "int"
+    ],
+    [
+     "Ordered Quantity",
+     "int"
+    ],
+    [
+     "Received Outers",
+     "int"
+    ],
+    [
+     "Package",
+     "nvarchar"
+    ],
+    [
+     "Is Order Finalized",
+     "bit"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Purchase Key",
+    "Date Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Stock Item Key"
+     ],
+     "ref_table": "Stock Item",
+     "ref_columns": [
+      "Stock Item Key"
+     ]
+    },
+    {
+     "columns": [
+      "Supplier Key"
+     ],
+     "ref_table": "Supplier",
+     "ref_columns": [
+      "Supplier Key"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Sale",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Sale Key",
+     "bigint"
+    ],
+    [
+     "City Key",
+     "int"
+    ],
+    [
+     "Customer Key",
+     "int"
+    ],
+    [
+     "Bill To Customer Key",
+     "int"
+    ],
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "Invoice Date Key",
+     "date"
+    ],
+    [
+     "Delivery Date Key",
+     "date"
+    ],
+    [
+     "Salesperson Key",
+     "int"
+    ],
+    [
+     "WWI Invoice ID",
+     "int"
+    ],
+    [
+     "Description",
+     "nvarchar"
+    ],
+    [
+     "Package",
+     "nvarchar"
+    ],
+    [
+     "Quantity",
+     "int"
+    ],
+    [
+     "Unit Price",
+     "decimal"
+    ],
+    [
+     "Tax Rate",
+     "decimal"
+    ],
+    [
+     "Total Excluding Tax",
+     "decimal"
+    ],
+    [
+     "Tax Amount",
+     "decimal"
+    ],
+    [
+     "Profit",
+     "decimal"
+    ],
+    [
+     "Total Including Tax",
+     "decimal"
+    ],
+    [
+     "Total Dry Items",
+     "int"
+    ],
+    [
+     "Total Chiller Items",
+     "int"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Sale Key",
+    "Invoice Date Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Bill To Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "City Key"
+     ],
+     "ref_table": "City",
+     "ref_columns": [
+      "City Key"
+     ]
+    },
+    {
+     "columns": [
+      "Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "Delivery Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Invoice Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Salesperson Key"
+     ],
+     "ref_table": "Employee",
+     "ref_columns": [
+      "Employee Key"
+     ]
+    },
+    {
+     "columns": [
+      "Stock Item Key"
+     ],
+     "ref_table": "Stock Item",
+     "ref_columns": [
+      "Stock Item Key"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Stock Holding",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Stock Holding Key",
+     "bigint"
+    ],
+    [
+     "Stock Item Key",
+     "int"
+    ],
+    [
+     "Quantity On Hand",
+     "int"
+    ],
+    [
+     "Bin Location",
+     "nvarchar"
+    ],
+    [
+     "Last Stocktake Quantity",
+     "int"
+    ],
+    [
+     "Last Cost Price",
+     "decimal"
+    ],
+    [
+     "Reorder Level",
+     "int"
+    ],
+    [
+     "Target Stock Level",
+     "int"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Stock Holding Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Stock Item Key"
+     ],
+     "ref_table": "Stock Item",
+     "ref_columns": [
+      "Stock Item Key"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Transaction",
+   "schema": "Fact",
+   "columns": [
+    [
+     "Transaction Key",
+     "bigint"
+    ],
+    [
+     "Date Key",
+     "date"
+    ],
+    [
+     "Customer Key",
+     "int"
+    ],
+    [
+     "Bill To Customer Key",
+     "int"
+    ],
+    [
+     "Supplier Key",
+     "int"
+    ],
+    [
+     "Transaction Type Key",
+     "int"
+    ],
+    [
+     "Payment Method Key",
+     "int"
+    ],
+    [
+     "WWI Customer Transaction ID",
+     "int"
+    ],
+    [
+     "WWI Supplier Transaction ID",
+     "int"
+    ],
+    [
+     "WWI Invoice ID",
+     "int"
+    ],
+    [
+     "WWI Purchase Order ID",
+     "int"
+    ],
+    [
+     "Supplier Invoice Number",
+     "nvarchar"
+    ],
+    [
+     "Total Excluding Tax",
+     "decimal"
+    ],
+    [
+     "Tax Amount",
+     "decimal"
+    ],
+    [
+     "Total Including Tax",
+     "decimal"
+    ],
+    [
+     "Outstanding Balance",
+     "decimal"
+    ],
+    [
+     "Is Finalized",
+     "bit"
+    ],
+    [
+     "Lineage Key",
+     "int"
+    ]
+   ],
+   "primary_key": [
+    "Transaction Key",
+    "Date Key"
+   ],
+   "foreign_keys": [
+    {
+     "columns": [
+      "Bill To Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "Customer Key"
+     ],
+     "ref_table": "Customer",
+     "ref_columns": [
+      "Customer Key"
+     ]
+    },
+    {
+     "columns": [
+      "Date Key"
+     ],
+     "ref_table": "Date",
+     "ref_columns": [
+      "Date"
+     ]
+    },
+    {
+     "columns": [
+      "Payment Method Key"
+     ],
+     "ref_table": "Payment Method",
+     "ref_columns": [
+      "Payment Method Key"
+     ]
+    },
+    {
+     "columns": [
+      "Supplier Key"
+     ],
+     "ref_table": "Supplier",
+     "ref_columns": [
+      "Supplier Key"
+     ]
+    },
+    {
+     "columns": [
+      "Transaction Type Key"
+     ],
+     "ref_table": "Transaction Type",
+     "ref_columns": [
+      "Transaction Type Key"
+     ]
+    }
+   ]
+  }
+ ]
+}
