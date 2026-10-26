@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Fewer tokens per answer (before/after per tool in `docs/INFERENCE.md`): `analyze_schema` no longer repeats the
+  constant rule weights and the three per-table centrality maps (the ten most central tables keep their numbers, every
+  role its own); `plan_backend` leaves empty notes out and takes `mermaid=false`; `semantic_model_draft`,
+  `data_dictionary` and `dbt_schema` take `tables` as names or patterns and are bounded at 60 000 characters (the
+  document is cut on a line and the answer says so) instead of answering with a megabyte on 300 tables.
 - Naming from the real world (`fabric_backend/infer.py`): a documented synonym table (abbreviations such as `cust`,
   `prod`, `ord`, `emp`; Swedish and German business words in singular and plural), transliteration of `å ä ö ü ß`,
   irregular English plurals (`People` → `person`), the table-kind prefixes `dim_`/`fact_`/`tbl_`/`stg_`/`vw_`, the

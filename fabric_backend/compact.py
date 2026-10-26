@@ -87,7 +87,7 @@ def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict
     out = {
         "summary": p.summary(),
         "keys": {t: {"columns": k, "rule": r} for t, (k, r) in p.keys.items()},
-        "relationships": [r.__dict__ for r in p.relationships],
+        "relationships": [{k: v for k, v in r.__dict__.items() if k != "note" or v} for r in p.relationships],   # an empty note is noise
         "ambiguous": p.ambiguous, "keyless": p.keyless,
         "suggested_keys": suggested_keys,
     }
@@ -139,16 +139,38 @@ def analysis_summary(a: dict, keep: set[str] | None = None, top: int = 10, inact
 
 
 def analysis_filtered(a: dict, keep: set[str] | None) -> dict:
+    """The tool's full answer: without the constant `weights` and the per-table centrality maps (the ten most central
+    tables keep their numbers and every role carries its own), optionally narrowed to `keep`."""
+    out = {k: v for k, v in a.items() if k != "weights"}
+    out["centrality"] = {"top": list(a["centrality"]["top"])}
     if keep is None:
-        return a
-    out = dict(a)
+        return out
     out["roles"] = {t: r for t, r in a["roles"].items() if t in keep}
-    c = a["centrality"]
-    out["centrality"] = {"top": [x for x in c["top"] if x["table"] in keep], **{k: {t: v for t, v in c[k].items() if t in keep} for k in ("degree", "betweenness", "pagerank")}}
+    out["centrality"] = {"top": [x for x in a["centrality"]["top"] if x["table"] in keep]}
     out["areas"] = [g for g in a["areas"] if any(t in keep for t in g["tables"])]
     for k in ("active_relationships", "inactive_relationships"):
         out[k] = [e for e in a[k] if e["source"] in keep or e["target"] in keep]
     return out
+
+
+def bounded_text(body: dict, key: str, limit: int, hint: str = NARROW_HINT) -> str:
+    """A document answer (`markdown`, `yaml`) of at most `limit` characters: the text is cut on a line boundary and the
+    answer says where and what to do."""
+    text = json.dumps(body, indent=2, default=str)
+    if len(text) <= limit:
+        return text
+    doc = str(body.get(key, ""))
+    room = max(2000, limit - (len(text) - len(json.dumps(doc))) - 400)
+    out = dict(body)
+    while True:                                                      # JSON escaping makes the text longer than the characters it holds
+        cut = doc[:room]
+        cut = cut[: cut.rfind("\n") + 1] if "\n" in cut else cut
+        out[key] = cut
+        out["truncated"] = f"{key} cut after {len(cut)} of {len(doc)} characters: the whole document was too large for one answer. " + hint
+        text = json.dumps(out, indent=2, default=str)
+        if len(text) <= limit or room <= 2000:
+            return text
+        room = int(room * 0.9)
 
 
 def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
@@ -190,6 +212,13 @@ def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with fir
         text = json.dumps(slim, indent=2, default=str)
         if len(text) <= limit:
             return text
+    if isinstance(body, dict):                                        # a document in one string field: cut the longest string on a line
+        strings = [k for k, v in body.items() if isinstance(v, str)]
+        if strings:
+            longest = max(strings, key=lambda k: len(body[k]))
+            text = bounded_text(body, longest, limit, hint)
+            if len(text) <= limit:
+                return text
     preview = json.dumps(body, default=str)[:max(200, limit // 2 - 400)]
     return json.dumps({"truncated": "The result was too large for one answer even with one item per list; this is the start of it. "
                                     "Ask for fewer fields.", "preview": preview}, indent=2)

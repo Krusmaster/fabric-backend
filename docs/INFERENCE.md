@@ -144,6 +144,34 @@ stdio server.
 The 4.6 s of `analyze()` on 1 000 tables is betweenness centrality (one shortest-path tree per table); acceptable under
 a tool timeout, and `tables=` does not shorten it (the graph is analysed whole, then filtered).
 
+## Tokens per answer: the ten most used tools, before and after
+
+Measured on 26 October 2026 with Fabric mocked and the shop rows in SQLite (`validate_plan`, `sample_rows` and
+`suggest_relationships` count real rows there); bytes of the JSON answer. "Before" is the code of that morning (commit
+ecaf209), "after" the compact answers of round C plus the trims of round E: `analyze_schema` without the constant
+`weights` and the three per-table centrality maps (the ten most central tables keep their numbers, every role carries
+its own), `plan_backend` without empty `note` fields and with `mermaid=false` on request, and `semantic_model_draft`,
+`data_dictionary` and `dbt_schema` bounded at 60 000 characters with `tables` patterns for the rest.
+
+| Tool | shop before → after | 300 tables before → after |
+| --- | --- | --- |
+| `list_tables` | 1 123 → 1 123 | 158 672 → 8 605 (summary) |
+| `plan_backend` | 3 408 → 3 300 (2 100 with `mermaid=false`) | 443 000 → 44 585 (summary) |
+| `validate_plan` | 3 344 → 3 344 | needs rows |
+| `sample_rows` | 1 293 → 1 293 | needs rows |
+| `analyze_schema` | 5 671 → 4 655 | 747 000 → 21 231 (summary) |
+| `suggest_relationships` | 3 628 → 3 628 | 461 → 461 (no candidates without rows) |
+| `join_path` | 1 348 → 1 348 | 10 832 → 10 832 |
+| `semantic_model_draft` | 14 855 → 14 855 | 908 774 → 30 907 (table files left out, listed under `omitted`) |
+| `data_dictionary` | 10 235 → 10 235 | 989 145 → 55 384 (cut on a line, says so) |
+| `dbt_schema` | 4 290 → 4 290 | 436 916 → 56 180 (cut on a line, says so) |
+
+What was not changed: the `note` texts that say what a tool has and has not done live (tests pin several of them, and
+they are the only place an agent sees the verification status); the GraphQL field names in `plan_backend` (they are
+what `create_backend` and `describe_backend` use); the Mermaid diagram by default on small schemas (the docs promise
+it; `mermaid=false` and the summary form leave it out). The shop answers are already small; the gains are on large
+schemas, where a 1 MB answer is not an answer.
+
 ## Rerunning
 
 ```

@@ -327,20 +327,21 @@ def list_tables(workspace: str, source: str, schema: str = "dbo", tables: list[s
 @safe
 def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
                  confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto",
-                 ctx: Context = None) -> str:
+                 mermaid: bool = True, ctx: Context = None) -> str:
     """Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule
     that produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, names read through the synonym
     table, and a Mermaid ER diagram. Pass `keys` for composite keys ({"order_items": ["order_id","line_no"]}) and
     `confirmed` for relationships the rules missed. `tables` narrows the answer to names or patterns (["sales_*"]);
     the plan is still made from the whole schema. `detail` is "auto" (full up to 60 tables, then one line per key
-    and relationship without field names or diagram), "full" or "summary". Deploys nothing."""
+    and relationship without field names or diagram), "full" or "summary"; mermaid=false leaves the diagram out of a
+    full answer. Deploys nothing."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         return _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
-    return _bounded(_compact.plan_full(shown, suggested), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+    return _bounded(_compact.plan_full(shown, suggested, mermaid=bool(mermaid)), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
 
 
 def _connected(workspace: str, source: str, schema: str, ctx):
@@ -586,9 +587,12 @@ def semantic_model_draft(workspace: str, source: str, name: str = "semantic_mode
     """The plan as a Power BI semantic model in TMDL: one table per source table in Direct Lake mode on the source's
     SQL analytics endpoint, relationships with cardinality and filter direction (one active path per table pair, the
     rest inactive with the reason), keyless tables without relationships into them. Returns {path: content} for the
-    definition/ folder plus README.generated.md listing every decision to check. Creates nothing in Fabric."""
+    definition/ folder plus README.generated.md listing every decision to check. `tables` takes names or patterns
+    (["sales_*"]); on a large schema the table files are left out of the answer and `tables` gets them a few at a
+    time. Creates nothing in Fabric."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
-    check_tables(p.schema, tables)
+    keep = _compact.match_tables(p.schema, tables)
+    tables = sorted(keep, key=str.lower) if keep is not None else None
     out = _semantic_model.draft(p, info, name, tables)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples; drafted from a live lakehouse on 26 October 2026, "
                    "not yet created as an item. Open the "
@@ -601,7 +605,12 @@ def semantic_model_draft(workspace: str, source: str, name: str = "semantic_mode
         out["parts"] = {k: v for k, v in parts.items() if not k.startswith("definition/tables/")}
         out["note"] += " The table files were left out of this answer because of its size; pass `tables` to get a few at a time."
         text = json.dumps(out, indent=2)
-    return text
+        while len(text) > MAX_RESULT_CHARS and len(out["parts"]) > 1:            # then the largest remaining part, until it fits
+            biggest = max(out["parts"], key=lambda k: len(out["parts"][k]))
+            out["omitted"].append(biggest)
+            del out["parts"][biggest]
+            text = json.dumps(out, indent=2)
+    return text if len(text) <= MAX_RESULT_CHARS else _bounded(out, MAX_RESULT_CHARS, "Pass tables=[\"pattern*\"] to get a few tables at a time.")
 
 
 @mcp.tool(title="Shortest join path between two tables", annotations=RO)
@@ -657,10 +666,13 @@ def suggest_relationships(workspace: str, source: str, schema: str = "dbo", keys
 @mcp.tool(title="Data dictionary in Markdown", annotations=RO)
 @safe
 def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                    confirmed: list[dict] | None = None, validate: bool = False, max_items: int = 60, ctx: Context = None) -> str:
+                    confirmed: list[dict] | None = None, validate: bool = False, max_items: int = 60,
+                    tables: list[str] | None = None, ctx: Context = None) -> str:
     """Hand-over documentation for the source: every table with columns and types, keys and relationships with their
     rules, keyless tables, ambiguous columns and the ER diagram, with an empty Description column to fill in. With
-    validate=true the counts from validate_plan (key uniqueness, orphans) are included. Returns Markdown."""
+    validate=true the counts from validate_plan (key uniqueness, orphans) are included. `tables` takes names or
+    patterns (["sales_*"]) for one part of a large schema at a time; an answer over 60 000 characters is cut on a line
+    and says so. Returns Markdown."""
     if validate:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
@@ -671,8 +683,10 @@ def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict
     else:
         p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
         checked = None
-    md = _dictionary.data_dictionary(p, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"))
-    return json.dumps({"path": f"docs/{source}-{schema}-data-dictionary.md", "markdown": md, "summary": p.summary()}, indent=2)
+    keep = _compact.match_tables(p.schema, tables)
+    shown = _compact.sub_plan(p, keep)
+    md = _dictionary.data_dictionary(shown, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"))
+    return _compact.bounded_text({"path": f"docs/{source}-{schema}-data-dictionary.md", "markdown": md, "summary": p.summary()}, "markdown", MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="dbt schema.yml with source tests", annotations=RO)
@@ -683,13 +697,15 @@ def dbt_schema(workspace: str, source: str, schema: str = "dbo", source_name: st
     """A dbt sources file for the schema: `unique` and `not_null` on every inferred key column and `relationships`
     on every single-column relationship, in the syntax the dbt documentation gives (test arguments under
     `arguments:`; arguments_block=false writes them top-level for dbt before 1.10.5). Composite keys and
-    composite-column relationships are noted as comments. Returns the YAML text."""
+    composite-column relationships are noted as comments. `tables` takes names or patterns (["sales_*"]); an
+    answer over 60 000 characters is cut on a line and says so. Returns the YAML text."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
-    check_tables(p.schema, tables)
+    keep = _compact.match_tables(p.schema, tables)
+    tables = sorted(keep, key=str.lower) if keep is not None else None
     src = source_name or schema
     yml = _dbt.schema_yml(p, src, schema, database=item.get("sql_db") or item.get("displayName") or source,
                          tables=tables, arguments_block=arguments_block)
-    return json.dumps({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, indent=2)
+    return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="Compare today's plan with an existing GraphQL API", annotations=RO)

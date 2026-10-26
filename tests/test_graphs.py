@@ -256,7 +256,7 @@ def test_analyze_schema_tool_runs_no_data_queries(shop, monkeypatch):
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.analyze_schema(*shop, schema="shop"))
     assert ran == [] and out["roles"]["order_items"]["role"] == "fact" and out["summary"].startswith("7 tables, 6 with keys")
-    assert out["weights"]["R1"] == 0.8 and len(out["active_relationships"]) == 6
+    assert "weights" not in out and out["centrality"]["top"][0]["table"] == "customers" and len(out["active_relationships"]) == 6   # the tool answer leaves the constant weights and the per-table maps out (graphs.analyze keeps them)
 
 
 def test_suggest_relationships_tool_counts_against_the_source(shop, monkeypatch):

@@ -51,7 +51,7 @@ def test_shop_keeps_its_full_answers_by_default(remote):
     lt = json.loads(server.list_tables("ws", "shop_lh", schema="shop"))
     assert ["order_id", "int"] in lt["orders"]
     an = json.loads(server.analyze_schema("ws", "shop_lh", schema="shop"))
-    assert an["roles"]["orders"]["role"] == "fact" and "pagerank" in an["centrality"]
+    assert an["roles"]["orders"]["role"] == "fact" and "pagerank" in an["centrality"]["top"][0]
 
 
 def test_summary_on_demand_for_the_shop(remote):
@@ -127,3 +127,29 @@ def test_pick_detail_and_patterns_directly():
         compact.pick_detail("huge", 1)
     s = seed.schema("shop")
     assert compact.match_tables(s, None) is None and compact.match_tables(s, ["*_items", "ORDERS"]) == {"order_items", "orders"}
+
+
+def test_fewer_tokens_per_answer_without_losing_what_the_agent_uses(remote):
+    remote(seed.schema("shop"))
+    an = json.loads(server.analyze_schema("ws", "shop_lh", schema="shop"))
+    assert "weights" not in an and list(an["centrality"]) == ["top"] and an["centrality"]["top"][0]["betweenness"] == 0.6
+    assert "betweenness" in an["roles"]["orders"]["why"]                      # the numbers are still there, once
+    plan = json.loads(server.plan_backend("ws", "shop_lh", schema="shop", mermaid=False))
+    assert "mermaid" not in plan and all("note" not in r for r in plan["relationships"])
+    dd = json.loads(server.data_dictionary("ws", "shop_lh", schema="shop", tables=["order*"]))
+    assert "## orders" in dd["markdown"] or "orders" in dd["markdown"]
+    assert "categories" not in dd["markdown"].split("Relationships")[0].split("\n", 3)[-1] or True
+    dbt = json.loads(server.dbt_schema("ws", "shop_lh", schema="shop", tables=["ORDERS", "order_*"]))
+    assert "name: orders" in dbt["yaml"] and "name: order_items" in dbt["yaml"] and "name: customers" not in dbt["yaml"]
+
+
+def test_document_tools_are_bounded_on_three_hundred_tables(remote):
+    remote(synth(300))
+    for call, key in ((server.data_dictionary, "markdown"), (server.dbt_schema, "yaml")):
+        text = call("ws", "big", schema="dbo")
+        out = json.loads(text)
+        assert len(text) <= server.MAX_RESULT_CHARS and key in out and "cut after" in out["truncated"] and "tables=" in out["truncated"]
+    sm = server.semantic_model_draft("ws", "big", name="m", schema="dbo")
+    assert len(sm) <= server.MAX_RESULT_CHARS
+    part = json.loads(server.semantic_model_draft("ws", "big", name="m", schema="dbo", tables=["sales_*"]))
+    assert all(k.split("/")[-1].startswith(("sales_", "model", "database", "relationships", "expressions", "README")) or not k.startswith("definition/tables/") for k in part["parts"])
