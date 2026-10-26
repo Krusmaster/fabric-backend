@@ -439,7 +439,8 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     tools = {"list_workspaces", "list_sources", "list_tables", "plan_backend", "sample_rows", "validate_plan", "create_backend",
              "describe_backend", "query_graphql", "rayfin_connector", "ontology_draft", "semantic_model_draft", "join_path",
              "data_dictionary", "dbt_schema", "plan_drift", "create_semantic_model", "create_views", "create_data_agent",
-             "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology"}
+             "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology",
+             "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft"}
     assert tools <= defined
     docs = client.get("/docs").text
     for t in tools:
@@ -449,7 +450,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "validate_plan" in home and "Tested end to end against a live Fabric workspace with synthetic data, 25 October 2026" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Twenty-five tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Thirty tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert "K0–K5 and R0–R4" in home and "K0–K3" not in home and "K0–K3" not in docs
 
 

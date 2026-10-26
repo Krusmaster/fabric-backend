@@ -15,8 +15,9 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): list_workspaces, list_sources, list_tables, plan_backend, ontology_draft,
-create_backend, rayfin_connector, query_graphql.
+Tools (all annotated for the Claude directory): thirty, from list_workspaces to create_drift_monitor; docs page /docs
+lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
+check (entitlements.py).
 """
 from __future__ import annotations
 
@@ -72,9 +73,15 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "semantic models, views and data agents in the workspace build on a source's tables and what a change to one table "
     "reaches; plan_drift names those objects for the tables and columns a re-run would drop. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
     "subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks "
-    "candidate columns and checks the best against the data, suggesting only. "
+    "candidate columns and checks the best against the data, suggesting only. From understanding to building: "
+    "silver_notebook_draft and create_silver_notebook give a Fabric PySpark notebook that writes de-duplicated silver "
+    "tables with every reference checked and a quarantine table, never over the source; drift_monitor_draft and "
+    "create_drift_monitor a nightly notebook and pipeline that compare the plan with the last one and message a "
+    "webhook; answer_query_draft turns a question (Swedish or English) into T-SQL over the safest join path, or "
+    "GraphQL for an existing API, and query_graphql with question= runs it. "
     "A call that cannot be completed answers with error (plain words), "
-    "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout) and "
+    "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, "
+    "rate_limited with retry_after) and "
     "hint (the next step that fixes it). Five first questions that pay off on a lakehouse nobody has documented: "
     "(1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys "
     "and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; "
@@ -211,6 +218,8 @@ def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     props = r.json().get("properties", {})
     ep = props.get("sqlEndpointProperties") or {}
     item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
+    if ep.get("id"):                                   # what a GraphQL API over this source names as its sourceItemId (lineage)
+        item["sql_endpoint_id"] = ep["id"]
     # a Fabric SQL database's actual database name carries a suffix (properties.databaseName); the others use the display name
     item["sql_db"] = props.get("databaseName") or item.get("displayName")
     # a lakehouse created with schemas carries properties.defaultSchema (lakehouse/definitions.json: "returned only for
@@ -453,7 +462,8 @@ def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n:
             return json.dumps({"error": f"no table {table!r} in schema {schema!r} of {source!r}",
                                "kind": "table_not_found", "hint": "list_tables shows the tables in a schema."}, indent=2)
         n = max(1, min(int(n), 20))
-        rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, n))
+        types = {c.name: c.data_type for c in t.columns}           # binary as its size, CLR types as text (as the local server does)
+        rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, n, types))
     finally:
         getattr(execute, "close", lambda: None)()
 
@@ -874,8 +884,9 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
                  keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, dry_run: bool = True,
                  ctx: Context = None) -> str:
     """Wide views over the plan in the source's SQL analytics endpoint or warehouse, only inside `views_schema`
-    (created if missing): one per fact table with its dimensions joined in, plus one per relationship that is hard
-    to read from the names. CREATE OR ALTER VIEW only — never DROP, never anything outside that schema; identifiers
+    (created if missing): one per fact table with its dimensions joined in, one per header table (vw_orders: the
+    orders with their customer and, once confirmed, the ship-to address), plus one per relationship that is hard to
+    read from the names. CREATE OR ALTER VIEW only — never DROP, never anything outside that schema; identifiers
     come from the source's metadata. dry_run=true returns the SQL. Needs rights to create objects on the endpoint
     (Contributor on the workspace is enough for a warehouse or a lakehouse's endpoint)."""
     s, execute = _connected(workspace, source, schema, ctx)
@@ -931,6 +942,248 @@ def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo
     return _finish_create(out, result, "Item.ReadWrite.All (or DataAgent.ReadWrite.All)", f"creating the data agent {name!r}")
 
 
+# ------------------------------------------------------------------ notebooks ----------------
+# From understanding to building: notebooks generated from the plan (silver.py, monitor.py; format in notebook.py).
+
+NOTEBOOK_SCOPE = "Notebook.ReadWrite.All (or Item.ReadWrite.All)"
+NOTEBOOK_SPEC = ("microsoft/fabric-rest-api-specs notebook/swagger.json: Items_CreateNotebook and Items_UpdateNotebookDefinition, "
+                 "long-running, delegated scope Notebook.ReadWrite.All or Item.ReadWrite.All, Contributor on the workspace; "
+                 "definition format fabricGitSource (notebook/definitions.json); read 26 October 2026 (commit a96c37a)")
+
+
+def _lakehouse_only(info: dict, tool: str) -> str | None:
+    if info.get("item_kind") == "Lakehouse":
+        return None
+    return json.dumps({"error": f"{tool} writes Delta tables with Spark, which needs a lakehouse; {info.get('item_name')!r} is a "
+                                f"{info.get('item_kind')}.", "kind": "unsupported",
+                       "hint": "Add the tables to a lakehouse as OneLake shortcuts (Get data -> New shortcut) and plan that lakehouse; "
+                               "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
+
+
+def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx):
+    from . import silver as _silver_mod
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    refusal = _lakehouse_only(info, "The silver notebook")
+    if refusal:
+        return None, None, None, refusal
+    spec = _silver_mod.spec(p, info, silver_schema, order_by, tables)
+    return p, info, spec, None
+
+
+def _silver_answer(p, info, spec, name: str) -> dict:
+    from . import silver as _silver_mod
+    text = _silver_mod.notebook_source(spec)
+    target = f"schema {spec['silver_schema']}" if spec["source"]["schemas_enabled"] else f"tables prefixed {spec['silver_schema']}_"
+    out = {"summary": p.summary().splitlines()[0] + f"; the notebook writes {len(spec['tables'])} silver table(s) to {target} "
+                      f"in {info['item_name']}, and {_silver_mod.QUARANTINE}; the source tables are only read",
+           "steps": _silver_mod.steps(spec), "not_checked": spec["not_checked"],
+           "notebook": {"name": name, "path": "notebook-content.py", "format": "fabricGitSource", "content": text},
+           "run": ["Open the notebook in Fabric (it is attached to the lakehouse) and Run all, or add it to a pipeline or a schedule.",
+                   f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason.",
+                   "Run it again whenever the source changes: every silver table is rewritten from the source."],
+           "note": ("Unit-tested: the steps run in Python on the shop seed with duplicates and broken references added, and the generated "
+                    "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026); not yet "
+                    "run in a Fabric workspace.")}
+    if len(json.dumps(out)) > MAX_RESULT_CHARS:
+        out["notebook"].pop("content")
+        out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; pass tables=[...] for a few at a "
+                                      "time, or create it with create_silver_notebook, which sends the whole notebook to Fabric")
+    return out
+
+
+@mcp.tool(title="Draft a PySpark notebook that builds silver tables (nothing created)", annotations=RO)
+@safe
+def silver_notebook_draft(workspace: str, source: str, schema: str = "dbo", silver_schema: str = "silver",
+                          order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
+                          confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
+    """A Fabric notebook (PySpark) that builds clean silver tables from a lakehouse's tables, generated from the plan:
+    per table it de-duplicates on the inferred or given key (the latest row by `order_by` {table: column} wins, else a
+    column named like updated_at), checks every relationship and puts rows whose reference is missing in the
+    quarantine table krusgraph_quarantine with the reason, and writes Delta tables in `silver_schema` only. Every step
+    is commented with the rule (K0–K5, R0–R4) behind it; re-running it rewrites the same tables. Returns the steps and
+    the notebook source; creates nothing."""
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx)
+    if refusal:
+        return refusal
+    return json.dumps(_silver_answer(p, info, spec, f"silver_{schema}"), indent=2)
+
+
+@mcp.tool(title="Create or update the silver-tables notebook in Fabric (dry run by default)", annotations=WRITE)
+@safe
+def create_silver_notebook(workspace: str, source: str, name: str, schema: str = "dbo", silver_schema: str = "silver",
+                           order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
+                           confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
+                           ctx: Context = None) -> str:
+    """Create a Fabric notebook item with the silver_notebook_draft notebook, attached to the source lakehouse, or update
+    the notebook of that name in place; never deletes, and creating it runs nothing (the notebook runs when someone
+    runs it in Fabric). dry_run=true (the default) returns the notebook and the REST call without creating anything.
+    POST /workspaces/{id}/notebooks and .../updateDefinition need the delegated permission Notebook.ReadWrite.All or
+    Item.ReadWrite.All and Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json)."""
+    from . import notebook as _notebook
+    from .deploy import create_item_with_definition
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx)
+    if refusal:
+        return refusal
+    out = _silver_answer(p, info, spec, name)
+    out["dry_run"] = dry_run
+    out["rest"] = {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks",
+                   "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks/{{id}}/updateDefinition",
+                   "delegated_scope": NOTEBOOK_SCOPE, "workspace_role": "Contributor", "parts": ["notebook-content.py", ".platform"],
+                   "spec": NOTEBOOK_SPEC}
+    if dry_run:
+        return json.dumps(out, indent=2)
+    from . import silver as _silver_mod
+    body = _notebook.envelope(name, _silver_mod.notebook_source(spec), f"Silver tables for {info['item_name']}.{schema}, generated by Krusgraph from the plan")
+    out.get("notebook", {}).pop("content", None)                                  # sent to Fabric; the answer keeps the steps
+    result = create_item_with_definition("notebooks", "Notebook", body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, NOTEBOOK_SCOPE, f"creating the notebook {name!r}")
+
+
+PIPELINE_SCOPE = "DataPipeline.ReadWrite.All (or Item.ReadWrite.All)"
+SCHEDULE_SCOPE = "DataPipeline.Execute.All (or Item.Execute.All) together with DataPipeline.ReadWrite.All (or Item.ReadWrite.All)"
+
+
+def _monitor_inputs(workspace, source, schema, ctx):
+    p, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    refusal = _lakehouse_only(info, "The drift monitor")
+    if refusal:
+        return None, None, refusal
+    source_id, source_type = source_for(info["workspace_id"], {"type": info["item_kind"], "id": info["item_id"]}, _headers(ctx))
+    src = {k: info[k] for k in ("workspace_id", "item_id", "item_name", "schema", "schemas_enabled", "sql_db")}
+    src.update(source_id=source_id, source_type=source_type)
+    return p, src, None
+
+
+def _check_at(at: str) -> None:
+    import re as _re
+    if not _re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", at or ""):
+        from .infer import PlanInputError
+        raise PlanInputError("at: the time of day as hh:mm, for example 02:00")
+
+
+def _step_failed(out: dict, step: str, result: dict, scope: str, where: str) -> str:
+    """One step of a several-item create failed: the steps before it stay in `result`, the error says which scope or
+    what Fabric answered (the same mapping as _finish_create)."""
+    answer = json.loads(_finish_create({}, result, scope, where))
+    answer.pop("result", None)
+    out.update(answer)
+    out["result"][step] = {k: v for k, v in result.items() if k != "body"}
+    return json.dumps(out, indent=2, default=str)
+
+
+def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_ref: str) -> dict:
+    from . import monitor as _monitor, notebook as _notebook
+    label = f"{src['item_name']}.{src['schema']}"
+    text = _notebook.fabric_source(_monitor.notebook_cells(src, library_ref),
+                                   _notebook.notebook_metadata(src["workspace_id"], src["item_id"], src["item_name"]))
+    first = _monitor.summary_text(label, _monitor.diff(None, _monitor.snapshot(p)))
+    return {"summary": p.summary().splitlines()[0] + f"; every night at {at} ({time_zone}) the monitor compares {label}'s plan with "
+                       "the last saved one and sends the changes to the webhook set on the pipeline",
+            "notebook": {"name": name, "path": "notebook-content.py", "format": "fabricGitSource", "content": text},
+            "pipeline": {"name": f"{name}_nightly", "path": "pipeline-content.json",
+                         "content": _monitor.pipeline_content("<the notebook's id, filled in when it is created>", src["workspace_id"], label)},
+            "schedule": _monitor.schedule_body(at, time_zone),
+            "plans_table": _monitor.plans_table(bool(src["schemas_enabled"])).replace("`", ""),
+            "message_example": _monitor.teams_message(*first),
+            "set_up_in_fabric": ["Open the pipeline, Parameters: set webhook_url's default value to a Teams workflow webhook "
+                                 "(\"When a Teams webhook request is received\") or a Power Automate HTTP trigger that sends an e-mail.",
+                                 "Open the Notebook activity once and check its Connection: if Fabric asks for one, choose your account or the "
+                                 "workspace identity; the run reads the workspace's items with that identity.",
+                                 "Run the pipeline once by hand: the first run saves the baseline plan and reports 'first run'."],
+            "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema; not yet run in a "
+                     "Fabric workspace. The notebook installs this library from GitHub (%pip, allowed in pipeline runs by "
+                     "_inlineInstallationEnabled); pass library_ref to pin a commit.")}
+
+
+@mcp.tool(title="Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)", annotations=RO)
+@safe
+def drift_monitor_draft(workspace: str, source: str, schema: str = "dbo", name: str = "", at: str = "02:00",
+                        time_zone: str = "W. Europe Standard Time", library_ref: str = "main", ctx: Context = None) -> str:
+    """A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one
+    saved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the
+    lakehouse (krusgraph.plans), and send a short summary ("column X in table Y disappeared; these APIs and views use
+    it") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone
+    id). Returns the notebook, the pipeline definition and the schedule; creates nothing."""
+    _check_at(at)
+    p, src, refusal = _monitor_inputs(workspace, source, schema, ctx)
+    if refusal:
+        return refusal
+    out = _monitor_answer(p, src, name or f"drift_monitor_{schema}", at, time_zone, library_ref)
+    return _bounded(out, MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Create or update the nightly drift monitor in Fabric (dry run by default)", annotations=WRITE)
+@safe
+def create_drift_monitor(workspace: str, source: str, name: str, schema: str = "dbo", at: str = "02:00",
+                         time_zone: str = "W. Europe Standard Time", library_ref: str = "main", schedule: bool = True,
+                         dry_run: bool = True, ctx: Context = None) -> str:
+    """Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in
+    place, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret
+    is written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the
+    default) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and
+    DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or
+    Item.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json)."""
+    import requests as _requests
+    from . import monitor as _monitor, notebook as _notebook
+    from .deploy import create_item_with_definition
+    _check_at(at)
+    p, src, refusal = _monitor_inputs(workspace, source, schema, ctx)
+    if refusal:
+        return refusal
+    out = _monitor_answer(p, src, name, at, time_zone, library_ref)
+    ws = src["workspace_id"]
+    out["dry_run"] = dry_run
+    out["rest"] = [{"step": "notebook", "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/notebooks", "or_update": ".../notebooks/{id}/updateDefinition",
+                    "delegated_scope": NOTEBOOK_SCOPE},
+                   {"step": "pipeline", "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines", "or_update": ".../dataPipelines/{id}/updateDefinition",
+                    "delegated_scope": PIPELINE_SCOPE},
+                   {"step": "schedule", "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{{id}}/jobs/execute/schedules",
+                    "delegated_scope": SCHEDULE_SCOPE, "skipped_when": "schedule=false, or a daily schedule at the same time exists"}]
+    out["spec"] = ("microsoft/fabric-rest-api-specs a96c37a: notebook/swagger.json Items_CreateNotebook; dataPipeline/swagger.json "
+                   "Items_CreateDataPipeline, Items_UpdateDataPipelineDefinition, BackgroundJobs_ScheduleExecute (at most 20 schedules per "
+                   "pipeline); common/job_scheduling.json DailyScheduleConfig; read 26 October 2026")
+    if dry_run:
+        return _bounded(out, MAX_RESULT_CHARS)
+    label = f"{src['item_name']}.{schema}"
+    token = lambda: auth.fabric(ctx)  # noqa: E731
+    out["notebook"].pop("content", None)
+    out["result"] = {}
+    nb = create_item_with_definition("notebooks", "Notebook", _notebook.envelope(name, _notebook.fabric_source(
+        _monitor.notebook_cells(src, library_ref), _notebook.notebook_metadata(ws, src["item_id"], src["item_name"])),
+        f"Krusgraph drift monitor for {label}"), ws, token_provider=token)
+    out["result"]["notebook"] = {k: v for k, v in nb.items() if k != "body"}
+    if nb.get("status") != "Succeeded":
+        return _step_failed(out, "notebook", nb, NOTEBOOK_SCOPE, f"creating the notebook {name!r}")
+    content = _monitor.pipeline_content(nb["id"], ws, label)
+    out["pipeline"]["content"] = content
+    pl = create_item_with_definition("dataPipelines", "DataPipeline", _notebook.pipeline_envelope(f"{name}_nightly", content,
+                                     f"Krusgraph drift monitor for {label}"), ws, token_provider=token)
+    out["result"]["pipeline"] = {k: v for k, v in pl.items() if k != "body"}
+    if pl.get("status") != "Succeeded":
+        return _step_failed(out, "pipeline", pl, PIPELINE_SCOPE, f"creating the pipeline {name + '_nightly'!r}")
+    if not schedule:
+        out["result"]["schedule"] = {"status": "Skipped", "why": "schedule=false"}
+    else:
+        headers = _headers(ctx)
+        url = f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{pl['id']}/jobs/execute/schedules"
+        r = _requests.get(url, headers=headers, timeout=30)
+        existing = r.json().get("value", []) if getattr(r, "status_code", 0) == 200 else []
+        same = [x for x in existing if (x.get("configuration") or {}).get("type") == "Daily" and at in ((x.get("configuration") or {}).get("times") or [])]
+        if same:
+            out["result"]["schedule"] = {"status": "Succeeded", "mode": "kept", "id": same[0].get("id"),
+                                         "why": f"a daily schedule at {at} exists; {len(existing)} schedule(s) left as they are"}
+        else:
+            r = _requests.post(url, headers=headers, json=out["schedule"], timeout=30)
+            status = getattr(r, "status_code", 0)
+            if status not in (200, 201):
+                return _step_failed(out, "schedule", {"status": "Failed", "http": status, "body": getattr(r, "text", "")}, SCHEDULE_SCOPE,
+                                    f"scheduling the pipeline {name + '_nightly'!r}")
+            body = r.json() if getattr(r, "text", "") else {}
+            out["result"]["schedule"] = {"status": "Succeeded", "mode": "created", "id": (body or {}).get("id")}
+    out["result"]["status"] = "Succeeded"
+    return json.dumps(out, indent=2, default=str)
+
+
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
 @safe
 def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
@@ -975,53 +1228,20 @@ def app_readiness(workspace: str, api: str, ctx: Context = None) -> str:
 
 
 def _workspace_items(workspace: str, headers: dict) -> list[dict]:
-    """Every item in the workspace (id, displayName, type), all pages."""
-    out, url = [], f"{FABRIC}/v1/workspaces/{workspace}/items"
-    while url:
-        r = requests.get(url, headers=headers, timeout=30)
-        r.raise_for_status()
-        body = r.json()
-        out += body.get("value", [])
-        url = body.get("continuationUri")
-    return out
+    """Every item in the workspace (id, displayName, type), all pages (lineage.rest_items)."""
+    return _lineage.rest_items(workspace, headers)
 
 
 def _item_definition_parts(workspace: str, route: str, item_id: str, headers: dict, fmt: str | None = None) -> dict[str, str]:
-    """{path: text} of an item's definition (POST /workspaces/{ws}/{route}/{id}/getDefinition, long-running when Fabric says so)."""
-    from .deploy import wait_operation
-    url = f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item_id}/getDefinition" + (f"?format={fmt}" if fmt else "")
-    r = requests.post(url, headers=headers, timeout=60)
-    status = getattr(r, "status_code", 200)
-    if status == 202:
-        op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
-        result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
-        if result.get("status") != "Succeeded":
-            raise RuntimeError(f"reading the definition did not finish: {result.get('status')}")
-        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
-        status = getattr(r, "status_code", 200)
-    if status >= 400:
-        r.raise_for_status()
-    return _lineage.decode_parts((r.json().get("definition") or {}).get("parts", []))
+    """{path: text} of an item's definition (lineage.rest_definition_parts)."""
+    return _lineage.rest_definition_parts(workspace, route, item_id, headers, fmt)
 
 
 def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, execute=None) -> tuple[list[dict], list[dict]]:
-    """Edges table -> object over every item in the workspace that can be read, plus the items that could not."""
+    """Edges table -> object over every item in the workspace that can be read, plus the items that could not
+    (lineage.workspace_edges, with this module's readers so the tests can stand in for Fabric)."""
     from .errors import explain
-    source_id = item.get("id")
-    databases = {item.get("sql_db") or "", item.get("displayName") or ""}
-    edges: list[dict] = []
-    skipped: list[dict] = []
-    for it in _workspace_items(workspace_id, headers):
-        kind, meta = it.get("type"), {"id": it.get("id"), "displayName": it.get("displayName")}
-        try:
-            if kind == "GraphQLApi":
-                edges += _lineage.from_graphql_definition(_graphql_definition(workspace_id, it["id"], headers), meta, source_id, schema, tables)
-            elif kind == "SemanticModel":
-                edges += _lineage.from_tmdl_parts(_item_definition_parts(workspace_id, "semanticModels", it["id"], headers, fmt="TMDL"), meta, databases, schema, tables)
-            elif kind == "DataAgent":
-                edges += _lineage.from_data_agent_parts(_item_definition_parts(workspace_id, "dataAgents", it["id"], headers), meta, source_id, schema, tables)
-        except Exception as e:  # noqa: BLE001 — one unreadable item must not hide the rest
-            skipped.append({"item": it.get("displayName"), "kind": kind, "reason": explain(e, f"reading {it.get('displayName')!r}").get("kind", "unexpected")})
+    rows, view_skip = None, []
     if execute is not None:
         try:
             rows = list(execute(_lineage.VIEW_USAGE_SQL))
@@ -1030,9 +1250,10 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
                 rows = list(execute(_lineage.VIEW_USAGE_SQL_SYS))
             except Exception as e:  # noqa: BLE001
                 rows = []
-                skipped.append({"item": "views on the SQL endpoint", "kind": "View", "reason": explain(e, "reading view dependencies").get("kind", "unexpected")})
-        edges += _lineage.from_view_rows(rows, item, schema, tables)
-    return edges, skipped
+                view_skip.append({"item": "views on the SQL endpoint", "kind": "View", "reason": explain(e, "reading view dependencies").get("kind", "unexpected")})
+    edges, skipped = _lineage.workspace_edges(workspace_id, item, schema, tables, headers, rows, items=_workspace_items,
+                                              graphql_definition=_graphql_definition, definition_parts=_item_definition_parts)
+    return edges, skipped + view_skip
 
 
 @mcp.tool(title="Lineage: what builds on a source's tables", annotations=RO)
@@ -1059,26 +1280,8 @@ def lineage(workspace: str, source: str, schema: str = "dbo", table: str | None 
 
 
 def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
-    """graphql-definition.json of an API for GraphQL item (getDefinition, long-running when Fabric says so)."""
-    import base64
-    import requests
-    from .deploy import wait_operation
-    r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/items/{api_id}/getDefinition", headers=headers, timeout=60)
-    status = getattr(r, "status_code", 200)
-    if status == 202:
-        op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
-        result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
-        if result.get("status") != "Succeeded":
-            raise RuntimeError(f"reading the API definition did not finish: {result.get('status')}")
-        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
-        status = getattr(r, "status_code", 200)
-    if status >= 400:
-        r.raise_for_status()
-    parts = (r.json().get("definition") or {}).get("parts", [])
-    part = next((x for x in parts if x.get("path") == "graphql-definition.json"), None)
-    if not part:
-        raise RuntimeError("the API has no graphql-definition.json part")
-    return json.loads(base64.b64decode(part["payload"]))
+    """graphql-definition.json of an API for GraphQL item (lineage.rest_graphql_definition)."""
+    return _lineage.rest_graphql_definition(workspace, api_id, headers)
 
 
 def describe_definition(body: dict) -> dict:
@@ -1116,14 +1319,30 @@ def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
     return json.dumps(describe_definition(_graphql_definition(workspace, api_id, headers)), indent=2)
 
 
-@mcp.tool(title="Run a GraphQL query", annotations=RO)
+@mcp.tool(title="Suggest a GraphQL or T-SQL query for a question (runs nothing)", annotations=RO)
 @safe
-def query_graphql(workspace: str, api: str, query: str, variables: dict | None = None, ctx: Context = None) -> str:
-    """Run a read-only GraphQL query against a Microsoft Fabric API for GraphQL item (name or id) in the workspace,
-    see https://learn.microsoft.com/fabric/data-engineering/api-graphql-overview. Query fields are named <type>s,
-    e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest; describe_backend lists the
-    exact names. Mutations and subscriptions are refused."""
-    import requests
+def answer_query_draft(workspace: str, source: str, question: str, tables: list[str], schema: str = "dbo", api: str | None = None,
+                       keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+    """A query for a question in Swedish or English about the given tables: T-SQL over the safest join path of the plan
+    (each step with the rule behind its relationship), and with `api` (an API for GraphQL item over the source) the
+    GraphQL query in that API's field names, or why GraphQL cannot answer it (aggregations group only by a table's own
+    columns). Reads counts, sums, averages, "per"/"för varje" groupings, top N and "latest" from the question and
+    lists what it assumed. Runs nothing; query_graphql with question= runs the GraphQL version."""
+    from . import answers as _answers
+    p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    description = None
+    if api:
+        workspace_id = _workspace_id(workspace, headers)
+        api_id = _api_id(workspace_id, api, headers)
+        if not api_id:
+            return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                               "hint": "list_sources lists the GraphQL APIs in a workspace; leave api out for the T-SQL alone."}, indent=2)
+        description = describe_definition(_graphql_definition(workspace_id, api_id, headers))
+    return _bounded(_answers.draft(p, question, tables, description, api), MAX_RESULT_CHARS)
+
+
+def _check_query(query: str) -> str | None:
+    """The read-only guard: one GraphQL query operation (fragments allowed), else the refusal as JSON."""
     from graphql import GraphQLError, OperationType, parse
     from graphql.language import FragmentDefinitionNode, OperationDefinitionNode
     try:
@@ -1141,6 +1360,45 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
                                    for node in document.definitions):
         return json.dumps({"error": "Send exactly one GraphQL query operation (fragments are allowed).", "kind": "invalid_query",
                            "hint": "Split several operations into separate calls."})
+    return None
+
+
+@mcp.tool(title="Run a GraphQL query", annotations=RO)
+@safe
+def query_graphql(workspace: str, api: str, query: str = "", variables: dict | None = None, question: str | None = None,
+                  tables: list[str] | None = None, source: str | None = None, schema: str = "dbo", ctx: Context = None) -> str:
+    """Run a read-only GraphQL query against a Microsoft Fabric API for GraphQL item (name or id) in the workspace,
+    see https://learn.microsoft.com/fabric/data-engineering/api-graphql-overview. Query fields are named <type>s,
+    e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest; describe_backend lists the
+    exact names. Instead of `query`, pass `question` with `tables` and `source` (the lakehouse or warehouse the API
+    reads): the query answer_query_draft suggests is built and run, and the answer shows it. Mutations and
+    subscriptions are refused."""
+    import requests
+    if not query and not question:
+        return json.dumps({"error": "Give a GraphQL query, or a question with the tables it is about.", "kind": "bad_input",
+                           "hint": "answer_query_draft shows the query a question becomes before anything runs."})
+    suggestion = None
+    if not query:
+        if not tables or not source:
+            return json.dumps({"error": "A question needs `tables` (the tables it is about) and `source` (the lakehouse or warehouse the API reads).",
+                               "kind": "bad_input", "hint": "list_sources shows the sources; answer_query_draft previews the query."})
+        from . import answers as _answers
+        p, _, headers = _plan(workspace, source, schema, None, None, ctx)
+        workspace_id = _workspace_id(workspace, headers)
+        api_id = _api_id(workspace_id, api, headers)
+        if not api_id:
+            return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                               "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
+        draft = _answers.draft(p, question, tables, describe_definition(_graphql_definition(workspace_id, api_id, headers)), api)
+        if not draft["graphql"].get("query"):
+            return json.dumps({"error": f"This question has no GraphQL form on {api!r}: {draft['graphql'].get('not_possible')}",
+                               "kind": "unsupported", "hint": "Run the T-SQL below on the SQL analytics endpoint instead.", "tsql": draft["tsql"]}, indent=2)
+        query = draft["graphql"]["query"]
+        suggestion = {"question": question, "query": query, "understood": draft["understood"], "path": draft["path"],
+                      "assumptions": draft["assumptions"], "notes": draft["graphql"].get("notes", [])}
+    refused = _check_query(query)
+    if refused:
+        return refused
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     if len(api) == 36 and api.count("-") == 4:
@@ -1159,6 +1417,8 @@ def query_graphql(workspace: str, api: str, query: str, variables: dict | None =
         body = r.json()
     except ValueError:
         body = {"http": r.status_code, "text": r.text[:2000]}
+    if suggestion is not None:
+        body = {"suggested": suggestion, "result": body}
     return _bounded(body, MAX_RESULT_CHARS)
 
 

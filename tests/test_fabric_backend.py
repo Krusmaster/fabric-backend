@@ -306,7 +306,7 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
     ts = asyncio.run(tools())
     assert {t.name for t in ts} == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql", "ontology_draft", "validate_plan", "sample_rows", "describe_backend",
                                     "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift",
-                                    "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology"}
+                                    "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology", "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft"}
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
         assert t.annotations.title == t.title, t.name                                               # the directory reads annotations.title

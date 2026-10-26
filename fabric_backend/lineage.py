@@ -15,8 +15,10 @@ keeps the truth about it:
                    documented only in a Learn article this code could not read, so the part is searched as text for the
                    source item id and the table names: "named in the definition", not certain.
 
-Everything here is pure: the server fetches and passes the bodies; the tests pass recorded ones. Unit-tested, not yet
-run against a live workspace.
+The parsers are pure: the server fetches and passes the bodies; the tests pass recorded ones. `workspace_edges()` and
+the three `rest_*` readers at the end fetch them with a Fabric token; the server's lineage and plan_drift and the
+nightly drift monitor notebook (monitor.py) use them, so the logic lives here once. Unit-tested, not yet run against a
+live workspace.
 """
 from __future__ import annotations
 
@@ -46,12 +48,15 @@ def edge(table: str, kind: str, name: str, item_id: str, via: str, certain: bool
     return {"table": table, "kind": kind, "object": name, "id": item_id, "via": via, "certain": certain}
 
 
-def from_graphql_definition(body: dict, item: dict, source_id: str | None, schema: str, tables: set[str]) -> list[dict]:
-    """objects whose datasource is the source item (or any, when the id is unknown) and whose sourceObject is one of our tables."""
+def from_graphql_definition(body: dict, item: dict, source_id, schema: str, tables: set[str]) -> list[dict]:
+    """objects whose datasource is the source item (or any, when the id is unknown) and whose sourceObject is one of our
+    tables. `source_id` is one id or a set: an API over a lakehouse names the lakehouse's SQL analytics endpoint, so
+    the caller passes both the lakehouse's id and its endpoint's."""
     out = []
     lower = {t.lower(): t for t in tables}
+    ids = set(source_id) if isinstance(source_id, (set, frozenset, list, tuple)) else ({source_id} if source_id else set())
     for ds in body.get("datasources", []):
-        if source_id and ds.get("sourceItemId") and ds["sourceItemId"] != source_id:
+        if ids and ds.get("sourceItemId") and ds["sourceItemId"] not in ids:
             continue
         for o in ds.get("objects", []):
             so = str(o.get("sourceObject", ""))
@@ -193,3 +198,85 @@ def as_json(text: str) -> dict:
         return json.loads(text)
     except ValueError:
         return {}
+
+
+# ------------------------------------------------------------------ reading the workspace ---------------------------
+# Library functions: the MCP server passes its own (patchable) readers; the drift monitor notebook uses these directly.
+
+def rest_items(workspace: str, headers: dict) -> list[dict]:
+    """Every item in the workspace (id, displayName, type), all pages."""
+    import requests
+    from .deploy import FABRIC
+    out, url = [], f"{FABRIC}/v1/workspaces/{workspace}/items"
+    while url:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += body.get("value", [])
+        url = body.get("continuationUri")
+    return out
+
+
+def _definition_response(url: str, headers: dict):
+    import requests
+    from .deploy import FABRIC, wait_operation
+    r = requests.post(url, headers=headers, timeout=60)
+    status = getattr(r, "status_code", 200)
+    if status == 202:
+        op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
+        result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
+        if result.get("status") != "Succeeded":
+            raise RuntimeError(f"reading the definition did not finish: {result.get('status')}")
+        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
+        status = getattr(r, "status_code", 200)
+    if status >= 400:
+        r.raise_for_status()
+    return r
+
+
+def rest_definition_parts(workspace: str, route: str, item_id: str, headers: dict, fmt: str | None = None) -> dict[str, str]:
+    """{path: text} of an item's definition (POST /workspaces/{ws}/{route}/{id}/getDefinition, long-running when Fabric says so)."""
+    from .deploy import FABRIC
+    url = f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item_id}/getDefinition" + (f"?format={fmt}" if fmt else "")
+    return decode_parts((_definition_response(url, headers).json().get("definition") or {}).get("parts", []))
+
+
+def rest_graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
+    """graphql-definition.json of an API for GraphQL item (getDefinition, long-running when Fabric says so)."""
+    import base64
+    from .deploy import FABRIC
+    r = _definition_response(f"{FABRIC}/v1/workspaces/{workspace}/items/{api_id}/getDefinition", headers)
+    parts = (r.json().get("definition") or {}).get("parts", [])
+    part = next((x for x in parts if x.get("path") == "graphql-definition.json"), None)
+    if not part:
+        raise RuntimeError("the API has no graphql-definition.json part")
+    return json.loads(base64.b64decode(part["payload"]))
+
+
+def workspace_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, view_rows=None, *,
+                    items=None, graphql_definition=None, definition_parts=None) -> tuple[list[dict], list[dict]]:
+    """Edges table -> object over every item in the workspace that can be read, plus the items that could not.
+    `view_rows` are INFORMATION_SCHEMA.VIEW_TABLE_USAGE rows when the caller could read them (None: views not read)."""
+    from .errors import explain
+    items = items or rest_items
+    graphql_definition = graphql_definition or rest_graphql_definition
+    definition_parts = definition_parts or rest_definition_parts
+    source_id = item.get("id")
+    api_sources = {x for x in (source_id, item.get("sql_endpoint_id")) if x}       # a lakehouse's APIs name its SQL endpoint
+    databases = {item.get("sql_db") or "", item.get("displayName") or ""}
+    edges: list[dict] = []
+    skipped: list[dict] = []
+    for it in items(workspace_id, headers):
+        kind, meta = it.get("type"), {"id": it.get("id"), "displayName": it.get("displayName")}
+        try:
+            if kind == "GraphQLApi":
+                edges += from_graphql_definition(graphql_definition(workspace_id, it["id"], headers), meta, api_sources, schema, tables)
+            elif kind == "SemanticModel":
+                edges += from_tmdl_parts(definition_parts(workspace_id, "semanticModels", it["id"], headers, fmt="TMDL"), meta, databases, schema, tables)
+            elif kind == "DataAgent":
+                edges += from_data_agent_parts(definition_parts(workspace_id, "dataAgents", it["id"], headers), meta, source_id, schema, tables)
+        except Exception as e:  # noqa: BLE001 — one unreadable item must not hide the rest
+            skipped.append({"item": it.get("displayName"), "kind": kind, "reason": explain(e, f"reading {it.get('displayName')!r}").get("kind", "unexpected")})
+    if view_rows is not None:
+        edges += from_view_rows(view_rows, item, schema, tables)
+    return edges, skipped

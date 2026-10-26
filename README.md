@@ -81,7 +81,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, twenty-five tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, thirty tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -105,8 +105,9 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
   `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (not granted today).
 - `create_views` — `CREATE OR ALTER VIEW` in a schema of its own (`krusgraph`) on the SQL analytics endpoint or
-  warehouse: a wide view per fact table and one per hard-to-read relationship; needs no new scope, only the SQL right to
-  create objects.
+  warehouse: a wide view per fact table, one per header table (`vw_orders`: each order with its customer and, once
+  `orders.ship_to_id` is confirmed, its ship-to address; unit-tested, not yet created live) and one per hard-to-read
+  relationship; needs no new scope, only the SQL right to create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
@@ -117,6 +118,19 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   from the definition, introspection from one probe query, and "unknown" with the click path for what Fabric's API
   cannot read (permissions, the tenant setting). Unit-tested. The whole Lovable chain, step by step with owners and
   blockers, is in [docs/LOVABLE-END-TO-END.md](docs/LOVABLE-END-TO-END.md).
+
+From understanding to building ([docs/NOTEBOOKS.md](docs/NOTEBOOKS.md); unit-tested, the generated notebooks also ran
+on a local PySpark, none of it yet in Fabric):
+
+- `silver_notebook_draft` / `create_silver_notebook` — a PySpark notebook for a lakehouse that writes silver tables in a
+  schema of their own: de-duplicated on each key (latest row by `order_by` wins), every reference checked with the rows
+  whose reference is missing in `krusgraph_quarantine` with the reason, each step commented with its rule, re-runnable,
+  never over a source table. The create is a notebook item (`Notebook.ReadWrite.All`, not granted today); it runs nothing.
+- `drift_monitor_draft` / `create_drift_monitor` — a notebook and a pipeline that every night compare the plan with the
+  last one, save it in `krusgraph.plans`, and send a short summary of what changed and which APIs, models and views it
+  reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule (`DataPipeline.*`, not granted today).
+- `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
+  step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
 
 Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested and
 run against the demo workspace (synthetic shop data) on 26 October 2026):
@@ -165,9 +179,14 @@ registration facade that answers the Entra app's public client id for allowed re
 metadata pointing at Entra's endpoints, storing nothing ([docs/AUTH-DCR.md](docs/AUTH-DCR.md); off by default,
 unit-tested, not yet tried with a real agent). The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
+Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed): fair-use limits per user and per
+organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
+token-protected `/metrics` (off by default), `/health` for uptime checks, the client secret optionally from Azure Key Vault
+(`ENTRA_CLIENT_SECRET_KEYVAULT_URI`, set up by `deploy/krusgraph.sh --key-vault`), and a dormant paid-plan check
+(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)).
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE` (deploy config `ontology_write`) is no longer read: `create_ontology` is always offered, dry run by default; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
-`--check`, `--update`, `--status`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
+`--check`, `--update`, `--status`, `--key-vault`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
 (`fabric_backend.seed`) and the directory submission draft (`deploy/SUBMISSION.md`). Tool failures come back
 as `{"error", "kind", "hint"}` (`fabric_backend/errors.py`): an unknown workspace, a missing or paused
 capacity, an expired sign-in or missing consent, a missing schema or table, a timeout, each in plain words and

@@ -24,6 +24,9 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | `create_views` | none — T-SQL on the SQL analytics endpoint / warehouse | Azure SQL `user_impersonation` (have), plus the SQL right to create objects: Contributor on the workspace, or `CREATE VIEW` / `ALTER SCHEMA` granted on the endpoint | yes (scope); rights are per workspace |
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | **no** |
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | **no** |
+| `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
+| `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | **no** |
+| `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`Item.Read.All`, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `Item.Read.All` | yes |
 | all `*_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `plan_drift` | metadata reads only | what the app has | yes |
 
@@ -33,9 +36,12 @@ Observed live on 26 October 2026 against the demo workspace: `create_views` with
 Until the permission is added and consented, those tools work in `dry_run=true` (the default) and answer
 `kind: consent` with the permission's name when asked to create.
 
-`Item.ReadWrite.All` covers the semantic model, the data agent and the ontology at once; `SemanticModel.ReadWrite.All`
-is narrower and covers only the first. The narrow choice is the better one for a connector that is listed publicly;
-`Item.ReadWrite.All` is one consent for the three.
+`Item.ReadWrite.All` covers the semantic model, the data agent, the ontology, the notebooks and the pipeline at once;
+`SemanticModel.ReadWrite.All`, `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` are narrower and cover one item
+type each. The narrow choice is the better one for a connector that is listed publicly; `Item.ReadWrite.All` is one
+consent for all of them. Scheduling the drift monitor's pipeline also needs `DataPipeline.Execute.All` (or
+`Item.Execute.All`): an execute permission, so the app could then run pipelines as the user; leave `schedule=false` and
+add the schedule in the portal if that is not wanted.
 
 ## Adding a permission (maintainer only — not run by any agent)
 
@@ -46,7 +52,8 @@ copied from here. With the app's client id in `$APP_ID`:
 FABRIC=00000009-0000-0000-c000-000000000000
 
 # the id of each delegated permission (oauth2PermissionScopes) on the Fabric service principal
-for scope in SemanticModel.ReadWrite.All Item.ReadWrite.All DataAgent.ReadWrite.All; do
+for scope in SemanticModel.ReadWrite.All Item.ReadWrite.All DataAgent.ReadWrite.All Notebook.ReadWrite.All \
+             DataPipeline.ReadWrite.All DataPipeline.Execute.All; do
   printf '%s %s\n' "$scope" "$(az ad sp show --id $FABRIC --query "oauth2PermissionScopes[?value=='$scope'].id" -o tsv)"
 done
 
@@ -55,6 +62,12 @@ az ad app permission add --id "$APP_ID" --api $FABRIC \
   --api-permissions "$(az ad sp show --id $FABRIC --query "oauth2PermissionScopes[?value=='SemanticModel.ReadWrite.All'].id" -o tsv)=Scope"
 az ad app permission add --id "$APP_ID" --api $FABRIC \
   --api-permissions "$(az ad sp show --id $FABRIC --query "oauth2PermissionScopes[?value=='Item.ReadWrite.All'].id" -o tsv)=Scope"
+
+# the notebooks and the drift monitor, narrow (or rely on Item.ReadWrite.All above for the first two)
+for scope in Notebook.ReadWrite.All DataPipeline.ReadWrite.All DataPipeline.Execute.All; do
+  az ad app permission add --id "$APP_ID" --api $FABRIC \
+    --api-permissions "$(az ad sp show --id $FABRIC --query "oauth2PermissionScopes[?value=='$scope'].id" -o tsv)=Scope"
+done
 
 # check the registration
 az ad app permission list --id "$APP_ID" -o table

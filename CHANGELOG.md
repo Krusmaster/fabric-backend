@@ -5,6 +5,28 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- From understanding to building ([docs/NOTEBOOKS.md](docs/NOTEBOOKS.md)); thirty tools. `silver_notebook_draft` and
+  `create_silver_notebook` (dry run by default): a Fabric PySpark notebook generated from the plan that writes silver
+  tables in a schema of their own, de-duplicated on each key (the latest row by `order_by` or a column named like
+  `updated_at` wins), every relationship checked with the rows whose reference is missing in `krusgraph_quarantine`
+  with the rule and the reason, each step commented with its rule, idempotent, and guarded twice against writing over a
+  source table or a table it did not write. `drift_monitor_draft` and `create_drift_monitor` (dry run by default): a
+  notebook and a pipeline with a daily schedule that compare the plan with the last saved one, save it in
+  `krusgraph.plans`, and send what changed and which APIs, models and views it reaches to a webhook set as a pipeline
+  parameter in Fabric (no secret in the code); the comparison is `plan_drift`'s and `lineage`'s logic as a library
+  (`fabric_backend/monitor.py`). `answer_query_draft`: a question in Swedish or English about some tables as T-SQL over
+  the safest join path with the rule per step, and as GraphQL for an existing API (or why GraphQL cannot answer it);
+  `query_graphql` takes `question`/`tables`/`source` and runs the suggested query. Created through the notebook and data
+  pipeline REST APIs (fabric-rest-api-specs a96c37a); without `Notebook.ReadWrite.All` / `DataPipeline.*` the creates
+  answer `kind: consent` with the exact scope (docs/SCOPES.md). Unit-tested; the generated silver notebook and the drift
+  monitor (two nights) also ran on a local PySpark 4.0.1 against the shop seed; nothing has run in Fabric yet.
+- `lineage` (and `plan_drift`'s impact) now finds a GraphQL API over a lakehouse: the API names the lakehouse's SQL
+  analytics endpoint as its source item, and the comparison used only the lakehouse's id. Reading the workspace's items
+  moved to `lineage.py` (`workspace_edges`, `rest_*`), so the drift monitor uses the same code.
+- `create_views` describes its header views (`vw_orders`) in the tool description, the docs page and the README; the
+  hosted `sample_rows` passes the column types to the sampling SQL, as the local server does (binary as its size, CLR
+  types as text). The plugin skill names the new tools and when to ask; `docs/PUBLISHING.md` notes the open question
+  about `argument-hint` in plugin commands on claude.ai.
 - Operations before real customers (unit-tested; nothing deployed or run against Azure). Fair-use limits per signed-in
   user (`oid`) and per organisation (`tid`): token buckets, 30/minute and 600/hour per user, 120/minute and 3000/hour per
   organisation by default, configurable or off (`KRUSGRAPH_RATE_*`); a refused call runs nothing and answers

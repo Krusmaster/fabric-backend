@@ -45,14 +45,27 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
   `analyze_schema` reads an unknown source as a graph (roles, central tables, subject areas, cycles).
 - **Wide views:** `create_views` (dry run by default) writes `CREATE OR ALTER VIEW` in a schema of its own, never DROP.
   Running it for real needs the user's go-ahead.
+- **A question in words:** `answer_query_draft(question, tables)` gives T-SQL over the safest join path (and GraphQL
+  with `api`) and lists what it assumed; show the assumptions. `query_graphql(api, question=..., tables=..., source=...)`
+  runs the GraphQL version instead of a hand-written query.
+
+## Building on the plan (dry run first)
+
+- **Silver tables:** `silver_notebook_draft` shows the PySpark notebook (de-duplication on each key, references checked,
+  rows that fail in `krusgraph_quarantine`, never written over a source table). Ask which column says "latest" when
+  the answer has no `latest_by`, and pass it as `order_by`. `create_silver_notebook` creates the notebook item.
+- **Nightly drift monitor:** `drift_monitor_draft` shows the notebook, the pipeline and the schedule;
+  `create_drift_monitor` creates them. The webhook address is never passed to a tool: tell the user to set
+  `webhook_url` on the pipeline in Fabric.
 
 ## When to stop and confirm with the user
 
-- Before `create_backend`, `create_semantic_model`, `create_views` or `create_data_agent` run for real.
+- Before `create_backend`, `create_semantic_model`, `create_views`, `create_data_agent`, `create_silver_notebook` or
+  `create_drift_monitor` run for real.
 - Before accepting any suggested relationship or composite key into `confirmed` / `keys`.
 - When `validate_plan` finds duplicates or orphans, or `plan_drift` lists removals.
 - When a tool answers `kind: consent`, `sign_in`, `no_access` or `capacity`: the hint names what the user or an admin
-  must do; do not work around it.
+  must do; do not work around it. `kind: rate_limited` says how many seconds to wait (`retry_after`).
 
 ## What to say back
 

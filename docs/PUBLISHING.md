@@ -90,7 +90,10 @@ points at the same URL).
    `.mcp.json`). The portal applies more checks than the CLI.
 2. Try it: `claude --plugin-dir plugin/krusgraph` in a session; on claude.ai, zip the folder (the folder as the single
    top-level entry) and upload it under Customize > Plugins > Add > Upload plugin; connect the connector from the
-   plugin's Connectors tab.
+   plugin's Connectors tab. The commands carry `argument-hint` in their frontmatter: Claude Code accepts it
+   (`claude plugin validate --strict` passed with Claude Code 2.1.295 on 26 October 2026), but the documentation for
+   claude.ai skill uploads lists only `name`, `description`, `license`, `compatibility`, `metadata` and `allowed-tools`.
+   Whether that limit applies to commands inside a plugin is not confirmed; the zip upload is the test, before step 3.
 3. Submit: the repository must be public (it is); open https://claude.ai/directory/manage, **Submit new**,
    **Plugin bundle**, point it at this repository and the folder `plugin/krusgraph`, work through the plugin
    pre-submission checklist (README of at least 40 words, a licence: `"license": "MIT"` is in the manifest). The

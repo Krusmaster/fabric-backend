@@ -120,3 +120,20 @@ def test_plan_drift_names_the_objects_a_gone_table_or_column_reaches(monkeypatch
     assert {o["object"] for o in out["impact"]["categories"]} == {"shop_api"}                  # the API maps categories; the model only has orders and customers
     assert {o["object"] for o in out["impact"]["orders"]} == {"shop_api", "shop_model"}
     assert "impact" in out and out["impact_note"].startswith("objects in the workspace that use the tables")
+
+
+def test_an_api_over_a_lakehouse_is_found_by_its_sql_endpoint_id():
+    """create_backend writes the SQL analytics endpoint's id as sourceItemId for a lakehouse (graphql.py); lineage must
+    find the API from the lakehouse too, and still ignore an API over another source."""
+    p = plan(seed.schema("shop"))
+    api_body = decode(definition(p, "shop_api", WS, "ep-1", "SqlAnalyticsEndpoint", tables=["orders"]))
+    items = [{"id": "api-1", "displayName": "shop_api", "type": "GraphQLApi"}, {"id": "api-2", "displayName": "other", "type": "GraphQLApi"}]
+    other = dict(api_body, datasources=[dict(api_body["datasources"][0], sourceItemId="ep-9")])
+    bodies = {"api-1": api_body, "api-2": other}
+    item = dict(SOURCE, sql_endpoint_id="ep-1")
+    edges, skipped = lineage.workspace_edges(WS, item, "shop", TABLES, {}, None, items=lambda ws, h: items,
+                                             graphql_definition=lambda ws, api_id, h: bodies[api_id])
+    assert [(e["table"], e["object"]) for e in edges] == [("orders", "shop_api")] and skipped == []
+    edges, _ = lineage.workspace_edges(WS, SOURCE, "shop", TABLES, {}, None, items=lambda ws, h: items,
+                                       graphql_definition=lambda ws, api_id, h: bodies[api_id])
+    assert edges == []                                                     # without the endpoint id, as before
