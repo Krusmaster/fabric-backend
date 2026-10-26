@@ -1417,6 +1417,110 @@ def create_drift_monitor(workspace: str, source: str, name: str, schema: str = "
     return json.dumps(out, indent=2, default=str)
 
 
+EXPORTABLE = ("create_backend", "create_semantic_model", "create_views", "create_silver_notebook", "create_drift_monitor", "create_gold_views")
+
+
+@mcp.tool(title="Export what the creating tools would create, in Fabric's Git format", annotations=RO)
+@safe
+def export_item_definitions(workspace: str, source: str, schema: str = "dbo", items: list[str] | None = None,
+                            names: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
+                            confirmed: list[dict] | None = None, tables: list[str] | None = None, silver_schema: str = "silver",
+                            gold_schema: str = "gold", views_schema: str = "krusgraph", writable: bool = False,
+                            show_personal_data: bool = False, ctx: Context = None) -> str:
+    """The items create_backend, create_semantic_model, create_silver_notebook, create_drift_monitor and create_gold_views
+    would create, as files in Fabric's Git format: one folder per item named `<name>.<type>` with its `.platform` and
+    definition files (graphql-definition.json, definition.pbism and TMDL, notebook-content.py, pipeline-content.json),
+    plus create_views' T-SQL as a .sql file (Fabric's Git integration does not carry SQL analytics endpoint views) and a
+    README with the steps. For committing to the repository connected to the workspace, so that Fabric's Git
+    integration or a deployment pipeline makes the change. `items` picks tools from that list; `names` sets the display
+    name per tool. Calls no Git provider and creates nothing."""
+    from . import git_export as _gx, notebook as _notebook, silver as _silver_mod, gold as _gold_mod, monitor as _monitor
+    from .infer import PlanInputError
+    wanted = list(dict.fromkeys(items or EXPORTABLE))
+    unknown = [i for i in wanted if i not in EXPORTABLE]
+    if unknown:
+        raise PlanInputError("items: one or more of " + ", ".join(EXPORTABLE) + "; not known: " + ", ".join(unknown))
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    check_tables(p.schema, tables)
+    names = {**{"create_backend": f"{info['item_name']}_api", "create_semantic_model": f"{info['item_name']}_model",
+                "create_silver_notebook": f"silver_{schema}", "create_drift_monitor": f"drift_monitor_{schema}",
+                "create_gold_views": f"gold_{schema}"}, **(names or {})}
+    lakehouse = info["item_kind"] == "Lakehouse"
+    files: dict[str, str] = {}
+    entries, notes, skipped = [], [], []
+
+    def add(tool: str, item_type: str, body: dict, what: str) -> None:
+        files.update(_gx.files_of(body, item_type))
+        entries.append({"tool": tool, "type": item_type, "folder": _gx.folder(body["displayName"], item_type), "what": what})
+    for tool in wanted:
+        if tool in ("create_silver_notebook", "create_drift_monitor", "create_gold_views") and not lakehouse:
+            skipped.append({"tool": tool, "why": f"needs a lakehouse; {info['item_name']!r} is a {info['item_kind']}"})
+            continue
+        if tool == "create_gold_views" and not info.get("schemas_enabled"):
+            skipped.append({"tool": tool, "why": "materialized lake views need a lakehouse created with schemas"})
+            continue
+        if tool == "create_backend":
+            source_id, source_type = source_for(info["workspace_id"], {"type": info["item_kind"], "id": info["item_id"]}, _headers(ctx))
+            env = definition(p, names[tool], info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
+            add(tool, "GraphQLApi", env, f"the API for GraphQL over {info['item_name']}.{schema} with the plan's relationships")
+        elif tool == "create_semantic_model":
+            draft = _semantic_model.draft(p, info, names[tool], tables)
+            add(tool, "SemanticModel", _semantic_model.envelope(draft["parts"], names[tool], f"Created by Krusgraph from {source} ({schema})"),
+                "the Direct Lake semantic model with the plan's relationships, the suggested measures and the calendar")
+            notes.append(f"The semantic model's README.generated.md is not part of its definition and is left out; semantic_model_draft returns it.")
+        elif tool == "create_views":
+            stmts = _views.statements(p, views_schema)
+            sql = ["-- T-SQL views from the plan, as create_views runs them. Fabric's Git integration does not carry views on a SQL",
+                   "-- analytics endpoint (fabric-docs data-warehouse/git-integration.md), so this file is outside every item folder: run it",
+                   f"-- with create_views or in the SQL editor of {info['item_name']}. CREATE OR ALTER only; nothing is dropped. GO separates",
+                   "-- the batches for SSMS and sqlcmd; in an editor that does not take GO, run one view at a time.", "",
+                   stmts["schema_sql"] + ";", ""] + [f"-- {v['why']}\n{v['sql']};\nGO\n" for v in stmts["views"]]
+            files[f"krusgraph-sql/{views_schema}-views.sql"] = "\n".join(sql)
+            entries.append({"tool": tool, "type": "T-SQL", "folder": "krusgraph-sql", "what": f"{len(stmts['views'])} view(s) in schema {views_schema}, "
+                            "as a script (not a Fabric item)"})
+        elif tool == "create_silver_notebook":
+            spec = _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data)
+            add(tool, "Notebook", _notebook.envelope(names[tool], _silver_mod.notebook_source(spec),
+                                                     f"Silver tables for {info['item_name']}.{schema}, generated by Krusgraph from the plan"),
+                f"the notebook that writes the silver tables in {silver_schema}")
+        elif tool == "create_drift_monitor":
+            source_id, source_type = source_for(info["workspace_id"], {"type": info["item_kind"], "id": info["item_id"]}, _headers(ctx))
+            src = {k: info[k] for k in ("workspace_id", "item_id", "item_name", "schema", "schemas_enabled", "sql_db")}
+            src.update(source_id=source_id, source_type=source_type)
+            label = f"{info['item_name']}.{schema}"
+            nb = names[tool]
+            add(tool, "Notebook", _notebook.envelope(nb, _notebook.fabric_source(_monitor.notebook_cells(src, "main"), _notebook.notebook_metadata(
+                info["workspace_id"], info["item_id"], info["item_name"])), f"Krusgraph drift monitor for {label}"), "the drift monitor's notebook")
+            add(tool, "DataPipeline", _notebook.pipeline_envelope(f"{nb}_nightly", _monitor.pipeline_content(
+                "<the notebook's id after the Git update>", info["workspace_id"], label), f"Krusgraph drift monitor for {label}"),
+                "the nightly pipeline that runs it")
+            notes.append(f"{nb}_nightly: its Notebook activity names the notebook by id, which Fabric assigns when the Git update creates it; "
+                         "open the activity once and pick the notebook. The daily schedule is not part of an item definition: add it in "
+                         "the pipeline's Schedule pane, or let create_drift_monitor add it.")
+        elif tool == "create_gold_views":
+            spec = _gold_mod.spec(p, info, silver_schema, gold_schema, None, show_personal_data)
+            add(tool, "Notebook", _notebook.envelope(names[tool], _gold_mod.notebook_source(spec),
+                                                     f"Gold views for {info['item_name']}.{schema}, generated by Krusgraph from the plan"),
+                f"the notebook that creates {len(spec['views'])} materialized lake view(s) in {gold_schema}")
+            notes.append("Materialized lake views are created when the gold notebook runs, not by the Git update; Fabric's Git integration "
+                         "carries the notebook. Run the silver notebook first.")
+    files["KRUSGRAPH-EXPORT.md"] = _gx.readme(entries, notes)
+    out = {"summary": p.summary().splitlines()[0] + f"; {len(entries)} item(s) as files in Fabric's Git format, nothing created",
+           "items": entries, "skipped": skipped, "how": _gx.HOW, "notes": notes, "files": files, "sources": _gx.SOURCES,
+           "note": "Unit-tested: the files are the parts the creating tools send to the REST APIs, in the Git layout; not yet synced into a "
+                   "live workspace."}
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["omitted"] = []
+        while len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS and len(out["files"]) > 1:
+            biggest = max((k for k in out["files"] if k != "KRUSGRAPH-EXPORT.md"), key=lambda k: len(out["files"][k]))
+            out["omitted"].append(biggest)
+            out["files"] = {k: v for k, v in out["files"].items() if k != biggest}
+        out["note"] += " Files left out of this answer because of its size are under `omitted`; pass `items` (one tool) or `tables` for them."
+        text = json.dumps(out, indent=2)
+    return text
+
+
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
 @safe
 def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
