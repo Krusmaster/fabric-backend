@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "status": "proposed_design_not_implemented",
+  "date": "2026-10-23",
+  "scope": "single_active_guide_within_opt_in_graph_region",
+  "characters": [
+    {
+      "id": "guide",
+      "name": "Onto",
+      "nameStatus": "working_name",
+      "color": "#ff8b76",
+      "role": "explore_and_explain",
+      "silhouette": "upright_asymmetric_bean"
+    },
+    {
+      "id": "thinker",
+      "name": null,
+      "color": "#b1c2a7",
+      "role": "review_suggestions",
+      "silhouette": "wide_grounded_pebble"
+    },
+    {
+      "id": "maker",
+      "name": null,
+      "color": "#b8a5dd",
+      "role": "show_operation_status",
+      "silhouette": "gently_tapered_leaning_pebble"
+    }
+  ],
+  "visualInvariants": {
+    "eyes": 2,
+    "arms": 2,
+    "mouth": false,
+    "nose": false,
+    "legs": false,
+    "fingers": false,
+    "finish": "matte_clay_reference"
+  },
+  "states": [
+    "idle",
+    "attend",
+    "follow",
+    "explain",
+    "review_wait",
+    "working",
+    "success",
+    "error",
+    "dismissed"
+  ],
+  "pointer": {
+    "sizePx": 48,
+    "offsetXpx": 36,
+    "offsetYpx": 40,
+    "smoothingTimeConstantMs": 140,
+    "parkAfterStillMs": 450,
+    "keepNativeCursor": true,
+    "visualPointerEvents": "none",
+    "avoidOcclusion": true,
+    "clampToRegion": true
+  },
+  "motion": {
+    "breathingPeriodMs": 4200,
+    "breathingScaleAmplitude": 0.012,
+    "blinkIntervalMinMs": 4000,
+    "blinkIntervalMaxMs": 8000,
+    "blinkDurationMs": 130,
+    "lookMaxOffsetPx": 2,
+    "leanMaxDegrees": 6,
+    "pointDurationMs": 450,
+    "celebrateDurationMs": 650,
+    "celebrateRepeat": 1
+  },
+  "accessibility": {
+    "reducedMotionMode": "static_no_follow_no_loops",
+    "keyboardFocusEquivalent": true,
+    "touchMode": "stationary_help",
+    "userCanDisable": true,
+    "pauseWhenHidden": true,
+    "statusInText": true
+  },
+  "productRules": {
+    "userAcceptsSuggestions": true,
+    "userStartsCreation": true,
+    "successRequiresConfirmedResult": true,
+    "noFabricCallsInPrototype": true,
+    "noLLMCallsForAnimation": true,
+    "noAutomaticProductionPublication": true
+  }
+}
