@@ -739,3 +739,23 @@ def test_experimental_status_sits_next_to_the_creating_step(client):
     assert re.search(r"create_backend[^<]{0,200}", start) and "xperimental" in start
     lovable = client.get("/lovable").text
     assert "xperimental" in lovable
+
+
+def test_one_status_source_covers_exactly_the_hosted_tools(client):
+    """tool_status is the shared source the brief of 26 October asks for: every hosted tool has one entry with its four
+    fields, the docs render from it, and a tool that creates is never called tested end to end beyond a dry run."""
+    import asyncio
+    from fabric_backend import server, tool_status as ts
+    hosted = {t.name for t in asyncio.run(server.mcp.list_tools())}
+    assert set(ts.STATUS) == hosted, sorted(set(ts.STATUS) ^ hosted)
+    md = client.get("/docs.md").text
+    for name, s in ts.STATUS.items():
+        assert s.available in (ts.HOSTED, ts.OPERATOR) and s.kind in (ts.READS, ts.DRAFT, ts.CREATES) and s.changes and s.tested
+        assert f"| `{name}` | {ts.label(name)} | {s.changes} | " in md, name
+        if s.kind == ts.CREATES and s.live:
+            assert s.dry_run_only and "(dry run)" in ts.label(name), name
+        if s.kind != ts.CREATES:
+            assert s.changes.startswith("nothing"), name
+    assert set(ts.LIVE_RUN) <= hosted and len(set(ts.LIVE_RUN)) == len(ts.LIVE_RUN)
+    llms = client.get("/llms.txt").text
+    assert all(f"`{t}`" in llms for t in ts.LIVE_RUN) and f"{len(ts.LIVE_RUN)} tools were run" in llms

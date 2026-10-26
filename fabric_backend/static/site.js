@@ -168,7 +168,8 @@
     var self = this, cw = this.container.clientWidth || 800, names = Object.keys(this.nodes);
     var narrow = this.narrow = cw < NARROW_AT;
     this.container.classList.toggle('narrow', narrow);
-    var top = this.mascotEls.length ? (narrow ? 76 : 64) : 22, maxX = 0, maxY = 0;
+    var onWire = this.mascotEls.some(function (d) { return !d.getAttribute('data-near'); });   // a mascot sitting on a top-row chip needs headroom
+    var top = this.mascotEls.length && (narrow || onWire) ? (narrow ? 76 : 64) : 22, maxX = 0, maxY = 0;
     var auto = this.opts.autoLayout;
     if (narrow) {
       var order = auto ? [].concat.apply([], this.autoRows()) : STACK.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return STACK.indexOf(n) < 0; }));
@@ -403,8 +404,9 @@
   if (home) loadPlan(function (data) {
     var g = new Graph(document.getElementById('home-graph'), data, {
       label: 'Data graph of the demo shop schema', suggest: suggestions(data),
-      mascots: [{ kind: 'onto', edge: 'orders.customer_id>customers', pose: 'look', idle: 'breathe' },
-                { kind: 'thinker', edge: 'order_items.product_id>products', pose: 'rest', idle: 'nod' },
+      // the mascots stand in the empty corner under the top row, clear of the cards and the rule chips people click
+      mascots: [{ kind: 'onto', edge: 'orders.customer_id>customers', near: 'order_items', pose: 'look', idle: 'breathe' },
+                { kind: 'thinker', edge: 'order_items.product_id>products', near: 'products', pose: 'rest', idle: 'nod' },
                 { kind: 'builder', edge: 'products.category_id>categories', near: 'categories', pose: 'look', idle: 'bounce' }]
     });
     var panel = document.getElementById('home-why'), list = home.querySelector('.rel-list'), details = {};

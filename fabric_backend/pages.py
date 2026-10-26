@@ -380,8 +380,24 @@ def privacy_md() -> str:
     return _fill(re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M), escape=False)   # drop the template note
 
 
+def _tool_statuses(md: str) -> str:
+    """The Status and What it changes cells of the tool table, and the live-run list, from tool_status."""
+    from . import tool_status as ts
+    seen = set()
+
+    def row(m: re.Match) -> str:
+        name = m.group(1)
+        seen.add(name)
+        return f"| `{name}` | {ts.label(name)} | {ts.STATUS[name].changes} | "
+    md = re.sub(r"^\| `(\w+)` \| \{\{status\}\} \| \{\{changes\}\} \| ", row, md, flags=re.M)
+    if seen != set(ts.STATUS):                                                # every tool once, no tool without a status
+        raise ValueError(f"tool table and tool_status differ: {sorted(seen ^ set(ts.STATUS))}")
+    return (md.replace("{{LIVE_RUN_DATE}}", ts.LIVE_RUN_DATE).replace("{{LIVE_RUN_STEPS}}", str(ts.LIVE_RUN_STEPS))
+              .replace("{{LIVE_RUN_LIST}}", ts.live_run_list()))
+
+
 def docs_md() -> str:
-    return _fill(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table()), escape=False)
+    return _fill(_tool_statuses(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table())), escape=False)
 
 
 def lovable_md() -> str:

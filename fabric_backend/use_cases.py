@@ -13,6 +13,8 @@ import html
 import re
 from functools import lru_cache
 
+from .tool_status import task_status
+
 FOOTNOTE = "The schemas are illustrative examples, not customer projects."
 
 COLORS = ("coral", "sage", "lav", "mustard")
@@ -457,21 +459,20 @@ RULE_LEGEND = [
     ("confirm", "conf", "a column that names no table, such as `manager_id`: linked only when you confirm it"),
 ]
 
-# The three tasks a visitor starts from (the website brief of 26 October 2026): what they say, what they get, the tools
-# and their status. Worded as tasks, not as claims about customers.
+# The three tasks a visitor starts from (the website brief of 26 October 2026): what they say, what they get and the
+# tools; each tool's status comes from tool_status. Worded as tasks, not as claims about customers.
 TASKS = [
     {"slug": "inherited", "quote": "I inherited a lakehouse nobody has documented.",
      "shows": "An overview: the central tables, how they relate, and the questions you still need to clear up.",
-     "tools": "`analyze_schema`, `plan_backend`, `data_dictionary`", "status": "tested end to end on 26 October 2026",
+     "tools": ["analyze_schema", "plan_backend", "data_dictionary"],
      "example": ("retail", "a return that belongs to an order line, not just an order")},
     {"slug": "join", "quote": "I need to check how these tables should join.",
      "shows": "A suggested join with its reason, a check against the rows, and what stays uncertain.",
-     "tools": "`join_path`, `validate_plan`, `suggest_relationships`", "status": "tested end to end on 26 October 2026",
+     "tools": ["join_path", "validate_plan", "suggest_relationships"],
      "example": ("pharma-research", "a visit number that is not a unique key on its own")},
     {"slug": "app", "quote": "I want to build an app on this data.",
      "shows": "The reviewed plan, an API created from it in your workspace, and the setup steps the app still needs.",
-     "tools": "`create_backend`, `app_starter`", "status": "creating the API is experimental; the app prompt and queries from "
-                                                        "`app_starter` are tested end to end",
+     "tools": ["create_backend", "app_starter"],
      "example": ("professional-services", "consultant hours that are not invoiced yet")},
 ]
 
@@ -628,12 +629,16 @@ def outputs_html() -> str:
                    f'{f"<em>{e(tag)}</em>" if tag else ""}</li>' for name, what, tag in OUTPUTS)
 
 
+def _tools(task: dict) -> str:
+    return ", ".join(f"`{n}`" for n in task["tools"])
+
+
 def tasks_html() -> str:
     e = html.escape
     names = {i["slug"]: i["name"] for i in INDUSTRIES}
     return "".join(
         f'<li class="uc-task" id="task-{e(t["slug"])}"><p class="uc-task-q">“{e(t["quote"])}”</p><p>{_inline(t["shows"])}</p>'
-        f'<p class="muted tiny">Tools: {_inline(t["tools"])}. Status: {_inline(t["status"])}.</p>'
+        f'<p class="muted tiny">Tools: {_inline(_tools(t))}. Status: {_inline(task_status(t["tools"]))}.</p>'
         f'<p class="tiny">For example: <a href="#{e(t["example"][0])}">{e(names[t["example"][0]])}</a>, {e(t["example"][1])}.</p></li>'
         for t in TASKS)
 
@@ -652,7 +657,7 @@ def markdown(product: str, origin: str, contact: str) -> str:
            INTRO.format(product=product) + "\n",
            f"*{FOOTNOTE}*\n",
            "## Start from your task\n"]
-    out += [f"- **“{t['quote']}”** {t['shows']} Tools: {t['tools']}. Status: {t['status']}." for t in TASKS]
+    out += [f"- **“{t['quote']}”** {t['shows']} Tools: {_tools(t)}. Status: {task_status(t['tools'])}." for t in TASKS]
     out += ["",
            "Plan from names (`plan_backend`, nothing is deployed), check against the rows (`validate_plan`, a step you "
            "ask for), then create (`create_backend`). Ambiguous columns are reported, never guessed.\n",

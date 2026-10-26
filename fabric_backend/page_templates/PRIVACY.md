@@ -15,9 +15,12 @@ rows, run a read-only GraphQL query, or create or update an item in your Fabric 
 ## Your Microsoft account
 
 You sign in with your own Microsoft Entra work account. The service exchanges that sign-in for Microsoft Fabric and
-Azure SQL access tokens on your behalf (OAuth 2.0 on-behalf-of). It can see and change exactly what your own account
-can, and nothing else. Your organization's administrator grants this once and can revoke it at any time in Microsoft
-Entra ID (Enterprise applications).
+Azure SQL access tokens on your behalf (OAuth 2.0 on-behalf-of). It acts as you, within two limits: the delegated
+permissions your administrator granted (listed under [What it accesses](/docs#what-it-accesses): reading workspaces,
+items and the SQL analytics endpoint, running your GraphQL queries, and creating or updating the API for GraphQL item
+or the views you ask for), and what your own account may do in Fabric. It cannot reach anything your account cannot.
+Your organization's administrator grants this once and can revoke it at any time in Microsoft Entra ID (Enterprise
+applications).
 
 ## Metadata, samples and query results
 
