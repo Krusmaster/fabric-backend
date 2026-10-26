@@ -1,8 +1,10 @@
 # Publishing to the MCP Registry
 
 `server.json` in the repository root describes the hosted server for the official MCP Registry
-(https://registry.modelcontextprotocol.io). It has not been published. These are the steps, for the owner of
-krusgraph.com to run by hand. Nothing here runs in CI.
+(https://registry.modelcontextprotocol.io). **Published on 26 October 2026 as `com.krusgraph/krusgraph` 0.6.0
+(status active).** These are the steps, for the owner of krusgraph.com to run by hand (Azure Cloud Shell works:
+the binary is `mcp-publisher_linux_amd64`). Nothing here runs in CI. The TXT record on krusgraph.com holds the public
+key; the private key is kept outside the repository — if it is lost, make a new pair and replace the record.
 
 The name `com.krusgraph/krusgraph` is a domain namespace, so ownership is proven with a DNS TXT record on
 **krusgraph.com** (the apex, not a subdomain). The source for these steps is the registry's own guide:
