@@ -35,11 +35,11 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | session n10 (operations, notebooks, drift monitor, query drafts, entitlements) |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n10 (operations, notebooks, drift monitor, query drafts, entitlements) |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | session n10 (operations, notebooks, drift monitor, query drafts, entitlements) |
-| Deployment | `deploy/`, `Dockerfile` | session n10 (operations, notebooks, drift monitor, query drafts, entitlements) |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | session n10 (operations, notebooks, drift monitor, query drafts, entitlements) |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | open |
+| Deployment | `deploy/`, `Dockerfile` | open |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
