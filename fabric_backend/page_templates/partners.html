@@ -2,11 +2,11 @@
 <section class="hero wrap" style="padding-bottom:12px">
   <div class="hero-grid">
     <div>
-      <span class="kicker">Pilot projects</span>
-      <h1>Try {{PRODUCT}} on a Fabric project</h1>
-      <p class="lede">Working with Fabric at a consultancy or in a data team? Start with one schema and one question you want the API to answer. We can use that to explore whether {{PRODUCT}} fits your project.</p>
+      <p class="eyebrow">Try a pilot</p>
+      <h1>Bring one schema and one question.</h1>
+      <p class="lede">We’ll start with the tables behind a question your team needs to answer. The pilot will focus on reviewing the relationships and deciding whether the result is useful for your project.</p>
       <div class="ctas">
-        <a class="btn primary" href="mailto:{{CONTACT}}?subject=Pilot%20with%20{{PRODUCT_URL}}">Discuss a pilot</a>
+        <a class="btn primary" href="mailto:{{CONTACT}}?subject=Pilot%20with%20{{PRODUCT_URL}}">Discuss your schema</a>
         {{#IF PARTNER_SIGNIN}}<button type="button" class="btn secondary" aria-disabled="true" aria-describedby="signin-note">Continue with Microsoft</button>{{/IF}}
         <a class="btn ghost" href="/partners/workspace">See a sample pilot</a>
       </div>
@@ -17,14 +17,14 @@
 </section>
 <section class="wrap" style="padding-top:0">
   <div class="grid-3">
-    <div class="card soft"><h2 class="h3">Start with a small example</h2><p class="muted">An anonymised example of the tables and relationships is enough to start the conversation. Include what you want to build and any keys or joins that need special attention.</p></div>
-    <div class="card soft"><h2 class="h3">Use the existing tools</h2><p class="muted">The open-source engine, the hosted connector at <code>{{MCP_URL}}</code>, the demo dataset and a <a href="{{GITHUB}}/blob/main/docs/PILOT.md" rel="noopener">pilot outline</a> are available to try. The outline gives you a starting point for reviewing a plan with the people who know the data.</p></div>
-    <div class="card soft"><h2 class="h3">Review the result together</h2><p class="muted">Check which relationships {{PRODUCT}} found, which needed correcting and whether the resulting API supports your chosen question. That feedback helps guide the next improvements.</p></div>
+    <div class="card soft"><h2 class="h3">What to bring</h2><ul class="muted plain-list"><li>the result you want: a report, an app or documentation</li><li>the source type: a lakehouse, a warehouse or a SQL database</li><li>an anonymised overview of the schema: table and column names are enough</li></ul><p class="muted tiny">No customer data is needed for a first conversation.</p></div>
+    <div class="card soft"><h2 class="h3">What the pilot covers</h2><ul class="muted plain-list"><li>one bounded schema</li><li>a joint review of the relationships {{PRODUCT}} suggests</li><li>a list of corrections and open questions</li><li>one chosen result built from the reviewed plan</li><li>a closing assessment of whether it was useful</li></ul></div>
+    <div class="card soft"><h2 class="h3">What you can use already</h2><p class="muted">The open-source engine, the hosted connector at <code>{{MCP_URL}}</code>, the demo dataset and a <a href="{{GITHUB}}/blob/main/docs/PILOT.md" rel="noopener">pilot outline</a> are available to try before we talk.</p></div>
   </div>
   <div class="card" style="margin-top:20px">
     <h2 style="font-size:26px">How a pilot could run</h2>
     <div class="flow" aria-label="Pilot steps"><span class="fs"><span class="f coral">Connect</span><span class="arrow" aria-hidden="true">→</span></span><span class="fs"><span class="f sage">Explore</span><span class="arrow" aria-hidden="true">→</span></span><span class="fs"><span class="f lav">Review</span><span class="arrow" aria-hidden="true">→</span></span><span class="f ink">Build</span></div>
-    <p class="muted" style="margin:0;max-width:64ch">Connect {{PRODUCT}} in Claude to the workspace, read the plan together, review the relationships that need a person’s judgement, and create the GraphQL API from the plan you agreed on. The <a href="/partners/workspace">sample pilot</a> shows this on the demo schema.</p>
+    <p class="muted" style="margin:0;max-width:64ch">Connect {{PRODUCT}} in Claude to the workspace, read the plan together, review the relationships that need a person’s judgement, and build the chosen result from the plan you agreed on. The <a href="/partners/workspace">sample pilot</a> shows this on the demo schema. Price, duration and scope are agreed per pilot; nothing is fixed in advance.</p>
   </div>
   <p class="muted tiny" style="margin-top:18px;max-width:64ch">This is an invitation to explore a pilot with Kruse Consulting AB. It is not a partner programme or a certification, and it is not affiliated with Microsoft.</p>
 </section>

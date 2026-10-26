@@ -35,16 +35,16 @@ STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; char
 
 PAGES = {
     # path: (template, title, description, nav key)
-    "/": ("home.html", "{{PRODUCT}} — Microsoft Fabric, connected",
-          "An MCP connector for Claude: map the relationships between your Microsoft Fabric tables, check them against your data and create a GraphQL API. Every relationship shows the rule behind it.", "product"),
+    "/": ("home.html", "{{PRODUCT}} | Understand your Microsoft Fabric tables",
+          "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
     "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
                  "A demo on a synthetic shop schema: select a table to inspect its key, or a line to see why two tables were linked.", "product"),
     "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
                "What you need, admin approval in Microsoft Entra, and how to add {{PRODUCT}} as a custom connector in Claude.", "start"),
     "/support": ("support.html", "Get help with {{PRODUCT}}",
                  "How to get help with {{PRODUCT}}: email with the error, kind and hint from the tool's answer, report a bug or a plan that came out wrong on GitHub Issues, and the most common first errors.", "support"),
-    "/partners": ("partners.html", "Try {{PRODUCT}} on a Fabric project",
-                  "Explore a {{PRODUCT}} pilot on one schema and one question with Kruse Consulting AB. Not affiliated with Microsoft.", "partners"),
+    "/partners": ("partners.html", "Try a pilot — {{PRODUCT}}",
+                  "Bring one schema and one question: a {{PRODUCT}} pilot reviews the relationships with you and builds one chosen result. Kruse Consulting AB; not affiliated with Microsoft.", "partners"),
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
@@ -66,6 +66,7 @@ def _vars() -> dict[str, str]:
         "CONTACT": os.environ.get("CONTACT_EMAIL", "contact@" + domain),
         "ORGNR_SUFFIX": (", org. nr " + orgnr) if orgnr else "",
         "ORGNR_PAREN": (" (org. nr " + orgnr + ")") if orgnr else "",
+        "ORGNR_DOT": (" · Org. no. " + orgnr) if orgnr else "",
         "MCP_URL": url,
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
@@ -210,7 +211,7 @@ MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cas
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Pilot projects")]
+    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Try a pilot")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -277,11 +278,11 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap footer-grid">
     <div>
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
-      <p class="muted">{html.escape(v['PRODUCT'])} is made by Kruse Consulting AB, Sweden{html.escape(v['ORGNR_SUFFIX'])}. Open source under the MIT licence.</p>
+      <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Pilot projects</a>
+      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -340,10 +341,23 @@ def _demo_vars() -> dict[str, str]:
             "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"])}
 
 
+def _home_vars() -> dict[str, str]:
+    """The start page's example: the detail of the default relationship, server-rendered so it reads without JavaScript,
+    every detail as JSON for the page's script, and the relationships as links (demo.home_details)."""
+    import json
+    from .demo import HOME_DEFAULT, home_details, home_relationship_list
+    details = home_details()
+    safe = json.dumps(details, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+    return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list()}
+
+
 def render(path: str) -> str:
     template, title, description, nav = PAGES[path]
     v = _vars()
     body = _read(template)
+    if "{{HOME_" in body:
+        hv = _home_vars()
+        body = re.sub(r"\{\{(HOME_\w+)\}\}", lambda m: hv.get(m.group(1), ""), body)
     if "{{DEMO_" in body:
         dv = _demo_vars()
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
@@ -418,11 +432,21 @@ def _rules_table() -> str:
 
 
 def _with_toc(rendered: str) -> str:
-    """A small 'on this page' list built from the h2 ids, placed after the first paragraph."""
-    heads = re.findall(r'<h2 id="([^"]+)">(.*?)</h2>', rendered)
-    if len(heads) < 3:
+    """A small 'on this page' list built from the h2 ids, each with its h3 sections under it, placed after the first
+    paragraph."""
+    heads = re.findall(r'<h([23]) id="([^"]+)">(.*?)</h\1>', rendered)
+    if sum(1 for n, _i, _t in heads if n == "2") < 3:
         return rendered
-    toc = '<nav class="toc" aria-label="On this page"><ul>' + "".join(f'<li><a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a></li>' for i, t in heads) + "</ul></nav>"
+    groups: list[tuple[str, str, list[str]]] = []
+    for n, i, t in heads:
+        link = f'<a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a>'
+        if n == "2" or not groups:
+            groups.append((i, link, []))
+        else:
+            groups[-1][2].append(f"<li>{link}</li>")
+    toc = ('<nav class="toc" aria-label="On this page"><ul>'
+           + "".join(f'<li>{link}' + (f'<ul>{"".join(sub)}</ul>' if sub else "") + "</li>" for _i, link, sub in groups)
+           + "</ul></nav>")
     return rendered.replace("</p>", "</p>" + toc, 1)
 
 
@@ -448,7 +472,7 @@ def _html_to_md(src: str, origin: str) -> str:
     s = re.sub(r'<span[^>]*data-mascot[^>]*></span>', "", s)
     s = re.sub(r'<span class="kicker">.*?</span>', "", s)
     s = re.sub(r"<summary>(.*?)</summary>", r"\n\n## \1\n\n", s, flags=re.S)
-    s = re.sub(r"<pre><code>(.*?)</code></pre>", lambda m: "\n\n```\n" + m.group(1).strip() + "\n```\n\n", s, flags=re.S)
+    s = re.sub(r"<pre><code[^>]*>(.*?)</code></pre>", lambda m: "\n\n```\n" + m.group(1).strip() + "\n```\n\n", s, flags=re.S)
     s = re.sub(r"<h1[^>]*>(.*?)</h1>", r"\n\n# \1\n\n", s, flags=re.S)
     s = re.sub(r"<h2[^>]*>(.*?)</h2>", r"\n\n## \1\n\n", s, flags=re.S)
     s = re.sub(r"<h3[^>]*>(.*?)</h3>", r"\n\n### \1\n\n", s, flags=re.S)
@@ -472,6 +496,10 @@ def _html_to_md(src: str, origin: str) -> str:
     return s.strip() + "\n"
 
 
+JSON_LD_DESC = ("Suggests keys and relationships between Microsoft Fabric tables, explains each one with the rule behind it and "
+                "checks them against the data, from Claude.")
+
+
 def json_ld() -> str:
     """Structured data for the home page: the application and the company. Facts only; no ratings or numbers."""
     import json
@@ -480,7 +508,7 @@ def json_ld() -> str:
     data = [
         {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": v["PRODUCT"],
          "applicationCategory": "DeveloperApplication", "operatingSystem": "Web", "url": origin + "/",
-         "description": _fill(PAGES["/"][2], escape=False), "license": "https://opensource.org/licenses/MIT",
+         "description": _fill(JSON_LD_DESC, escape=False), "license": "https://opensource.org/licenses/MIT",
          "sameAs": [GITHUB], "publisher": {"@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/"}},
         {"@context": "https://schema.org", "@type": "Organization", "name": "Kruse Consulting AB", "url": origin + "/",
          "email": v["CONTACT"], "sameAs": [GITHUB]},

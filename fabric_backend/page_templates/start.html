@@ -2,7 +2,13 @@
 <section class="hero wrap" style="padding-bottom:12px;text-align:center">
   <span class="kicker">Get started</span>
   <h1>Connect {{PRODUCT}} to Claude</h1>
-  <p class="lede" style="margin-left:auto;margin-right:auto">You’ll need a Microsoft work account, access to a Fabric workspace with capacity, and your organisation’s approval for {{PRODUCT}}’s permissions. You can <a href="/explore">explore the demo</a> without an account.</p>
+  <p class="lede" style="margin-left:auto;margin-right:auto">You’ll need a Microsoft work account, access to a Fabric workspace with capacity, and your organisation’s approval for {{PRODUCT}}’s permissions.</p>
+</section>
+<section class="wrap" style="padding-top:0;padding-bottom:20px" aria-label="Two ways to start">
+  <div class="grid-2 start-paths">
+    <a class="card soft path-card" href="/explore"><h2 class="h3">Explore without an account</h2><p class="muted">The demo runs on sample data in your browser: see how tables are linked, why, and what the checks found.</p><span class="path-go">Explore the demo →</span></a>
+    <a class="card soft path-card" href="#step-1"><h2 class="h3">Connect your workspace</h2><p class="muted">Three steps below: your admin’s approval, a Fabric workspace, and the connector in Claude.</p><span class="path-go">Start with step 1 ↓</span></a>
+  </div>
 </section>
 <section class="wrap" style="padding-top:0">
   <div class="start-card">
@@ -29,15 +35,17 @@
         <div class="start-pane-head"><div><h2 class="h3">Add the connector in Claude</h2>
         <p>In Claude, open <strong>Settings → Connectors → Add custom connector</strong>. Give it a name and paste this URL:</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="maker" data-pose="celebrate" data-label=""></span></div></div>
-        <pre><code>{{MCP_URL}}</code></pre>
-        <p>Sign in with your Microsoft work account. Then start with <em>“List the data sources in workspace …”</em>.</p>
-        <p>Ask for a plan before creating anything, for example <em>“Plan a backend over the shop lakehouse”</em>. Review the suggested keys and relationships, then ask Claude to check the plan against the data. When it looks right: <em>“Create it as shop_api.”</em> Five first questions for a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
+        <div class="copy-row"><pre><code id="mcp-url">{{MCP_URL}}</code></pre><button type="button" class="btn ghost small" data-copy="#mcp-url">Copy URL</button></div>
+        <p>Sign in with your Microsoft work account. Your first prompt: <em>“List the data sources in workspace …”</em>, then <em>“Plan the shop lakehouse and check the plan against the data.”</em></p>
+        <p>The first goal is a plan you have read and checked: the suggested keys and relationships, the rule behind each, and the counts from your data. Correct what doesn’t match how your business works. Creating a GraphQL API from it can be the next step: <em>“Create it as shop_api.”</em> Creating the API is experimental (<a href="/docs#test-status">test status</a>). Five first questions for a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
         <p class="muted">The hosted service at {{DOMAIN}} supports Claude, and that is the client it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra app yet, so they can’t sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet). Full usage notes are in the <a href="/docs">docs</a>.</p>
       </div>
       <p class="start-sample"><a href="/explore">Explore a sample first →</a></p>
       <details id="access" data-open-wide>
         <summary>What will {{PRODUCT}} access?</summary>
-        <p>Only what the signed-in user can already reach. The hosted app asks for these delegated permissions, all approved by your admin once and all acting as the user:</p>
+        <p><strong>In short:</strong> {{PRODUCT}} acts as the signed-in user and reaches only what that person can already reach. It reads workspaces, items and table metadata, runs the checks and queries you ask for, and creates or updates only the one GraphQL API you ask for. It never deletes. Your admin can revoke the approval at any time.</p>
+        <h3>For your admin: the permissions in detail</h3>
+        <p>The hosted app asks for these delegated permissions, all approved by your admin once and all acting as the user:</p>
         <div class="table-wrap" tabindex="0"><table>
           <thead><tr><th>Permission</th><th>Used for</th></tr></thead>
           <tbody>

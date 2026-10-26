@@ -1,9 +1,17 @@
 <div data-page="use-cases">
 <section class="hero wrap uc-hero">
   <span class="kicker">Use cases</span>
-  <h1>What could you build from your Fabric tables?</h1>
+  <h1>What do you need to understand about your data?</h1>
   <p class="lede">{{UC_INTRO}}</p>
   <p class="intro">{{UC_FOOTNOTE}} {{PRODUCT}} reads table and column names, proposes keys and relationships with the rule behind each, and you can check the plan against the rows before creating anything.</p>
+</section>
+
+<section class="wrap" id="tasks" aria-labelledby="tasks-h">
+  <h2 id="tasks-h">Start from your task</h2>
+  <ul class="uc-tasks">{{UC_TASKS}}</ul>
+</section>
+
+<section class="wrap uc-flow-wrap" aria-label="From tables to what you build">
   <ol class="uc-flow" aria-label="From tables to what you build">
     <li><span class="uc-flow-n">1</span><strong>Tables</strong><span>no declared keys</span></li>
     <li><span class="uc-flow-n">2</span><strong>Explained graph</strong><span><code>plan_backend</code>, then <code>validate_plan</code></span></li>
@@ -14,8 +22,8 @@
 <section class="wrap uc-intro" id="industries" aria-labelledby="industries-h">
   <div class="uc-index-grid">
     <div>
-      <h2 id="industries-h">{{UC_COUNT}} industries</h2>
-      <p class="muted">Each example starts from one question, shows typical tables and what {{PRODUCT}} proposes for them, and ends with what you could build once the plan is reviewed.</p>
+      <h2 id="industries-h">Examples by industry</h2>
+      <p class="muted">{{UC_COUNT}} sketches with invented tables. Each starts from one question and shows what {{PRODUCT}} would propose; open one to see the rules and what you could build once the plan is reviewed.</p>
       {{UC_INDEX}}
     </div>
     <aside class="uc-legend" aria-labelledby="legend-h">

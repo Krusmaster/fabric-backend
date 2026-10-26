@@ -78,3 +78,29 @@ def test_mascot_toggle_and_builder(report):
     assert f["builderPoses"][:2] == ["working", "failure"] and "celebrate" not in f["builderPoses"]
     assert f["builderErrorShown"] is True
     assert f["motionClassUnderReducedMotion"] is False
+
+
+def test_home_demo_and_the_mobile_list(report):
+    """The home demo from the website brief of 26 October 2026: orders.customer_id preselected with its explanation,
+    ship_to_id as the decision by mouse and keyboard, the list as the graph's alternative at 375, 768 and 1440."""
+    f = report["facts"]
+    for v in ("1440-light", "1440-dark", "768-light", "375-light"):
+        assert f[f"homeList@{v}"] == f["edgeCount"], v                 # every relationship is in the list at every width
+        assert f[f"homeCtas@{v}"][:2] == ["/explore", "/start"], v
+    assert f["homeDefault"] == "orders.customer_id>customers"
+    for part in ("Suggestion", "Why", "Data check", "Your review", "Technical details"):
+        assert part in f["homePanelDefault"], part
+    assert f["homeDetailsClosed"] is True
+    assert "Not checked" in f["homeDecisionPanel"] and f["homeUrlAfterListClick"] == "/"
+    assert "Accepted in this demo" in f["homeAfterAccept"] and f["homeFocusAfterAccept"] == "accept"
+    assert "accepted" in f["homeEdgeAccepted"]
+    assert "Accepted in this demo" in f["homeAfterKeyboard"]
+    assert f["homeKeyboardSelected"] == "order_items.order_id>orders"
+    assert f["homeMotionClass"] is False                                      # reduced motion: no animation class
+    assert f["ctaFocusOutline"] not in ("none", "")
+
+
+def test_use_cases_tasks_first_and_details_by_keyboard(report):
+    f = report["facts"]
+    assert f["useCaseTasks"] == 3
+    assert f["useCaseDetailsClosed"] is True and f["useCaseDetailsOpened"] is True

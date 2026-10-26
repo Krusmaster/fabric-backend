@@ -397,6 +397,8 @@
   function tableIcon(name, i) { return '<span class="t-ico c-' + colorOf(name, i) + '">' + ICON_TABLE + '</span>'; }
 
   /* ------------------------------------------------------------------ home */
+  // One example selected from the start: orders.customer_id -> customers. The panel's text comes from the server
+  // (demo.home_details), built from the same plan and checks the graph draws; this script only picks which one to show.
   var home = document.querySelector('[data-page=home]');
   if (home) loadPlan(function (data) {
     var g = new Graph(document.getElementById('home-graph'), data, {
@@ -405,22 +407,44 @@
                 { kind: 'thinker', edge: 'order_items.product_id>products', pose: 'rest', idle: 'nod' },
                 { kind: 'builder', edge: 'products.category_id>categories', near: 'categories', pose: 'look', idle: 'bounce' }]
     });
-    var out = document.getElementById('home-why');
-    var dflt = out.innerHTML;
-    function describe(sel) {
-      if (!sel) { out.innerHTML = dflt; return; }
-      if (sel.type === 'table') {
-        var t = sel.table;
-        out.innerHTML = '<strong>' + esc(t.name) + '</strong> · ' + (t.key.length ? esc(keyText(t)) + ' <code>' + esc(t.key.join(' + ')) + '</code>, rule <code>' + t.key_rule + '</code>: ' + esc(data.rules[t.key_rule].replace(/`/g, '')) : 'no key, rule <code>K3</code>: ' + esc(data.rules.K3)) + '.';
-      } else if (sel.edge.kind === 'suggested') {
-        var q = sel.edge.rel;
-        out.innerHTML = '<code>' + esc(q.source + '.' + q.source_cols.join('+')) + '</code> was not linked by the engine (' + esc(q.note) + '). <a href="/explore">Review it in the explorer</a>.';
-      } else {
-        var r = sel.edge.rel;
-        out.innerHTML = '<span class="why-rule">' + r.rule + '</span> <code>' + esc(r.source + '.' + r.source_cols.join('+')) + '</code> → <code>' + esc(r.target + '.' + r.target_cols.join('+')) + '</code>. ' + esc(reason(r));
-      }
+    var panel = document.getElementById('home-why'), list = home.querySelector('.rel-list'), details = {};
+    try { details = JSON.parse(document.getElementById('home-details').textContent); } catch (err) { details = {}; }
+    var DEFAULT = 'orders.customer_id>customers', current = DEFAULT;
+    function edgeById(id) { return g.edges.filter(function (x) { return x.id === id; })[0]; }
+    function show(id) {
+      var e = edgeById(id), key = e && e.kind === 'suggested' && g.accepted[id] ? id + '|accepted' : id;
+      if (!details[key]) return;
+      current = id; panel.innerHTML = details[key];
+      list.querySelectorAll('a[data-edge]').forEach(function (a) { if (a.getAttribute('data-edge') === id) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+      panel.querySelectorAll('[data-decide]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var ed = edgeById(id); if (!ed) return;
+          g.setAccepted(ed, b.getAttribute('data-decide') === 'accept'); show(id);
+          var again = panel.querySelector('[data-decide="' + b.getAttribute('data-decide') + '"]'); if (again) again.focus();
+        });
+      });
     }
-    g.on('select', describe); g.on('focus', describe);
+    g.on('select', function (sel) {
+      if (!sel) { show(DEFAULT); return; }
+      show(sel.type === 'table' ? 'table:' + sel.table.name : sel.edge.id);
+    });
+    list.addEventListener('click', function (ev) {
+      var a = ev.target.closest('a[data-edge]'); if (!a) return;
+      var e = edgeById(a.getAttribute('data-edge')); if (!e) return;
+      ev.preventDefault(); g.select({ type: 'edge', edge: e, el: e.el });
+    });
+    var first = edgeById(DEFAULT);
+    if (first) g.select({ type: 'edge', edge: first, el: first.el });      // selected for the reader, without moving focus or scroll
+  });
+
+  /* ------------------------------------------------------------------ copy buttons ([data-copy] names the element to copy) */
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var src = document.querySelector(b.getAttribute('data-copy')), text = src ? src.textContent.trim() : '', label = b.textContent;
+      var done = function (ok) { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { b.textContent = label; }, 1600); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      else done(false);
+    });
   });
 
   /* ------------------------------------------------------------------ start: one step at a time (all three without JS) */
@@ -475,7 +499,7 @@
         var t = sel.table, code = t.key.length ? t.key_rule : 'K3';
         panel.innerHTML = '<h2>' + tableIcon(t.name, data.tables.indexOf(t)) + ' ' + esc(t.name) + '</h2><div class="why-cols"><div>' +
           '<p class="why-head"><span class="why-rule key">' + code + '</span> <strong>' + keyText(t) + '</strong>' + (t.key.length ? ' <code>' + esc(t.key.join(' + ')) + '</code>' : '') + '</p>' +
-          '<p>' + esc(data.rules[code].replace(/`/g, '')) + '.</p>' +
+          '<details class="tech"><summary>Technical details</summary><p>Rule ' + code + ', in the engine’s words: ' + esc(data.rules[code].replace(/`/g, '')) + '.</p></details>' +
           (t.key_rule === 'K1' ? '<p class="status">Composite keys cannot be guessed from names; this one was given as <code>keys={"order_items": ["order_id", "line_no"]}</code>.</p>' : '') +
           (t.key.length ? '' : '<p class="status">Query only: it can reference other tables, but nothing can reference it.</p>') +
           '</div><div><h3>Fields</h3><ul class="fields">' + t.columns.map(function (c) { return '<li><code>' + esc(c.name) + '</code> <span class="type">' + esc(c.type) + '</span>' + (c.key ? ' <span class="muted">key</span>' : c.linked ? ' <span class="muted">linked</span>' : '') + '</li>'; }).join('') + '</ul>' +
@@ -502,9 +526,10 @@
         panel.innerHTML = '<h2>Why this relationship?</h2><div class="why-cols"><div>' +
           '<p class="why-head"><span class="why-rule" title="' + esc('Rule ' + rr.rule + ': ' + data.rules[rr.rule].replace(/`/g, '')) + '">' + rr.rule + '</span> <span class="muted">many ' + esc(rr.source) + ' → one ' + esc(singular(rr.target)) + '</span></p>' +
           '<p class="why-path"><code>' + esc(rr.source + '.' + rr.source_cols.join(' + ')) + ' → ' + esc(rr.target + '.' + rr.target_cols.join(' + ')) + '</code></p>' +
-          '<p>' + esc(reason(rr)) + '</p><p class="status">Rule ' + rr.rule + ', in the engine’s words: ' + rule(rr.rule) + '. Names made this relationship; you can overrule it.</p>' +
-          (next ? '<div class="note coral"><span data-mascot="onto" data-pose="point" data-label="Onto"></span><div><strong>Onto’s note:</strong> next, select <a href="#edge=' + encodeURIComponent(g.edgeId(next)) + '">the dashed line</a> from <code>' + esc(next.source + '.' + next.source_cols[0]) + '</code>. It is a column the rules left unlinked.</div></div>' : '') + '</div><div>' + fields(rr) +
-          '<h3>In GraphQL</h3><ul class="fields"><li><code>' + esc(rr.source + '.' + rr.field) + '</code> <span class="type">one</span></li><li><code>' + esc(rr.target + '.' + rr.reverse) + '</code> <span class="type">many</span></li></ul></div></div>';
+          '<p>' + esc(reason(rr)) + ' Names made this relationship; you can overrule it.</p>' +
+          '<details class="tech"><summary>Technical details</summary><p>Rule ' + rr.rule + ', in the engine’s words: ' + rule(rr.rule) + '.</p>' +
+          '<p>In GraphQL: <code>' + esc(rr.source + '.' + rr.field) + '</code> (one ' + esc(singular(rr.target)) + ') and <code>' + esc(rr.target + '.' + rr.reverse) + '</code> (many ' + esc(rr.source) + ').</p></details>' +
+          (next ? '<div class="note coral"><span data-mascot="onto" data-pose="point" data-label="Onto"></span><div><strong>Onto’s note:</strong> next, select <a href="#edge=' + encodeURIComponent(g.edgeId(next)) + '">the dashed line</a> from <code>' + esc(next.source + '.' + next.source_cols[0]) + '</code>. It is a column the rules left unlinked.</div></div>' : '') + '</div><div>' + fields(rr) + '</div></div>';
         line.innerHTML = '<span class="why-rule">' + rr.rule + '</span> <code>' + esc(rr.source + '.' + rr.source_cols.join(' + ') + ' → ' + rr.target + '.' + rr.target_cols.join(' + ')) + '</code> · <a href="#why">why, below</a>';
         M.mount(panel);
       }

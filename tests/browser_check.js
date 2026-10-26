@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const base = process.argv[2];
 const exe = process.argv[3];
-const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots'];
+const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases'];
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const errors = [], facts = {};
@@ -14,7 +14,8 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
     page.on('requestfailed', r => errors.push(`${label}: request failed ${r.url()}`));
     page.on('request', r => { if (!r.url().startsWith(base)) errors.push(`${label}: external request ${r.url()}`); });
   };
-  for (const [vname, width, scheme] of [['1280-light', 1280, 'light'], ['1280-dark', 1280, 'dark'], ['390-light', 390, 'light']]) {
+  // the brief of 26 October 2026 asks for 375, 768 and 1440; dark mode at the widest
+  for (const [vname, width, scheme] of [['1440-light', 1440, 'light'], ['1440-dark', 1440, 'dark'], ['768-light', 768, 'light'], ['375-light', 375, 'light']]) {
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
     for (const path of pages) {
       const page = await ctx.newPage(); const label = `${path}@${vname}`; watch(page, label);
@@ -23,6 +24,14 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
       if (sw > width) errors.push(`${label}: horizontal overflow ${sw} > ${width}`);
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
       if (!fonts.every(Boolean)) errors.push(`${label}: self-hosted fonts not loaded`);
+      if (path === '/') {
+        // the relationship list is the graph's alternative on a phone: visible, and every row reachable
+        facts[`homeList@${vname}`] = await page.evaluate(() => {
+          const l = document.querySelector('.rel-list'); const r = l && l.getBoundingClientRect();
+          return !!r && r.width > 0 && r.height > 0 && getComputedStyle(l).visibility !== 'hidden' && l.querySelectorAll('a[data-edge]').length;
+        });
+        facts[`homeCtas@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.hero .ctas a')].map(a => a.getAttribute('href')));
+      }
       await page.close();
     }
     await ctx.close();
@@ -53,6 +62,39 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   await page.click('[data-mascot-toggle]');
   facts.mascotsAfterToggleBack = await page.evaluate(() => document.documentElement.getAttribute('data-mascots'));
   await ctx.close();
+  // the home demo: one relationship selected from the start, a decision by mouse and by keyboard, reduced motion
+  const hc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+  const hp = await hc.newPage(); watch(hp, '/ interactions');
+  await hp.goto(base + '/', { waitUntil: 'networkidle' });
+  facts.homeDefault = await hp.evaluate(() => { const a = document.querySelector('.rel-list a[aria-current="true"]'); return a ? a.getAttribute('data-edge') : null; });
+  facts.homePanelDefault = await hp.textContent('#home-why');
+  facts.homeDetailsClosed = await hp.evaluate(() => [...document.querySelectorAll('#home-why details')].every(d => !d.open));
+  await hp.click('.rel-list a[data-edge="orders.ship_to_id>addresses"]');
+  facts.homeDecisionPanel = await hp.textContent('#home-why');
+  facts.homeUrlAfterListClick = await hp.evaluate(() => location.pathname);
+  await hp.click('#home-why [data-decide="accept"]');
+  facts.homeAfterAccept = await hp.textContent('#home-why');
+  facts.homeFocusAfterAccept = await hp.evaluate(() => document.activeElement.getAttribute('data-decide'));
+  facts.homeEdgeAccepted = await hp.getAttribute('.g-edge[data-id="orders.ship_to_id>addresses"]', 'class');
+  await hp.keyboard.press('Tab'); await hp.keyboard.press('Shift+Tab'); await hp.keyboard.press('Enter');    // the same button, by keyboard
+  facts.homeAfterKeyboard = await hp.textContent('#home-why');
+  // keyboard on the list: focus a row and press Enter
+  await hp.focus('.rel-list a[data-edge="order_items.order_id>orders"]'); await hp.keyboard.press('Enter');
+  facts.homeKeyboardSelected = await hp.evaluate(() => { const a = document.querySelector('.rel-list a[aria-current="true"]'); return a ? a.getAttribute('data-edge') : null; });
+  facts.homeMotionClass = await hp.evaluate(() => document.documentElement.classList.contains('motion'));
+  // a visible focus ring on the list rows and the CTAs
+  await hp.focus('.hero .ctas a');
+  facts.ctaFocusOutline = await hp.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
+  await hc.close();
+  // /docs: the groups and the 'on this page' list; /use-cases: an industry's details open by keyboard
+  const dc = await browser.newContext({ viewport: { width: 375, height: 900 } });
+  const dp = await dc.newPage(); watch(dp, '/use-cases details');
+  await dp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  facts.useCaseTasks = await dp.locator('.uc-task').count();
+  facts.useCaseDetailsClosed = await dp.evaluate(() => [...document.querySelectorAll('details.uc-more')].every(d => !d.open));
+  await dp.focus('details.uc-more summary'); await dp.keyboard.press('Enter');
+  facts.useCaseDetailsOpened = await dp.evaluate(() => document.querySelector('details.uc-more').open);
+  await dc.close();
   // builder on /mascots: failure keeps its status, no celebrate pose
   const m = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const mp = await m.newPage(); watch(mp, '/mascots builder');

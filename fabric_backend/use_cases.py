@@ -212,6 +212,8 @@ INDUSTRIES: list[dict] = [
         ],
         "value": [
             "The bridge and the beneficiary account are each stated once with their rules, and `validate_plan` counts orphans before anyone relies on them.",
+            "This shows the joins an investigation tool needs. {{PRODUCT}} is not an investigation system: alert logic, scoring "
+            "and the organisation's own regulatory validation are separate work.",
         ],
         "note": ("The next layer",
                  "{{PRODUCT}} works on how the tables connect. Finding rings among individual customers and accounts "
@@ -455,6 +457,24 @@ RULE_LEGEND = [
     ("confirm", "conf", "a column that names no table, such as `manager_id`: linked only when you confirm it"),
 ]
 
+# The three tasks a visitor starts from (the website brief of 26 October 2026): what they say, what they get, the tools
+# and their status. Worded as tasks, not as claims about customers.
+TASKS = [
+    {"slug": "inherited", "quote": "I inherited a lakehouse nobody has documented.",
+     "shows": "An overview: the central tables, how they relate, and the questions you still need to clear up.",
+     "tools": "`analyze_schema`, `plan_backend`, `data_dictionary`", "status": "tested end to end on 26 October 2026",
+     "example": ("retail", "a return that belongs to an order line, not just an order")},
+    {"slug": "join", "quote": "I need to check how these tables should join.",
+     "shows": "A suggested join with its reason, a check against the rows, and what stays uncertain.",
+     "tools": "`join_path`, `validate_plan`, `suggest_relationships`", "status": "tested end to end on 26 October 2026",
+     "example": ("pharma-research", "a visit number that is not a unique key on its own")},
+    {"slug": "app", "quote": "I want to build an app on this data.",
+     "shows": "The reviewed plan, an API created from it in your workspace, and the setup steps the app still needs.",
+     "tools": "`create_backend`, `app_starter`", "status": "creating the API is experimental; the app prompt and queries from "
+                                                        "`app_starter` are tested end to end",
+     "example": ("professional-services", "consultant hours that are not invoiced yet")},
+]
+
 OUTPUTS = [   # (what, for what, status in the docs' words; "planned" draws the chip dashed)
     ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude",
      "creating it: experimental; querying an existing one: tested end to end"),
@@ -575,12 +595,16 @@ def _section(n: int, ind: dict) -> str:
     <div class="uc-sketch-head"><h3 id="{tid}">Typical tables</h3><span class="muted tiny">From names alone, as the engine plans them: {e(sk["summary"])}</span></div>
     <ul class="uc-tables" aria-labelledby="{tid}">{cards}</ul>
   </div>
-  <div class="uc-body">
-    <div class="uc-finds"><h3>What {{{{PRODUCT}}}} finds</h3><ul class="uc-find-list">{finds}</ul></div>
-    <div><h3>What you build</h3><ul class="uc-list">{build}</ul></div>
-    <div><h3>Why it matters</h3><ul class="uc-list">{value}</ul></div>
-  </div>
-  {note}<p class="uc-top tiny"><a href="#industries">Back to the industries</a></p>
+  <details class="uc-more">
+    <summary>What {{{{PRODUCT}}}} finds, and what you could build</summary>
+    <div class="uc-body">
+      <div class="uc-finds"><h3>What {{{{PRODUCT}}}} finds</h3><ul class="uc-find-list">{finds}</ul></div>
+      <div><h3>What you build</h3><ul class="uc-list">{build}</ul></div>
+      <div><h3>Why it matters</h3><ul class="uc-list">{value}</ul></div>
+    </div>
+    {note}
+  </details>
+  <p class="uc-top tiny"><a href="#industries">Back to the industries</a></p>
 </section>"""
 
 
@@ -604,8 +628,18 @@ def outputs_html() -> str:
                    f'{f"<em>{e(tag)}</em>" if tag else ""}</li>' for name, what, tag in OUTPUTS)
 
 
+def tasks_html() -> str:
+    e = html.escape
+    names = {i["slug"]: i["name"] for i in INDUSTRIES}
+    return "".join(
+        f'<li class="uc-task" id="task-{e(t["slug"])}"><p class="uc-task-q">“{e(t["quote"])}”</p><p>{_inline(t["shows"])}</p>'
+        f'<p class="muted tiny">Tools: {_inline(t["tools"])}. Status: {_inline(t["status"])}.</p>'
+        f'<p class="tiny">For example: <a href="#{e(t["example"][0])}">{e(names[t["example"][0]])}</a>, {e(t["example"][1])}.</p></li>'
+        for t in TASKS)
+
+
 def page_vars() -> dict[str, str]:
-    return {"UC_INDEX": index_html(), "UC_LEGEND": legend_html(), "UC_OUTPUTS": outputs_html(),
+    return {"UC_TASKS": tasks_html(), "UC_INDEX": index_html(), "UC_LEGEND": legend_html(), "UC_OUTPUTS": outputs_html(),
             "UC_SECTIONS": "\n".join(_section(n, i) for n, i in enumerate(INDUSTRIES, 1)),
             "UC_FOOTNOTE": html.escape(FOOTNOTE), "UC_COUNT": NUMBER_WORDS[len(INDUSTRIES)], "UC_CONSULTANCY": html.escape(CONSULTANCY_TEXT.format(product="{{PRODUCT}}")),
             "UC_INTRO": html.escape(INTRO.format(product="{{PRODUCT}}"))}
@@ -614,9 +648,12 @@ def page_vars() -> dict[str, str]:
 # ------------------------------------------------------------------ markdown ---------------------------------------
 
 def markdown(product: str, origin: str, contact: str) -> str:
-    out = [f"# Use cases: what could you build from your Fabric tables?\n",
+    out = [f"# Use cases: what do you need to understand about your data?\n",
            INTRO.format(product=product) + "\n",
            f"*{FOOTNOTE}*\n",
+           "## Start from your task\n"]
+    out += [f"- **“{t['quote']}”** {t['shows']} Tools: {t['tools']}. Status: {t['status']}." for t in TASKS]
+    out += ["",
            "Plan from names (`plan_backend`, nothing is deployed), check against the rows (`validate_plan`, a step you "
            "ask for), then create (`create_backend`). Ambiguous columns are reported, never guessed.\n",
            "## What comes out\n"]
@@ -658,6 +695,5 @@ CONSULTANCY_TEXT = ("Start a client conversation from their own schema instead o
                     "relationship with the rule behind it, so a review with the client's data owners has something "
                     "concrete to check. The rules and the engine are open source.")
 
-INTRO = ("A returns view, a project-hours dashboard or a course overview all need clear relationships between tables. "
-         "These examples show how {product} proposes those relationships, where they can go wrong and what you can "
-         "build after reviewing them.")
+INTRO = ("Start with an unfamiliar lakehouse, a join you need to check or an app you want to build. These examples show "
+         "where {product} helps and what still needs your judgement.")

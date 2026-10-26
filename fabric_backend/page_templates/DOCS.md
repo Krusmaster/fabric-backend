@@ -1,10 +1,14 @@
 # {{PRODUCT}} docs
 
-Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review suggested relationships and create a GraphQL API.
-Start with the connection guide, or use the [demo](/explore) without an account. The tool reference below explains
-what each tool reads, returns or changes, and how far it has been tested.
+Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
+data and build from the plan. Start with the connection guide, or use the [demo](/explore) without an account. The tool
+reference explains what each tool reads, returns or changes, and how far it has been tested.
 
-## Connect
+## Get started
+
+Connect the hosted server to Claude, then ask a first question. The [demo](/explore) needs no account.
+
+### Connect
 
 1. **Your Entra admin grants consent once** for your organization:
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
@@ -19,36 +23,7 @@ Every call runs with your own Fabric permissions. The step-by-step version is on
 published in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
 Prefer your own machine and a SQL Server? The same engine runs locally over ODBC: [/local](/local).
 
-## What it accesses
-
-The Entra app asks for delegated permissions only, all acting as the signed-in user: `User.Read` (sign-in),
-`Workspace.Read.All` and `Item.Read.All` (listing sources, reading metadata), `GraphQLApi.ReadWrite.All` (creating or
-updating the one item you ask for; it never deletes), `GraphQLApi.Execute.All` (your read-only queries) and Azure SQL
-`user_impersonation` (table and column names from the SQL analytics endpoint, and the checks and samples you ask for).
-The tools that create semantic models, ontologies, data agents, notebooks and pipelines need more (`Item.ReadWrite.All`
-or a narrower permission per item type), which the hosted app does not ask for today; they are marked *Available when
-enabled by the operator* below.
-
-**The data path.** Planning uses schema metadata: workspace, item, table and column names and types. `validate_plan`
-and `suggest_relationships` check keys and references against the rows in Fabric with counting queries and return only
-the counts. `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
-for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
-Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
-after the request. Your tokens are exchanged on your behalf and held in memory only; there is no database and no file
-storage. Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
-service writes technical logs. Details: [privacy policy](/privacy).
-
-**Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per
-pattern, from the name alone and never from the values: a person's name (P1: `first_name`, `last_name`, and `name` in a
-table that holds people such as customers or employees), e-mail (P2), telephone (P3), national identity number (P4,
-such as `personnummer`), address (P5: street, postal code, and the city in a table of addresses or people) and birth
-date (P6). By default `sample_rows` returns their values as `***` with a notice naming the rule, `answer_query_draft`
-and `gold_views_draft` leave them out (the key stands in), and the silver notebook masks them in its quarantine table;
-`show_personal_data=true` shows them, and your own Fabric permissions still decide what you can read. When Fabric
-returns a Microsoft Purview sensitivity label on the source item, `sample_rows` and `validate_plan` name it: Fabric
-gives the label's id only, and a label covers the whole item, so the column rules still decide what is masked.
-
-## What you can ask
+### What you can ask
 
 One example per tool, in the order a first session usually goes (list, plan, look at rows if needed, check, create, describe, query):
 
@@ -75,7 +50,28 @@ One example per tool, in the order a first session usually goes (list, plan, loo
 4. *"Which columns look like they should point at another table but are in no relationship?"* (`suggest_relationships`)
 5. *"Write the data dictionary for schema shop."* (`data_dictionary`; `dbt_schema` when the team tests with dbt)
 
-## Review, check, then create
+### First-time errors
+
+What a new user meets first, what the tool answers (`kind`) and exactly what to do. Every such answer carries this
+section's link in its `hint`.
+
+| `kind` | What happened | What to do, in order |
+| --- | --- | --- |
+| `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Settings → Connectors → {{PRODUCT}} → Disconnect**, then **Connect** again and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
+| `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology`, `create_data_agent`, `create_silver_notebook` and `create_drift_monitor` the answer names the missing scope (such as `Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
+| `no_access` | You can sign in, but this workspace or item is not shared with you (HTTP 403) | Ask the workspace owner for a role on the workspace: **Viewer** is enough for everything that reads and plans, **Contributor** for `create_backend`, `create_views` and the other creating tools. Then run the same request again; `list_workspaces` shows what you can see. |
+| `capacity` | The workspace has no active Fabric capacity (paused, not assigned, or expired trial) | In Fabric: **Workspace settings → License info**, assign a capacity or resume the paused one; a trial capacity is enough. Lakehouse SQL endpoints answer again a minute after the capacity is up. |
+| `schema_not_found` | The schema has no tables for this sign-in | A lakehouse without "Lakehouse schemas" has everything in `dbo`; one created with schemas has them by name (`list_tables` with another schema). Tables created minutes ago are not in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata, then try again. |
+| `sql_sign_in` | The SQL analytics endpoint refused the token | Reconnect the connector; if it persists, the account lacks access to the item itself (share the lakehouse or warehouse, not only the workspace). |
+
+Everything else (`not_found`, `timeout`, `throttled`, `bad_input`, …) is explained in the answer itself; the format is
+the same three fields.
+
+## Explore and check
+
+How a plan is made, how to read it, and how to check it against the rows before anything is built.
+
+### Review, check, then create
 
 A plan is a proposal, so read it before anything is built.
 
@@ -84,7 +80,158 @@ A plan is a proposal, so read it before anything is built.
 3. **Create the API.** `create_backend` creates the API for GraphQL item, or updates the one with that name. It has no dry run: run `plan_drift` first to see what an update would change. If an update would remove relationships the existing API has, nothing is written and the answer lists them with the `confirmed` entries that keep them; `allow_removals=true` drops them on purpose.
 4. **Query it.** `describe_backend` gives the field names; `query_graphql` runs read-only queries and refuses mutations. Two portal steps stay manual (see below).
 
-## Test status
+### How relationships are inferred
+
+A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
+so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
+two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
+`confirmed`. The [demo](/explore) shows the rules on a synthetic schema. The rules, in the engine's own words:
+
+{{RULES_TABLE}}
+
+Names are matched literally first. When nothing matches, a small documented **synonym table** is tried: abbreviations
+(`cust`, `prod`, `ord`, `emp`, `dept`, `acct`, …), Swedish and German business words in singular and plural (`kund`/`kunder`,
+`artikel`/`artiklar`, `leverantör`, `kunde`/`kunden`, `bestellung`, `rechnung`, `mitarbeiter`, …), after transliteration of
+`å ä ö ü ß`; a leading `dim_`, `fact_` or `tbl_` is not part of a table's name, and `_sk`/`_bk` count as key suffixes. Every
+match that rests on the table is listed under `synonyms` in `plan_backend` and on the relationship's `note`, and counts as
+the weakest rule (R4), so the plan never hides that it translated a name. Measured on eleven schemas in
+`docs/INFERENCE.md`; the five public schemas that need no synonyms are unchanged to the number.
+
+More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
+
+### Sources
+
+**Tested end to end:** a lakehouse with schemas (the demo workspace's `demo_lh`, schema `shop`), read through its SQL
+analytics endpoint. **Experimental:** warehouses and Fabric SQL databases, read the same way through their SQL endpoint
+and covered by unit tests; warehouses also give declared keys and foreign keys (rules K0 and R0). **Experimental:** the
+mirrored and Snowflake item types below. Tables a lakehouse holds as OneLake shortcuts (to another lakehouse, a
+warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tables, so they are planned with it.
+
+{{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
+
+1. **Bring it into Fabric.** A *Snowflake database* item, a *Mirrored database* (Snowflake, Azure SQL, Cosmos DB, SAP via
+   Datasphere, …), a *Mirrored Azure Databricks catalog* or a *Mirrored catalog* (preview) is a source like a lakehouse:
+   `list_sources` shows it, `plan_backend` plans it and `create_backend` builds the API over its SQL analytics endpoint.
+   The item is set up once in the Fabric portal; {{PRODUCT}} reads the endpoint id from the item, as Microsoft's REST
+   specification documents it for each of these item types. Experimental: unit-tested, not yet run against a live item.
+2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
+   expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
+   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems (for Databricks with
+   its own adapter, [below](#databricks-draft-only)); the API for GraphQL item is a Fabric object, so that last step
+   needs route 1.
+
+Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
+informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
+follow Microsoft's published REST specification; these source types are experimental until a live run.
+
+### How {{PRODUCT}} uses graph theory
+
+The plan is a graph: tables are nodes, relationships are edges from the many side to the one side, and every edge
+carries a certainty from its rule (declared or confirmed 1.0; checked against the data 0.9; R1 0.8; R2 0.6; R3 and
+R4 0.5). `fabric_backend/graphs.py` is plain Python and deterministic: the same plan always gives the same answer.
+What each method does for you, in plain terms:
+
+- **Roles** (`analyze_schema`): a table that points at several others and nothing points at is a fact table; one that
+  is pointed at and points at little is a dimension; a table whose key is just two references (a junction) is a bridge.
+  The numbers that decided each role are in the answer, so you can disagree.
+- **Centrality**: in/out degree says what a table refers to and what refers to it; betweenness says how often a
+  table sits on the route between two others; PageRank on the directed graph says where the references end up
+  (shared dimensions score high). The top ten is where to start reading an unknown schema.
+- **Subject areas**: label propagation on the undirected graph groups tables that are more connected to each other
+  than to the rest; each area is named after its most central table. A first cut at the domains in a lakehouse.
+- **Ambiguity**: every relationship beyond a spanning forest closes a cycle, and any two tables on a cycle can be
+  reached two ways. That is exactly what makes filter paths ambiguous in a Power BI model, so the answer lists the
+  cycles and the pairs, and the maximum spanning forest (highest certainty first) says which relationships can be active
+  at once; `semantic_model_draft` uses it for active/inactive.
+- **Paths** (`join_path`): the shortest path counts hops; the safest path (Dijkstra on cost = 1/certainty) prefers
+  declared and R1 links. When they differ the answer says why.
+- **Link prediction** (`suggest_relationships`): a column with a reference suffix and the type of another table's
+  key, in no relationship yet, is a candidate; a name that resembles the target, or a target the table already
+  reaches in two hops, ranks it higher; then the data decides — the share of its values that exist in the target key.
+  Nothing is applied; you pass the suggestion you accept as `confirmed`.
+
+Unit-tested on the synthetic shop schema and the public benchmark schemas; `analyze_schema` and `suggest_relationships`
+were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
+every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates.
+
+## Build from a plan
+
+What you can build once the plan is reviewed. Each tool's status is in the [tool reference](#test-status).
+
+### One plan, five Fabric pieces
+
+Everything {{PRODUCT}} creates comes from one plan: the keys and relationships inferred from a source, with the rule behind
+each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan:
+`create_backend` makes the **API for GraphQL** with nested relationships (no dry run; `plan_drift` shows what an update
+would change); `create_views` the **wide T-SQL views** on the SQL analytics endpoint; and, once the operator has enabled
+the permission, `create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
+`create_ontology` the **Fabric IQ ontology** with entity types, keys, relationship types and bindings, and
+`create_data_agent` the **data agent** with the plan as instructions and examples. Those four answer with a dry run
+first. Change the plan once (a confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and
+`lineage` tell you what a change reaches. The pieces agree with each other because none of them was modelled by hand.
+
+From the same plan, further down the lakehouse: `silver_notebook_draft` writes de-duplicated silver tables with every
+reference checked, and `gold_views_draft` the **gold views** on top of them, as materialized lake views (generally
+available in Fabric since September 2026) whose data quality rules are the plan's keys and relationships. A model you
+already have is checked against the plan with `compare_semantic_model`. And when changes go through Git rather than
+straight into the workspace, `export_item_definitions` gives every piece as the files Fabric's Git integration reads.
+
+### Fabric IQ: the same graph as an ontology
+
+Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
+types between them, and data bindings to tables. That is the information {{PRODUCT}} already infers for a source, with
+the rule behind every key and relationship. `ontology_draft` writes the plan in the ontology item's own shape, nothing deployed:
+
+- a **summary** with what needs a hand (keyless tables, composite keys, composite-column relationships);
+- a **binding checklist**: entity type → table, key column, property → column, relationship → columns, each with its rule;
+- a **Turtle file** the portal's *Import ontology* accepts into an empty ontology item, using the mappings Microsoft documents
+  for import (`owl:Class` → entity type, `owl:DatatypeProperty` → property, `owl:ObjectProperty` → relationship type,
+  `rdfs:label`, `rdfs:comment`, `skos:altLabel` → display name, description, synonym); bindings are then done in the portal
+  following the checklist;
+- the **item definition** (generation 2, TMDL parts) that `POST /workspaces/{id}/ontologies` and Git integration take,
+  with tables bound DirectLake-style to the source, entities with keys and properties, and the relationships.
+
+Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace,
+and the workspace on a Fabric capacity (`POST /workspaces/{id}/ontologies`, `updateDefinition`; Microsoft's REST
+specification, read 26 October 2026). `create_ontology` does that with a dry run by default; the hosted app does not
+have the permission yet, so it answers `consent` naming the scope when asked to create. The portal route (Import ontology
+with the Turtle file) needs nothing beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take
+over: the ontology agent and data agents use it as context, and the built-in graph can be materialised from its entity
+and relationship types. Ontology is in preview and its definition format can change; the draft follows the item's own
+definition as of 2026 and has been checked against recorded definitions, not yet live from {{PRODUCT}}.
+
+### Two steps stay manual
+
+Fabric has no API for these yet, and the connector tells you when they are needed:
+
+1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
+2. **Permissions** on the item for other apps or service principals that should query it.
+
+### Use with Lovable
+
+Lovable's Microsoft Fabric connector reads an existing API for GraphQL item. {{PRODUCT}} creates that item; after the
+two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
+says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
+keeps the app's Entra secret on the server side. The whole chain, with who does each step and what still blocks, is in
+the repository's `docs/LOVABLE-END-TO-END.md`.
+
+### Databricks (Draft only)
+
+The same engine reads Databricks too, in the local server only (`KRUSGRAPH_PLATFORM=databricks`): a Unity Catalog
+schema through its `information_schema`, where declared primary and foreign keys count as K0 and R0 and column tags feed
+the personal-data rules; the checks run as counting queries on a SQL warehouse. From the same plan it drafts
+informational constraints (with `RELY` only where the counts hold), views, a Lakeflow pipeline whose expectations are
+the plan's keys and relationships, metric views and a bundle. **Draft only:** unit-tested with Databricks mocked, not
+yet run against a Databricks workspace. The hosted service at {{DOMAIN}} reads Fabric only. Set-up, the status of each tool
+and the documentation each draft rests on: [docs/DATABRICKS.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/DATABRICKS.md).
+Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
+{{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
+
+## Tool reference
+
+The status words, then each tool: what it reads, returns or changes.
+
+### Test status
 
 Each tool in the table below carries one of these:
 
@@ -101,7 +248,7 @@ Each tool in the table below carries one of these:
   ([docs/SCOPES.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SCOPES.md)).
 - **Planned** — not available yet, such as the Claude plugin (see *For agents*).
 
-## Tools
+### Tools
 
 All tools take the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
 (`{"order_items": ["order_id", "line_no"]}`), `confirmed` adds relationships the rules did not make
@@ -152,74 +299,18 @@ an account or organisation makes too many calls in a short time) and `hint` (wha
 headers and stack traces never appear in these answers. A query result too large for one answer comes back as valid
 JSON with every list cut to its first items and a `truncated` note saying so; page with `first:`/`after` for the rest.
 
-## How relationships are inferred
+### For agents
 
-A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
-so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
-two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
-`confirmed`. The [demo](/explore) shows the rules on a synthetic schema. The rules, in the engine's own words:
+A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.txt) lists the rest and
+[/llms-full.txt](/llms-full.txt) has every page in one file. MCP clients can read the server's identity and transport
+from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
+Claude Code takes the same URL (`claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`), but its local sign-in
+redirect is not registered on the Entra app yet, so it can't sign in to {{DOMAIN}} today; Claude is the supported client.
+A Claude plugin that bundles this connector with a skill for the whole workflow and the commands `/krusgraph:plan`,
+`/krusgraph:document` and `/krusgraph:explain-schema` is built and tested in the repository (`plugin/krusgraph`) and
+coming soon (Planned); it is not published yet.
 
-{{RULES_TABLE}}
-
-Names are matched literally first. When nothing matches, a small documented **synonym table** is tried: abbreviations
-(`cust`, `prod`, `ord`, `emp`, `dept`, `acct`, …), Swedish and German business words in singular and plural (`kund`/`kunder`,
-`artikel`/`artiklar`, `leverantör`, `kunde`/`kunden`, `bestellung`, `rechnung`, `mitarbeiter`, …), after transliteration of
-`å ä ö ü ß`; a leading `dim_`, `fact_` or `tbl_` is not part of a table's name, and `_sk`/`_bk` count as key suffixes. Every
-match that rests on the table is listed under `synonyms` in `plan_backend` and on the relationship's `note`, and counts as
-the weakest rule (R4), so the plan never hides that it translated a name. Measured on eleven schemas in
-`docs/INFERENCE.md`; the five public schemas that need no synonyms are unchanged to the number.
-
-More on how they interact, with examples: https://github.com/Krusmaster/fabric-backend#how-the-relationships-are-inferred
-
-## How {{PRODUCT}} uses graph theory
-
-The plan is a graph: tables are nodes, relationships are edges from the many side to the one side, and every edge
-carries a certainty from its rule (declared or confirmed 1.0; checked against the data 0.9; R1 0.8; R2 0.6; R3 and
-R4 0.5). `fabric_backend/graphs.py` is plain Python and deterministic: the same plan always gives the same answer.
-What each method does for you, in plain terms:
-
-- **Roles** (`analyze_schema`): a table that points at several others and nothing points at is a fact table; one that
-  is pointed at and points at little is a dimension; a table whose key is just two references (a junction) is a bridge.
-  The numbers that decided each role are in the answer, so you can disagree.
-- **Centrality**: in/out degree says what a table refers to and what refers to it; betweenness says how often a
-  table sits on the route between two others; PageRank on the directed graph says where the references end up
-  (shared dimensions score high). The top ten is where to start reading an unknown schema.
-- **Subject areas**: label propagation on the undirected graph groups tables that are more connected to each other
-  than to the rest; each area is named after its most central table. A first cut at the domains in a lakehouse.
-- **Ambiguity**: every relationship beyond a spanning forest closes a cycle, and any two tables on a cycle can be
-  reached two ways. That is exactly what makes filter paths ambiguous in a Power BI model, so the answer lists the
-  cycles and the pairs, and the maximum spanning forest (highest certainty first) says which relationships can be active
-  at once; `semantic_model_draft` uses it for active/inactive.
-- **Paths** (`join_path`): the shortest path counts hops; the safest path (Dijkstra on cost = 1/certainty) prefers
-  declared and R1 links. When they differ the answer says why.
-- **Link prediction** (`suggest_relationships`): a column with a reference suffix and the type of another table's
-  key, in no relationship yet, is a candidate; a name that resembles the target, or a target the table already
-  reaches in two hops, ranks it higher; then the data decides — the share of its values that exist in the target key.
-  Nothing is applied; you pass the suggestion you accept as `confirmed`.
-
-Unit-tested on the synthetic shop schema and the public benchmark schemas; `analyze_schema` and `suggest_relationships`
-were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
-every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates.
-
-## One plan, five Fabric pieces
-
-Everything {{PRODUCT}} creates comes from one plan: the keys and relationships inferred from a source, with the rule behind
-each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan:
-`create_backend` makes the **API for GraphQL** with nested relationships (no dry run; `plan_drift` shows what an update
-would change); `create_views` the **wide T-SQL views** on the SQL analytics endpoint; and, once the operator has enabled
-the permission, `create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
-`create_ontology` the **Fabric IQ ontology** with entity types, keys, relationship types and bindings, and
-`create_data_agent` the **data agent** with the plan as instructions and examples. Those four answer with a dry run
-first. Change the plan once (a confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and
-`lineage` tell you what a change reaches. The pieces agree with each other because none of them was modelled by hand.
-
-From the same plan, further down the lakehouse: `silver_notebook_draft` writes de-duplicated silver tables with every
-reference checked, and `gold_views_draft` the **gold views** on top of them, as materialized lake views (generally
-available in Fabric since September 2026) whose data quality rules are the plan's keys and relationships. A model you
-already have is checked against the plan with `compare_semantic_model`. And when changes go through Git rather than
-straight into the workspace, `export_item_definitions` gives every piece as the files Fabric's Git integration reads.
-
-## With Microsoft's Fabric MCP servers
+### With Microsoft's Fabric MCP servers
 
 Microsoft publishes its own MCP servers for Fabric and Power BI. They manage workspaces and items, read files and run
 queries; {{PRODUCT}} works out how your tables relate, with the rule behind every link, checks it against the rows, and
@@ -241,85 +332,40 @@ A typical pairing: Microsoft's server finds the workspace and the lakehouse; {{P
 Fabric IQ MCP then answers questions on the model once it exists. {{PRODUCT}} is an independent open-source project of
 Kruse Consulting AB and is not affiliated with Microsoft.
 
-## Fabric IQ: the same graph as an ontology
+## Hosting and permissions
 
-Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
-types between them, and data bindings to tables. That is the information {{PRODUCT}} already infers for a source, with
-the rule behind every key and relationship. `ontology_draft` writes the plan in the ontology item's own shape, nothing deployed:
+What the hosted server reads and asks for, and what to know when you run it yourself.
 
-- a **summary** with what needs a hand (keyless tables, composite keys, composite-column relationships);
-- a **binding checklist**: entity type → table, key column, property → column, relationship → columns, each with its rule;
-- a **Turtle file** the portal's *Import ontology* accepts into an empty ontology item, using the mappings Microsoft documents
-  for import (`owl:Class` → entity type, `owl:DatatypeProperty` → property, `owl:ObjectProperty` → relationship type,
-  `rdfs:label`, `rdfs:comment`, `skos:altLabel` → display name, description, synonym); bindings are then done in the portal
-  following the checklist;
-- the **item definition** (generation 2, TMDL parts) that `POST /workspaces/{id}/ontologies` and Git integration take,
-  with tables bound DirectLake-style to the source, entities with keys and properties, and the relationships.
+### What it accesses
 
-Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace,
-and the workspace on a Fabric capacity (`POST /workspaces/{id}/ontologies`, `updateDefinition`; Microsoft's REST
-specification, read 26 October 2026). `create_ontology` does that with a dry run by default; the hosted app does not
-have the permission yet, so it answers `consent` naming the scope when asked to create. The portal route (Import ontology
-with the Turtle file) needs nothing beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take
-over: the ontology agent and data agents use it as context, and the built-in graph can be materialised from its entity
-and relationship types. Ontology is in preview and its definition format can change; the draft follows the item's own
-definition as of 2026 and has been checked against recorded definitions, not yet live from {{PRODUCT}}.
+The Entra app asks for delegated permissions only, all acting as the signed-in user: `User.Read` (sign-in),
+`Workspace.Read.All` and `Item.Read.All` (listing sources, reading metadata), `GraphQLApi.ReadWrite.All` (creating or
+updating the one item you ask for; it never deletes), `GraphQLApi.Execute.All` (your read-only queries) and Azure SQL
+`user_impersonation` (table and column names from the SQL analytics endpoint, and the checks and samples you ask for).
+The tools that create semantic models, ontologies, data agents, notebooks and pipelines need more (`Item.ReadWrite.All`
+or a narrower permission per item type), which the hosted app does not ask for today; they are marked *Available when
+enabled by the operator* below.
 
-## Sources
+**The data path.** Planning uses schema metadata: workspace, item, table and column names and types. `validate_plan`
+and `suggest_relationships` check keys and references against the rows in Fabric with counting queries and return only
+the counts. `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
+for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
+Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
+after the request. Your tokens are exchanged on your behalf and held in memory only; there is no database and no file
+storage. Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
+service writes technical logs. Details: [privacy policy](/privacy).
 
-**Tested end to end:** a lakehouse with schemas (the demo workspace's `demo_lh`, schema `shop`), read through its SQL
-analytics endpoint. **Experimental:** warehouses and Fabric SQL databases, read the same way through their SQL endpoint
-and covered by unit tests; warehouses also give declared keys and foreign keys (rules K0 and R0). **Experimental:** the
-mirrored and Snowflake item types below. Tables a lakehouse holds as OneLake shortcuts (to another lakehouse, a
-warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tables, so they are planned with it.
+**Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per
+pattern, from the name alone and never from the values: a person's name (P1: `first_name`, `last_name`, and `name` in a
+table that holds people such as customers or employees), e-mail (P2), telephone (P3), national identity number (P4,
+such as `personnummer`), address (P5: street, postal code, and the city in a table of addresses or people) and birth
+date (P6). By default `sample_rows` returns their values as `***` with a notice naming the rule, `answer_query_draft`
+and `gold_views_draft` leave them out (the key stands in), and the silver notebook masks them in its quarantine table;
+`show_personal_data=true` shows them, and your own Fabric permissions still decide what you can read. When Fabric
+returns a Microsoft Purview sensitivity label on the source item, `sample_rows` and `validate_plan` name it: Fabric
+gives the label's id only, and a label covers the whole item, so the column rules still decide what is masked.
 
-{{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
-
-1. **Bring it into Fabric.** A *Snowflake database* item, a *Mirrored database* (Snowflake, Azure SQL, Cosmos DB, SAP via
-   Datasphere, …), a *Mirrored Azure Databricks catalog* or a *Mirrored catalog* (preview) is a source like a lakehouse:
-   `list_sources` shows it, `plan_backend` plans it and `create_backend` builds the API over its SQL analytics endpoint.
-   The item is set up once in the Fabric portal; {{PRODUCT}} reads the endpoint id from the item, as Microsoft's REST
-   specification documents it for each of these item types. Experimental: unit-tested, not yet run against a live item.
-2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
-   expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
-   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems (for Databricks with
-   its own adapter, [below](#databricks-draft-only)); the API for GraphQL item is a Fabric object, so that last step
-   needs route 1.
-
-Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
-informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
-follow Microsoft's published REST specification; these source types are experimental until a live run.
-
-## Databricks (Draft only)
-
-The same engine reads Databricks too, in the local server only (`KRUSGRAPH_PLATFORM=databricks`): a Unity Catalog
-schema through its `information_schema`, where declared primary and foreign keys count as K0 and R0 and column tags feed
-the personal-data rules; the checks run as counting queries on a SQL warehouse. From the same plan it drafts
-informational constraints (with `RELY` only where the counts hold), views, a Lakeflow pipeline whose expectations are
-the plan's keys and relationships, metric views and a bundle. **Draft only:** unit-tested with Databricks mocked, not
-yet run against a Databricks workspace. The hosted service at {{DOMAIN}} reads Fabric only. Set-up, the status of each tool
-and the documentation each draft rests on: [docs/DATABRICKS.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/DATABRICKS.md).
-Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
-{{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
-
-## First-time errors
-
-What a new user meets first, what the tool answers (`kind`) and exactly what to do. Every such answer carries this
-section's link in its `hint`.
-
-| `kind` | What happened | What to do, in order |
-| --- | --- | --- |
-| `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Settings → Connectors → {{PRODUCT}} → Disconnect**, then **Connect** again and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
-| `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology`, `create_data_agent`, `create_silver_notebook` and `create_drift_monitor` the answer names the missing scope (such as `Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
-| `no_access` | You can sign in, but this workspace or item is not shared with you (HTTP 403) | Ask the workspace owner for a role on the workspace: **Viewer** is enough for everything that reads and plans, **Contributor** for `create_backend`, `create_views` and the other creating tools. Then run the same request again; `list_workspaces` shows what you can see. |
-| `capacity` | The workspace has no active Fabric capacity (paused, not assigned, or expired trial) | In Fabric: **Workspace settings → License info**, assign a capacity or resume the paused one; a trial capacity is enough. Lakehouse SQL endpoints answer again a minute after the capacity is up. |
-| `schema_not_found` | The schema has no tables for this sign-in | A lakehouse without "Lakehouse schemas" has everything in `dbo`; one created with schemas has them by name (`list_tables` with another schema). Tables created minutes ago are not in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata, then try again. |
-| `sql_sign_in` | The SQL analytics endpoint refused the token | Reconnect the connector; if it persists, the account lacks access to the item itself (share the lakehouse or warehouse, not only the workspace). |
-
-Everything else (`not_found`, `timeout`, `throttled`, `bad_input`, …) is explained in the answer itself; the format is
-the same three fields.
-
-## Cold start, and `min_replicas` if you run it yourself
+### Cold start, and `min_replicas` if you run it yourself
 
 If the hosted service has been idle, the first request may take longer while Azure starts the container. If that
 request times out, try again after a short pause. If the problem continues, check the error message or
@@ -330,33 +376,7 @@ scales to zero: `0` (the default) scales to zero when idle and is the cheapest, 
 time does not cause a cold start, at the cost of one always-on instance. A new revision or a restart can still delay a
 request. The change takes effect with `--update`. A container on a VM or in Docker does not scale to zero.
 
-## Two steps stay manual
-
-Fabric has no API for these yet, and the connector tells you when they are needed:
-
-1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
-2. **Permissions** on the item for other apps or service principals that should query it.
-
-## Use with Lovable
-
-Lovable's Microsoft Fabric connector reads an existing API for GraphQL item. {{PRODUCT}} creates that item; after the
-two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
-says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
-keeps the app's Entra secret on the server side. The whole chain, with who does each step and what still blocks, is in
-the repository's `docs/LOVABLE-END-TO-END.md`.
-
-## For agents
-
-A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.txt) lists the rest and
-[/llms-full.txt](/llms-full.txt) has every page in one file. MCP clients can read the server's identity and transport
-from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
-Claude Code takes the same URL (`claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`), but its local sign-in
-redirect is not registered on the Entra app yet, so it can't sign in to {{DOMAIN}} today; Claude is the supported client.
-A Claude plugin that bundles this connector with a skill for the whole workflow and the commands `/krusgraph:plan`,
-`/krusgraph:document` and `/krusgraph:explain-schema` is built and tested in the repository (`plugin/krusgraph`) and
-coming soon (Planned); it is not published yet.
-
-## Support
+### Support
 
 [Get help](/support): email Gustav at {{CONTACT}} with the `error`, `kind` and `hint` from the tool's answer (there is no
 promised response time), or report a bug or a plan that came out wrong on

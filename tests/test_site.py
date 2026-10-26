@@ -55,24 +55,27 @@ def test_nav_and_pages_are_linked(client):
     assert 'href="/mascots"' not in html                                                 # review page is unlinked
 
 
-def test_home_carries_the_one_sentence_and_the_three_steps(client):
+def test_home_says_what_it_helps_with_before_how_it_connects(client):
+    """The website brief of 26 October 2026: the hero says what a reader can understand about their Fabric tables
+    without needing to know MCP or GraphQL; the API step carries its experimental status where the expectation is made."""
     html = client.get("/").text
-    assert "Good things happen when data connects." in html
-    first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)                         # Claude and Fabric tables in the first paragraph
-    assert "Claude" in first and "Fabric tables" in first and "GraphQL API" in first
-    assert 'href="/explore"' in html and "Try the demo" in html and "Connect Claude" in html
-    assert "From tables to a GraphQL API" in html
-    for step in ("Choose your tables", "Review the plan", "Create the API"):
-        assert f"<h3>{step}</h3>" in html
+    assert "Good things happen when data connects." not in html
+    h1 = re.search(r"<h1>(.*?)</h1>", html).group(1)
+    assert "Fabric tables" in h1 and "MCP" not in h1 and "GraphQL" not in h1
+    first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
+    assert "keys and relationships" in first and "MCP" not in first and "GraphQL" not in first
+    assert 'href="/explore">Explore the demo<' in html and 'href="/start">Connect to Claude<' in html
+    assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
+    step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
+    assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
     assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
-    assert 'href="/docs#sources"' in html and 'href="/docs#test-status"' in html
 
 
 def test_home_introduces_the_developer_without_a_story(client):
     html = client.get("/").text
-    assert "A note from the developer" in html and "I’m Gustav, the developer behind Krusgraph" in html
-    assert "through Kruse Consulting AB in Sweden" in html and 'href="mailto:hello@krusgraph.test?subject=Krusgraph"' in html
-    assert ">Email Gustav</a>" in html
+    assert "A note from Gustav" in html and "I’m Gustav, the developer behind Krusgraph" in html
+    assert 'href="mailto:hello@krusgraph.test?subject=Krusgraph"' in html and ">Email Gustav</a>" in html
+    assert "Sweden" not in html and "Swedish" not in html                                # no country of origin on the start page
 
 
 def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
@@ -86,7 +89,7 @@ def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     assert "can’t sign in to krusgraph.test today" in html                                 # nor Cursor
     for step in ("Get admin approval", "Choose a Fabric workspace", "Add the connector in Claude"):
         assert step in html
-    assert "Ask for a plan before creating anything" in html and "check the plan against the data" in html
+    assert "The first goal is a plan you have read and checked" in html and "check the plan against the data" in html
     assert html.count('class="start-step"') == 3 and 'data-pane="3"' in html and "Explore a sample first" in html
     assert "Why each one:" in html and "create_backend</code> alone" in html and "Item.ReadWrite.All" in html   # every scope with its reason
     assert "notebooks and pipelines" in html and "available when enabled by the operator" in html
@@ -99,7 +102,7 @@ def test_docs_have_the_first_questions_and_the_first_time_errors(client):
     assert "Five first questions on a lakehouse nobody has documented" in docs
     for tool in ("analyze_schema", "plan_backend", "validate_plan", "suggest_relationships", "data_dictionary"):
         assert f"({'<code>' + tool + '</code>'}" in docs or f"<code>{tool}</code>" in docs
-    assert '<h2 id="first-time-errors">' in docs
+    assert '<h3 id="first-time-errors">' in docs
     for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
         assert f"<code>{kind}</code>" in docs
     assert "Workspace settings → License info" in docs and "Disconnect" in docs
@@ -114,7 +117,7 @@ def test_support_page_is_a_help_page_without_contributions(client):
     html = client.get("/support").text
     assert "<h1>Get help with Krusgraph</h1>" in html and "<title>Get help with Krusgraph</title>" in html
     assert "mailto:hello@krusgraph.test?subject=Help%20with%20Krusgraph" in html
-    assert "<code>error</code>, <code>kind</code> and <code>hint</code>" in html and "no promised response time" in html
+    assert "<code>error</code>, <code>kind</code> and <code>hint</code>" in html and "with no guaranteed response time" in html
     assert 'href="https://github.com/Krusmaster/fabric-backend/issues"' in html and 'href="/docs#first-time-errors"' in html
     for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
         assert f"<code>{kind}</code>" in html, kind
@@ -130,7 +133,8 @@ def test_support_page_is_a_help_page_without_contributions(client):
 
 def test_partner_sign_in_button_only_with_flag(client, monkeypatch):
     html = client.get("/partners").text
-    assert "Try Krusgraph on a Fabric project" in html and 'href="/partners/workspace"' in html and "Discuss a pilot" in html
+    assert "Bring one schema and one question." in html and 'href="/partners/workspace"' in html and "Discuss your schema" in html
+    assert "No customer data is needed" in html and "SLA" not in html                    # no price, duration or guarantee promised
     assert "never data" not in html and "not a partner programme or a certification, and it is not affiliated with Microsoft" in html
     assert "Continue with Microsoft" not in html
     monkeypatch.setenv("PARTNER_SIGNIN", "1")
@@ -165,7 +169,8 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
     monkeypatch.setenv("COMPANY_ORGNR", "123456-7890")
     html = client.get("/privacy").text
     assert "Kruse Consulting AB, Sweden (org. nr 123456-7890)" in html
-    assert "org. nr 123456-7890" in client.get("/").text                                # footer too
+    footer = client.get("/").text.split('<footer class="site-footer">')[1]
+    assert "Kruse Consulting AB · Org. no. 123456-7890 · Open source under the MIT licence" in footer and "Sweden" not in footer
 
 
 def test_docs_describe_the_data_path(client):
@@ -263,7 +268,8 @@ def test_home_hero_and_trust_row(client):
     html = client.get("/").text
     assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
     assert 'class="hero-figure"' not in html and 'id="home-graph"' in html               # mascots live on the graph's wires
-    assert 'class="trust"' in html and "Your Microsoft sign-in" in html and "What passes through Krusgraph" in html
+    assert 'class="trust"' in html and "What Krusgraph reads" in html and 'href="/privacy"' in html
+    assert "Your data never leaves Fabric" not in html
     assert "Demo · synthetic data" in html
 
 
@@ -436,7 +442,7 @@ def test_fabric_iq_is_described_on_home_docs_and_llms(client):
     home = client.get("/").text
     assert 'id="fabric-iq"' in home and 'href="/docs#fabric-iq-the-same-graph-as-an-ontology"' in home and "preview" in home
     docs = client.get("/docs").text
-    assert '<h2 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
+    assert '<h3 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
     assert "ontology_draft" in client.get("/docs.md").text and "`ontology_draft`" in client.get("/llms.txt").text
     assert "Fabric IQ" in client.get("/llms-full.txt").text
 
@@ -654,3 +660,82 @@ def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client)
     status = {name: tag for name, _what, tag in use_cases.OUTPUTS}
     assert status["GraphQL API"].startswith("creating it: experimental") and "querying an existing one: tested end to end" in status["GraphQL API"]
     assert status["SQL views"].startswith("tested end to end as a dry run")
+
+
+def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
+    """The website brief of 26 October 2026 groups /docs into five parts; links into the old sections (from the home
+    page, /start, the README and other sites) must keep landing on the same section."""
+    docs = client.get("/docs").text
+    groups = re.findall(r'<h2 id="([^"]+)">', docs)
+    assert groups == ["get-started", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]
+    for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
+                   "how-relationships-are-inferred", "cold-start-and-min-replicas-if-you-run-it-yourself", "one-plan-five-fabric-pieces",
+                   "with-microsoft-s-fabric-mcp-servers", "fabric-iq-the-same-graph-as-an-ontology", "sources",
+                   "databricks-draft-only", "first-time-errors", "two-steps-stay-manual", "use-with-lovable", "for-agents",
+                   "support"):
+        assert f'id="{anchor}"' in docs, anchor
+    # every in-site link to a /docs anchor lands on an id that exists
+    ids = set(re.findall(r'\sid="([^"]+)"', docs))
+    for page in ("/", "/start", "/explore", "/use-cases", "/lovable", "/local", "/partners", "/support", "/docs"):
+        for frag in re.findall(r'href="/docs#([^"]+)"', client.get(page).text):
+            assert frag in ids, (page, frag)
+    # the 'on this page' list nests each section under its group
+    toc = re.search(r'<nav class="toc"[^>]*>(.*?)</nav>', docs, re.S).group(1)
+    assert toc.index('href="#get-started"') < toc.index('href="#connect"') < toc.index('href="#explore-and-check"')
+
+
+def test_home_data_check_is_computed_from_the_demo_validation(monkeypatch):
+    """The home panel's 'Data check' comes from the same counting checks /demo/validation.json serves, not from copy:
+    change the counts and the sentence follows; drop a relationship's check and the panel says it was not checked."""
+    import copy
+    import re as _re
+    from fabric_backend import demo
+    real = demo.demo_validation()
+    rel = next(r for r in real["relationships"] if r["source"] == "orders" and r["target"] == "customers")
+    assert rel["orphans"] == 0 and rel["rows_with_value"] > 0
+
+    def data_check(details: dict, key: str) -> str:
+        m = _re.search(r"<dt>Data check</dt><dd>(.*?)</dd>", details[key])
+        return _re.sub(r"<[^>]+>", "", m.group(1))
+
+    assert str(rel["rows_with_value"]) in data_check(demo.home_details(), demo.HOME_DEFAULT)
+    broken = copy.deepcopy(real)
+    for r in broken["relationships"]:
+        if r["source"] == "orders" and r["target"] == "customers":
+            r["orphans"], r["rows_with_value"] = 3, 41
+    monkeypatch.setattr(demo, "demo_validation", lambda: broken)
+    text = data_check(demo.home_details(), demo.HOME_DEFAULT)
+    assert "3" in text and "41" in text and str(rel["rows_with_value"]) not in text
+    unchecked = copy.deepcopy(real)
+    unchecked["relationships"] = [r for r in unchecked["relationships"] if not (r["source"] == "orders" and r["target"] == "customers")]
+    monkeypatch.setattr(demo, "demo_validation", lambda: unchecked)
+    assert "not checked" in data_check(demo.home_details(), demo.HOME_DEFAULT).lower()
+    # the decision example is never presented as checked, and its accepted variant says it is the demo's choice
+    d = demo.home_details()
+    assert "not checked" in data_check(d, "orders.ship_to_id>addresses").lower()
+    assert "Accepted in this demo" in d["orders.ship_to_id>addresses|accepted"]
+
+
+def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):
+    """The brief of 26 October 2026: the operator, IMY and Sweden Central stay in /privacy; the product pages do not
+    sell the product on where it is made. Swedish as a language the tools read (kund, a question in Swedish) is a
+    feature, not a location claim."""
+    privacy = client.get("/privacy").text
+    assert "Kruse Consulting AB, Sweden" in privacy and "IMY" in privacy and "Sweden Central" in privacy
+    for path in ("/", "/use-cases", "/start", "/partners", "/support", "/explore", "/lovable", "/local", "/docs", "/llms.txt"):
+        text = re.sub(r"<[^>]+>", " ", client.get(path).text)
+        assert not re.search(r"\b(?:Sweden|Swedish (?:company|team|developer|consultan\w*)|Stockholm|svensk\w*)\b", text), path
+
+
+def test_experimental_status_sits_next_to_the_creating_step(client):
+    """Wherever a page offers creating the API as a step, the step itself says it is experimental and links the test
+    status, so the claim and its status cannot drift apart on different parts of the page."""
+    home = client.get("/").text
+    step = re.search(r'<section[^>]*id="how".*?</section>', home, re.S).group(0)
+    items = re.findall(r"<li.*?</li>", step, re.S)
+    creating = [i for i in items if "create" in i.lower() or "build" in i.lower()]
+    assert creating and all("xperimental" in i and 'href="/docs#test-status"' in i for i in creating[-1:])
+    start = client.get("/start").text
+    assert re.search(r"create_backend[^<]{0,200}", start) and "xperimental" in start
+    lovable = client.get("/lovable").text
+    assert "xperimental" in lovable

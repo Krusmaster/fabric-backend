@@ -1,73 +1,81 @@
 <div data-page="home">
 <section class="hero">
   <div class="wrap hero-copy">
-    <h1>Good things happen when data connects.</h1>
-    <p class="lede">Ask Claude to map the relationships between your Microsoft Fabric tables. Review the suggested keys and relationships, check them against your data, then create a GraphQL API in your workspace.</p>
-    <p class="intro">{{PRODUCT}} is an MCP connector for Claude. Every relationship it suggests includes the rule behind it, so you can see why it was suggested.</p>
+    <p class="eyebrow">For teams working in Microsoft Fabric</p>
+    <h1>Understand how your Fabric tables fit together.</h1>
+    <p class="lede">{{PRODUCT}} suggests keys and relationships, explains each suggestion, and lets you check it against your data. Use it in Claude to explore a lakehouse and work out what needs a closer look.</p>
     <div class="ctas">
-      <a class="btn primary" href="/explore">Try the demo</a>
-      <a class="btn secondary" href="/start">Connect Claude</a>
+      <a class="btn primary" href="/explore">Explore the demo</a>
+      <a class="btn secondary" href="/start">Connect to Claude</a>
     </div>
-    <p class="sources-line">Start with a lakehouse. <a href="/docs#sources">Other source types and their test status</a> are in the docs.</p>
-  </div>
-  <div class="wrap wide">
-    <div class="graph-panel hero-panel">
-      <div class="panel-head">
-        <h2>A shop schema, connected</h2>
-        <span class="pill demo">Demo · synthetic data</span>
-      </div>
-      <div id="home-graph" class="graph"></div>
-      <p class="legend"><span><i></i> relationship, with its rule</span><span><b class="mono">1 — many</b> cardinality</span><span><i class="sug"></i> needs review</span><span><i class="box"></i> no key: query only</span></p>
-      <p id="home-why" class="why-line" aria-live="polite">Select a table to inspect its key, or a line to see why two tables were linked. The dashed line is an example that needs your review.</p>
-      <p class="muted tiny graph-more">Scroll inside the graph, or <a href="/explore">open the full demo</a>.</p>
-      <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
-    </div>
+    <p class="sources-line">The demo uses sample data. No account needed.</p>
   </div>
 </section>
 
+<section class="wrap wide home-demo" id="demo" aria-labelledby="demo-h">
+  <div class="graph-panel hero-panel">
+    <div class="panel-head">
+      <h2 id="demo-h">Which customer does this order belong to?</h2>
+      <span class="pill demo">Demo · synthetic data</span>
+    </div>
+    <p class="demo-intro">Follow the link from orders to customers. See why it was suggested and what the checks found in the sample data.</p>
+    <div id="home-graph" class="graph"></div>
+    <p class="legend"><span><i></i> suggested relationship</span><span><b class="mono">1 — many</b> cardinality</span><span><i class="sug"></i> needs your decision</span><span><i class="box"></i> no key: query only</span></p>
+    <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
+    <div class="demo-grid">
+      <div class="home-detail" id="home-why" aria-live="polite">{{HOME_DETAIL}}</div>
+      <nav class="rel-list" aria-labelledby="rel-list-h">
+        <h3 id="rel-list-h">Relationships in this sample</h3>
+        <ul>{{HOME_REL_LIST}}</ul>
+        <p class="muted tiny">Next: <code>orders.ship_to_id</code> names no table, so the engine left it unlinked. That one is your decision. <a href="/explore">Open the full demo</a>.</p>
+      </nav>
+    </div>
+  </div>
+  <script type="application/json" id="home-details">{{HOME_DETAILS_JSON}}</script>
+</section>
+
 <section class="wrap" id="how">
-  <h2>From tables to a GraphQL API</h2>
-  <p class="intro">Each step is something you ask for in Claude. Nothing is created in Fabric until you ask for it.</p>
+  <h2>Start with a schema. Review the relationships. Choose what to build.</h2>
   <ol class="steps">
-    <li><span class="step-n coral">1</span><h3>Choose your tables</h3><p>Start with a source in your Fabric workspace. {{PRODUCT}} reads its schema and proposes keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
-    <li><span class="step-n sage">2</span><h3>Review the plan</h3><p>See the rule behind each suggestion. Ask Claude to check the plan against your data for duplicate keys, missing values and references with no matching row, then correct the relationships that need your judgement.</p><span class="ex">“Check the plan against the data.”</span></li>
-    <li><span class="step-n lav">3</span><h3>Create the API</h3><p>When you’re ready, ask Claude to create the GraphQL API in Fabric. If an API with that name already exists, {{PRODUCT}} updates it. You can then ask Claude to query it.</p><span class="ex">“Create it as shop_api.”</span></li>
+    <li><span class="step-n coral">1</span><h3>Explore your tables</h3><p>Choose a lakehouse in Claude. {{PRODUCT}} reads the schema and suggests keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
+    <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span></li>
+    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">Experimental</span> API creation is experimental. <a href="/docs#test-status">See current test status</a>.</p></li>
   </ol>
   <p class="muted tiny" style="margin:14px 6px 0">Tested end to end on 26 October 2026, from Claude to a Fabric workspace with synthetic data: sign-in, plan, check and query; creating was not part of that run. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
 </section>
 
-<section class="wrap" id="fabric-iq">
-  <h2>Explore a Fabric IQ ontology draft</h2>
-  <p class="intro">{{PRODUCT}} can also turn the plan into a draft for a Fabric IQ ontology, with entity types, keys and relationships. Review the draft before importing it or creating an ontology item. Generating the draft does not deploy anything.</p>
-  <div class="grid-3">
-    <div class="card"><h3>Entity types and keys</h3><p>One entity type per table, with its key and properties. Tables without a key, or with a key of several columns, are flagged for review.</p></div>
-    <div class="card"><h3>Relationship types</h3><p>Each relationship in the plan becomes a relationship type, with the rule behind it.</p></div>
-    <div class="card"><h3>Two ways in</h3><p>Import the draft in the Fabric portal and follow its binding checklist, or create the ontology item from Claude once the operator has enabled that permission. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></div>
-  </div>
-  <p class="muted tiny" style="margin:14px 6px 0">Ontology is a Microsoft Fabric preview feature. The draft format has been checked against recorded definitions; importing or creating an ontology from it has not been tested live yet.</p>
+<section class="wrap" id="build-on" aria-labelledby="build-on-h">
+  <h2 id="build-on-h">Build on the relationships you’ve reviewed.</h2>
+  <ul class="build-rows">
+    <li><h3>Document the schema</h3><p>A data dictionary in Markdown or dbt tests from the plan, with the checks you ran. <a href="/docs#what-you-can-ask">What you can ask</a>.</p></li>
+    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. Creating the API is experimental. <a href="/lovable">Use it with Lovable</a>.</p></li>
+    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. Drafts only: creating the items needs a permission the operator enables. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
+  </ul>
 </section>
 
-<section class="wrap trust-wrap" aria-label="How your data is handled">
+<section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
+  <h2 id="data-h">What {{PRODUCT}} reads</h2>
+  <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
   <ul class="trust">
-    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>Your Microsoft sign-in</h3><p>You connect with your Microsoft work account. Access depends on your account’s permissions and the permissions granted to {{PRODUCT}}.</p></div></li>
-    <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>What passes through {{PRODUCT}}</h3><p>{{PRODUCT}} processes metadata, the sample rows you ask for and query results on their way between Fabric and Claude. <a href="/privacy">Read how tokens, query results and technical logs are handled</a>.</p></div></li>
+    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects Claude to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
+    <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
     <li><span class="t-i lav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M15 7l5 5-5 5"/></svg></span><div><h3>Open source</h3><p>Read the code, inspect the inference rules or host {{PRODUCT}} yourself. The source is available under the MIT licence on <a href="{{GITHUB}}" rel="noopener">GitHub</a>.</p></div></li>
   </ul>
 </section>
 
 <section class="wrap developer-note" id="developer" aria-labelledby="developer-h" style="padding-top:0">
   <div class="card soft">
-    <h2 id="developer-h" class="h3">A note from the developer</h2>
-    <p>I’m Gustav, the developer behind {{PRODUCT}}. I’m building it through Kruse Consulting AB in Sweden. If you try it, I’d like to hear where the plan helped and which relationships you had to correct.</p>
+    <h2 id="developer-h" class="h3">A note from Gustav</h2>
+    <p>I’m Gustav, the developer behind {{PRODUCT}}. If you try it, tell me which relationships it got right and which ones you had to fix. That’s the feedback I need to make it more useful.</p>
     <p style="margin:0"><a class="btn ghost small" href="mailto:{{CONTACT}}?subject={{PRODUCT_URL}}">Email Gustav</a></p>
   </div>
 </section>
 
 <section class="wrap" style="padding-top:0">
   <div class="card ready" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
-    <div><h2 style="font-size:28px">Try it with your Fabric workspace</h2><p class="muted" style="margin:0;max-width:52ch">Add {{PRODUCT}} as a custom connector in Claude. The setup guide covers Microsoft sign-in, admin consent and the workspace you’ll need.</p></div>
-    <div class="ctas"><a class="btn primary" href="/start">Connect Claude</a><a class="btn ghost" href="/docs">Read the docs</a></div>
+    <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to Claude, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need.</p></div>
+    <div class="ctas"><a class="btn primary" href="/start">Connect to Claude</a><a class="btn ghost" href="/explore">Explore the demo</a></div>
   </div>
-  <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/support">get help</a> · <a href="/partners">try it on a Fabric project</a></p>
+  <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/docs">read the docs</a> · <a href="/support">get help</a> · <a href="/partners">try a pilot</a></p>
 </section>
 </div>
