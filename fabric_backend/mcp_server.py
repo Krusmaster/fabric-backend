@@ -251,12 +251,14 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
 @_tool("Sample rows of one table", RO)
 @safe
 def sample_rows(table: str, schema: str = "dbo", n: int = 10) -> str:
-    """The first n rows (at most 20) of one table, to check what a column means."""
+    """The first n rows (at most 20) of one table, to check what a column means. Binary columns come back as their
+    size in bytes; SQL Server's hierarchyid, geography, geometry and sql_variant as text."""
     with _connection(schema) as execute:
         p = plan_from(execute=execute, schema=schema)
         check_tables(p.schema, [table])
         t = next(x for x in p.schema if x.name.lower() == table.lower())
-        rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, max(1, min(int(n), 20))))
+        types = {c.name: c.data_type for c in t.columns}
+        rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, max(1, min(int(n), 20)), types))
         return json.dumps({"table": t.name, "rows": rows}, indent=2, default=str)
 
 

@@ -50,8 +50,33 @@ def inclusion_sql(schema: str, source: str, column: str, target: str, key: str) 
             f"ON s.{qi(column)} = t.{qi(key)} WHERE s.{qi(column)} IS NOT NULL")
 
 
-def sample_sql(schema: str, table: str, columns: list[str], n: int) -> str:
-    return f"SELECT TOP ({int(n)}) {', '.join(qi(c) for c in columns)} FROM {_t(schema, table)}"
+# Column types a DB-API driver cannot fetch as they come, or that are noise in a sample. pyodbc answers "ODBC SQL type
+# -151 is not yet supported" for SQL Server's CLR types and -150 for sql_variant, which fails the whole call; binary
+# values are bytes that say nothing about a column's meaning. Read the CLR types as text, sql_variant as nvarchar,
+# binary as its size in bytes.
+_CLR_AS_TEXT = {"hierarchyid", "geography", "geometry"}
+_VARIANT = {"sql_variant"}
+_BINARY = {"binary", "varbinary", "image"}
+
+
+def sample_expr(column: str, data_type: str = "") -> str:
+    t = (data_type or "").lower().split("(")[0].strip()
+    c = qi(column)
+    if t in _CLR_AS_TEXT:
+        return f"{c}.ToString() AS {c}"
+    if t in _VARIANT:
+        return f"CAST({c} AS nvarchar(4000)) AS {c}"
+    if t in _BINARY:
+        return f"DATALENGTH({c}) AS {qi(column + ' (bytes)')}"
+    return c
+
+
+def sample_sql(schema: str, table: str, columns: list[str], n: int, types: dict[str, str] | None = None) -> str:
+    """The first n rows. `types` (column -> SQL type, as INFORMATION_SCHEMA gives it) reads the columns a driver cannot
+    fetch as text and binary columns as their size; without it every column is selected as it is."""
+    types = {str(k).lower(): v for k, v in (types or {}).items()}
+    cols = ", ".join(sample_expr(c, types.get(c.lower(), "")) for c in columns)
+    return f"SELECT TOP ({int(n)}) {cols} FROM {_t(schema, table)}"
 
 
 def _int(v) -> int:
