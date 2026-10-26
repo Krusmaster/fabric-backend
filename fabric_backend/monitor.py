@@ -191,24 +191,37 @@ def plans_table(schemas_enabled: bool) -> str:
 
 
 def load_last(spark, table: str, source_key: str) -> tuple[dict | None, str | None]:
-    """The snapshot saved by the last run for this source, and when it was taken; (None, None) the first time."""
+    """The snapshot saved by the last run for this source, and when it was taken; (None, None) the first time. The last
+    run is the one with the highest run number, then the latest taken_at, so two runs in the same second never swap
+    places; rows saved before the run column existed count as older than any numbered row."""
     from pyspark.sql import functions as F
     if not spark.catalog.tableExists(table):
         return None, None
-    rows = spark.read.table(table).filter(F.col("source") == source_key).orderBy(F.col("taken_at").desc()).limit(1).collect()
+    rows = spark.read.table(table).filter(F.col("source") == source_key)
+    order = ([F.col("run").desc_nulls_last()] if "run" in rows.columns else []) + [F.col("taken_at").desc()]
+    rows = rows.orderBy(*order).limit(1).collect()
     if not rows:
         return None, None
     return json.loads(rows[0]["plan_json"]), str(rows[0]["taken_at"])[:16] + " UTC"
 
 
 def save(spark, table: str, source_key: str, snap: dict, changes: dict, taken_at, fmt: str = "delta") -> None:
-    """Append today's snapshot (one row per run; nothing is ever deleted)."""
+    """Append today's snapshot as the source's next run number (one row per run; nothing is ever deleted). The number
+    orders the runs whatever the clock says; two runs started at once may share it, and taken_at breaks that tie.
+    A plans table from before the run column gets it added (mergeSchema); its old rows have no number."""
+    from pyspark.sql import functions as F
     if "." in table and table.startswith("`krusgraph`"):
         spark.sql("CREATE SCHEMA IF NOT EXISTS `krusgraph`")
+    run = 1
+    if spark.catalog.tableExists(table):
+        saved = spark.read.table(table)
+        if "run" in saved.columns:
+            run = (saved.filter(F.col("source") == source_key).agg(F.max("run")).collect()[0][0] or 0) + 1
     row = [(source_key, snap.get("schema"), taken_at, json.dumps(snap, sort_keys=True), bool(changes.get("changed")),
-            json.dumps({k: len(v) for k, v in changes.items() if isinstance(v, list)}))]
-    (spark.createDataFrame(row, "source string, schema string, taken_at timestamp, plan_json string, changed boolean, counts string")
-     .write.format(fmt).mode("append").saveAsTable(table))
+            json.dumps({k: len(v) for k, v in changes.items() if isinstance(v, list)}), run)]
+    (spark.createDataFrame(row, "source string, schema string, taken_at timestamp, plan_json string, changed boolean, counts string, "
+                                "run bigint")
+     .write.format(fmt).mode("append").option("mergeSchema", "true").saveAsTable(table))
 
 
 def read_view_usage(spark, lakehouse: str):
@@ -272,7 +285,7 @@ def notebook_cells(source: dict, library_ref: str = "main") -> list[tuple[str, s
         f"LABEL = {_py(label)}\n"
         f"PLANS_TABLE = monitor.plans_table({_py(bool(source['schemas_enabled']))})\n"
         "SOURCE_KEY = f\"{SOURCE['item_id']}/{SOURCE['schema']}\"\n"
-        "RUN_AT = datetime.now(timezone.utc).replace(microsecond=0)")
+        "RUN_AT = datetime.now(timezone.utc)")
     read = ("# 1. Today's plan: the tables and columns in the Spark catalog, keys and relationships by the rules K0–K5 and R0–R4.\n"
             "schema = Schema.from_spark(spark, SOURCE['schema'], SOURCE['schema'] if SOURCE['schemas_enabled'] else None)\n"
             "today_plan = plan(schema)\n"

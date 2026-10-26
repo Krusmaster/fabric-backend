@@ -148,6 +148,8 @@ def test_generated_monitor_runs_two_nights_in_pyspark(tmp_path, monkeypatch):
         monkeypatch.setattr(requests, "post", lambda url, json=None, timeout=None: sent.append((url, json)) or Resp(200, {}))
         cells = monitor.notebook_cells(SRC)
 
+        same_second = datetime.datetime(2026, 10, 26, 17, 40, 21, tzinfo=datetime.timezone.utc)
+
         def night(params: str):
             ns = {"spark": spark, "notebookutils": Utils}
             for kind, code in cells:
@@ -156,6 +158,8 @@ def test_generated_monitor_runs_two_nights_in_pyspark(tmp_path, monkeypatch):
                 exec(compile(code, "<monitor>", "exec"), ns)
                 if kind == "parameters":
                     exec(params, ns)
+                if "RUN_AT =" in code:                             # every night in the same second, as when two runs follow
+                    ns["RUN_AT"] = same_second                     # each other closely: the order must not hang on the clock
         night('webhook_url = "https://example.test/hook"')
         assert exits[-1]["first_run"] is True and sent == []                                   # a baseline, no message
         cust = spark.read.table("shop.customers").drop("country")
@@ -173,5 +177,11 @@ def test_generated_monitor_runs_two_nights_in_pyspark(tmp_path, monkeypatch):
         assert spark.read.table("krusgraph.plans").count() == 2
         night('webhook_url = "https://example.test/hook"')
         assert exits[-1]["changed"] is False and len(sent) == 1                               # no change, no message
+        assert sorted(r["run"] for r in spark.read.table("krusgraph.plans").collect()) == [1, 2, 3]
+        # a plans table saved before the run column: the latest taken_at is still the last run
+        old = [("lh-1/shop", "shop", same_second - datetime.timedelta(days=d), json.dumps({"night": d}), False, "{}") for d in (2, 1)]
+        spark.createDataFrame(old, "source string, schema string, taken_at timestamp, plan_json string, changed boolean, counts string") \
+            .write.format("parquet").saveAsTable("krusgraph.plans_before_run")
+        assert monitor.load_last(spark, "krusgraph.plans_before_run", "lh-1/shop")[0] == {"night": 1}
     finally:
         spark.stop()

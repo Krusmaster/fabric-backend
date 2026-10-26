@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Drift monitor: the last saved plan is the one with the highest run number for the source (a new `run` column in
+  `krusgraph.plans`), then the latest `taken_at`, now kept to the microsecond. Two runs in the same second (the run time
+  was cut to whole seconds) could make the next run compare with the older plan and report the same changes again;
+  CI's `notebooks` job failed on it once. A plans table from before the column gets it added on the next save.
 - A column linked by a `confirmed` entry is settled: it is no longer also inferred to another table or listed in
   `plan.ambiguous`, and a confirmed header link counts for the line key (K5) as the inferred one did (confirming
   `order_items.order_id -> orders` moved the key to `product_id, line_no`). Confirmed entries take the schema's own
