@@ -14,16 +14,17 @@ import pytest
 PKG = Path(__file__).parent.parent / "fabric_backend"
 
 # The engine: inference, validation as counting queries, join paths, the graph, drift, dictionary, dbt, privacy rules,
-# the question-to-SQL drafts, the silver and gold logic, the SQL dialects, the answer shaping, the review file.
+# the question-to-SQL drafts, the silver and gold logic, the SQL dialects, the answer shaping, the review file, the
+# weekly sales view and its tested forecast.
 ENGINE = ("schema", "infer", "evidence", "paths", "graphs", "drift", "dictionary", "dbt", "privacy", "compact", "answers",
-          "silver", "gold", "dialects", "review")
+          "silver", "gold", "dialects", "review", "planning")
 
 # No engine module imports these, at the top or inside a function.
 IO_LIBRARIES = {"requests", "pyodbc", "sqlite3", "subprocess", "socket", "http", "urllib.request", "notebookutils",
                 "databricks", "uvicorn", "mcp"}
 NOT_ENGINE = {"deploy", "server", "mcp_server", "cli", "demo_app", "demo", "pages", "platforms", "entra", "keyvault", "dcr",
               "lineage", "data_agent", "monitor", "limits", "usage", "entitlements", "discovery", "use_cases", "app_starter",
-              "readiness", "git_export"}
+              "readiness", "git_export", "sales_demo"}
 
 # Pure Fabric format modules four engine modules borrow from today (no I/O in any of them). Listed so that a new one is
 # a decision, not an accident: answers writes GraphQL field names, drift compares with a GraphQL definition, graphs uses

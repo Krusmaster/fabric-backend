@@ -1931,6 +1931,27 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, demo_plan_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
     app.router.routes.append(Route("/demo/plan.json", plan_json))
 
+    # The first customer demonstration (two companies, one sales view): a preview, served only with KRUSGRAPH_PREVIEW=1,
+    # noindex and out of the sitemap, so a deploy does not publish it.
+    from . import sales_demo
+    if sales_demo.enabled():
+        async def sales_page(request):
+            headers = {"Cache-Control": "no-store", **PAGE_HEADERS, "X-Robots-Tag": "noindex, nofollow"}
+            return compressed(request, sales_demo.page_html(request.query_params).encode("utf-8"), "text/html; charset=utf-8", headers)
+        app.router.routes.append(Route(sales_demo.PATH, sales_page))
+
+        async def sales_json(request):
+            from .planning import PlanningInputError
+            headers = {"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow"}
+            try:
+                body = sales_demo.result_json(*sales_demo.parse(request.query_params))
+            except PlanningInputError as e:
+                return Response(json.dumps({"error": str(e), "kind": "bad_input",
+                                            "hint": "Use d=B-7003:A-103 (or :none, :open), company=all|A|B and weeks=13|26|52|104."}),
+                                status_code=400, media_type="application/json", headers=headers)
+            return compressed(request, body.encode("utf-8"), "application/json", headers)
+        app.router.routes.append(Route(sales_demo.PATH + "/result.json", sales_json))
+
     async def validation_json(request):
         return compressed(request, demo_validation_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
     app.router.routes.append(Route("/demo/validation.json", validation_json))

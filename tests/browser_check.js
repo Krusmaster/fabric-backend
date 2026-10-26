@@ -95,6 +95,49 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   await dp.focus('details.uc-more summary'); await dp.keyboard.press('Enter');
   facts.useCaseDetailsOpened = await dp.evaluate(() => document.querySelector('details.uc-more').open);
   await dc.close();
+  // the two-company sales example (a preview): the question, the definition, the one decision, filters, keyboard,
+  // save and reopen, at phone width
+  const sc = await browser.newContext({ viewport: { width: 375, height: 900 }, reducedMotion: 'reduce' });
+  const sp = await sc.newPage(); watch(sp, '/example/sales-planning');
+  const api = async (q) => (await sp.request.get(base + '/example/sales-planning/result.json?' + q)).json();
+  const firstTile = async () => parseInt((await sp.textContent('#sp-tiles .sp-tile-value')).replace(/\D/g, ''), 10);
+  await sp.goto(base + '/example/sales-planning', { waitUntil: 'networkidle' });
+  facts.salesScopeHiddenFirst = await sp.isHidden('#scope');
+  await sp.fill('#sp-q', 'What will our margin be next quarter?'); await sp.click('#sp-ask button[type=submit]');
+  facts.salesOtherQuestion = await sp.textContent('#sp-ask-note');
+  facts.salesScopeHiddenAfterOther = await sp.isHidden('#scope');
+  await sp.click('#sp-ask-note button');
+  facts.salesScopeShown = await sp.isVisible('#scope');
+  await sp.click('[data-def=yes]');
+  facts.salesFocusAfterDefinition = await sp.evaluate(() => document.activeElement.id);
+  facts.salesOpenTotal = await firstTile();
+  facts.salesApiOpenTotal = (await api('company=all&weeks=26')).period.total;
+  await Promise.all([sp.waitForResponse(r => r.url().includes('result.json')), sp.check('input[name="link-B-7003"][value="A-103"]')]);
+  await sp.waitForTimeout(100);
+  facts.salesLinkedTotal = await firstTile();
+  facts.salesApiLinkedTotal = (await api('d=B-7003:A-103&company=all&weeks=26')).period.total;
+  facts.salesUrlAfterLink = sp.url();
+  await Promise.all([sp.waitForResponse(r => r.url().includes('result.json')), sp.selectOption('#sp-company', 'B')]);
+  await Promise.all([sp.waitForResponse(r => r.url().includes('result.json')), sp.selectOption('#sp-weeks', '13')]);
+  await sp.waitForTimeout(100);
+  facts.salesFilteredTotal = await firstTile();
+  facts.salesApiFilteredTotal = (await api('d=B-7003:A-103&company=B&weeks=13')).period.total;
+  await sp.focus('#sp-chart svg'); await sp.keyboard.press('End');
+  facts.salesKeyboardEnd = await sp.textContent('#sp-tip');
+  await sp.keyboard.press('Home');
+  facts.salesKeyboardHome = await sp.textContent('#sp-tip');
+  facts.salesWideOutsideScroll = await sp.evaluate(() => [...document.querySelectorAll('body *')].filter(e => {
+    const r = e.getBoundingClientRect(); return r.width > 0 && r.right > window.innerWidth + 1 && !e.closest('.sp-scroll, svg');
+  }).map(e => e.tagName + '.' + e.className).slice(0, 5));
+  await sp.click('#sp-save');
+  const saved = sp.url();
+  const sp2 = await sc.newPage(); watch(sp2, '/example/sales-planning reopened');
+  await sp2.goto(saved, { waitUntil: 'networkidle' });
+  facts.salesReopened = await sp2.isVisible('#sp-reopened') && await sp2.textContent('#sp-reopened');
+  facts.salesReopenedTotal = parseInt((await sp2.textContent('#sp-tiles .sp-tile-value')).replace(/\D/g, ''), 10);
+  facts.salesSavedList = await sp2.textContent('#sp-saved');
+  facts.salesChoiceKept = await sp2.isChecked('input[name="link-B-7003"][value="A-103"]');
+  await sc.close();
   // builder on /mascots: failure keeps its status, no celebrate pose
   const m = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const mp = await m.newPage(); watch(mp, '/mascots builder');

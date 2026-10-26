@@ -104,9 +104,9 @@ AI_CRAWLERS = ("GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-S
 def robots_txt() -> str:
     """Everyone may read the site, AI crawlers and answer engines spelled out so the policy is explicit; the mascot review
     page and the MCP endpoint itself stay out (the server card is the machine-readable entry)."""
-    rules = "User-agent: *\nDisallow: /mascots\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+    rules = "User-agent: *\nDisallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
     for bot in AI_CRAWLERS:
-        rules += f"\nUser-agent: {bot}\nAllow: /\nDisallow: /mascots\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+        rules += f"\nUser-agent: {bot}\nAllow: /\nDisallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
     return rules + f"\nSitemap: {site_url()}/sitemap.xml\n"
 
 

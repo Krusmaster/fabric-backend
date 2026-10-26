@@ -1,0 +1,86 @@
+<div data-page="sales-planning">
+<section class="wrap sp-hero" aria-labelledby="sp-ask-h">
+  <span class="pill demo">Example · synthetic data · preview</span>
+  <p class="sp-who muted">Erik plans for two companies. He is an invented example, and so are Company A, Company B and every number on this page. The calculations are real: they run on the example's sales lines each time you change something.</p>
+  <h1 id="sp-ask-h">What do you want to understand or plan?</h1>
+  <form id="sp-ask" class="sp-ask">
+    <label for="sp-q" class="sp-label">Your question</label>
+    <textarea id="sp-q" rows="2">{{SP_QUESTION}}</textarea>
+    <div class="ctas"><button type="submit" class="btn primary">Use this question</button></div>
+    <p class="muted tiny">This example answers the one question above. Nothing you type here leaves this page.</p>
+    <p id="sp-ask-note" class="sp-note" role="status" hidden></p>
+  </form>
+  <div id="sp-saved" class="sp-saved" hidden>
+    <h2 class="h3">Your saved results</h2>
+    <ul></ul>
+    <p class="muted tiny">Kept in this browser only.</p>
+  </div>
+  <p id="sp-reopened" class="sp-note" role="status" hidden></p>
+</section>
+
+<section class="wrap sp-step" id="scope" aria-labelledby="scope-h" hidden>
+  <h2 id="scope-h" tabindex="-1"><span class="sp-n" aria-hidden="true">1</span> What the answer will cover</h2>
+  <dl class="detail-list sp-scope" id="sp-scope"></dl>
+  <div class="sp-confirm card soft">
+    <p><strong>Is this what you mean by sales?</strong> It changes every number below.</p>
+    <div class="choice">
+      <button type="button" class="btn sage small" data-def="yes">Yes, use this definition</button>
+      <button type="button" class="btn ghost small" data-def="no">No, we count it differently</button>
+    </div>
+    <p id="sp-def-note" class="muted" role="status" hidden>This example supports this one definition. With your own data, the definition is agreed with you first, for example ordered instead of delivered units, or returns taken off. You can still look at the example with this definition.</p>
+  </div>
+</section>
+
+<section class="wrap sp-step" id="link" aria-labelledby="link-h" hidden>
+  <h2 id="link-h" tabindex="-1"><span class="sp-n" aria-hidden="true">2</span> One product needs your decision</h2>
+  <p class="muted sp-intro">Company B files its lights under a broader category, so its products are matched to Company A's. Two match by identical GTIN. One has no GTIN, and the evidence for it is weaker.</p>
+  <div id="sp-links"></div>
+</section>
+
+<section class="wrap sp-step" id="view" aria-labelledby="view-h" hidden>
+  <h2 id="view-h" tabindex="-1"><span class="sp-n" aria-hidden="true">3</span> Sales across both companies</h2>
+  <div class="sp-filters" role="group" aria-label="What to show">
+    <label>Companies <select id="sp-company"><option value="all">Both companies</option><option value="A">Company A</option><option value="B">Company B</option></select></label>
+    <label>Period <select id="sp-weeks"><option value="13">Last 13 weeks</option><option value="26">Last 26 weeks</option><option value="52">Last 52 weeks</option><option value="104">Last 104 weeks</option></select></label>
+  </div>
+  <div class="sp-body" aria-live="polite">
+    <div class="sp-tiles" id="sp-tiles"></div>
+    <figure class="sp-chart-card">
+      <figcaption><span id="sp-chart-title" class="sp-chart-title"></span><span class="sp-legend" id="sp-legend"></span></figcaption>
+      <div id="sp-chart" class="sp-chart"></div>
+      <p id="sp-tip" class="sp-tip muted tiny">Point at a week, or focus the chart and use the arrow keys.</p>
+    </figure>
+    <details class="sp-numbers"><summary>Show the numbers</summary><div id="sp-table" class="sp-table"></div></details>
+    <div id="sp-open"></div>
+    <h3 class="sp-h3">Checks on the combined numbers</h3>
+    <ul class="sp-checks" id="sp-checks"></ul>
+  </div>
+</section>
+
+<section class="wrap sp-step" id="forecast" aria-labelledby="forecast-h" hidden>
+  <h2 id="forecast-h" tabindex="-1"><span class="sp-n" aria-hidden="true">4</span> The next eight weeks</h2>
+  <div id="sp-forecast" aria-live="polite"></div>
+</section>
+
+<section class="wrap sp-step" id="meeting" aria-labelledby="meeting-h" hidden>
+  <h2 id="meeting-h" tabindex="-1"><span class="sp-n" aria-hidden="true">5</span> For the planning meeting</h2>
+  <ul class="sp-summary" id="sp-summary" aria-live="polite"></ul>
+  <div class="ctas">
+    <button type="button" class="btn primary" id="sp-save">Save this result</button>
+    <button type="button" class="btn ghost" id="sp-copy">Copy link</button>
+    <button type="button" class="btn ghost" id="sp-download">Download the note (Markdown)</button>
+  </div>
+  <p id="sp-save-note" class="muted tiny" role="status"></p>
+</section>
+
+<section class="wrap sp-real" aria-labelledby="real-h">
+  <h2 id="real-h">What is real here</h2>
+  <div class="sp-real-grid">
+    <div class="card soft"><h3>Done in this example</h3><p class="muted">The definition, the product links, the weekly numbers, the checks, the forecast and its tests are calculated on the example's sales lines when you change a choice.</p></div>
+    <div class="card soft"><h3>Illustrated</h3><p class="muted">Erik, Company A, Company B, the products and the data are invented. The data was generated to look like weekly sales; it says nothing about any real business.</p></div>
+    <div class="card soft"><h3>Not available yet</h3><p class="muted">This view on your own data (today that is a <a href="/partners">pilot</a> with personal help), results that update as new data arrives, scenarios, and opening this view in other tools.</p></div>
+  </div>
+</section>
+<noscript><div class="wrap"><p class="muted">This example needs JavaScript. The numbers are also at <a href="{{SP_JSON_PATH}}">the result as JSON</a>.</p></div></noscript>
+<script type="application/json" id="sp-data">{{SP_DATA}}</script>
+</div>

@@ -32,7 +32,8 @@ pytestmark = pytest.mark.skipif(not _playwright_available(), reason="node + play
 def site():
     sock = socket.socket(); sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]; sock.close()
     env = os.environ | {"PRODUCT_NAME": "Krusgraph", "MCP_PUBLIC_URL": "https://krusgraph.test/mcp", "CONTACT_EMAIL": "hello@krusgraph.test",
-                        "ENTRA_CLIENT_ID": "00000000-0000-0000-0000-000000000000", "ENTRA_CLIENT_SECRET": "test-only", "COMPANY_ORGNR": "123456-7890"}
+                        "ENTRA_CLIENT_ID": "00000000-0000-0000-0000-000000000000", "ENTRA_CLIENT_SECRET": "test-only", "COMPANY_ORGNR": "123456-7890",
+                        "KRUSGRAPH_PREVIEW": "1"}
     proc = subprocess.Popen([sys.executable, "-m", "fabric_backend.server", "--host", "127.0.0.1", "--port", str(port)], env=env,
                             cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
@@ -104,3 +105,20 @@ def test_use_cases_tasks_first_and_details_by_keyboard(report):
     f = report["facts"]
     assert f["useCaseTasks"] == 3
     assert f["useCaseDetailsClosed"] is True and f["useCaseDetailsOpened"] is True
+
+
+def test_sales_example_journey_at_phone_width(report):
+    """The first customer demonstration (brief of 26 October 2026): the steps open in order, another question gets an
+    honest answer, the decision changes the numbers exactly as the server computes them, the chart reads by keyboard,
+    nothing but a table scrolls sideways, and a saved link reopens the same result."""
+    f = report["facts"]
+    assert f["salesScopeHiddenFirst"] is True and f["salesScopeHiddenAfterOther"] is True and f["salesScopeShown"] is True
+    assert "answers one question" in f["salesOtherQuestion"] and "pilot" in f["salesOtherQuestion"]
+    assert f["salesFocusAfterDefinition"] == "link-h"
+    assert f["salesOpenTotal"] == f["salesApiOpenTotal"] and f["salesLinkedTotal"] == f["salesApiLinkedTotal"]
+    assert f["salesLinkedTotal"] > f["salesOpenTotal"] and "d=B-7003%3AA-103" in f["salesUrlAfterLink"]
+    assert f["salesFilteredTotal"] == f["salesApiFilteredTotal"]
+    assert "forecast for week 51, 2026" in f["salesKeyboardEnd"] and "sold in week" in f["salesKeyboardHome"]
+    assert f["salesWideOutsideScroll"] == []
+    assert "Reopened" in f["salesReopened"] and f["salesReopenedTotal"] == f["salesFilteredTotal"]
+    assert "linked to Commuter Light Set" in f["salesSavedList"] and f["salesChoiceKept"] is True
