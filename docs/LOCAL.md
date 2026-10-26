@@ -68,7 +68,10 @@ dbo"*, *"Check the plan against the data"*, *"How do orders connect to products?
 
 Works: `list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`,
 `analyze_schema`, `suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER
-VIEW` in a schema of its own, never DROP; `CREATE OR ALTER` needs SQL Server 2016 SP1 or later).
+VIEW` in a schema of its own, never DROP; `CREATE OR ALTER` needs SQL Server 2016 SP1 or later), `answer_query_draft` (a
+question in Swedish or English as T-SQL over the safest join path; runs nothing) and, with `FABRIC_SOURCE_KIND=Lakehouse`,
+`silver_notebook_draft` (the PySpark notebook that builds silver tables, without a default lakehouse since the item ids are
+not known locally; attach it in Fabric).
 
 On SQL Server the declared primary and foreign keys are read from `INFORMATION_SCHEMA` and become rules K0 and R0, so
 the plan starts from what the database says; name inference fills in the rest. Constraints are matched by schema and
@@ -82,7 +85,8 @@ and the alternative: `semantic_model_draft` (Direct Lake needs a Fabric SQL anal
 BI Desktop in Import or DirectQuery mode and use the plan's keys and relationships, or mirror the database into Fabric)
 and `ontology_draft` (Fabric IQ binds to a Fabric item). The tools that need Fabric item ids (`create_backend`,
 `describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`, `create_data_agent`,
-`lineage`) exist in the hosted connector only.
+`lineage`, `create_silver_notebook`, the drift monitor, and the GraphQL form of `answer_query_draft`) exist in the hosted
+connector only.
 
 ## 5. The 20-minute demo
 

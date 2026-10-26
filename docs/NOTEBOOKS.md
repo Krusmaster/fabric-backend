@@ -10,8 +10,10 @@ same plan and all with a draft that creates nothing:
 | `drift_monitor_draft` / `create_drift_monitor` | a nightly notebook and pipeline that report schema changes to a webhook | a notebook, a pipeline and a daily schedule (dry run by default) |
 | `answer_query_draft`, `query_graphql(question=...)` | a T-SQL or GraphQL query for a question, over the safest join path | nothing |
 
-Status: unit-tested. The generated notebooks also ran on a local PySpark 4.0.1 (Java 21) on 26 October 2026 against
-the shop seed (`tests/test_spark_notebooks.py`); none of it has run in a Fabric workspace yet.
+Status: unit-tested. The generated notebooks also run on a local PySpark 4.0.1 against the shop seed
+(`tests/test_spark_notebooks.py`: in the sandbox with Java 21 on 26 October 2026, and in CI's `notebooks` job with
+Java 17); none of it has run in a Fabric workspace yet. The local stdio server has `answer_query_draft` (T-SQL) and
+`silver_notebook_draft` too; the creating tools and the drift monitor need Fabric item ids and are hosted only.
 
 ## Silver tables (`silver_notebook_draft`, `create_silver_notebook`)
 

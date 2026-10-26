@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- The local stdio server has `answer_query_draft` (T-SQL only; GraphQL needs an API in Fabric) and, for a lakehouse,
+  `silver_notebook_draft` (the notebook without a default lakehouse, since the item ids are not known locally; a schema
+  other than `dbo` implies a lakehouse with schemas when `FABRIC_SCHEMAS_ENABLED` is not set). CI has a `notebooks` job
+  that installs PySpark 4.0.1 with Java 17 and runs the generated silver notebook and the drift monitor on a local Spark
+  (`tests/test_spark_notebooks.py`), so they no longer run only in a sandbox.
 - From understanding to building ([docs/NOTEBOOKS.md](docs/NOTEBOOKS.md)); thirty tools. `silver_notebook_draft` and
   `create_silver_notebook` (dry run by default): a Fabric PySpark notebook generated from the plan that writes silver
   tables in a schema of their own, de-duplicated on each key (the latest row by `order_by` or a column named like

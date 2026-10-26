@@ -188,6 +188,23 @@ def test_local_tools_carry_titles_and_hints_like_the_remote_ones():
     import asyncio
     tools = asyncio.run(mcp_server.mcp.list_tools())
     hints = {t.name: (t.annotations.read_only_hint, t.annotations.destructive_hint) for t in tools}
-    assert len(hints) == 14 and all(t.title for t in tools)
+    assert len(hints) == 16 and all(t.title for t in tools)
     assert hints["create_backend"] == (False, True) and hints["create_views"] == (False, True)
     assert all(v == (True, False) for k, v in hints.items() if k not in ("create_backend", "create_views"))
+
+
+def test_local_answer_and_silver_drafts(local_shop, monkeypatch):
+    out = json.loads(mcp_server.answer_query_draft("Hur många ordrar per kund?", ["orders", "customers"], schema="shop"))
+    assert out["tsql"].startswith("SELECT t1.[customer_id], t1.[name], COUNT_BIG(*)") and "graphql" not in out
+    assert out["path"][0]["rule"] == "R1" and "FABRIC_ODBC" in out["runs"]
+    assert json.loads(mcp_server.answer_query_draft("x", ["ghost"], schema="shop"))["kind"] == "bad_input"
+    monkeypatch.setenv("FABRIC_SOURCE_KIND", "Lakehouse")
+    monkeypatch.delenv("FABRIC_SCHEMAS_ENABLED", raising=False)
+    out = json.loads(mcp_server.silver_notebook_draft(schema="shop", order_by={"orders": "order_date"}))
+    text = out["notebook"]["content"]
+    assert text.startswith("# Fabric notebook source") and '"dependencies"' not in text and "SCHEMAS_ENABLED = True" in text
+    assert [s["table"] for s in out["steps"]][-1] == "order_items"
+    out = json.loads(mcp_server.silver_notebook_draft(schema="dbo"))
+    assert "SCHEMAS_ENABLED = False" in out["notebook"]["content"] and out["steps"][0]["writes"].startswith("silver_")
+    monkeypatch.setenv("FABRIC_SOURCE_KIND", "SQLServer")
+    assert json.loads(mcp_server.silver_notebook_draft(schema="shop"))["kind"] == "unsupported"

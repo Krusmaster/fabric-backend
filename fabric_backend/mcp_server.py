@@ -12,9 +12,11 @@ Same functions as the library, over the one SQL connection in FABRIC_ODBC:
   join_path, data_dictionary, dbt_schema    how two tables connect (with T-SQL); hand-over Markdown; dbt sources
   analyze_schema, suggest_relationships     the plan as a graph; missing links checked against the data
   create_views(dry_run=True)                CREATE OR ALTER VIEW in a schema of its own (SQL, no Fabric REST)
+  answer_query_draft                        a question (Swedish or English) as T-SQL over the safest join path
+  silver_notebook_draft                     a PySpark notebook that builds silver tables (lakehouse; nothing created)
 
 The tools that need Fabric item ids (describe_backend, plan_drift, app_starter, create_semantic_model,
-create_data_agent) live in the remote server only. Set FABRIC_SOURCE_KIND (Lakehouse, Warehouse, SQLDatabase, or
+create_data_agent, the drift monitor, the creating notebook tools, GraphQL answers) live in the remote server only. Set FABRIC_SOURCE_KIND (Lakehouse, Warehouse, SQLDatabase, or
 SQLServer for an on-prem or Azure SQL Server reached with Windows or SQL sign-in) and FABRIC_SCHEMAS_ENABLED=1 for a
 lakehouse created with schemas when semantic_model_draft should write schemaName. With SQLServer the Fabric-only drafts
 (semantic model in Direct Lake, Fabric IQ ontology) answer with an explanation; everything else works. docs/LOCAL.md.
@@ -372,6 +374,52 @@ def create_views(schema: str = "dbo", views_schema: str = "krusgraph", keys: dic
             out["hint"] = (out.get("hint", "") + " If this endpoint refuses CREATE VIEW (a mirrored or SQL database endpoint, or missing "
                            "rights), create the views in a warehouse in the same workspace instead: the SQL is unchanged.").strip()
         return json.dumps(out, indent=2, default=str)
+
+
+@_tool("Suggest a T-SQL query for a question (runs nothing)", RO)
+@safe
+def answer_query_draft(question: str, tables: list[str], schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                       confirmed: list[dict] | None = None) -> str:
+    """A question in Swedish or English about the given tables as T-SQL over the safest join path of the plan, each
+    step with the rule behind its relationship, plus what was read from the question and what was assumed. Runs
+    nothing; the GraphQL form needs an API in Fabric and is in the remote server."""
+    from . import answers as _answers
+    p = _plan(schema, keys=keys, confirmed=confirmed)
+    out = _answers.draft(p, question, tables)
+    out["runs"] = "nothing: the T-SQL runs on the connection in FABRIC_ODBC (SQL analytics endpoint, warehouse or SQL Server)"
+    return _compact.bounded(out, MAX_RESULT_CHARS)
+
+
+@_tool("Draft a PySpark notebook that builds silver tables (nothing created)", RO)
+@safe
+def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", order_by: dict[str, str] | None = None,
+                          keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                          tables: list[str] | None = None) -> str:
+    """The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key (the
+    latest row by `order_by` {table: column} wins), every relationship checked with the rows whose reference is
+    missing in krusgraph_quarantine, Delta tables written only in `silver_schema`, each step commented with its rule.
+    Returns the steps and the notebook source (notebook-content.py); creates nothing. FABRIC_SOURCE_KIND must be
+    Lakehouse."""
+    from . import silver as _silver
+    info = _source_info(schema)
+    if info["item_kind"] != "Lakehouse":
+        return json.dumps({"error": f"The silver notebook writes Delta tables with Spark in a lakehouse; FABRIC_SOURCE_KIND is {info['item_kind']}.",
+                           "kind": "unsupported",
+                           "hint": "Plan a lakehouse (FABRIC_SOURCE_KIND=Lakehouse), or mirror the tables into Fabric and add them to a lakehouse "
+                                   "as OneLake shortcuts; answer_query_draft, create_views and the rest work on this source."}, indent=2)
+    if info["schemas_enabled"] is None:                       # not set: a schema other than dbo only exists on a lakehouse with schemas
+        info["schemas_enabled"] = schema.lower() != "dbo"
+    p = _plan(schema, keys=keys, confirmed=confirmed)
+    spec = _silver.spec(p, info, silver_schema, order_by, tables)
+    text = _silver.notebook_source(spec)
+    out = {"summary": p.summary().splitlines()[0] + f"; the notebook writes {len(spec['tables'])} silver table(s) and {_silver.QUARANTINE}",
+           "steps": _silver.steps(spec), "not_checked": spec["not_checked"],
+           "notebook": {"path": "notebook-content.py", "format": "fabricGitSource", "content": text},
+           "run": ["In Fabric: import the notebook (or paste the cells), attach it to the lakehouse, and Run all; the item ids are not "
+                   "known here, so the notebook carries no default lakehouse.",
+                   f"Lakehouse with schemas: {spec['source']['schemas_enabled']} (FABRIC_SCHEMAS_ENABLED; a schema other than dbo implies yes)."],
+           "note": "Unit-tested; the generated notebook ran on a local PySpark 4.0.1 against the shop seed; not yet run in Fabric."}
+    return _compact.bounded(out, MAX_RESULT_CHARS)
 
 
 def main() -> None:

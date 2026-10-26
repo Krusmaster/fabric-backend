@@ -54,15 +54,16 @@ Restart Claude Desktop and ask, for example, *"Plan the tables in schema dbo"* o
 ## What works locally
 
 `list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, `join_path`, `data_dictionary`, `dbt_schema`,
-`analyze_schema`, `suggest_relationships`, `rayfin_connector` and `create_views` (dry run by default; `CREATE OR ALTER
-VIEW` in a schema of its own, never DROP). On SQL Server, declared primary and foreign keys are read and become K0 and
+`analyze_schema`, `suggest_relationships`, `rayfin_connector`, `create_views` (dry run by default; `CREATE OR ALTER
+VIEW` in a schema of its own, never DROP), `answer_query_draft` (a question as T-SQL over the safest join path; runs nothing)
+and, for a lakehouse, `silver_notebook_draft` (the notebook that builds silver tables; nothing created). On SQL Server, declared primary and foreign keys are read and become K0 and
 R0; relationships into another schema are left out rather than guessed.
 
 Two drafts are Fabric-specific and answer with an explanation when `FABRIC_SOURCE_KIND` is `SQLServer`: the Power BI
 semantic model in Direct Lake mode (it needs a Fabric SQL analytics endpoint; open the tables in Power BI Desktop
 instead, or mirror the database into Fabric) and the Fabric IQ ontology. The tools that need Fabric item ids
 (`create_backend`, `describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`,
-`create_data_agent`, `lineage`) live in the hosted connector only.
+`create_data_agent`, `lineage`, `create_silver_notebook` and the drift monitor) live in the hosted connector only.
 
 ## The 20-minute demo
 

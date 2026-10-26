@@ -1,6 +1,7 @@
 """The generated notebooks run for real on a local Spark session: the silver notebook against the shop seed with
 duplicates and broken references (it must agree with silver.simulate), and the drift monitor two nights in a row.
-Skipped when PySpark is not installed (CI); run in the sandbox on 26 October 2026 with PySpark 4.0.1 and Java 21:
+Skipped when PySpark is not installed; CI's `notebooks` job installs PySpark 4.0.1 with Java 17 and runs it, and it ran in
+the sandbox on 26 October 2026 with PySpark 4.0.1 and Java 21:
 
     python -m pytest -q --noconftest tests/test_spark_notebooks.py
 
