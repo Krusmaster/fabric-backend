@@ -237,8 +237,17 @@ def test_every_hosted_tool_answers_as_it_did(fabric):
 
 
 def _listing(mcp) -> list[dict]:
+    """The tools as a client lists them. A description is a docstring, and Python 3.13 strips its indentation when it
+    compiles while 3.12 (CI and the image) keeps it, so the description is compared after inspect.cleandoc."""
+    import inspect
     tools = asyncio.run(mcp.list_tools())
-    return [json.loads(t.model_dump_json(exclude_none=True)) for t in sorted(tools, key=lambda t: t.name)]
+    out = []
+    for t in sorted(tools, key=lambda t: t.name):
+        entry = json.loads(t.model_dump_json(exclude_none=True))
+        if entry.get("description"):
+            entry["description"] = inspect.cleandoc(entry["description"])
+        out.append(entry)
+    return out
 
 
 def test_hosted_tool_listing_and_instructions_are_unchanged():
