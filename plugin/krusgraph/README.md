@@ -10,9 +10,12 @@ a skill that walks Claude through the work in the right order and three commands
   against the rows (uniqueness, NULLs, orphans). Ambiguous columns are reported, never guessed.
 - **Create**: one API for GraphQL item in your workspace, created or updated in place, never deleted; a drift check
   before a re-run on an existing API.
-- **Hand over**: a Power BI semantic model (TMDL, Direct Lake), a data dictionary, a dbt sources file with tests, wide
-  T-SQL views, and the starter pack for an app on the API (including the backend that keeps the app's secret out of
-  the browser).
+- **Hand over**: a Power BI semantic model (TMDL, Direct Lake), a Fabric IQ ontology (preview), a data dictionary, a
+  dbt sources file with tests, wide T-SQL views, and the starter pack for an app on the API (including the backend
+  that keeps the app's secret out of the browser). Every tool that creates something is a dry run until you say
+  otherwise, and none deletes.
+- **Large schemas**: above 60 tables the answers come in summary form; `detail="full"` and a `tables` filter
+  (`["sales_*"]`) give the full answer for one area at a time.
 
 Commands: `/krusgraph:plan` (plan and validate a source), `/krusgraph:document` (data dictionary and dbt file),
 `/krusgraph:explain-schema` (the source as a graph, and how two tables connect). The skill

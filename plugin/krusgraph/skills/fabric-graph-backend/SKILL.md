@@ -19,6 +19,10 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
    or a relationship. Never decide a relationship from a column's name alone when the plan says it is ambiguous.
 4. **Check against the data.** `validate_plan` counts uniqueness, NULLs and orphans for every key and relationship.
    Report the verdicts. A key that is not unique or a relationship with orphans is a reason to stop and ask.
+   **Large schemas:** above 60 tables `list_tables`, `plan_backend` and `analyze_schema` answer in summary form on
+   their own (one line per key and relationship, no field names, no diagram) and say so; `detail="full"` asks for
+   everything, `tables=["sales_*", "customers"]` narrows the answer to matching tables while the plan is still made
+   from the whole schema. Work one area at a time rather than asking for a thousand tables in full.
 5. **Plan lacks links?** `suggest_relationships` ranks candidate columns and checks the best against the data
    (inclusion share). Suggestions only: show them to the user with the evidence and **ask which to accept**; pass the
    accepted ones as `confirmed` to the next calls. Do not add a relationship the user has not confirmed.
@@ -39,6 +43,9 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
 - **Power BI semantic model:** `semantic_model_draft(name)` writes TMDL (Direct Lake) with one active path per table
   pair and a `README.generated.md` of decisions to check. `create_semantic_model` creates the item; it is a dry run
   until `dry_run=false`, and that needs the user's go-ahead.
+- **Fabric IQ ontology (preview):** `ontology_draft(name)` writes the entity types with keys, the relationship types
+  and the bindings; `create_ontology` creates or updates the item of that name in place, a dry run until
+  `dry_run=false` with the user's go-ahead. Without the permission it answers `kind: consent`.
 - **Data dictionary:** `data_dictionary(validate=true)` writes the hand-over Markdown with the counts from the data.
 - **dbt:** `dbt_schema(source_name)` writes the sources file with `unique`, `not_null` and `relationships` tests.
 - **How two tables connect:** `join_path(start, end)` gives the chain, the rule per hop and ready T-SQL;
@@ -58,10 +65,17 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
   `create_drift_monitor` creates them. The webhook address is never passed to a tool: tell the user to set
   `webhook_url` on the pipeline in Fabric.
 
+## A lakehouse nobody has documented: five first questions
+
+In this order, each answer feeding the next: `analyze_schema` (which tables are facts, which are dimensions, what
+the subject areas are), `plan_backend` (the keys and relationships with the rule behind each), `validate_plan` (are
+the keys unique, do the references hold), `suggest_relationships` (which columns look like references but are in no
+relationship), `data_dictionary` (the hand-over document with everything above).
+
 ## When to stop and confirm with the user
 
-- Before `create_backend`, `create_semantic_model`, `create_views`, `create_data_agent`, `create_silver_notebook` or
-  `create_drift_monitor` run for real.
+- Before `create_backend`, `create_semantic_model`, `create_ontology`, `create_views`, `create_data_agent`,
+  `create_silver_notebook` or `create_drift_monitor` run for real.
 - Before accepting any suggested relationship or composite key into `confirmed` / `keys`.
 - When `validate_plan` finds duplicates or orphans, or `plan_drift` lists removals.
 - When a tool answers `kind: consent`, `sign_in`, `no_access` or `capacity`: the hint names what the user or an admin
