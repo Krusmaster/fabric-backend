@@ -365,3 +365,18 @@ def test_new_tools_are_listed_read_only_with_titles():
     assert "api" in tools["plan_drift"]["inputSchema"]["properties"] and "validate" in tools["data_dictionary"]["inputSchema"]["properties"]
     for word in ("semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift"):
         assert word in server.mcp.instructions
+
+
+def test_identifier_columns_are_never_summed_even_when_the_plan_does_not_link_them():
+    """orders.ship_to_id is not inferred (no rule links it), but it is an id: summarizeBy none, not sum."""
+    assert semantic_model._looks_like_id("ship_to_id") and semantic_model._looks_like_id("line_no")
+    assert semantic_model._looks_like_id("CustomerId") and not semantic_model._looks_like_id("quantity")
+    assert not semantic_model._looks_like_id("paid") and not semantic_model._looks_like_id("unit_price")
+
+
+def test_the_shop_draft_sums_measures_only(shop_plan):
+    t = semantic_model.draft(shop_plan, INFO, "shop_model")["parts"]["definition/tables/orders.tmdl"]
+    ship_to = t.split("column ship_to_id", 1)[1].split("column ", 1)[0]
+    assert "summarizeBy: none" in ship_to
+    items = semantic_model.draft(shop_plan, INFO, "shop_model")["parts"]["definition/tables/order_items.tmdl"]
+    assert "summarizeBy: sum" in items.split("column quantity", 1)[1].split("column ", 1)[0]

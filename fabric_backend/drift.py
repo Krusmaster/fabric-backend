@@ -55,8 +55,13 @@ def compare(plan: Plan, existing: dict, name: str, workspace_id: str, source_id:
             why = "a column it joins on is gone"
         else:
             why = "the plan no longer infers it (a key or rule changed); pass it in `confirmed` to keep it"
-        unsupported.append({"table": o.get("sourceObject"), "field": r.get("field"), "target": target,
-                            "columns": list(r.get("sourceFields") or []), "why": why})
+        entry = {"table": o.get("sourceObject"), "field": r.get("field"), "target": target,
+                 "columns": list(r.get("sourceFields") or []), "why": why}
+        if why.startswith("the plan no longer infers it") and r.get("cardinality") == "ManyToOne":
+            entry["confirmed"] = {"source": str(o.get("sourceObject")).split(".")[-1], "source_cols": entry["columns"],
+                                  "target": str(target).split(".")[-1], "target_cols": list(r.get("targetFields") or []),
+                                  "field_name": r.get("field") or ""}
+        unsupported.append(entry)
     new_relationships = [{"table": o.get("sourceObject"), "field": r.get("field"), "target": r.get("targetObject"),
                           "columns": list(r.get("sourceFields") or [])}
                          for k, (o, r) in sorted(new_rels.items(), key=lambda kv: str(kv[0])) if k not in old_rels]
@@ -87,4 +92,5 @@ def compare(plan: Plan, existing: dict, name: str, workspace_id: str, source_id:
             "new_columns": new_columns, "removed_columns": removed_columns, "relationships_unsupported": unsupported,
             "new_relationships": new_relationships, "actions_changed": actions_changed,
             "source_changed": [{"api_source_item": ds.get("sourceItemId"), "plan_source_item": source_id} for ds in source_changed],
-            "skipped_relationships": wanted_env.get("skipped_relationships", [])}
+            "skipped_relationships": wanted_env.get("skipped_relationships", []),
+            "keep_with_confirmed": [u["confirmed"] for u in unsupported if "confirmed" in u]}

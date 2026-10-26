@@ -377,13 +377,24 @@ def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n:
 @safe
 def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
                    keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                   tables: list[str] | None = None, ctx: Context = None) -> str:
+                   tables: list[str] | None = None, allow_removals: bool = False, ctx: Context = None) -> str:
     """Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update
-    the item of that name in place. Creates one item; never deletes anything. Returns the endpoint URL and the
-    portal steps that remain (introspection, service principal permission)."""
+    the item of that name in place. Creates one item; never deletes an item. When an API of that name exists and
+    the update would drop relationships it has (often ones confirmed earlier), nothing is written: the answer lists
+    them with ready `confirmed` entries; pass those to keep them, or allow_removals=true to drop them on purpose.
+    Returns the endpoint URL and the portal steps that remain (introspection, service principal permission)."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     source_id, source_type = source_for(workspace, item, headers)
+    if not allow_removals:
+        lost = _relationships_lost(workspace, name, p, source_id, source_type, writable, tables, headers)
+        if lost:
+            keep = [u["confirmed"] for u in lost if "confirmed" in u]
+            return json.dumps({
+                "error": f"updating {name!r} would remove {len(lost)} relationship(s) the API has today; nothing was written.",
+                "kind": "would_remove", "relationships_lost": lost, "keep_with_confirmed": keep,
+                "hint": "To keep them, call create_backend again with confirmed=keep_with_confirmed (added to any confirmed "
+                        "you already pass). To drop them on purpose, call it with allow_removals=true."}, indent=2)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     result = deploy(env, workspace, token_provider=lambda: auth.fabric(ctx))
     out = {"summary": p.summary(), "source": {"id": source_id, "type": source_type}, "result": result,
@@ -400,6 +411,27 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
         out.update({"error": f"Fabric is still working on {name!r}; the operation did not finish in time.", "kind": "timeout",
                     "hint": "Check the item in the Fabric portal in a minute; re-running create_backend updates it in place."})
     return json.dumps(out, indent=2)
+
+
+def _existing_api(workspace: str, name: str, headers: dict) -> tuple[str, dict] | None:
+    """(workspace id, graphql-definition.json) of the API for GraphQL item with this name, or None."""
+    try:
+        workspace_id = _workspace_id(workspace, headers)
+        api_id = _api_id(workspace_id, name, headers)
+        return (workspace_id, _graphql_definition(workspace_id, api_id, headers)) if api_id else None
+    except Exception:                                                      # noqa: BLE001 — the guard must never block a create
+        return None
+
+
+def _relationships_lost(workspace, name, p, source_id, source_type, writable, tables, headers) -> list[dict]:
+    """Relationships an existing API of this name has that the update would drop. A new name, or an API whose
+    definition cannot be read, gives [] so that creating still works as before."""
+    found = _existing_api(workspace, name, headers)
+    if not found:
+        return []
+    workspace_id, existing = found
+    d = _drift.compare(p, existing, name, workspace_id, source_id, source_type, writable=writable, tables=tables)
+    return d.get("relationships_unsupported", [])
 
 
 @mcp.tool(title="Generate Rayfin connector entities", annotations=RO)

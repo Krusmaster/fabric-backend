@@ -7,6 +7,8 @@ import pytest
 from fabric_backend import seed, server
 from fabric_backend.schema import Schema
 
+_REAL_EXISTING_API = server._existing_api          # tests/conftest.py stubs it out; the guard test puts it back
+
 
 @pytest.fixture(autouse=True)
 def _workspace_ids_pass_through(monkeypatch):
@@ -98,3 +100,29 @@ def test_a_tables_filter_must_name_real_tables(shop, monkeypatch):
     assert out["result"]["status"] == "Succeeded"                                                  # case does not matter
     out = json.loads(server.rayfin_connector(*shop, connector="shop", schema="shop", tables=[]))
     assert out["kind"] == "bad_input" and "empty" in out["error"]
+
+
+def test_create_backend_will_not_silently_drop_a_relationship_the_api_has(shop, monkeypatch):
+    """The live shop_api has orders.ship_to_id -> addresses, confirmed earlier. A plain re-run must not remove it."""
+    from fabric_backend.graphql import decode, definition
+    from fabric_backend.infer import plan
+    ship_to = {"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}
+    existing = decode(definition(plan(seed.schema("shop"), confirmed=[ship_to]), "shop_api", "ws-1", "ep-1", "SqlAnalyticsEndpoint"))
+    monkeypatch.setattr(server, "source_for", lambda ws, item, headers: ("ep-1", "SqlAnalyticsEndpoint"))
+    monkeypatch.setattr(server, "_api_id", lambda ws, api, headers: "api-1" if api == "shop_api" else None)
+    monkeypatch.setattr(server, "_graphql_definition", lambda ws, api_id, headers: existing)
+    monkeypatch.setattr(server, "_existing_api", _REAL_EXISTING_API)
+    deployed = []
+    monkeypatch.setattr(server, "deploy", lambda env, ws, **k: deployed.append(env) or {"status": "Succeeded", "mode": "updated", "id": "api-1"})
+
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
+    assert out["kind"] == "would_remove" and not deployed and "allow_removals" in out["hint"]
+    assert {r["field"] for r in out["relationships_lost"]} == {"ship_to", "orders_as_ship_to"}
+    assert out["keep_with_confirmed"] == [{**ship_to, "field_name": "ship_to"}]
+
+    kept = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", confirmed=out["keep_with_confirmed"]))
+    assert kept["result"]["status"] == "Succeeded" and len(deployed) == 1
+    dropped = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", allow_removals=True))
+    assert dropped["result"]["status"] == "Succeeded" and len(deployed) == 2
+    new_name = json.loads(server.create_backend(*shop, name="shop_api_v2", schema="shop"))
+    assert new_name["result"]["status"] == "Succeeded"                       # a new name has nothing to lose

@@ -54,6 +54,12 @@ _TYPES = [
 _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+def _looks_like_id(column: str) -> bool:
+    """An identifier is never summed, whether or not the plan links it (ship_to_id, line_no, sku_code, id)."""
+    c = column.lower()
+    return c in ("id", "key", "code") or c.endswith(("_id", "_key", "_code", "_no", "_nr", "_number")) or (c.endswith("id") and len(c) > 2 and column[-2:] == "Id")
+
+
 def tmdl_name(name: str) -> str:
     """Object names in TMDL: bare when they are identifier-like, otherwise in single quotes."""
     return name if _PLAIN.match(name) else "'" + name.replace("'", "''") + "'"
@@ -146,7 +152,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         for c in t.columns:
             dt = data_type(c.data_type)
             is_key = len(key) == 1 and c.name == key[0]
-            is_ref = (t.name, c.name.lower()) in ref_cols or c.name in key
+            is_ref = (t.name, c.name.lower()) in ref_cols or c.name in key or _looks_like_id(c.name)
             summarize = "sum" if dt in ("int64", "double", "decimal") and not is_ref else "none"
             lines.append(f"\tcolumn {tmdl_name(c.name)}")
             lines.append(f"\t\tdataType: {dt}")
