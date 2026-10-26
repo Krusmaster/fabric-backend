@@ -48,7 +48,7 @@ PAGES = {
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
-                   "What could you build from your Fabric tables? Ten illustrative schemas: the relationships {{PRODUCT}} proposes, where they can go wrong and what you can build after reviewing them.", "usecases"),
+                   "Start from an undocumented lakehouse, a join to check or an app to build. Ten illustrative schemas show what {{PRODUCT}} proposes, where it can go wrong and what still needs your judgement.", "usecases"),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -371,7 +371,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it reads and passes through, reviewing and checking a plan, creating and querying a GraphQL API, and the thirty-four tools with what each changes and how far it has been tested."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, explore and check a plan against your data, keep the review, build from it, and the status of each tool: what it changes and how far it has been tested."
 LOVABLE_DESC = "Prepare a GraphQL API in Microsoft Fabric with {{PRODUCT}} in Claude, then connect Lovable's Microsoft Fabric connector to it."
 
 

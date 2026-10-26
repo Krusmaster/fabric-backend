@@ -562,7 +562,7 @@ def test_explore_texts_say_the_demo_choice_stays_in_the_demo(client):
 
 def test_use_cases_mark_outputs_with_the_docs_status(client):
     html = client.get("/use-cases").text
-    assert "(planned)" not in html and "What could you build from your Fabric tables?" in html
+    assert "(planned)" not in html and "What do you need to understand about your data?" in html
     assert "time it takes to read and accept a plan" not in html and "defensible to auditors" not in html
     first = html.split('id="industries"')[0]                                            # the illustrative note comes first
     assert "The schemas are illustrative examples, not customer projects." in first
