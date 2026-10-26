@@ -236,7 +236,8 @@ def test_tools_still_describe_themselves_to_mcp_clients():
         tools = {t["name"]: t for t in payload["result"]["tools"]}
         assert set(tools) == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql", "ontology_draft", "validate_plan", "sample_rows", "describe_backend",
                               "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift",
-                              "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology", "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft"}
+                              "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology", "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft",
+                                    "compare_semantic_model", "gold_views_draft", "create_gold_views"}
         assert "workspace" in tools["list_sources"]["inputSchema"]["properties"]
         assert set(tools["create_backend"]["inputSchema"]["properties"]) >= {"workspace", "source", "name", "schema", "writable", "keys", "confirmed", "tables"}
         assert "ctx" not in tools["plan_backend"]["inputSchema"]["properties"]

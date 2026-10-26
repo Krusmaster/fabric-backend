@@ -71,7 +71,8 @@ def _topological(names: list[str], edges: list[tuple[str, str]]) -> list[str]:
     return order + sorted(n for n in names if n not in order)
 
 
-def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict | None = None, tables: list[str] | None = None) -> dict:
+def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict | None = None, tables: list[str] | None = None,
+         show_personal_data: bool = False) -> dict:
     """The notebook's plan: per table the key and its rule, the ordering column and why, the references to check with
     their rules, and the target. Raises PlanInputError for a schema or order_by that cannot work."""
     schema = info.get("schema") or plan.schema.schema
@@ -124,9 +125,14 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
         out_tables.append({"table": t, "target": target(t), "key": list(key), "key_rule": key_rule if key else "K3",
                            "order_by": col, "order_why": why, "checks": checks})
     owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
+    from . import privacy
+    personal: dict[str, list[str]] = {}
+    for (t, c), _f in sorted(privacy.personal_columns(plan.schema, chosen).items()):
+        personal.setdefault(t, []).append(c)
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower), "owner": owner},
             "silver_schema": silver_schema, "quarantine": target(QUARANTINE), "tables": out_tables,
+            "personal": personal, "mask_personal_data": not show_personal_data,
             "not_checked": [{"table": a["table"], "column": a["column"], "why": "ambiguous: it could point at " + " or ".join(a["candidates"])}
                             for a in plan.ambiguous if a["table"] in chosen]}
 
@@ -151,6 +157,9 @@ OWNER = {owner}
 SOURCE_TABLES = {source_tables}
 # The silver tables this notebook writes, plus the quarantine table.
 WRITES = {writes}
+# Columns whose name looks like personal data (Krusgraph's rules P1-P6, by name): masked in the quarantine's row_json while
+# MASK_PERSONAL_DATA is True. The silver tables themselves keep every column.
+PERSONAL_COLUMNS = {personal}
 RUN_AT = datetime.now(timezone.utc).replace(microsecond=0)
 
 
@@ -197,8 +206,11 @@ read_counts = {{}}
 
 
 def to_quarantine(rows, table, rule, reason):
+    masked = set(PERSONAL_COLUMNS.get(table, [])) if MASK_PERSONAL_DATA else set()
+    fields = [F.when(col(c).isNull(), F.lit(None).cast("string")).otherwise(F.lit("***")).alias(c) if c in masked else col(c)
+              for c in rows.columns]
     quarantined.append(rows.select(F.lit(table).alias("source_table"), F.lit(rule).alias("rule"), F.lit(reason).alias("reason"),
-                                   F.to_json(F.struct(*[col(c) for c in rows.columns])).alias("row_json")))
+                                   F.to_json(F.struct(*fields)).alias("row_json")))
 
 
 def drop_null_keys(df, key, table, rule):
@@ -315,11 +327,13 @@ def cells(s: dict) -> list[tuple[str, str]]:
              f"`{QUARANTINE}` with the reason. The source tables are only read. Run it again at any time: every silver table "
              "is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.")
     params = (f"SILVER_SCHEMA = {_py(s['silver_schema'])}   # where the silver tables go; never the source schema\n"
-              'TABLE_FORMAT = "delta"     # lakehouse tables are Delta; leave as it is')
+              'TABLE_FORMAT = "delta"     # lakehouse tables are Delta; leave as it is\n'
+              f"MASK_PERSONAL_DATA = {s.get('mask_personal_data', True)}   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)")
     writes = [t["table"] for t in s["tables"]] + [QUARANTINE]
     setup = SETUP.format(source_schema=_py(src["schema"] if src["schemas_enabled"] else None),
                          schemas_enabled="True" if src["schemas_enabled"] else "False",
-                         source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]))
+                         source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]),
+                         personal=json.dumps(s.get("personal", {})))
     out = [("markdown", intro), ("parameters", params), ("code", setup.strip("\n"))]
     out += [("code", _table_cell(t)) for t in s["tables"]]
     out.append(("code", FINISH.format(quarantine=_py(QUARANTINE)).strip("\n")))
@@ -405,6 +419,10 @@ def simulate(s: dict, data: dict[str, list[dict]]) -> dict:
                 if not dropped:
                     break
         silver[name] = rows
+    if s.get("mask_personal_data", True) and s.get("personal"):                # as the notebook's to_quarantine writes row_json
+        for q in quarantine:
+            cols = set(s["personal"].get(q["source_table"], []))
+            q["row"] = {k: (None if v is None else "***") if k in cols else v for k, v in q["row"].items()}
     return {"silver": silver, "quarantine": quarantine}
 
 

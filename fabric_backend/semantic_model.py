@@ -69,6 +69,98 @@ def _looks_like_id(column: str) -> bool:
     return bool(words) and words[-1] in _NOT_ADDITIVE
 
 
+def summarize_by(column: str, sql_type: str, is_ref: bool) -> str:
+    """summarizeBy for a column: `sum` for a number that is neither a key, a reference nor an id-like column, else
+    `none`. The suggested sum measures use the same rule, so a column is summed in a measure exactly when it is summed
+    by default."""
+    return "sum" if data_type(sql_type) in ("int64", "double", "decimal") and not is_ref and not _looks_like_id(column) else "none"
+
+
+# The calendar a model gets when a fact table has date columns: a calculated table that references no Direct Lake table,
+# which Direct Lake on SQL allows ("calculated tables that don't reference Direct Lake columns or tables are supported in
+# all scenarios", MicrosoftDocs/fabric-docs a2de7f9 docs/fundamentals/direct-lake-overview.md, ms.date 09/02/2026), marked
+# as the date table with `dataCategory: Time` and `isKey` on its Date column, as Calendar.tmdl in microsoft/Analysis-Services
+# d3ccb50 pbidevmode/fabricps-pbip/SamplePBIP does. The range is a placeholder written in the README: the draft reads no
+# rows, so it cannot know the first and last date.
+CALENDAR_FIRST_YEAR, CALENDAR_LAST_YEAR = 2020, 2030
+_DATE_TABLE_NAMES = {"date", "dates", "calendar", "kalender", "datum", "dimdate", "datedim", "calendardim", "time", "tid"}
+
+
+def _norm_name(name: str) -> str:
+    return "".join(_words(name))
+
+
+def _sql_base(sql_type: str) -> str:
+    return (sql_type or "").lower().split("(")[0].strip()
+
+
+def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: set[tuple[str, str]]) -> list[dict]:
+    """Measures worth having from the start, each with the reason: the row count of every fact table, and a sum of each
+    of its columns that summarizeBy sums (never an id, code, year or reference). Dimensions get none: their numbers
+    (a list price, a weight) are attributes of one row, and adding them up is a decision for whoever builds the report."""
+    out: list[dict] = []
+    taken = {c.name.lower() for t in chosen for c in t.columns} | {t.name.lower() for t in chosen}
+
+    def unique(name: str, table: str) -> str:
+        n = name if name.lower() not in taken else f"{name} ({table})"
+        taken.add(n.lower())
+        return n
+    for t in chosen:
+        if role_of.get(t.name) != "fact":
+            continue
+        key = plan.keys.get(t.name, ([], ""))[0]
+        out.append({"table": t.name, "name": unique(f"Rows in {t.name}", t.name), "expression": f"COUNTROWS({_dax_table(t.name)})",
+                    "format": "#,##0", "why": f"{t.name} is a fact table (role from the plan's graph): its row count is the first number a report asks for"})
+        for c in t.columns:
+            if c.name not in t.column_names:
+                continue
+            is_ref = (t.name, c.name.lower()) in ref_cols or c.name in key
+            if summarize_by(c.name, c.data_type, is_ref) != "sum":
+                continue
+            dt = data_type(c.data_type)
+            out.append({"table": t.name, "name": unique(f"Total {c.name}", t.name), "expression": f"SUM({_dax_table(t.name)}[{_dax_column(c.name)}])",
+                        "format": "#,##0" if dt == "int64" else "#,##0.00",
+                        "why": f"{t.name}.{c.name} is a number in a fact table and neither a key, a reference nor an id, code or year, "
+                               "so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit"})
+    return out
+
+
+def _dax_table(name: str) -> str:
+    return "'" + name.replace("'", "''") + "'"
+
+
+def _dax_column(name: str) -> str:
+    return name.replace("]", "]]")
+
+
+def date_columns(plan: Plan, chosen, role_of: dict[str, str]) -> tuple[list[tuple[str, str]], list[tuple[str, str]]]:
+    """(fact, column) pairs with a date type: those of SQL type `date` relate to the calendar; datetime and timestamp
+    columns carry a time of day, and Direct Lake on SQL does not relate on the date part of a datetime
+    (direct-lake-overview.md), so they are listed instead."""
+    dates, timed = [], []
+    for t in chosen:
+        if role_of.get(t.name) != "fact":
+            continue
+        for c in t.columns:
+            if c.name not in t.column_names or data_type(c.data_type) != "dateTime":
+                continue
+            (dates if _sql_base(c.data_type) == "date" else timed).append((t.name, c.name))
+    return dates, timed
+
+
+def calendar_tmdl(name: str, model: str) -> str:
+    source = (f'ADDCOLUMNS(CALENDAR(DATE({CALENDAR_FIRST_YEAR}, 1, 1), DATE({CALENDAR_LAST_YEAR}, 12, 31)), '
+              '"Year", YEAR([Date]), "Month", MONTH([Date]))')
+    lines = [f"/// The model's date table, generated because fact tables have date columns; marked as the date table (dataCategory: Time).",
+             f"table {tmdl_name(name)}", f"\tlineageTag: {_tag(model, 'table', name)}", "\tdataCategory: Time", ""]
+    for col, dt, extra in (("Date", "dateTime", ["\t\tisKey", "\t\tformatString: yyyy-mm-dd"]), ("Year", "int64", ["\t\tformatString: 0"]),
+                           ("Month", "int64", ["\t\tformatString: 0"])):
+        lines += [f"\tcolumn {col}", f"\t\tdataType: {dt}", *extra, f"\t\tlineageTag: {_tag(model, 'column', name, col)}",
+                  "\t\tsummarizeBy: none", "\t\tisDataTypeInferred", f"\t\tsourceColumn: [{col}]", "", "\t\tannotation SummarizationSetBy = Automatic", ""]
+    lines += [f"\tpartition {tmdl_name(name)} = calculated", "\t\tmode: import", f"\t\tsource = {source}", ""]
+    return "\n".join(lines)
+
+
 def tmdl_name(name: str) -> str:
     """Object names in TMDL: bare when they are identifier-like, otherwise in single quotes."""
     return name if _PLAIN.match(name) else "'" + name.replace("'", "''") + "'"
@@ -142,12 +234,24 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     active, inactive = active_relationships(plan, single, validation)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
+    measures = suggested_measures(plan, chosen, role_of, ref_cols)
+    by_table: dict[str, list[dict]] = {}
+    for m in measures:
+        by_table.setdefault(m["table"], []).append(m)
+    dates, timed = date_columns(plan, chosen, role_of)
+    lookalike = [t.name for t in chosen if _norm_name(t.name) in _DATE_TABLE_NAMES]
+    calendar = None
+    if (dates or timed) and not lookalike:
+        calendar = "Calendar" if "calendar" not in {t.name.lower() for t in chosen} else "Krusgraph Calendar"
+
     parts: dict[str, str] = {}
     parts["definition/database.tmdl"] = f"database\n\tcompatibilityLevel: {COMPATIBILITY_LEVEL}\n"
     model = ["model Model", "\tculture: en-US", "\tdefaultPowerBIDataSourceVersion: powerBI_V3", "\tsourceQueryCulture: en-US",
              "\tdataAccessOptions", "\t\tlegacyRedirects", "\t\treturnErrorValuesAsNull", "",
              f'annotation PBI_QueryOrder = ["{EXPRESSION}"]', "", "annotation __PBI_TimeIntelligenceEnabled = 0", ""]
     model += [f"ref table {tmdl_name(t.name)}" for t in chosen]
+    if calendar:
+        model.append(f"ref table {tmdl_name(calendar)}")
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     parts["definition/expressions.tmdl"] = "\n".join([
         f"expression {EXPRESSION} =", "\t\tlet", f'\t\t    database = Sql.Database("{endpoint}", "{database}")',
@@ -158,11 +262,13 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         key = plan.keys.get(t.name, ([], ""))[0]
         lines = [f"table {tmdl_name(t.name)}", f"\tlineageTag: {_tag(name, 'table', t.name)}",
                  f"\tsourceLineageTag: [{schema}].[{t.name}]", ""]
+        for m in by_table.get(t.name, []):
+            lines += [f"\t/// Suggested by Krusgraph: {m['why']}.", f"\tmeasure {tmdl_name(m['name'])} = {m['expression']}",
+                      f"\t\tformatString: {m['format']}", f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
         for c in t.columns:
             dt = data_type(c.data_type)
             is_key = len(key) == 1 and c.name == key[0]
-            is_ref = (t.name, c.name.lower()) in ref_cols or c.name in key or _looks_like_id(c.name)
-            summarize = "sum" if dt in ("int64", "double", "decimal") and not is_ref else "none"
+            summarize = summarize_by(c.name, c.data_type, (t.name, c.name.lower()) in ref_cols or c.name in key)
             lines.append(f"\tcolumn {tmdl_name(c.name)}")
             lines.append(f"\t\tdataType: {dt}")
             if is_key:
@@ -178,6 +284,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         lines += [f"\t\t\texpressionSource: {EXPRESSION}", "", "\tannotation PBI_ResultType = Table", "",
                   f"\tannotation Krusgraph_Role = {role_of.get(t.name, 'other')}", ""]
         parts[f"definition/tables/{t.name}.tmdl"] = "\n".join(lines)
+    if calendar:
+        parts[f"definition/tables/{calendar}.tmdl"] = calendar_tmdl(calendar, name)
 
     rel_lines: list[str] = []
     for r in active + [x for x, _ in inactive]:
@@ -188,6 +296,14 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         rel_lines.append(f"\tfromColumn: {tmdl_name(r.source)}.{tmdl_name(r.source_cols[0])}")
         rel_lines.append(f"\ttoColumn: {tmdl_name(r.target)}.{tmdl_name(r.target_cols[0])}")
         rel_lines.append("")
+    date_rels = []
+    for fact, col in dates if calendar else []:
+        first = not any(d["fact"] == fact for d in date_rels)
+        date_rels.append({"fact": fact, "column": col, "active": first})
+        rel_lines.append(f"relationship {_tag(name, 'relationship', fact, col, calendar)}")
+        if not first:
+            rel_lines.append("\tisActive: false")
+        rel_lines += [f"\tfromColumn: {tmdl_name(fact)}.{tmdl_name(col)}", f"\ttoColumn: {tmdl_name(calendar)}.Date", ""]
     parts["definition/relationships.tmdl"] = "\n".join(rel_lines) if rel_lines else "// no single-column relationships in the plan\n"
     parts["definition.pbism"] = ('{\n  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/'
                                  'definitionProperties/1.0.0/schema.json",\n  "version": "4.2",\n  "settings": {}\n}\n')
@@ -230,14 +346,38 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "(docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). "
                "If this is wrong for your lakehouse, add or remove the `schemaName` lines.",
                "- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.",
-               "- Dates are `dateTime` (TMDL has no date type); no date table and no measures are generated.",
+               "- Dates are `dateTime` (TMDL has no date type).",
                "- The TMDL language reference itself could not be fetched when this generator was written; the syntax follows "
                "Microsoft's published sample definitions listed in fabric_backend/semantic_model.py.",
-               "", "## Files", ""] + [f"- `{p}`" for p in parts] + [""]
+               ""]
+    readme += ["## Suggested measures", ""] + ([f"- `{m['name']}` = `{m['expression']}` on `{m['table']}`: {m['why']}." for m in measures]
+                                              or ["- None: the plan has no fact table (a table that points at others and that nothing points at)."])
+    readme += ["", "No measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get "
+               "no sums; their numbers describe one row.", "", "## Date table", ""]
+    if calendar:
+        readme += [f"`{calendar}` is a calculated table (`CALENDAR` with `Year` and `Month`) marked as the date table (`dataCategory: Time`, "
+                   "`isKey` on `Date`); a calculated table that references no Direct Lake table is allowed in Direct Lake on SQL "
+                   "(direct-lake-overview.md).",
+                   f"- The range {CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 is a placeholder: this draft reads no rows. Set it to "
+                   "your data's first and last year in the partition's `source`, or rows outside it have no date to filter by."]
+        readme += [f"- `{d['fact']}.{d['column']} -> {calendar}.Date`" + (" (active)" if d["active"] else " (inactive: the fact's first date column is the active one; use USERELATIONSHIP)")
+                   for d in date_rels]
+        readme += [f"- `{f}.{c}` carries a time of day and is not related: Direct Lake on SQL does not relate on the date part of a datetime "
+                   "(direct-lake-overview.md). Add a date column (for example in a gold view) and relate that." for f, c in timed]
+    elif lookalike:
+        readme += [f"- None generated: the plan already has a table that looks like a date table ({', '.join(lookalike)}). Mark it as the date "
+                   "table in Power BI (Table tools -> Mark as date table) once its date column is unique."]
+    else:
+        readme += ["- None generated: no fact table has a date column."]
+    readme += ["", "## Files", ""] + [f"- `{p}`" for p in parts] + [""]
     parts["README.generated.md"] = "\n".join(readme)
     summary = {"tables": len(chosen), "roles": {t.name: role_of.get(t.name) for t in chosen},
                "relationships_active": len(active), "relationships_inactive": len(inactive),
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
-               "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive]}
+               "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive],
+               "measures": [{k: m[k] for k in ("table", "name", "expression", "why")} for m in measures],
+               "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
+                               "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
+                               "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}
     return {"parts": parts, "summary": summary}

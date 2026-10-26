@@ -1,0 +1,31 @@
+table Customer
+	lineageTag: 3f0c2a51-9e7d-4c11-8a55-0d2e6b7c8f90
+
+	column customer_id
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: name
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Customer = entity
+		mode: directLake
+		source
+			entityName: customers
+			schemaName: shop
+			expressionSource: DatabaseQuery

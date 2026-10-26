@@ -220,7 +220,13 @@ def _join_tree(plan: Plan, root: str, others: list[str]) -> tuple[list[dict], di
     return steps, aliases, fans_out
 
 
-def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
+def _personal(plan: Plan, show: bool) -> dict[tuple[str, str], dict]:
+    """The columns the privacy rules flag (fabric_backend/privacy.py), or none when the caller asked to see them."""
+    from . import privacy
+    return {} if show else privacy.personal_columns(plan.schema)
+
+
+def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool = False) -> dict:
     names = {t.name.lower(): t.name for t in plan.schema}
     missing = [t for t in tables if t.lower() not in names]
     if missing or not tables:
@@ -228,6 +234,18 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
                              if missing else "tables: name the tables the question is about (list_tables shows them)")
     tables = list(dict.fromkeys(names[t.lower()] for t in tables))
     u = understand(question, plan, tables)
+    personal = _personal(plan, show_personal_data)
+    left_out: list[dict] = []
+
+    def allowed(t: str, c: str) -> bool:
+        f = personal.get((t, c))
+        if f and not any(x["table"] == t and x["column"] == c for x in left_out):
+            left_out.append({"table": t, "column": c, **f})
+        return f is None
+    if u["group_column"] and not allowed(*u["group_column"]):
+        t = u["group_column"][0]
+        if plan.keys.get(t):                                  # group by the row the personal column belongs to, by its key
+            u["group_column"], u["group_table"] = None, t
     involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x]))
     root = u["counted"] or _grain(plan, involved)
     steps, alias, fans_out = _join_tree(plan, root, [t for t in involved if t != root])
@@ -245,7 +263,8 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
     if u["aggregate"]:
         if u["group_table"]:
             g = u["group_table"]                              # the root itself too: one group per root row
-            cols = list(dict.fromkeys(plan.keys.get(g, ([], ""))[0] + [_label(plan, g)]))
+            key_cols = plan.keys.get(g, ([], ""))[0]
+            cols = list(dict.fromkeys(key_cols + [c for c in [_label(plan, g)] if c in key_cols or allowed(g, c)]))
             select += [f"{alias[g]}.{qi(c)}" for c in cols]
             group += [f"{alias[g]}.{qi(c)}" for c in cols]
         elif u["group_column"]:
@@ -278,10 +297,11 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
         select.append(f"{expr} AS {qi(name)}")
         order.append(f"{qi(name)} DESC")
     else:
-        select += [f"t0.{qi(c)}" for c in plan.schema[root].column_names]
+        select += [f"t0.{qi(c)}" for c in plan.schema[root].column_names if allowed(root, c)]
         for t in involved:
             if t != root:
                 cols = [c for tt, c in u["columns_named"] if tt == t] or [_label(plan, t)]
+                cols = [c for c in cols if allowed(t, c)] or plan.keys.get(t, ([], ""))[0][:1]
                 select += [f"{alias[t]}.{qi(c)} AS {qi(t + '_' + c)}" for c in cols]
         if fans_out:
             back = next(s for s in steps if not s["forward"])
@@ -311,7 +331,7 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
                            "question; add a WHERE to the query")
     return {"understood": u, "root": root, "tables": involved, "measure": measure,
             "path": [{k: v for k, v in s.items() if k not in ("rel", "cost")} for s in steps], "sql": sql, "assumptions": assumptions,
-            "_steps": steps}
+            "_steps": steps, "personal_left_out": left_out, "_personal": personal}
 
 
 def _types_by_table(description: dict) -> dict[str, dict]:
@@ -362,9 +382,13 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
     for s in answer["_steps"]:
         children.setdefault(s["from"], []).append(s)
 
+    hidden_by_table = {}
+    for (t, c) in answer.get("_personal", {}):
+        hidden_by_table.setdefault(t.lower(), set()).add(graphql_name(c.lstrip("_")))
+
     def fields_of(table: str, n: int) -> list[str]:
         t = types[table.lower()]
-        return [f for f in t.get("fields", []) if not f.startswith("_")][:n]
+        return [f for f in t.get("fields", []) if not f.startswith("_") and f not in hidden_by_table.get(table.lower(), set())][:n]
 
     def block(table: str, depth: int) -> str:
         parts = fields_of(table, 8 if depth == 0 else 4)
@@ -394,14 +418,19 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
     return {"query": f"query {{ {rt['query_field']}({', '.join(args)}) {{ items {{ {body} }} }} }}", "notes": []}
 
 
-def draft(plan: Plan, question: str, tables: list[str], description: dict | None = None, api: str | None = None) -> dict:
-    a = tsql(plan, question, tables)
+def draft(plan: Plan, question: str, tables: list[str], description: dict | None = None, api: str | None = None,
+          show_personal_data: bool = False) -> dict:
+    from . import privacy
+    a = tsql(plan, question, tables, show_personal_data)
     understood = {k: v for k, v in a["understood"].items() if v not in (None, False, [])}     # only what was read
     out = {"question": question, "understood": understood, "tables": a["tables"], "starts_at": a["root"],
            "path": a["path"], "tsql": a["sql"], "assumptions": a["assumptions"]}
     if description is not None:
         g = graphql(plan, description, a)
         out["graphql"] = dict(g, api=api)
+    if a["personal_left_out"]:
+        out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in a["personal_left_out"]],
+                                "notice": f"left out by name (privacy rules); the key stands in. {privacy.PARAMETER}=true includes them."}
     out["runs"] = ("nothing: the T-SQL runs on the source's SQL analytics endpoint or a warehouse" +
                    ("; query_graphql with question= and tables= runs the GraphQL version" if description is not None else ""))
     return out

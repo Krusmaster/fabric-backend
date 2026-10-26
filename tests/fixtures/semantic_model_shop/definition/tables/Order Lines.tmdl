@@ -1,0 +1,40 @@
+table 'Order Lines'
+	lineageTag: 3f0c2a51-9e7d-4c11-8a55-0d2e6b7c8f90
+
+	measure '# Lines' = COUNTROWS('Order Lines')
+		formatString: #,##0
+
+	column order_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column line_no
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: line_no
+
+		annotation SummarizationSetBy = Automatic
+
+	column product_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantity
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'Order Lines' = entity
+		mode: directLake
+		source
+			entityName: order_items
+			schemaName: shop
+			expressionSource: DatabaseQuery

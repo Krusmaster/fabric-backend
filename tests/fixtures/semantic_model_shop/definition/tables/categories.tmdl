@@ -1,0 +1,24 @@
+table categories
+	lineageTag: 3f0c2a51-9e7d-4c11-8a55-0d2e6b7c8f90
+
+	column id
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: id
+
+		annotation SummarizationSetBy = Automatic
+
+	column name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: name
+
+		annotation SummarizationSetBy = Automatic
+
+	partition categories = entity
+		mode: directLake
+		source
+			entityName: categories
+			schemaName: shop
+			expressionSource: DatabaseQuery

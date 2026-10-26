@@ -217,7 +217,10 @@ def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     route = {"Lakehouse": "lakehouses", "Warehouse": "warehouses", "SQLDatabase": "sqlDatabases", **ENDPOINT_ITEM_ROUTES}[item["type"]]
     r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item['id']}", headers=headers, timeout=30)
     r.raise_for_status()
-    props = r.json().get("properties", {})
+    body = r.json()
+    props = body.get("properties", {})
+    if body.get("sensitivityLabel") or item.get("sensitivityLabel"):   # Item.sensitivityLabel {id}, read-only (common/definitions.json)
+        item["sensitivityLabel"] = body.get("sensitivityLabel") or item.get("sensitivityLabel")
     ep = props.get("sqlEndpointProperties") or {}
     item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
     if ep.get("id"):                                   # what a GraphQL API over this source names as its sourceItemId (lineage)
@@ -425,6 +428,10 @@ def _connected(workspace: str, source: str, schema: str, ctx):
     item = _resolve_source(workspace, source, headers)
     execute = _execute_factory(item, auth.sql(ctx))
     try:
+        execute.source_item = item                                         # the sensitivity label, for the answers that show values
+    except AttributeError:
+        pass
+    try:
         s = Schema.from_sql(execute, schema)
     except Exception:
         getattr(execute, "close", lambda: None)()
@@ -443,20 +450,33 @@ def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[s
     and does every reference find its target (orphan count)? Returns counts and a verdict per key and relationship.
     It turns name-based suggestions into evidence. Takes the same keys/confirmed as
     plan_backend; runs one small counting query per key and per relationship (max_items caps the total)."""
+    from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = make_plan(s, keys, confirmed)
         out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
+        label = _privacy.label_of(getattr(execute, "source_item", None))
     finally:
         getattr(execute, "close", lambda: None)()
+    checked = {(k["table"], c.lower()) for k in out["keys"] for c in k["columns"]} | \
+              {(r[t], c.lower()) for r in out["relationships"] for t, cs in (("source", r["columns"]), ("target", r["target_columns"])) for c in cs}
+    flagged = [f for f in _privacy.findings(_privacy.personal_columns(p.schema)) if (f["table"], f["column"].lower()) in checked]
+    if flagged or label:
+        out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
+                                "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
     return json.dumps(out, indent=2, default=str)
 
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)
 @safe
-def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n: int = 10, ctx: Context = None) -> str:
+def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n: int = 10, show_personal_data: bool = False,
+                ctx: Context = None) -> str:
     """The first n rows (at most 20) of one table, read-only, so the meaning of columns can be checked before
-    deciding on keys or relationships. Long text values are shortened."""
+    deciding on keys or relationships. Long text values are shortened. Columns whose name looks like personal data
+    (names, e-mail, phone, national id, address, birth date; one rule per pattern) come back masked, with the rule
+    and a notice; show_personal_data=true returns them as they are. The source's sensitivity label is named when
+    Fabric returns one."""
+    from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         t = next((x for x in s if x.name.lower() == table.lower()), None)
@@ -472,8 +492,24 @@ def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n:
     def short(v):
         v = v if isinstance(v, (int, float, bool)) or v is None else str(v)
         return v[:200] + "…" if isinstance(v, str) and len(v) > 200 else v
-    return json.dumps({"table": t.name, "columns": t.column_names,
-                       "rows": [{k: short(v) for k, v in r.items()} for r in rows]}, indent=2, default=str)
+    return json.dumps(_privacy_rows(t.name, t.column_names, [{k: short(v) for k, v in r.items()} for r in rows], s, show_personal_data,
+                                    getattr(execute, "source_item", None)), indent=2, default=str)
+
+
+def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show: bool, item: dict | None = None) -> dict:
+    """sample_rows' answer: rows with the columns the privacy rules flag masked unless `show`, the findings, the notice
+    and the item's sensitivity label (fabric_backend/privacy.py)."""
+    from . import privacy as _privacy
+    flagged = _privacy.personal_columns(schema, [table])
+    if not show:
+        rows, _ = _privacy.mask_rows(table, rows, flagged)
+    out = {"table": table, "columns": columns, "rows": rows}
+    found = _privacy.findings(flagged)
+    label = _privacy.label_of(item)
+    if found or label:
+        out["personal_data"] = {"columns": found, "masked": bool(found) and not show, "notice": _privacy.notice(found, show),
+                                "sensitivity_label": label}
+    return out
 
 
 @mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True,
@@ -686,6 +722,94 @@ def semantic_model_draft(workspace: str, source: str, name: str = "semantic_mode
             del out["parts"][biggest]
             text = json.dumps(out, indent=2)
     return text if len(text) <= MAX_RESULT_CHARS else _bounded(out, MAX_RESULT_CHARS, "Pass tables=[\"pattern*\"] to get a few tables at a time.")
+
+
+MODEL_READ_SCOPE = "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)"
+MODEL_READ_SPEC = ("fabric-rest-api-specs a96c37a semanticModel/swagger.json, Items_GetSemanticModelDefinition (format TMDL): delegated "
+                   "scope SemanticModel.ReadWrite.All or Item.ReadWrite.All, read and write permission on the model. The read-only "
+                   "alternative, the Power BI REST executeQueries (Dataset.Read.All, Read and Build), is documented as \"Only DAX queries are "
+                   "supported at this time. MDX, INFO functions and DMV queries are not supported\" (Power BI REST reference, "
+                   "microsoft/PowerBI-CSharp swagger 5.1.0), so no read-only REST path returns a model's relationships today; "
+                   "docs/SCOPES.md has the comparison.")
+
+
+@mcp.tool(title="Compare an existing Power BI semantic model with the plan", annotations=RO)
+@safe
+def compare_semantic_model(workspace: str, source: str, model: str = "", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                           confirmed: list[dict] | None = None, check_data: bool = False, max_items: int = 60,
+                           tmdl: dict[str, str] | None = None, ctx: Context = None) -> str:
+    """An existing semantic model in the workspace (name or id) against the plan for the source it reads: the
+    relationships the model lacks, the ones a rule of the plan or the data contradicts (with that rule or count), other
+    cardinality, filters in both directions, active where the plan says inactive or the reverse, and links the plan does
+    not have (with a ready `confirmed` entry); also tables and columns that no longer match, columns summed that the
+    plan would not sum, and the suggested measures the model lacks. The model is read through Fabric's getDefinition
+    (TMDL), which needs SemanticModel.ReadWrite.All or Item.ReadWrite.All and write permission on the model; `tmdl`
+    ({path: text} of the model's definition files, as in a PBIP folder or Git) is read instead and needs no
+    permission. check_data=true counts the plan's keys and relationships and the model's extra links against the rows
+    (max_items caps the queries). Changes nothing."""
+    from . import model_compare as _mc
+    if not model and not tmdl:
+        return json.dumps({"error": "Name the semantic model (`model`, its name or id), or pass its definition files as `tmdl`.",
+                           "kind": "bad_input", "hint": "list_sources does not list models; the Fabric portal (or Microsoft's own Fabric "
+                                                        "MCP servers) shows the semantic models in a workspace."}, indent=2)
+    execute = None
+    if check_data:
+        s, execute = _connected(workspace, source, schema, ctx)
+        p = make_plan(s, keys, confirmed)
+        headers = _headers(ctx)
+    else:
+        p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    try:
+        workspace_id = _workspace_id(workspace, headers)
+        meta = {"name": model or "(from tmdl)", "read_with": "TMDL files given in `tmdl`; no call to the model"}
+        if tmdl:
+            m = _mc.from_tmdl(dict(tmdl))
+        else:
+            item = {"id": model} if _GUID.match(model.strip()) else find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+            if not item:
+                return json.dumps({"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                                   "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id."}, indent=2)
+            meta = {"name": model, "id": item["id"], "read_with": "Fabric getDefinition (TMDL)", "delegated_scope": MODEL_READ_SCOPE,
+                    "spec": MODEL_READ_SPEC}
+            try:
+                m = _mc.from_tmdl(_item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL"))
+            except requests.HTTPError as e:
+                status = int(getattr(e.response, "status_code", 0) or 0)
+                if status in (401, 403):
+                    return json.dumps({"error": f"Fabric refused reading the definition of {model!r} (HTTP {status}): reading a semantic "
+                                                f"model's relationships needs the delegated permission {MODEL_READ_SCOPE} and write "
+                                                "permission on the model.",
+                                       "kind": "consent", "scope": MODEL_READ_SCOPE,
+                                       "hint": "The operator adds the permission to the Entra app and an administrator consents (docs/SCOPES.md); "
+                                               "it is the same one create_semantic_model needs. Meanwhile pass the model's TMDL files as `tmdl` "
+                                               "(from a PBIP folder or the workspace's Git repository): that needs no permission."}, indent=2)
+                raise
+        validation = data = None
+        if execute is not None:
+            budget = max(1, min(int(max_items), 200))
+            validation = _evidence.validate(p, execute, max_items=budget)
+            used = len(validation["keys"]) + len(validation["relationships"])
+            data = {}
+            for mt, mc_, ot, oc in _mc.to_check(_mc.compare(p, m)):
+                if used + 2 > budget:
+                    break
+                one = execute(_evidence.key_sql(p.schema.schema, ot, [oc]))[0]
+                n, nulls, distinct = (int(one.get(k) or 0) for k in ("n", "nulls", "distinct_keys"))
+                rel = execute(_evidence.relationship_sql(p.schema.schema, mt, [mc_], ot, [oc]))[0]
+                wv, orph = int(rel.get("with_value") or 0), int(rel.get("orphans") or 0)
+                data[f"{mt}.{mc_} -> {ot}.{oc}"] = {"one_side": {"verdict": _evidence.key_verdict(n, nulls, distinct)},
+                                                   "orphans": {"orphans": orph, "verdict": _evidence.relationship_verdict(wv, orph)}}
+                used += 2
+    finally:
+        if execute is not None:
+            getattr(execute, "close", lambda: None)()
+    out = _mc.compare(p, m, validation, data)
+    out = {"summary": out.pop("summary"), "model": meta, **out}
+    if validation is not None:
+        out["validate_plan"] = validation["summary"]
+    out["note"] = ("Unit-tested against a model fixture over the shop schema and Microsoft's sample PBIP model; not yet run against a live model. "
+                   "The comparison reads names and metadata only, no rows from the model.")
+    return _bounded(out, MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="Shortest join path between two tables", annotations=RO)
@@ -962,13 +1086,13 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
                                "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
 
 
-def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx):
+def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False):
     from . import silver as _silver_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     refusal = _lakehouse_only(info, "The silver notebook")
     if refusal:
         return None, None, None, refusal
-    spec = _silver_mod.spec(p, info, silver_schema, order_by, tables)
+    spec = _silver_mod.spec(p, info, silver_schema, order_by, tables, show_personal_data)
     return p, info, spec, None
 
 
@@ -979,6 +1103,9 @@ def _silver_answer(p, info, spec, name: str) -> dict:
     out = {"summary": p.summary().splitlines()[0] + f"; the notebook writes {len(spec['tables'])} silver table(s) to {target} "
                       f"in {info['item_name']}, and {_silver_mod.QUARANTINE}; the source tables are only read",
            "steps": _silver_mod.steps(spec), "not_checked": spec["not_checked"],
+           **({"personal_data": {"columns": spec["personal"], "quarantine_masked": spec["mask_personal_data"],
+                                 "note": "The silver tables keep every column; rows put in quarantine keep these columns as *** while the "
+                                         "notebook's MASK_PERSONAL_DATA is True (show_personal_data=true sets it to False)."}} if spec["personal"] else {}),
            "notebook": {"name": name, "path": "notebook-content.py", "format": "fabricGitSource", "content": text},
            "run": ["Open the notebook in Fabric (it is attached to the lakehouse) and Run all, or add it to a pipeline or a schedule.",
                    f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason.",
@@ -997,14 +1124,16 @@ def _silver_answer(p, info, spec, name: str) -> dict:
 @safe
 def silver_notebook_draft(workspace: str, source: str, schema: str = "dbo", silver_schema: str = "silver",
                           order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
-                          confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
+                          confirmed: list[dict] | None = None, tables: list[str] | None = None, show_personal_data: bool = False,
+                          ctx: Context = None) -> str:
     """A Fabric notebook (PySpark) that builds clean silver tables from a lakehouse's tables, generated from the plan:
     per table it de-duplicates on the inferred or given key (the latest row by `order_by` {table: column} wins, else a
     column named like updated_at), checks every relationship and puts rows whose reference is missing in the
     quarantine table krusgraph_quarantine with the reason, and writes Delta tables in `silver_schema` only. Every step
-    is commented with the rule (K0–K5, R0–R4) behind it; re-running it rewrites the same tables. Returns the steps and
-    the notebook source; creates nothing."""
-    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx)
+    is commented with the rule (K0–K5, R0–R4) behind it; re-running it rewrites the same tables. Rows kept in quarantine
+    have their personal-data columns (by name) masked unless show_personal_data=true. Returns the steps and the notebook
+    source; creates nothing."""
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
     if refusal:
         return refusal
     return json.dumps(_silver_answer(p, info, spec, f"silver_{schema}"), indent=2)
@@ -1014,8 +1143,8 @@ def silver_notebook_draft(workspace: str, source: str, schema: str = "dbo", silv
 @safe
 def create_silver_notebook(workspace: str, source: str, name: str, schema: str = "dbo", silver_schema: str = "silver",
                            order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
-                           confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
-                           ctx: Context = None) -> str:
+                           confirmed: list[dict] | None = None, tables: list[str] | None = None, show_personal_data: bool = False,
+                           dry_run: bool = True, ctx: Context = None) -> str:
     """Create a Fabric notebook item with the silver_notebook_draft notebook, attached to the source lakehouse, or update
     the notebook of that name in place; never deletes, and creating it runs nothing (the notebook runs when someone
     runs it in Fabric). dry_run=true (the default) returns the notebook and the REST call without creating anything.
@@ -1023,7 +1152,7 @@ def create_silver_notebook(workspace: str, source: str, name: str, schema: str =
     Item.ReadWrite.All and Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json)."""
     from . import notebook as _notebook
     from .deploy import create_item_with_definition
-    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx)
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
     if refusal:
         return refusal
     out = _silver_answer(p, info, spec, name)
@@ -1037,6 +1166,108 @@ def create_silver_notebook(workspace: str, source: str, name: str, schema: str =
     from . import silver as _silver_mod
     body = _notebook.envelope(name, _silver_mod.notebook_source(spec), f"Silver tables for {info['item_name']}.{schema}, generated by Krusgraph from the plan")
     out.get("notebook", {}).pop("content", None)                                  # sent to Fabric; the answer keeps the steps
+    result = create_item_with_definition("notebooks", "Notebook", body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, NOTEBOOK_SCOPE, f"creating the notebook {name!r}")
+
+
+MLV_REFRESH = {"run_now": "POST /v1/workspaces/{workspaceId}/lakehouses/{lakehouseId}/jobs/refreshMaterializedLakeViews/instances",
+               "run_now_scope": "Lakehouse.Execute.All or Item.Execute.All",
+               "schedule": "POST /v1/workspaces/{workspaceId}/lakehouses/{lakehouseId}/jobs/refreshMaterializedLakeViews/schedules",
+               "schedule_scope": "(Lakehouse.Execute.All or Item.Execute.All) and (Lakehouse.ReadWrite.All or Item.ReadWrite.All)",
+               "portal": "Lakehouse -> Materialized lake views -> Manage -> Manage schedules -> New schedule",
+               "spec": "fabric-rest-api-specs a96c37a lakehouse/swagger.json (one active refresh schedule per lineage, at most 20 per lakehouse); "
+                       "MicrosoftDocs/fabric-docs a2de7f9 data-engineering/materialized-lake-views/schedule-lineage-run.md"}
+
+
+def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx):
+    from . import gold as _gold_mod
+    p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    refusal = _lakehouse_only(info, "The gold views")
+    if refusal:
+        return None, None, None, refusal
+    if not info.get("schemas_enabled"):
+        return None, None, None, json.dumps({
+            "error": f"materialized lake views need a lakehouse created with schemas; {info.get('item_name')!r} has none.",
+            "kind": "unsupported",
+            "hint": "Create a lakehouse with Lakehouse schemas, add the tables to it as shortcuts and plan that lakehouse; or use create_views "
+                    "for T-SQL views on the SQL analytics endpoint, which needs no schemas."}, indent=2)
+    spec = _gold_mod.spec(p, info, silver_schema, gold_schema, tables, show_personal_data)
+    return p, info, spec, None
+
+
+def _gold_answer(p, info, spec, name: str) -> dict:
+    from . import gold as _gold_mod, privacy as _privacy
+    text = _gold_mod.notebook_source(spec)
+    statements = _gold_mod.statements(spec)
+    out = {"summary": p.summary().splitlines()[0] + f"; {len(spec['views'])} materialized lake view(s) in {spec['gold_schema']} over the "
+                      f"silver tables in {spec['silver_schema']} of {info['item_name']}; source and silver tables are only read",
+           "views": statements, "notebook": {"name": name, "path": "notebook-content.py", "format": "fabricGitSource", "content": text},
+           "run": ["Run create_silver_notebook's notebook first: the gold views read its silver tables.",
+                   "Open this notebook in Fabric (it is attached to the lakehouse, Fabric Runtime 1.3) and Run all; each cell creates or replaces "
+                   "one view, after a guard that stops before any table it did not create.",
+                   "Schedule the refresh in the lakehouse (Manage materialized lake views -> Manage schedules); the lineage view shows the "
+                   "rows each rule dropped."],
+           "refresh": MLV_REFRESH,
+           "status": ("Materialized lake views are generally available (September 2026, fabric-docs whats-new.md); the data quality "
+                      "constraints, optimal refresh and time-based schedules used here carry no preview label. REFRESH_HINT, event-triggered "
+                      "schedules and the PySpark authoring API are preview and not used."),
+           "note": ("Unit-tested: the SQL of every view runs as a SELECT with its rules on SQLite and on a local PySpark 4.0.1 over the silver "
+                    "tables of the shop seed (open-source Spark has no CREATE MATERIALIZED LAKE VIEW, so the CREATE itself is checked against "
+                    "the documented syntax); not yet run in a Fabric workspace.")}
+    pd = spec["personal_data"]
+    if pd["omitted"] or pd["shown"] and pd["flagged"]:
+        out["personal_data"] = {"omitted": pd["omitted"], "notice": _privacy.notice(pd["flagged"], pd["shown"]) if pd["shown"] else
+                                ("Left out of the views because the column name looks like personal data: "
+                                 + ", ".join(sorted({f"{o['table']}.{o['column']} ({o['rule']})" for o in pd["omitted"]}))
+                                 + f". Ask again with {_privacy.PARAMETER}=true to include them.")}
+    if len(json.dumps(out)) > MAX_RESULT_CHARS:
+        out["notebook"].pop("content")
+        out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; the views' SQL is above, and "
+                                      "create_gold_views sends the whole notebook to Fabric")
+    return out
+
+
+@mcp.tool(title="Draft gold views as materialized lake views (nothing created)", annotations=RO)
+@safe
+def gold_views_draft(workspace: str, source: str, schema: str = "dbo", silver_schema: str = "silver", gold_schema: str = "gold",
+                     keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, tables: list[str] | None = None,
+                     show_personal_data: bool = False, ctx: Context = None) -> str:
+    """Materialized lake views in Spark SQL for a lakehouse with schemas, generated from the plan: one wide view per fact
+    table in `gold_schema`, over the silver tables create_silver_notebook writes, with its dimensions joined in over the
+    safest many-to-one paths, and CONSTRAINT ... CHECK ... ON MISMATCH DROP rules that mirror the plan's keys and
+    relationships, each commented with its rule. Columns that look like personal data by name are left out unless
+    show_personal_data=true. Returns the SQL per view and the notebook that creates them; creates nothing."""
+    p, info, spec, refusal = _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx)
+    if refusal:
+        return refusal
+    return _bounded(_gold_answer(p, info, spec, f"gold_{schema}"), MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Create or update the gold-views notebook in Fabric (dry run by default)", annotations=WRITE)
+@safe
+def create_gold_views(workspace: str, source: str, name: str, schema: str = "dbo", silver_schema: str = "silver", gold_schema: str = "gold",
+                      keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, tables: list[str] | None = None,
+                      show_personal_data: bool = False, dry_run: bool = True, ctx: Context = None) -> str:
+    """Create a Fabric notebook item with the gold_views_draft notebook, attached to the lakehouse, or update the notebook
+    of that name in place; never deletes, and creating it runs nothing: the views are created when the notebook runs,
+    and it stops before writing over a source table, a silver table or any table it did not create. dry_run=true (the
+    default) returns the views, the notebook and the REST call. Needs Notebook.ReadWrite.All or Item.ReadWrite.All and
+    Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json)."""
+    from . import notebook as _notebook, gold as _gold_mod
+    from .deploy import create_item_with_definition
+    p, info, spec, refusal = _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx)
+    if refusal:
+        return refusal
+    out = _gold_answer(p, info, spec, name)
+    out["dry_run"] = dry_run
+    out["rest"] = {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks",
+                   "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks/{{id}}/updateDefinition",
+                   "delegated_scope": NOTEBOOK_SCOPE, "workspace_role": "Contributor", "parts": ["notebook-content.py", ".platform"],
+                   "spec": NOTEBOOK_SPEC}
+    if dry_run:
+        return _bounded(out, MAX_RESULT_CHARS)
+    body = _notebook.envelope(name, _gold_mod.notebook_source(spec), f"Gold views for {info['item_name']}.{schema}, generated by Krusgraph from the plan")
+    out.get("notebook", {}).pop("content", None)
     result = create_item_with_definition("notebooks", "Notebook", body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
     return _finish_create(out, result, NOTEBOOK_SCOPE, f"creating the notebook {name!r}")
 
@@ -1324,12 +1555,14 @@ def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
 @mcp.tool(title="Suggest a GraphQL or T-SQL query for a question (runs nothing)", annotations=RO)
 @safe
 def answer_query_draft(workspace: str, source: str, question: str, tables: list[str], schema: str = "dbo", api: str | None = None,
-                       keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, ctx: Context = None) -> str:
+                       keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, show_personal_data: bool = False,
+                       ctx: Context = None) -> str:
     """A query for a question in Swedish or English about the given tables: T-SQL over the safest join path of the plan
     (each step with the rule behind its relationship), and with `api` (an API for GraphQL item over the source) the
     GraphQL query in that API's field names, or why GraphQL cannot answer it (aggregations group only by a table's own
     columns). Reads counts, sums, averages, "per"/"för varje" groupings, top N and "latest" from the question and
-    lists what it assumed. Runs nothing; query_graphql with question= runs the GraphQL version."""
+    lists what it assumed. Columns that look like personal data by name are left out of the query (grouped by the key
+    instead) unless show_personal_data=true. Runs nothing; query_graphql with question= runs the GraphQL version."""
     from . import answers as _answers
     p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     description = None
@@ -1340,7 +1573,7 @@ def answer_query_draft(workspace: str, source: str, question: str, tables: list[
             return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
                                "hint": "list_sources lists the GraphQL APIs in a workspace; leave api out for the T-SQL alone."}, indent=2)
         description = describe_definition(_graphql_definition(workspace_id, api_id, headers))
-    return _bounded(_answers.draft(p, question, tables, description, api), MAX_RESULT_CHARS)
+    return _bounded(_answers.draft(p, question, tables, description, api, show_personal_data), MAX_RESULT_CHARS)
 
 
 def _check_query(query: str) -> str | None:

@@ -185,3 +185,73 @@ def test_generated_monitor_runs_two_nights_in_pyspark(tmp_path, monkeypatch):
         assert monitor.load_last(spark, "krusgraph.plans_before_run", "lh-1/shop")[0] == {"night": 1}
     finally:
         spark.stop()
+
+
+def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
+    """The gold views' SELECTs, with their rules applied as ON MISMATCH DROP does, over the silver tables the silver notebook
+    wrote: open-source Spark has no CREATE MATERIALIZED LAKE VIEW, so the notebook's CREATE cells are recorded instead of
+    run, and everything else (the guards, the SELECTs, the columns) runs for real."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql import SparkSession
+    from fabric_backend import gold
+    spark = (SparkSession.builder.master("local[1]").appName("krusgraph-gold-test")
+             .config("spark.sql.warehouse.dir", str(tmp_path / "warehouse")).config("spark.ui.enabled", "false")
+             .config("spark.sql.shuffle.partitions", "2").getOrCreate())
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
+        data = seed_rows()
+        for t, rows in data.items():
+            spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
+        s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+        ns = {"spark": spark}
+        for kind, code in silver.cells(s):
+            if kind != "markdown":
+                exec(compile(code, "<notebook>", "exec"), ns)
+                if kind == "parameters":
+                    exec('TABLE_FORMAT = "parquet"', ns)
+        expected = silver.simulate(s, data)["silver"]
+        g = gold.spec(shop_plan(), INFO)
+
+        def execute(sql):
+            return [r.asDict() for r in spark.sql(sql).collect()]
+        for v in g["views"]:
+            rows = gold.run_select(v, g, execute)
+            assert len(rows) == len(expected[v["fact"]]), v["name"]                # silver is clean: no rule drops a row
+            assert list(rows[0]) == [c["as"] for c in v["columns"]]
+        # a row whose product is unknown is dropped by its rule, as ON MISMATCH DROP does
+        spark.sql("CREATE SCHEMA IF NOT EXISTS silver_x")
+        for t in data:
+            df = spark.read.table(f"silver.{t}")
+            if t == "order_items":
+                df = df.unionByName(spark.createDataFrame([(100, 9, 999, 1.0)], seed.SCHEMAS[t]))
+            df.write.format("parquet").mode("overwrite").saveAsTable(f"silver_x.{t}")
+        gx = gold.spec(shop_plan(), INFO, silver_schema="silver_x")
+        items = next(v for v in gx["views"] if v["fact"] == "order_items")
+        rows = gold.run_select(items, gx, execute)
+        assert len(rows) == len(expected["order_items"]) and not any(r["product_id"] == 999 for r in rows)
+        # the notebook: guards run for real, the CREATE statements are recorded
+        real, created = spark.sql, []
+
+        class Recording:
+            catalog = spark.catalog
+
+            def sql(self, text):
+                if "MATERIALIZED LAKE VIEW" in text:
+                    created.append(text.strip())
+                    return real("SELECT 1")
+                return real(text)
+        nb = {"spark": Recording(), "display": lambda x: None}
+        for kind, code in gold.cells(g):
+            if kind != "markdown":
+                exec(compile(code, "<notebook>", "exec"), nb)
+        assert [c for c in created if c.startswith("--")] == [st["sql"] for st in gold.statements(g)]
+        assert {t: spark.read.table(f"shop.{t}").count() for t in data} == {t: len(r) for t, r in data.items()}   # sources untouched
+        nb = {"spark": Recording(), "display": lambda x: None}
+        with pytest.raises(ValueError, match="source or silver"):
+            for kind, code in gold.cells(g):
+                if kind != "markdown":
+                    exec(compile(code, "<notebook>", "exec"), nb)
+                    if kind == "parameters":
+                        exec('GOLD_SCHEMA = "silver"', nb)
+    finally:
+        spark.stop()

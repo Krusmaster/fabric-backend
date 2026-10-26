@@ -1,0 +1,19 @@
+relationship 6d1b8c64-7b0e-4f5e-9f3c-1a2b3c4d5e01
+	fromColumn: orders.customer_id
+	toColumn: Customer.customer_id
+
+relationship 6d1b8c64-7b0e-4f5e-9f3c-1a2b3c4d5e02
+	fromColumn: 'Order Lines'.order_id
+	toColumn: orders.order_id
+
+relationship 6d1b8c64-7b0e-4f5e-9f3c-1a2b3c4d5e03
+	fromColumn: 'Order Lines'.product_id
+	toColumn: products.product_id
+
+relationship 6d1b8c64-7b0e-4f5e-9f3c-1a2b3c4d5e04
+	fromColumn: addresses.customer_id
+	toColumn: Customer.customer_id
+
+relationship 6d1b8c64-7b0e-4f5e-9f3c-1a2b3c4d5e05
+	fromColumn: products.category_id
+	toColumn: Customer.customer_id

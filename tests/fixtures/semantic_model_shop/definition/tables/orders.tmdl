@@ -1,0 +1,41 @@
+table orders
+	lineageTag: 3f0c2a51-9e7d-4c11-8a55-0d2e6b7c8f90
+
+	measure 'Total order id' = SUM(orders[order_id])
+		formatString: #,##0
+
+	column order_id
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: order_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_date
+		dataType: dateTime
+		summarizeBy: none
+		sourceColumn: order_date
+
+		annotation SummarizationSetBy = Automatic
+
+	column ship_to_id
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: ship_to_id
+
+		annotation SummarizationSetBy = Automatic
+
+	partition orders = entity
+		mode: directLake
+		source
+			entityName: orders
+			schemaName: shop
+			expressionSource: DatabaseQuery

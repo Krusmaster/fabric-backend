@@ -119,9 +119,9 @@ def test_the_tsql_runs_on_the_seed_and_the_graphql_validates_against_the_api(que
 def test_the_numbers_are_right():
     con, p, rows = sqlite_with_seed(), shop_plan(), seed.rows()
     per_customer = Counter(o[1] for o in rows["orders"])
-    got = run_tsql(con, answers.draft(p, "How many orders per customer?", ["orders", "customers"])["tsql"])
+    got = run_tsql(con, answers.draft(p, "How many orders per customer?", ["orders", "customers"], show_personal_data=True)["tsql"])
     assert {r[0]: r[2] for r in got} == dict(per_customer) and [r[2] for r in got] == sorted(per_customer.values(), reverse=True)
-    top5 = run_tsql(con, answers.draft(p, "Vilka 5 kunder har flest ordrar?", ["customers", "orders"])["tsql"])
+    top5 = run_tsql(con, answers.draft(p, "Vilka 5 kunder har flest ordrar?", ["customers", "orders"], show_personal_data=True)["tsql"])
     assert len(top5) == 5 and top5[0][2] == max(per_customer.values())
     category = {pr[0]: pr[2] for pr in rows["products"]}
     per_category = Counter()
@@ -132,13 +132,13 @@ def test_the_numbers_are_right():
     by_country = Counter(c[2] for c in rows["customers"])
     got = run_tsql(con, answers.draft(p, "Antal kunder per land", ["customers"])["tsql"])
     assert {r[0]: r[1] for r in got} == dict(by_country)
-    latest = run_tsql(con, answers.draft(p, "De 10 senaste ordrarna med kund", ["orders", "customers"])["tsql"])
+    latest = run_tsql(con, answers.draft(p, "De 10 senaste ordrarna med kund", ["orders", "customers"], show_personal_data=True)["tsql"])
     assert [r[2] for r in latest] == sorted((o[2].isoformat() for o in rows["orders"]), reverse=True)[:10]
 
 
 def test_the_path_is_the_safest_and_says_why():
     p = shop_plan(SHIP_TO)
-    out = answers.draft(p, "Orders with the city they ship to", ["orders", "addresses"])
+    out = answers.draft(p, "Orders with the city they ship to", ["orders", "addresses"], show_personal_data=True)
     assert [(s["from"], s["to"], s["rule"], s["direction"]) for s in out["path"]] == [("orders", "addresses", "confirmed", "many-to-one")]
     assert "t1.[city] AS [addresses_city]" in out["tsql"] and out["assumptions"] == ["no number of rows asked for: the first 100"]
     fan = answers.draft(shop_plan(), "Orders with the customer's city", ["orders", "addresses"])
@@ -186,8 +186,8 @@ def test_tokens_an_agent_reads_with_and_without_the_suggestion():
     assert measured == MEASURED, measured
 
 
-MEASURED = {"How many orders per customer?": (4851, 1323), "Total quantity per category": (5569, 1512),
-            "De 10 senaste ordrarna med kund": (4851, 1082)}          # docs/NOTEBOOKS.md quotes these
+MEASURED = {"How many orders per customer?": (4851, 1505), "Total quantity per category": (5569, 1512),
+            "De 10 senaste ordrarna med kund": (4851, 1295)}          # docs/NOTEBOOKS.md quotes these
 
 
 # ------------------------------------------------------------------ the tools ------------------------------------

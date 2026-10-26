@@ -252,16 +252,25 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
 
 @_tool("Sample rows of one table", RO)
 @safe
-def sample_rows(table: str, schema: str = "dbo", n: int = 10) -> str:
+def sample_rows(table: str, schema: str = "dbo", n: int = 10, show_personal_data: bool = False) -> str:
     """The first n rows (at most 20) of one table, to check what a column means. Binary columns come back as their
-    size in bytes; SQL Server's hierarchyid, geography, geometry and sql_variant as text."""
+    size in bytes; SQL Server's hierarchyid, geography, geometry and sql_variant as text. Columns whose name looks like
+    personal data come back masked with the rule; show_personal_data=true returns them as they are."""
+    from . import privacy as _privacy
     with _connection(schema) as execute:
         p = plan_from(execute=execute, schema=schema)
         check_tables(p.schema, [table])
         t = next(x for x in p.schema if x.name.lower() == table.lower())
         types = {c.name: c.data_type for c in t.columns}
         rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, max(1, min(int(n), 20)), types))
-        return json.dumps({"table": t.name, "rows": rows}, indent=2, default=str)
+        flagged = _privacy.personal_columns(p.schema, [t.name])
+        if not show_personal_data:
+            rows, _ = _privacy.mask_rows(t.name, [dict(r) for r in rows], flagged)
+        out = {"table": t.name, "rows": rows}
+        found = _privacy.findings(flagged)
+        if found:
+            out["personal_data"] = {"columns": found, "masked": not show_personal_data, "notice": _privacy.notice(found, show_personal_data)}
+        return json.dumps(out, indent=2, default=str)
 
 
 @_tool("Draft a Power BI semantic model (TMDL, nothing created)", RO)
@@ -379,13 +388,14 @@ def create_views(schema: str = "dbo", views_schema: str = "krusgraph", keys: dic
 @_tool("Suggest a T-SQL query for a question (runs nothing)", RO)
 @safe
 def answer_query_draft(question: str, tables: list[str], schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                       confirmed: list[dict] | None = None) -> str:
+                       confirmed: list[dict] | None = None, show_personal_data: bool = False) -> str:
     """A question in Swedish or English about the given tables as T-SQL over the safest join path of the plan, each
-    step with the rule behind its relationship, plus what was read from the question and what was assumed. Runs
-    nothing; the GraphQL form needs an API in Fabric and is in the remote server."""
+    step with the rule behind its relationship, plus what was read from the question and what was assumed. Columns that
+    look like personal data by name are left out (the key stands in) unless show_personal_data=true. Runs nothing; the
+    GraphQL form needs an API in Fabric and is in the remote server."""
     from . import answers as _answers
     p = _plan(schema, keys=keys, confirmed=confirmed)
-    out = _answers.draft(p, question, tables)
+    out = _answers.draft(p, question, tables, show_personal_data=show_personal_data)
     out["runs"] = "nothing: the T-SQL runs on the connection in FABRIC_ODBC (SQL analytics endpoint, warehouse or SQL Server)"
     return _compact.bounded(out, MAX_RESULT_CHARS)
 

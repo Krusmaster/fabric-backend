@@ -1,0 +1,31 @@
+table products
+	lineageTag: 3f0c2a51-9e7d-4c11-8a55-0d2e6b7c8f90
+
+	column product_id
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: product_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: name
+
+		annotation SummarizationSetBy = Automatic
+
+	column category_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: category_id
+
+		annotation SummarizationSetBy = Automatic
+
+	partition products = entity
+		mode: directLake
+		source
+			entityName: products
+			schemaName: shop
+			expressionSource: DatabaseQuery

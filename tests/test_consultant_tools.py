@@ -8,7 +8,7 @@ import pytest
 from fabric_backend import dbt, dictionary, drift, paths, seed, semantic_model, server
 from fabric_backend.graphql import decode, definition
 from fabric_backend.infer import PlanInputError, plan
-from fabric_backend.schema import Schema
+from fabric_backend.schema import Schema, Table
 from test_inference_quality import load, names_only
 
 INFO = dict(workspace_id="ws", item_id="lh-1", item_name="shop_lh", item_kind="Lakehouse", schema="shop",
@@ -62,13 +62,13 @@ def test_semantic_model_tmdl_files_tables_partitions_and_relationships(shop_plan
     assert {"definition/database.tmdl", "definition/model.tmdl", "definition/expressions.tmdl", "definition/relationships.tmdl",
             "definition.pbism", "README.generated.md"} <= set(parts)
     assert {p for p in parts if p.startswith("definition/tables/")} == {f"definition/tables/{t}.tmdl" for t in
-            ("customers", "categories", "products", "addresses", "orders", "order_items", "audit_log")}
+            ("customers", "categories", "products", "addresses", "orders", "order_items", "audit_log", "Calendar")}
     for path, text in parts.items():
         if path.endswith(".tmdl"):
             check_tmdl(text)
     assert "compatibilityLevel: 1604" in parts["definition/database.tmdl"]
     model = parts["definition/model.tmdl"]
-    assert model.startswith("model Model\n\tculture: en-US") and model.count("\nref table ") == 7
+    assert model.startswith("model Model\n\tculture: en-US") and model.count("\nref table ") == 8 and "\nref table Calendar" in model
     assert 'Sql.Database("x.datawarehouse.fabric.microsoft.com", "shop_lh")' in parts["definition/expressions.tmdl"]
     assert "annotation PBI_IncludeFutureArtifacts = False" in parts["definition/expressions.tmdl"]
     orders = parts["definition/tables/orders.tmdl"]
@@ -78,7 +78,9 @@ def test_semantic_model_tmdl_files_tables_partitions_and_relationships(shop_plan
     assert "isKey" not in parts["definition/tables/order_items.tmdl"]                               # composite key: no isKey
     assert "isKey" not in parts["definition/tables/audit_log.tmdl"]
     rels = parts["definition/relationships.tmdl"]
-    assert rels.count("\nrelationship ") + rels.startswith("relationship ") == 6 and "isActive: false" not in rels
+    # six from the plan, one from the fact's date column to the calendar
+    assert rels.count("\nrelationship ") + rels.startswith("relationship ") == 7 and "isActive: false" not in rels
+    assert "\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date" in rels
     assert "\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id" in rels
     assert "\tfromColumn: audit_log.customer_id" in rels and "toColumn: audit_log." not in rels    # keyless: nothing points at it
     assert "toColumn: order_items." not in rels                                                      # composite key: nothing points at it
@@ -125,7 +127,9 @@ def test_semantic_model_makes_second_paths_inactive_and_skips_composite_relation
     rules = {(r.source, r.target): r.rule for r in tpch.relationships}
     assert all(rules[pair] == "R2" for pair in inactive)
     rels = out["parts"]["definition/relationships.tmdl"]
-    assert rels.count("isActive: false") == len(inactive) and "PARTSUPP" in out["parts"]["README.generated.md"]
+    date_inactive = [d for d in s["date_table"]["related"] if not d["active"]]      # LINEITEM's second and third date columns
+    assert rels.count("isActive: false") == len(inactive) + len(date_inactive) and "PARTSUPP" in out["parts"]["README.generated.md"]
+    assert [d["column"] for d in date_inactive] == ["L_COMMITDATE", "L_RECEIPTDATE"]
     assert "schemaName: dbo" in out["parts"]["definition/tables/LINEITEM.tmdl"]  # a warehouse keeps the schema
     check_tmdl(rels)
     # Sakila: film -> language twice (language_id, original_language_id): one active, one inactive, same pair
@@ -134,9 +138,62 @@ def test_semantic_model_makes_second_paths_inactive_and_skips_composite_relation
     assert len(pair) == 1 and pair[0]["columns"] == ["original_language_id"] and "already active" in pair[0]["why"]
 
 
+def test_semantic_model_suggests_measures_with_the_reason_and_never_on_ids(shop_plan):
+    out = semantic_model.draft(shop_plan, INFO, "shop_model")
+    measures = {m["name"]: m for m in out["summary"]["measures"]}
+    # one row count per fact table, one sum per column summarizeBy sums; nothing on keys, references, ids or dimensions
+    assert set(measures) == {"Rows in orders", "Rows in order_items", "Rows in audit_log", "Total quantity"}
+    assert measures["Total quantity"]["expression"] == "SUM('order_items'[quantity])" and "summarizeBy: sum" in measures["Total quantity"]["why"]
+    assert all(m["why"] for m in measures.values())
+    items = out["parts"]["definition/tables/order_items.tmdl"]
+    assert "\t/// Suggested by Krusgraph: order_items.quantity is a number" in items
+    assert "\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: " in items
+    assert "measure" not in out["parts"]["definition/tables/customers.tmdl"]                          # a dimension
+    assert not any(c in m["expression"] for m in measures.values() for c in ("order_id", "ship_to_id", "line_no", "customer_id", "product_id"))
+    # every summed column is one summarizeBy sums, and every column summarizeBy sums on a fact table has its measure
+    for path, text in out["parts"].items():
+        if path.startswith("definition/tables/") and path != "definition/tables/Calendar.tmdl":
+            for block in text.split("\tcolumn ")[1:]:
+                col = block.split("\n", 1)[0].strip("'")
+                table = path.rsplit("/", 1)[1][:-5]
+                summed = "summarizeBy: sum" in block
+                if out["summary"]["roles"][table] == "fact":
+                    assert summed == (f"SUM('{table}'[{col}])" in text), (table, col)
+    # the calendar: a calculated table marked as the date table, related to date columns only, with the range flagged
+    cal = out["parts"]["definition/tables/Calendar.tmdl"]
+    assert "\tdataCategory: Time" in cal and "\tcolumn Date\n\t\tdataType: dateTime\n\t\tisKey" in cal
+    assert "\tpartition Calendar = calculated\n\t\tmode: import\n\t\tsource = ADDCOLUMNS(CALENDAR(DATE(2020, 1, 1), DATE(2030, 12, 31))" in cal
+    check_tmdl(cal)
+    dt = out["summary"]["date_table"]
+    assert dt["related"] == [{"fact": "orders", "column": "order_date", "active": True}]
+    assert dt["not_related"] == [{"fact": "audit_log", "column": "happened_at", "why": "datetime with a time of day"}]
+    readme = out["parts"]["README.generated.md"]
+    assert "## Suggested measures" in readme and "placeholder" in readme and "`audit_log.happened_at` carries a time of day" in readme
+
+
+def test_semantic_model_without_dates_on_facts_or_with_its_own_date_table_gets_no_calendar():
+    s = Schema.from_information_schema([("dbo", "sales", "sale_id", "int", 1), ("dbo", "sales", "customer_id", "int", 2),
+                                        ("dbo", "sales", "store_id", "int", 3), ("dbo", "sales", "amount", "decimal", 4),
+                                        ("dbo", "sales", "fiscal_year", "int", 5),
+                                        ("dbo", "customers", "customer_id", "int", 1), ("dbo", "stores", "store_id", "int", 1)])
+    out = semantic_model.draft(plan(s), {**INFO, "schema": "dbo"}, "m")
+    assert out["summary"]["date_table"] is None and "definition/tables/Calendar.tmdl" not in out["parts"]
+    assert {m["name"] for m in out["summary"]["measures"]} == {"Rows in sales", "Total amount"}          # not the year
+    s.tables["sales"].columns.append(semantic_model_column("sold_on", "date"))
+    s.tables["dim_date"] = Table("dim_date", [semantic_model_column("date_key", "int")])
+    out = semantic_model.draft(plan(s), {**INFO, "schema": "dbo"}, "m")
+    assert out["summary"]["date_table"] is None and "dim_date" in out["parts"]["README.generated.md"].split("## Date table", 1)[1]
+
+
+def semantic_model_column(name, data_type):
+    from fabric_backend.schema import Column
+    return Column(name, data_type)
+
+
 def test_semantic_model_tables_filter(shop_plan):
     out = semantic_model.draft(shop_plan, INFO, "m", tables=["orders", "customers"])
-    assert {p for p in out["parts"] if p.startswith("definition/tables/")} == {"definition/tables/orders.tmdl", "definition/tables/customers.tmdl"}
+    assert {p for p in out["parts"] if p.startswith("definition/tables/")} == {"definition/tables/orders.tmdl", "definition/tables/customers.tmdl",
+                                                                              "definition/tables/Calendar.tmdl"}
     assert out["summary"]["relationships_active"] == 1
 
 

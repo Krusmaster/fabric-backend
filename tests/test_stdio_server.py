@@ -195,7 +195,11 @@ def test_local_tools_carry_titles_and_hints_like_the_remote_ones():
 
 def test_local_answer_and_silver_drafts(local_shop, monkeypatch):
     out = json.loads(mcp_server.answer_query_draft("Hur många ordrar per kund?", ["orders", "customers"], schema="shop"))
-    assert out["tsql"].startswith("SELECT t1.[customer_id], t1.[name], COUNT_BIG(*)") and "graphql" not in out
+    # customers.name looks like a person's name (rule P1): the key stands in unless show_personal_data=true
+    assert out["tsql"].startswith("SELECT t1.[customer_id], COUNT_BIG(*)") and "graphql" not in out
+    assert out["personal_data"]["left_out"] == ["customers.name (P1: a person's name)"]
+    shown = json.loads(mcp_server.answer_query_draft("Hur många ordrar per kund?", ["orders", "customers"], schema="shop", show_personal_data=True))
+    assert shown["tsql"].startswith("SELECT t1.[customer_id], t1.[name], COUNT_BIG(*)") and "personal_data" not in shown
     assert out["path"][0]["rule"] == "R1" and "FABRIC_ODBC" in out["runs"]
     assert json.loads(mcp_server.answer_query_draft("x", ["ghost"], schema="shop"))["kind"] == "bad_input"
     monkeypatch.setenv("FABRIC_SOURCE_KIND", "Lakehouse")
