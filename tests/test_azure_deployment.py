@@ -397,3 +397,20 @@ def test_constraints_pin_every_server_dependency_and_change_the_source_tag(tmp_p
     before = d.source_tag(tmp_path)
     (tmp_path / "deploy" / "constraints.txt").write_text("requests==1.1\n")
     assert d.source_tag(tmp_path) != before
+
+
+def test_client_redirects_only_prints_the_commands(monkeypatch, capsys, tmp_path):
+    """--client-redirects (round n12): the az commands for Claude Code, VS Code and Cursor, printed and never run."""
+    monkeypatch.setattr(d.subprocess, "run", lambda *a, **k: pytest.fail("--client-redirects runs nothing"))
+    monkeypatch.setattr(d, "urlopen", lambda *a, **k: pytest.fail("--client-redirects calls nothing"))
+    cfg = tmp_path / "krusgraph.json"
+    cfg.write_text(json.dumps(dict(CONFIG, client_id="00000000-aaaa-bbbb-cccc-000000000001")), encoding="utf-8")
+    monkeypatch.setattr(d.sys, "argv", ["azure_containerapp.py", "--config", str(cfg), "--client-redirects"])
+    d.main()
+    out = capsys.readouterr().out
+    assert 'APP_ID="00000000-aaaa-bbbb-cccc-000000000001"' in out
+    assert 'NEW=("http://localhost" "http://localhost/callback")' in out
+    assert 'az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"' in out
+    assert "--web-redirect-uris" in out and not any(line.startswith("az ad app update") and "--web-redirect-uris" in line for line in out.splitlines())
+    assert "claude mcp add --transport http --client-id" in out and '"oauth": {"clientId"' in out and '"CLIENT_ID"' in out
+    assert "--is-fallback-public-client" not in out and "client-secret" not in out

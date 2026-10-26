@@ -18,6 +18,9 @@ it does not exist, asks for the secret's value once (hidden), stores it there, g
 "Key Vault Secrets User" on that vault, and points the app at it (ENTRA_CLIENT_SECRET_KEYVAULT_URI, AZURE_CLIENT_ID).
 The old secret stays in the container app until you remove it yourself after checking; docs/OPERATIONS.md has the
 two commands. Nothing is deleted.
+
+--client-redirects prints the az commands that add Claude Code's, VS Code's and Cursor's redirect addresses to the app as
+a public client, and how to try each client (docs/OPERATIONS.md, section 5). It runs nothing and calls nothing.
 """
 from __future__ import annotations
 
@@ -517,6 +520,57 @@ def bind_domains(az, config):
     print(f"\nDomänen är ansluten: https://{config['domain']}\nMCP: https://{config['domain']}/mcp")
 
 
+# Redirect addresses for MCP clients that sign in to a remote server themselves (round n12; sources in
+# docs/OPERATIONS.md, "More MCP clients"). On Entra the port of an http://localhost redirect address is ignored
+# (entra-docs reply-url.md), so one address covers a client's random or fixed port; they are public clients (PKCE, no
+# secret), so they belong under publicClient, never under web next to claude.ai's callback.
+CLIENT_REDIRECTS = {
+    "Claude Code": ["http://localhost/callback"],          # http://localhost:<port>/callback; --callback-port fixes the port
+    "VS Code (GitHub Copilot agent mode)": ["http://localhost"],   # MSAL's loopback, http://localhost:<random port>
+    "Cursor": ["http://localhost/callback"],               # http://localhost:8787/callback (desktop)
+}
+CLIENT_REDIRECTS_OPTIONAL = {
+    "Cursor, äldre versioner": "cursor://anysphere.cursor-mcp/oauth/callback",
+    "VS Code på Windows med kontomäklaren (WAM)": "ms-appx-web://Microsoft.AAD.BrokerPlugin/{client_id}",
+}
+
+
+def client_redirects(config) -> str:
+    """The az commands that add the MCP clients' redirect addresses to the existing app, and how to try each client.
+    Printed only: nothing is run, nothing is read from Azure."""
+    app_id, mcp = config["client_id"], f"https://{config['domain']}/mcp"
+    needed = sorted({u for us in CLIENT_REDIRECTS.values() for u in us})
+    lines = [
+        "# Kör själv i Cloud Shell (bash). Inget av detta körs av skriptet.",
+        f'APP_ID="{app_id}"',
+        "",
+        "# 1. Läs vad appen har i dag (ändrar inget).",
+        'az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris, fallback:isFallbackPublicClient}"',
+        "",
+        "# 2. Lägg till klienternas adresser som offentlig klient. --public-client-redirect-uris ersätter hela listan, så den",
+        "#    befintliga listan läses först och slås ihop. Rör inte --web-redirect-uris (där ligger claude.ai:s adress).",
+        "NEW=(" + " ".join(f'"{u}"' for u in needed) + ")",
+        "# Valfritt: " + "; ".join(f"{k}: {v.format(client_id=app_id)}" for k, v in CLIENT_REDIRECTS_OPTIONAL.items()),
+        'mapfile -t ALL < <({ az ad app show --id "$APP_ID" --query "publicClient.redirectUris[]" -o tsv; printf \'%s\\n\' "${NEW[@]}"; } | sort -u)',
+        'az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"',
+        "",
+        "# 3. Kontrollera: webblistan oförändrad, de nya adresserna under publicClient, fallback fortfarande false/null.",
+        'az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris, fallback:isFallbackPublicClient}"',
+        "",
+        "# 4. Prova varje klient (offentlig klient: ingen hemlighet ges ut).",
+        f"#    Claude Code:  claude mcp add --transport http --client-id $APP_ID --callback-port 8080 krusgraph {mcp}",
+        "#                  claude mcp login krusgraph   (eller /mcp i en session), sedan: Which Fabric workspaces can I see?",
+        "#    VS Code:      .vscode/mcp.json eller MCP: Open User Configuration:",
+        f'#                  {{"servers": {{"krusgraph": {{"type": "http", "url": "{mcp}", "oauth": {{"clientId": "{app_id}"}}}}}}}}',
+        "#                  MCP: List Servers -> krusgraph -> Start, logga in; i Copilot agent mode: Which Fabric workspaces can I see?",
+        "#    Cursor:       ~/.cursor/mcp.json:",
+        f'#                  {{"mcpServers": {{"krusgraph": {{"url": "{mcp}", "auth": {{"CLIENT_ID": "{app_id}"}}}}}}}}',
+        "#                  logga in från Cursors MCP-inställningar och kontrollera redirect_uri i adressen som öppnas.",
+        "#    Skriv resultatet i docs/LIVE-TEST.md (avsnittet om klienter). Sajten fortsätter säga Claude tills dess.",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def show_plan(config):
     print(f"\nKrusgraph i {config['location']}: {config['resource_group']}")
     print("Container Apps Consumption, 0–2 instanser, 0,25 CPU och 0,5 GiB per instans.")
@@ -535,10 +589,15 @@ def main():
     mode.add_argument("--bind-domain", action="store_true", help="Anslut domänen efter att DNS-posterna har lagts in")
     mode.add_argument("--update", action="store_true", help="Bygg en ny bild av denna utcheckning och uppdatera den befintliga appen (rör inte Entra, hemligheter eller domäner)")
     mode.add_argument("--key-vault", action="store_true", help="Flytta klienthemligheten till Azure Key Vault (valfritt; tar inte bort något)")
+    mode.add_argument("--client-redirects", action="store_true",
+                      help="Skriv ut az-kommandona som lägger till Claude Code, VS Code och Cursor som klienter (kör inget, inga Azure-anrop)")
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     if args.plan:
         show_plan(config)
+        return
+    if args.client_redirects:
+        print(client_redirects(config), end="")
         return
     az = Azure(config)
     try:

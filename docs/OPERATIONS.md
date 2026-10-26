@@ -201,6 +201,74 @@ price of the first request after a quiet spell waiting for a cold start.
 To test the alerts without breaking anything: `az monitor metrics alert show -n krusgraph-5xx -g $RG` shows the rule;
 the action group's "Test" button in the portal sends a sample e-mail.
 
+## 5. More MCP clients: Claude Code, VS Code (GitHub Copilot agent mode) and Cursor (prepared, not switched on)
+
+Today the hosted service is used from Claude, and the site says so until the clients below have been tried. Each of
+them signs in to a remote MCP server itself, with its own redirect address; Entra has no dynamic client registration,
+so each one uses this app's client id as a **public client** (PKCE, no secret). Their addresses go under the app's
+*Mobile and desktop applications* platform (`publicClient.redirectUris`), next to the unchanged *Web* list that holds
+Claude's `https://claude.ai/api/mcp/auth_callback`. No secret is handed to anyone, and "Allow public client flows"
+(`isFallbackPublicClient`) stays off: authorization code with PKCE does not need it (entra-docs
+`msal-client-applications.md`), and the server's own on-behalf-of call sends the secret.
+
+| Client | Redirect address it sends | Registered as | Client id given in | Source (read 26 October 2026) |
+| --- | --- | --- | --- | --- |
+| Claude Code | `http://localhost:<port>/callback`, a random port unless `--callback-port` (or `oauth.callbackPort`) fixes it | `http://localhost/callback` | `claude mcp add --transport http --client-id <APP_ID> --callback-port 8080 krusgraph https://krusgraph.com/mcp` | code.claude.com/docs/en/mcp ("Use a fixed OAuth callback port", "Use pre-configured OAuth credentials") |
+| VS Code with GitHub Copilot | VS Code's built-in Microsoft sign-in serves `login.microsoftonline.com` servers (MSAL); with `oauth.clientId` set, MSAL's loopback `http://localhost:<random port>` | `http://localhost` | `.vscode/mcp.json`: `{"servers": {"krusgraph": {"type": "http", "url": "https://krusgraph.com/mcp", "oauth": {"clientId": "<APP_ID>"}}}}` (VS Code 1.123 or later) | microsoft/vscode a0e17bd `extensions/microsoft-authentication/src/extension.ts` and `src/common/scopeData.ts`; microsoft/vscode-docs release notes v1_123; MSAL Node `LoopbackClient.ts` |
+| Cursor (desktop) | `http://localhost:8787/callback`; older builds `cursor://anysphere.cursor-mcp/oauth/callback` | `http://localhost/callback` (optionally the `cursor://` one too) | `~/.cursor/mcp.json`: `{"mcpServers": {"krusgraph": {"url": "https://krusgraph.com/mcp", "auth": {"CLIENT_ID": "<APP_ID>"}}}}` | Cursor's MCP docs and forum, **through search summaries only**: cursor.com was not reachable from the build environment, so this row is unverified |
+
+On Entra the port of an `http://localhost` redirect address is ignored, so `http://localhost/callback` covers Claude
+Code's port and Cursor's 8787 (entra-docs `identity-platform/reply-url.md`, 54c82d4: "Do not register multiple
+localhost redirect URIs where only the port differs"; `http` is allowed only for localhost; `[::1]` is not supported).
+VS Code on Windows may use the account broker (WAM), which needs `ms-appx-web://Microsoft.AAD.BrokerPlugin/<APP_ID>`;
+add it, or set `"microsoft-authentication.implementation": "msal-no-broker"` in VS Code. Without `oauth.clientId`,
+VS Code signs in with its own client id instead, which needs consent for that client to this app's
+`user_impersonation` (or pre-authorising it under *Expose an API*); the client id route avoids that.
+
+The commands, printed (never run) by the deploy helper:
+
+```bash
+bash deploy/krusgraph.sh --client-redirects
+```
+
+which prints, for the app in `deploy/krusgraph.json`:
+
+```bash
+APP_ID="<client id>"
+# what the app has today (changes nothing)
+az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris, fallback:isFallbackPublicClient}"
+# --public-client-redirect-uris replaces the whole list, so the existing one is read first and merged;
+# --web-redirect-uris (Claude's callback) is not touched
+NEW=("http://localhost" "http://localhost/callback")
+mapfile -t ALL < <({ az ad app show --id "$APP_ID" --query "publicClient.redirectUris[]" -o tsv; printf '%s\n' "${NEW[@]}"; } | sort -u)
+az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"
+# check: the web list unchanged, the new addresses under publicClient, fallback still false or null
+az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris, fallback:isFallbackPublicClient}"
+```
+
+`az ad app update` sends the lists as a PATCH, which replaces a collection as a whole (Azure/azure-cli 003e032,
+`role/_params.py` and `_msgrpah/_graph_objects.py`; microsoft-graph-docs `application-update.md`), hence the merge.
+
+**Trying each client** (fill in the result in `docs/LIVE-TEST.md`, section *Clients*):
+
+1. **Claude Code:** the `claude mcp add` line above, then `claude mcp login krusgraph` (or `/mcp` in a session); sign in
+   with the work account; ask *"Which Fabric workspaces can I see?"*. `claude mcp get krusgraph` shows the state.
+2. **VS Code:** add the `mcp.json` entry, run *MCP: List Servers* → krusgraph → *Start*, sign in when asked; in Copilot
+   Chat, agent mode, ask the same question. *Show Output* on the server has the log.
+3. **Cursor:** add the `mcp.json` entry, sign in from Cursor's MCP settings, and before signing in look at the
+   `redirect_uri` in the address the browser opens: it should be one of the registered addresses.
+
+Things to watch, written down rather than guessed:
+- Clients built on the MCP TypeScript SDK add `prompt=consent` when `offline_access` is in the requested scopes
+  (modelcontextprotocol/typescript-sdk b415e60, `client/auth.ts`), and the server advertises `offline_access`. In a
+  tenant where users may not consent to apps, that can loop on "Approval required" even after admin consent; reported
+  for Cursor and in Claude Code issues, not verified here.
+- Claude Code 2.1.229 sent `http://127.0.0.1:<port>/callback`; 2.1.231 went back to `localhost` (Claude Code changelog).
+  Entra does not say that the port is ignored for `127.0.0.1`.
+- Cursor's cloud agents use `https://www.cursor.com/agents/mcp/oauth/callback`, a web address; it is not covered here.
+
+When a client works, its row in `docs/LIVE-TEST.md` gets the date, and the site's "supports Claude" lines can name it.
+
 ## What the server reads from the environment (summary)
 
 | Variable | Default | Meaning |
