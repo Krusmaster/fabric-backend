@@ -36,6 +36,22 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   generation-2 example has the same part layout as the draft). Without the permission it answers `consent` naming the
   scope. The instructions and the docs page tell the one-plan story: API for GraphQL, Power BI semantic model, Fabric IQ
   ontology, wide views and data agent from the same plan, each with a dry run first. Twenty-five tools.
+- `suggest_relationships` ranks before the data check: the 26 October live run gave every candidate for
+  `orders.ship_to_id` the same score. Role words judged against the target's name and key column (`ship_to` names an
+  address), weighted triangular closure (the certainty product of the two links that close the triangle, including a
+  shared parent: orders → customers ← addresses), and penalties from the plan (a line table already joins the two, the
+  target is a fact table, the source already refers to it). On shop without data: addresses 3.94, the rest 1.5 or less.
+  After the check, `final_score` adds the inclusion damped below ten distinct values to the name score.
+- `create_views` adds one view per header table: the table a fact table holds the lines of, with its own dimensions
+  (`vw_orders` with the customer and, once confirmed, the ship-to address). Found in every benchmark schema: Orders,
+  Invoice, ORDERS, SalesOrderHeader and PurchaseOrderHeader.
+- TMDL drafts no longer sum CamelCase ids (`PersonID`, `TerritoryID`, `SalesPersonID` in AdventureWorks), codes or label
+  numbers (`Status`, `RevisionNumber`, `TaxType`, `ExpYear`); no key, relationship column or id is summed in any
+  benchmark schema. A reference with no id word that no rule links is summed until confirmed (pinned by a test).
+- The local server's `sample_rows` reads SQL Server's hierarchyid, geography, geometry and sql_variant as text and binary
+  columns as their size, so pyodbc's unsupported-type error does not fail the call. SQL text unit-tested only.
+- Plugin: `supportUrl` is the issue tracker; the plugin passes `claude plugin validate --strict` (Claude Code 2.1.295,
+  26 October 2026).
 - `fabric-backend demo`: the 20-minute demo on a laptop (`fabric_backend/demo_app.py`, `docs/DEMO-20-MIN.md`). One local
   page on 127.0.0.1 in the graph explorer's design, four steps with a time budget: connect (a SQL Server over ODBC, a
   folder of CSV / Excel files loaded into SQLite in memory with a standard-library .xlsx reader, a columns list, or the
