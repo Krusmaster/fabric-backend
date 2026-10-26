@@ -512,7 +512,8 @@ STATUS_WORDS = ("Tested end to end", "Experimental", "Draft only", "Available wh
 def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     md = client.get("/docs.md").text
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
-    tools = {r.split("|")[1].strip().strip("`"): r.rstrip(" |").split("|")[-1].strip() for r in rows}
+    assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
+    tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
     assert len(tools) == 30, sorted(tools)
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)

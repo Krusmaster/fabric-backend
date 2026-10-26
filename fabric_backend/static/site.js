@@ -487,7 +487,7 @@
         panel.innerHTML = '<h2>Does this column refer to ' + article(tgt) + ' ' + esc(tgt) + '?</h2><div class="why-cols"><div>' +
           '<p class="why-head"><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'Accepted in this demo' : 'Needs review') + '</span></p>' +
           '<p class="why-path"><code>' + esc(r.source + '.' + r.source_cols[0]) + ' → ' + esc(r.target + '.' + r.target_cols[0]) + '</code></p>' +
-          '<p>The engine left <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code> unlinked because no naming rule matched. The dashed line is a <strong>' + esc(r.origin || 'demo hint') + '</strong>: ' + esc(r.why || '') + '. You can accept the example relationship or leave it unlinked.</p>' +
+          '<p>The engine left <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code> unlinked because no naming rule matched. This line is a <strong>' + esc(r.origin || 'demo hint') + '</strong>: ' + esc(r.why || '') + '. You can accept the example relationship or leave it unlinked.</p>' +
           fields(r) + '</div><div>' +
           '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Accept this example relationship, or leave it unlinked.</strong><br>Your choice only affects this demo.' +
           '<div class="choice"><button type="button" class="btn sage small" id="acc" aria-pressed="' + (acc ? 'true' : 'false') + '">Accept in this demo</button><button type="button" class="btn ghost small" id="skip">Leave unlinked</button></div></div></div>' +
