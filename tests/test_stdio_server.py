@@ -114,7 +114,7 @@ def test_local_drafts_and_analyses_from_the_odbc_source(local_shop_with_rows):
     out = json.loads(mcp_server.suggest_relationships(schema="shop", check=4))
     assert out["candidates"][0]["target"] == "addresses" and out["candidates"][0]["evidence"]["inclusion"] == 1.0 and out["checked_against_data"] == 4
     assert json.loads(mcp_server.sample_rows("ghost", schema="shop"))["kind"] == "bad_input"
-    assert len(local_shop_with_rows.closed) == 6                             # every tool that ran queries closed its connection
+    assert len(local_shop_with_rows.closed) == 10                            # every tool that ran queries closed its connection
 
 
 def test_local_create_views_dry_run_then_apply(local_shop_with_rows):
@@ -136,3 +136,57 @@ def test_semantic_model_draft_reads_kind_and_schema_flag_from_the_environment(lo
     out = json.loads(mcp_server.semantic_model_draft("m", schema="dbo"))
     assert "schemaName: dbo" in out["parts"]["definition/tables/orders.tmdl"] and "Warehouse" in out["parts"]["README.generated.md"]
     assert set(json.loads(mcp_server.plan_backend("dbo"))["keys"]) == {"customers", "categories", "products", "addresses", "orders", "order_items"}
+
+
+def test_missing_fabric_odbc_is_a_configuration_error_not_not_found(monkeypatch):
+    monkeypatch.delenv("FABRIC_ODBC", raising=False)
+    out = json.loads(mcp_server.list_tables("shop"))
+    assert out["kind"] == "server_config" and "FABRIC_ODBC" in out["error"]
+
+
+def test_odbc_string_parsing_handles_braces_quotes_and_synonyms(monkeypatch):
+    monkeypatch.setenv("FABRIC_ODBC", "Driver={ODBC Driver 18 for SQL Server};Server={h;x.fabric.microsoft.com};Database=\"shop lh\";Authentication=ActiveDirectoryInteractive")
+    assert mcp_server._odbc_part("Server") == "h;x.fabric.microsoft.com" and mcp_server._odbc_part("Database") == "shop lh"
+    monkeypatch.setenv("FABRIC_ODBC", "Driver=x;Network Address=host.example;Initial Catalog=lh")
+    assert mcp_server._odbc_part("Server") == "host.example" and mcp_server._odbc_part("Database") == "lh"
+    monkeypatch.setenv("FABRIC_ODBC", "Driver=x;Authentication=ActiveDirectoryInteractive")
+    info = mcp_server._source_info("shop")
+    assert info["sql_endpoint"] == "" and info["sql_db"] == "" and info["item_name"] == ""
+    monkeypatch.setenv("FABRIC_SOURCE_KIND", "lakehouse")                   # case does not matter
+    assert mcp_server._source_info("dbo")["item_kind"] == "Lakehouse" and mcp_server._source_info("dbo")["schemas_enabled"] is None
+    monkeypatch.setenv("FABRIC_SOURCE_KIND", "WAREHOUSE")
+    assert mcp_server._source_info("dbo")["item_kind"] == "Warehouse" and mcp_server._source_info("dbo")["schemas_enabled"] is True
+
+
+def test_drafts_keep_their_placeholders_when_the_odbc_string_names_no_database(local_shop_with_rows, monkeypatch):
+    monkeypatch.setenv("FABRIC_ODBC", "Driver={ODBC Driver 18 for SQL Server};Authentication=ActiveDirectoryInteractive")
+    out = json.loads(mcp_server.dbt_schema(schema="shop"))
+    assert "database:" not in out["yaml"]
+    out = json.loads(mcp_server.semantic_model_draft("m", schema="shop"))
+    assert '"<source item name>"' in out["parts"]["definition/expressions.tmdl"] and '"source"' not in out["parts"]["definition/expressions.tmdl"]
+    assert "# Data dictionary: source / shop" in json.loads(mcp_server.data_dictionary(schema="shop"))["markdown"]
+
+
+def test_create_views_bad_schema_name_is_bad_input_and_a_failed_apply_keeps_the_log(local_shop_with_rows):
+    execute = local_shop_with_rows
+    assert json.loads(mcp_server.create_views(schema="shop", views_schema="bad-name"))["kind"] == "bad_input"
+    confirmed = [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]
+    real = execute.statement
+
+    def refuse_second(sql):
+        if "vw_orders_ship_to" in sql:
+            raise RuntimeError("CREATE VIEW is not allowed on this endpoint")
+        real(sql)
+    execute.statement = refuse_second
+    out = json.loads(mcp_server.create_views(schema="shop", confirmed=confirmed, dry_run=False))
+    assert [a.get("status") for a in out["applied"]] == ["ok", "ok", None] and out["applied"][2]["name"] == "vw_orders_ship_to"
+    assert "error" in out and "warehouse" in out["hint"] and "result" not in out
+
+
+def test_local_tools_carry_titles_and_hints_like_the_remote_ones():
+    import asyncio
+    tools = asyncio.run(mcp_server.mcp.list_tools())
+    hints = {t.name: (t.annotations.read_only_hint, t.annotations.destructive_hint) for t in tools}
+    assert len(hints) == 14 and all(t.title for t in tools)
+    assert hints["create_backend"] == (False, True) and hints["create_views"] == (False, True)
+    assert all(v == (True, False) for k, v in hints.items() if k not in ("create_backend", "create_views"))

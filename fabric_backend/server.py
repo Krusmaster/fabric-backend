@@ -775,8 +775,9 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
                 out["note"] = "No fact table (two or more references out, none in) and no hard-to-read relationship in the plan: nothing to create. " + out["note"]
             return json.dumps(out, indent=2)
         run = getattr(execute, "statement", None) or execute
+        out["applied"] = []
         try:
-            out["applied"] = _views.apply(stmts, run)
+            _views.apply(stmts, run, out["applied"])
             out["result"] = {"status": "Succeeded", "views": len(stmts["views"]), "schema": views_schema}
         except Exception as e:  # noqa: BLE001 — explained, with the fallback the docs leave
             from .errors import explain

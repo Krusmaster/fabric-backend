@@ -4,8 +4,10 @@ import csv
 from fabric_backend import cli, seed
 
 
-def write_columns(path, tables=None):
+def write_columns(path, tables=None, schema=None):
     rows = [r for r in seed.schema("shop").to_rows() if tables is None or r["table_name"] in tables]
+    if schema:
+        rows = [{**r, "table_schema": schema} for r in rows]
     with open(path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0]))
         w.writeheader(); w.writerows(rows)
@@ -65,3 +67,48 @@ def test_semantic_model_join_path_dictionary_dbt_analyze_and_views_commands(tmp_
     assert cli.main(["views", columns, "--schema", "shop"]) == 0
     out = capsys.readouterr().out
     assert out.startswith("IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph')") and "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS" in out
+
+
+def write_metadata(path, tables=None):
+    """The metadata.json that `npx rayfin connector add` writes, from the seed schema."""
+    import json
+    s = seed.schema("shop")
+    meta = {"source": "shop", "connector": "fabric-sqlanalytics", "schemas": [{"schemaName": "shop", "tables": [
+        {"tableName": t.name, "columns": [{"columnName": c.name, "dataType": c.data_type} for c in t.columns]}
+        for t in s if tables is None or t.name in tables]}]}
+    path.write_text(json.dumps(meta), encoding="utf-8")
+    return str(path)
+
+
+def test_semantic_model_command_writes_schema_name_exactly_when_the_lakehouse_has_schemas(tmp_path, capsys):
+    columns = write_columns(tmp_path / "columns.csv")
+    common = ["--sql-endpoint", "h", "--source-name", "lh"]
+    assert cli.main(["semantic-model", columns, "--schema", "shop", "--name", "a", *common, "--out", str(tmp_path)]) == 0
+    assert "schemaName: shop" in (tmp_path / "a.SemanticModel" / "definition" / "tables" / "orders.tmdl").read_text()
+    dbo = write_columns(tmp_path / "dbo.csv", schema="dbo")
+    assert cli.main(["semantic-model", dbo, "--name", "b", *common, "--out", str(tmp_path)]) == 0               # dbo, no schemas flag
+    assert "schemaName" not in (tmp_path / "b.SemanticModel" / "definition" / "tables" / "orders.tmdl").read_text()
+    assert cli.main(["semantic-model", dbo, "--name", "c", *common, "--schemas-enabled", "--out", str(tmp_path)]) == 0
+    assert "schemaName: dbo" in (tmp_path / "c.SemanticModel" / "definition" / "tables" / "orders.tmdl").read_text()
+    assert cli.main(["semantic-model", dbo, "--name", "d", *common, "--source-kind", "Warehouse", "--out", str(tmp_path)]) == 0
+    assert "schemaName: dbo" in (tmp_path / "d.SemanticModel" / "definition" / "tables" / "orders.tmdl").read_text()
+
+
+def test_rayfin_metadata_json_is_accepted_by_every_command_and_labels_its_own_schema(tmp_path, capsys):
+    meta = write_metadata(tmp_path / "metadata.json")
+    assert cli.main(["plan", meta]) == 0 and capsys.readouterr().out.startswith("7 tables, 6 with keys, 6 relationships")
+    assert cli.main(["dbt", meta, "--out", str(tmp_path / "s.yml")]) == 0
+    assert "sources:\n  - name: shop\n" in (tmp_path / "s.yml").read_text()
+    assert cli.main(["dictionary", meta, "--out", str(tmp_path / "d.md")]) == 0
+    assert "# Data dictionary: metadata / shop" in (tmp_path / "d.md").read_text()
+    assert cli.main(["views", meta]) == 0
+    out = capsys.readouterr().out
+    assert "FROM [shop].[order_items] AS f" in out and out.count("\nGO\n") == 2 and "[dbo]" not in out
+
+
+def test_a_missing_or_wrong_columns_file_is_one_line_and_exit_2(tmp_path, capsys):
+    assert cli.main(["plan", str(tmp_path / "nope.csv")]) == 2
+    assert capsys.readouterr().err.startswith("fabric-backend: ")
+    (tmp_path / "plan.json").write_text("{}", encoding="utf-8")
+    assert cli.main(["dbt", str(tmp_path / "plan.json")]) == 2
+    assert "not in metadata.json" in capsys.readouterr().err

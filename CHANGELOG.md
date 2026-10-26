@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Review fixes in the stdio server and CLI: the CLI's `semantic-model` writes `schemaName` exactly when the lakehouse has
+  schemas (it never did for a lakehouse); a Rayfin `metadata.json` source labels every command's output with the schema
+  it read, and `plan`/`definition` accept it too; `views` prints `GO` between batches; a missing `FABRIC_ODBC` answers
+  `server_config`; the ODBC string is parsed with braces, quotes and the Server/Database synonyms; `FABRIC_SOURCE_KIND`
+  is read without case; a string without a database keeps the drafts' placeholders; every stdio tool opens one
+  connection and closes it; a bad `views_schema` is `bad_input`; a failing `create_views` keeps the partial log and the
+  warehouse hint (remote too); the stdio tools carry titles and read-only/destructive hints; a missing or wrong columns
+  file is one line and exit 2 in the CLI.
 - Live run of the consultant, graph and creating tools against the demo workspace (26 October 2026): read-only tools and
   dry runs, then `create_views` for real (schema and one view) and the two other creates answering `consent`; the tool answers, the docs page and the README say what has run live and what has not.
   Site texts updated to the current rules (K0–K5, R0–R4) and the twenty-two tools.

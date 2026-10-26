@@ -48,7 +48,7 @@ def _keys_arg(path: str | None) -> dict[str, list[str]] | None:
 
 
 def cmd_plan(a) -> int:
-    p = plan(Schema.from_information_schema(_csv(a.columns), schema=a.schema), _keys_arg(a.keys))
+    p = plan(_source(a), _keys_arg(a.keys))
     print(p.summary())
     for r in p.relationships:
         print(f"  {r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}  [{r.rule}]")
@@ -64,7 +64,7 @@ def cmd_plan(a) -> int:
 
 
 def cmd_definition(a) -> int:
-    p = plan(Schema.from_information_schema(_csv(a.columns), schema=a.schema), _keys_arg(a.keys))
+    p = plan(_source(a), _keys_arg(a.keys))
     env = definition(p, a.name, a.workspace, a.source_item, a.source_type, writable=a.writable)
     Path(a.out).write_text(json.dumps(env, indent=2), encoding="utf-8")
     n = len(p.schema)
@@ -79,9 +79,7 @@ def cmd_deploy(a) -> int:
 
 
 def cmd_rayfin(a) -> int:
-    src = (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
-           else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
-    p = plan(src, _keys_arg(a.keys))
+    p = plan(_source(a), _keys_arg(a.keys))
     files = rayfin_files(p, a.connector, a.source_type, relationships=not a.no_relationships)
     for path in write_rayfin(files, a.out):
         print("wrote", path)
@@ -90,9 +88,7 @@ def cmd_rayfin(a) -> int:
 
 def cmd_ontology(a) -> int:
     from .ontology import ontology_files
-    src = (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
-           else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
-    p = plan(src, _keys_arg(a.keys))
+    p = plan(_source(a), _keys_arg(a.keys))
     files = ontology_files(p, a.name, workspace_id=a.workspace, item_id=a.source_item, item_name=a.source_name or a.source_item,
                            item_kind=a.source_kind, schema=a.schema, sql_endpoint=a.sql_endpoint or "")
     for path in write_rayfin(files, a.out):                        # same writer: {relative path: text} under --out
@@ -101,15 +97,23 @@ def cmd_ontology(a) -> int:
 
 
 def _source(a) -> Schema:
-    return (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
-            else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
+    """The columns file: an INFORMATION_SCHEMA.COLUMNS export (CSV) or the metadata.json that `npx rayfin connector add`
+    writes. With metadata.json and no --schema the file's first schema is used, and every command labels its output with
+    the schema actually read."""
+    if a.columns.endswith(".json"):
+        src = Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema)
+    else:
+        src = Schema.from_information_schema(_csv(a.columns), schema=a.schema)
+    a.schema = src.schema
+    return src
 
 
 def cmd_semantic_model(a) -> int:
     from .semantic_model import draft
     p = plan(_source(a), _keys_arg(a.keys))
     info = dict(workspace_id="", item_id="", item_name=a.source_name, item_kind=a.source_kind, schema=a.schema,
-                sql_endpoint=a.sql_endpoint, sql_db=a.database or a.source_name, schemas_enabled=a.schemas_enabled or a.source_kind != "Lakehouse")
+                sql_endpoint=a.sql_endpoint, sql_db=a.database or a.source_name,
+                schemas_enabled=True if a.source_kind != "Lakehouse" else (True if a.schemas_enabled else None))
     out = draft(p, info, a.name)
     for path in write_rayfin(out["parts"], Path(a.out) / f"{a.name}.SemanticModel"):
         print("wrote", path)
@@ -174,10 +178,10 @@ def cmd_analyze(a) -> int:
 def cmd_views(a) -> int:
     from .views import statements
     st = statements(plan(_source(a), _keys_arg(a.keys)), a.views_schema)
-    print(st["schema_sql"] + ";")
+    print(st["schema_sql"] + ";\nGO")                               # CREATE VIEW must be alone in its batch (T-SQL)
     for v in st["views"]:
         print(f"-- {v['why']}")
-        print(v["sql"] + ";")
+        print(v["sql"] + ";\nGO")
     return 0
 
 
@@ -253,7 +257,7 @@ def main(argv: list[str] | None = None) -> int:
     from .infer import PlanInputError
     try:
         return a.fn(a)
-    except PlanInputError as e:                       # a typo in --keys or the columns file: one line, no traceback
+    except (PlanInputError, ValueError, OSError) as e:      # a typo in --keys, a missing or wrong file: one line, no traceback
         print(f"fabric-backend: {e}", file=sys.stderr)
         return 2
 

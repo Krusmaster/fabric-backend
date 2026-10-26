@@ -196,7 +196,7 @@ The consultant outputs from the same CSV, nothing created: `semantic-model` (TMD
 `--source-name`, `--source-kind`, `--schemas-enabled`), `join-path START END` (the chain with its T-SQL, exit 1 and a
 suggestion when there is none), `dictionary` (Markdown), `dbt` (sources yml, `--legacy-arguments` for dbt before
 1.10.5), `analyze` (roles, central tables, areas, ambiguity; `--json` for the full graph) and `views` (the
-`CREATE OR ALTER VIEW` statements to run yourself). `fabric-backend --help` lists them.
+`CREATE OR ALTER VIEW` statements to run yourself, `GO` between the batches). `fabric-backend --help` lists them.
 
 ## Same plan, second output: Rayfin (Fabric Apps) connector entities
 

@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 
 from .evidence import qi
-from .infer import Plan, Relationship, _singulars, _words
+from .infer import Plan, PlanInputError, Relationship, _singulars, _words
 
 DEFAULT_SCHEMA = "krusgraph"
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,119}$")
@@ -26,7 +26,7 @@ _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,119}$")
 def schema_sql(target: str) -> str:
     """Create the views' schema when it does not exist; the name is validated, and the literal is escaped."""
     if not _NAME.match(target):
-        raise ValueError("the views schema name must be letters, digits and underscores")
+        raise PlanInputError("views_schema: the schema name must be letters, digits and underscores")
     lit = target.replace("'", "''")
     return f"IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = '{lit}') EXEC('CREATE SCHEMA {qi(target)}')"
 
@@ -137,10 +137,11 @@ def statements(plan: Plan, target: str = DEFAULT_SCHEMA) -> dict:
     return {"schema": target, "schema_sql": schema_sql(target), "views": views}
 
 
-def apply(stmts: dict, run) -> list[dict]:
+def apply(stmts: dict, run, log: list[dict] | None = None) -> list[dict]:
     """Run the schema statement and each view through `run(sql)` (a DB-API statement runner), stopping at the first
-    failure; returns one line per statement."""
-    log = [{"statement": "schema", "name": stmts["schema"]}]
+    failure; returns one line per statement. Pass `log` to keep the lines written before a failure."""
+    log = log if log is not None else []
+    log.append({"statement": "schema", "name": stmts["schema"]})
     run(stmts["schema_sql"])
     log[0]["status"] = "ok"
     for v in stmts["views"]:

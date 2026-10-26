@@ -183,6 +183,8 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
             return _answer("source_not_ready", text)
         if "no bearer token" in low or "no fabric_tenant_id" in low:
             return _answer("server_config", "The connector has no sign-in and no service principal configured.")
+        if "fabric_odbc" in low:
+            return _answer("server_config", text)
         return _answer("fabric_error", text)
     if isinstance(exc, LookupError):
         return _answer("not_found", text)
