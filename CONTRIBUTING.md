@@ -35,7 +35,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | session n8: tool count on the site, MCP Registry line, /local page (releases when done) |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n8: Lovable end-to-end (DCR behind a flag, app_starter edge function, app_readiness, docs) (releases when done) |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | open |
 | Deployment | `deploy/`, `Dockerfile` | open |
