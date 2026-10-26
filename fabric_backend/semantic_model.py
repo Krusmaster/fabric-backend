@@ -36,7 +36,7 @@ from __future__ import annotations
 import re
 import uuid
 
-from .infer import Plan, Relationship
+from .infer import Plan, Relationship, _words
 
 COMPATIBILITY_LEVEL = 1604          # Direct Lake needs 1604 or higher (direct-lake-develop.md)
 EXPRESSION = "DatabaseQuery"        # the shared expression every partition points at
@@ -54,10 +54,19 @@ _TYPES = [
 _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+# The last word of a column that identifies, codes or labels something rather than measuring it: never summed.
+_NOT_ADDITIVE = {"id", "key", "code", "no", "nr", "num", "number", "status", "type", "year", "month"}
+
+
 def _looks_like_id(column: str) -> bool:
-    """An identifier is never summed, whether or not the plan links it (ship_to_id, line_no, sku_code, id)."""
+    """An identifier, a code or a label number is never summed, whether or not the plan links it: ship_to_id, line_no,
+    sku_code, id, CustomerId, PersonID, SalesPersonID, RevisionNumber, Status, TaxType, ExpYear. Judged by the last word
+    (snake_case or CamelCase), so `PAID` or `unit_price` stay measures."""
     c = column.lower()
-    return c in ("id", "key", "code") or c.endswith(("_id", "_key", "_code", "_no", "_nr", "_number")) or (c.endswith("id") and len(c) > 2 and column[-2:] == "Id")
+    if c in ("id", "key", "code") or c.endswith(("_id", "_key", "_code", "_no", "_nr", "_number")):
+        return True
+    words = _words(column)
+    return bool(words) and words[-1] in _NOT_ADDITIVE
 
 
 def tmdl_name(name: str) -> str:
