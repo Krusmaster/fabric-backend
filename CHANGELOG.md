@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- `lineage` (read-only, new): which GraphQL APIs, semantic models, views and data agents in the workspace build on a
+  source's tables, from each object's own definition (`fabric_backend/lineage.py`), with what a change to one table
+  reaches; `plan_drift` adds `impact` for the tables and columns a re-run would drop. `docs/MULTI-SOURCE.md` is the
+  design note for a graph over several sources (not built).
 - Local server against SQL Server on-prem: the constraint query joins INFORMATION_SCHEMA on the constraint schema too
   (two schemas may share constraint names) and leaves out foreign keys into another schema; `FABRIC_SOURCE_KIND=SQLServer`
   makes the Fabric-only drafts (Direct Lake semantic model, Fabric IQ ontology) answer with an explanation instead of

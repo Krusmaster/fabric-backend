@@ -346,7 +346,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the twenty-three tools with an example each, checking a plan against the data, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the twenty-four tools with an example each, checking a plan against the data, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
 LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
 
 

@@ -38,6 +38,7 @@ from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
+from . import lineage as _lineage
 from .deploy import create_semantic_model as _create_semantic_model
 
 try:
@@ -65,7 +66,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — each "
     "answers with what it would create until dry_run=false; app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
-    "it (introspection, permissions, keys, relationships) with the next step per item. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
+    "it (introspection, permissions, keys, relationships) with the next step per item. lineage shows which GraphQL APIs, "
+    "semantic models, views and data agents in the workspace build on a source's tables and what a change to one table "
+    "reaches; plan_drift names those objects for the tables and columns a re-run would drop. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, "
     "subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks "
     "candidate columns and checks the best against the data, suggesting only. "
     "A call that cannot be completed answers with error (plain words), "
@@ -681,7 +684,14 @@ def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys:
                            "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
     existing = _graphql_definition(workspace_id, api_id, headers)
     source_id, source_type = source_for(workspace_id, item, headers)
-    return json.dumps(_drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables), indent=2)
+    out = _drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables)
+    touched = sorted({str(x["table"]).split(".")[-1] for x in out.get("tables_gone", []) + out.get("removed_columns", [])})
+    if touched:
+        edges, skipped = _lineage_edges(workspace_id, item, schema, set(touched) | {t.name for t in p.schema}, headers, execute=None)
+        out["impact"] = _lineage.impact_of_changes(edges, touched)
+        out["impact_note"] = ("objects in the workspace that use the tables a re-run would drop columns from or lose; read from the "
+                              "objects' definitions (views not included here, see lineage)" + (f"; {len(skipped)} item(s) could not be read" if skipped else ""))
+    return json.dumps(out, indent=2)
 
 
 # ------------------------------------------------------------------ creating tools ---------
@@ -859,6 +869,90 @@ def app_readiness(workspace: str, api: str, ctx: Context = None) -> str:
     except ValueError:
         body = {}
     return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
+def _workspace_items(workspace: str, headers: dict) -> list[dict]:
+    """Every item in the workspace (id, displayName, type), all pages."""
+    out, url = [], f"{FABRIC}/v1/workspaces/{workspace}/items"
+    while url:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += body.get("value", [])
+        url = body.get("continuationUri")
+    return out
+
+
+def _item_definition_parts(workspace: str, route: str, item_id: str, headers: dict, fmt: str | None = None) -> dict[str, str]:
+    """{path: text} of an item's definition (POST /workspaces/{ws}/{route}/{id}/getDefinition, long-running when Fabric says so)."""
+    from .deploy import wait_operation
+    url = f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item_id}/getDefinition" + (f"?format={fmt}" if fmt else "")
+    r = requests.post(url, headers=headers, timeout=60)
+    status = getattr(r, "status_code", 200)
+    if status == 202:
+        op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
+        result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
+        if result.get("status") != "Succeeded":
+            raise RuntimeError(f"reading the definition did not finish: {result.get('status')}")
+        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
+        status = getattr(r, "status_code", 200)
+    if status >= 400:
+        r.raise_for_status()
+    return _lineage.decode_parts((r.json().get("definition") or {}).get("parts", []))
+
+
+def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, execute=None) -> tuple[list[dict], list[dict]]:
+    """Edges table -> object over every item in the workspace that can be read, plus the items that could not."""
+    from .errors import explain
+    source_id = item.get("id")
+    databases = {item.get("sql_db") or "", item.get("displayName") or ""}
+    edges: list[dict] = []
+    skipped: list[dict] = []
+    for it in _workspace_items(workspace_id, headers):
+        kind, meta = it.get("type"), {"id": it.get("id"), "displayName": it.get("displayName")}
+        try:
+            if kind == "GraphQLApi":
+                edges += _lineage.from_graphql_definition(_graphql_definition(workspace_id, it["id"], headers), meta, source_id, schema, tables)
+            elif kind == "SemanticModel":
+                edges += _lineage.from_tmdl_parts(_item_definition_parts(workspace_id, "semanticModels", it["id"], headers, fmt="TMDL"), meta, databases, schema, tables)
+            elif kind == "DataAgent":
+                edges += _lineage.from_data_agent_parts(_item_definition_parts(workspace_id, "dataAgents", it["id"], headers), meta, source_id, schema, tables)
+        except Exception as e:  # noqa: BLE001 — one unreadable item must not hide the rest
+            skipped.append({"item": it.get("displayName"), "kind": kind, "reason": explain(e, f"reading {it.get('displayName')!r}").get("kind", "unexpected")})
+    if execute is not None:
+        try:
+            rows = list(execute(_lineage.VIEW_USAGE_SQL))
+        except Exception:  # noqa: BLE001 — an endpoint without INFORMATION_SCHEMA.VIEW_TABLE_USAGE: try the sys view
+            try:
+                rows = list(execute(_lineage.VIEW_USAGE_SQL_SYS))
+            except Exception as e:  # noqa: BLE001
+                rows = []
+                skipped.append({"item": "views on the SQL endpoint", "kind": "View", "reason": explain(e, "reading view dependencies").get("kind", "unexpected")})
+        edges += _lineage.from_view_rows(rows, item, schema, tables)
+    return edges, skipped
+
+
+@mcp.tool(title="Lineage: what builds on a source's tables", annotations=RO)
+@safe
+def lineage(workspace: str, source: str, schema: str = "dbo", table: str | None = None, ctx: Context = None) -> str:
+    """Which Fabric objects in the workspace build on the source's tables: GraphQL APIs (from their definition),
+    semantic models (from their TMDL definition), views on the SQL analytics endpoint (INFORMATION_SCHEMA.VIEW_TABLE_USAGE)
+    and data agents (named in their definition). Returns a graph (nodes: tables and objects; edges: used by), the
+    objects per table, the tables used by nothing, the items that could not be read, and with `table` the answer to
+    what a change to that table reaches. Read-only."""
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        headers = _headers(ctx)
+        workspace_id = _workspace_id(workspace, headers)
+        item = _resolve_source(workspace_id, source, headers)
+        tables = [t.name for t in s]
+        edges, skipped = _lineage_edges(workspace_id, item, schema, set(tables), headers, execute=execute)
+    finally:
+        getattr(execute, "close", lambda: None)()
+    out = _lineage.graph(item, schema, tables, edges, skipped)
+    if table:
+        out["impact"] = _lineage.impact(out, table)
+    return json.dumps(out, indent=2, default=str)
 
 
 def _graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:

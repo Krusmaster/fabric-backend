@@ -77,7 +77,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, twenty-three tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, twenty-four tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -122,6 +122,12 @@ run against the demo workspace (synthetic shop data) on 26 October 2026):
   relationships can be active at once in a semantic model (maximum spanning forest by certainty).
 - `suggest_relationships` — columns that could point at another table's key but are in no relationship, ranked by name,
   type and triangular closure, the best fifteen checked against the data (inclusion share, distinct values); suggests only.
+- `lineage` — which objects in the workspace build on the source's tables: GraphQL APIs (their definition), semantic
+  models (their TMDL), views on the SQL endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their
+  definition, marked as not certain); the objects per table, the tables used by nothing, and with `table` what a change
+  reaches. `plan_drift` names the same objects for the tables and columns a re-run would drop (`impact`). Unit-tested
+  with Fabric mocked, not yet run against a live workspace. A graph over several sources is a design note only:
+  [docs/MULTI-SOURCE.md](docs/MULTI-SOURCE.md).
 
 ### How the graph is weighted
 
