@@ -5,6 +5,13 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Local server against SQL Server on-prem: the constraint query joins INFORMATION_SCHEMA on the constraint schema too
+  (two schemas may share constraint names) and leaves out foreign keys into another schema; `FABRIC_SOURCE_KIND=SQLServer`
+  makes the Fabric-only drafts (Direct Lake semantic model, Fabric IQ ontology) answer with an explanation instead of
+  wrong output. Tested against recorded INFORMATION_SCHEMA rows (spaces in names, composite declared keys, nvarchar(max),
+  datetimeoffset, uniqueidentifier, computed columns, views); no SQL Server was available to run live.
+- Claude plugin in `plugin/krusgraph/` (connector reference, skill `fabric-graph-backend`, commands plan / document /
+  explain-schema, README, tests); not published; `docs/PUBLISHING.md` says how it is submitted as a plugin bundle.
 - Lovable on Fabric without getting stuck: `docs/LOVABLE-END-TO-END.md` maps every step of the chain with its owner,
   whether it is automated and what blocks, with sources. New read-only tool `app_readiness` (keyless and unlinked types,
   write access, one introspection probe, "unknown" with the click path for what Fabric's API cannot read). `app_starter`

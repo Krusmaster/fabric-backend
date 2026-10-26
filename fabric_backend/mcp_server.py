@@ -14,8 +14,10 @@ Same functions as the library, over the one SQL connection in FABRIC_ODBC:
   create_views(dry_run=True)                CREATE OR ALTER VIEW in a schema of its own (SQL, no Fabric REST)
 
 The tools that need Fabric item ids (describe_backend, plan_drift, app_starter, create_semantic_model,
-create_data_agent) live in the remote server only. Set FABRIC_SOURCE_KIND (Lakehouse, Warehouse, SQLDatabase) and
-FABRIC_SCHEMAS_ENABLED=1 for a lakehouse created with schemas when semantic_model_draft should write schemaName.
+create_data_agent) live in the remote server only. Set FABRIC_SOURCE_KIND (Lakehouse, Warehouse, SQLDatabase, or
+SQLServer for an on-prem or Azure SQL Server reached with Windows or SQL sign-in) and FABRIC_SCHEMAS_ENABLED=1 for a
+lakehouse created with schemas when semantic_model_draft should write schemaName. With SQLServer the Fabric-only drafts
+(semantic model in Direct Lake, Fabric IQ ontology) answer with an explanation; everything else works. docs/LOCAL.md.
 
 Run:  fabric-backend-mcp            (stdio; `pip install fabric-backend[mcp]`)
 Auth: a Fabric token via `az login` (FABRIC_TOKEN env var overrides). The SQL side needs an ODBC
@@ -132,7 +134,22 @@ def _odbc_part(key: str) -> str:
     return ""
 
 
-_KINDS = {"lakehouse": "Lakehouse", "warehouse": "Warehouse", "sqldatabase": "SQLDatabase"}
+_KINDS = {"lakehouse": "Lakehouse", "warehouse": "Warehouse", "sqldatabase": "SQLDatabase", "sqlserver": "SQLServer"}
+FABRIC_ONLY = {"semantic_model_draft": "a Power BI semantic model in Direct Lake mode reads Delta tables through a Fabric SQL analytics endpoint",
+               "ontology_draft": "a Fabric IQ ontology binds to tables of a Fabric item"}
+
+
+def _fabric_only(tool: str, schema: str) -> str | None:
+    """FABRIC_SOURCE_KIND=SQLServer: the drafts that only make sense for a Fabric item answer with an explanation."""
+    if _source_info(schema)["item_kind"] != "SQLServer":
+        return None
+    return json.dumps({"error": f"{tool} is Fabric-specific: {FABRIC_ONLY[tool]}; FABRIC_SOURCE_KIND is SQLServer, so there is no such endpoint or item.",
+                       "kind": "unsupported",
+                       "hint": ("For SQL Server, open the tables in Power BI Desktop (Import or DirectQuery) and use the plan's keys and relationships "
+                                "from plan_backend, join_path or data_dictionary; dbt_schema, create_views and the rest work on SQL Server. "
+                                "Mirror the database into Fabric (Mirrored database for SQL Server) to get the Fabric drafts." if tool == "semantic_model_draft"
+                                else "Mirror the database into Fabric (Mirrored database for SQL Server) or use the plan directly; plan_backend, "
+                                     "join_path, data_dictionary, dbt_schema and create_views work on SQL Server.")}, indent=2)
 
 
 def _source_info(schema: str) -> dict:
@@ -204,6 +221,9 @@ def ontology_draft(name: str = "ontology", schema: str = "dbo", keys: dict[str, 
     """The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: summary, binding
     checklist and a Turtle file for the portal's Import ontology. The full item definition needs the Fabric item ids;
     use the remote server or `fabric_backend.ontology_files` for that."""
+    refused = _fabric_only("ontology_draft", schema)
+    if refused:
+        return refused
     p = _plan(schema, keys=keys, confirmed=confirmed)
     check_tables(p.schema, tables)
     return json.dumps({"summary": ontology_summary(p, tables), "bindings": ontology_bindings(p, _source_info(schema)["item_name"] or "source", schema, tables),
@@ -240,6 +260,9 @@ def semantic_model_draft(name: str = "semantic_model", schema: str = "dbo", keys
     """The plan as a Power BI semantic model in TMDL: Direct Lake tables on the SQL endpoint in FABRIC_ODBC, one active
     relationship path per table pair (the rest inactive with the reason), README.generated.md with the decisions.
     Returns {path: content}; creates nothing."""
+    refused = _fabric_only("semantic_model_draft", schema)
+    if refused:
+        return refused
     p = _plan(schema, keys=keys, confirmed=confirmed)
     check_tables(p.schema, tables)
     out = _semantic_model.draft(p, _source_info(schema), name, tables)

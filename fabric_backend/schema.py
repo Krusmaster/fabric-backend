@@ -29,17 +29,23 @@ WHERE UPPER(TABLE_SCHEMA) = UPPER('{schema}')
 ORDER BY TABLE_NAME, ORDINAL_POSITION
 """
 
-# Warehouse / SQL database / Databricks Unity Catalog; a lakehouse SQL endpoint has no constraints and Snowflake has no
-# KEY_COLUMN_USAGE view, so a failing query here just means "no declared keys" (from_sql catches it).
+# Warehouse / SQL database / SQL Server / Databricks Unity Catalog; a lakehouse SQL endpoint has no constraints and
+# Snowflake has no KEY_COLUMN_USAGE view, so a failing query here just means "no declared keys" (from_sql catches it).
+# Constraint names are unique per schema, not per database (SQL Server: two schemas may both have PK_orders), so every
+# join carries the constraint schema; a foreign key to a table in another schema comes back with REF_SCHEMA set.
 KEYS_SQL = """
 SELECT tc.TABLE_NAME, tc.CONSTRAINT_TYPE, kcu.COLUMN_NAME, kcu.ORDINAL_POSITION,
-       tc.CONSTRAINT_NAME, ref.TABLE_NAME AS REF_TABLE, refcol.COLUMN_NAME AS REF_COLUMN
+       tc.CONSTRAINT_NAME, ref.TABLE_NAME AS REF_TABLE, refcol.COLUMN_NAME AS REF_COLUMN, ref.TABLE_SCHEMA AS REF_SCHEMA
 FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu ON kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc ON rc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
-LEFT JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS ref ON ref.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
+JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+       ON kcu.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND kcu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+LEFT JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS rc
+       ON rc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA AND rc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
+LEFT JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS ref
+       ON ref.CONSTRAINT_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA AND ref.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
 LEFT JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE refcol
-       ON refcol.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME AND refcol.ORDINAL_POSITION = kcu.ORDINAL_POSITION
+       ON refcol.CONSTRAINT_SCHEMA = rc.UNIQUE_CONSTRAINT_SCHEMA AND refcol.CONSTRAINT_NAME = rc.UNIQUE_CONSTRAINT_NAME
+      AND refcol.ORDINAL_POSITION = kcu.ORDINAL_POSITION
 WHERE UPPER(tc.TABLE_SCHEMA) = UPPER('{schema}') AND tc.CONSTRAINT_TYPE IN ('PRIMARY KEY', 'FOREIGN KEY')
 ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
 """
@@ -105,13 +111,14 @@ class Schema:
         fks: dict[tuple[str, str], tuple[list[str], str, list[str]]] = {}
         for row in keys or []:
             r = _row(row, ["table_name", "constraint_type", "column_name", "ordinal_position",
-                           "constraint_name", "ref_table", "ref_column"])
+                           "constraint_name", "ref_table", "ref_column", "ref_schema"])
             t = s.tables.get(r["table_name"])
             if t is None:
                 continue
             if r["constraint_type"] == "PRIMARY KEY":
                 t.keys.append(r["column_name"])
-            elif r["constraint_type"] == "FOREIGN KEY" and r["ref_table"]:
+            elif r["constraint_type"] == "FOREIGN KEY" and r["ref_table"] and (not r["ref_schema"] or str(r["ref_schema"]).lower() == schema.lower()):
+                # a foreign key into another schema has no target in this plan; it is left out rather than mis-linked
                 fk = fks.setdefault((t.name, r["constraint_name"]), ([], r["ref_table"], []))
                 fk[0].append(r["column_name"])
                 fk[2].append(r["ref_column"])
