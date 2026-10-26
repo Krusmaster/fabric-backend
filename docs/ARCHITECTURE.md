@@ -10,15 +10,16 @@ adapters        platforms/fabric.py               platforms/local.py  (ODBC stri
                                                   platforms/databricks.py  (Unity Catalog, SQL warehouse; Draft only)
                         │   read a schema · run SQL in a dialect · build objects from a plan
 engine          schema · infer · evidence · paths · graphs · drift · dictionary · dbt · privacy · answers ·
-                silver · gold · compact · dialects
+                silver · gold · compact · dialects · review
 ```
 
 ## The engine
 
 Platform-neutral and without I/O: inference (K0–K5, R0–R4), validation as counting queries (`evidence.py`),
 `join_path` (`paths.py`), `analyze_schema` and `suggest_relationships` (`graphs.py`), `plan_drift` (`drift.py`), the
-data dictionary, the dbt tests, the personal-data rules, the question-to-SQL drafts, the silver and gold logic, and the
-SQL dialects the engine writes its own queries in (`dialects.py`: T-SQL by default; SQLite reads the T-SQL through
+data dictionary, the dbt tests, the personal-data rules, the question-to-SQL drafts, the silver and gold logic, the
+review file (`review.py`: decisions and checks kept apart, read back against a changed schema, on the plan snapshot
+`drift.py` keeps), and the SQL dialects the engine writes its own queries in (`dialects.py`: T-SQL by default; SQLite reads the T-SQL through
 `sqlite_sql`). `tests/test_architecture.py` checks on the source that no engine module imports a network, driver or
 subprocess library, an adapter, a server or a front end. Four engine modules borrow from Fabric's pure format modules
 (GraphQL field names, the TMDL type families, the notebook file format); the test lists those five imports, so a new one

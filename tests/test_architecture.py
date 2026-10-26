@@ -14,9 +14,9 @@ import pytest
 PKG = Path(__file__).parent.parent / "fabric_backend"
 
 # The engine: inference, validation as counting queries, join paths, the graph, drift, dictionary, dbt, privacy rules,
-# the question-to-SQL drafts, the silver and gold logic, the SQL dialects, the answer shaping.
+# the question-to-SQL drafts, the silver and gold logic, the SQL dialects, the answer shaping, the review file.
 ENGINE = ("schema", "infer", "evidence", "paths", "graphs", "drift", "dictionary", "dbt", "privacy", "compact", "answers",
-          "silver", "gold", "dialects")
+          "silver", "gold", "dialects", "review")
 
 # No engine module imports these, at the top or inside a function.
 IO_LIBRARIES = {"requests", "pyodbc", "sqlite3", "subprocess", "socket", "http", "urllib.request", "notebookutils",

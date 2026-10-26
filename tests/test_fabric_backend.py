@@ -307,7 +307,8 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
     assert {t.name for t in ts} == {"list_workspaces", "list_sources", "list_tables", "plan_backend", "create_backend", "rayfin_connector", "query_graphql", "ontology_draft", "validate_plan", "sample_rows", "describe_backend",
                                     "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift",
                                     "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology", "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft",
-                                    "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions"}
+                                    "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions",
+                                    "review_plan"}
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
         assert t.annotations.title == t.title, t.name                                               # the directory reads annotations.title
@@ -318,6 +319,7 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
     hints = {t.name: t.annotations.read_only_hint for t in ts}
     assert hints["create_gold_views"] is False and hints["compare_semantic_model"] is True and hints["gold_views_draft"] is True
     assert hints["export_item_definitions"] is True
+    assert hints["review_plan"] is True                         # it writes nothing; the file goes to the user's own repository
 
     class Ctx:
         headers = {"authorization": "Bearer abc", "x-fabric-sql-token": "sql123"}

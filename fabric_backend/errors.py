@@ -186,6 +186,10 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         return {"error": scrub(exc.error), "kind": exc.kind, "hint": scrub(exc.hint, 600)}
     if type(exc).__name__ == "PlanInputError":
         return _answer("bad_input", text)
+    if type(exc).__name__ == "ReviewFileError":
+        return {"error": text, "kind": "bad_input",
+                "hint": "Pass the review file back as review_plan wrote it (the JSON object or its text), and name items in "
+                        "decisions by the ids in its items list, such as key:orders or rel:orders.customer_id>customers."}
     if isinstance(exc, PermissionError):
         return _answer("sign_in", "No signed-in user on this request.")
     if type(exc).__name__ == "KeyVaultError":

@@ -54,6 +54,7 @@ OAuth token; nothing is stored by Krusgraph. Tools take the schema without the c
 | `list_tables` | Draft only | Unity Catalog `information_schema.columns` |
 | `plan_backend` | Draft only | inference on names; informational PRIMARY KEY / FOREIGN KEY constraints are K0 / R0 |
 | `validate_plan` | Draft only | the counting queries in Databricks SQL on the SQL warehouse |
+| `review_plan` | Draft only | the review file over the Unity Catalog plan; with `validate=true` the counts from the SQL warehouse |
 | `sample_rows` | Draft only | `LIMIT n`; columns flagged by name or by a Unity Catalog column tag are masked |
 | `join_path` | Draft only | the chain with Databricks SQL (three-part names, `LIMIT`) |
 | `data_dictionary` | Draft only | as on Fabric |

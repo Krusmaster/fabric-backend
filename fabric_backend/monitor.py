@@ -27,6 +27,8 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 
+from .drift import plan_snapshot as _plan_snapshot, snapshot_diff as _snapshot_diff
+
 PLANS = ("krusgraph", "plans")                     # schema, table on a lakehouse with schemas
 PLANS_FLAT = "krusgraph_plans"                     # the table on a lakehouse without schemas (left out of the snapshot)
 LIBRARY = "git+https://github.com/Krusmaster/fabric-backend@{ref}"
@@ -35,52 +37,11 @@ LIBRARY = "git+https://github.com/Krusmaster/fabric-backend@{ref}"
 # ------------------------------------------------------------------ the plan as data ------------------------------
 
 def snapshot(plan, exclude: tuple[str, ...] = (PLANS_FLAT,)) -> dict:
-    skip = {e.lower() for e in exclude}
-    tables = {}
-    for t in sorted(plan.schema, key=lambda x: x.name.lower()):
-        if t.name.lower() in skip:
-            continue
-        key, rule = plan.keys.get(t.name, ([], "K3"))
-        tables[t.name] = {"columns": {c.name: (c.data_type or "").lower() for c in t.columns if c.name in t.column_names},
-                          "key": list(key), "key_rule": rule if key else "K3"}
-    rels = sorted(({"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule}
-                   for r in plan.relationships if r.source in tables and r.target in tables),
-                  key=lambda r: (r["source"].lower(), r["columns"], r["target"].lower()))
-    return {"version": 1, "schema": plan.schema.schema, "tables": tables, "relationships": rels}
+    """The snapshot the monitor keeps; the function moved into the engine (drift.plan_snapshot) in round n13."""
+    return _plan_snapshot(plan, exclude)
 
 
-def _rel_key(r: dict) -> tuple:
-    return (r["source"].lower(), tuple(c.lower() for c in r["columns"]), r["target"].lower(), tuple(c.lower() for c in r["target_columns"]))
-
-
-def diff(old: dict | None, new: dict) -> dict:
-    """What changed from `old` to `new`; `first_run` when there is nothing to compare with."""
-    out = {"first_run": old is None, "tables_added": [], "tables_removed": [], "columns_added": [], "columns_removed": [],
-           "types_changed": [], "keys_changed": [], "relationships_added": [], "relationships_removed": []}
-    if old is None:
-        out["changed"] = False
-        return out
-    o, n = old.get("tables", {}), new.get("tables", {})
-    olow, nlow = {k.lower(): k for k in o}, {k.lower(): k for k in n}
-    out["tables_added"] = sorted(nlow[k] for k in set(nlow) - set(olow))
-    out["tables_removed"] = sorted(olow[k] for k in set(olow) - set(nlow))
-    for k in sorted(set(olow) & set(nlow)):
-        ot, nt = o[olow[k]], n[nlow[k]]
-        name = nlow[k]
-        oc = {c.lower(): (c, ty) for c, ty in ot["columns"].items()}
-        nc = {c.lower(): (c, ty) for c, ty in nt["columns"].items()}
-        out["columns_added"] += [{"table": name, "column": nc[c][0], "type": nc[c][1]} for c in nc if c not in oc]
-        out["columns_removed"] += [{"table": name, "column": oc[c][0], "type": oc[c][1]} for c in oc if c not in nc]
-        out["types_changed"] += [{"table": name, "column": nc[c][0], "from": oc[c][1], "to": nc[c][1]}
-                                 for c in nc if c in oc and oc[c][1] != nc[c][1]]
-        if [x.lower() for x in ot["key"]] != [x.lower() for x in nt["key"]]:
-            out["keys_changed"].append({"table": name, "from": ot["key"], "from_rule": ot["key_rule"], "to": nt["key"], "to_rule": nt["key_rule"]})
-    orels = {_rel_key(r): r for r in old.get("relationships", [])}
-    nrels = {_rel_key(r): r for r in new.get("relationships", [])}
-    out["relationships_added"] = [nrels[k] for k in sorted(set(nrels) - set(orels))]
-    out["relationships_removed"] = [orels[k] for k in sorted(set(orels) - set(nrels))]
-    out["changed"] = any(out[k] for k in out if k not in ("first_run",))
-    return out
+diff = _snapshot_diff
 
 
 def touched_tables(changes: dict) -> list[str]:

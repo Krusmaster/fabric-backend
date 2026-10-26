@@ -189,7 +189,7 @@ def test_local_tools_carry_titles_and_hints_like_the_remote_ones():
     tools = asyncio.run(mcp_server.mcp.list_tools())
     hints = {t.name: (t.annotations.read_only_hint, t.annotations.destructive_hint) for t in tools}
     writing = ("create_backend", "create_views", "create_databricks_constraints", "create_databricks_pipeline")   # the last two: round n13
-    assert len(hints) == 23 and all(t.title for t in tools)
+    assert len(hints) == 24 and all(t.title for t in tools)
     assert all(hints[k] == (False, True) for k in writing)
     assert all(v == (True, False) for k, v in hints.items() if k not in writing)
 

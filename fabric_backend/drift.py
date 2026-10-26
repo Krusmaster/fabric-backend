@@ -95,3 +95,56 @@ def compare(plan: Plan, existing: dict, name: str, workspace_id: str, source_id:
             "source_changed": [{"api_source_item": ds.get("sourceItemId"), "plan_source_item": source_id} for ds in source_changed],
             "skipped_relationships": wanted_env.get("skipped_relationships", []),
             "keep_with_confirmed": [u["confirmed"] for u in unsupported if "confirmed" in u]}
+
+
+# ------------------------------------------------------------------ the plan as data, and what changed ------------
+
+def plan_snapshot(plan, exclude: tuple[str, ...] = ()) -> dict:
+    """The plan as plain data: columns and types, keys and rules, relationships and rules (sorted, so the same plan gives
+    the same snapshot). The drift monitor keeps one per night; the review file keeps one per review."""
+    skip = {e.lower() for e in exclude}
+    tables = {}
+    for t in sorted(plan.schema, key=lambda x: x.name.lower()):
+        if t.name.lower() in skip:
+            continue
+        key, rule = plan.keys.get(t.name, ([], "K3"))
+        tables[t.name] = {"columns": {c.name: (c.data_type or "").lower() for c in t.columns if c.name in t.column_names},
+                          "key": list(key), "key_rule": rule if key else "K3"}
+    rels = sorted(({"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule}
+                   for r in plan.relationships if r.source in tables and r.target in tables),
+                  key=lambda r: (r["source"].lower(), r["columns"], r["target"].lower()))
+    return {"version": 1, "schema": plan.schema.schema, "tables": tables, "relationships": rels}
+
+
+def _snapshot_rel_key(r: dict) -> tuple:
+    return (r["source"].lower(), tuple(c.lower() for c in r["columns"]), r["target"].lower(), tuple(c.lower() for c in r["target_columns"]))
+
+
+def snapshot_diff(old: dict | None, new: dict) -> dict:
+    """What changed from `old` to `new`; `first_run` when there is nothing to compare with."""
+    out = {"first_run": old is None, "tables_added": [], "tables_removed": [], "columns_added": [], "columns_removed": [],
+           "types_changed": [], "keys_changed": [], "relationships_added": [], "relationships_removed": []}
+    if old is None:
+        out["changed"] = False
+        return out
+    o, n = old.get("tables", {}), new.get("tables", {})
+    olow, nlow = {k.lower(): k for k in o}, {k.lower(): k for k in n}
+    out["tables_added"] = sorted(nlow[k] for k in set(nlow) - set(olow))
+    out["tables_removed"] = sorted(olow[k] for k in set(olow) - set(nlow))
+    for k in sorted(set(olow) & set(nlow)):
+        ot, nt = o[olow[k]], n[nlow[k]]
+        name = nlow[k]
+        oc = {c.lower(): (c, ty) for c, ty in ot["columns"].items()}
+        nc = {c.lower(): (c, ty) for c, ty in nt["columns"].items()}
+        out["columns_added"] += [{"table": name, "column": nc[c][0], "type": nc[c][1]} for c in nc if c not in oc]
+        out["columns_removed"] += [{"table": name, "column": oc[c][0], "type": oc[c][1]} for c in oc if c not in nc]
+        out["types_changed"] += [{"table": name, "column": nc[c][0], "from": oc[c][1], "to": nc[c][1]}
+                                 for c in nc if c in oc and oc[c][1] != nc[c][1]]
+        if [x.lower() for x in ot["key"]] != [x.lower() for x in nt["key"]]:
+            out["keys_changed"].append({"table": name, "from": ot["key"], "from_rule": ot["key_rule"], "to": nt["key"], "to_rule": nt["key_rule"]})
+    orels = {_snapshot_rel_key(r): r for r in old.get("relationships", [])}
+    nrels = {_snapshot_rel_key(r): r for r in new.get("relationships", [])}
+    out["relationships_added"] = [nrels[k] for k in sorted(set(nrels) - set(orels))]
+    out["relationships_removed"] = [orels[k] for k in sorted(set(orels) - set(nrels))]
+    out["changed"] = any(out[k] for k in out if k not in ("first_run",))
+    return out

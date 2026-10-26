@@ -61,7 +61,8 @@ except ImportError:  # pragma: no cover
 INSTRUCTIONS = (
     "Tables in one source behind this local server: a Fabric SQL analytics endpoint, warehouse or SQL database, or a SQL "
     "Server (FABRIC_ODBC), or Databricks Unity Catalog (KRUSGRAPH_PLATFORM=databricks, Draft only). plan_backend gives the "
-    "keys and relationships with the rule behind each (K0-K5, R0-R4); validate_plan checks them against the rows. The "
+    "keys and relationships with the rule behind each (K0-K5, R0-R4); validate_plan checks them against the rows; "
+    "review_plan keeps the plan, the decisions and the checks as a file to read back later. The "
     "databricks_* tools draft informational constraints, a Lakeflow pipeline, metric views and a bundle from the same "
     "plan; create_databricks_constraints and create_databricks_pipeline are dry runs by default. A tool that does not "
     "apply to the source answers kind unsupported with the tool that does. Failures answer error, kind and hint.")
@@ -274,6 +275,32 @@ def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
     with _connection(schema) as execute:
         p = _plan_on(execute, schema, keys, confirmed)
         return json.dumps(_evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))), indent=2, default=str)
+
+
+@_tool("Keep the reviewed plan as a file", RO)
+@safe
+def review_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
+                decisions: list[dict] | None = None, previous: dict | str | None = None, validate: bool = False,
+                tables: list[str] | None = None, max_items: int = 60) -> str:
+    """The plan with the decisions made about it and its checks, as one JSON file to keep in your own repository,
+    plus a short Markdown report and what needs attention first. Each key and relationship has a review status
+    (proposed, accepted, rejected or open, with a reason, set through `decisions`: [{"item": "key:orders", "review":
+    "accepted", "reason": "..."}]) and, separately, a check status (not_checked, passed, failed, stale). validate=true
+    runs validate_plan's counting queries. `previous` takes an earlier file from this tool: its corrections are applied
+    again, schema changes are listed, and a check on a table that changed becomes stale. Holds names, types, rules,
+    decisions and counts, never row values or the connection string. Creates nothing."""
+    from datetime import datetime, timezone
+    from . import compact as _compact, review as _review
+    prev = _review.read(previous) if previous else None
+    k, c = _review.merge_arguments(_review.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
+    with _connection(schema) as execute:
+        p, base = _plan_on(execute, schema, k, c), _plan_on(execute, schema)
+        keep = _compact.match_tables(p.schema, tables)
+        checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
+    rv = _review.build(p, base, {"platform": _platform().name, "schema": schema}, decisions=decisions, checks=checks,
+                       previous=prev, tables=sorted(keep) if keep is not None else None,
+                       checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
+    return _review.answer(rv, MAX_RESULT_CHARS)
 
 
 @_tool("Sample rows of one table", RO)

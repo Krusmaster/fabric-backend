@@ -41,6 +41,7 @@ One example per tool, in the order a first session usually goes (list, plan, loo
 - `compare_semantic_model` — *"Compare our Sales model with the plan for demo_lh."* — what the model lacks, what a rule or the data contradicts, and the measures it could add.
 - `gold_views_draft` — *"Draft gold views for demo_lh, schema shop."* — one materialized lake view per fact table over the silver tables, with data quality rules.
 - `export_item_definitions` — *"Export what you would create, in Fabric's Git format."* — the item folders to commit to your own repository.
+- `review_plan` — *"Keep this review as a file: accept ship_to_id as the ship-to address, leave audit_log without a key, and run the checks."* — a file to commit next to your code; next time, *"Read back krusgraph-review.demo-lh.shop.json and tell me what changed."*
 
 **Five first questions on a lakehouse nobody has documented** (each is useful on its own):
 
@@ -69,7 +70,7 @@ the same three fields.
 
 ## Explore and check
 
-How a plan is made, how to read it, and how to check it against the rows before anything is built.
+How a plan is made, how to read it, how to check it against the rows before anything is built, and how to keep the review.
 
 ### Review, check, then create
 
@@ -79,6 +80,32 @@ A plan is a proposal, so read it before anything is built.
 2. **Check it against the data.** `validate_plan` counts duplicate and NULL key values and references with no matching row. `create_backend` does not run it for you, so ask for it. A check that passes shows the data agrees with the plan today; it does not show that the plan means the right thing.
 3. **Create the API.** `create_backend` creates the API for GraphQL item, or updates the one with that name. It has no dry run: run `plan_drift` first to see what an update would change. If an update would remove relationships the existing API has, nothing is written and the answer lists them with the `confirmed` entries that keep them; `allow_removals=true` drops them on purpose.
 4. **Query it.** `describe_backend` gives the field names; `query_graphql` runs read-only queries and refuses mutations. Two portal steps stay manual (see below).
+5. **Keep the review.** `review_plan` writes the plan, your decisions with their reasons and the check results as one
+   file for your own repository. Pass it back later as `previous`: the corrections apply again and what changed since
+   is listed (see *Keep your review*).
+
+### Keep your review
+
+A review is worth keeping when the next report or app builds on the same tables. `review_plan` returns one JSON file
+(`krusgraph-review.<source>.<schema>.json`) and a short Markdown report; it creates nothing in Fabric.
+
+- **What it holds:** the format and its version, a plan id, the source (workspace, item and schema names), a
+  fingerprint of the tables' columns and types, the plan snapshot (the same one the drift monitor keeps), every key and
+  relationship as an item (`key:orders`, `rel:orders.customer_id>customers`) with its rule and what the rules alone
+  proposed when you corrected it, open questions (ambiguous columns, tables without a key, items you left open), and the
+  `keys` and `confirmed` arguments that carry your corrections into the other tools. Names, types, rules, decisions and
+  counts only: no row values, samples, connection strings or tokens.
+- **Two statuses per item.** *Review* is what a person decided: proposed, accepted, rejected or open, with a reason
+  (`decisions`). *Check* is what the counting queries found: not checked, passed, failed or stale, with the counts and
+  the time. They are kept apart: an accepted relationship can fail its check, and a passing check does not show that a
+  relationship means the right thing.
+- **Reading it back.** With `previous`, the decisions apply again, the schema is compared with the file's (tables,
+  columns, types, keys and relationships added or removed), decisions that no longer match the plan are listed, and a
+  check on a table whose columns changed becomes *stale*: an old pass is not carried forward as new evidence.
+  `validate=true` runs the checks again.
+- **Limits.** A relationship you reject stays rejected in the file, but the other tools still infer it from the names;
+  leave it out of what you build. A large schema may not fit one answer; `tables` limits the file to an area. The file
+  is unit-tested and not yet run against a live workspace (*Experimental*).
 
 ### How relationships are inferred
 
@@ -294,6 +321,7 @@ All tools take the workspace by id or display name. `schema` defaults to `dbo`; 
 | `gold_views_draft` | {{status}} | {{changes}} | materialized lake views in Spark SQL for a lakehouse with schemas: one wide view per fact table in `gold_schema` over the silver tables, joined over the safest many-to-one paths, with `CONSTRAINT … CHECK … ON MISMATCH DROP` rules for the plan's keys and relationships, each commented with its rule; personal-data columns left out unless `show_personal_data=true`; the notebook that creates them | `workspace`, `source`, `schema`, `silver_schema`, `gold_schema`, `keys`, `confirmed`, `tables`, `show_personal_data` |
 | `create_gold_views` | {{status}} | {{changes}} | creates that notebook in the workspace, attached to the lakehouse, or updates the one of that name; the views are created when the notebook runs, and it stops before a source table, a silver table or any table it did not create; `dry_run=true` (default) returns the views, the notebook and the call; needs `Notebook.ReadWrite.All` or `Item.ReadWrite.All` | `workspace`, `source`, `name`, `schema`, `silver_schema`, `gold_schema`, `keys`, `confirmed`, `tables`, `show_personal_data`, `dry_run` |
 | `export_item_definitions` | {{status}} | {{changes}} | what `create_backend`, `create_semantic_model`, `create_silver_notebook`, `create_drift_monitor` and `create_gold_views` would create, as folders in Fabric's Git format (`<name>.<type>` with `.platform` and the definition files), plus `create_views`' T-SQL as a script (Fabric's Git integration does not carry SQL analytics endpoint views) and a README; for your own repository, so that Fabric's Git integration or a deployment pipeline makes the change; calls no Git provider | `workspace`, `source`, `schema`, `items`, `names`, `keys`, `confirmed`, `tables`, `silver_schema`, `gold_schema`, `views_schema`, `writable`, `show_personal_data` |
+| `review_plan` | {{status}} | {{changes}} | the plan with the decisions made about it and its checks as one JSON file for your own repository, plus a short Markdown report and what needs attention: each key and relationship with a review status (proposed, accepted, rejected, open, with a reason) and, apart from it, a check status (not checked, passed, failed, stale); `validate=true` records `validate_plan`'s counts with the time; `previous` takes an earlier file, applies its corrections again, lists what changed in the schema and marks checks on changed tables stale; names, types, rules, decisions and counts only, never row values or credentials | `workspace`, `source`, `schema`, `keys`, `confirmed`, `decisions`, `previous`, `validate`, `tables`, `max_items` |
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
 happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,

@@ -84,6 +84,7 @@ _RAW = {
                          "; unit-tested, the SQL run on SQLite and a local PySpark 4.0.1"),
     "create_gold_views": (OPERATOR, CREATES, "creates/updates one notebook; never deletes", "unit tests", False, "; unit-tested"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests", False, "; unit-tested"),
+    "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests"),
 }
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 

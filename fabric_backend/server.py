@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-four, from list_workspaces to export_item_definitions; docs page
+Tools (all annotated for the Claude directory): thirty-five, from list_workspaces to review_plan; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -97,7 +97,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "(1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys "
     "and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; "
     "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
-    "hand-over document with everything above."))
+    "hand-over document with everything above. review_plan keeps the plan, the decisions about it and the checks as a file "
+    "for the user's own repository; passed back as previous it applies the decisions again and marks checks on changed "
+    "tables stale."))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -408,6 +410,37 @@ def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[s
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
     return json.dumps(out, indent=2, default=str)
+
+
+@mcp.tool(title="Keep the reviewed plan as a file (nothing in Fabric changes)", annotations=RO)
+@safe
+def review_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                confirmed: list[dict] | None = None, decisions: list[dict] | None = None, previous: dict | str | None = None,
+                validate: bool = False, tables: list[str] | None = None, max_items: int = 60, ctx: Context = None) -> str:
+    """The plan with the decisions made about it and its checks, as one JSON file to keep in your own repository,
+    plus a short Markdown report and what needs attention first. Each key and relationship has a review status
+    (proposed, accepted, rejected or open, with a reason, set through `decisions`: [{"item": "rel:orders.ship_to_id>addresses",
+    "review": "accepted", "reason": "..."}]) and, separately, a check status (not_checked, passed, failed, stale).
+    Keys given in `keys` and relationships added in `confirmed` count as accepted. validate=true runs validate_plan's
+    counting queries and records the counts with the time. `previous` takes an earlier file from this tool: its
+    corrections are applied again, what changed in the schema is listed, and a check on a table that changed since
+    becomes stale instead of being kept. `tables` limits the file to some tables and the relationships that touch
+    them. The file holds names, types, rules, decisions and counts, never row values or credentials. Creates nothing."""
+    from datetime import datetime, timezone
+    from . import review as _review
+    prev = _review.read(previous) if previous else None
+    k, c = _review.merge_arguments(_review.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
+    s, execute = _connected(workspace, source, schema, ctx)
+    try:
+        p, base = make_plan(s, k, c), make_plan(s)
+        keep = _compact.match_tables(p.schema, tables)
+        checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
+    finally:
+        getattr(execute, "close", lambda: None)()
+    rv = _review.build(p, base, {"platform": "fabric", "workspace": workspace, "source": source, "schema": schema},
+                       decisions=decisions, checks=checks, previous=prev, tables=sorted(keep) if keep is not None else None,
+                       checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
+    return _review.answer(rv, MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)
