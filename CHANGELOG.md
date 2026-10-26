@@ -5,6 +5,22 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n13, the Databricks adapter (Draft only: unit-tested with Databricks mocked at its REST API, not yet run against
+  a workspace; local stdio server only, `KRUSGRAPH_PLATFORM=databricks`; docs/DATABRICKS.md). Reads a Unity Catalog
+  schema through `information_schema`: informational PRIMARY KEY / FOREIGN KEY constraints become K0 / R0 as on a Fabric
+  warehouse, column tags feed the personal-data rules (`class.email_address` → P2; a bare `pii` tag → `tag`). Runs the
+  checks in Databricks SQL on a SQL warehouse through the Statement Execution API, signed in with Databricks' own
+  unified authentication (`databricks-sdk`, `pip install "fabric-backend[databricks]"`). Seven new local tools:
+  `databricks_constraints_draft` and `create_databricks_constraints` (RELY only where validate_plan's counts hold; only
+  ADD, never DROP; dry run by default), `databricks_pipeline_draft` and `create_databricks_pipeline` (a Lakeflow
+  pipeline with the silver and gold rules of the Fabric notebooks as expectations and a quarantine; creates or updates
+  the pipeline in place, starts nothing; dry run by default), `databricks_metric_view_draft`, `export_databricks_bundle`
+  and `databricks_lineage` (system.access.table_lineage). `create_views` writes Databricks views there. The tools that
+  build Fabric items answer `unsupported` on Databricks with the tool that does. The pipeline's SQL ran on SQLite in the
+  tests with the same quarantine, per table and rule, as the Fabric silver notebook. One line about it in the hosted
+  server's instructions and a section on /docs; nothing else on the site changes before a live run.
+- CI runs Python 3.12, which keeps docstring indentation; the golden tool listings compare descriptions after
+  `inspect.cleandoc`, so they hold on 3.12 and 3.13 alike.
 - Round n13, platform adapters (no answer changed). The engine (inference, validation as counting queries, join paths,
   the graph, drift, dictionary, dbt, the silver logic) is separated from what is platform-specific: reading a source's
   schema, running SQL and building objects now sit behind `fabric_backend/platforms/` (`base.py` the interface,

@@ -13,7 +13,10 @@
     P6  a birth date: birth_date, date_of_birth, dob, birthday, födelsedatum, födelsedag, geburtsdatum
 
 A column is judged by its words (snake_case and CamelCase split, å ä ö transliterated), the table by the words of its
-name through the inference's synonym table (kund -> customer). What the rules flag is masked by default where values
+name through the inference's synonym table (kund -> customer). Where the catalog tags columns (Unity Catalog column
+tags, read by the Databricks adapter), a tag that names one of the kinds above flags the column under that rule, and a
+tag that only says "personal data" (pii, personal_data, gdpr, personuppgift) flags it as `tag`; a name rule that
+already flags the column wins. What the rules flag is masked by default where values
 would reach an answer (sample_rows) or an example, and left out of generated views and drafted queries; the tools
 take `show_personal_data=true` to show them, and the user's own Fabric permissions apply either way. Nothing here
 reads a value: a column of e-mail addresses called `contact` is not found, and a column called `name` in a products
@@ -163,15 +166,48 @@ def classify(table: str, column: str) -> dict | None:
     return None
 
 
+_TAG_PREFIXES = ("class", "pii", "gdpr", "personal", "data", "classification")
+_GENERIC_TAGS = {("pii",), ("personal", "data"), ("personaldata",), ("personal",), ("gdpr",), ("personuppgift",), ("personuppgifter",),
+                 ("personal", "information"), ("personally", "identifiable", "information"), ("pii", "true")}
+_IP = {("ip", "address"), ("ipaddress",), ("ip",)}
+
+
+def classify_tags(tags: dict[str, str] | None) -> dict | None:
+    """A finding from a column's catalog tags ({tag: value}), or None: the first tag that names one of the kinds P1-P6
+    (`class.email_address`, `pii: phone`), else a tag that only says personal data (`pii`, `gdpr`)."""
+    if not tags:
+        return None
+    generic = None
+    for name, value in sorted(tags.items()):
+        label = f"{name}={value}" if value else name
+        for text in (name, value or ""):
+            words = tuple(_words(text))
+            while words and words[0] in _TAG_PREFIXES and len(words) > 1:
+                words = words[1:]
+            if not words or words in _IP or words in {("true",), ("yes",), ("1",)}:
+                continue
+            forms = {words[i:] for i in range(len(words))} | {("".join(words),)}
+            for patterns, rule in ((_NATIONAL, "P4"), (_EMAIL, "P2"), (_PHONE, "P3"), (_BIRTH, "P6"),
+                                   (_NAME_PARTS | _BARE_NAME | {("person", "name"), ("personname",)}, "P1"),
+                                   (_ADDRESS | _CITY | {("location",), ("street", "address"), ("postal", "address")}, "P5")):
+                if forms & patterns:
+                    return {"rule": rule, "what": RULES[rule], "why": f"the catalog tags the column {label!r}", "tag": label}
+        if generic is None and ({tuple(_words(name))} | {tuple(_words(f"{name} {value}"))}) & _GENERIC_TAGS:
+            generic = {"rule": "tag", "what": "personal data, by a catalog tag", "why": f"the catalog tags the column {label!r}", "tag": label}
+    return generic
+
+
 def personal_columns(schema, tables: list[str] | None = None) -> dict[tuple[str, str], dict]:
-    """{(table, column): finding} for every column a rule flags (all tables, or the named ones)."""
+    """{(table, column): finding} for every column a rule flags (all tables, or the named ones): by name, else by the
+    column's catalog tags (Unity Catalog)."""
     wanted = {t.lower() for t in tables} if tables else None
     out = {}
     for t in schema:
         if wanted is not None and t.name.lower() not in wanted:
             continue
+        tags = {k.lower(): v for k, v in (getattr(t, "tags", None) or {}).items()}
         for c in t.column_names:
-            f = classify(t.name, c)
+            f = classify(t.name, c) or classify_tags(tags.get(c.lower()))
             if f:
                 out[(t.name, c)] = f
     return out

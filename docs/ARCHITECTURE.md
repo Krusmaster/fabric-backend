@@ -7,6 +7,7 @@ boundary. The engine never talks to a platform; an adapter does, and hands the e
 front ends      server.py (hosted, Fabric only)   mcp_server.py (local stdio)   cli.py   demo_app.py (20-minute demo)
                         │                                   │                       │            │
 adapters        platforms/fabric.py               platforms/local.py  (ODBC string, SQLite, files, columns list)
+                                                  platforms/databricks.py  (Unity Catalog, SQL warehouse; Draft only)
                         │   read a schema · run SQL in a dialect · build objects from a plan
 engine          schema · infer · evidence · paths · graphs · drift · dictionary · dbt · privacy · answers ·
                 silver · gold · compact · dialects
@@ -39,6 +40,14 @@ An adapter is a subclass of `Platform` in `fabric_backend/platforms/base.py`:
 A builder's draft is pure: it turns a plan into files or SQL and calls nothing. A create tool is dry run by default,
 creates or updates under a name and never deletes. Every new tool gets a title, correct annotations, the
 `error`/`kind`/`hint` error format and tests.
+
+## The second adapter: Databricks (round n13, Draft only)
+
+`platforms/databricks.py` implements the same interface: `DATABRICKS` in `dialects.py`, `connect()` over the SQL
+Statement Execution API, `read_schema()` from Unity Catalog's `information_schema` (declared constraints as K0/R0, column
+tags for the personal-data rules), `unsupported()` for the Fabric-only tools, and its builders in
+`databricks_drafts.py`. The engine did not change for it beyond what the dialect needed (`views.py` takes a dialect for
+the CREATE VIEW). [DATABRICKS.md](DATABRICKS.md) has the tools and their status.
 
 ## Adding a platform
 

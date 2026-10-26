@@ -55,6 +55,7 @@ ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
 class Column:
     name: str
     data_type: str = "string"
+    nullable: bool | None = None       # None: the source did not say (only the Databricks reader reads is_nullable)
 
 
 @dataclass
@@ -64,6 +65,7 @@ class Table:
     keys: list[str] = field(default_factory=list)          # declared primary key, if any
     foreign_keys: list[tuple[list[str], str, list[str]]] = field(default_factory=list)  # (cols, target, target cols)
     schema: str = "dbo"
+    tags: dict[str, dict[str, str]] = field(default_factory=dict)  # column -> {tag: value}, where the catalog has tags (Unity Catalog)
 
     @property
     def column_names(self) -> list[str]:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 
+from .dialects import TSQL, Dialect
 from .evidence import qi
 from .infer import Plan, PlanInputError, Relationship, _line_like, _norm, _singulars, _words
 
@@ -27,10 +28,12 @@ DEFAULT_SCHEMA = "krusgraph"
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,119}$")
 
 
-def schema_sql(target: str) -> str:
+def schema_sql(target: str, dialect: Dialect = TSQL) -> str:
     """Create the views' schema when it does not exist; the name is validated, and the literal is escaped."""
     if not _NAME.match(target):
         raise PlanInputError("views_schema: the schema name must be letters, digits and underscores")
+    if dialect is not TSQL:
+        return f"CREATE SCHEMA IF NOT EXISTS {dialect.schema(target)}"
     lit = target.replace("'", "''")
     return f"IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = '{lit}') EXEC('CREATE SCHEMA {qi(target)}')"
 
@@ -108,8 +111,9 @@ def _unique(names: list[str]) -> list[str]:
     return out
 
 
-def wide_view_sql(plan: Plan, fact: str, target: str) -> tuple[str, list[str]]:
+def wide_view_sql(plan: Plan, fact: str, target: str, dialect: Dialect = TSQL, why: str = "") -> tuple[str, list[str]]:
     schema = plan.schema.schema
+    qi = dialect.quote
     chain = dimension_chain(plan, fact)
     cols = [f"f.{qi(c)}" for c in plan.schema[fact].column_names]
     aliases = list(plan.schema[fact].column_names)
@@ -117,15 +121,15 @@ def wide_view_sql(plan: Plan, fact: str, target: str) -> tuple[str, list[str]]:
     tables = [fact]
     for src_alias, r, tgt_alias in chain:
         on = " AND ".join(f"{src_alias}.{qi(a)} = {tgt_alias}.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
-        joins.append(f"    LEFT JOIN {qi(schema)}.{qi(r.target)} AS {tgt_alias} ON {on}")
+        joins.append(f"    LEFT JOIN {dialect.table(schema, r.target)} AS {tgt_alias} ON {on}")
         tables.append(r.target)
         for c in plan.schema[r.target].column_names:
             cols.append(f"{tgt_alias}.{qi(c)}")
             aliases.append(f"{r.target}_{c}")
     aliases = _unique(aliases)
     select = ",\n    ".join(f"{expr} AS {qi(a)}" for expr, a in zip(cols, aliases))
-    sql = (f"CREATE OR ALTER VIEW {qi(target)}.{qi('vw_' + fact)} AS\nSELECT\n    {select}\nFROM {qi(schema)}.{qi(fact)} AS f\n"
-           + "\n".join(joins))
+    sql = (f"{dialect.create_view} {dialect.table(target, 'vw_' + fact)}{dialect.view_comment(why)} AS\nSELECT\n    {select}\n"
+           f"FROM {dialect.table(schema, fact)} AS f\n" + "\n".join(joins))
     return sql.rstrip(), tables
 
 
@@ -141,40 +145,49 @@ def hard_relationships(plan: Plan) -> list[Relationship]:
     return out
 
 
-def relationship_view_sql(plan: Plan, r: Relationship, target: str) -> str:
+def relationship_view_sql(plan: Plan, r: Relationship, target: str, dialect: Dialect = TSQL, why: str = "") -> str:
     schema = plan.schema.schema
+    qi = dialect.quote
     on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
     s_cols = [f"s.{qi(c)} AS {qi(c)}" for c in plan.schema[r.source].column_names]
     t_cols = [f"t.{qi(c)} AS {qi(f'{r.target}_{c}')}" for c in plan.schema[r.target].column_names]
     name = f"vw_{r.source}_{r.field_name}"
-    return (f"CREATE OR ALTER VIEW {qi(target)}.{qi(name)} AS\nSELECT\n    " + ",\n    ".join(_dedupe(s_cols + t_cols))
-            + f"\nFROM {qi(schema)}.{qi(r.source)} AS s\n    LEFT JOIN {qi(schema)}.{qi(r.target)} AS t ON {on}")
+    return (f"{dialect.create_view} {dialect.table(target, name)}{dialect.view_comment(why)} AS\nSELECT\n    "
+            + ",\n    ".join(_dedupe(s_cols + t_cols, dialect))
+            + f"\nFROM {dialect.table(schema, r.source)} AS s\n    LEFT JOIN {dialect.table(schema, r.target)} AS t ON {on}")
 
 
-def _dedupe(cols: list[str]) -> list[str]:
-    names = _unique([c.rsplit(" AS ", 1)[1].strip("[]") for c in cols])
-    return [c.rsplit(" AS ", 1)[0] + " AS " + qi(n) for c, n in zip(cols, names)]
+def _dedupe(cols: list[str], dialect: Dialect = TSQL) -> list[str]:
+    names = _unique([c.rsplit(" AS ", 1)[1].strip(dialect.open_quote + dialect.close_quote) for c in cols])
+    return [c.rsplit(" AS ", 1)[0] + " AS " + dialect.quote(n) for c, n in zip(cols, names)]
 
 
-def statements(plan: Plan, target: str = DEFAULT_SCHEMA) -> dict:
-    """{"schema": <sql>, "views": [{"name", "sql", "why", "tables"}]} — the fact views first, then one per hard link."""
+def statements(plan: Plan, target: str = DEFAULT_SCHEMA, dialect: Dialect = TSQL) -> dict:
+    """{"schema": <sql>, "views": [{"name", "sql", "why", "tables"}]} — the fact views first, then one per hard link.
+    T-SQL by default; another dialect (dialects.py) gives that platform's CREATE VIEW, with the reason as its comment
+    where the dialect has view comments."""
     views = []
     for fact in fact_tables(plan):
         sql, tables = wide_view_sql(plan, fact, target)
-        views.append({"name": f"vw_{fact}", "sql": sql, "tables": tables,
-                      "why": f"{fact} is a fact table ({len(tables) - 1} dimensions joined in through the plan's relationships)"})
+        why = f"{fact} is a fact table ({len(tables) - 1} dimensions joined in through the plan's relationships)"
+        if dialect is not TSQL:
+            sql, _ = wide_view_sql(plan, fact, target, dialect, why)
+        views.append({"name": f"vw_{fact}", "sql": sql, "tables": tables, "why": why})
     for header, lines in header_tables(plan):
         sql, tables = wide_view_sql(plan, header, target)
-        views.append({"name": f"vw_{header}", "sql": sql, "tables": tables,
-                      "why": f"{header} is a header table: {lines} holds its lines; one row per {header} row, with its "
-                             f"{len(tables) - 1} dimension(s) joined in"})
+        why = (f"{header} is a header table: {lines} holds its lines; one row per {header} row, with its "
+               f"{len(tables) - 1} dimension(s) joined in")
+        if dialect is not TSQL:
+            sql, _ = wide_view_sql(plan, header, target, dialect, why)
+        views.append({"name": f"vw_{header}", "sql": sql, "tables": tables, "why": why})
     for r in hard_relationships(plan):
         reason = {"R2": "the column has the target key's name, not the target's name", "R3": "the link spans several columns",
                   "R4": "the column abbreviates or role-prefixes the target", "confirmed": "the link was given by hand, the names do not show it"
                   }.get(r.rule, f"the column names a role ({r.field_name}), not the table")
-        views.append({"name": f"vw_{r.source}_{r.field_name}", "sql": relationship_view_sql(plan, r, target), "tables": [r.source, r.target],
-                      "why": f"{r.source}.{'+'.join(r.source_cols)} -> {r.target} ({r.rule}): {reason}"})
-    return {"schema": target, "schema_sql": schema_sql(target), "views": views}
+        why = f"{r.source}.{'+'.join(r.source_cols)} -> {r.target} ({r.rule}): {reason}"
+        views.append({"name": f"vw_{r.source}_{r.field_name}", "sql": relationship_view_sql(plan, r, target, dialect, why),
+                      "tables": [r.source, r.target], "why": why})
+    return {"schema": target, "schema_sql": schema_sql(target, dialect), "views": views}
 
 
 def apply(stmts: dict, run, log: list[dict] | None = None) -> list[dict]:

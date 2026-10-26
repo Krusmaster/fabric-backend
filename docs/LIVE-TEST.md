@@ -104,3 +104,46 @@ Prepared, not switched on: `bash deploy/krusgraph.sh --client-redirects` prints 
 6. A client in section 4 that worked: name it where the site says the hosted service supports Claude (/docs *Connect*,
    /start, `llms.txt`), with the date.
 7. `python -m pytest -q`, push, and `bash deploy/krusgraph.sh --update`.
+
+## Databricks
+
+For a trial workspace of your own (Databricks Free Edition or a trial account), from the **local** stdio server with
+`KRUSGRAPH_PLATFORM=databricks` (set-up in [DATABRICKS.md](DATABRICKS.md)); the hosted server reads Fabric only. Every
+row is Draft only until it has passed here. Synthetic data only: the seed below, no customer data.
+
+**Preparation, in a Python notebook of the workspace** (serverless compute; the catalog `workspace` is Free Edition's
+default per community posts, use the one your workspace has):
+
+```python
+%pip install git+https://github.com/Krusmaster/fabric-backend
+from fabric_backend.seed import SCHEMAS, rows
+spark.sql("CREATE SCHEMA IF NOT EXISTS workspace.shop")
+for name, data in rows().items():
+    spark.createDataFrame(data, SCHEMAS[name]).write.mode("overwrite").saveAsTable(f"workspace.shop.{name}")
+```
+
+Rights for the signed-in user: CAN USE on the SQL warehouse; USE CATALOG, USE SCHEMA, SELECT; CREATE SCHEMA on the
+catalog and ownership of the `shop` tables (you created them) for rows D9–D12. For D15: read access to
+`system.access`.
+
+| # | Tool | Question in Claude | Expected | Result | Date |
+| --- | --- | --- | --- | --- | --- |
+| D1 | `list_tables` | *"Which tables and columns are in schema shop?"* | the 7 tables, types as `int`, `string`, `date`, `double`, `timestamp` | | |
+| D2 | `plan_backend` | *"Plan schema shop."* | 7 tables, 6 with keys, 6 relationships; `order_items` keyed `order_id + line_no` (K5); the same as row 4 on Fabric | | |
+| D3 | `validate_plan` | *"Check the plan against the data."* | 6 of 6 keys unique, 6 of 6 relationships hold; the counting SQL uses backticks and `COUNT` | | |
+| D4 | `sample_rows` | *"Show five rows of customers."* | 5 rows (`LIMIT 5`), `name` masked (P1) | | |
+| D5 | `join_path` | *"How do customers and categories connect?"* | 4 hops, R1, and Databricks SQL with `workspace`.`shop`.… and `LIMIT 100` | | |
+| D6 | `suggest_relationships` | *"Which columns look like references but are in no relationship?"* | `orders.ship_to_id → addresses.address_id` with inclusion 1.0 | | |
+| D7 | `databricks_constraints_draft` | *"Draft the constraints for schema shop, checked against the data."* | 6 primary keys and 6 foreign keys, each `RELY`, or the keys left out with the reason "may hold NULLs" (the seed's columns are nullable) | | |
+| D8 | `databricks_constraints_draft` with `set_not_null=true` | *"The same, and add NOT NULL where the data allows it."* | `ALTER COLUMN … SET NOT NULL` before each primary key | | |
+| D9 | `create_databricks_constraints` | *"Add those constraints. Dry run first, then for real with set_not_null."* | dry run: the statements; then `result: Succeeded`; `DESCRIBE TABLE EXTENDED workspace.shop.orders` shows the constraints | | |
+| D10 | `plan_backend` again | *"Plan schema shop again."* | keys K0 and relationships R0 (declared now) | | |
+| D11 | `create_views` | *"Create the views for schema shop. Dry run first, then create."* | `workspace.krusgraph.vw_order_items` and `vw_orders`; `SELECT * FROM workspace.krusgraph.vw_orders LIMIT 5` works | | |
+| D12 | `create_databricks_pipeline` | *"Create the pipeline shop_layers for schema shop, order_by orders: order_date. Dry run first."* | dry run: two notebooks; then the pipeline in Jobs & Pipelines; start it by hand: `workspace.silver.*`, `workspace.silver.krusgraph_quarantine` (empty on the clean seed), `workspace.gold.order_items` | | |
+| D13 | `databricks_metric_view_draft` | *"Draft metric views for schema shop."* | `order_items_metrics` with `Rows in order_items` and `Total quantity`; run its SQL and `SELECT MEASURE(\`Total quantity\`) FROM workspace.krusgraph.order_items_metrics` | | |
+| D14 | `export_databricks_bundle` | *"Export a bundle for schema shop."* | 9 files; in a folder with them, `databricks bundle validate -t dev` passes (set the host first) | | |
+| D15 | `databricks_lineage` | first in SQL: `DESCRIBE system.access.table_lineage`; then *"What reads from schema shop?"* | the columns used (`source_table_full_name`, `target_table_full_name`, `entity_type`, `entity_id`, `event_time`, `event_date`) exist; after D12 the pipeline's reads and writes | | |
+| D16 | a Fabric-only tool | *"Draft a Power BI semantic model for schema shop."* | `kind: unsupported`, pointing to `databricks_metric_view_draft` | | |
+
+A row that passes moves that tool's status in [DATABRICKS.md](DATABRICKS.md) from Draft only to Experimental (the
+local server against a real workspace); nothing on the site changes before that.

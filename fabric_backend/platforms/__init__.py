@@ -8,6 +8,7 @@ has to implement.
     fabric   Microsoft Fabric: REST for workspaces and items, the SQL analytics endpoint over ODBC with an Entra token
     local    what the local stdio server and the 20-minute demo read: an ODBC connection string (a Fabric SQL endpoint
              or SQL Server), a SQLite database (the synthetic shop, or a folder of CSV and Excel files), a columns list
+    databricks  Unity Catalog through information_schema, a SQL warehouse through the Statement Execution API (Draft only)
 """
 from __future__ import annotations
 

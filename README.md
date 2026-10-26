@@ -344,6 +344,11 @@ the CLI and the local stdio server read `INFORMATION_SCHEMA` the same way on Sno
 (Snowflake has no `KEY_COLUMN_USAGE`, so keys come from names there; Unity Catalog's informational constraints are
 read as K0/R0). That route gives the explainable graph, the Mermaid diagram and the Rayfin entities; the API for
 GraphQL item itself is a Fabric object, so route (2) ends at `dry_run`/`definition` unless the data is mirrored.
+Since round n13 the local stdio server also has a Databricks adapter (`KRUSGRAPH_PLATFORM=databricks`; **Draft only**:
+unit-tested with Databricks mocked, not yet run against a workspace): it reads a Unity Catalog schema with its
+informational constraints and column tags, runs the checks on a SQL warehouse through the Statement Execution API, and
+drafts informational constraints, views, a Lakeflow pipeline with expectations, metric views and a bundle from the plan
+([docs/DATABRICKS.md](docs/DATABRICKS.md)). The hosted server reads Fabric only.
 The item types, routes and `sqlEndpointProperties` follow Microsoft's published REST specification; a live run of these
 source types is still pending.
 

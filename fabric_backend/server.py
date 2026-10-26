@@ -88,6 +88,8 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "of drafted queries and gold views unless show_personal_data=true. Alongside Microsoft's own Fabric MCP servers (Fabric Core "
     "and the local Fabric MCP Server for workspaces, items and files; Fabric IQ MCP for questions to semantic models; Power BI "
     "Modeling MCP for editing a model), this server is the part that works out how the tables relate and builds from that plan. "
+    "This server reads Microsoft Fabric only; a Databricks adapter (Draft only: Unity Catalog, informational constraints, a "
+    "Lakeflow pipeline, metric views) runs in the local stdio server, see /docs#databricks-draft-only. "
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, "
     "rate_limited with retry_after) and "

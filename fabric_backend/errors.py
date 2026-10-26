@@ -159,6 +159,15 @@ class SchemaEmpty(LookupError):
     """INFORMATION_SCHEMA returned no tables: the schema does not exist in this source (or has no tables)."""
 
 
+class PlatformError(Exception):
+    """A platform adapter's own failure, already in the user's words (fabric_backend/platforms/): the adapter knows its
+    platform's errors and next steps, so it brings the kind and the hint; explain() only scrubs the text."""
+
+    def __init__(self, kind: str, error: str, hint: str):
+        super().__init__(error)
+        self.kind, self.error, self.hint = kind, error, hint
+
+
 def explain(exc: BaseException, where: str = "the request") -> dict:
     """Any exception from a tool → the answer the user sees. Never includes headers, tokens or a traceback."""
     try:
@@ -173,6 +182,8 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
     low = text.lower()
     if isinstance(exc, SchemaEmpty):
         return _answer("schema_not_found", text)
+    if isinstance(exc, PlatformError):
+        return {"error": scrub(exc.error), "kind": exc.kind, "hint": scrub(exc.hint, 600)}
     if type(exc).__name__ == "PlanInputError":
         return _answer("bad_input", text)
     if isinstance(exc, PermissionError):

@@ -282,12 +282,25 @@ warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tab
    specification documents it for each of these item types. Experimental: unit-tested, not yet run against a live item.
 2. **Plan it where it is.** The engine reads `INFORMATION_SCHEMA`, which Snowflake and Databricks (Unity Catalog)
    expose like the Fabric SQL endpoint does. The open-source library, the CLI and the local `fabric-backend-mcp` server
-   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems; the API for GraphQL
-   item is a Fabric object, so that last step needs route 1.
+   give you the graph, the rules, the diagram and the Rayfin entities straight from those systems (for Databricks with
+   its own adapter, [below](#databricks-draft-only)); the API for GraphQL item is a Fabric object, so that last step
+   needs route 1.
 
 Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
 informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
 follow Microsoft's published REST specification; these source types are experimental until a live run.
+
+## Databricks (Draft only)
+
+The same engine reads Databricks too, in the local server only (`KRUSGRAPH_PLATFORM=databricks`): a Unity Catalog
+schema through its `information_schema`, where declared primary and foreign keys count as K0 and R0 and column tags feed
+the personal-data rules; the checks run as counting queries on a SQL warehouse. From the same plan it drafts
+informational constraints (with `RELY` only where the counts hold), views, a Lakeflow pipeline whose expectations are
+the plan's keys and relationships, metric views and a bundle. **Draft only:** unit-tested with Databricks mocked, not
+yet run against a Databricks workspace. The hosted service at {{DOMAIN}} reads Fabric only. Set-up, the status of each tool
+and the documentation each draft rests on: [docs/DATABRICKS.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/DATABRICKS.md).
+Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
+{{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
 
 ## First-time errors
 
