@@ -5,9 +5,10 @@
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
     /lovable           using the created API with Lovable's Fabric connector
+    /local             the local server: SQL Server, data stays on your machine
     /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
-    /docs.md, /privacy.md, /start.md, /lovable.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
+    /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
@@ -193,7 +194,7 @@ def site_url() -> str:
     return "https://" + _vars()["DOMAIN"]
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/use-cases")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases")       # pages that are also served as <path>.md
 
 
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
@@ -361,6 +362,18 @@ def docs_md() -> str:
 
 def lovable_md() -> str:
     return _fill(_read("LOVABLE.md"), escape=False)
+
+
+LOCAL_DESC = "Run {{PRODUCT}} on your own machine against SQL Server or a Fabric SQL endpoint over ODBC: the same rules, nothing leaves your machine, no account with us."
+
+
+def local_md() -> str:
+    return _fill(_read("LOCAL.md"), escape=False)
+
+
+def local_html() -> str:
+    body = f'<article class="wrap prose docs">{_md_to_html(local_md())}</article>'
+    return _shell("Run {{PRODUCT}} locally", LOCAL_DESC, body, page="local", nav="docs", path="/local")
 
 
 def use_cases_md() -> str:

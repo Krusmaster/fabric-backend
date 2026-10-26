@@ -16,7 +16,9 @@ like; it needs no account. The connector was run end to end against a live Fabri
    sign-in uses a local redirect that is not registered on the Entra app yet; until it is, Claude is the tested client.
 3. **In Fabric:** you need access to the workspace you want to use, and a Fabric capacity (a trial is fine).
 
-Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start).
+Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start). The server is
+listed in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
+Prefer your own machine and a SQL Server? The same engine runs locally over ODBC: [/local](/local).
 
 ## What it accesses
 
@@ -204,6 +206,9 @@ A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.t
 from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
 The same URL works from the command line once a client's sign-in redirect is registered on the Entra app
 (for Claude Code: `claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`); until then Claude is the tested client.
+A Claude plugin that bundles this connector with a skill for the whole workflow and the commands `/krusgraph:plan`,
+`/krusgraph:document` and `/krusgraph:explain-schema` is built and tested in the repository (`plugin/krusgraph`) and
+coming soon; it is not published yet.
 
 ## Support
 

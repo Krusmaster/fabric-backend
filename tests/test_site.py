@@ -22,7 +22,7 @@ def client(monkeypatch):
         yield c
 
 
-ALL_PAGES = sorted(set(PAGES) | {"/docs", "/privacy", "/lovable"})
+ALL_PAGES = sorted(set(PAGES) | {"/docs", "/privacy", "/lovable", "/local"})
 
 
 @pytest.mark.parametrize("path", ALL_PAGES)
@@ -227,7 +227,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/explore", "/start", "/docs", "/lovable", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
+PUBLIC = ["/", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -287,12 +287,13 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
         assert f"`{tool}`" in t
     assert "https://krusgraph.test/mcp" in t and "Microsoft Entra work account" in t and "introspection" in t
     links = re.findall(r"\]\((https://krusgraph\.test/[^)]+)\)", t)
-    for md in ("/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/demo/plan.json", "/mcp/server-card"):
+    for md in ("/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/demo/plan.json", "/mcp/server-card"):
         assert "https://krusgraph.test" + md in links, md
 
 
 @pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
-                                         ("/start.md", "# Small steps. Useful connections."), ("/lovable.md", "# Use Krusgraph with Lovable")])
+                                         ("/start.md", "# Small steps. Useful connections."), ("/lovable.md", "# Use Krusgraph with Lovable"),
+                                         ("/local.md", "# Run Krusgraph locally")])
 def test_markdown_versions(client, path, needle):
     r = client.get(path)
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/markdown")
@@ -442,3 +443,18 @@ def test_the_site_icon_is_served_at_the_root_where_directories_look():
     touch = c.get("/apple-touch-icon.png")
     assert touch.status_code == 200 and touch.content[:8] == b"\x89PNG\r\n\x1a\n"
     assert c.get("/static/icon-512.png").status_code == 200
+
+
+def test_local_page_registry_line_and_plugin_coming_soon(client):
+    html = client.get("/local").text
+    assert "Trusted_Connection=yes;TrustServerCertificate=yes" in html and "db_datareader" in html and "FABRIC_SOURCE_KIND" in html
+    assert "not yet been run against a live SQL Server" in html and 'href="/docs"' in html
+    assert 'href="/local"' in client.get("/docs").text and "/local" in client.get("/sitemap.xml").text
+    assert "https://krusgraph.test/local.md" in client.get("/llms.txt").text and "/local.md -->" in client.get("/llms-full.txt").text
+    for page in ("/", "/docs"):
+        t = client.get(page).text
+        assert "registry.modelcontextprotocol.io" in t and "com.krusgraph/krusgraph" in t
+    docs = client.get("/docs").text
+    assert "coming soon" in docs and "plugin/krusgraph" in docs and "not published yet" in docs
+    for t in (docs, client.get("/").text, client.get("/llms.txt").text):
+        assert "Claude directory" not in t and "connector directory" not in t and "Verified connector" not in t
