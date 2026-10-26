@@ -5,6 +5,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- `fabric-backend demo`: the 20-minute demo on a laptop (`fabric_backend/demo_app.py`, `docs/DEMO-20-MIN.md`). One local
+  page on 127.0.0.1 in the graph explorer's design, four steps with a time budget: connect (a SQL Server over ODBC, a
+  folder of CSV / Excel files loaded into SQLite in memory with a standard-library .xlsx reader, a columns list, or the
+  synthetic shop schema), the map (plan, roles, subject areas), the health check (validate_plan and
+  suggest_relationships as findings with what we saw / what it means / next step / evidence, Accept and Skip, the plan
+  updating at once), the value (five questions proposed from the graph and run locally with the SQL, exports:
+  dictionary, dbt, a Lovable prompt, the plan, the ER diagram). No account, no cloud, no external script; the figures
+  follow the motion brief and prefers-reduced-motion. The site's graph gained a layered layout for any schema. Tests on
+  the shop seed and on a CSV / Excel folder; a test that the server binds to 127.0.0.1 only.
 - Site: `/local` (the local server over ODBC: SQL Server with Windows sign-in or a Fabric SQL endpoint, what it needs,
   the Claude Desktop configuration, what works locally, the CSV path), the MCP Registry listing named on the home page,
   the docs page and llms.txt, the Claude plugin mentioned as coming soon. `docs/PRICING-NOTES.md` (internal): what a

@@ -11,6 +11,7 @@
   fabric-backend dbt columns.csv [--source-name X] [--database X] [--out schema.yml]
   fabric-backend analyze columns.csv [--json analysis.json]
   fabric-backend views columns.csv [--views-schema krusgraph]
+  fabric-backend demo [--sample | --folder DIR | --odbc "<connection string>" | --columns columns.csv] [--schema dbo] [--port 8765] [--no-browser]
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
 table_schema, table_name, column_name, data_type, ordinal_position). `create` needs a SQL
@@ -185,6 +186,22 @@ def cmd_views(a) -> int:
     return 0
 
 
+def cmd_demo(a) -> int:
+    """The 20-minute demo: a local page on 127.0.0.1 (docs/DEMO-20-MIN.md). Without a source flag the page starts at
+    step 1 and offers the choice there."""
+    from . import demo_app
+    session = demo_app.Session()
+    if a.folder:
+        session.connect("folder", a.folder, a.schema if a.schema != "dbo" else "data")
+    elif a.odbc:
+        session.connect("odbc", a.odbc, a.schema)
+    elif a.columns:
+        session.connect("columns", a.columns, a.schema)
+    elif a.sample:
+        session.connect("sample")
+    return demo_app.serve(session, a.port, open_browser=not a.no_browser)
+
+
 def cmd_create(a) -> int:
     import pyodbc  # optional
     conn = pyodbc.connect(a.odbc)
@@ -252,6 +269,13 @@ def main(argv: list[str] | None = None) -> int:
 
     s = sub.add_parser("views"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--views-schema", default="krusgraph"); s.set_defaults(fn=cmd_views)
+
+    s = sub.add_parser("demo", help="the 20-minute demo on a local page (127.0.0.1 only)")
+    src = s.add_mutually_exclusive_group()
+    src.add_argument("--sample", action="store_true", help="the synthetic shop schema"); src.add_argument("--folder", help="a folder of .csv / .xlsx files")
+    src.add_argument("--odbc", help="an ODBC connection string (SQL Server, Azure SQL, Fabric SQL endpoint)"); src.add_argument("--columns", help="an INFORMATION_SCHEMA.COLUMNS export")
+    s.add_argument("--schema", default="dbo"); s.add_argument("--port", type=int, default=8765); s.add_argument("--no-browser", action="store_true")
+    s.set_defaults(fn=cmd_demo)
 
     a = ap.parse_args(argv)
     from .infer import PlanInputError

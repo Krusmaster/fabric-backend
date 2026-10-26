@@ -125,20 +125,53 @@
     g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); self.select({ type: 'edge', edge: e, el: g }); } });
   };
   Graph.prototype.setTag = function (e) {
-    var t = e.kind === 'suggested' ? (this.accepted[e.id] ? 'Accepted here (not verified)' : 'Suggested connection') : e.rel.rule;
+    var t = e.kind === 'suggested' ? (this.accepted[e.id] ? 'Accepted here (not verified)' : this.opts.autoLayout ? 'suggested' : 'Suggested connection') : e.rel.rule;
     e.tagText.textContent = t; e.tagW = Math.round(t.length * (e.kind === 'suggested' ? 6.6 : 7.4) + 18);
     e.tagRect.setAttribute('width', e.tagW); e.tagRect.setAttribute('x', -e.tagW / 2); e.tagRect.setAttribute('y', -10);
     e.tagText.setAttribute('y', 4);
   };
   Graph.prototype.size_ = function (name) { var n = this.nodes[name]; return { w: n.el.offsetWidth || CW, h: n.el.offsetHeight || 120 }; };
   Graph.prototype.rect = function (name) { var n = this.nodes[name]; return { x: n.x, y: n.y, w: n.w, h: n.h }; };
+  /* Any schema (the local demo): rows by depth. Tables nothing points from sit on the first row, a table goes one row
+     below the tables it points at, tables with no connection at all go last; within a row, by the average position of
+     the neighbours above (fewer crossings); rows wider than the view wrap. */
+  Graph.prototype.autoRows = function (perRow) {
+    var self = this, names = Object.keys(this.nodes), outs = {}, level = {}, deg = {};
+    names.forEach(function (n) { outs[n] = []; deg[n] = 0; });
+    this.edges.forEach(function (e) { if (e.kind === 'rel') { outs[e.rel.source].push(e.rel.target); deg[e.rel.source]++; deg[e.rel.target]++; } });
+    function lv(n, seen) {
+      if (level[n] !== undefined) return level[n];
+      if (seen[n]) return 0;
+      seen[n] = true; var m = 0;
+      outs[n].forEach(function (t) { if (t !== n) m = Math.max(m, lv(t, seen) + 1); });
+      level[n] = m; return m;
+    }
+    names.forEach(function (n) { lv(n, {}); });
+    var maxL = 0; names.forEach(function (n) { maxL = Math.max(maxL, level[n]); });
+    names.forEach(function (n) { if (!deg[n]) level[n] = maxL + 1; });
+    var rows = []; names.forEach(function (n) { (rows[level[n]] = rows[level[n]] || []).push(n); });
+    rows = rows.filter(Boolean);
+    var pos = {};
+    rows.forEach(function (row, i) {
+      if (i === 0) row.sort(function (a, b) { return deg[b] - deg[a] || a.localeCompare(b); });
+      else {
+        var bary = function (n) { var ps = outs[n].filter(function (t) { return pos[t] !== undefined; }).map(function (t) { return pos[t]; }); return ps.length ? ps.reduce(function (x, y) { return x + y; }, 0) / ps.length : 1e6; };
+        row.sort(function (a, b) { return bary(a) - bary(b) || deg[b] - deg[a] || a.localeCompare(b); });
+      }
+      row.forEach(function (n, j) { pos[n] = j; });
+    });
+    if (!perRow) return rows;
+    var wrapped = []; rows.forEach(function (r) { for (var k = 0; k < r.length; k += perRow) wrapped.push(r.slice(k, k + perRow)); });
+    return wrapped;
+  };
   Graph.prototype.layout = function () {
     var self = this, cw = this.container.clientWidth || 800, names = Object.keys(this.nodes);
     var narrow = this.narrow = cw < NARROW_AT;
     this.container.classList.toggle('narrow', narrow);
     var top = this.mascotEls.length ? (narrow ? 76 : 64) : 22, maxX = 0, maxY = 0;
+    var auto = this.opts.autoLayout;
     if (narrow) {
-      var order = STACK.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return STACK.indexOf(n) < 0; }));
+      var order = auto ? [].concat.apply([], this.autoRows()) : STACK.filter(function (n) { return self.nodes[n]; }).concat(names.filter(function (n) { return STACK.indexOf(n) < 0; }));
       var span = function (e) { return Math.abs(order.indexOf(e.rel.source) - order.indexOf(e.rel.target)); };
       var lanes = this.edges.filter(function (e) { return span(e) > 1; }).sort(function (a, b) { return span(b) - span(a); });
       var right = lanes.length > 1 ? lanes.slice(1) : lanes, left = lanes.length > 1 ? [lanes[0]] : [];
@@ -152,6 +185,17 @@
         var node = self.nodes[n]; node.el.style.width = w + 'px'; node.el.style.minHeight = '';
         var s = self.size_(n); node.x = 12 + leftW; node.y = y; node.w = w; node.h = s.h; node.slot = i;
         y += s.h + 68;
+      });
+    } else if (auto) {
+      var y0 = top, perRow = Math.max(2, Math.floor((cw - 32 + GX) / (CW + GX)));
+      this.autoRows(perRow).forEach(function (row, ri) {
+        var rh = 0;
+        row.forEach(function (n, j) {
+          var node = self.nodes[n]; node.el.style.width = CW + 'px'; node.el.style.minHeight = ''; var s = self.size_(n);
+          node.x = 16 + j * (CW + GX); node.y = y0; node.w = CW; node.h = s.h; node.row = ri + 1; node.slot = j; rh = Math.max(rh, s.h);
+        });
+        row.forEach(function (n) { self.nodes[n].el.style.minHeight = rh + 'px'; self.nodes[n].h = rh; });
+        y0 += rh + GY;
       });
     } else {
       var col = 0, rowH = 0;
@@ -188,7 +232,7 @@
         var sz = d.kind === 'thinker' ? 104 : 100; d.style.width = d.style.height = sz + 'px';
         d.style.left = (e.mid.x - sz / 2) + 'px'; d.style.top = (e.mid.y - 9 - sz * 0.9 + 1) + 'px';
       } else { // narrow: a small row above the first card, clear of its border
-        var first = self.nodes[STACK.filter(function (n) { return self.nodes[n]; })[0]] || self.nodes[Object.keys(self.nodes)[0]];
+        var first = self.nodes[(auto ? [] : STACK).filter(function (n) { return self.nodes[n]; })[0]] || self.nodes[Object.keys(self.nodes)[0]];
         var s2 = 60; d.style.width = d.style.height = s2 + 'px';
         d.style.left = (first.x + first.w * (0.2 + 0.3 * i) - s2 / 2) + 'px'; d.style.top = (first.y - 7 - s2 * 0.95) + 'px';
       }
@@ -200,7 +244,7 @@
     var self = this, sides = {};
     this.edges.forEach(function (e) {
       var S = self.nodes[e.rel.source], T = self.nodes[e.rel.target];
-      e.horizontal = !self.narrow && S.row === 1 && T.row === 1;
+      e.horizontal = !self.narrow && S.row === T.row && (S.row === 1 || self.opts.autoLayout);
       e.lane = !!(self.narrow && e.laneSide);
       if (e.lane) {
         var U = S.y < T.y ? S : T, D = S.y < T.y ? T : S;

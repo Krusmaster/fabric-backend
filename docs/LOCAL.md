@@ -84,7 +84,14 @@ and `ontology_draft` (Fabric IQ binds to a Fabric item). The tools that need Fab
 `describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`, `create_data_agent`,
 `lineage`) exist in the hosted connector only.
 
-## 5. The CSV path: no connection at all
+## 5. The 20-minute demo
+
+`fabric-backend demo --odbc "<the same connection string>" --schema dbo` (or `--folder C:\data\export` for CSV / Excel
+files, or no flag to choose on the page) opens one local page on 127.0.0.1 with the map, the health check with Accept
+and Skip, five questions run on the data and the exports. The script for running it with a customer is
+[DEMO-20-MIN.md](DEMO-20-MIN.md).
+
+## 6. The CSV path: no connection at all
 
 Export the columns of one schema once:
 
@@ -108,7 +115,7 @@ Keys from names only (no declared keys in a CSV; add a `keys.csv` with `table_na
 keys), the ER diagram, the data dictionary, the dbt sources file and the view script with `GO` between batches. The
 counting checks (`validate_plan`, `suggest_relationships`) need the connection.
 
-## 6. When something fails
+## 7. When something fails
 
 - `kind: server_config` with "FABRIC_ODBC is not set": the `env` block did not reach the server; check the JSON.
 - `kind: sql_sign_in`: the Windows account or SQL login was refused; the message never repeats the connection string.

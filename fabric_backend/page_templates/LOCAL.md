@@ -64,6 +64,14 @@ instead, or mirror the database into Fabric) and the Fabric IQ ontology. The too
 (`create_backend`, `describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `create_semantic_model`,
 `create_data_agent`, `lineage`) live in the hosted connector only.
 
+## The 20-minute demo
+
+`fabric-backend demo` opens one local page on 127.0.0.1: connect a SQL Server over ODBC or a folder of CSV / Excel
+files (or try the synthetic shop schema), see the map with the rule behind every connection, check the plan against the
+rows with Accept and Skip on each suggestion, and get five questions answered on the data with the SQL shown, plus the
+exports (data dictionary, dbt tests, a Lovable prompt). No account, no cloud. The script for running it with a customer
+is in the repository: `docs/DEMO-20-MIN.md`.
+
 ## Without any connection: the CSV path
 
 Export the columns once (`INFORMATION_SCHEMA.COLUMNS` of one schema as CSV, with the columns `table_schema`,

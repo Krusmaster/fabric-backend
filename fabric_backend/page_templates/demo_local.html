@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Krusgraph demo (local)</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#FBF8F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1F1B19" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/static/site.css?v={{ASSET_V}}">
+</head>
+<body class="page-demo-local">
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap wide header-row">
+    <span class="brand">{{LOGO}}<span class="brand-text"><span class="wordmark">krusgraph</span><span class="tagline">Local demo</span></span></span>
+    <nav class="site-nav" aria-label="Status"><span class="pill sage" id="local-pill" title="The page is served on {{HOST}} only; the connected data is read on this machine">{{HOST}} · nothing leaves this machine</span></nav>
+  </div>
+</header>
+<main id="main" tabindex="-1" data-page="local-demo">
+<section class="wrap wide demo-bar" aria-label="Steps">
+  <div class="step-tabs" role="group" aria-label="The four steps">{{STEP_TABS}}</div>
+  <div class="clock" aria-live="off"><span id="clock-step">0:00</span> in this step · <span id="clock-total">0:00</span> of 20 min</div>
+</section>
+<div class="wrap wide explore">
+  <aside class="ex-side" aria-label="Source and tables">
+    <h2>Source</h2>
+    <p id="source-line" class="muted">Not connected yet.</p>
+    <ul id="source-notes" class="muted tiny" style="padding-left:18px;margin:0 0 10px"></ul>
+    <h2>Tables</h2>
+    <ul id="table-list" class="table-list" aria-label="Tables"></ul>
+    <p class="legend legend-v"><span><i></i> connection, with its rule</span><span><i class="sug"></i> suggested, to review</span><span><i class="acc"></i> confirmed by you here</span><span><i class="box"></i> no key</span></p>
+  </aside>
+  <section class="ex-graph graph-panel" aria-label="Graph">
+    <div class="panel-head">
+      <h2 id="graph-title">Graph explorer <span class="pill" id="graph-pill">no source</span></h2>
+      <div class="g-toolbar" role="toolbar" aria-label="Graph controls">
+        <button type="button" class="btn ghost" id="btn-zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" class="btn ghost" id="btn-zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" class="btn ghost" id="btn-fit">Fit view</button>
+        <button type="button" class="btn ghost" id="btn-mermaid" title="Copy the engine's Mermaid ER diagram">Copy Mermaid</button>
+      </div>
+    </div>
+    <div id="demo-graph" class="graph"></div>
+    <p id="graph-line" class="why-line">Connect a source in step 1. The graph is drawn from the engine's plan.</p>
+  </section>
+  <aside class="ex-panel" id="why" aria-live="polite" aria-label="Why this connection">
+    <div id="why-body"><h2>Why this connection?</h2><p class="muted">Select a wire to read the rule that made it, or a table to see its key. Dashed wires are suggestions to review in step 3.</p></div>
+  </aside>
+</div>
+<section class="wrap wide step-body" id="step-body" aria-live="polite"></section>
+<p class="wrap wide muted tiny" id="error-line" role="alert" hidden></p>
+</main>
+<footer class="site-footer">
+  <div class="wrap wide footer-grid">
+    <p class="muted tiny">Krusgraph local demo. The same inference engine as the hosted connector; rules K0–K5 and R0–R4. A suggestion is a question for you, never a verified fact. Served on {{HOST}}; no account, no cloud, no telemetry.</p>
+    <div class="footer-controls"><button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button></div>
+  </div>
+</footer>
+<script src="/static/mascots.js?v={{ASSET_V}}" defer></script>
+<script src="/static/site.js?v={{ASSET_V}}" defer></script>
+<script src="/static/demo.js?v={{ASSET_V}}" defer></script>
+</body>
+</html>
