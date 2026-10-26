@@ -463,7 +463,8 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
              "describe_backend", "query_graphql", "rayfin_connector", "ontology_draft", "semantic_model_draft", "join_path",
              "data_dictionary", "dbt_schema", "plan_drift", "create_semantic_model", "create_views", "create_data_agent",
              "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology",
-             "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft"}
+             "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft",
+             "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions"}
     assert tools <= defined
     docs = client.get("/docs").text
     for t in tools:
@@ -474,7 +475,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "Check the plan against the data" in home and "Tested end to end on 26 October 2026" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Thirty tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Thirty-four tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 
@@ -514,7 +515,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
     tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(tools) == 30, sorted(tools)
+    assert len(tools) == 34, sorted(tools)
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
     for tool in ("create_semantic_model", "create_data_agent", "create_ontology", "create_silver_notebook", "create_drift_monitor"):
@@ -576,3 +577,31 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
         for sentence in re.split(r"(?<=[.;!?])\s+", plain):
             if "cursor" in sentence.lower():
                 assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)
+
+
+
+def test_docs_and_llms_place_krusgraph_beside_microsofts_fabric_mcp_servers_without_claiming_ties(client):
+    """Round n12: one section in /docs and one line in llms.txt and the server instructions on working with Microsoft's
+    official Fabric MCP servers, with Microsoft's own pages linked; no partnership, endorsement or certification."""
+    from fabric_backend import server
+    docs = client.get("/docs").text
+    assert "With Microsoft’s Fabric MCP servers" in docs or "With Microsoft's Fabric MCP servers" in docs
+    for link in ("https://github.com/microsoft/mcp/blob/main/servers/Fabric.Mcp.Server/README.md",
+                 "https://learn.microsoft.com/fabric/iq/connectors/fabric-iq-mcp", "https://github.com/microsoft/powerbi-modeling-mcp"):
+        assert link in docs, link
+    llms = client.get("/llms.txt").text
+    assert "Microsoft's own Fabric MCP servers" in llms and "not affiliated with Microsoft" in llms
+    assert "Microsoft's own Fabric MCP servers" in server.mcp.instructions
+    for text in (docs, llms, server.mcp.instructions):
+        low = text.lower()
+        for banned in ("partner of microsoft", "microsoft partner", "in partnership with microsoft", "approved by microsoft",
+                       "recommended by microsoft"):          # the footer's "not affiliated with, endorsed by or certified by" stays
+            assert banned not in low, banned
+
+
+def test_privacy_and_docs_say_exactly_what_is_read_about_personal_data_and_labels(client):
+    html = client.get("/privacy").text
+    assert "show_personal_data=true" in html and "judged by the column" in html and "label’s id only" in html or "label's id only" in html
+    assert "no call goes to GitHub, Azure" in html and "compare_semantic_model" in html
+    docs = client.get("/docs").text
+    assert "Personal data and sensitivity labels." in docs and "never from the values" in docs

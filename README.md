@@ -84,7 +84,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, thirty tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, thirty-four tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -92,8 +92,11 @@ composite keys), `sample_rows`, `validate_plan` (keys and relationships checked 
 same plan into the week's deliverables, all unit-tested and run against the demo workspace (synthetic shop data) on 26 October 2026:
 
 - `semantic_model_draft` — a Power BI semantic model in TMDL: Direct Lake tables on the SQL analytics endpoint,
-  relationships with one active path per table pair, a `README.generated.md` with the decisions to check
-  (`fabric_backend/semantic_model.py` cites the Microsoft sample definitions it follows).
+  relationships with one active path per table pair, suggested measures with their reasons (the row count of each fact
+  table, sums only where `summarizeBy` sums; never an id, code or year) and, when fact tables have date columns, a
+  calendar marked as the date table; a `README.generated.md` with the decisions to check
+  (`fabric_backend/semantic_model.py` cites the Microsoft sample definitions it follows). The measures and the calendar
+  were added after 26 October and are unit-tested only.
 - `join_path` — the shortest chain of relationships between two tables, rule per hop, ready T-SQL; or which
   relationship is missing.
 - `data_dictionary` — hand-over documentation in Markdown with an empty Description column; `validate=true` adds counts.
@@ -134,6 +137,33 @@ on a local PySpark, none of it yet in Fabric):
   reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule (`DataPipeline.*`, not granted today).
 - `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
   step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
+- `gold_views_draft` / `create_gold_views` — materialized lake views in Spark SQL over the silver tables: one wide view
+  per fact table in a schema of its own (`gold`), joined over the safest many-to-one paths, with `CONSTRAINT … CHECK …
+  ON MISMATCH DROP` rules for the plan's keys and relationships, each commented with its rule; the notebook stops before
+  a source, silver or foreign table (`fabric_backend/gold.py` cites the syntax and status from Microsoft Learn). The
+  SQL ran on SQLite and a local PySpark 4.0.1 (open-source Spark has no materialized lake views, so the CREATE itself is
+  checked against the documented syntax); not yet in Fabric.
+
+Existing models, Git and personal data (round n12, unit-tested, not yet run live):
+
+- `compare_semantic_model` (read-only) — an existing Power BI semantic model against the plan: relationships the model
+  lacks, ones a rule or the data contradicts, other cardinality, both-way filters, active against inactive, links the
+  plan lacks (with a `confirmed` entry), columns summed against the `summarizeBy` rule, suggested measures it lacks. It
+  reads the model's TMDL through Fabric's getDefinition (`SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`, not
+  granted today: the read-only executeQueries is documented as not supporting the INFO functions), or the TMDL files you
+  pass from a PBIP folder or Git, which needs no permission. Fixture: `tests/fixtures/semantic_model_shop`.
+- `export_item_definitions` (read-only) — what the creating tools would create, as folders in Fabric's Git format
+  (`<name>.<type>` with `.platform` and the definition files) for your own repository, so that Fabric's Git integration
+  or a deployment pipeline makes the change; calls no Git provider.
+- Personal data (`fabric_backend/privacy.py`) — columns flagged by name, one rule per pattern (name, e-mail, phone,
+  national id, address, birth date), masked in `sample_rows`, left out of drafted queries and gold views, masked in the
+  silver quarantine; `show_personal_data=true` shows them. The source item's sensitivity label id is named when Fabric
+  returns one.
+
+Beside Microsoft's own Fabric MCP servers (the Fabric MCP Server and Fabric Core for workspaces, items and files; Fabric
+IQ MCP for questions to semantic models; the Power BI Modeling MCP server for editing a model), Krusgraph is the part that
+works out how the tables relate and builds from that plan: https://krusgraph.com/docs#with-microsoft-s-fabric-mcp-servers.
+Krusgraph is not affiliated with Microsoft.
 
 Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested and
 run against the demo workspace (synthetic shop data) on 26 October 2026):
@@ -147,7 +177,8 @@ run against the demo workspace (synthetic shop data) on 26 October 2026):
   models (their TMDL), views on the SQL endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their
   definition, marked as not certain); the objects per table, the tables used by nothing, and with `table` what a change
   reaches. `plan_drift` names the same objects for the tables and columns a re-run would drop (`impact`). Unit-tested
-  with Fabric mocked, not yet run against a live workspace. A graph over several sources is a design note only:
+  with Fabric mocked, not yet run against a live workspace. A plan covers one schema of one source item; tables a
+  lakehouse holds as shortcuts are part of it. A graph over several sources is a design note only:
   [docs/MULTI-SOURCE.md](docs/MULTI-SOURCE.md).
 
 ### How the graph is weighted

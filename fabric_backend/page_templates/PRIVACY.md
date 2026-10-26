@@ -28,9 +28,19 @@ What the service reads from Fabric depends on the tool you ask for:
   agents, views) to describe them or to show what builds on a table.
 - **Checks against the rows.** `validate_plan`, `suggest_relationships` and `data_dictionary` with `validate=true` run
   counting queries in Fabric. Only the counts come back, not the row values.
-- **Sample rows.** `sample_rows` returns up to 20 rows of one table, with long text shortened.
+- **Sample rows.** `sample_rows` returns up to 20 rows of one table, with long text shortened. Columns whose name looks
+  like personal data (a person's name, e-mail, telephone, national identity number, address, birth date; one rule per
+  pattern, judged by the column's name and never by its values) come back as `***` unless you ask with
+  `show_personal_data=true`. `answer_query_draft` and the gold views leave those columns out the same way.
+- **Sensitivity labels.** When Fabric returns a Microsoft Purview sensitivity label on the source item, it comes with
+  the item's metadata as the label's id only; `sample_rows` and `validate_plan` name it. The service does not look the
+  label up anywhere else.
+- **A semantic model's definition.** `compare_semantic_model` reads the definition of the model you name (its tables,
+  columns, measures and relationships; no rows), or the definition files you pass it.
 - **Query results.** `query_graphql` returns the results of the query you ran.
 - **What you create.** The creating tools write the definition you asked for into your Fabric workspace.
+  `export_item_definitions` returns the same definitions as files and sends them nowhere: no call goes to GitHub, Azure
+  DevOps or any other Git provider.
 
 All of this passes through the service's memory on its way to your MCP client, in the response to your request, and
 is then discarded. The service has no database, no cache on disk and no file storage of its own. It counts how its

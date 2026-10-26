@@ -10,8 +10,8 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | --- | --- | --- |
 | Microsoft Graph | `User.Read` | sign-in |
 | Power BI Service / Fabric (`00000009-0000-0000-c000-000000000000`) | `Workspace.Read.All` | `list_workspaces`, workspace by name |
-| | `Item.Read.All` | `list_sources`, `describe_backend`, `plan_drift`, `app_starter`, item lookups |
-| | `GraphQLApi.ReadWrite.All` | `create_backend` |
+| | `Item.Read.All` | `list_sources`, item lookups |
+| | `GraphQLApi.ReadWrite.All` | `create_backend`; also reading a GraphQL API's definition (`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `answer_query_draft` with `api`): getDefinition takes `GraphQLApi.ReadWrite.All` or `Item.ReadWrite.All`, no read-only scope |
 | | `GraphQLApi.Execute.All` | `query_graphql` |
 | Azure SQL Database (`022907d3-0f1b-48f7-badc-1ba6abab6d66`) | `user_impersonation` | every tool that reads the SQL analytics endpoint (`list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, the drafts, `join_path`, `data_dictionary`, `dbt_schema`, `create_views`) |
 
@@ -26,8 +26,14 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | **no** |
 | `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
 | `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | **no** |
-| `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`Item.Read.All`, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
-| `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `Item.Read.All` | yes |
+| `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`GraphQLApi.ReadWrite.All` for the definition, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
+| `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `GraphQLApi.ReadWrite.All` (getDefinition has no read-only scope) | yes |
+| `lineage` | `semanticModels/{id}/getDefinition` for the semantic models it reads | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`; without it those models are listed under "could not be read" | **no** (for semantic models) |
+| `compare_semantic_model` | `semanticModels/{id}/getDefinition` (`Items_GetSemanticModelDefinition`, format TMDL); with `tmdl` given, none | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`, and read and write permission on the model; answers `kind: consent` with that scope without it | **no** (by name); yes with `tmdl` |
+| `gold_views_draft` | metadata reads only | what the app has | yes |
+| `create_gold_views` (dry run by default) | `notebooks` create / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
+| `export_item_definitions` | metadata reads only (and the SQL endpoint id, as `create_backend`) | what the app has | yes |
+| `sample_rows`, `validate_plan` (the sensitivity label) | the label comes with the item `_resolve_source` already reads (`Item.sensitivityLabel`, id only) | what the app has | yes |
 | all `*_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `plan_drift` | metadata reads only | what the app has | yes |
 
 Not yet observed live: on 26 October 2026 `create_views` ran against the demo workspace as a dry run only, and
@@ -42,6 +48,31 @@ type each. The narrow choice is the better one for a connector that is listed pu
 consent for all of them. Scheduling the drift monitor's pipeline also needs `DataPipeline.Execute.All` (or
 `Item.Execute.All`): an execute permission, so the app could then run pipelines as the user; leave `schedule=false` and
 add the schedule in the portal if that is not wanted.
+
+## Reading an existing semantic model: why getDefinition (round n12)
+
+`compare_semantic_model` needs a model's relationships with cardinality, direction and active state. The paths checked
+on 26 October 2026, least privilege first:
+
+| Path | Scope and permission | Returns relationships? |
+| --- | --- | --- |
+| Power BI REST *Datasets - Execute Queries In Group* with the DAX `INFO.VIEW.*` functions | `Dataset.Read.All` (read-only), Read and Build on the model; the tenant setting *Semantic Model Execute Queries REST API* | Not as documented: the reference says "Only DAX queries are supported at this time. MDX, INFO functions and DMV queries are not supported" (microsoft/PowerBI-CSharp `sdk/swaggers/swagger.json`, release 5.1.0) |
+| XMLA endpoint, read-only | Build on the model; Premium or Fabric capacity | No: "Users with Build semantic model permissions … cannot see internal semantic model metadata" (fabric-docs `enterprise/powerbi/service-premium-connect-tools.md`) |
+| Fabric *Get Semantic Model Definition* (TMDL) | `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`, read and write on the model (fabric-rest-api-specs a96c37a `semanticModel/swagger.json`) | Yes |
+| The model's TMDL files from a PBIP folder or Git, passed as `tmdl` | none | Yes |
+
+So the tool reads through getDefinition, the one documented REST path, and takes `tmdl` for anyone without that
+permission. `SemanticModel.ReadWrite.All` is the narrower of the two scopes and is the one `create_semantic_model` needs
+too. Microsoft's Fabric IQ MCP server reads model metadata with `Item.Read.All` and `Item.Execute.All`
+(fabric-docs `iq/connectors/fabric-iq-mcp.md`), but as an MCP server, not a REST API this server can call.
+
+## Sensitivity labels: what is read and what would need more
+
+The Fabric Items API returns an item's Microsoft Purview label as `sensitivityLabel.id` (read-only, `common/definitions.json`
+`Item`), so `sample_rows` and `validate_plan` name the id with the scopes the app has. Its display name needs Microsoft
+Graph: `GET /security/dataSecurityAndGovernance/sensitivityLabels/{id}` with the delegated `SensitivityLabel.Read`
+(admin consent required; microsoft-graph-docs `sensitivitylabel-get.md`). The app does not ask for it, and nothing
+calls Graph for labels. No Fabric API exposes column-level labels.
 
 ## Adding a permission (maintainer only — not run by any agent)
 

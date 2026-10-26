@@ -5,6 +5,31 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n12, the layer on top of Microsoft's own Fabric MCP servers (unit-tested; nothing of it has run in Fabric).
+  `compare_semantic_model` (read-only): an existing Power BI semantic model against the plan — relationships the model
+  lacks, ones a rule or the data contradicts (with the rule or the count), other cardinality, both-way filters, active
+  against the plan's spanning forest, links the plan lacks with a `confirmed` entry, columns summed against the
+  `summarizeBy` rule, and the suggested measures it lacks; read from the model's TMDL through getDefinition
+  (`SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`; the read-only executeQueries is documented as not supporting
+  the INFO functions, docs/SCOPES.md) or from `tmdl` files, which need no permission. `semantic_model_draft` suggests
+  measures with their reason (row count per fact table, sums only where `summarizeBy` sums) and a `Calendar` table marked
+  as the date table, related to `date` columns of fact tables. `gold_views_draft` and `create_gold_views` (dry run by
+  default): materialized lake views over the silver tables, one wide view per fact table over the safest many-to-one
+  paths, with `CONSTRAINT … CHECK … ON MISMATCH DROP` per key and relationship, each commented with its rule, never over
+  a source, silver or foreign table; syntax and status from fabric-docs a2de7f9 (generally available since September
+  2026); the SQL ran on SQLite and a local PySpark 4.0.1. `export_item_definitions` (read-only): what the creating tools
+  would create, as folders in Fabric's Git format, `create_views`' SQL as a script beside them. Personal data
+  (`fabric_backend/privacy.py`): one rule per name pattern (P1–P6), masked in `sample_rows` (hosted and local), left out
+  of drafted queries and gold views, masked in the silver quarantine, named in `validate_plan`;
+  `show_personal_data=true` shows them; the source's sensitivity label id is named. `deploy/krusgraph.sh
+  --client-redirects` prints the az commands for Claude Code, VS Code and Cursor (docs/OPERATIONS.md section 5), runs
+  nothing. `docs/LIVE-TEST.md`: the checklist for the next live run. /docs: a section on using Krusgraph beside
+  Microsoft's Fabric MCP servers, and what is read about personal data and labels. Thirty-four tools.
+- The status words follow the 26 October protocol (14 steps, no creating call): 16 tools are Tested end to end,
+  `create_views` as a dry run; `create_backend` and `list_tables` are Experimental; texts that said the 22 tools of that day
+  were tested, or that `create_views` created a schema and a view, are corrected. /local says exactly what leaves the
+  machine. The menu says "Pilot projects" (/partners unchanged); the home page's JSON-LD has no price line.
+
 - Drift monitor: the last saved plan is the one with the highest run number for the source (a new `run` column in
   `krusgraph.plans`), then the latest `taken_at`, now kept to the microsecond. Two runs in the same second (the run time
   was cut to whole seconds) could make the next run compare with the older plan and report the same changes again;

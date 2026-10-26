@@ -1,8 +1,30 @@
 # A graph over several sources in one workspace: design note
 
-Status: design only, nothing implemented. Today a plan covers one schema of one source item; `lineage` (added with
+Status: design only, nothing implemented (see *What the code does today*). A plan covers one schema of one source item; `lineage` (added with
 this note) reads which objects build on that source. This note is about the next step: relationships *between*
 lakehouses, warehouses and SQL databases in the same workspace, how they would be derived, labelled and validated.
+
+## What the code does today (checked 26 October 2026, round n12)
+
+- `plan_backend`, `validate_plan` and `join_path` take one `source` (a lakehouse, warehouse, SQL database, Snowflake
+  database or mirrored item) and one `schema`. `Schema.from_sql` reads `INFORMATION_SCHEMA` filtered to that schema, a
+  declared foreign key into another schema is left out rather than mis-linked (`schema.py`), and the plan keys every
+  table by its bare name. The T-SQL `join_path` and `validate_plan` write is `[schema].[table]` on that one endpoint.
+- **Shortcuts work today.** Tables a lakehouse holds as OneLake shortcuts in its Tables section (to another lakehouse,
+  a warehouse, ADLS or S3) are listed by its SQL analytics endpoint like its own tables (fabric-docs a2de7f9
+  `data-engineering/lakehouse-sql-analytics-endpoint.md`: "Use OneLake shortcuts to reference Delta tables in other
+  lakehouses or warehouses, then join them in a single query"). So a lakehouse with shortcuts to a warehouse's tables
+  is planned, checked and joined as one source, and the notebooks' refusal for non-lakehouse sources already points
+  there.
+- `lineage` reads the whole workspace, and `compare_semantic_model` lists a model's relationships whose tables are not
+  in the planned source under `outside_the_plan`: the first sight of links across items, read-only.
+- Warehouses answer three-part names across databases in the same workspace (fabric-docs
+  `data-warehouse/query-warehouse.md`, "Write a cross-database query"); nothing in Krusgraph writes them yet.
+
+Building several sources into one plan inside the Engine without changing today's answers is not possible as a
+contained change: the bare table name is the key in `infer.py`, `graphs.py` and every generator (GraphQL datasources,
+TMDL partitions with one expression, the views', silver and gold SQL with one schema). The smallest next step, if a user
+asks for it, is below under *Recommendation*; the shortcut route covers the common case now.
 
 ## Why it comes up
 

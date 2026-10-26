@@ -357,7 +357,7 @@ def render(path: str) -> str:
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it reads and passes through, reviewing and checking a plan, creating and querying a GraphQL API, and the thirty tools with what each changes and how far it has been tested."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it reads and passes through, reviewing and checking a plan, creating and querying a GraphQL API, and the thirty-four tools with what each changes and how far it has been tested."
 LOVABLE_DESC = "Prepare a GraphQL API in Microsoft Fabric with {{PRODUCT}} in Claude, then connect Lovable's Microsoft Fabric connector to it."
 
 

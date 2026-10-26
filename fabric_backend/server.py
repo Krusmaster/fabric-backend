@@ -15,8 +15,8 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty, from list_workspaces to create_drift_monitor; docs page /docs
-lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
+Tools (all annotated for the Claude directory): thirty-four, from list_workspaces to export_item_definitions; docs page
+/docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
 from __future__ import annotations
@@ -80,7 +80,14 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "tables with every reference checked and a quarantine table, never over the source; drift_monitor_draft and "
     "create_drift_monitor a nightly notebook and pipeline that compare the plan with the last one and message a "
     "webhook; answer_query_draft turns a question (Swedish or English) into T-SQL over the safest join path, or "
-    "GraphQL for an existing API, and query_graphql with question= runs it. "
+    "GraphQL for an existing API, and query_graphql with question= runs it. gold_views_draft and create_gold_views give "
+    "materialized lake views over the silver tables, one wide view per fact table with the plan's keys and relationships as data "
+    "quality rules; compare_semantic_model checks an existing Power BI semantic model against the plan (missing, contradicted, "
+    "cardinality, direction, active); export_item_definitions gives what the creating tools would create as files in Fabric's Git "
+    "format, for the user's own repository. Columns that look like personal data by name are masked in sample_rows and left out "
+    "of drafted queries and gold views unless show_personal_data=true. Alongside Microsoft's own Fabric MCP servers (Fabric Core "
+    "and the local Fabric MCP Server for workspaces, items and files; Fabric IQ MCP for questions to semantic models; Power BI "
+    "Modeling MCP for editing a model), this server is the part that works out how the tables relate and builds from that plan. "
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, "
     "rate_limited with retry_after) and "
