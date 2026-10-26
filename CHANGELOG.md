@@ -5,6 +5,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n13, platform adapters (no answer changed). The engine (inference, validation as counting queries, join paths,
+  the graph, drift, dictionary, dbt, the silver logic) is separated from what is platform-specific: reading a source's
+  schema, running SQL and building objects now sit behind `fabric_backend/platforms/` (`base.py` the interface,
+  `fabric.py` the first adapter, moved out of `server.py`; `local.py` the ODBC string, SQLite, file and columns-list
+  sources of the stdio server and the demo, moved out of `mcp_server.py` and `demo_app.py`). The counting, sample and join
+  SQL is written through `dialects.py` in the dialect of the connection (T-SQL by default). `docs/ARCHITECTURE.md` says
+  what a new adapter implements; `tests/test_architecture.py` checks that the engine imports no I/O library and no
+  adapter. `tests/golden/` holds every answer of the engine, of all hosted and local tools, the listings, the
+  instructions, the demo and the CLI, committed before the move and unchanged by it.
 - Round n12, the layer on top of Microsoft's own Fabric MCP servers (unit-tested; nothing of it has run in Fabric).
   `compare_semantic_model` (read-only): an existing Power BI semantic model against the plan — relationships the model
   lacks, ones a rule or the data contradicts (with the rule or the count), other cardinality, both-way filters, active

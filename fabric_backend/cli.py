@@ -203,15 +203,8 @@ def cmd_demo(a) -> int:
 
 
 def cmd_create(a) -> int:
-    import pyodbc  # optional
-    conn = pyodbc.connect(a.odbc)
-
-    def execute(sql: str):
-        cur = conn.cursor()
-        cur.execute(sql)
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, row)) for row in cur.fetchall()]
-
+    from .platforms.local import odbc_connection          # pyodbc, optional
+    execute = odbc_connection(a.odbc)
     out = create(a.workspace, a.source, a.name, execute=execute, schema=a.schema, writable=a.writable, dry_run=a.dry_run)
     print(out["plan"].summary())
     if a.dry_run:

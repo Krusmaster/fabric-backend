@@ -6,9 +6,13 @@ free text — and returns a handful of counts, not rows.
 
     key:          rows, distinct key values, rows with a NULL in the key   -> unique / duplicates / nulls
     relationship: rows with a value, rows whose value has no match         -> holds / orphans
+
+Each statement is written in the dialect of the connection that runs it (`dialect=`, or `execute.dialect` in
+validate(); fabric_backend/dialects.py). T-SQL is the default.
 """
 from __future__ import annotations
 
+from .dialects import TSQL, Dialect, of as dialect_of
 from .infer import _HISTORY, _norm, Plan
 
 
@@ -17,37 +21,41 @@ def qi(name: str) -> str:
     return "[" + str(name).replace("]", "]]") + "]"
 
 
-def _t(schema: str, table: str) -> str:
-    return f"{qi(schema)}.{qi(table)}"
+def _t(schema: str, table: str, dialect: Dialect = TSQL) -> str:
+    return dialect.table(schema, table)
 
 
-def key_sql(schema: str, table: str, cols: list[str]) -> str:
-    cs = ", ".join(qi(c) for c in cols)
-    not_null = " AND ".join(f"{qi(c)} IS NOT NULL" for c in cols)
-    any_null = " OR ".join(f"{qi(c)} IS NULL" for c in cols)
-    return (f"SELECT COUNT_BIG(*) AS n, "
+def key_sql(schema: str, table: str, cols: list[str], dialect: Dialect = TSQL) -> str:
+    q, count = dialect.quote, dialect.count
+    cs = ", ".join(q(c) for c in cols)
+    not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in cols)
+    any_null = " OR ".join(f"{q(c)} IS NULL" for c in cols)
+    return (f"SELECT {count}(*) AS n, "
             f"SUM(CASE WHEN {any_null} THEN 1 ELSE 0 END) AS nulls, "
-            f"(SELECT COUNT_BIG(*) FROM (SELECT DISTINCT {cs} FROM {_t(schema, table)} WHERE {not_null}) AS d) AS distinct_keys "
-            f"FROM {_t(schema, table)}")
+            f"(SELECT {count}(*) FROM (SELECT DISTINCT {cs} FROM {_t(schema, table, dialect)} WHERE {not_null}) AS d) AS distinct_keys "
+            f"FROM {_t(schema, table, dialect)}")
 
 
-def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str]) -> str:
-    on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(source_cols, target_cols))
-    has_value = " AND ".join(f"s.{qi(a)} IS NOT NULL" for a in source_cols)
-    first = qi(target_cols[0])
-    tcs = ", ".join(qi(c) for c in target_cols)
+def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
+                     dialect: Dialect = TSQL) -> str:
+    q, count = dialect.quote, dialect.count
+    on = " AND ".join(f"s.{q(a)} = t.{q(b)}" for a, b in zip(source_cols, target_cols))
+    has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
+    first = q(target_cols[0])
+    tcs = ", ".join(q(c) for c in target_cols)
     # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted
-    return (f"SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.{first} IS NULL THEN 1 ELSE 0 END) AS orphans "
-            f"FROM {_t(schema, source)} AS s LEFT JOIN (SELECT DISTINCT {tcs} FROM {_t(schema, target)}) AS t ON {on} "
+    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN t.{first} IS NULL THEN 1 ELSE 0 END) AS orphans "
+            f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN (SELECT DISTINCT {tcs} FROM {_t(schema, target, dialect)}) AS t ON {on} "
             f"WHERE {has_value}")
 
 
-def inclusion_sql(schema: str, source: str, column: str, target: str, key: str) -> str:
+def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL) -> str:
     """Inclusion check for a candidate relationship: how many non-NULL values of source.column exist in target.key,
     and how many distinct values the column has. One counting statement, read-only."""
-    return (f"SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.{qi(key)}) AS matched, COUNT_BIG(DISTINCT s.{qi(column)}) AS distinct_values "
-            f"FROM {_t(schema, source)} AS s LEFT JOIN (SELECT DISTINCT {qi(key)} FROM {_t(schema, target)}) AS t "
-            f"ON s.{qi(column)} = t.{qi(key)} WHERE s.{qi(column)} IS NOT NULL")
+    q, count = dialect.quote, dialect.count
+    return (f"SELECT {count}(*) AS with_value, {count}(t.{q(key)}) AS matched, {count}(DISTINCT s.{q(column)}) AS distinct_values "
+            f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN (SELECT DISTINCT {q(key)} FROM {_t(schema, target, dialect)}) AS t "
+            f"ON s.{q(column)} = t.{q(key)} WHERE s.{q(column)} IS NOT NULL")
 
 
 # Column types a DB-API driver cannot fetch as they come, or that are noise in a sample. pyodbc answers "ODBC SQL type
@@ -59,24 +67,25 @@ _VARIANT = {"sql_variant"}
 _BINARY = {"binary", "varbinary", "image"}
 
 
-def sample_expr(column: str, data_type: str = "") -> str:
+def sample_expr(column: str, data_type: str = "", dialect: Dialect = TSQL) -> str:
     t = (data_type or "").lower().split("(")[0].strip()
-    c = qi(column)
-    if t in _CLR_AS_TEXT:
+    c = dialect.quote(column)
+    if dialect is TSQL and t in _CLR_AS_TEXT:
         return f"{c}.ToString() AS {c}"
-    if t in _VARIANT:
+    if dialect is TSQL and t in _VARIANT:
         return f"CAST({c} AS nvarchar(4000)) AS {c}"
     if t in _BINARY:
-        return f"DATALENGTH({c}) AS {qi(column + ' (bytes)')}"
+        return f"{dialect.byte_length}({c}) AS {dialect.quote(column + ' (bytes)')}"
     return c
 
 
-def sample_sql(schema: str, table: str, columns: list[str], n: int, types: dict[str, str] | None = None) -> str:
+def sample_sql(schema: str, table: str, columns: list[str], n: int, types: dict[str, str] | None = None,
+               dialect: Dialect = TSQL) -> str:
     """The first n rows. `types` (column -> SQL type, as INFORMATION_SCHEMA gives it) reads the columns a driver cannot
     fetch as text and binary columns as their size; without it every column is selected as it is."""
     types = {str(k).lower(): v for k, v in (types or {}).items()}
-    cols = ", ".join(sample_expr(c, types.get(c.lower(), "")) for c in columns)
-    return f"SELECT TOP ({int(n)}) {cols} FROM {_t(schema, table)}"
+    cols = ", ".join(sample_expr(c, types.get(c.lower(), ""), dialect) for c in columns)
+    return dialect.select(cols, f" FROM {_t(schema, table, dialect)}", n)
 
 
 def _int(v) -> int:
@@ -105,13 +114,14 @@ def relationship_verdict(with_value: int, orphans: int) -> str:
 def validate(plan: Plan, execute, max_items: int = 60) -> dict:
     """Run the checks for every key and every relationship in the plan (up to max_items queries)."""
     schema = plan.schema.schema
+    dialect = dialect_of(execute)
     keys, rels, budget = [], [], max_items
     unique: dict[str, bool] = {}
     for table, (cols, rule) in plan.keys.items():
         if budget <= 0:
             break
         budget -= 1
-        row = execute(key_sql(schema, table, cols))[0]
+        row = execute(key_sql(schema, table, cols, dialect))[0]
         n, nulls, distinct = _int(row.get("n")), _int(row.get("nulls")), _int(row.get("distinct_keys"))
         unique[table] = n > 0 and nulls == 0 and distinct == n
         keys.append({"table": table, "columns": cols, "rule": rule, "rows": n, "nulls": nulls,
@@ -120,7 +130,7 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
         if budget <= 0:
             break
         budget -= 1
-        row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols))[0]
+        row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect))[0]
         with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
         verdict = relationship_verdict(with_value, orphans)
         if r.target in unique and not unique[r.target]:

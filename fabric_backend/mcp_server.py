@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 from contextlib import contextmanager
 
 from . import create, plan_from
@@ -41,6 +40,7 @@ from .infer import check_tables
 from .rayfin import rayfin_files
 from .ontology import bindings as ontology_bindings, ontology_ttl, summary as ontology_summary
 from .deploy import token_from_az
+from .platforms import local as _local
 from . import evidence as _evidence, semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary
 from . import dbt as _dbt, graphs as _graphs, views as _views, compact as _compact
 
@@ -81,22 +81,7 @@ def _execute_factory(schema: str):
     dsn = os.environ.get("FABRIC_ODBC")
     if not dsn:
         raise RuntimeError("FABRIC_ODBC is not set: the stdio server needs an ODBC connection string for the SQL analytics endpoint")
-    import pyodbc
-    conn = pyodbc.connect(dsn)
-
-    def execute(sql: str):
-        cur = conn.cursor()
-        cur.execute(sql)
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
-
-    def statement(sql: str) -> None:                       # DDL for create_views: no rows, committed
-        cur = conn.cursor()
-        cur.execute(sql)
-        conn.commit()
-    execute.statement = statement
-    execute.close = conn.close
-    return execute
+    return _local.odbc_connection(dsn)
 
 
 @contextmanager
@@ -114,52 +99,35 @@ def _plan(schema: str, keys=None, confirmed=None):
         return plan_from(execute=execute, schema=schema, keys=keys, confirmed=confirmed)
 
 
-_ODBC_SYNONYMS = {"server": ("server", "addr", "address", "network address"), "database": ("database", "initial catalog")}
-
-
 def _odbc_parts(dsn: str) -> dict[str, str]:
-    """key -> value of an ODBC connection string: `;` inside `{...}` does not split, one layer of braces or quotes
-    around a value is removed, keys are compared without case."""
-    out: dict[str, str] = {}
-    for m in re.finditer(r"\s*([^=;]+?)\s*=\s*(\{[^}]*\}|\"[^\"]*\"|'[^']*'|[^;]*)\s*(?:;|$)", dsn):
-        k, v = m.group(1).lower(), m.group(2).strip()
-        if len(v) >= 2 and v[0] + v[-1] in ("{}", '""', "''"):
-            v = v[1:-1]
-        out[k] = v
-    return out
+    """key -> value of an ODBC connection string (platforms/local.py)."""
+    return _local.odbc_parts(dsn)
 
 
 def _odbc_part(key: str) -> str:
-    parts = _odbc_parts(os.environ.get("FABRIC_ODBC", ""))
-    for name in _ODBC_SYNONYMS.get(key.lower(), (key.lower(),)):
-        if parts.get(name):
-            return parts[name]
-    return ""
+    return _local.odbc_part(os.environ.get("FABRIC_ODBC", ""), key)
 
 
-_KINDS = {"lakehouse": "Lakehouse", "warehouse": "Warehouse", "sqldatabase": "SQLDatabase", "sqlserver": "SQLServer"}
-FABRIC_ONLY = {"semantic_model_draft": "a Power BI semantic model in Direct Lake mode reads Delta tables through a Fabric SQL analytics endpoint",
-               "ontology_draft": "a Fabric IQ ontology binds to tables of a Fabric item"}
+_KINDS = _local.KINDS
+FABRIC_ONLY = _local.FABRIC_ONLY
+
+
+def _platform() -> "_local.OdbcPlatform":
+    """The local adapter behind FABRIC_ODBC, with the kind of source FABRIC_SOURCE_KIND names."""
+    return _local.OdbcPlatform(_local.source_kind(os.environ.get("FABRIC_SOURCE_KIND", "Lakehouse")))
 
 
 def _fabric_only(tool: str, schema: str) -> str | None:
-    """FABRIC_SOURCE_KIND=SQLServer: the drafts that only make sense for a Fabric item answer with an explanation."""
-    if _source_info(schema)["item_kind"] != "SQLServer":
-        return None
-    return json.dumps({"error": f"{tool} is Fabric-specific: {FABRIC_ONLY[tool]}; FABRIC_SOURCE_KIND is SQLServer, so there is no such endpoint or item.",
-                       "kind": "unsupported",
-                       "hint": ("For SQL Server, open the tables in Power BI Desktop (Import or DirectQuery) and use the plan's keys and relationships "
-                                "from plan_backend, join_path or data_dictionary; dbt_schema, create_views and the rest work on SQL Server. "
-                                "Mirror the database into Fabric (Mirrored database for SQL Server) to get the Fabric drafts." if tool == "semantic_model_draft"
-                                else "Mirror the database into Fabric (Mirrored database for SQL Server) or use the plan directly; plan_backend, "
-                                     "join_path, data_dictionary, dbt_schema and create_views work on SQL Server.")}, indent=2)
+    """A tool the source cannot serve answers with an explanation (OdbcPlatform.unsupported): with SQLServer the drafts
+    that only make sense for a Fabric item, and the silver notebook on anything but a lakehouse."""
+    refused = _platform().unsupported(tool)
+    return json.dumps(refused.answer(), indent=2) if refused else None
 
 
 def _source_info(schema: str) -> dict:
     """What the drafts know about the source locally: host and database from the ODBC string, kind and the
     schemas flag from the environment; item ids are unknown here (the remote server has them)."""
-    raw = os.environ.get("FABRIC_SOURCE_KIND", "Lakehouse").strip()
-    kind = _KINDS.get(raw.lower(), raw or "Lakehouse")
+    kind = _platform().kind
     flag = os.environ.get("FABRIC_SCHEMAS_ENABLED", "").strip().lower()
     schemas_enabled = True if kind != "Lakehouse" else (flag in ("1", "true", "yes") if flag else None)
     db = _odbc_part("Database")                               # empty when the string names none: the drafts keep their placeholder
@@ -412,11 +380,9 @@ def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", or
     Lakehouse."""
     from . import silver as _silver
     info = _source_info(schema)
-    if info["item_kind"] != "Lakehouse":
-        return json.dumps({"error": f"The silver notebook writes Delta tables with Spark in a lakehouse; FABRIC_SOURCE_KIND is {info['item_kind']}.",
-                           "kind": "unsupported",
-                           "hint": "Plan a lakehouse (FABRIC_SOURCE_KIND=Lakehouse), or mirror the tables into Fabric and add them to a lakehouse "
-                                   "as OneLake shortcuts; answer_query_draft, create_views and the rest work on this source."}, indent=2)
+    refused = _fabric_only("silver_notebook_draft", schema)
+    if refused:
+        return refused
     if info["schemas_enabled"] is None:                       # not set: a schema other than dbo only exists on a lakehouse with schemas
         info["schemas_enabled"] = schema.lower() != "dbo"
     p = _plan(schema, keys=keys, confirmed=confirmed)

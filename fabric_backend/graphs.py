@@ -519,13 +519,15 @@ def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
     After the check the order is by final_score = score + 3 x inclusion x min(1, distinct values / 10), so the data and
     the names decide together. Nothing is applied: each suggestion carries a ready `confirmed` entry."""
     from . import evidence
+    from .dialects import of as dialect_of
     cands = candidates(plan, limit)
     checked = 0
     for cand in cands:
         cand["confirmed"] = {"source": cand["source"], "source_cols": cand["source_cols"], "target": cand["target"], "target_cols": cand["target_cols"]}
         if execute is not None and checked < check:
             checked += 1
-            rows = list(execute(evidence.inclusion_sql(plan.schema.schema, cand["source"], cand["source_cols"][0], cand["target"], cand["target_cols"][0])))
+            rows = list(execute(evidence.inclusion_sql(plan.schema.schema, cand["source"], cand["source_cols"][0], cand["target"], cand["target_cols"][0],
+                                                       dialect_of(execute))))
             row = rows[0] if rows else {}
             with_value, matched, distinct = (evidence._int(row.get(k)) for k in ("with_value", "matched", "distinct_values"))
             cand["evidence"] = {"rows_with_value": with_value, "matched": matched, "distinct_values": distinct,

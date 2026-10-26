@@ -404,7 +404,9 @@ pip install -e ".[server,test]" && pytest -q
 PRODUCT_NAME=Krusgraph MCP_PUBLIC_URL=https://krusgraph.com/mcp ENTRA_CLIENT_ID=x ENTRA_CLIENT_SECRET=x fabric-backend-server
 ```
 
-The website pages are templates in `fabric_backend/page_templates/`, the stylesheet and scripts in
+The engine and the platform-specific code (reading a source's schema, running SQL, building objects) are separated by
+one boundary, with Fabric as the first adapter and the local ODBC, SQLite and file sources behind the same interface:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) says what a new adapter implements. The website pages are templates in `fabric_backend/page_templates/`, the stylesheet and scripts in
 `fabric_backend/static/` (fonts Fredoka and Nunito, SIL OFL, self-hosted). `/demo/plan.json` is `plan()` run on
 `fabric_backend.seed.schema()`, so the demo shows what the engine says. `/mascots` is an unlinked, `noindex`
 review page for the three figures. Screenshots used for the visual review are in `docs/screenshots/`.

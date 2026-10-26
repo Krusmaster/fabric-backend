@@ -1,10 +1,11 @@
 """Join paths through the plan: the shortest chain of relationships between two tables, with the rule per step
-and a ready T-SQL SELECT … JOIN … using quoted identifiers. No data is read."""
+and a ready T-SQL SELECT … JOIN … using quoted identifiers (or the SQL of another dialect, `dialect=`; see
+fabric_backend/dialects.py). No data is read."""
 from __future__ import annotations
 
 from collections import deque
 
-from .evidence import qi
+from .dialects import TSQL, Dialect
 from .infer import Plan, Relationship, _ref_candidates, _norm, _stem, _words
 
 
@@ -48,8 +49,9 @@ def shortest_paths(plan: Plan, start: str, end: str, limit: int = 5) -> list[lis
     return out
 
 
-def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: int = 100) -> str:
+def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: int = 100, dialect: Dialect = TSQL) -> str:
     schema = plan.schema.schema
+    qi = dialect.quote
     alias = {start: "t0"}
     tables = [start]
     joins = []
@@ -60,12 +62,12 @@ def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: 
         tables.append(nxt)
         left_cols, right_cols = (r.source_cols, r.target_cols) if fwd else (r.target_cols, r.source_cols)
         on = " AND ".join(f"{alias[prev]}.{qi(a)} = {alias[nxt]}.{qi(b)}" for a, b in zip(left_cols, right_cols))
-        joins.append(f"JOIN {qi(schema)}.{qi(nxt)} AS {alias[nxt]} ON {on}")
+        joins.append(f"JOIN {dialect.table(schema, nxt)} AS {alias[nxt]} ON {on}")
     end = tables[-1]
     start_key = plan.keys.get(start, ([plan.schema[start].column_names[0]], ""))[0]
     select = [f"t0.{qi(c)} AS {qi(f'{start}_{c}')}" for c in start_key]
     select += [f"{alias[end]}.{qi(c)}" for c in plan.schema[end].column_names]
-    return (f"SELECT TOP ({int(top)}) " + ", ".join(select) + f"\nFROM {qi(schema)}.{qi(start)} AS t0\n" + "\n".join(joins))
+    return dialect.select(", ".join(select), f"\nFROM {dialect.table(schema, start)} AS t0\n" + "\n".join(joins), top)
 
 
 def _components(plan: Plan) -> dict[str, int]:
@@ -129,7 +131,8 @@ def _steps(plan: Plan, start: str, p: list[tuple[Relationship, bool]], verified:
     return steps
 
 
-def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100, validation: dict | None = None) -> dict:
+def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100, validation: dict | None = None,
+              dialect: Dialect = TSQL) -> dict:
     names = {t.name.lower(): t.name for t in plan.schema}
     missing = [x for x in (start, end) if x.lower() not in names]
     if missing:
@@ -145,13 +148,13 @@ def join_path(plan: Plan, start: str, end: str, limit: int = 5, top: int = 100, 
     for p in paths:
         steps = _steps(plan, start, p, verified)
         out["paths"].append({"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
-                             "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, p, top)})
+                             "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, p, top, dialect)})
     safest = safest_path(plan, start, end, validation)
     if safest:
         chain = [(s["rel"], s["forward"]) for s in safest]
         steps = _steps(plan, start, chain, verified)
         out["safest"] = {"tables": [start] + [s["to"] for s in steps], "hops": len(steps), "steps": steps,
-                         "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, chain, top)}
+                         "cost": round(sum(s["cost"] for s in steps), 4), "sql": sql_for(plan, start, chain, top, dialect)}
         shortest_cost = min(p["cost"] for p in out["paths"])
         if out["safest"]["cost"] < shortest_cost - 1e-9:
             weakest = min((s for p in out["paths"] for s in p["steps"]), key=lambda s: s["certainty"])

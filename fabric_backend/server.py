@@ -25,7 +25,6 @@ import json
 
 import requests
 import os
-import struct
 import time
 
 from .infer import check_tables, plan as make_plan
@@ -42,6 +41,7 @@ from . import views as _views, data_agent as _data_agent, app_starter as _app_st
 from . import lineage as _lineage, compact as _compact
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
+from .platforms import fabric as _fabric
 
 try:
     from mcp.server.mcpserver import MCPServer, Context
@@ -176,98 +176,32 @@ def _headers(ctx) -> dict:
 
 
 # ------------------------------------------------------------------ fabric helpers -----------
+# Reading Fabric and opening the SQL endpoint is the Fabric adapter's (platforms/fabric.py). These wrappers keep the
+# names the tools (and the tests) use, and pass the server's own patchable readers in.
 
-_GUID = __import__("re").compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_GUID = _fabric.GUID
+LOGIN_TIMEOUT = _fabric.LOGIN_TIMEOUT      # seconds to log in to the SQL analytics endpoint
+QUERY_TIMEOUT = _fabric.QUERY_TIMEOUT      # seconds per metadata query
 
 
 def _workspaces(headers: dict) -> list[dict]:
     """Every workspace the signed-in account can see: id, name, type, capacity."""
-    import requests
-    out, url = [], f"{FABRIC}/v1/workspaces"
-    while url:
-        r = requests.get(url, headers=headers, timeout=30)
-        r.raise_for_status()
-        body = r.json()
-        out += [{"name": w.get("displayName"), "id": w.get("id"), "type": w.get("type"), "capacity_id": w.get("capacityId")}
-                for w in body.get("value", [])]
-        url = body.get("continuationUri")
-    return out
+    return _fabric.workspaces(headers)
 
 
 def _workspace_id(workspace: str, headers: dict) -> str:
     """Tools take a workspace id or its display name; a name is looked up (case does not matter)."""
-    from .infer import PlanInputError
-    w = (workspace or "").strip()
-    if _GUID.match(w):
-        return w
-    if not w:
-        raise PlanInputError("workspace: give the workspace id or its name; list_workspaces shows both")
-    hits = [x for x in _workspaces(headers) if (x["name"] or "").lower() == w.lower()]
-    if len(hits) == 1:
-        return hits[0]["id"]
-    if not hits:
-        raise LookupError(f"no workspace named {w!r} is visible to the signed-in account; list_workspaces shows what is")
-    raise PlanInputError(f"{len(hits)} workspaces are named {w!r}; use the id instead: " + ", ".join(h["id"] for h in hits))
+    return _fabric.workspace_id(workspace, headers, _workspaces)
+
 
 def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     """Lakehouse / warehouse / SQL database by name or id → item dict with sql endpoint host."""
-    import requests
-    item = find_item_by_name(workspace, source, headers)
-    if item is None:
-        for t, route in (("Lakehouse", "lakehouses"), ("Warehouse", "warehouses"), ("SQLDatabase", "sqlDatabases"), *ENDPOINT_ITEM_ROUTES.items()):
-            r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{source}", headers=headers, timeout=30)
-            if r.status_code == 200:
-                item = {"type": t, **r.json()}
-                break
-    if item is None:
-        raise LookupError(f"no lakehouse/warehouse/SQL database named or with id {source!r} in workspace {workspace}")
-    route = {"Lakehouse": "lakehouses", "Warehouse": "warehouses", "SQLDatabase": "sqlDatabases", **ENDPOINT_ITEM_ROUTES}[item["type"]]
-    r = requests.get(f"{FABRIC}/v1/workspaces/{workspace}/{route}/{item['id']}", headers=headers, timeout=30)
-    r.raise_for_status()
-    body = r.json()
-    props = body.get("properties", {})
-    if body.get("sensitivityLabel") or item.get("sensitivityLabel"):   # Item.sensitivityLabel {id}, read-only (common/definitions.json)
-        item["sensitivityLabel"] = body.get("sensitivityLabel") or item.get("sensitivityLabel")
-    ep = props.get("sqlEndpointProperties") or {}
-    item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
-    if ep.get("id"):                                   # what a GraphQL API over this source names as its sourceItemId (lineage)
-        item["sql_endpoint_id"] = ep["id"]
-    # a Fabric SQL database's actual database name carries a suffix (properties.databaseName); the others use the display name
-    item["sql_db"] = props.get("databaseName") or item.get("displayName")
-    # a lakehouse created with schemas carries properties.defaultSchema (lakehouse/definitions.json: "returned only for
-    # schema enabled lakehouse"); the TMDL partitions need schemaName in that case, and must not have it otherwise
-    item["schemas_enabled"] = item["type"] != "Lakehouse" or "defaultSchema" in props
-    return item
+    return _fabric.resolve_source(workspace, source, headers, find_item_by_name)
 
 
 def _execute_factory(item: dict, sql_token: str):
     """DB-API over the SQL analytics endpoint with an Entra access token (ODBC Driver 18)."""
-    import pyodbc
-    if not item.get("sql_host"):
-        raise RuntimeError("source has no SQL endpoint connection string yet")
-    tok = sql_token.encode("utf-16-le")
-    attrs = {1256: struct.pack("<i", len(tok)) + tok}      # SQL_COPT_SS_ACCESS_TOKEN
-    conn = pyodbc.connect(f"Driver={{ODBC Driver 18 for SQL Server}};Server={item['sql_host']};Database={item['sql_db']};Encrypt=yes",
-                          attrs_before=attrs, timeout=LOGIN_TIMEOUT)     # a cold or paused endpoint fails as `timeout`, not a hang
-    conn.timeout = QUERY_TIMEOUT                                           # per statement; the driver raises HYT00, explained as `timeout`
-
-    def execute(sql: str):
-        cur = conn.cursor()
-        cur.execute(sql)
-        cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
-
-    def statement(sql: str) -> None:                                       # DDL (CREATE OR ALTER VIEW): no rows, committed
-        cur = conn.cursor()
-        cur.execute(sql)
-        conn.commit()
-    execute.close = conn.close
-    execute.statement = statement
-    return execute
-
-
-LOGIN_TIMEOUT = 30      # seconds to log in to the SQL analytics endpoint
-QUERY_TIMEOUT = 120     # seconds per metadata query
+    return _fabric.connect(item, sql_token, LOGIN_TIMEOUT, QUERY_TIMEOUT)
 
 
 def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
@@ -276,7 +210,7 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
     item = _resolve_source(workspace, source, headers)
     execute = _execute_factory(item, auth.sql(ctx))
     try:
-        s = Schema.from_sql(execute, schema)
+        s = _fabric.PLATFORM.read_schema(execute, schema)
     finally:
         getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
     if len(s) == 0:
@@ -439,7 +373,7 @@ def _connected(workspace: str, source: str, schema: str, ctx):
     except AttributeError:
         pass
     try:
-        s = Schema.from_sql(execute, schema)
+        s = _fabric.PLATFORM.read_schema(execute, schema)
     except Exception:
         getattr(execute, "close", lambda: None)()
         raise
