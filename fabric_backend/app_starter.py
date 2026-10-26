@@ -74,4 +74,4 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
         "Try the five queries with the token first; the field names come from describe_backend, so they match the API",
     ]
     return {"lovable_prompt": prompt, "connection": connection, "queries": qs, "checklist": checklist,
-            "note": "Generated from the API's definition; unit-tested, not yet run against a live workspace."}
+            "note": "Generated from the API's definition; unit-tested and run against a live API for GraphQL item on 26 October 2026."}

@@ -30,7 +30,7 @@
   <p class="intro">It lists the sources in a lakehouse, warehouse, SQL database or mirrored database, plans the connections, then creates the API for GraphQL item in your workspace, or just answers questions about the plan. Nothing is created until you ask for it, and asking again updates what is there instead of making a copy.</p>
   <ol class="steps">
     <li><span class="step-n coral">1</span><h3>Discover</h3><p>Point it at a workspace. It lists the sources and reads table and column names, nothing else.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
-    <li><span class="step-n sage">2</span><h3>Understand</h3><p>Every key and connection comes with the rule that produced it, K0–K3 and R0–R3. Ambiguous columns are reported, never guessed, and <code>validate_plan</code> checks each key and link against the rows before anything is built.</p><span class="ex">orders.customer_id → customers · R1</span></li>
+    <li><span class="step-n sage">2</span><h3>Understand</h3><p>Every key and connection comes with the rule that produced it, K0–K5 and R0–R4. Ambiguous columns are reported, never guessed, and <code>validate_plan</code> checks each key and link against the rows before anything is built.</p><span class="ex">orders.customer_id → customers · R1</span></li>
     <li><span class="step-n lav">3</span><h3>Create</h3><p>One API for GraphQL item in your Fabric workspace, with nested relationships. Read-only queries from Claude after that.</p><span class="ex">“Create it as shop_api.”</span></li>
   </ol>
   <p class="muted tiny" style="margin:14px 6px 0">Tested end to end against a live Fabric workspace with synthetic data, 25 October 2026: sign-in in Claude, plan, create, query.</p>
@@ -40,8 +40,8 @@
   <h2>The same graph, as a Fabric IQ ontology</h2>
   <p class="intro">Fabric IQ's ontology (preview) describes a business as entity types with keys, the relationships between them, and bindings to tables. That is what {{PRODUCT}} infers. <code>ontology_draft</code> writes the plan in the ontology item's own shape, with the rule behind every key and link. Nothing is deployed.</p>
   <div class="grid-3">
-    <div class="card"><h3>Entity types and keys</h3><p>One per table, with its key property and typed properties, and the rule (K0–K3) that chose the key. Keyless and composite-key tables are called out for review.</p></div>
-    <div class="card"><h3>Relationship types</h3><p>Every inferred link becomes a table relationship and an entity relationship, with its rule (R0–R3). Composite-column links are listed for the portal's mapping tables.</p></div>
+    <div class="card"><h3>Entity types and keys</h3><p>One per table, with its key property and typed properties, and the rule (K0–K5) that chose the key. Keyless and composite-key tables are called out for review.</p></div>
+    <div class="card"><h3>Relationship types</h3><p>Every inferred link becomes a table relationship and an entity relationship, with its rule (R0–R4). Composite-column links are listed for the portal's mapping tables.</p></div>
     <div class="card"><h3>Two ways in</h3><p>A Turtle file for the portal's <em>Import ontology</em> plus a binding checklist, or the item definition for the REST API and Git. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">How it works</a>.</p></div>
   </div>
   <p class="muted tiny" style="margin:14px 6px 0">Ontology is a Microsoft Fabric preview feature. The draft follows the item's own definition as of 2026 and has been checked against recorded definitions, not yet live.</p>

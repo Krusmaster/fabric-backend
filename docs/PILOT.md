@@ -25,7 +25,7 @@ write-up of what the engine got right, what it left unlinked, and what they had 
 ## Deliverables
 
 1. **Plan**: the engine's output for the agreed schema, as JSON and as a Mermaid ER diagram, with every key and
-   relationship labelled K0–K3 / R0–R3 and the list of ambiguous and unlinked columns.
+   relationship labelled K0–K5 / R0–R4 and the list of ambiguous and unlinked columns.
 2. **Review record**: which suggestions were accepted, skipped or overruled, and why. Accepted is not verified;
    the record says what was checked against data and what was not.
 3. **The API for GraphQL item** in the customer's workspace, created from the reviewed plan, with introspection on

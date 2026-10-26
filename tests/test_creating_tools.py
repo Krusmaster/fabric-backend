@@ -182,7 +182,7 @@ def test_create_views_tool_dry_run_then_applies_through_the_statement_runner(sho
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO))
     assert out["dry_run"] is True and ran == [] and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders_ship_to"]
-    assert out["schema_sql"].startswith("IF NOT EXISTS") and "not yet run against a live workspace" in out["note"]
+    assert out["schema_sql"].startswith("IF NOT EXISTS") and "not been created on a live endpoint yet" in out["note"]
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO, dry_run=False))
     assert out["result"] == {"status": "Succeeded", "views": 2, "schema": "krusgraph"}
     assert [a["status"] for a in out["applied"]] == ["ok", "ok", "ok"] and ran[0].startswith("IF NOT EXISTS") and len(ran) == 3
@@ -351,7 +351,7 @@ def test_app_starter_uses_the_api_definition_names():
     assert "client secret" in prompt and "```graphql" in prompt
     assert s["connection"]["endpoint"].endswith("/graphql") and "api.fabric.microsoft.com/.default" in s["connection"]["auth"]
     assert any("Introspection" in c for c in s["checklist"]) and any("Run Queries and Mutations" in c for c in s["checklist"])
-    assert "not yet run against a live workspace" in s["note"]
+    assert "run against a live API for GraphQL item" in s["note"]
 
 
 def test_app_starter_tool_reads_the_definition(shop, monkeypatch):

@@ -3,6 +3,12 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
+## Unreleased
+
+- Live run of the consultant, graph and dry-run tools against the demo workspace (26 October 2026, read-only and dry
+  runs, nothing created); the tool answers, the docs page and the README say what has run live and what has not.
+  Site texts updated to the current rules (K0–K5, R0–R4) and the twenty-two tools.
+
 ## 0.6.0 — 2026-10-26
 
 - The local stdio server (`fabric-backend-mcp`) gets the SQL-only tools of the remote one over the connection in

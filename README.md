@@ -82,7 +82,7 @@ Streamable HTTP at `/mcp`, twenty-two tools, every one with a `title` and a `rea
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
 `rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. Five more read-only tools turn the
-same plan into the week's deliverables, all unit-tested and not yet run against a live workspace:
+same plan into the week's deliverables, all unit-tested and run against the demo workspace (synthetic shop data) on 26 October 2026:
 
 - `semantic_model_draft` — a Power BI semantic model in TMDL: Direct Lake tables on the SQL analytics endpoint,
   relationships with one active path per table pair, a `README.generated.md` with the decisions to check
@@ -95,7 +95,7 @@ same plan into the week's deliverables, all unit-tested and not yet run against 
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked, not yet run against a live workspace. The delegated permissions they need, against what the app has today, and
+mocked; the dry runs answered from the demo workspace on 26 October 2026, the creates themselves have not been run. The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
@@ -108,8 +108,8 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries and the portal checklist for an
   app on a created API.
 
-Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested,
-not yet run against a live workspace):
+Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested and
+run against the demo workspace (synthetic shop data) on 26 October 2026):
 
 - `analyze_schema` — table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central
   tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which
@@ -289,8 +289,21 @@ data from `fabric_backend/seed.py`). Every tool answered as documented: `list_ta
 `plan_backend` gave 7 tables, 6 with a key, 6 relationships (all R1) and `audit_log` without a key;
 `create_backend` created `shop_api` and a second run answered `mode: updated`; `query_graphql` followed three
 relationship hops and returned 13 rows; a mutation was refused; an unknown workspace came back as `not_found`.
-Work since that run (the ontology draft, Snowflake database items, mirrored catalogs, `list_workspaces`) is covered
-by the test suite with Fabric mocked and has not had a live run of its own yet.
+Work since that run (the ontology draft, Snowflake database items, mirrored catalogs) is covered by the test suite
+with Fabric mocked and has not had a live run of its own yet.
+
+**26 October 2026: the consultant, graph and dry-run tools against the same workspace.** From Claude through the
+hosted connector, read-only or dry run, nothing created: `list_workspaces` and `list_sources` found the workspace and
+`shop_api`; `validate_plan` answered 6 of 6 keys unique and 6 of 6 relationships without orphans; `semantic_model_draft`
+and `create_semantic_model` (dry run) wrote the seven Direct Lake tables with `schemaName: shop` and six active
+relationships; `join_path` gave the four-hop chain customers → categories with its T-SQL; `data_dictionary`
+(`validate=true`), `dbt_schema`, `analyze_schema` (three fact tables, four dimensions, no cycles) and `create_views`
+(dry run, one wide view) answered as the unit tests predict; `suggest_relationships` checked four candidates for
+`orders.ship_to_id` against the data and only `addresses.address_id` held for every value; `plan_drift` on `shop_api`
+reported the `ship_to_id → addresses` relationship the API carries and the plan does not infer, with the `confirmed`
+entry to keep it; `describe_backend`, `app_starter` and `create_data_agent` (dry run) read and drafted from the live
+items. Not yet run: the creates with `dry_run=false` (semantic model, views, data agent) and the local stdio server
+against a real ODBC connection.
 
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and

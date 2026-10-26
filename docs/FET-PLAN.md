@@ -34,7 +34,7 @@ in-tenant use [8]) with one editor:
 1. **Create**: the standard Fabric create dialog; the user names the item and, in the editor's empty state, picks
    a source in the workspace (lakehouse, warehouse, SQL database, mirrored database).
 2. **Plan**: the engine runs and the editor shows the same graph as krusgraph.com/explore: table cards, wires
-   labelled K0–K3 / R0–R3, ambiguous and unlinked columns to review, Accept/Skip for suggestions. Decisions are
+   labelled K0–K5 / R0–R4, ambiguous and unlinked columns to review, Accept/Skip for suggestions. Decisions are
    saved in the item definition.
 3. **Build**: "Create API for GraphQL" creates or updates the GraphQL item in the same workspace from the reviewed
    plan and shows the endpoint plus the two portal steps that remain (introspection, permissions).
@@ -73,7 +73,7 @@ the item, visible to the Items API and to Git integration.
 
 | Reused as-is | Where it lives today |
 | --- | --- |
-| Inference: keys and relationships with rules K0–K3 / R0–R3, ambiguous and unlinked reporting | `fabric_backend/infer.py` |
+| Inference: keys and relationships with rules K0–K5 / R0–R4, ambiguous and unlinked reporting | `fabric_backend/infer.py` |
 | Schema reading from `INFORMATION_SCHEMA` (columns and declared constraints) | `fabric_backend/schema.py` |
 | GraphQL item definition and create-or-update deployment, source resolution | `fabric_backend/graphql.py`, `fabric_backend/deploy.py` |
 | Rayfin entity generation (a second output from the same plan) | `fabric_backend/rayfin.py` |
