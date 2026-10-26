@@ -57,9 +57,14 @@ FABRIC_ODBC="Driver={ODBC Driver 18 for SQL Server};Server=<sql endpoint>;Databa
 fabric-backend-mcp
 ```
 
-Three tools: `list_tables`, `plan_backend` (keys, relationships, Mermaid — nothing deployed),
-`create_backend`. Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor. The agent
-can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
+The same engine over the one connection in `FABRIC_ODBC`: `list_tables`, `plan_backend` (keys, relationships,
+Mermaid — nothing deployed), `validate_plan`, `sample_rows`, `create_backend`, `rayfin_connector`, `ontology_draft`,
+`semantic_model_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `analyze_schema`, `suggest_relationships` and
+`create_views` (dry run by default). The tools that need Fabric item ids (`describe_backend`, `plan_drift`,
+`app_starter`, `create_semantic_model`, `create_data_agent`) live in the remote server only. Set `FABRIC_SOURCE_KIND`
+(`Lakehouse`, `Warehouse`, `SQLDatabase`) and `FABRIC_SCHEMAS_ENABLED=1` for a lakehouse created with schemas so that
+`semantic_model_draft` writes `schemaName`. Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor.
+The agent can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
 ## Remote server (Krusgraph: for Claude today, other MCP clients once their sign-in redirects are registered)
 
@@ -186,6 +191,12 @@ fabric-backend plan columns.csv --keys keys.csv --mermaid er.mmd
 fabric-backend definition columns.csv --name shop_api --workspace <ws> --source-item <sql endpoint id> --out def.json
 fabric-backend deploy def.json --workspace <ws>
 ```
+
+The consultant outputs from the same CSV, nothing created: `semantic-model` (TMDL folder, `--sql-endpoint`,
+`--source-name`, `--source-kind`, `--schemas-enabled`), `join-path START END` (the chain with its T-SQL, exit 1 and a
+suggestion when there is none), `dictionary` (Markdown), `dbt` (sources yml, `--legacy-arguments` for dbt before
+1.10.5), `analyze` (roles, central tables, areas, ambiguity; `--json` for the full graph) and `views` (the
+`CREATE OR ALTER VIEW` statements to run yourself). `fabric-backend --help` lists them.
 
 ## Same plan, second output: Rayfin (Fabric Apps) connector entities
 

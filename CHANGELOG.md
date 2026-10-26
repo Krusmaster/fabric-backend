@@ -3,8 +3,16 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
-## Unreleased
+## 0.6.0 — 2026-10-26
 
+- The local stdio server (`fabric-backend-mcp`) gets the SQL-only tools of the remote one over the connection in
+  `FABRIC_ODBC`: `validate_plan`, `sample_rows`, `semantic_model_draft`, `join_path`, `data_dictionary`, `dbt_schema`,
+  `analyze_schema`, `suggest_relationships` and `create_views` (dry run by default; the ODBC connection gained
+  `statement` and `close`). The SQL endpoint host and database come from the ODBC string, the item kind from
+  `FABRIC_SOURCE_KIND`, the schemas flag from `FABRIC_SCHEMAS_ENABLED`. The tools that need Fabric item ids stay remote.
+- CLI commands from a columns CSV, nothing created: `semantic-model`, `join-path`, `dictionary`, `dbt`, `analyze`,
+  `views`. Tested on the synthetic shop schema, including the views applied in SQLite.
+- `suggest_relationships` treats an inclusion query that answers no rows as no evidence instead of failing.
 - Graph theory on the plan (`fabric_backend/graphs.py`, pure Python, deterministic): certainty per rule (R0/confirmed 1.0,
   verified 0.9, R1 0.8, R2 0.6, R3/R4 0.5) and cost 1/certainty; `analyze_schema` (roles with the numbers behind them,
   degree/betweenness/PageRank, subject areas by label propagation, cycles and multi-path pairs, maximum spanning forest

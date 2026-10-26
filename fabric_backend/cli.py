@@ -5,6 +5,12 @@
   fabric-backend deploy def.json --workspace WS
   fabric-backend rayfin columns.csv|metadata.json [--keys keys.csv] --connector sales [--source-type SqlAnalyticsEndpoint] [--out .]
   fabric-backend create --workspace WS --source <lakehouse name|id> --name MyApi --odbc "<connection string>"
+  fabric-backend semantic-model columns.csv --name MyModel --sql-endpoint <host> --source-name <lakehouse> [--source-kind Lakehouse] [--schemas-enabled] [--out .]
+  fabric-backend join-path columns.csv START END [--keys keys.csv] [--schema dbo]
+  fabric-backend dictionary columns.csv [--source-name X] [--out dictionary.md]
+  fabric-backend dbt columns.csv [--source-name X] [--database X] [--out schema.yml]
+  fabric-backend analyze columns.csv [--json analysis.json]
+  fabric-backend views columns.csv [--views-schema krusgraph]
 
 `plan` and `definition` work offline from an INFORMATION_SCHEMA.COLUMNS export (csv with
 table_schema, table_name, column_name, data_type, ordinal_position). `create` needs a SQL
@@ -94,6 +100,87 @@ def cmd_ontology(a) -> int:
     return 0
 
 
+def _source(a) -> Schema:
+    return (Schema.from_rayfin_metadata(a.columns, None if a.schema == "dbo" else a.schema) if a.columns.endswith(".json")
+            else Schema.from_information_schema(_csv(a.columns), schema=a.schema))
+
+
+def cmd_semantic_model(a) -> int:
+    from .semantic_model import draft
+    p = plan(_source(a), _keys_arg(a.keys))
+    info = dict(workspace_id="", item_id="", item_name=a.source_name, item_kind=a.source_kind, schema=a.schema,
+                sql_endpoint=a.sql_endpoint, sql_db=a.database or a.source_name, schemas_enabled=a.schemas_enabled or a.source_kind != "Lakehouse")
+    out = draft(p, info, a.name)
+    for path in write_rayfin(out["parts"], Path(a.out) / f"{a.name}.SemanticModel"):
+        print("wrote", path)
+    s = out["summary"]
+    print(f"{s['tables']} tables, {s['relationships_active']} active and {s['relationships_inactive']} inactive relationships; see README.generated.md")
+    return 0
+
+
+def cmd_join_path(a) -> int:
+    from .paths import join_path
+    out = join_path(plan(_source(a), _keys_arg(a.keys)), a.start, a.end)
+    if not out["paths"]:
+        print(out["note"])
+        for s in out.get("suggestions", []):
+            print(f"  suggestion: confirmed={json.dumps(s['confirmed'])}  ({s['why']})")
+        return 1
+    for i, path in enumerate(out["paths"], 1):
+        print(f"path {i}: " + " -> ".join(path["tables"]) + f"  ({path['hops']} hops, cost {path['cost']})")
+        for st in path["steps"]:
+            print(f"  {st['from']} -> {st['to']}  on {', '.join(st['on'])}  [{st['rule']} {st['certainty']}] {st['direction']}")
+        print(path["sql"])
+    if out.get("safest"):
+        print("safest: " + " -> ".join(out["safest"]["tables"]) + f"  (cost {out['safest']['cost']}): {out['safest']['why']}")
+    return 0
+
+
+def cmd_dictionary(a) -> int:
+    from .dictionary import data_dictionary
+    md = data_dictionary(plan(_source(a), _keys_arg(a.keys)), a.source_name or Path(a.columns).stem, a.schema)
+    Path(a.out).write_text(md, encoding="utf-8")
+    print(f"wrote {a.out}")
+    return 0
+
+
+def cmd_dbt(a) -> int:
+    from .dbt import schema_yml
+    yml = schema_yml(plan(_source(a), _keys_arg(a.keys)), a.source_name or a.schema, a.schema, database=a.database, arguments_block=not a.legacy_arguments)
+    Path(a.out).write_text(yml, encoding="utf-8")
+    print(f"wrote {a.out}")
+    return 0
+
+
+def cmd_analyze(a) -> int:
+    from .graphs import analyze
+    p = plan(_source(a), _keys_arg(a.keys))
+    out = analyze(p)
+    print(p.summary().splitlines()[0] + "; " + out["summary"])
+    print("roles:")
+    for t, r in out["roles"].items():
+        print(f"  {t}: {r['role']}  ({r['why']})")
+    print("most central: " + ", ".join(f"{x['table']} (pagerank {x['pagerank']}, betweenness {x['betweenness']}, in {x['in']}, out {x['out']})" for x in out["centrality"]["top"][:5]))
+    for g in out["areas"]:
+        print(f"area {g['name']}: {', '.join(g['tables'])}")
+    print(out["ambiguity"]["note"])
+    for e in out["inactive_relationships"]:
+        print(f"  inactive: {e['source']}.{'+'.join(e['columns'])} -> {e['target']} [{e['rule']} {e['certainty']}]: {e['why']}")
+    if a.json:
+        Path(a.json).write_text(json.dumps(out, indent=2), encoding="utf-8")
+    return 0
+
+
+def cmd_views(a) -> int:
+    from .views import statements
+    st = statements(plan(_source(a), _keys_arg(a.keys)), a.views_schema)
+    print(st["schema_sql"] + ";")
+    for v in st["views"]:
+        print(f"-- {v['why']}")
+        print(v["sql"] + ";")
+    return 0
+
+
 def cmd_create(a) -> int:
     import pyodbc  # optional
     conn = pyodbc.connect(a.odbc)
@@ -140,6 +227,27 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("create"); s.add_argument("--workspace", required=True); s.add_argument("--source", required=True)
     s.add_argument("--name", required=True); s.add_argument("--odbc", required=True); s.add_argument("--schema", default="dbo")
     s.add_argument("--writable", action="store_true"); s.add_argument("--dry-run", action="store_true"); s.set_defaults(fn=cmd_create)
+
+    s = sub.add_parser("semantic-model"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--name", required=True); s.add_argument("--sql-endpoint", required=True); s.add_argument("--source-name", required=True)
+    s.add_argument("--source-kind", default="Lakehouse"); s.add_argument("--database"); s.add_argument("--schemas-enabled", action="store_true")
+    s.add_argument("--out", default="."); s.set_defaults(fn=cmd_semantic_model)
+
+    s = sub.add_parser("join-path"); s.add_argument("columns"); s.add_argument("start"); s.add_argument("end")
+    s.add_argument("--keys"); s.add_argument("--schema", default="dbo"); s.set_defaults(fn=cmd_join_path)
+
+    s = sub.add_parser("dictionary"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--source-name"); s.add_argument("--out", default="dictionary.md"); s.set_defaults(fn=cmd_dictionary)
+
+    s = sub.add_parser("dbt"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--source-name"); s.add_argument("--database"); s.add_argument("--legacy-arguments", action="store_true")
+    s.add_argument("--out", default="schema.yml"); s.set_defaults(fn=cmd_dbt)
+
+    s = sub.add_parser("analyze"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--json"); s.set_defaults(fn=cmd_analyze)
+
+    s = sub.add_parser("views"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
+    s.add_argument("--views-schema", default="krusgraph"); s.set_defaults(fn=cmd_views)
 
     a = ap.parse_args(argv)
     from .infer import PlanInputError
