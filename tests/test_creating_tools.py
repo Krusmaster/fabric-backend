@@ -136,7 +136,7 @@ def test_views_sql_only_touches_the_views_schema_and_runs_on_the_seed_rows():
     st = views.statements(p)
     assert st["schema"] == "krusgraph" and st["schema_sql"] == "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')"
     names = [v["name"] for v in st["views"]]
-    assert names == ["vw_order_items", "vw_orders_ship_to"]                        # the fact table, and the hand-given link
+    assert names == ["vw_order_items", "vw_orders", "vw_orders_ship_to"]           # the fact table, its header, and the hand-given link
     wide = st["views"][0]
     assert wide["tables"] == ["order_items", "orders", "products", "addresses", "customers", "categories"]
     assert wide["sql"].startswith("CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id]")
@@ -151,6 +151,18 @@ def test_views_sql_only_touches_the_views_schema_and_runs_on_the_seed_rows():
     assert con.execute("SELECT COUNT(*) FROM [vw_order_items]").fetchone()[0] == 134
     assert con.execute("SELECT COUNT(*) FROM [vw_order_items] WHERE [customers_name] IS NULL").fetchone()[0] == 0
     assert con.execute("SELECT COUNT(*) FROM [vw_orders_ship_to]").fetchone()[0] == 60
+    # the header view: one row per order, with the customer who placed it and the address it was shipped to
+    header = st["views"][1]
+    assert header["tables"] == ["orders", "addresses", "customers"] and "order_items holds its lines" in header["why"]
+    assert "LEFT JOIN [shop].[addresses] AS d1 ON f.[ship_to_id] = d1.[address_id]" in header["sql"]
+    assert "LEFT JOIN [shop].[customers] AS d2 ON f.[customer_id] = d2.[customer_id]" in header["sql"]   # the orderer, not the address's
+    assert con.execute("SELECT COUNT(*) FROM [vw_orders]").fetchone()[0] == 60
+    assert con.execute("SELECT COUNT(*) FROM [vw_orders] WHERE [addresses_city] IS NULL OR [customers_name] IS NULL").fetchone()[0] == 0
+    assert con.execute("SELECT [addresses_city] FROM [vw_orders] WHERE [order_id] = 103").fetchone()[0] == next(
+        a[2] for a in seed.rows()["addresses"] if a[0] == next(o[3] for o in seed.rows()["orders"] if o[0] == 103))
+    # without the confirmed link the header view still has its customer, and no address
+    plain = {v["name"]: v for v in views.statements(plan(seed.schema("shop")))["views"]}
+    assert set(plain) == {"vw_order_items", "vw_orders"} and plain["vw_orders"]["tables"] == ["orders", "customers"]
     assert views.statements(p) == st                                                # deterministic
     # names come from the metadata; a quote in a name is escaped, not interpreted
     s = Schema.from_information_schema([("dbo", "a]b", "x", "int", 1), ("dbo", "a]b", "c_id", "int", 2), ("dbo", "a]b", "d_id", "int", 3),
@@ -181,11 +193,11 @@ def test_create_views_tool_dry_run_then_applies_through_the_statement_runner(sho
         return execute
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO))
-    assert out["dry_run"] is True and ran == [] and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders_ship_to"]
+    assert out["dry_run"] is True and ran == [] and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders", "vw_orders_ship_to"]
     assert out["schema_sql"].startswith("IF NOT EXISTS") and "ran for real on a live lakehouse" in out["note"]
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO, dry_run=False))
-    assert out["result"] == {"status": "Succeeded", "views": 2, "schema": "krusgraph"}
-    assert [a["status"] for a in out["applied"]] == ["ok", "ok", "ok"] and ran[0].startswith("IF NOT EXISTS") and len(ran) == 3
+    assert out["result"] == {"status": "Succeeded", "views": 3, "schema": "krusgraph"}
+    assert [a["status"] for a in out["applied"]] == ["ok", "ok", "ok", "ok"] and ran[0].startswith("IF NOT EXISTS") and len(ran) == 4
     out = json.loads(server.create_views(*shop, schema="shop", views_schema="reporting", confirmed=SHIP_TO))
     assert all("[reporting]." in v["sql"] for v in out["views"])
     bad = json.loads(server.create_views(*shop, schema="shop", views_schema="x;drop"))

@@ -121,10 +121,11 @@ def test_local_create_views_dry_run_then_apply(local_shop_with_rows):
     execute = local_shop_with_rows
     confirmed = [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]
     out = json.loads(mcp_server.create_views(schema="shop", confirmed=confirmed))
-    assert out["dry_run"] is True and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders_ship_to"] and execute.ran == []
+    assert out["dry_run"] is True and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders", "vw_orders_ship_to"] and execute.ran == []
     out = json.loads(mcp_server.create_views(schema="shop", confirmed=confirmed, dry_run=False))
-    assert out["result"] == {"status": "Succeeded", "views": 2, "schema": "krusgraph"} and len(execute.ran) == 3
+    assert out["result"] == {"status": "Succeeded", "views": 3, "schema": "krusgraph"} and len(execute.ran) == 4
     assert execute("SELECT COUNT(*) AS n FROM [vw_order_items]")[0]["n"] == 134
+    assert execute("SELECT COUNT(*) AS n FROM [vw_orders] WHERE [addresses_city] IS NOT NULL AND [customers_name] IS NOT NULL")[0]["n"] == 60
 
 
 def test_semantic_model_draft_reads_kind_and_schema_flag_from_the_environment(local_shop_with_rows, monkeypatch):
@@ -179,7 +180,7 @@ def test_create_views_bad_schema_name_is_bad_input_and_a_failed_apply_keeps_the_
         real(sql)
     execute.statement = refuse_second
     out = json.loads(mcp_server.create_views(schema="shop", confirmed=confirmed, dry_run=False))
-    assert [a.get("status") for a in out["applied"]] == ["ok", "ok", None] and out["applied"][2]["name"] == "vw_orders_ship_to"
+    assert [a.get("status") for a in out["applied"]] == ["ok", "ok", "ok", None] and out["applied"][3]["name"] == "vw_orders_ship_to"
     assert "error" in out and "warehouse" in out["hint"] and "result" not in out
 
 

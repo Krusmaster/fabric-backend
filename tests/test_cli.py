@@ -103,7 +103,8 @@ def test_rayfin_metadata_json_is_accepted_by_every_command_and_labels_its_own_sc
     assert "# Data dictionary: metadata / shop" in (tmp_path / "d.md").read_text()
     assert cli.main(["views", meta]) == 0
     out = capsys.readouterr().out
-    assert "FROM [shop].[order_items] AS f" in out and out.count("\nGO\n") == 2 and "[dbo]" not in out
+    assert "FROM [shop].[order_items] AS f" in out and out.count("\nGO\n") == 3 and "[dbo]" not in out   # schema, fact view, header view
+    assert "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS" in out
 
 
 def test_a_missing_or_wrong_columns_file_is_one_line_and_exit_2(tmp_path, capsys):

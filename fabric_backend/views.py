@@ -1,5 +1,6 @@
 """T-SQL views over the plan, in a schema of their own: one wide view per fact table (the table with its dimensions
-joined in through the plan's relationships) and one view per relationship that is hard to read. Only
+joined in through the plan's relationships), one per header table (orders with its customer and ship-to address, the
+table order_items holds the lines of) and one view per relationship that is hard to read. Only
 CREATE SCHEMA (when missing) and CREATE OR ALTER VIEW inside that schema; never DROP, never anything outside it.
 Identifiers come from the source's metadata and are quoted as in evidence.qi.
 
@@ -17,7 +18,10 @@ from __future__ import annotations
 import re
 
 from .evidence import qi
-from .infer import Plan, PlanInputError, Relationship, _singulars, _words
+from .infer import Plan, PlanInputError, Relationship, _line_like, _norm, _singulars, _words
+
+_LINE_WORDS = {"detail", "details", "line", "lines", "item", "items", "row", "rows", "position", "positions"}
+_HEADER_WORDS = {"header", "headers", "hdr", "head"}
 
 DEFAULT_SCHEMA = "krusgraph"
 _NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,119}$")
@@ -39,6 +43,37 @@ def fact_tables(plan: Plan) -> list[str]:
         out_deg[r.source] = out_deg.get(r.source, 0) + 1
         in_deg[r.target] = in_deg.get(r.target, 0) + 1
     return [t.name for t in plan.schema if out_deg.get(t.name, 0) >= 2 and in_deg.get(t.name, 0) == 0]
+
+
+def _base(name: str, drop: set[str]) -> set[str]:
+    """The name without a trailing line or header word, singular and plural: order_items -> order(s),
+    SalesOrderHeader -> salesorder(s)."""
+    words = _words(name)
+    while len(words) > 1 and words[-1] in drop:
+        words = words[:-1]
+    return {_norm(x) for x in _singulars("_".join(words))}
+
+
+def header_tables(plan: Plan) -> list[tuple[str, str]]:
+    """(header, fact holding its lines) for each table a fact table points at that is itself a fact with at least one
+    dimension: it refers on to a keyed table, and it is the fact's header, because the fact's key is the reference to it
+    plus a line number (order_items: order_id + line_no) or the fact is named after it with a line word
+    (SalesOrderDetail -> SalesOrderHeader). A dimension with a snowflake behind it (products -> categories) is neither."""
+    facts = fact_tables(plan)
+    out: list[tuple[str, str]] = []
+    for fact in facts:
+        key = [c.lower() for c in plan.keys.get(fact, ([], ""))[0]]
+        for r in sorted((x for x in plan.relationships if x.source == fact), key=lambda x: (x.target, x.source_cols)):
+            h = r.target
+            if h in facts or h not in plan.keys or any(h == done for done, _ in out):
+                continue
+            if not any(x.source == h and x.target in plan.keys and x.target not in (h, fact) for x in plan.relationships):
+                continue                                                              # no dimension of its own
+            in_key = all(c.lower() in key for c in r.source_cols) and any(_line_like(c) for c in key if c not in {s.lower() for s in r.source_cols})
+            named = _words(fact)[-1:] != [] and _words(fact)[-1] in _LINE_WORDS and bool(_base(fact, _LINE_WORDS) & _base(h, _HEADER_WORDS))
+            if in_key or named:
+                out.append((h, fact))
+    return out
 
 
 def dimension_chain(plan: Plan, fact: str) -> list[tuple[str, Relationship, str]]:
@@ -128,6 +163,11 @@ def statements(plan: Plan, target: str = DEFAULT_SCHEMA) -> dict:
         sql, tables = wide_view_sql(plan, fact, target)
         views.append({"name": f"vw_{fact}", "sql": sql, "tables": tables,
                       "why": f"{fact} is a fact table ({len(tables) - 1} dimensions joined in through the plan's relationships)"})
+    for header, lines in header_tables(plan):
+        sql, tables = wide_view_sql(plan, header, target)
+        views.append({"name": f"vw_{header}", "sql": sql, "tables": tables,
+                      "why": f"{header} is a header table: {lines} holds its lines; one row per {header} row, with its "
+                             f"{len(tables) - 1} dimension(s) joined in"})
     for r in hard_relationships(plan):
         reason = {"R2": "the column has the target key's name, not the target's name", "R3": "the link spans several columns",
                   "R4": "the column abbreviates or role-prefixes the target", "confirmed": "the link was given by hand, the names do not show it"

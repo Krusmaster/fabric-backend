@@ -348,8 +348,9 @@ def suggest_relationships(schema: str = "dbo", keys: dict[str, list[str]] | None
 def create_views(schema: str = "dbo", views_schema: str = "krusgraph", keys: dict[str, list[str]] | None = None,
                  confirmed: list[dict] | None = None, dry_run: bool = True) -> str:
     """CREATE OR ALTER VIEW in a schema of its own (created if missing) over the connection in FABRIC_ODBC: a wide
-    view per fact table with its dimensions, one per hard-to-read relationship. Never DROP, nothing outside that
-    schema. dry_run=true (default) returns the SQL."""
+    view per fact table with its dimensions, one per header table (orders, whose lines a fact table holds) with its
+    dimensions, one per hard-to-read relationship. Never DROP, nothing outside that schema. dry_run=true (default)
+    returns the SQL."""
     with _connection(schema) as execute:
         p = plan_from(execute=execute, schema=schema, keys=keys, confirmed=confirmed)
         stmts = _views.statements(p, views_schema)
