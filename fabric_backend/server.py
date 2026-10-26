@@ -272,8 +272,8 @@ mcp.tool = _titled_tool(mcp.tool)
 @mcp.tool(title="List workspaces", annotations=RO)
 @safe
 def list_workspaces(ctx: Context = None) -> str:
-    """The Fabric workspaces the signed-in account can see, with id, name and capacity. Start here if you do not
-    know the workspace id; the other tools take the id or the name."""
+    """The Fabric workspaces the signed-in account can see, with id, name and capacity. The id or the name
+    identifies the workspace in every tool."""
     return json.dumps({"workspaces": _workspaces(_headers(ctx))}, indent=2)
 
 
@@ -282,7 +282,7 @@ def list_workspaces(ctx: Context = None) -> str:
 def list_sources(workspace: str, ctx: Context = None) -> str:
     """Lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases (Snowflake, Azure SQL, Cosmos DB,
     SAP, ...), mirrored Databricks catalogs and mirrored catalogs in a Fabric workspace (id or name), plus existing API
-    for GraphQL items. Use the display name or id as `source` in the other tools."""
+    for GraphQL items. The display name or id identifies the `source`."""
     import requests
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
@@ -351,7 +351,7 @@ def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[s
                   confirmed: list[dict] | None = None, max_items: int = 60, ctx: Context = None) -> str:
     """Check the plan's keys and relationships against the rows, read-only: is each key unique and free of NULLs,
     and does every reference find its target (orphan count)? Returns counts and a verdict per key and relationship.
-    Use it before create_backend to turn name-based suggestions into evidence. Takes the same keys/confirmed as
+    It turns name-based suggestions into evidence. Takes the same keys/confirmed as
     plan_backend; runs one small counting query per key and per relationship (max_items caps the total)."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
@@ -484,7 +484,7 @@ def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: 
                    confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
     """The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: a summary with the
     rule behind every key and link, the binding checklist, a Turtle file the portal's Import ontology accepts, and the
-    generation-2 item definition (TMDL parts) ready for POST /ontologies or Git. Deploys nothing. Use `tables` to keep
+    generation-2 item definition (TMDL parts) ready for POST /ontologies or Git. Deploys nothing. `tables` keeps
     it small; the definition is the same information as plan_backend, in Fabric IQ's shape."""
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
@@ -597,7 +597,7 @@ def analyze_schema(workspace: str, source: str, schema: str = "dbo", keys: dict[
     isolated) with the numbers behind it, the ten most central tables (in/out degree, betweenness, PageRank),
     subject areas, cycles and table pairs with more than one path (where a Power BI model gets ambiguous filter
     paths), and the relationships that can be active at once in a semantic model with the rest explained as inactive.
-    Use it first on a lakehouse you do not know."""
+    Useful on a lakehouse nobody has documented."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     out = _graphs.analyze(p)
     out["summary"] = p.summary().splitlines()[0] + "; " + out["summary"]
@@ -876,7 +876,7 @@ def describe_definition(body: dict) -> dict:
 @safe
 def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
     """Types, fields and relationships of an existing API for GraphQL item (name or id), in the names a query
-    uses — read from the item's definition, so it works without introspection. Use it before query_graphql."""
+    uses — read from the item's definition, so it works without introspection; these are the names a GraphQL query uses."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     api_id = _api_id(workspace, api, headers)
