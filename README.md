@@ -63,7 +63,9 @@ Mermaid — nothing deployed), `validate_plan`, `sample_rows`, `create_backend`,
 `create_views` (dry run by default). The tools that need Fabric item ids (`describe_backend`, `plan_drift`,
 `app_starter`, `create_semantic_model`, `create_data_agent`) live in the remote server only. Set `FABRIC_SOURCE_KIND`
 (`Lakehouse`, `Warehouse`, `SQLDatabase`) and `FABRIC_SCHEMAS_ENABLED=1` for a lakehouse created with schemas so that
-`semantic_model_draft` writes `schemaName`. Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor.
+`semantic_model_draft` writes `schemaName`; `SQLServer` for an on-prem or Azure SQL Server, where the two Fabric-only
+drafts answer with an explanation. Windows set-up with Claude Desktop, Windows sign-in and what works locally:
+[docs/LOCAL.md](docs/LOCAL.md). Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor.
 The agent can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
 ## Remote server (Krusgraph: for Claude today, other MCP clients once their sign-in redirects are registered)
