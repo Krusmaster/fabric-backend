@@ -12,6 +12,6 @@
   "license": "MIT",
   "keywords": ["microsoft-fabric", "graphql", "lakehouse", "data-model", "semantic-model", "dbt", "power-bi"],
   "documentationUrl": "https://krusgraph.com/docs",
-  "supportUrl": "https://krusgraph.com/support",
+  "supportUrl": "https://github.com/Krusmaster/fabric-backend/issues",
   "privacyPolicyUrl": "https://krusgraph.com/privacy"
 }
