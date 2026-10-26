@@ -69,7 +69,7 @@ def test_limit_specs_parse_and_bad_ones_stop_startup():
     assert limits.parse("30/minute,600/hour") == [(30, 60), (600, 3600)]
     assert limits.parse("5/10s, 2/day") == [(5, 10), (2, 86400)]
     assert limits.parse("1/minutes") == [(1, 60)]
-    for bad in ("30", "x/minute", "0/minute", "30/fortnight", "30 per minute"):
+    for bad in ("30", "x/minute", "0/minute", "30/fortnight", "30 per minute", "30/0minute", "5/0s"):
         with pytest.raises(ValueError):
             limits.parse(bad)
 
@@ -560,12 +560,20 @@ def test_key_vault_step_refuses_without_a_name_or_a_vault_that_is_not_ours(monke
         d.move_secret_to_key_vault(az, CONFIG | {"key_vault": "kv-shared"})
 
 
-def test_plain_env_carries_key_vault_and_log_retention_only_when_configured():
-    env = d.plain_env(CONFIG)
+def test_only_the_key_vault_step_switches_the_app_to_key_vault_and_the_other_runs_keep_it():
+    """A key_vault in the config alone must not point the app at a vault whose secret was never stored: --update and the
+    full run leave the two settings to --key-vault, and the full run's manifest carries over what the app has."""
+    env = d.plain_env(CONFIG | {"key_vault": "kv-x"})
     assert not any(k.startswith(("ENTRA_CLIENT_SECRET", "AZURE_CLIENT_ID", "KRUSGRAPH_LOG", "KRUSGRAPH_ACCESS")) for k in env)
-    env = d.plain_env(CONFIG | {"key_vault": "kv-x", "log_retention_days": 30}, identity_client_id="cid")
-    assert env["ENTRA_CLIENT_SECRET_KEYVAULT_URI"] == "https://kv-x.vault.azure.net/secrets/entra-client-secret" and env["AZURE_CLIENT_ID"] == "cid"
+    env = d.plain_env(CONFIG | {"log_retention_days": 30})
     assert env["KRUSGRAPH_LOG_RETENTION_DAYS"] == "30" and env["KRUSGRAPH_ACCESS_LOG"] == "0"
+    kv = [{"name": "ENTRA_CLIENT_SECRET_KEYVAULT_URI", "value": "https://kv-x.vault.azure.net/secrets/entra-client-secret"},
+          {"name": "AZURE_CLIENT_ID", "value": "cid"}, {"name": "OTHER", "value": "dropped"}]
+    existing = {"properties": {"configuration": {"ingress": {}}, "template": {"containers": [{"env": kv}]}}}
+    names = {e["name"]: e.get("value") for e in d.make_manifest(CONFIG, "env", "id", "reg", "img", "s", existing)["properties"]["template"]["containers"][0]["env"]}
+    assert names["ENTRA_CLIENT_SECRET_KEYVAULT_URI"] == kv[0]["value"] and names["AZURE_CLIENT_ID"] == "cid" and "OTHER" not in names
+    fresh = {e["name"] for e in d.make_manifest(CONFIG | {"key_vault": "kv-x"}, "env", "id", "reg", "img", "s")["properties"]["template"]["containers"][0]["env"]}
+    assert not fresh & set(d.KEY_VAULT_ENV)
 
 
 def test_cli_dispatches_the_key_vault_flag(monkeypatch):
@@ -585,3 +593,36 @@ def test_operations_doc_has_the_commands_in_order():
     positions = [doc.index(x) for x in order]
     assert positions == sorted(positions)
     assert "/health" in doc and "unit-tested" in doc
+
+
+def test_the_wait_is_the_slowest_bucket_and_idle_ids_are_forgotten():
+    now = [0.0]
+    lim = limits.Limiter([(2, 60), (2, 3600)], [(100, 60)], clock=lambda: now[0])
+    assert lim.check("u", "t") is None and lim.check("u", "t") is None
+    hit = lim.check("u", "t")
+    assert hit["retry_after"] == 1800 and hit["limit"] == "2 calls per hour"        # not the minute bucket's 30 seconds
+    now[0] += 1800
+    assert lim.check("u", "t") is None                                             # and the advice holds
+    now[0] += 3600 + 61                                                            # an hour after the last call, and the minute's prune
+    lim.check("someone-else", "t2")
+    assert len(lim._buckets) == 3                                                  # only the new caller's buckets are left
+
+
+def test_after_the_hour_a_failed_key_vault_read_keeps_the_secret(identity_env):
+    http, now = FakeHTTP(value="kv-secret-value"), [0.0]
+    r = keyvault.SecretReader("https://kv-test.vault.azure.net/secrets/s", get=http, clock=lambda: now[0])
+    assert r.get() == "kv-secret-value"
+    http.kv_status = 503
+    now[0] += keyvault.TTL + 1
+    assert r.get() == "kv-secret-value"                                            # an outage does not stop sign-ins
+    with pytest.raises(keyvault.KeyVaultError, match="HTTP 503"):
+        r.get(refresh=True)                                                        # Entra said it is wrong: no stale value then
+
+
+def test_links_are_built_from_the_host_not_by_splitting_on_mcp(monkeypatch):
+    monkeypatch.setenv("MCP_PUBLIC_URL", "https://mcp.example.com/mcp")
+    monkeypatch.delenv("KRUSGRAPH_UPGRADE_URL", raising=False)
+    assert entitlements.upgrade_url() == "https://mcp.example.com/pricing"
+    assert errors.docs_url("first-time-errors") == "https://mcp.example.com/docs#first-time-errors"
+    monkeypatch.delenv("MCP_PUBLIC_URL")
+    assert errors.site_origin() == "https://krusgraph.com"

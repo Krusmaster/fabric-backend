@@ -286,10 +286,36 @@ def test_paid_plan_check_covers_the_monitor_and_the_notebook_only_when_switched_
     monkeypatch.setenv("KRUSGRAPH_ENTITLEMENTS", "1")
     monkeypatch.setenv("KRUSGRAPH_ENTITLED_TENANTS", "{}")
     assert json.loads(server.drift_monitor_draft("Sales", "shop_lh", schema="shop"))["kind"] == "upgrade"
-    assert json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop"))["dry_run"] is True       # dry run free
+    # the create's dry run returns the same notebook as the draft, so it is paid too
+    assert json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop"))["kind"] == "upgrade"
     assert json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False))["kind"] == "upgrade"
     assert json.loads(server.create_silver_notebook("Sales", "shop_lh", name="s", schema="shop", dry_run=False))["kind"] == "upgrade"
     assert "notebook" in json.loads(server.silver_notebook_draft("Sales", "shop_lh", schema="shop"))
     assert "tsql" in json.loads(server.answer_query_draft("Sales", "shop_lh", "How many orders?", ["orders"], schema="shop"))
     monkeypatch.setenv("KRUSGRAPH_ENTITLED_TENANTS", json.dumps({"tenant-1": ["drift_monitor"]}))
     assert "notebook" in json.loads(server.drift_monitor_draft("Sales", "shop_lh", schema="shop"))
+
+
+def test_a_webhook_failure_never_shows_the_address_and_a_listing_failure_is_reported():
+    def down(url, json, timeout):
+        raise requests.ConnectionError(f"HTTPSConnectionPool: Max retries exceeded with url: {url}")
+    with pytest.raises(RuntimeError) as e:
+        monitor.send("https://prod.example.test/workflows/abc?api-version=1&sig=SECRETSIG123", {}, post=down)
+    assert "SECRETSIG123" not in str(e.value) and e.value.__cause__ is None and e.value.__suppress_context__
+    from fabric_backend import lineage
+
+    def refused(ws, headers):
+        raise requests.HTTPError("403", response=Resp(403, {"errorCode": "Forbidden"}))
+    edges, skipped = lineage.workspace_edges(WS, {"id": "lh-1"}, "shop", {"orders"}, {}, [{"VIEW_SCHEMA": "k", "VIEW_NAME": "v",
+                                             "TABLE_SCHEMA": "shop", "TABLE_NAME": "orders"}], items=refused)
+    assert [e["object"] for e in edges] == ["k.v"] and skipped == [{"item": "the workspace's items", "kind": "Workspace", "reason": "no_access"}]
+    assert monitor.graphql_definitions(WS, {}, items=refused) == {}
+
+
+def test_library_ref_is_a_plain_ref_and_the_pipeline_does_not_retry():
+    from fabric_backend.infer import PlanInputError
+    for bad in ('main" && curl x', "main\nprint(1)", "", "-rf"):
+        with pytest.raises(PlanInputError):
+            monitor.notebook_cells(SRC, bad)
+    assert monitor.notebook_cells(SRC, "v0.6.0")[1][1].endswith('@v0.6.0" --quiet')
+    assert monitor.pipeline_content("nb", WS, "x")["properties"]["activities"][0]["policy"]["retry"] == 0

@@ -11,7 +11,8 @@ Per table, in the order of the relationships (a parent before the tables that po
   4. per relationship (R0-R4 or confirmed): rows whose reference has no row in the parent's silver table go to
      quarantine with the reason; a NULL reference stays (it says "unknown", not "wrong");
   5. the result is written as a Delta table, overwritten on every run (idempotent), and marked with the table
-     property krusgraph.silver = true; a target that exists without that mark is never overwritten.
+     property krusgraph.silver = <lakehouse id>/<schema>; a target without that mark (or with another source's) is never
+     overwritten. A table that points at itself is checked again until no more rows drop out.
 At the end the quarantine table (krusgraph_quarantine: source_table, rule, reason, row_json, checked_at) is rewritten
 with this run's rows, and a summary is printed. Keyless tables (K3) are copied without de-duplication.
 
@@ -81,6 +82,10 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
     if schemas_enabled and silver_schema.lower() == schema.lower():
         raise PlanInputError(f"silver_schema {silver_schema!r} is the source schema; the silver tables need a schema of their own")
     names = {t.name.lower(): t.name for t in plan.schema}
+    if not schemas_enabled:
+        # Without schemas the silver tables sit beside the sources as <silver_schema>_*, so a re-plan after the first run
+        # lists them: they are this notebook's outputs, not sources (the run-time mark keeps it off any other table).
+        names = {k: v for k, v in names.items() if not k.startswith(silver_schema.lower() + "_") and k != QUARANTINE}
     chosen = sorted(names.values(), key=str.lower)
     if tables:
         missing = [t for t in tables if t.lower() not in names]
@@ -118,8 +123,9 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            "note": r.note})
         out_tables.append({"table": t, "target": target(t), "key": list(key), "key_rule": key_rule if key else "K3",
                            "order_by": col, "order_why": why, "checks": checks})
+    owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
-                       "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower)},
+                       "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower), "owner": owner},
             "silver_schema": silver_schema, "quarantine": target(QUARANTINE), "tables": out_tables,
             "not_checked": [{"table": a["table"], "column": a["column"], "why": "ambiguous: it could point at " + " or ".join(a["candidates"])}
                             for a in plan.ambiguous if a["table"] in chosen]}
@@ -138,6 +144,9 @@ from pyspark.sql import functions as F
 
 SOURCE_SCHEMA = {source_schema}
 SCHEMAS_ENABLED = {schemas_enabled}
+# Written into every silver table as the property krusgraph.silver: a table carrying another value (or none) belongs to
+# someone else, and this notebook never overwrites it.
+OWNER = {owner}
 # Every table of the source schema: none of them is ever a write target.
 SOURCE_TABLES = {source_tables}
 # The silver tables this notebook writes, plus the quarantine table.
@@ -164,11 +173,11 @@ def col(name):
 
 
 def is_ours_or_absent(name):
-    """A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = true)."""
+    """A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = OWNER)."""
     if not spark.catalog.tableExists(name):
         return True
     props = {{r[0]: r[1] for r in spark.sql(f"SHOW TBLPROPERTIES {{name}}").collect()}}
-    return props.get("krusgraph.silver") == "true"
+    return props.get("krusgraph.silver") == OWNER
 
 
 # Guard before anything is written: no target is a source table, and no target is someone else's table.
@@ -177,7 +186,8 @@ for _t in WRITES:
     if target(_t).lower() in _sources:
         raise ValueError(f"{{target(_t)}} is a source table; choose another SILVER_SCHEMA. Nothing was written.")
     if not is_ours_or_absent(target(_t)):
-        raise ValueError(f"{{target(_t)}} exists and was not written by this notebook; nothing was written. Choose another SILVER_SCHEMA.")
+        raise ValueError(f"{{target(_t)}} exists and was not written by this notebook (for {{OWNER}}); nothing was written. "
+                         "Choose another SILVER_SCHEMA.")
 if SCHEMAS_ENABLED:
     spark.sql(f"CREATE SCHEMA IF NOT EXISTS {{q(SILVER_SCHEMA)}}")
 
@@ -227,7 +237,7 @@ def write_silver(df, table):
     if not is_ours_or_absent(name):
         raise ValueError(f"{{name}} exists and was not written by this notebook; it was left as it is.")
     df.write.format(TABLE_FORMAT).mode("overwrite").option("overwriteSchema", "true").saveAsTable(name)
-    spark.sql(f"ALTER TABLE {{name}} SET TBLPROPERTIES ('krusgraph.silver' = 'true')")
+    spark.sql(f"ALTER TABLE {{name}} SET TBLPROPERTIES ('krusgraph.silver' = '{{OWNER.replace(chr(39), chr(39) * 2)}}')")
     return spark.read.table(name)
 '''
 
@@ -260,8 +270,15 @@ def _table_cell(t: dict) -> str:
             out.append(f"# Checked against the silver {c['parent']}, so rows whose {c['parent']} was quarantined follow it there.")
             parent = f"silver[{_py(c['parent'])}]"
         elif c["parent"] == name:
-            out.append("# The table points at itself: checked against its own de-duplicated rows.")
-            parent = "df"
+            out += ["# The table points at itself: checked against its own rows, again until no more rows drop out, so a row whose",
+                    "# parent was quarantined follows it there (at most 100 rounds: the depth of the hierarchy).",
+                    "for _round in range(100):",
+                    "    _before = df.count()",
+                    f"    df = check_reference(df, {_py(c['columns'])}, df, {_py(c['parent_columns'])}, {_py(name)}, {_py(c['rule'])}, {_py(reason)})",
+                    "    df = df.localCheckpoint()",
+                    "    if df.count() == _before:",
+                    "        break"]
+            continue
         elif c["parent_from"] == "source_cycle":
             out.append(f"# {c['parent']} is part of a cycle of references and comes later: checked against its source rows.")
             parent = f"spark.read.table(source({_py(c['parent'])}))"
@@ -302,7 +319,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
     writes = [t["table"] for t in s["tables"]] + [QUARANTINE]
     setup = SETUP.format(source_schema=_py(src["schema"] if src["schemas_enabled"] else None),
                          schemas_enabled="True" if src["schemas_enabled"] else "False",
-                         source_tables=_py(src["tables"]), writes=_py(writes))
+                         source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]))
     out = [("markdown", intro), ("parameters", params), ("code", setup.strip("\n"))]
     out += [("code", _table_cell(t)) for t in s["tables"]]
     out.append(("code", FINISH.format(quarantine=_py(QUARANTINE)).strip("\n")))
@@ -371,17 +388,22 @@ def simulate(s: dict, data: dict[str, list[dict]]) -> dict:
                 parent_rows = silver[c["parent"]]
             else:
                 parent_rows = data.get(c["parent"], [])
-            keys = {tuple(p.get(x) for x in c["parent_columns"]) for p in parent_rows}
             on = " and ".join(f"{name}.{a} = {c['parent']}.{b}" for a, b in zip(c["columns"], c["parent_columns"]))
             reason = f"{', '.join(c['columns'])} has no row in {c['parent']} ({on})"
-            keep = []
-            for r in rows:
-                ref = tuple(r.get(x) for x in c["columns"])
-                if any(v is None for v in ref) or ref in keys:
-                    keep.append(r)
-                else:
-                    quarantine.append({"source_table": name, "rule": c["rule"], "reason": reason, "row": r})
-            rows = keep
+            for _round in range(100 if c["parent"] == name else 1):     # a self-reference: until no more rows drop out
+                if c["parent"] == name:
+                    parent_rows = rows
+                keys = {tuple(p.get(x) for x in c["parent_columns"]) for p in parent_rows}
+                keep = []
+                for r in rows:
+                    ref = tuple(r.get(x) for x in c["columns"])
+                    if any(v is None for v in ref) or ref in keys:
+                        keep.append(r)
+                    else:
+                        quarantine.append({"source_table": name, "rule": c["rule"], "reason": reason, "row": r})
+                dropped, rows = len(rows) - len(keep), keep
+                if not dropped:
+                    break
         silver[name] = rows
     return {"silver": silver, "quarantine": quarantine}
 

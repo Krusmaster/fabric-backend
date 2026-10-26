@@ -19,7 +19,7 @@ monthly.
 | Creating tools: `create_backend`, `create_semantic_model`, `create_views`, `create_data_agent`, `create_ontology`, `create_silver_notebook` | `create_backend` for one API per workspace, the others dry run only | all, unlimited |
 | `plan_drift`, `lineage` | `plan_drift` yes; `lineage` no | yes, and `lineage` across all items of the workspace |
 | Drafts that only read: `silver_notebook_draft`, `answer_query_draft` | yes | yes |
-| The nightly drift monitor: `drift_monitor_draft`, `create_drift_monitor` | `create_drift_monitor` as a dry run only | yes |
+| The nightly drift monitor: `drift_monitor_draft`, `create_drift_monitor` | no | yes |
 | Several workspaces in one session, a team's shared connections | no | yes |
 | Operations: a daily drift check of the APIs a team created, mail when an API would change, the `impact` of a planned schema change before it is deployed | no | yes (this is the feature that justifies a monthly price; it does not exist yet) |
 | The local server and the command line (open source, MIT) | always free, no sign-in | n/a |
@@ -95,7 +95,7 @@ from an organisation without it runs nothing and answers:
 | --- | --- | --- |
 | `create` | `create_semantic_model`, `create_views`, `create_data_agent`, `create_ontology`, `create_silver_notebook` | `dry_run=false` |
 | `lineage` | `lineage` | always |
-| `drift_monitor` | `drift_monitor_draft`, `create_drift_monitor` | the draft always, the create with `dry_run=false` |
+| `drift_monitor` | `drift_monitor_draft`, `create_drift_monitor` | always, the create's dry run included (it returns the same notebook and pipeline as the draft) |
 
 `create_backend` is not in the list: the free tier's "one API per workspace" needs a count of created APIs per
 workspace, and that needs the store in *What it requires technically*, which does not exist. Until then

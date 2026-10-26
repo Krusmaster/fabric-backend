@@ -82,6 +82,13 @@ QUESTIONS = [
     ("De 10 senaste ordrarna med kund", ["orders", "customers"], {"aggregate": None, "top": 10, "latest": True}),
     ("Show order lines with product and category", ["order_items", "products", "categories"], {"aggregate": None, "top": None}),
     ("Average quantity per product", ["order_items", "products"], {"aggregate": "avg", "group_table": "products"}),
+    ("How many orders per order date", ["orders"], {"aggregate": "count", "group_column": ["orders", "order_date"], "group_table": None}),
+    ("How many order lines per order", ["order_items", "orders"], {"counted": "order_items", "group_table": "orders"}),
+    ("Beräkna summan av quantity per produkt", ["order_items", "products"], {"aggregate": "sum", "measure": ["order_items", "quantity"]}),
+    ("Beräkna genomsnittlig quantity per produkt", ["order_items", "products"], {"aggregate": "avg"}),
+    ("Total quantity per customer over the 12 months", ["order_items", "customers"], {"aggregate": "sum", "top": None, "not_used": ["12"]}),
+    ("Antal ordrar per kund efter 2024", ["orders", "customers"], {"aggregate": "count", "not_used": ["2024"]}),
+    ("Customers per country", ["customers"], {"aggregate": "count", "count_assumed": True, "group_column": ["customers", "country"]}),
 ]
 
 
@@ -179,8 +186,8 @@ def test_tokens_an_agent_reads_with_and_without_the_suggestion():
     assert measured == MEASURED, measured
 
 
-MEASURED = {"How many orders per customer?": (4851, 1433), "Total quantity per category": (5569, 1597),
-            "De 10 senaste ordrarna med kund": (4851, 1223)}          # docs/NOTEBOOKS.md quotes these
+MEASURED = {"How many orders per customer?": (4851, 1323), "Total quantity per category": (5569, 1512),
+            "De 10 senaste ordrarna med kund": (4851, 1082)}          # docs/NOTEBOOKS.md quotes these
 
 
 # ------------------------------------------------------------------ the tools ------------------------------------
@@ -235,3 +242,13 @@ def test_query_graphql_runs_the_suggested_query(shop, monkeypatch):
     # a plain query still works as before
     monkeypatch.setattr(requests, "post", lambda url, json=None, headers=None, timeout=None: Resp(200, {"data": {}}))
     assert json.loads(server.query_graphql("Sales", "shop_api", "{ customers { items { name } } }")) == {"data": {}}
+
+
+def test_what_is_not_used_is_said():
+    p = shop_plan()
+    a = answers.draft(p, "Antal ordrar per kund efter 2024", ["orders", "customers"])
+    assert any("not applied: 2024" in x and "WHERE" in x for x in a["assumptions"])
+    a = answers.draft(p, "Customers per country", ["customers"])
+    assert "GROUP BY t0.[country]" in a["tsql"] and any("counted per group" in x for x in a["assumptions"])
+    a = answers.draft(p, "How many orders?", ["orders"])
+    assert any("one total" in x for x in a["assumptions"]) and "GROUP BY" not in a["tsql"]

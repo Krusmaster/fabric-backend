@@ -147,7 +147,10 @@ class Schema:
         for t in spark.catalog.listTables(db):
             if t.tableType and t.tableType.upper() == "TEMPORARY":
                 continue
-            cols = spark.catalog.listColumns(t.name, db)
+            try:                                   # listColumns(name, dbName) is deprecated since Spark 3.4: one quoted name
+                cols = spark.catalog.listColumns(".".join("`" + str(x).replace("`", "``") + "`" for x in (db, t.name)))
+            except Exception:  # noqa: BLE001 — an older Spark or catalog that does not parse the quoted name
+                cols = spark.catalog.listColumns(t.name, db)
             s.tables[t.name] = Table(t.name, [Column(c.name, c.dataType) for c in cols], schema=lakehouse_schema)
         return s
 

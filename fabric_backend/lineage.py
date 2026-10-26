@@ -266,7 +266,12 @@ def workspace_edges(workspace_id: str, item: dict, schema: str, tables: set[str]
     databases = {item.get("sql_db") or "", item.get("displayName") or ""}
     edges: list[dict] = []
     skipped: list[dict] = []
-    for it in items(workspace_id, headers):
+    try:
+        listed = items(workspace_id, headers)
+    except Exception as e:  # noqa: BLE001 — the workspace's items cannot be listed: say so, keep the views
+        listed = []
+        skipped.append({"item": "the workspace's items", "kind": "Workspace", "reason": explain(e, "listing the workspace's items").get("kind", "unexpected")})
+    for it in listed:
         kind, meta = it.get("type"), {"id": it.get("id"), "displayName": it.get("displayName")}
         try:
             if kind == "GraphQLApi":

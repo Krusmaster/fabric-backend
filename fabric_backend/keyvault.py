@@ -91,13 +91,17 @@ class SecretReader:
         return value
 
     def get(self, refresh: bool = False) -> str:
+        """The secret. After the hour, a failed re-read keeps the secret already held (a short Key Vault or identity
+        outage must not stop every sign-in); a forced refresh (Entra rejected the secret) or a first read raises."""
         with self._lock:
             if refresh or self._value is None or self.clock() - self._read_at > TTL:
                 try:
                     self._value, self._read_at = self._read(), self.clock()
-                except KeyVaultError:
-                    raise
-                except Exception as e:  # noqa: BLE001 — a network failure is reported without the request's headers
+                except Exception as e:  # noqa: BLE001 — reported without the request's headers
+                    if self._value is not None and not refresh:
+                        return self._value
+                    if isinstance(e, KeyVaultError):
+                        raise
                     raise KeyVaultError(f"reading the secret failed: {type(e).__name__}") from None
             return self._value
 

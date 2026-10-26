@@ -87,6 +87,33 @@ def test_generated_notebook_runs_in_pyspark_and_matches_the_python_steps(tmp_pat
             run('TABLE_FORMAT = "parquet"; SILVER_SCHEMA = "other"')
         assert spark.read.table("other.customers").count() == 1 and not spark.catalog.tableExists("other.orders")
         assert {t: spark.read.table(f"shop.{t}").count() for t in data} == before
+        # a notebook for another source never overwrites this one's silver tables or quarantine
+        other_cells = silver.cells(silver.spec(shop_plan(), dict(INFO, item_id="lh-2"), order_by={"orders": "order_date"}))
+        ns = {"spark": spark}
+        with pytest.raises(ValueError, match="was not written by this notebook"):
+            for kind, code in other_cells:
+                if kind != "markdown":
+                    exec(compile(code, "<notebook>", "exec"), ns)
+                    if kind == "parameters":
+                        exec('TABLE_FORMAT = "parquet"', ns)
+        assert sorted(map(tuple, spark.read.table("silver.orders").collect())) == first
+        # a table that points at itself: the rows under a quarantined manager follow it, as in silver.simulate
+        from fabric_backend.schema import Column, Schema, Table
+        spark.sql("CREATE SCHEMA IF NOT EXISTS hr")
+        rows = [(1, "a", None), (2, "b", 1), (3, "c", 99), (4, "d", 3), (5, "e", 4)]
+        spark.createDataFrame(rows, "employee_id int, name string, manager_id int").write.format("parquet").saveAsTable("hr.employees")
+        sch = Schema(schema="hr")
+        sch.tables["employees"] = Table("employees", [Column("employee_id", "int"), Column("name", "string"), Column("manager_id", "int")], schema="hr")
+        hr = silver.spec(plan(sch, None, [{"source": "employees", "source_cols": ["manager_id"], "target": "employees", "target_cols": ["employee_id"]}]),
+                         dict(INFO, schema="hr"), silver_schema="hr_silver")
+        ns = {"spark": spark}
+        for kind, code in silver.cells(hr):
+            if kind != "markdown":
+                exec(compile(code, "<notebook>", "exec"), ns)
+                if kind == "parameters":
+                    exec('TABLE_FORMAT = "parquet"', ns)
+        assert sorted(r["employee_id"] for r in spark.read.table("hr_silver.employees").collect()) == [1, 2]
+        assert spark.read.table("hr_silver.krusgraph_quarantine").count() == 3
     finally:
         spark.stop()
 

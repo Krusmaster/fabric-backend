@@ -5,6 +5,21 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Fixes from an independent review of this round's code, each with a test: the silver notebook can be generated again
+  after its first run on a lakehouse without schemas (its own `silver_*` tables are no longer read as sources); its
+  ownership mark names the source (`krusgraph.silver = <lakehouse id>/<schema>`), so two notebooks never overwrite each
+  other's tables; a table that points at itself is checked until no more rows drop out. The drift monitor never shows
+  the webhook address in an error, survives a failed listing of the workspace's items, does not retry (no double
+  message), and refuses a `library_ref` that is not a plain ref. Only `--key-vault` switches the app to Key Vault (a
+  `key_vault` in the config alone changed the app on `--update`); the full run keeps what `--key-vault` set. Rate limits:
+  a zero window is refused at startup, `retry_after` is the slowest bucket's, idle ids are dropped about an hour after
+  the last call (as `/privacy` says). Key Vault: a failed re-read after the hour keeps the secret held. Links built
+  from `MCP_PUBLIC_URL` (docs, pricing) are parsed instead of split on "/mcp", which broke on a host like
+  `mcp.example.com`. The paid-plan check counts `create_drift_monitor`'s dry run as the paid feature it gives away.
+  `answer_query_draft` reads markers as whole words ("beräkna" is not "räkna"), takes top N only with a ranking word,
+  prefers a column for "per order date", knows "order lines" means the table holding the lines, never groups a table by
+  itself, counts per group when no aggregate is named, and lists every number or condition it did not apply.
+- `Schema.from_spark` uses `listColumns` with one quoted name (the two-argument form is deprecated since Spark 3.4).
 - The local stdio server has `answer_query_draft` (T-SQL only; GraphQL needs an API in Fabric) and, for a lakehouse,
   `silver_notebook_draft` (the notebook without a default lakehouse, since the item ids are not known locally; a schema
   other than `dbo` implies a lakehouse with schemas when `FABRIC_SCHEMAS_ENABLED` is not set). CI has a `notebooks` job

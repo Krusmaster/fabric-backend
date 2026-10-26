@@ -27,14 +27,18 @@ from .evidence import qi
 from .graphql import graphql_name
 from .infer import SYNONYMS, Plan, PlanInputError, _TRANSLIT, _bases, _canon_bases, _norm, _singulars
 
-COUNT = ("how many", "number of", "count of", "count the", "hur många", "hur manga", "antal", "antalet", "räkna", "rakna")
-SUM = ("total", "sum of", "sum ", "summa", "summan", "totalt", "sammanlagd", "sammanlagt", "sammanlagda")
-AVG = ("average", "mean", "genomsnitt", "snitt", "medel")
+# Markers are whole words (\b is Unicode-aware, so "beräkna" does not contain "räkna"); \w* lets an inflected form match
+# ("totalt", "summan", "genomsnittlig", "antalet").
+COUNT = ("how many", "number of", "count", "counts", "hur många", "hur manga", "antal", "antalet", "räkna", "rakna", "räknar")
+SUM = ("total\\w*", "sum", "sums", "summa\\w*", "sammanlag\\w*")
+AVG = ("average\\w*", "mean", "genomsnitt\\w*", "snitt\\w*", "medel\\w*")
+MOST = ("most", "flest", "fewest", "minst")
 LATEST = ("latest", "newest", "most recent", "senaste", "nyaste")
 GROUP = ("for each", "for every", "per", "by", "för varje", "for varje", "för var", "efter", "fördelat på", "fordelat pa", "grouped by", "grupperat på")
-_TOP = re.compile(r"\b(?:top|topp|first|första|forsta|largest|biggest|highest|most|flest|största|storsta|högsta|hogsta|de|the|which|what|"
-                  r"vilka|vilken|show|visa|list|lista)\s+(\d{1,4})\b"
-                  r"|\b(\d{1,4})\s+(?:största|storsta|largest|biggest|highest|most|flest|first|första|forsta|högsta|hogsta|top|topp)\b")
+_RANK = (r"top|topp|first|första|forsta|largest|biggest|highest|most|flest|största|storsta|högsta|hogsta|which|what|vilka|vilken|show|visa|"
+         r"list|lista|latest|newest|senaste|nyaste")
+_TOP = re.compile(rf"\b(?:{_RANK})\s+(\d{{1,4}})\b|\b(\d{{1,4}})\s+(?:{_RANK})\b")
+LINE_WORDS = {"line", "lines", "item", "items", "detail", "details", "row", "rows", "rad", "rader", "position", "positions", "positioner"}
 _WORD = re.compile(r"[a-z0-9_åäöüß]+")
 LABELS = ("name", "title", "label", "description", "namn", "benamning", "beskrivning", "displayname", "fullname")
 NUMERIC = ("int", "bigint", "smallint", "tinyint", "decimal", "numeric", "float", "real", "double", "money", "smallmoney", "long", "short")
@@ -49,6 +53,27 @@ def _words(text: str) -> list[str]:
     return _WORD.findall(text.lower())
 
 
+def _has(q: str, markers: tuple[str, ...]) -> bool:
+    return any(re.search(r"\b" + m.replace(" ", r"\s+") + r"\b", q) for m in markers)
+
+
+def _phrase_table(words: list[str], candidates: list[str]) -> str | None:
+    """A table named by the first two words ("order items", "order lines": a line word stands for the table that holds the
+    lines, order_items), else by the first word."""
+    from .infer import _words as name_words
+    if len(words) >= 2:
+        hit = _table_for(words[0] + "_" + words[1], candidates)
+        if hit:
+            return hit
+        if words[1] in LINE_WORDS:
+            head = {_norm(x) for x in _singulars(words[0])} | ({_norm(SYNONYMS[words[0]])} if words[0] in SYNONYMS else set())
+            for t in candidates:
+                tw = name_words(t)
+                if len(tw) >= 2 and tw[-1] in LINE_WORDS and _norm("".join(tw[:-1])) in head | {_norm(x) for x in _singulars("".join(tw[:-1]))} & head:
+                    return t
+    return _table_for(words[0], candidates) if words else None
+
+
 def _table_for(word: str, candidates: list[str]) -> str | None:
     w = _norm(word)
     forms = {_norm(x) for x in _singulars(word.lower().translate(_TRANSLIT))} | {w}
@@ -59,6 +84,15 @@ def _table_for(word: str, candidates: list[str]) -> str | None:
         if w == _norm(t) or forms & (_bases(t) | _canon_bases(t)):
             return t
     return None
+
+
+def _phrase_column(words: list[str], plan: Plan, tables: list[str]) -> tuple[str, str] | None:
+    """A column named by the first two words ("order date" -> order_date), else by the first word."""
+    if len(words) >= 2:
+        hit = _column_for(words[0] + "_" + words[1], plan, tables)
+        if hit:
+            return hit
+    return _column_for(words[0], plan, tables) if words else None
 
 
 def _column_for(word: str, plan: Plan, tables: list[str]) -> tuple[str, str] | None:
@@ -83,7 +117,9 @@ def _after(text: str, markers: tuple[str, ...]) -> list[list[str]]:
 def understand(question: str, plan: Plan, tables: list[str]) -> dict:
     q = " " + question.lower() + " "
     everything = [t.name for t in plan.schema]
-    aggregate = "count" if any(m in q for m in COUNT) else "avg" if any(m in q for m in AVG) else "sum" if any(m in q for m in SUM) else None
+    aggregate = "count" if _has(q, COUNT) else "avg" if _has(q, AVG) else "sum" if _has(q, SUM) else None
+    if aggregate is None and _has(q, MOST):
+        aggregate = "count"                                   # "which customers have the most orders": a count per customer
     top = None
     m = _TOP.search(q)
     if m:
@@ -95,27 +131,27 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
             if a.isdigit() and 0 < int(a) <= 1000 and _table_for(b, everything):
                 top = int(a)
                 break
-    group_table = group_column = counted = None
-    for words in _after(q, GROUP):
-        for w in words:
-            hit = _table_for(w, tables) or _table_for(w, everything)
-            if hit:
-                group_table = hit
-                break
-            col = _column_for(w, plan, tables)
-            if col:
-                group_column = col
-                break
-        if group_table or group_column:
-            break
-    if aggregate is None and any(m in q for m in (" most ", " flest ", " fewest ", " minst ")):
-        aggregate = "count"                                   # "which customers have the most orders": a count per customer
+    counted = None
     if aggregate == "count":
-        for words in _after(q, COUNT + ("most", "flest", "fewest", "minst")):
-            hit = next((h for h in (_table_for(w, tables) or _table_for(w, everything) for w in words) if h), None)
+        for words in _after(q, COUNT + MOST):
+            hit = words and (_phrase_table(words, tables) or _phrase_table(words, everything))
             if hit:
                 counted = hit
                 break
+    group_table = group_column = None
+    for words in _after(q, GROUP):
+        for i in range(len(words)):
+            rest = words[i:]
+            col = _phrase_column(rest, plan, tables)          # "per order date" is the column, not the orders table
+            if col:
+                group_column = col
+                break
+            hit = _phrase_table(rest, tables) or _phrase_table(rest, everything)
+            if hit and hit != counted:                        # "how many orders per order" cannot group orders by themselves
+                group_table = hit
+                break
+        if group_table or group_column:
+            break
     measure = None
     if aggregate in ("sum", "avg"):
         said = set(_norm(w) for w in _words(q))
@@ -130,14 +166,19 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
         rest = [t for t in tables if t != counted]
         if counted and rest:
             group_table = rest[0]                             # "the most orders" with customers and orders: per customer
+    assumed_count = False
+    if aggregate is None and (group_table or group_column):
+        aggregate, assumed_count = "count", True              # "customers per country": a count per country
     mentioned = []
-    for w in _words(q):
-        col = _column_for(w, plan, tables)
+    ws = _words(q)
+    for i in range(len(ws)):
+        col = _phrase_column(ws[i:i + 2], plan, tables)
         if col and list(col) not in mentioned:
             mentioned.append(list(col))
-    return {"aggregate": aggregate, "top": top, "latest": any(m in q for m in LATEST), "group_table": group_table,
+    unused = [n for n in re.findall(r"\b\d+(?:[.,]\d+)?\b", q) if not (top is not None and n == str(top))]
+    return {"aggregate": aggregate, "top": top, "latest": _has(q, LATEST), "group_table": group_table,
             "group_column": list(group_column) if group_column else None, "counted": counted, "measure": list(measure) if measure else None,
-            "columns_named": mentioned}
+            "columns_named": mentioned, "not_used": unused, "count_assumed": assumed_count}
 
 
 def _label(plan: Plan, t: str) -> str:
@@ -202,8 +243,8 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
     measure = None
     root_key = plan.keys.get(root, ([], ""))[0]
     if u["aggregate"]:
-        if u["group_table"] and u["group_table"] != root:
-            g = u["group_table"]
+        if u["group_table"]:
+            g = u["group_table"]                              # the root itself too: one group per root row
             cols = list(dict.fromkeys(plan.keys.get(g, ([], ""))[0] + [_label(plan, g)]))
             select += [f"{alias[g]}.{qi(c)}" for c in cols]
             group += [f"{alias[g]}.{qi(c)}" for c in cols]
@@ -261,8 +302,13 @@ def tsql(plan: Plan, question: str, tables: list[str]) -> dict:
            + (("\nORDER BY " + ", ".join(order)) if order and (group or not u["aggregate"]) else ""))
     if not u["aggregate"] and not u["top"]:
         assumptions.append("no number of rows asked for: the first 100")
-    if u["aggregate"] and not (u["group_table"] or u["group_column"]):
-        assumptions.append("no grouping asked for: one total")
+    if u["aggregate"] and not group:
+        assumptions.append("no grouping read from the question: one total")
+    if u["count_assumed"]:
+        assumptions.append("no count, sum or average named: the rows are counted per group")
+    if u["not_used"]:
+        assumptions.append(f"not applied: {', '.join(u['not_used'])} — conditions (dates, amounts, filters) are not read from the "
+                           "question; add a WHERE to the query")
     return {"understood": u, "root": root, "tables": involved, "measure": measure,
             "path": [{k: v for k, v in s.items() if k not in ("rel", "cost")} for s in steps], "sql": sql, "assumptions": assumptions,
             "_steps": steps}
@@ -350,7 +396,8 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
 
 def draft(plan: Plan, question: str, tables: list[str], description: dict | None = None, api: str | None = None) -> dict:
     a = tsql(plan, question, tables)
-    out = {"question": question, "understood": a["understood"], "tables": a["tables"], "starts_at": a["root"],
+    understood = {k: v for k, v in a["understood"].items() if v not in (None, False, [])}     # only what was read
+    out = {"question": question, "understood": understood, "tables": a["tables"], "starts_at": a["root"],
            "path": a["path"], "tsql": a["sql"], "assumptions": a["assumptions"]}
     if description is not None:
         g = graphql(plan, description, a)

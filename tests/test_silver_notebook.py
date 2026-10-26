@@ -71,11 +71,26 @@ def test_no_source_table_is_ever_a_write_target():
             code = silver.notebook_source(s)
             assert "saveAsTable(name)" in code and code.count("saveAsTable") == 1               # one write path, through the guard
             assert ".write" not in code.replace("df.write.format(TABLE_FORMAT)", "")
-    # a lakehouse without schemas that already has a table called silver_orders: refused, not overwritten
+    # a lakehouse without schemas, planned again after the first run: its silver_* tables and the quarantine table are
+    # the notebook's own outputs, not sources (a table named like that which the notebook did not write is protected by
+    # the run-time mark, tests/test_spark_notebooks.py)
     sch = seed.schema("dbo")
-    sch.tables["silver_orders"] = Table("silver_orders", [Column("x", "int")], schema="dbo")
-    with pytest.raises(PlanInputError, match="is a source table"):
-        silver.spec(plan(sch), dict(INFO, schema="dbo", schemas_enabled=False))
+    for t in list(sch.tables) + ["krusgraph_quarantine"]:
+        sch.tables[f"silver_{t}"] = Table(f"silver_{t}", [Column("x", "int")], schema="dbo")
+    s = silver.spec(plan(sch), dict(INFO, schema="dbo", schemas_enabled=False))
+    assert sorted(t["table"] for t in s["tables"]) == sorted(seed.schema("dbo").tables)
+    assert not set(silver.written_tables(s)) & set(silver.source_tables(s))
+    # with schemas a table of that name in the source schema is a source like any other
+    sch = seed.schema("shop")
+    sch.tables["silver_orders"] = Table("silver_orders", [Column("x", "int")], schema="shop")
+    assert "silver_orders" in [t["table"] for t in silver.spec(plan(sch), INFO)["tables"]]
+
+
+def test_the_ownership_mark_names_the_source():
+    one = silver.notebook_source(silver.spec(shop_plan(), INFO))
+    two = silver.notebook_source(silver.spec(shop_plan(), dict(INFO, item_id="lh-2")))
+    assert 'OWNER = "lh-1/shop"' in one and 'OWNER = "lh-2/shop"' in two
+    assert "props.get(\"krusgraph.silver\") == OWNER" in one
 
 
 def test_the_notebook_guards_at_run_time_too():
@@ -245,3 +260,19 @@ def test_a_warehouse_source_is_unsupported_with_the_way_round(shop):
     for out in (json.loads(server.silver_notebook_draft("Sales", "wh", schema="shop")),
                 json.loads(server.create_silver_notebook("Sales", "wh", name="x", schema="shop", dry_run=False))):
         assert out["kind"] == "unsupported" and "shortcut" in out["hint"]
+
+
+def test_a_table_that_points_at_itself_loses_the_rows_under_a_quarantined_parent():
+    from fabric_backend.schema import Column, Schema, Table
+    sch = Schema(schema="hr")
+    sch.tables["employees"] = Table("employees", [Column("employee_id", "int"), Column("name", "varchar"), Column("manager_id", "int")], schema="hr")
+    p = plan(sch, None, [{"source": "employees", "source_cols": ["manager_id"], "target": "employees", "target_cols": ["employee_id"]}])
+    s = silver.spec(p, dict(INFO, schema="hr"))
+    rows = [{"employee_id": 1, "name": "a", "manager_id": None}, {"employee_id": 2, "name": "b", "manager_id": 1},
+            {"employee_id": 3, "name": "c", "manager_id": 99}, {"employee_id": 4, "name": "d", "manager_id": 3},
+            {"employee_id": 5, "name": "e", "manager_id": 4}]
+    out = silver.simulate(s, {"employees": rows})
+    assert [r["employee_id"] for r in out["silver"]["employees"]] == [1, 2]
+    assert sorted(q["row"]["employee_id"] for q in out["quarantine"]) == [3, 4, 5]
+    code = silver.notebook_source(s)
+    assert "for _round in range(100):" in code and "again until no more rows drop out" in code

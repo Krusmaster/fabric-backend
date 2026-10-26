@@ -10,7 +10,8 @@ Paid features (the split in docs/PRICING-NOTES.md: reading is free, creating and
                  create_ontology, create_silver_notebook (create_backend stays free: one API per workspace is the free
                  tier, and counting APIs needs the store PRICING-NOTES describes, which does not exist)
   lineage        lineage
-  drift_monitor  drift_monitor_draft, and create_drift_monitor with dry_run=false
+  drift_monitor  drift_monitor_draft and create_drift_monitor, its dry run included (the dry run returns the same
+                 notebook and pipeline as the draft, so a free dry run would give the paid feature away)
 
 Where the entitlements come from (KRUSGRAPH_ENTITLEMENTS_SOURCE):
   env    KRUSGRAPH_ENTITLED_TENANTS = JSON {"<tid>": ["create", "lineage"], "<tid>": ["*"]}; for tests and a first
@@ -35,7 +36,7 @@ FEATURES = {
     "lineage": {"lineage"},
     "drift_monitor": {"drift_monitor_draft", "create_drift_monitor"},
 }
-ALWAYS_PAID = {"lineage", "drift_monitor_draft"}            # paid even without dry_run (they create nothing anyway)
+ALWAYS_PAID = {"lineage", "drift_monitor_draft", "create_drift_monitor"}   # paid whatever dry_run says
 TABLE_TTL = 300
 STORAGE_RESOURCE = "https://storage.azure.com"
 
@@ -57,8 +58,8 @@ def upgrade_url() -> str:
     explicit = os.environ.get("KRUSGRAPH_UPGRADE_URL", "").strip()
     if explicit:
         return explicit
-    origin = os.environ.get("MCP_PUBLIC_URL", "https://krusgraph.com/mcp").split("/mcp")[0].rstrip("/") or "https://krusgraph.com"
-    return f"{origin}/pricing"
+    from .errors import site_origin
+    return f"{site_origin()}/pricing"
 
 
 class EnvSource:
@@ -162,5 +163,5 @@ def check(tool: str, dry_run: bool | None, tid: str | None) -> dict | None:
     return {"error": f"{what} is part of the paid plan, and your organisation does not have it on this server{note}.",
             "kind": "upgrade", "feature": feature,
             "hint": (f"See {upgrade_url()} for the plans. " + ("The dry run (dry_run=true) is free and shows exactly what would be created. "
-                                                               if feature == "create" or tool == "create_drift_monitor" else "")
+                                                               if feature == "create" else "")
                      + "Planning, validation and the drafts stay free.")}

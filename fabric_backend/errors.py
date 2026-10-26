@@ -77,10 +77,17 @@ def _fabric_body(text: str) -> tuple[str, str]:
 FIRST_TIME = ("sign_in", "consent", "mfa", "no_access", "capacity", "schema_not_found", "sql_sign_in")   # what a new user meets first
 
 
+def site_origin() -> str:
+    """scheme://host of MCP_PUBLIC_URL (https://krusgraph.com when unset). Parsed, not split on "/mcp": a host such as
+    mcp.example.com starts with those letters too."""
+    from urllib.parse import urlsplit
+    parts = urlsplit(os.environ.get("MCP_PUBLIC_URL", "").strip() or "https://krusgraph.com/mcp")
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else "https://krusgraph.com"
+
+
 def docs_url(anchor: str = "") -> str:
     """The operator's docs page (the origin of MCP_PUBLIC_URL; krusgraph.com when unset), with an anchor."""
-    origin = os.environ.get("MCP_PUBLIC_URL", "https://krusgraph.com/mcp").split("/mcp")[0].rstrip("/") or "https://krusgraph.com"
-    return f"{origin}/docs" + (f"#{anchor}" if anchor else "")
+    return f"{site_origin()}/docs" + (f"#{anchor}" if anchor else "")
 
 
 def _answer(kind: str, error: str) -> dict:

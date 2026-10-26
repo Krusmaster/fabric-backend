@@ -9,7 +9,8 @@ Only tool calls count (the server checks inside the tool wrapper, after the 401 
 `initialize`, `tools/list`, the site and the sign-in flow are never limited, and a request without a valid token still
 gets the 401 Claude starts sign-in on. In memory per replica: with `maxReplicas` 2 a user can reach up to twice the
 limit for a moment. The keys are SHA-256 hashes of the ids with a salt drawn when the process starts, so the table
-holds no ids in clear and nothing about it is written anywhere.
+holds no ids in clear and nothing about it is written anywhere; a user's buckets are dropped once they have refilled,
+which is at most the longest window after the user's last call (checked every minute).
 
 Configuration (environment):
   KRUSGRAPH_RATE_LIMITS   "0" (or off/false/no) turns the limits off; on by default in Entra mode
@@ -42,7 +43,7 @@ def parse(spec: str) -> list[tuple[int, int]]:
         if not part.strip():
             continue
         m = _SPEC.match(part.lower())
-        if not m or m.group(3) not in _UNITS or int(m.group(1)) < 1:
+        if not m or m.group(3) not in _UNITS or int(m.group(1)) < 1 or (m.group(2) and int(m.group(2)) < 1):
             raise ValueError(f"rate limit {part.strip()!r}: write it as <calls>/<unit>, e.g. 30/minute or 600/hour")
         out.append((int(m.group(1)), int(m.group(2) or 1) * _UNITS[m.group(3)]))
     return out
@@ -63,6 +64,7 @@ class Limiter:
         self._salt = secrets.token_bytes(16)
         self._buckets: dict[tuple[str, str, int], tuple[float, float]] = {}    # (scope, hashed id, rule) -> (calls left, at)
         self._lock = threading.Lock()
+        self._pruned = clock()
 
     @classmethod
     def from_env(cls) -> "Limiter | None":
@@ -82,18 +84,22 @@ class Limiter:
                   for scope, ident in (("user", oid), ("organisation", tid)) if ident
                   for i, (calls, window) in enumerate(self.rules[scope])]
         with self._lock:
-            levels = []
+            if now - self._pruned >= 60 or len(self._buckets) > MAX_KEYS:
+                self._prune(now)
+                self._pruned = now
+            levels, refused = [], None
             for scope, key, i, calls, window in wanted:
                 left, at = self._buckets.get((scope, key, i), (float(calls), now))
                 left = min(float(calls), left + (now - at) * calls / window)
                 if left < 1.0:
-                    wait = (1.0 - left) * window / calls
-                    return {"scope": scope, "limit": _words(calls, window), "retry_after": max(1, math.ceil(wait))}
+                    wait = max(1, math.ceil((1.0 - left) * window / calls))
+                    if refused is None or wait > refused["retry_after"]:      # the slowest empty bucket decides when to come back
+                        refused = {"scope": scope, "limit": _words(calls, window), "retry_after": wait}
                 levels.append(((scope, key, i), left))
+            if refused:
+                return refused
             for k, left in levels:
                 self._buckets[k] = (left - 1.0, now)
-            if len(self._buckets) > MAX_KEYS:
-                self._prune(now)
         return None
 
     def _prune(self, now: float) -> None:

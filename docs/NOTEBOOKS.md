@@ -23,6 +23,9 @@ table, in the order of the relationships (parents first):
 1. **Read** the source table. Sources are only read: the targets are in `silver_schema` (default `silver`; on a
    lakehouse without schemas the tables are prefixed `silver_`), the tool refuses a silver schema that is the source
    schema or a target name that is a source table, and the notebook checks the same again before it writes anything.
+   On a lakehouse without schemas the `silver_*` tables and the quarantine table sit beside the sources, so a plan made
+   after the first run lists them; they are treated as the notebook's own outputs, not as sources, and the run-time mark
+   (step 4) keeps the notebook off any such table it did not write.
 2. **Key** (rule K0–K5): rows whose key is NULL go to quarantine; of rows that share a key, the latest by the ordering
    column wins and the others go to quarantine. The ordering column is `order_by` (`{"orders": "updated_at"}`), else
    a column named like `updated_at`, `modified`, `ingested_at`, `loaded_at` or `created_at`; without one the kept row
@@ -30,9 +33,12 @@ table, in the order of the relationships (parents first):
 3. **References** (rule R0–R4 or `confirmed`): rows whose reference has no row in the parent's silver table go to
    quarantine with the reason (`customer_id has no row in customers (orders.customer_id = customers.customer_id)`);
    a NULL reference stays. Because parents are written first, an order whose customer was quarantined takes its order
-   lines with it.
-4. **Write** a Delta table, overwritten on every run, marked with the table property `krusgraph.silver = true`. A target
-   that exists without that mark is never overwritten: the notebook stops with "was not written by this notebook".
+   lines with it. A table that points at itself (`employees.manager_id`) is checked against its own rows again until no
+   more rows drop out, so the people under a quarantined manager follow the manager there.
+4. **Write** a Delta table, overwritten on every run, marked with the table property `krusgraph.silver` set to the
+   source it was built from (`<lakehouse id>/<schema>`). A target that exists without that mark, or with another
+   source's, is never overwritten: the notebook stops before writing anything, with "was not written by this
+   notebook". Two notebooks for two schemas of one lakehouse therefore need two silver schemas.
 
 At the end `krusgraph_quarantine` (`source_table`, `rule`, `reason`, `row_json`, `checked_at`) is rewritten with this
 run's rows, and a summary per table is printed (read, written, quarantined per reason). Every step is commented in the
@@ -76,8 +82,11 @@ The logic is the library's (`fabric_backend.monitor`, `lineage`, `drift`), insta
 instead of `main`); the pipeline passes `_inlineInstallationEnabled = true`, which a pipeline run needs for `%pip`.
 
 **No secret in the code.** The webhook address is a pipeline parameter with an empty default; you set it in Fabric
-(pipeline, Parameters, `webhook_url`). The Notebook activity has `secureInput` on, so the address stays out of the run
-history. For Teams: a workflow "When a Teams webhook request is received" that posts to a channel. For e-mail: a Power
+(pipeline, Parameters, `webhook_url`). The Notebook activity has `secureInput` on, so the pipeline's run history does not
+show the address, and a failed webhook call reports only the kind of failure, never the address (it carries its own
+`sig=` key). Not checked: whether Fabric's snapshot of a notebook run shows the parameter cell the pipeline injects;
+treat the snapshot as readable by whoever can open the run, and rotate the workflow's URL if that matters. The
+activity does not retry, so a run that sent its message and then failed cannot send it twice. For Teams: a workflow "When a Teams webhook request is received" that posts to a channel. For e-mail: a Power
 Automate flow "When an HTTP request is received" → "Send an email (V2)", or add Fabric's Office 365 Outlook activity to
 the pipeline after the notebook (the notebook's exit value carries the title and the lines). The Fabric REST calls of
 step 3 use the identity that runs the notebook (`notebookutils.credentials.getToken('pbi')`).
@@ -128,9 +137,9 @@ schema; this is input for the measurement rig in Krusmaster/fabric-eval, not a c
 
 | Question | describe_backend + join_path | answer_query_draft |
 | --- | --- | --- |
-| How many orders per customer? | 4 851 | 1 433 |
-| Total quantity per category | 5 569 | 1 597 |
-| De 10 senaste ordrarna med kund | 4 851 | 1 223 |
+| How many orders per customer? | 4 851 | 1 323 |
+| Total quantity per category | 5 569 | 1 512 |
+| De 10 senaste ordrarna med kund | 4 851 | 1 082 |
 
 ## Permissions
 

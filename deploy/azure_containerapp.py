@@ -9,7 +9,7 @@ No Entra registration, permission, DNS or billing-account changes are made here.
 deploy/krusgraph.json (see krusgraph.example.json): tenant_id, subscription_id, client_id, domain, location,
 resource_group, environment, app, registry, identity, product_name, contact_email, include_www and the optional
 company_orgnr (shown on the privacy page and in the footer when set; leave "" to hide the line), key_vault (the name of
-a Key Vault for the client secret, used by --key-vault; leave "" to keep the secret in the container app) and
+a Key Vault for the client secret, read only by --key-vault; leave "" to keep the secret in the container app) and
 log_retention_days (0 while console logs go nowhere; the number of days once they go to Log Analytics, which also
 turns off the access line with IP addresses; docs/OPERATIONS.md).
 
@@ -138,10 +138,14 @@ def key_vault_uri(config):
     return f"https://{name}.vault.azure.net/secrets/{KEY_VAULT_SECRET}" if name else ""
 
 
-def plain_env(config, build=None, identity_client_id=None):
+KEY_VAULT_ENV = ("ENTRA_CLIENT_SECRET_KEYVAULT_URI", "AZURE_CLIENT_ID")
+
+
+def plain_env(config, build=None):
     """The non-secret environment of the container, from the config. Both the full run and --update set these.
     `build` is the source tag of the image being deployed; the server reports it on /healthz so the check below
-    can tell the new revision from the old one. With key_vault, the secret's URI and the identity that reads it."""
+    can tell the new revision from the old one. The Key Vault settings are not here: only --key-vault sets them, after
+    the secret is stored, and the other runs keep what the app has (a key_vault in the config alone changes nothing)."""
     env = {
         "MCP_PUBLIC_URL": f"https://{config['domain']}/mcp", "ENTRA_CLIENT_ID": config["client_id"],
         "ENTRA_REQUIRED": "true", "PRODUCT_NAME": config["product_name"],
@@ -151,9 +155,6 @@ def plain_env(config, build=None, identity_client_id=None):
         env["KRUSGRAPH_BUILD"] = build
     if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
         env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
-    if key_vault_uri(config) and identity_client_id:
-        env["ENTRA_CLIENT_SECRET_KEYVAULT_URI"] = key_vault_uri(config)
-        env["AZURE_CLIENT_ID"] = identity_client_id
     days = int(config.get("log_retention_days") or 0)
     if days:                                  # console logs are kept in Log Analytics: say so on /privacy, keep no IP addresses
         env["KRUSGRAPH_LOG_RETENTION_DAYS"] = str(days)
@@ -161,15 +162,18 @@ def plain_env(config, build=None, identity_client_id=None):
     return env
 
 
-def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None, build=None, identity_client_id=None):
+def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None, build=None):
     ingress = {"external": True, "targetPort": 8000, "transport": "http", "allowInsecure": False}
     if existing:
         old_ingress = existing["properties"]["configuration"].get("ingress") or {}
         for name in ("customDomains", "ipSecurityRestrictions", "corsPolicy"):
             if name in old_ingress:
                 ingress[name] = old_ingress[name]
-    env = [{"name": key, "value": value} for key, value in plain_env(config, build, identity_client_id).items()]
+    env = [{"name": key, "value": value} for key, value in plain_env(config, build).items()]
     env.append({"name": "ENTRA_CLIENT_SECRET", "secretRef": "entra-secret"})
+    if existing:                              # keep the Key Vault settings --key-vault made; the manifest replaces the whole list
+        old_env = ((existing.get("properties") or {}).get("template") or {}).get("containers", [{}])[0].get("env") or []
+        env += [e for e in old_env if e.get("name") in KEY_VAULT_ENV and e.get("value")]
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
         "identity": {"type": "UserAssigned", "userAssignedIdentities": {identity_id: {}}},
@@ -388,8 +392,7 @@ def deploy(az, config):
     existing = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
     assert_owned(existing, config["app"])
     print("Startar hemsidan och MCP-servern…", flush=True)
-    manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing, tag,
-                             identity.get("clientId"))
+    manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing, tag)
     apply_manifest(az, config, manifest, bool(existing))
     manifest["properties"]["configuration"]["secrets"][0].pop("value")
     report(az, config, build=tag)
@@ -420,11 +423,8 @@ def update(az, config):
     tag = source_tag()
     image_uri = build_image(az, config, registry, tag)
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
-    client_id = None
-    if key_vault_uri(config):                 # keep the Key Vault settings --key-vault made (the identity's client id is not in the config)
-        identity = az.run("identity", "show", "--name", config["identity"], "--resource-group", rg)
-        client_id = identity.get("clientId")
-    env_args = [f"{key}={value}" for key, value in plain_env(config, tag, client_id).items()]     # KEY= sets an empty value; the server treats it as unset
+    # --set-env-vars adds and replaces only these; the Key Vault settings --key-vault made stay as they are
+    env_args = [f"{key}={value}" for key, value in plain_env(config, tag).items()]     # KEY= sets an empty value; the server treats it as unset
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--min-replicas", str(min_replicas(config)),
            "--set-env-vars", *env_args, raw=True)
