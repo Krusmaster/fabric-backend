@@ -543,3 +543,20 @@ def test_use_cases_mark_outputs_with_the_docs_status(client):
     assert "time it takes to read and accept a plan" not in html and "defensible to auditors" not in html
     first = html.split('id="industries"')[0]                                            # the illustrative note comes first
     assert "The schemas are illustrative examples, not customer projects." in first
+
+
+def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(client):
+    """The text review of 26 October: no "every tool" (most tools are not live-tested), no "Nothing stored" (tokens,
+    usage records and logs exist), and Cursor only ever named as a client that cannot sign in to the hosted service."""
+    from fabric_backend.discovery import PUBLIC_PAGES
+    paths = PUBLIC_PAGES + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md",
+                            "/llms.txt", "/llms-full.txt", "/mcp/server-card"]
+    for path in paths:
+        text = client.get(path).text
+        plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))
+        low = plain.lower()
+        for banned in ("every tool", "nothing stored", "stores nothing", "never data"):
+            assert banned not in low, (path, banned)
+        for sentence in re.split(r"(?<=[.;!?])\s+", plain):
+            if "cursor" in sentence.lower():
+                assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)

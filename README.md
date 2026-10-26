@@ -1,10 +1,11 @@
 # fabric-backend — the engine behind Krusgraph
 
-**Tables in Microsoft Fabric → an explainable graph and a GraphQL API for Claude, Lovable, Cursor and Claude
-Code — and the Rayfin connector for Fabric Apps. One plan, both outputs, one call.**
+**Tables in Microsoft Fabric → an explainable graph and a GraphQL API for apps and agents — and the Rayfin
+connector for Fabric Apps. One plan, both outputs, one call.**
 
-Hosted as **[Krusgraph](https://krusgraph.com)** (`https://krusgraph.com/mcp`, sign-in with your Microsoft work
-account, every call with your own Fabric permissions). The [demo](https://krusgraph.com/explore) runs the same
+Hosted as **[Krusgraph](https://krusgraph.com)** (`https://krusgraph.com/mcp`, for Claude, sign-in with your Microsoft
+work account, every call with your own Fabric permissions; Claude Code and Cursor cannot sign in to the hosted service
+yet because their local redirect is not registered on the Entra app). The [demo](https://krusgraph.com/explore) runs the same
 engine on a synthetic schema and needs no account. This repository is the whole thing: engine, MCP server, website
 and deployment. Krusgraph is independent and not affiliated with Microsoft; "Microsoft Fabric" is used descriptively.
 
@@ -67,7 +68,9 @@ Mermaid — nothing deployed), `validate_plan`, `sample_rows`, `create_backend`,
 drafts answer with an explanation. Windows set-up with Claude Desktop, Windows sign-in and what works locally:
 [docs/LOCAL.md](docs/LOCAL.md). `fabric-backend demo` is the 20-minute demo on a laptop: one local page on 127.0.0.1
 with the map, the health check with Accept / Skip and five questions run on the customer's own SQL Server or on a folder
-of CSV / Excel files; script in [docs/DEMO-20-MIN.md](docs/DEMO-20-MIN.md). Add it to Lovable as a custom MCP connector, or to Claude Code / Cursor.
+of CSV / Excel files; script in [docs/DEMO-20-MIN.md](docs/DEMO-20-MIN.md). Add the stdio server to Claude Desktop
+([docs/LOCAL.md](docs/LOCAL.md)) or another MCP client that starts local stdio servers; only the Claude Desktop set-up
+is documented.
 The agent can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
 ## Remote server (Krusgraph: for Claude today, other MCP clients once their sign-in redirects are registered)
@@ -162,7 +165,7 @@ says why. Roles come from in/out degree, betweenness and the share of measure-li
 propagation with a fixed order; ambiguity from the relationships a spanning forest leaves out (each closes a cycle). The tool table with arguments
 and an example question per tool is on https://krusgraph.com/docs. Authentication: a `Authorization: Bearer` Fabric
 token on the request wins; otherwise the server's own service principal — the same model as
-Lovable's Fabric connector. The server stores nothing. Put TLS in front, add it to Claude as a
+Lovable's Fabric connector. The server keeps nothing between requests (no database, no files). Put TLS in front, add it to Claude as a
 custom connector with the `https://…/mcp` URL, and the loop is browse → plan → create → query.
 The local stdio server (`fabric-backend-mcp`, ODBC string) stays for single-user use.
 
@@ -172,8 +175,9 @@ a `resource_metadata` pointer that Claude needs, `/.well-known/oauth-protected-r
 each user's token is validated (issuer per tenant, audience = the app, signature) and exchanged on-behalf-of for
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
 Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
-`GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata and requested query results pass through the
-server in memory only; there is no database. Agents outside Claude (Lovable's custom MCP connector, Cursor) need to
+`GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata, the counts from the checks, requested sample rows
+and query results pass through the server in memory only; there is no database. Each tool call leaves an anonymous
+usage record, and `/privacy` says which technical logs the deployment keeps. Agents outside Claude (Lovable's custom MCP connector, Cursor) need to
 register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_DCR=1` with `KRUSGRAPH_DCR_REDIRECTS` turns on a
 registration facade that answers the Entra app's public client id for allowed redirect URIs and publishes RFC 8414
 metadata pointing at Entra's endpoints, storing nothing ([docs/AUTH-DCR.md](docs/AUTH-DCR.md); off by default,
@@ -325,7 +329,9 @@ either, open an issue.
 
 ## Status
 
-Version history: [CHANGELOG.md](CHANGELOG.md).
+Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
+(Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned):
+https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 26 October run below.
 
 **25 October 2026, evening: first end-to-end run of the hosted connector.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic

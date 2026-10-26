@@ -74,7 +74,7 @@ A plan is a proposal, so read it before anything is built.
 
 ## Test status
 
-Every tool in the table below carries one of these:
+Each tool in the table below carries one of these:
 
 - **Tested end to end** — run from Claude as a custom connector, through Microsoft sign-in, against a Fabric workspace
   with synthetic data (an F2 capacity, a lakehouse with the shop schema from `fabric_backend/seed.py`) on 26 October
@@ -92,7 +92,7 @@ Every tool in the table below carries one of these:
 
 ## Tools
 
-Every tool takes the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
+All tools take the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
 (`{"order_items": ["order_id", "line_no"]}`), `confirmed` adds relationships the rules did not make
 (`[{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]`),
 `tables` limits what is built.
