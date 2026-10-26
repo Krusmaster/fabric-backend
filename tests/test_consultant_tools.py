@@ -127,9 +127,12 @@ def test_semantic_model_makes_second_paths_inactive_and_skips_composite_relation
     rules = {(r.source, r.target): r.rule for r in tpch.relationships}
     assert all(rules[pair] == "R2" for pair in inactive)
     rels = out["parts"]["definition/relationships.tmdl"]
-    date_inactive = [d for d in s["date_table"]["related"] if not d["active"]]      # LINEITEM's second and third date columns
+    # the calendar: ORDERS' date is active; LINEITEM reaches the calendar through ORDERS, so its dates stay inactive
+    date_inactive = [d for d in s["date_table"]["related"] if not d["active"]]
     assert rels.count("isActive: false") == len(inactive) + len(date_inactive) and "PARTSUPP" in out["parts"]["README.generated.md"]
-    assert [d["column"] for d in date_inactive] == ["L_COMMITDATE", "L_RECEIPTDATE"]
+    assert [d["column"] for d in s["date_table"]["related"] if d["active"]] == ["O_ORDERDATE"]
+    assert [d["column"] for d in date_inactive] == ["L_SHIPDATE", "L_COMMITDATE", "L_RECEIPTDATE"]
+    assert "one active path" in date_inactive[0]["why"]
     assert "schemaName: dbo" in out["parts"]["definition/tables/LINEITEM.tmdl"]  # a warehouse keeps the schema
     check_tmdl(rels)
     # Sakila: film -> language twice (language_id, original_language_id): one active, one inactive, same pair
@@ -169,6 +172,15 @@ def test_semantic_model_suggests_measures_with_the_reason_and_never_on_ids(shop_
     assert dt["not_related"] == [{"fact": "audit_log", "column": "happened_at", "why": "datetime with a time of day"}]
     readme = out["parts"]["README.generated.md"]
     assert "## Suggested measures" in readme and "placeholder" in readme and "`audit_log.happened_at` carries a time of day" in readme
+
+
+def test_the_calendar_never_makes_a_second_active_path():
+    s = seed.schema("shop")
+    s.tables["order_items"].columns.append(semantic_model_column("delivery_date", "date"))
+    out = semantic_model.draft(plan(s), INFO, "m")
+    related = out["summary"]["date_table"]["related"]
+    assert [(d["fact"], d["active"]) for d in related] == [("orders", True), ("order_items", False)]   # order_items reaches it through orders
+    assert "\tisActive: false\n\tfromColumn: order_items.delivery_date\n\ttoColumn: Calendar.Date" in out["parts"]["definition/relationships.tmdl"]
 
 
 def test_semantic_model_without_dates_on_facts_or_with_its_own_date_table_gets_no_calendar():

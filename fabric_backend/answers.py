@@ -242,10 +242,13 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         if f and not any(x["table"] == t and x["column"] == c for x in left_out):
             left_out.append({"table": t, "column": c, **f})
         return f is None
+    personal_group = None
     if u["group_column"] and not allowed(*u["group_column"]):
         t = u["group_column"][0]
+        personal_group = tuple(u["group_column"])
+        u["group_column"] = None                              # never grouped by: its values would be the answer
         if plan.keys.get(t):                                  # group by the row the personal column belongs to, by its key
-            u["group_column"], u["group_table"] = None, t
+            u["group_table"] = t
     involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x]))
     root = u["counted"] or _grain(plan, involved)
     steps, alias, fans_out = _join_tree(plan, root, [t for t in involved if t != root])
@@ -322,7 +325,10 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
            + (("\nORDER BY " + ", ".join(order)) if order and (group or not u["aggregate"]) else ""))
     if not u["aggregate"] and not u["top"]:
         assumptions.append("no number of rows asked for: the first 100")
-    if u["aggregate"] and not group:
+    if personal_group and not u["group_table"]:
+        assumptions.append(f"not grouped by {personal_group[0]}.{personal_group[1]}: it looks like personal data and the table has no key "
+                           "to stand in; one total instead (show_personal_data=true groups by it)")
+    elif u["aggregate"] and not group:
         assumptions.append("no grouping read from the question: one total")
     if u["count_assumed"]:
         assumptions.append("no count, sum or average named: the rows are counted per group")
@@ -430,7 +436,7 @@ def draft(plan: Plan, question: str, tables: list[str], description: dict | None
         out["graphql"] = dict(g, api=api)
     if a["personal_left_out"]:
         out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in a["personal_left_out"]],
-                                "notice": f"left out by name (privacy rules); the key stands in. {privacy.PARAMETER}=true includes them."}
+                                "notice": f"left out by name (privacy rules); the key stands in where the table has one. {privacy.PARAMETER}=true includes them."}
     out["runs"] = ("nothing: the T-SQL runs on the source's SQL analytics endpoint or a warehouse" +
                    ("; query_graphql with question= and tables= runs the GraphQL version" if description is not None else ""))
     return out

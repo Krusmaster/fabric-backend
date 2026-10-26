@@ -53,7 +53,14 @@ _ADDRESS = {("street",), ("street", "address"), ("address",), ("adress",), ("gat
 _ADDRESS_PREFIX = ("address", "adress", "addr")
 _CITY = {("city",), ("ort",), ("stad",), ("town",), ("stadt",), ("postort",)}
 _BIRTH = {("birth", "date"), ("date", "of", "birth"), ("dob",), ("birthday",), ("birthdate",), ("fodelsedatum",), ("fodelsedag",),
-          ("geburtsdatum",), ("geburtstag",), ("born",), ("born", "on"), ("birth", "day")}
+          ("geburtsdatum",), ("geburtstag",), ("born",), ("born", "on"), ("birth", "day"), ("birth", "dt"), ("birthdt",)}
+# A trailing word that numbers or qualifies the value rather than naming it: phone_no, tel_nr, ssn_number, email1, address_2.
+_QUALIFIERS = {"no", "nr", "num", "number", "nummer"}
+# Who a `<word>_name` column names, in any table: customer_name in orders, contact_name in sales, CustomerName.
+_NAMED_PEOPLE = {"customer", "client", "person", "user", "employee", "staff", "member", "contact", "patient", "student", "guest",
+                 "passenger", "driver", "applicant", "candidate", "tenant", "buyer", "seller", "worker", "teacher", "pupil", "resident",
+                 "citizen", "consumer", "visitor", "volunteer", "donor", "owner", "author", "elev", "anstalld", "medarbetare", "kunde",
+                 "mitarbeiter"}
 
 # Tables that hold people, by the English singular of their content words (after the synonym table).
 _PEOPLE = {"customer", "client", "person", "people", "user", "employee", "staff", "member", "contact", "patient", "student", "guest",
@@ -97,9 +104,29 @@ def _own_name(table: str, words: tuple[str, ...]) -> bool:
     return bool(forms & _table_words(table))
 
 
+def _strip_qualifiers(words: tuple[str, ...]) -> tuple[str, ...]:
+    """phone_no -> phone, email1 -> email, address_2 -> address, ssn_number -> ssn; a name of one word stays."""
+    words = list(words)
+    while len(words) > 1 and (words[-1] in _QUALIFIERS or words[-1].isdigit()):
+        words.pop()
+    if words and len(words[-1]) > 1 and words[-1][-1].isdigit():
+        words[-1] = words[-1].rstrip("0123456789") or words[-1]
+    return tuple(words)
+
+
+def _names_a_person(words: tuple[str, ...]) -> bool:
+    if len(words) >= 2 and words[-1] in ("name", "namn"):
+        head = "".join(words[:-1])
+    elif len(words) == 1 and words[0].endswith(("name", "namn")) and len(words[0]) > 4:
+        head = words[0][:-4]
+    else:
+        return False
+    return bool(({head, SYNONYMS.get(head, head)} | _singulars(head)) & _NAMED_PEOPLE)
+
+
 def classify(table: str, column: str) -> dict | None:
     """{"rule", "what", "why"} when the column is probably personal data, else None."""
-    words = tuple(_words(column))
+    words = _strip_qualifiers(tuple(_words(column)))
     if not words:
         return None
     # the column's own name, and the same without a leading table-like word (customer_email, kund_telefon, ship_to_city)
@@ -127,6 +154,8 @@ def classify(table: str, column: str) -> dict | None:
         return found("P1", f"the column name {column!r} names part of a person's name")
     if (words in _BARE_NAME or _own_name(table, words)) and holds_people(table):
         return found("P1", f"{column!r} in {table!r}, a table that holds people, is a person's name")
+    if _names_a_person(words):
+        return found("P1", f"the column name {column!r} names a person (a customer, user, employee or contact) by name")
     if hit(_ADDRESS) or words[0] in _ADDRESS_PREFIX:
         return found("P5", f"the column name {column!r} names an address")
     if hit(_CITY) and (holds_addresses(table) or holds_people(table)):

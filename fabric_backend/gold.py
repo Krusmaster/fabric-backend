@@ -42,6 +42,7 @@ from .graphs import certainty
 from .infer import Plan, PlanInputError, RULES
 
 DEFAULT_SCHEMA = "gold"
+GOLD_TOKEN, SILVER_TOKEN = "{GOLD_SCHEMA}", "{SILVER_SCHEMA}"      # in the notebook's SQL, replaced by the parameters' values
 _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,99}$")
 PROPERTY = "krusgraph.gold"
 
@@ -59,13 +60,13 @@ def _constraint_name(*parts: str) -> str:
     return re.sub(r"[^a-z0-9_]+", "_", "_".join(parts).lower()).strip("_")[:120]
 
 
-def safest_tree(plan: Plan, fact: str) -> list[dict]:
+def safest_tree(plan: Plan, fact: str, within: set[str] | None = None) -> list[dict]:
     """From the fact, every table reachable by many-to-one steps, each over its safest path (Dijkstra on 1/certainty,
     graphs.WEIGHTS: declared and confirmed links first, then R1, R2, R3/R4). Steps in join order (a table's parent is
-    joined before it)."""
+    joined before it). `within` keeps the walk to those tables (the ones a silver notebook built for `tables` holds)."""
     by_source: dict[str, list] = {}
     for r in plan.relationships:
-        if r.target in plan.keys and r.source != r.target:
+        if r.target in plan.keys and r.source != r.target and (within is None or r.target in within):
             by_source.setdefault(r.source, []).append(r)
     best: dict[str, float] = {fact: 0.0}
     via: dict[str, tuple[str, object]] = {}
@@ -95,11 +96,12 @@ def _unique(names: list[str]) -> list[str]:
 
 
 def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str = DEFAULT_SCHEMA, tables: list[str] | None = None,
-         show_personal_data: bool = False) -> dict:
+         show_personal_data: bool = False, within: list[str] | None = None) -> dict:
     """The views as data. Raises PlanInputError when the lakehouse has no schemas (MLV needs them), a schema name will
     not do, or a target would be a source or silver table."""
     from . import graphs
     schema = info.get("schema") or plan.schema.schema
+    gold_schema, silver_schema = (gold_schema or "").strip(), (silver_schema or "").strip()
     if not info.get("schemas_enabled", True):
         raise PlanInputError("materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. "
                              "Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views.")
@@ -108,6 +110,9 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
             raise PlanInputError(f"{label}: letters, digits and underscores, starting with a letter")
         if value.isupper():
             raise PlanInputError(f"{label}: all-uppercase schema names are not supported for materialized lake views; use lower case")
+    # materialized lake view names "are case-insensitive and stored in lowercase" (create-materialized-lake-view.md): one
+    # spelling everywhere, so the notebook's guard checks exactly the name its CREATE statement writes
+    gold_schema, silver_schema = gold_schema.lower(), silver_schema.lower()
     if gold_schema.lower() in (schema.lower(), silver_schema.lower()):
         raise PlanInputError(f"gold_schema {gold_schema!r} is the {'source' if gold_schema.lower() == schema.lower() else 'silver'} schema; "
                              "the gold views need a schema of their own")
@@ -124,16 +129,21 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
             raise PlanInputError("tables: only fact tables get a gold view; not a fact table in the plan: " + ", ".join(not_facts)
                                  + " (analyze_schema shows the roles)")
         facts = [f for f in facts if f in wanted]
+    inside = None
+    if within:
+        names = {t.name.lower(): t.name for t in plan.schema}
+        inside = {names[t.lower()] for t in within if t.lower() in names}
+        facts = [f for f in facts if f in inside]
     flagged = _privacy.personal_columns(plan.schema)
     sources = {f"{schema}.{t.name}".lower() for t in plan.schema}
     silver = {f"{silver_schema}.{t.name}".lower() for t in plan.schema}
-    views, omitted = [], []
+    views, omitted, kept = [], [], []
     for fact in sorted(facts, key=str.lower):
         target = f"{gold_schema}.{fact}".lower()
         if target in sources or target in silver:
             raise PlanInputError(f"the gold view for {fact} would be {target}, which is a {'source' if target in sources else 'silver'} table; "
                                  "choose another gold_schema")
-        steps = safest_tree(plan, fact)
+        steps = safest_tree(plan, fact, inside)
         alias = {fact: "f"}
         for i, s in enumerate(steps, 1):
             alias[s["to"]] = f"d{i}"
@@ -147,6 +157,8 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                 if f and not show_personal_data and (t, c.lower()) not in needed:
                     omitted.append({"view": target, "table": t, "column": c, **f})
                     continue
+                if f and not show_personal_data:
+                    kept.append({"view": target, "table": t, "column": c, **f, "why_kept": "a key or join column of this view"})
                 columns.append({"table": t, "column": c, "alias": alias[t], "personal": f})
                 out_names.append(c if t == fact else f"{t}_{c}")
         for col, name in zip(columns, _unique(out_names)):
@@ -179,7 +191,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
             "silver_schema": silver_schema, "gold_schema": gold_schema, "owner": owner, "views": views,
-            "personal_data": {"shown": bool(show_personal_data), "omitted": omitted,
+            "personal_data": {"shown": bool(show_personal_data), "omitted": omitted, "kept_for_joins": kept,
                               "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views for t in v["tables"]}})}}
 
 
@@ -278,11 +290,15 @@ def cells(s: dict) -> list[tuple[str, str]]:
     out = [("markdown", intro), ("parameters", params), ("code", setup)]
     for v in s["views"]:
         sql = create_sql(v, s)
-        body = sql.replace(f"`{s['gold_schema']}`.", "`{GOLD_SCHEMA}`.").replace(f"`{s['silver_schema']}`.", "`{SILVER_SCHEMA}`.")
-        body = body.replace("{", "{{").replace("}", "}}").replace("{{GOLD_SCHEMA}}", "{GOLD_SCHEMA}").replace("{{SILVER_SCHEMA}}", "{SILVER_SCHEMA}")
+        # the schema names become the parameters' values at run time; the SQL is a plain (not f-) string with backslashes and
+        # triple quotes escaped, so any table or column name survives as it is
+        body = sql.replace(f"{q(s['gold_schema'])}.", f"`{GOLD_TOKEN}`.").replace(f"{q(s['silver_schema'])}.", f"`{SILVER_TOKEN}`.")
+        body = body.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
         name = v["name"].split(".", 1)[1]
         out.append(("code", "\n".join([f"# ---- {v['name']} ----", *[f"# {c['name']}: {c['why']}" for c in v["constraints"]],
-                                       f'spark.sql(f"""\n{body}\n""")', f"created.append({json.dumps(name)})"])))
+                                       f'spark.sql("""\n{body}\n""".replace("{GOLD_TOKEN}", GOLD_SCHEMA.replace("`", "``"))'
+                                       f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))',
+                                       f"created.append({json.dumps(name)})"])))
     out.append(("code", "print(f\"{len(created)} gold view(s) in {GOLD_SCHEMA}: {', '.join(created)}\")\n"
                         "display(spark.sql(f\"SHOW MATERIALIZED LAKE VIEWS IN {q(GOLD_SCHEMA)}\"))"))
     return out

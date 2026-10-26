@@ -115,6 +115,16 @@ def test_a_link_the_plan_lacks_is_offered_as_confirmed_and_the_data_can_contradi
     assert "orders.ship_to_id -> addresses.address_id (confirmed)" in out["agrees"]
 
 
+def test_a_column_name_ending_in_a_bracket_is_matched_as_it_is():
+    from fabric_backend.schema import Schema as S
+    s = S.from_information_schema([("dbo", "sales", "sale_id", "int", 1), ("dbo", "sales", "customer_id", "int", 2), ("dbo", "sales", "store_id", "int", 3),
+                                   ("dbo", "sales", "Amount (EUR)", "decimal", 4), ("dbo", "customers", "customer_id", "int", 1), ("dbo", "stores", "store_id", "int", 1)])
+    p = plan(s)
+    parts = semantic_model.draft(p, dict(INFO, schema="dbo"), "m")["parts"]
+    out = model_compare.compare(p, model_compare.from_tmdl(parts))
+    assert out["measures"]["suggested_missing"] == []                       # SUM('sales'[Amount (EUR)]) is found, not re-suggested
+
+
 def test_microsofts_sample_model_reads_without_errors():
     """The PBIP sample in microsoft/Analysis-Services (pbidevmode/fabricps-pbip/SamplePBIP) as recorded excerpts: an Import
     model with Power Query partitions, a calendar, inactive date relationships and fenced multi-line measures."""

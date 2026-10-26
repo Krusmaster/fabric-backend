@@ -109,7 +109,7 @@ def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: se
         if role_of.get(t.name) != "fact":
             continue
         key = plan.keys.get(t.name, ([], ""))[0]
-        out.append({"table": t.name, "name": unique(f"Rows in {t.name}", t.name), "expression": f"COUNTROWS({_dax_table(t.name)})",
+        out.append({"table": t.name, "column": None, "name": unique(f"Rows in {t.name}", t.name), "expression": f"COUNTROWS({_dax_table(t.name)})",
                     "format": "#,##0", "why": f"{t.name} is a fact table (role from the plan's graph): its row count is the first number a report asks for"})
         for c in t.columns:
             if c.name not in t.column_names:
@@ -118,7 +118,8 @@ def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: se
             if summarize_by(c.name, c.data_type, is_ref) != "sum":
                 continue
             dt = data_type(c.data_type)
-            out.append({"table": t.name, "name": unique(f"Total {c.name}", t.name), "expression": f"SUM({_dax_table(t.name)}[{_dax_column(c.name)}])",
+            out.append({"table": t.name, "column": c.name, "name": unique(f"Total {c.name}", t.name),
+                        "expression": f"SUM({_dax_table(t.name)}[{_dax_column(c.name)}])",
                         "format": "#,##0" if dt == "int64" else "#,##0.00",
                         "why": f"{t.name}.{c.name} is a number in a fact table and neither a key, a reference nor an id, code or year, "
                                "so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit"})
@@ -296,12 +297,29 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         rel_lines.append(f"\tfromColumn: {tmdl_name(r.source)}.{tmdl_name(r.source_cols[0])}")
         rel_lines.append(f"\ttoColumn: {tmdl_name(r.target)}.{tmdl_name(r.target_cols[0])}")
         rel_lines.append("")
+    # The calendar joins the active relationships under the same rule: one active path between any two tables. A date
+    # relationship whose fact is already connected to the calendar through active links (a second date column of the same
+    # fact, or a line table whose header already relates to the calendar) stays inactive.
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        while parent.setdefault(x, x) != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+    for r in active:
+        parent[find(r.source)] = find(r.target)
     date_rels = []
     for fact, col in dates if calendar else []:
-        first = not any(d["fact"] == fact for d in date_rels)
-        date_rels.append({"fact": fact, "column": col, "active": first})
+        joined = find(fact) == find("\x00calendar")
+        if not joined:
+            parent[find(fact)] = find("\x00calendar")
+        why = "" if not joined else (
+            f"{fact} already relates to {calendar} through another date column" if any(d["fact"] == fact and d["active"] for d in date_rels) else
+            f"{fact} already reaches {calendar} through active relationships (one active path between two tables)")
+        date_rels.append({"fact": fact, "column": col, "active": not joined, **({"why": why} if why else {})})
         rel_lines.append(f"relationship {_tag(name, 'relationship', fact, col, calendar)}")
-        if not first:
+        if joined:
             rel_lines.append("\tisActive: false")
         rel_lines += [f"\tfromColumn: {tmdl_name(fact)}.{tmdl_name(col)}", f"\ttoColumn: {tmdl_name(calendar)}.Date", ""]
     parts["definition/relationships.tmdl"] = "\n".join(rel_lines) if rel_lines else "// no single-column relationships in the plan\n"
@@ -360,7 +378,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                    "(direct-lake-overview.md).",
                    f"- The range {CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 is a placeholder: this draft reads no rows. Set it to "
                    "your data's first and last year in the partition's `source`, or rows outside it have no date to filter by."]
-        readme += [f"- `{d['fact']}.{d['column']} -> {calendar}.Date`" + (" (active)" if d["active"] else " (inactive: the fact's first date column is the active one; use USERELATIONSHIP)")
+        readme += [f"- `{d['fact']}.{d['column']} -> {calendar}.Date`" + (" (active)" if d["active"] else f" (inactive: {d['why']}; use USERELATIONSHIP)")
                    for d in date_rels]
         readme += [f"- `{f}.{c}` carries a time of day and is not related: Direct Lake on SQL does not relate on the date part of a datetime "
                    "(direct-lake-overview.md). Add a date column (for example in a gold view) and relate that." for f, c in timed]

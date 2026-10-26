@@ -189,6 +189,50 @@ def test_the_notebook_guard_stops_before_a_protected_or_foreign_target():
         run(Spark({"silver.orders"}))
 
 
+def test_a_mixed_case_gold_schema_is_one_name_for_the_guard_and_the_create():
+    s = gold.spec(shop_plan(), INFO, gold_schema="Reporting", silver_schema="Silver")
+    assert s["gold_schema"] == "reporting" and all(w.startswith("reporting.") for w in gold.written(s))
+    sent = []
+
+    class Spark:
+        class catalog:
+            @staticmethod
+            def tableExists(name):
+                return name.replace("`", "").lower().startswith("silver.")
+
+        def sql(self, text):
+            sent.append(text)
+
+            class R:
+                def collect(self):
+                    return []
+            return R()
+    ns = {"spark": Spark(), "display": lambda x: None}
+    for kind, code in gold.cells(s):
+        if kind != "markdown":
+            exec(compile(code, "<notebook>", "exec"), ns)
+            if kind == "parameters":
+                exec('GOLD_SCHEMA = "gold_dev"', ns)                       # what a pipeline's parameter does
+    creates = [x for x in sent if "CREATE OR REPLACE MATERIALIZED LAKE VIEW" in x]
+    assert creates and all("`gold_dev`." in c and "`reporting`." not in c for c in creates)
+
+
+def test_odd_names_survive_the_notebook_cell():
+    from fabric_backend.schema import Column
+    sch = seed.schema("shop")
+    odd = "path\\Nx " + '"' * 3 + " {a}"                                    # a backslash, a triple quote and braces
+    sch.tables["order_items"].columns.append(Column(odd, "string"))
+    s = gold.spec(plan(sch), INFO)
+    cells = [c for k, c in gold.cells(s) if k != "markdown"]
+    for code in cells:
+        compile(code, "<notebook>", "exec")
+    items = next(c for c in cells if "gold.order_items ----" in c)
+    sent = []
+    ns = {"GOLD_SCHEMA": "gold", "SILVER_SCHEMA": "silver", "created": [], "spark": type("S", (), {"sql": lambda self, t: sent.append(t)})()}
+    exec(items, ns)
+    assert sent[0].strip() == next(st["sql"] for st in gold.statements(s) if st["name"] == "gold.order_items") and odd in sent[0]
+
+
 def test_personal_columns_are_left_out_unless_asked_for():
     s = gold.spec(shop_plan(), INFO)
     names = {c["as"] for v in s["views"] for c in v["columns"]}

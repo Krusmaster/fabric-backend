@@ -186,8 +186,8 @@ def test_tokens_an_agent_reads_with_and_without_the_suggestion():
     assert measured == MEASURED, measured
 
 
-MEASURED = {"How many orders per customer?": (4851, 1505), "Total quantity per category": (5569, 1512),
-            "De 10 senaste ordrarna med kund": (4851, 1295)}          # docs/NOTEBOOKS.md quotes these
+MEASURED = {"How many orders per customer?": (4851, 1529), "Total quantity per category": (5569, 1512),
+            "De 10 senaste ordrarna med kund": (4851, 1319)}          # docs/NOTEBOOKS.md quotes these
 
 
 # ------------------------------------------------------------------ the tools ------------------------------------

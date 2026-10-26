@@ -94,6 +94,16 @@ def test_a_warehouse_gets_no_notebooks_and_unknown_items_are_refused(shop):
     assert out["skipped"] == [{"tool": "create_gold_views", "why": "materialized lake views need a lakehouse created with schemas"}]
 
 
+def test_with_tables_the_gold_notebook_reads_only_what_the_silver_notebook_writes_and_folders_never_collide(shop):
+    out = json.loads(server.export_item_definitions("Sales", "shop_lh", schema="shop", tables=["customers", "orders"],
+                                                    items=["create_silver_notebook", "create_gold_views"]))
+    gold_nb = out["files"]["gold_shop.Notebook/notebook-content.py"]
+    assert 'SILVER_TABLES = ["customers", "orders"]' in gold_nb
+    bad = json.loads(server.export_item_definitions("Sales", "shop_lh", schema="shop", items=["create_silver_notebook", "create_gold_views"],
+                                                    names={"create_silver_notebook": "nb", "create_gold_views": "nb"}))
+    assert bad["kind"] == "bad_input" and "nb.Notebook" in bad["error"]
+
+
 def test_folder_names_write_unsafe_characters_as_html_numbers():
     assert git_export.folder("Sales/EU: v2", "SemanticModel") == "Sales&#47;EU&#58; v2.SemanticModel"
     a, b = (json.loads(git_export.platform("Notebook", n))["config"]["logicalId"] for n in ("one", "one"))

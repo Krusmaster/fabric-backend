@@ -457,8 +457,8 @@ def _measures(plan: Plan, model: dict, tmap: dict) -> dict:
     missing = []
     model_of = {p: m for m, p in back.items()}
     for s in _sm.suggested_measures(plan, chosen, role_of, ref_cols):
-        fn = s["expression"].split("(", 1)[0]
-        col = s["expression"].split("[", 1)[1].rstrip("])").replace("]]", "]") if "[" in s["expression"] else ""
+        fn = "SUM" if s.get("column") else "COUNTROWS"
+        col = s.get("column") or ""
         if (fn, s["table"], col.lower()) in found:
             continue
         mt = model_of[s["table"]]                                   # written in the model's own names

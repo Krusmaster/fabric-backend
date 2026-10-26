@@ -240,8 +240,13 @@ az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publi
 # --public-client-redirect-uris replaces the whole list, so the existing one is read first and merged;
 # --web-redirect-uris (Claude's callback) is not touched
 NEW=("http://localhost" "http://localhost/callback")
-mapfile -t ALL < <({ az ad app show --id "$APP_ID" --query "publicClient.redirectUris[]" -o tsv; printf '%s\n' "${NEW[@]}"; } | sort -u)
-az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"
+# if the read fails (an expired sign-in, throttling), nothing is changed: an empty read would replace the list
+if CUR=$(az ad app show --id "$APP_ID" --query "publicClient.redirectUris[]" -o tsv); then
+  mapfile -t ALL < <({ printf '%s\n' "$CUR"; printf '%s\n' "${NEW[@]}"; } | grep -v '^$' | sort -u)
+  az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"
+else
+  echo "Could not read the app's list; nothing changed."
+fi
 # check: the web list unchanged, the new addresses under publicClient, fallback still false or null
 az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris, fallback:isFallbackPublicClient}"
 ```

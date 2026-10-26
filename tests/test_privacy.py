@@ -22,6 +22,10 @@ from test_answer_query import SHIP_TO, WS, description, run_tsql, sqlite_with_se
     ("dim_customer", "CustomerName", "P1"), ("kund", "namn", "P1"),
     ("Customer", "AddressLine1", "P5"), ("customers", "zip", "P5"), ("orders", "shipping_address", "P5"), ("addresses", "city", "P5"),
     ("kunder", "postnummer", "P5"), ("people", "DateOfBirth", "P6"), ("anstallda", "fodelsedatum", "P6"),
+    # numbered and qualified forms, and a person named in another table (found by the review of round n12)
+    ("customers", "phone_no", "P3"), ("customers", "PhoneNo", "P3"), ("customers", "Mobile No.", "P3"), ("x", "tel_nr", "P3"),
+    ("x", "phone_1", "P3"), ("x", "email1", "P2"), ("x", "Email2", "P2"), ("x", "address2", "P5"), ("x", "ssn_number", "P4"),
+    ("x", "birth_dt", "P6"), ("orders", "customer_name", "P1"), ("orders", "CustomerName", "P1"), ("sales", "contact_name", "P1"),
 ])
 def test_a_rule_per_pattern(table, column, rule):
     assert privacy.classify(table, column)["rule"] == rule
@@ -31,6 +35,7 @@ def test_a_rule_per_pattern(table, column, rule):
     ("products", "name"), ("categories", "name"), ("vendors", "name"), ("customers", "customer_id"), ("orders", "ship_to_id"),
     ("customers", "country"), ("stores", "city"), ("orders", "order_date"), ("customers", "email_verified"), ("audit_log", "event"),
     ("customers", "company_name"), ("x", "mailing_list_id"), ("email_log", "sent_at"),
+    ("orders", "line_no"), ("orders", "order_no"), ("products", "product_name"), ("x", "account_name"), ("x", "house_no"),
 ])
 def test_nothing_is_guessed(table, column):
     assert privacy.classify(table, column) is None
@@ -134,6 +139,28 @@ def test_no_personal_value_of_the_shop_seed_reaches_an_answer_without_the_parame
     assert leaks(shown)
     sql = answers.draft(plan(seed.schema("shop"), None, SHIP_TO), "How many orders per customer?", ["orders", "customers"], show_personal_data=True)["tsql"]
     assert leaks(json.dumps(run_tsql(con, sql), default=str))
+
+
+def test_a_personal_column_without_a_key_to_stand_in_is_never_grouped_by():
+    s = Schema.from_information_schema([("dbo", "contacts", "email", "varchar", 1), ("dbo", "contacts", "city", "varchar", 2),
+                                        ("dbo", "contacts", "score", "int", 3)])
+    d = answers.draft(plan(s), "how many contacts per email", ["contacts"])
+    assert "[email]" not in d["tsql"] and "GROUP BY" not in d["tsql"]
+    assert any("not grouped by contacts.email" in a for a in d["assumptions"])
+    shown = answers.draft(plan(s), "how many contacts per email", ["contacts"], show_personal_data=True)
+    assert "GROUP BY t0.[email]" in shown["tsql"]
+
+
+def test_gold_views_name_a_personal_key_they_keep_for_a_join():
+    info = dict(workspace_id="ws", item_id="lh-1", item_name="shop_lh", item_kind="Lakehouse", schema="crm", schemas_enabled=True)
+    sch = Schema.from_information_schema([("crm", "members", "member_email", "varchar", 1), ("crm", "members", "level", "varchar", 2),
+                                          ("crm", "visits", "visit_id", "int", 1), ("crm", "visits", "member_email", "varchar", 2),
+                                          ("crm", "visits", "store_id", "int", 3), ("crm", "visits", "amount", "decimal", 4),
+                                          ("crm", "stores", "store_id", "int", 1)], schema="crm")
+    p = plan(sch, {"members": ["member_email"]}, [{"source": "visits", "source_cols": ["member_email"], "target": "members", "target_cols": ["member_email"]}])
+    s = gold.spec(p, info)
+    kept = {(k["table"], k["column"]) for k in s["personal_data"]["kept_for_joins"]}
+    assert ("members", "member_email") in kept and ("visits", "member_email") in kept
 
 
 def test_the_local_server_masks_too(monkeypatch):

@@ -25,6 +25,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   --client-redirects` prints the az commands for Claude Code, VS Code and Cursor (docs/OPERATIONS.md section 5), runs
   nothing. `docs/LIVE-TEST.md`: the checklist for the next live run. /docs: a section on using Krusgraph beside
   Microsoft's Fabric MCP servers, and what is read about personal data and labels. Thirty-four tools.
+- Fixes from an independent review of round n12's code, each with a test: a question grouped by a personal column of a
+  table without a key no longer groups by it (one total, and the reason); a mixed-case `gold_schema` is one lower-case
+  name for the notebook's guard and its CREATE statements, and the notebook's SQL is a plain string with backslashes and
+  triple quotes escaped; the calendar never adds a second active path (a line table whose header already relates to it
+  stays inactive); the privacy rules read numbered and qualified names (`phone_no`, `email1`, `address2`, `birth_dt`) and a
+  person named in another table (`orders.customer_name`); a suggested measure is matched by its column, so `Amount (EUR)`
+  is not re-suggested; `--client-redirects` changes nothing when the app's list cannot be read; `export_item_definitions`
+  keeps the gold views to the exported `tables` and refuses two items in one folder; gold views name a personal key they
+  keep for a join.
 - The status words follow the 26 October protocol (14 steps, no creating call): 16 tools are Tested end to end,
   `create_views` as a dry run; `create_backend` and `list_tables` are Experimental; texts that said the 22 tools of that day
   were tested, or that `create_views` created a schema and a view, are corrected. /local says exactly what leaves the

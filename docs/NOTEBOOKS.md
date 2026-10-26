@@ -137,9 +137,9 @@ schema; this is input for the measurement rig in Krusmaster/fabric-eval, not a c
 
 | Question | describe_backend + join_path | answer_query_draft |
 | --- | --- | --- |
-| How many orders per customer? | 4 851 | 1 505 |
+| How many orders per customer? | 4 851 | 1 529 |
 | Total quantity per category | 5 569 | 1 512 |
-| De 10 senaste ordrarna med kund | 4 851 | 1 295 |
+| De 10 senaste ordrarna med kund | 4 851 | 1 319 |
 
 Since 26 October 2026 (round n12) the two questions about customers carry a short `personal_data` note: `customers.name`
 looks like a person's name by the privacy rules, so the query groups and lists by `customer_id` instead unless

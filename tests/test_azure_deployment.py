@@ -411,6 +411,7 @@ def test_client_redirects_only_prints_the_commands(monkeypatch, capsys, tmp_path
     assert 'APP_ID="00000000-aaaa-bbbb-cccc-000000000001"' in out
     assert 'NEW=("http://localhost" "http://localhost/callback")' in out
     assert 'az ad app update --id "$APP_ID" --public-client-redirect-uris "${ALL[@]}"' in out
-    assert "--web-redirect-uris" in out and not any(line.startswith("az ad app update") and "--web-redirect-uris" in line for line in out.splitlines())
+    assert 'if CUR=$(az ad app show' in out and "inget ändrades" in out                 # a failed read never replaces the list
+    assert "--web-redirect-uris" in out and not any("az ad app update" in line and "--web-redirect-uris" in line for line in out.splitlines())
     assert "claude mcp add --transport http --client-id" in out and '"oauth": {"clientId"' in out and '"CLIENT_ID"' in out
     assert "--is-fallback-public-client" not in out and "client-secret" not in out
