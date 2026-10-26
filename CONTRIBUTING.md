@@ -35,11 +35,11 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | session n9 (local demo, create_ontology check, /start, token diet) |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n9 (local demo, create_ontology check, /start, token diet) |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | session n9 (naming synonyms, compact outputs) |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py` | open |
 | Deployment | `deploy/`, `Dockerfile` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | session n9 (local demo, create_ontology check, /start, token diet) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
