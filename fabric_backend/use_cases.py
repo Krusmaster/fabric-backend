@@ -13,7 +13,7 @@ import html
 import re
 from functools import lru_cache
 
-FOOTNOTE = "Scenarios are illustrative; they describe how the tool works on typical table designs, not customer projects."
+FOOTNOTE = "The schemas are illustrative examples, not customer projects."
 
 COLORS = ("coral", "sage", "lav", "mustard")
 NUMBER_WORDS = {7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven", 12: "Twelve"}
@@ -21,7 +21,10 @@ NUMBER_WORDS = {7: "Seven", 8: "Eight", 9: "Nine", 10: "Ten", 11: "Eleven", 12: 
 INDUSTRIES: list[dict] = [
     {
         "slug": "retail", "name": "Retail & e-commerce", "color": "coral",
-        "summary": "Who bought what, on which order line, and what came back.",
+        "lead": "Follow a return back to the right order line.",
+        "summary": ("A returned product belongs to an order line, not just an order. In this example, the plan uses "
+                    "`order_id` and `line_no` together so you can review that relationship before creating the API. An "
+                    "app can then read the order, its products and its returns through the same model."),
         "tables": {
             "customers": "customer_id email country created_at",
             "orders": "order_id customer_id order_date status",
@@ -43,12 +46,10 @@ INDUSTRIES: list[dict] = [
             "A returns desk in Lovable over the GraphQL API: an order, its lines and products, and what came back, "
             "in one nested query.",
             "Questions in Claude through `query_graphql`, such as which categories see the most returns.",
-            "A Power BI semantic model from the same keys (planned).",
+            "A Power BI semantic model draft from the same keys.",
         ],
         "value": [
-            "A working read API over the order tables as soon as the plan is accepted, without writing a schema by hand.",
-            "The line-level key is stated once, so returns are not joined to whole orders and counted once per line.",
-            "Every link carries its rule. That is the documentation when the data moves to another team.",
+            "The line-level key is stated once, so a return is joined to its order line, not to the whole order.",
         ],
         "checks": {
             "keys": [("order_lines", "order_id+line_no", "K5")],
@@ -60,7 +61,10 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "manufacturing", "name": "Manufacturing", "color": "sage",
-        "summary": "Work orders on machines, what they make, what goes into it, and whether it passed.",
+        "lead": "Keep the parent item and the component apart.",
+        "summary": ("A bill of materials can refer to the same item table twice. The plan shows both roles so you can "
+                    "check which column means the parent and which means the component. This example covers one level of "
+                    "the bill of materials; a full recursive breakdown is separate work."),
         "tables": {
             "items": "item_no description unit item_type",
             "bill_of_materials": "parent_item_no component_item_no quantity",
@@ -85,10 +89,7 @@ INDUSTRIES: list[dict] = [
             "Questions in Claude, such as which machines had failed checks last week.",
         ],
         "value": [
-            "The two-way bill of materials is a classic wrong join. Both roles carry the weaker rule, so they get "
-            "reviewed instead of assumed.",
-            "A first backend over exported production tables, with no keys declared in the lakehouse.",
-            "The rules and confirmations are the handover note: the next person sees why each link exists.",
+            "The two-way bill of materials is a classic wrong join. Both roles carry the weaker rule, so they get reviewed instead of assumed.",
         ],
         "checks": {
             "keys": [("items", "item_no", "K2"), ("bill_of_materials", "parent_item_no+component_item_no", "K4")],
@@ -101,6 +102,7 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "saas", "name": "SaaS & subscriptions", "color": "lav",
+        "lead": "Which account uses the service, and which one pays?",
         "summary": "Accounts on plans, invoices with lines, and a stream of usage events.",
         "tables": {
             "accounts": "account_id name owner_email created_at",
@@ -123,13 +125,10 @@ INDUSTRIES: list[dict] = [
         "build": [
             "A self-service billing page in Lovable: an account, its subscriptions, invoices and invoice lines.",
             "Usage per plan, asked in Claude and answered through the API without writing SQL.",
-            "A semantic model for revenue reporting from the same keys (planned).",
+            "A semantic model draft for revenue reporting from the same keys.",
         ],
         "value": [
-            "The using account and the paying account are kept apart from the start, not discovered in a wrong "
-            "revenue figure later.",
-            "Time to a first working API is the time it takes to read and accept a plan.",
-            "The plan doubles as a data dictionary for new engineers.",
+            "The using account and the paying account are kept apart from the start, not discovered in a wrong revenue figure later.",
         ],
         "checks": {
             "keys": [("invoice_lines", "invoice_id+line_no", "K5")],
@@ -142,7 +141,10 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "professional-services", "name": "Professional services", "color": "mustard",
-        "summary": "Clients, projects, consultants, and the hours that end up on invoices.",
+        "lead": "See which project hours are still unbilled.",
+        "summary": ("Start with clients, projects, consultants and time entries. Review how an entry connects to its "
+                    "project and invoice, including entries with no invoice yet. The resulting API gives an internal tool"
+                    " a way to read those records together."),
         "tables": {
             "clients": "client_id name sector",
             "consultants": "consultant_id name grade manager_id",
@@ -166,10 +168,7 @@ INDUSTRIES: list[dict] = [
             "A Fabric IQ ontology draft (preview) with Client, Project, Consultant and Time entry entity types.",
         ],
         "value": [
-            "Hours to invoices is the join that decides revenue. Its rule and its orphan count are visible before "
-            "anything is built.",
-            "A backend for an internal tool without a modelling project first.",
-            "A new controller reads the plan instead of reverse-engineering old reports.",
+            "Hours to invoices is the join that decides revenue. Its rule and its orphan count are visible before anything is built.",
         ],
         "checks": {
             "keys": [("clients", "client_id", "K2"), ("projects", "project_id", "K2"), ("time_entries", "time_entry_id", "K2")],
@@ -182,7 +181,9 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "aml", "name": "Financial services: AML", "color": "coral",
-        "summary": "Anti-money laundering: customers, the accounts they hold, transactions, counterparties, alerts and KYC reviews.",
+        "lead": "Trace a transaction through its account holders.",
+        "summary": ("Anti-money laundering: customers, the accounts they hold, transactions, counterparties, alerts and "
+                    "KYC reviews."),
         "tables": {
             "customers": "customer_id name country risk_rating",
             "accounts": "account_id product_type opened_at status",
@@ -210,9 +211,7 @@ INDUSTRIES: list[dict] = [
             "A read-only investigation app in Lovable over the same API.",
         ],
         "value": [
-            "Fewer wrong joins in investigations: the bridge and the beneficiary are each stated once, with their rules.",
-            "A documented model for model-risk and audit review: every link has a rule or a recorded confirmation, "
-            "and `validate_plan` counts orphans before anyone relies on it.",
+            "The bridge and the beneficiary account are each stated once with their rules, and `validate_plan` counts orphans before anyone relies on them.",
         ],
         "note": ("The next layer",
                  "{{PRODUCT}} works on how the tables connect. Finding rings among individual customers and accounts "
@@ -230,6 +229,7 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "financial-crime", "name": "Financial crime prevention", "color": "sage",
+        "lead": "Bring a customer’s cases and screening hits into one view.",
         "summary": "Fraud, sanctions screening and KYC: alerts and cases from teams that usually keep separate tables.",
         "tables": {
             "customers": "customer_id name onboarded_at",
@@ -255,9 +255,7 @@ INDUSTRIES: list[dict] = [
             "A Fabric IQ ontology draft (preview) as a shared vocabulary across the teams.",
         ],
         "value": [
-            "Teams that work in separate tables share one model and see the same joins.",
-            "Explained links are defensible to auditors: each one says which rule made it, or that someone confirmed it.",
-            "`validate_plan` shows orphans, such as screening hits for customers missing from `customers`, first.",
+            "Each relationship includes its rule or confirmation, so a reviewer can inspect why it was added.",
         ],
         "note": ("The next layer",
                  "Several customers sharing one device is a row-level question this model can answer (device, its "
@@ -274,7 +272,9 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "pharma-research", "name": "Pharmaceutical research", "color": "lav",
-        "summary": "Clinical studies and lab work: subjects at sites, visits, adverse events, compounds and assay results.",
+        "lead": "A visit number is not always a unique key.",
+        "summary": ("Clinical studies and lab work: subjects at sites, visits, adverse events, compounds and assay "
+                    "results."),
         "tables": {
             "studies": "study_id compound_id phase start_date",
             "sites": "site_id country investigator",
@@ -300,12 +300,10 @@ INDUSTRIES: list[dict] = [
             "An agent in Claude that answers research questions through the explained plan, such as which compounds "
             "had adverse events at more than one site.",
             "A study overview app: a subject with visits, results and adverse events.",
-            "A semantic model for study reporting (planned).",
+            "A semantic model draft for study reporting.",
         ],
         "value": [
-            "Fewer confident-but-wrong joins: the visit key above is that kind of mistake, caught before an answer "
-            "depends on it.",
-            "Orphans are counted first: results without an assay, adverse events without a visit.",
+            "The visit key above is a confident-but-wrong join, caught before an answer depends on it.",
             "Regulated use, such as GxP work, needs the organisation's own validation; {{PRODUCT}} does not provide it.",
         ],
         "note": ("Better answers",
@@ -329,7 +327,9 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "environment", "name": "Environment & sustainability", "color": "mustard",
-        "summary": "Sites, energy meters and readings, activities with emission factors, and purchases from suppliers (Scope 3).",
+        "lead": "See which emission factor an activity refers to.",
+        "summary": ("Sites, energy meters and readings, activities with emission factors, and purchases from suppliers "
+                    "(Scope 3)."),
         "tables": {
             "sites": "site_id name region",
             "meters": "meter_id site_id energy_type",
@@ -351,12 +351,10 @@ INDUSTRIES: list[dict] = [
         "build": [
             "A site app over GraphQL: a site with its meters, activities and purchases.",
             "Questions in Claude, such as emissions per site and quarter with the factor behind each figure.",
-            "SQL views for date-range factor matching (planned); until then, those are written by hand.",
+            "Factor matching by date range is not a key relationship; write it as a SQL view by hand.",
         ],
         "value": [
-            "Traceable numbers for sustainability reporting: every figure has a path back to its source tables, and "
-            "every step has a rule.",
-            "Each activity points at the factor row it used, so a changed factor shows up as a changed link.",
+            "Each activity points at the factor row it used, so a changed factor shows up as a changed relationship.",
             "It documents joins. It does not make a report meet any reporting standard.",
         ],
         "checks": {
@@ -369,6 +367,7 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "property", "name": "Property & real estate", "color": "coral",
+        "lead": "Which unit does this maintenance request belong to?",
         "summary": "Properties split into units, leased to tenants, with maintenance requests.",
         "tables": {
             "properties": "property_id address city",
@@ -391,9 +390,7 @@ INDUSTRIES: list[dict] = [
             "A Fabric IQ ontology draft (preview) with Property, Unit, Lease and Tenant entity types.",
         ],
         "value": [
-            "A first working backend for a property app without a modelling phase.",
-            "Tenant, lease and unit are joined once, so reports stop guessing which tenant belongs to which unit.",
-            "When the app changes hands, the plan explains every link.",
+            "Tenant, lease and unit are joined once, so a report does not have to guess which tenant belongs to which unit.",
         ],
         "checks": {
             "keys": [("properties", "property_id", "K2"), ("units", "unit_id", "K2"), ("leases", "lease_id", "K2"),
@@ -406,6 +403,7 @@ INDUSTRIES: list[dict] = [
     },
     {
         "slug": "education", "name": "Education", "color": "sage",
+        "lead": "What happens when a student takes the same course twice?",
         "summary": "Students enrolled in courses each term, taught by teachers, with grades.",
         "tables": {
             "students": "student_id name cohort",
@@ -426,12 +424,10 @@ INDUSTRIES: list[dict] = [
         "build": [
             "A course overview app: a course, its teacher and the students enrolled this term.",
             "Questions in Claude, such as grades per course and term.",
-            "A semantic model for term reports from the same keys (planned).",
+            "A semantic model draft for term reports from the same keys.",
         ],
         "value": [
             "A three-column key is easy to half-write in a join and then double-count. Stating it once avoids that.",
-            "A working API for a course tool without declaring keys in the lakehouse first.",
-            "Documentation for next term's administrator, generated with the API.",
         ],
         "checks": {
             "keys_given": {"enrolments": ["student_id", "course_id", "term"]},
@@ -459,12 +455,12 @@ RULE_LEGEND = [
     ("confirm", "conf", "a column that names no table, such as `manager_id`: linked only when you confirm it"),
 ]
 
-OUTPUTS = [
-    ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude", ""),
-    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", ""),
-    ("Semantic model", "for Power BI", "planned"),
-    ("SQL views", "for the joins a rule cannot express", "planned"),
-    ("Data agent", "that answers over the same model", "planned"),
+OUTPUTS = [   # (what, for what, status in the docs' words; "planned" draws the chip dashed)
+    ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude", "tested end to end"),
+    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", "tested end to end"),
+    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", "draft only"),
+    ("Semantic model", "a Power BI model in TMDL from the same keys", "draft; the item when enabled by the operator"),
+    ("Data agent", "a Fabric data agent with the plan as instructions", "when enabled by the operator"),
 ]
 
 
@@ -572,7 +568,7 @@ def _section(n: int, ind: dict) -> str:
     return f"""<section class="uc wrap" id="{e(ind["slug"])}" aria-labelledby="{e(ind["slug"])}-h">
   <header class="uc-head">
     <span class="uc-n c-{ind["color"]}" aria-hidden="true">{n:02d}</span>
-    <div><h2 id="{e(ind["slug"])}-h">{e(ind["name"])}</h2><p class="muted">{_inline(ind["summary"])}</p></div>
+    <div><h2 id="{e(ind["slug"])}-h">{e(ind["name"])}</h2><p><strong>{_inline(ind["lead"])}</strong></p><p class="muted">{_inline(ind["summary"])}</p></div>
   </header>
   <div class="uc-sketch">
     <div class="uc-sketch-head"><h3 id="{tid}">Typical tables</h3><span class="muted tiny">From names alone, as the engine plans them: {e(sk["summary"])}</span></div>
@@ -581,7 +577,7 @@ def _section(n: int, ind: dict) -> str:
   <div class="uc-body">
     <div class="uc-finds"><h3>What {{{{PRODUCT}}}} finds</h3><ul class="uc-find-list">{finds}</ul></div>
     <div><h3>What you build</h3><ul class="uc-list">{build}</ul></div>
-    <div><h3>Where the value is</h3><ul class="uc-list">{value}</ul></div>
+    <div><h3>Why it matters</h3><ul class="uc-list">{value}</ul></div>
   </div>
   {note}<p class="uc-top tiny"><a href="#industries">Back to the industries</a></p>
 </section>"""
@@ -603,32 +599,32 @@ def legend_html() -> str:
 
 def outputs_html() -> str:
     e = html.escape
-    return "".join(f'<li{" class=planned" if tag else ""}><strong>{e(name)}</strong><span>{e(what)}</span>'
+    return "".join(f'<li{" class=planned" if tag == "planned" else ""}><strong>{e(name)}</strong><span>{e(what)}</span>'
                    f'{f"<em>{e(tag)}</em>" if tag else ""}</li>' for name, what, tag in OUTPUTS)
 
 
 def page_vars() -> dict[str, str]:
     return {"UC_INDEX": index_html(), "UC_LEGEND": legend_html(), "UC_OUTPUTS": outputs_html(),
             "UC_SECTIONS": "\n".join(_section(n, i) for n, i in enumerate(INDUSTRIES, 1)),
-            "UC_FOOTNOTE": html.escape(FOOTNOTE), "UC_COUNT": NUMBER_WORDS[len(INDUSTRIES)], "UC_CONSULTANCY": html.escape(CONSULTANCY_TEXT.format(product="{{PRODUCT}}"))}
+            "UC_FOOTNOTE": html.escape(FOOTNOTE), "UC_COUNT": NUMBER_WORDS[len(INDUSTRIES)], "UC_CONSULTANCY": html.escape(CONSULTANCY_TEXT.format(product="{{PRODUCT}}")),
+            "UC_INTRO": html.escape(INTRO.format(product="{{PRODUCT}}"))}
 
 
 # ------------------------------------------------------------------ markdown ---------------------------------------
 
 def markdown(product: str, origin: str, contact: str) -> str:
-    out = [f"# Use cases: the same steps, different tables\n",
-           f"{product} turns tables without declared keys into an explained graph, then into what people actually use: "
-           "a GraphQL API for an app, a Fabric IQ ontology draft and, planned, a semantic model, SQL views and a data agent. "
-           "The same steps work in any industry; what differs is the tables.\n",
-           "Plan from names (`plan_backend`, nothing is deployed), check against the rows (`validate_plan`), then create "
-           "(`create_backend`). Ambiguous columns are reported, never guessed.\n",
+    out = [f"# Use cases: what could you build from your Fabric tables?\n",
+           INTRO.format(product=product) + "\n",
+           f"*{FOOTNOTE}*\n",
+           "Plan from names (`plan_backend`, nothing is deployed), check against the rows (`validate_plan`, a step you "
+           "ask for), then create (`create_backend`). Ambiguous columns are reported, never guessed.\n",
            "## What comes out\n"]
     out += [f"- **{n}**: {w}{' (' + t + ')' if t else ''}" for n, w, t in OUTPUTS]
     out.append("\n## How to read the rules\n")
     out += [f"- **{_RULE_LABEL.get(c, c)}**: {t}" for c, _k, t in RULE_LEGEND]
     for ind in INDUSTRIES:
         sk = sketch(ind["slug"])
-        out.append(f"\n## {ind['name']}\n\n{ind['summary']}\n\n### Typical tables\n")
+        out.append(f"\n## {ind['name']}\n\n**{ind['lead']}**\n\n{ind['summary']}\n\n### Typical tables\n")
         for t in sk["tables"]:
             cols = []
             for c in t["columns"]:
@@ -647,17 +643,20 @@ def markdown(product: str, origin: str, contact: str) -> str:
         out += [f"- **{_RULE_LABEL.get(c, c)}**: {t}" for c, t in ind["finds"]]
         out.append("\n### What you build\n")
         out += [f"- {x}" for x in ind["build"]]
-        out.append("\n### Where the value is\n")
+        out.append("\n### Why it matters\n")
         out += [f"- {x}" for x in ind["value"]]
         if ind.get("note"):
             out.append(f"\n### {ind['note'][0]}\n\n{ind['note'][1]}")
     out.append(f"\n## For Fabric consultancies\n\n{CONSULTANCY_TEXT.format(product=product)} "
-               f"Start at [{origin}/start]({origin}/start), read [{origin}/docs]({origin}/docs), and write to "
-               f"{contact} to discuss a pilot.\n")
-    out.append(f"\n*{FOOTNOTE}*\n")
+               f"Start at [{origin}/start]({origin}/start), read [{origin}/docs]({origin}/docs), and email "
+               f"Gustav at {contact} to discuss a pilot.\n")
     return "\n".join(out).replace("\n\n\n", "\n\n").replace("{{PRODUCT}}", product)
 
 
-CONSULTANCY_TEXT = ("The same engine runs on every client's tables, so the first conversation can start from their own "
-                    "schema instead of a slide. The rules and the plan are open source, and every key and link says "
-                    "why it is there, which makes a review with the client's data owners short and concrete.")
+CONSULTANCY_TEXT = ("Start a client conversation from their own schema instead of a slide. The plan lists every key and "
+                    "relationship with the rule behind it, so a review with the client's data owners has something "
+                    "concrete to check. The rules and the engine are open source.")
+
+INTRO = ("A returns view, a project-hours dashboard or a course overview all need clear relationships between tables. "
+         "These examples show how {product} proposes those relationships, where they can go wrong and what you can "
+         "build after reviewing them.")

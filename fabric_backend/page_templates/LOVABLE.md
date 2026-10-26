@@ -1,18 +1,19 @@
-# Use {{PRODUCT}} with Lovable
+# Build a Lovable app on your Fabric tables
 
-Lovable's Microsoft Fabric connector reads data from an existing **API for GraphQL** item in Fabric, one that already
-has data and relationships. {{PRODUCT}}, used from Claude, plans that item from your tables and creates it. Lovable
-then connects to it like any other API for GraphQL item.
+Use {{PRODUCT}} in Claude to prepare a GraphQL API in Fabric. Then connect Lovable to that API with Lovable's
+Microsoft Fabric connector. The API in your workspace is what connects the two workflows.
 
-{{PRODUCT}} and Lovable do not talk to each other. {{PRODUCT}} builds the item in your Fabric workspace; Lovable's own
-connector reads it.
+First, review the plan and create the API in Claude. Then complete the Fabric setup steps and add the API connection
+in Lovable. Use {{PRODUCT}} from Claude for this setup; this guide does not cover adding {{PRODUCT}} as a custom MCP
+connector inside Lovable.
 
 ## Steps
 
 1. **Create the API with {{PRODUCT}}.** In Claude, with the {{PRODUCT}} connector added ([get started](/start)), ask
-   for a plan first, for example *"Plan a backend over the shop lakehouse"*. Nothing is deployed by a plan; check the
-   keys and relationships and the rule behind each. Then say *"Create it as shop_api"*. {{PRODUCT}} creates one API for
-   GraphQL item with nested relationships, or updates it if the name exists.
+   for a plan first, for example *"Plan a backend over the shop lakehouse"*. A plan creates nothing. Review the keys
+   and relationships and the rule behind each, and ask Claude to check the plan against the data. Then say *"Create
+   it as shop_api"*. {{PRODUCT}} creates one API for GraphQL item with nested relationships, or updates it if the
+   name exists.
 2. **Turn on introspection in Fabric.** Fabric creates the item with introspection off, and Lovable's connection test
    needs it. A workspace admin turns it on in the item's API settings. Fabric has no API for this yet, so
    {{PRODUCT}} cannot do it for you.

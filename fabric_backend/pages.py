@@ -48,7 +48,7 @@ PAGES = {
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
-                   "Ten industries, one engine: typical tables, the keys and links {{PRODUCT}} finds in them with the rule behind each, what you build, and where the value is.", "usecases"),
+                   "What could you build from your Fabric tables? Ten illustrative schemas: the relationships {{PRODUCT}} proposes, where they can go wrong and what you can build after reviewing them.", "usecases"),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -356,9 +356,9 @@ def render(path: str) -> str:
     return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path)
 
 
-PRIVACY_DESC = "How {{PRODUCT}} handles sign-in, metadata, query results and logs. Nothing is stored; tokens live in memory only."
-DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it can access, the thirty tools with an example each, checking a plan against the data, Fabric IQ ontology drafts, Snowflake and Databricks via mirroring, and the two portal steps that stay manual."
-LOVABLE_DESC = "Create an API for GraphQL item in Microsoft Fabric with {{PRODUCT}}, then connect Lovable's Fabric connector to it."
+PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
+DOCS_DESC = "Connect {{PRODUCT}} to Claude, what it reads and passes through, reviewing and checking a plan, creating and querying a GraphQL API, and the thirty tools with what each changes and how far it has been tested."
+LOVABLE_DESC = "Prepare a GraphQL API in Microsoft Fabric with {{PRODUCT}} in Claude, then connect Lovable's Microsoft Fabric connector to it."
 
 
 def privacy_md() -> str:
@@ -433,7 +433,7 @@ def docs_html() -> str:
 
 def lovable_html() -> str:
     body = f'<article class="wrap prose docs">{_md_to_html(lovable_md())}</article>'
-    return _shell("Use {{PRODUCT}} with Lovable", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable")
+    return _shell("Build a Lovable app on your Fabric tables — {{PRODUCT}}", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable")
 
 
 def start_md() -> str:

@@ -1,10 +1,8 @@
 # {{PRODUCT}} docs
 
-Using {{PRODUCT}} with Microsoft Fabric: turn the tables in a lakehouse, warehouse or SQL database into an explainable graph and a GraphQL API —
-keys and relationships inferred, with the rule behind every link shown. Use it from Claude today, and from other
-MCP clients once their sign-in redirects are registered (see *Connect*). Try the [demo](/explore) first if you
-like; it needs no account. The connector was run end to end against a live Fabric workspace with synthetic data on
-25 October 2026: every tool, from sign-in in Claude through Entra to Fabric.
+Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review suggested relationships and create a GraphQL API.
+Start with the connection guide, or use the [demo](/explore) without an account. The tool reference below explains
+what each tool reads, returns or changes, and how far it has been tested.
 
 ## Connect
 
@@ -12,12 +10,14 @@ like; it needs no account. The connector was run end to end against a live Fabri
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
    It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
 2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
-   `{{MCP_URL}}`. Sign in with your Microsoft work account. Claude Code and Cursor take the same URL, but their
-   sign-in uses a local redirect that is not registered on the Entra app yet; until it is, Claude is the tested client.
+   `{{MCP_URL}}`. Sign in with your Microsoft work account. The hosted service supports Claude, and that is the client
+   it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
+   app yet, so they can't sign in to {{DOMAIN}} today. Other MCP clients can be used when you host {{PRODUCT}} yourself
+   with your own Entra app, or here once their sign-in is supported.
 3. **In Fabric:** you need access to the workspace you want to use, and a Fabric capacity (a trial is fine).
 
 Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start). The server is
-listed in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
+published in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
 Prefer your own machine and a SQL Server? The same engine runs locally over ODBC: [/local](/local).
 
 ## What it accesses
@@ -25,11 +25,19 @@ Prefer your own machine and a SQL Server? The same engine runs locally over ODBC
 The Entra app asks for delegated permissions only, all acting as the signed-in user: `User.Read` (sign-in),
 `Workspace.Read.All` and `Item.Read.All` (listing sources, reading metadata), `GraphQLApi.ReadWrite.All` (creating or
 updating the one item you ask for; it never deletes), `GraphQLApi.Execute.All` (your read-only queries) and Azure SQL
-`user_impersonation` (table and column names from the SQL analytics endpoint).
+`user_impersonation` (table and column names from the SQL analytics endpoint, and the checks and samples you ask for).
+The tools that create semantic models, ontologies, data agents, notebooks and pipelines need more (`Item.ReadWrite.All`
+or a narrower permission per item type), which the hosted app does not ask for today; they are marked *Available when
+enabled by the operator* below.
 
-**The data path.** Metadata (workspace, item, table and column names) and the query results you ask for pass through
-the server on their way to your MCP client. Your tokens are exchanged on your behalf and held in memory only. The
-server has no database, keeps no files and stores nothing between requests. Details: [privacy policy](/privacy).
+**The data path.** Planning uses schema metadata: workspace, item, table and column names and types. `validate_plan`
+and `suggest_relationships` check keys and references against the rows in Fabric with counting queries and return only
+the counts. `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
+for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
+Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
+after the request. Your tokens are exchanged on your behalf and held in memory only; there is no database and no file
+storage. Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
+service writes technical logs. Details: [privacy policy](/privacy).
 
 ## What you can ask
 
@@ -45,15 +53,42 @@ One example per tool, in the order a first session usually goes (list, plan, loo
 - `describe_backend` — *"What can I query in shop_api?"* — the types, fields and relationship names a query uses.
 - `query_graphql` — *"Using shop_api, which customers ordered a trail bike in October?"* — a read-only query; relationships nest.
 - `rayfin_connector` — *"Generate Rayfin connector entities for it."* — TypeScript entity classes for Fabric Apps.
-- `ontology_draft` — *"Draft a Fabric IQ ontology from demo_lh."* — entity types, keys and relationship types with their rules, ready to import or create.
+- `ontology_draft` — *"Draft a Fabric IQ ontology from demo_lh."* — entity types, keys and relationship types with their rules, ready to import.
 
-**Five first questions on a lakehouse nobody has documented** (each pays off on its own; together they take about ten minutes):
+**Five first questions on a lakehouse nobody has documented** (each is useful on its own):
 
 1. *"Read demo_lh, schema shop, as a graph: which tables are facts, which are dimensions, and what are the subject areas?"* (`analyze_schema`)
 2. *"Plan the keys and relationships for schema shop and tell me which rule made each one."* (`plan_backend`)
 3. *"Check that plan against the data: are the keys unique and do the references hold?"* (`validate_plan`)
 4. *"Which columns look like they should point at another table but are in no relationship?"* (`suggest_relationships`)
 5. *"Write the data dictionary for schema shop."* (`data_dictionary`; `dbt_schema` when the team tests with dbt)
+
+## Review, check, then create
+
+A plan is a proposal, so read it before anything is built.
+
+1. **Review the plan.** Each key and relationship carries the rule that made it; ambiguous columns and tables without a key are listed. Correct a key with `keys` and add a relationship the rules did not make with `confirmed`.
+2. **Check it against the data.** `validate_plan` counts duplicate and NULL key values and references with no matching row. `create_backend` does not run it for you, so ask for it. A check that passes shows the data agrees with the plan today; it does not show that the plan means the right thing.
+3. **Create the API.** `create_backend` creates the API for GraphQL item, or updates the one with that name. It has no dry run: run `plan_drift` first to see what an update would change. If an update would remove relationships the existing API has, nothing is written and the answer lists them with the `confirmed` entries that keep them; `allow_removals=true` drops them on purpose.
+4. **Query it.** `describe_backend` gives the field names; `query_graphql` runs read-only queries and refuses mutations. Two portal steps stay manual (see below).
+
+## Test status
+
+Every tool in the table below carries one of these:
+
+- **Tested end to end** — run from Claude as a custom connector, through Microsoft sign-in, against a Fabric workspace
+  with synthetic data (an F2 capacity, a lakehouse with the shop schema from `fabric_backend/seed.py`) on 26 October
+  2026. That run covered the 22 tools that existed then: listing and planning, `sample_rows`, `validate_plan`,
+  `analyze_schema` and `suggest_relationships`, creating, describing and querying the GraphQL API, the drafts, and
+  `create_semantic_model`, `create_views` and `create_data_agent` as dry runs. `create_views` also created a schema and
+  a view for real; `create_semantic_model` and `create_data_agent`, asked to create, answered `consent` because the
+  hosted app lacks the permission. Changes made after that run are covered by unit tests.
+- **Experimental** — on the hosted server and unit-tested, not yet run against a live workspace.
+- **Draft only** — returns a draft or files and creates nothing in Fabric.
+- **Available when enabled by the operator** — needs a permission the hosted app does not ask for today. The dry run
+  works; asked to create, the tool answers `consent` with the permission's name
+  ([docs/SCOPES.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SCOPES.md)).
+- **Planned** — not available yet, such as the Claude plugin (see *For agents*).
 
 ## Tools
 
@@ -62,38 +97,38 @@ Every tool takes the workspace by id or display name. `schema` defaults to `dbo`
 (`[{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]`),
 `tables` limits what is built.
 
-| Tool | Arguments | Does | Changes anything |
-| --- | --- | --- | --- |
-| `list_workspaces` | — | the workspaces the signed-in account can see, with id, name and capacity | no |
-| `list_sources` | `workspace` | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | no |
-| `list_tables` | `workspace`, `source`, `schema`, `tables`, `detail` | tables and columns with types in one schema; `tables` narrows to names or patterns (`["sales_*"]`), `detail` is `auto` (full up to 60 tables, then the column count per table), `full` or `summary` | no |
-| `plan_backend` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `tables`, `detail` | inferred keys and relationships, each with its rule (K0–K5, R0–R4), ambiguous columns, keyless tables, suggested composite keys, the names read through the synonym table (`synonyms`), a Mermaid ER diagram; `tables` narrows the answer to names or patterns while the plan is still made from the whole schema, `detail` is `auto` (full up to 60 tables, then one line per key and relationship without field names or diagram), `full` or `summary`, `mermaid=false` leaves the diagram out; every answer stays under 60 000 characters and says when it was cut | no |
-| `validate_plan` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `max_items` | checks the plan against the rows: is each key unique and free of NULLs, does every reference find its target (orphan count); one small counting query per key and relationship | no |
-| `sample_rows` | `workspace`, `source`, `table`, `schema`, `n` | the first n rows (at most 20) of one table, long text shortened, to check what a column means | no |
-| `create_backend` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables` | creates the API for GraphQL item with nested relationships, or updates the item of that name in place; returns the endpoint and the two portal steps | creates/updates one item; never deletes |
-| `describe_backend` | `workspace`, `api` | types, fields and relationships of an existing API for GraphQL item, in the names a query uses, read from its definition (no introspection needed) | no |
-| `query_graphql` | `workspace`, `api`, `query`, `variables`, `question`, `tables`, `source`, `schema` | runs a read-only GraphQL query against an API (name or id); mutations are refused; with `question`, `tables` and `source` instead of `query` it builds the query `answer_query_draft` suggests, runs it, and shows it beside the result | no |
-| `rayfin_connector` | `workspace`, `source`, `connector`, `schema`, `keys`, `confirmed`, `tables`, `relationships` | Rayfin (Fabric Apps) connector entity classes and `schema.ts` | no |
-| `ontology_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | the plan as a Fabric IQ ontology (preview) draft: summary, binding checklist, a Turtle file for the portal import, the item definition | no |
-| `semantic_model_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | a Power BI semantic model in TMDL (`definition/` files): one Direct Lake table per source table on the SQL analytics endpoint, relationships with cardinality and one active path per table pair, keyless tables unrelated, `README.generated.md` with every decision to check; unit-tested against Microsoft's sample definitions; drafted from a live lakehouse on 26 October 2026, not yet created as an item | no |
-| `join_path` | `workspace`, `source`, `start`, `end`, `schema`, `keys`, `confirmed` | the shortest chain of relationships between two tables with the rule per hop and a ready T-SQL `SELECT … JOIN …`; equally short paths all listed; with no path, which relationship is missing as a `confirmed` entry | no |
-| `data_dictionary` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `validate`, `max_items`, `tables` | hand-over documentation in Markdown: tables, columns and types, keys and relationships with rules, keyless and ambiguous items, the ER diagram, an empty Description column; `validate=true` adds the counts from `validate_plan`; `tables` (names or patterns) documents one part of a large schema at a time, and an answer over 60 000 characters is cut on a line and says so | no |
-| `dbt_schema` | `workspace`, `source`, `schema`, `source_name`, `keys`, `confirmed`, `tables`, `arguments_block` | a dbt `schema.yml` with sources: `unique` and `not_null` on key columns, `relationships` on single-column relationships, in the syntax of the dbt documentation; composite keys noted as comments; `tables` takes names or patterns, an answer over 60 000 characters is cut and says so | no |
-| `plan_drift` | `workspace`, `source`, `api`, `schema`, `keys`, `confirmed`, `tables`, `writable` | today's plan against an existing API for GraphQL item: new tables and columns, columns the API still maps that are gone, relationships the plan no longer supports, and whether `create_backend` with that name would change anything | no |
-| `create_semantic_model` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Power BI semantic model item from the TMDL draft (Direct Lake on the SQL analytics endpoint) or updates the one of that name in place; `dry_run=true` (default) returns the parts and the REST call only; needs `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`; unit-tested; dry run answered from a live workspace on 26 October 2026, the create itself answered `consent` (HTTP 403) there because the app lacks the permission | creates/updates one item; never deletes |
-| `create_views` | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per header table (`vw_orders`: each order with its customer and, once `orders.ship_to_id` is confirmed, its ship-to address; unit-tested, not yet created live), one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor); unit-tested on SQLite; ran for real on a live lakehouse SQL analytics endpoint on 26 October 2026 (schema and one wide view created, read back with `list_tables` and `sample_rows`) | creates/alters views in that schema only; never drops |
-| `create_data_agent` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `publish`, `dry_run` | creates or updates a Fabric data agent through the staging REST API: the plan as instructions, the source as data source with the plan's tables selected, 5–10 question/T-SQL examples, then publishes; `dry_run=true` returns instructions, examples and the calls; needs `Item.ReadWrite.All`; unit-tested with the calls mocked; dry run answered from a live workspace on 26 October 2026, the create itself answered `consent` (HTTP 403) there because the app lacks the permission | creates/updates one item and its staging config; never deletes |
-| `create_ontology` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Fabric IQ ontology (preview) item from the plan or updates the one of that name in place: entity types with keys and properties, relationship types and Direct Lake-style bindings in the item's generation-2 definition; `dry_run=true` (default) returns the parts and the REST call only; needs `Item.ReadWrite.All` and Contributor on the workspace (`POST /workspaces/{id}/ontologies`, `updateDefinition`; fabric-rest-api-specs read 26 October 2026); unit-tested, not yet run live | creates/updates one item; never deletes |
-| `app_starter` | `workspace`, `api` | from an existing API's definition: a Lovable prompt with the data model and main views, a connection description, five GraphQL queries walking the relationships, the portal checklist, and the backend an app needs so that no secret reaches the browser: a Supabase edge function (service principal, client credentials, secrets as Supabase secrets), the frontend helper, and the per-user alternative; the prompt and queries ran against a live API on 26 October 2026, the backend part is unit-tested | no |
-| `app_readiness` | `workspace`, `api` | what an app still needs on an existing API: types without a key, types in no relationship, write access (from the definition), whether introspection is on (one introspection query to the endpoint), and "unknown" with the portal path for what the Fabric API cannot read (permissions, the tenant setting for service principals); a next step per item; unit-tested | no (one introspection query) |
-| `analyze_schema` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `tables`, `detail` | the plan as a graph, metadata only (`tables` and `detail` as in `plan_backend`; the summary groups tables by role and keeps the central tables, the areas by size and counts): table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which relationships can be active at once; unit-tested | no |
-| `lineage` | `workspace`, `source`, `schema`, `table` | which objects in the workspace build on the source's tables: GraphQL APIs (from their definition), semantic models (from their TMDL definition), views on the SQL analytics endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their definition, marked as not certain); a graph of tables and objects, the objects per table, the tables used by nothing, the items that could not be read; with `table`, what a change to it reaches; unit-tested, not yet run against a live workspace | no |
-| `silver_notebook_draft` | `workspace`, `source`, `schema`, `silver_schema`, `order_by`, `keys`, `confirmed`, `tables` | a Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each table's key (the latest row by `order_by` wins), every relationship checked with the rows whose reference is missing put in `krusgraph_quarantine` with the reason, Delta tables written only in `silver_schema`, each step commented with its rule; re-runnable. The steps and the notebook source. Unit-tested on the shop seed in Python and on a local PySpark 4.0.1; not yet run in Fabric | no |
-| `create_silver_notebook` | `workspace`, `source`, `name`, `schema`, `silver_schema`, `order_by`, `keys`, `confirmed`, `tables`, `dry_run` | creates that notebook in the workspace, attached to the lakehouse, or updates the one of that name; creating runs nothing; `dry_run=true` (default) returns the notebook and the call; needs `Notebook.ReadWrite.All` or `Item.ReadWrite.All` (fabric-rest-api-specs `notebook/swagger.json`); unit-tested | creates/updates one item; never deletes |
-| `drift_monitor_draft` | `workspace`, `source`, `schema`, `name`, `at`, `time_zone`, `library_ref` | a notebook and a pipeline that every night read the lakehouse's schema, compare the plan with the last saved one (the `plan_drift` and `lineage` logic as a library), save the new plan in `krusgraph.plans`, and send a short summary to a webhook (Teams or Power Automate) set as a pipeline parameter in Fabric; plus the daily schedule; unit-tested, the notebook ran two nights on a local PySpark | no |
-| `create_drift_monitor` | `workspace`, `source`, `name`, `schema`, `at`, `time_zone`, `library_ref`, `schedule`, `dry_run` | creates or updates that notebook and pipeline and adds the daily schedule unless one at that time exists; no secret anywhere; `dry_run=true` (default) returns the items and the calls; needs `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`), and `DataPipeline.Execute.All` (or `Item.Execute.All`) for the schedule; unit-tested | creates/updates two items and a schedule; never deletes |
-| `answer_query_draft` | `workspace`, `source`, `question`, `tables`, `schema`, `api`, `keys`, `confirmed` | a question in Swedish or English about the given tables as T-SQL over the safest join path (each step with its rule), and with `api` as GraphQL in that API's field names, or why GraphQL cannot answer it; reads counts, sums, averages, "per"/"för varje" groupings, top N and "latest", and lists what it assumed; on the shop schema the T-SQL ran on the seed rows and the GraphQL validated against the API's schema (unit tests) | no |
-| `suggest_relationships` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `check` | columns that could point at another table's key but are in no relationship, ranked by name, type and triangular closure, the best `check` counted against the data (inclusion share, distinct values); each with a ready `confirmed` entry; suggests only, never applies; unit-tested | no (counting queries) |
+| Tool | Arguments | Does | What it changes | Status |
+| --- | --- | --- | --- | --- |
+| `list_workspaces` | — | the workspaces the signed-in account can see, with id, name and capacity | nothing | Tested end to end |
+| `list_sources` | `workspace` | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | nothing | Tested end to end |
+| `list_tables` | `workspace`, `source`, `schema`, `tables`, `detail` | tables and columns with types in one schema; `tables` narrows to names or patterns (`["sales_*"]`), `detail` is `auto` (full up to 60 tables, then the column count per table), `full` or `summary` | nothing | Tested end to end |
+| `plan_backend` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `tables`, `detail` | inferred keys and relationships, each with its rule, ambiguous columns, keyless tables, suggested composite keys, the names read through the synonym table (`synonyms`), a Mermaid ER diagram; `tables` narrows the answer to names or patterns while the plan is still made from the whole schema, `detail` is `auto` (full up to 60 tables, then one line per key and relationship without field names or diagram), `full` or `summary`, `mermaid=false` leaves the diagram out; every answer stays under 60 000 characters and says when it was cut | nothing | Tested end to end |
+| `validate_plan` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `max_items` | checks the plan against the rows: is each key unique and free of NULLs, does every reference find its target (orphan count); one small counting query per key and relationship; returns counts and a verdict, no row values | nothing (counting queries) | Tested end to end |
+| `sample_rows` | `workspace`, `source`, `table`, `schema`, `n` | the first n rows (at most 20) of one table, long text shortened, to check what a column means | nothing | Tested end to end |
+| `create_backend` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables`, `allow_removals` | creates the API for GraphQL item with nested relationships, or updates the item of that name in place; refuses an update that would drop relationships the API has unless `allow_removals=true`; returns the endpoint and the two portal steps; no dry run, and it does not run `validate_plan` | creates/updates one item; never deletes | Tested end to end |
+| `describe_backend` | `workspace`, `api` | types, fields and relationships of an existing API for GraphQL item, in the names a query uses, read from its definition (no introspection needed) | nothing | Tested end to end |
+| `query_graphql` | `workspace`, `api`, `query`, `variables`, `question`, `tables`, `source`, `schema` | runs a read-only GraphQL query against an API (name or id); mutations are refused; with `question`, `tables` and `source` instead of `query` it builds the query `answer_query_draft` suggests, runs it, and shows it beside the result | nothing | Tested end to end; with `question`: Experimental |
+| `rayfin_connector` | `workspace`, `source`, `connector`, `schema`, `keys`, `confirmed`, `tables`, `relationships` | Rayfin (Fabric Apps) connector entity classes and `schema.ts` | nothing | Draft only |
+| `ontology_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | the plan as a Fabric IQ ontology (preview) draft: summary, binding checklist, a Turtle file for the portal import, the item definition | nothing | Draft only; importing it into Fabric not yet tested live |
+| `semantic_model_draft` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` | a Power BI semantic model in TMDL (`definition/` files): one Direct Lake table per source table on the SQL analytics endpoint, relationships with cardinality and one active path per table pair, keyless tables unrelated, `README.generated.md` with every decision to check; unit-tested against Microsoft's sample definitions | nothing | Draft only |
+| `join_path` | `workspace`, `source`, `start`, `end`, `schema`, `keys`, `confirmed` | the shortest chain of relationships between two tables with the rule per hop and a ready T-SQL `SELECT … JOIN …`; equally short paths all listed; with no path, which relationship is missing as a `confirmed` entry | nothing | Tested end to end |
+| `data_dictionary` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `validate`, `max_items`, `tables` | hand-over documentation in Markdown: tables, columns and types, keys and relationships with rules, keyless and ambiguous items, the ER diagram, an empty Description column; `validate=true` adds the counts from `validate_plan`; `tables` (names or patterns) documents one part of a large schema at a time, and an answer over 60 000 characters is cut on a line and says so | nothing | Tested end to end |
+| `dbt_schema` | `workspace`, `source`, `schema`, `source_name`, `keys`, `confirmed`, `tables`, `arguments_block` | a dbt `schema.yml` with sources: `unique` and `not_null` on key columns, `relationships` on single-column relationships, in the syntax of the dbt documentation; composite keys noted as comments; `tables` takes names or patterns, an answer over 60 000 characters is cut and says so | nothing | Tested end to end |
+| `plan_drift` | `workspace`, `source`, `api`, `schema`, `keys`, `confirmed`, `tables`, `writable` | today's plan against an existing API for GraphQL item: new tables and columns, columns the API still maps that are gone, relationships the plan no longer supports, and whether `create_backend` with that name would change anything | nothing | Tested end to end |
+| `create_semantic_model` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Power BI semantic model item from the TMDL draft (Direct Lake on the SQL analytics endpoint) or updates the one of that name in place; `dry_run=true` (default) returns the parts and the REST call only; needs `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` | creates/updates one item; never deletes | Available when enabled by the operator; the dry run is tested end to end |
+| `create_views` | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per header table (`vw_orders`: each order with its customer and, once `orders.ship_to_id` is confirmed, its ship-to address), one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor) | creates/alters views in that schema only; never drops | Tested end to end (a schema and one wide view created for real); the header views are unit-tested |
+| `create_data_agent` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `publish`, `dry_run` | creates or updates a Fabric data agent through the staging REST API: the plan as instructions, the source as data source with the plan's tables selected, 5–10 question/T-SQL examples, then publishes; `dry_run=true` returns instructions, examples and the calls; needs `Item.ReadWrite.All` | creates/updates one item and its staging config; never deletes | Available when enabled by the operator; the dry run is tested end to end |
+| `create_ontology` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` | creates a Fabric IQ ontology (preview) item from the plan or updates the one of that name in place: entity types with keys and properties, relationship types and Direct Lake-style bindings in the item's generation-2 definition; `dry_run=true` (default) returns the parts and the REST call only; needs `Item.ReadWrite.All` and Contributor on the workspace (`POST /workspaces/{id}/ontologies`, `updateDefinition`; fabric-rest-api-specs read 26 October 2026) | creates/updates one item; never deletes | Available when enabled by the operator; unit-tested, not yet run live |
+| `app_starter` | `workspace`, `api` | from an existing API's definition: a Lovable prompt with the data model and main views, a connection description, five GraphQL queries walking the relationships, the portal checklist, and the backend an app needs so that no secret reaches the browser: a Supabase edge function (service principal, client credentials, secrets as Supabase secrets), the frontend helper, and the per-user alternative | nothing | Tested end to end (prompt and queries); the backend part is unit-tested |
+| `app_readiness` | `workspace`, `api` | what an app still needs on an existing API: types without a key, types in no relationship, write access (from the definition), whether introspection is on (one introspection query to the endpoint), and "unknown" with the portal path for what the Fabric API cannot read (permissions, the tenant setting for service principals); a next step per item | nothing (one introspection query) | Experimental |
+| `analyze_schema` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `tables`, `detail` | the plan as a graph, metadata only (`tables` and `detail` as in `plan_backend`; the summary groups tables by role and keeps the central tables, the areas by size and counts): table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which relationships can be active at once | nothing | Tested end to end |
+| `lineage` | `workspace`, `source`, `schema`, `table` | which objects in the workspace build on the source's tables: GraphQL APIs (from their definition), semantic models (from their TMDL definition), views on the SQL analytics endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their definition, marked as not certain); a graph of tables and objects, the objects per table, the tables used by nothing, the items that could not be read; with `table`, what a change to it reaches | nothing | Experimental |
+| `silver_notebook_draft` | `workspace`, `source`, `schema`, `silver_schema`, `order_by`, `keys`, `confirmed`, `tables` | a Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each table's key (the latest row by `order_by` wins), every relationship checked with the rows whose reference is missing put in `krusgraph_quarantine` with the reason, Delta tables written only in `silver_schema`, each step commented with its rule; re-runnable. The steps and the notebook source | nothing | Draft only; unit-tested and run on a local PySpark 4.0.1, not yet in Fabric |
+| `create_silver_notebook` | `workspace`, `source`, `name`, `schema`, `silver_schema`, `order_by`, `keys`, `confirmed`, `tables`, `dry_run` | creates that notebook in the workspace, attached to the lakehouse, or updates the one of that name; creating runs nothing; `dry_run=true` (default) returns the notebook and the call; needs `Notebook.ReadWrite.All` or `Item.ReadWrite.All` (fabric-rest-api-specs `notebook/swagger.json`) | creates/updates one item; never deletes | Available when enabled by the operator; unit-tested |
+| `drift_monitor_draft` | `workspace`, `source`, `schema`, `name`, `at`, `time_zone`, `library_ref` | a notebook and a pipeline that every night read the lakehouse's schema, compare the plan with the last saved one (the `plan_drift` and `lineage` logic as a library), save the new plan in `krusgraph.plans`, and send a short summary to a webhook (Teams or Power Automate) set as a pipeline parameter in Fabric; plus the daily schedule | nothing | Draft only; unit-tested, the notebook ran two nights on a local PySpark |
+| `create_drift_monitor` | `workspace`, `source`, `name`, `schema`, `at`, `time_zone`, `library_ref`, `schedule`, `dry_run` | creates or updates that notebook and pipeline and adds the daily schedule unless one at that time exists; no secret anywhere; `dry_run=true` (default) returns the items and the calls; needs `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`), and `DataPipeline.Execute.All` (or `Item.Execute.All`) for the schedule | creates/updates two items and a schedule; never deletes | Available when enabled by the operator; unit-tested |
+| `answer_query_draft` | `workspace`, `source`, `question`, `tables`, `schema`, `api`, `keys`, `confirmed` | a question in Swedish or English about the given tables as T-SQL over the safest join path (each step with its rule), and with `api` as GraphQL in that API's field names, or why GraphQL cannot answer it; reads counts, sums, averages, "per"/"för varje" groupings, top N and "latest", and lists what it assumed; runs nothing | nothing | Draft only; unit-tested on the shop schema |
+| `suggest_relationships` | `workspace`, `source`, `schema`, `keys`, `confirmed`, `check` | columns that could point at another table's key but are in no relationship, ranked by name, type and triangular closure, the best `check` counted against the data (inclusion share, distinct values); each with a ready `confirmed` entry; suggests only, never applies | nothing (counting queries) | Tested end to end |
 
 When a call cannot be completed, the tool answers with three fields instead of a bare failure: `error` (what
 happened, in plain words), `kind` (a stable code such as `not_found`, `no_access`, `capacity`, `sign_in`,
@@ -154,19 +189,20 @@ every value present in `addresses.address_id` (15 distinct values) and well belo
 ## One plan, five Fabric pieces
 
 Everything {{PRODUCT}} creates comes from one plan: the keys and relationships inferred from a source, with the rule behind
-each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan, each with a
-dry run first: `create_backend` makes the **API for GraphQL** with nested relationships; `create_semantic_model` the
-**Power BI semantic model** in Direct Lake mode with the same relationships; `create_ontology` the **Fabric IQ ontology**
-with entity types, keys, relationship types and bindings; `create_views` the **wide T-SQL views** on the SQL analytics
-endpoint; `create_data_agent` the **data agent** with the plan as instructions and examples. Change the plan once (a
-confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and `lineage` tell you what a change
-reaches. The pieces agree with each other because none of them was modelled by hand.
+each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan:
+`create_backend` makes the **API for GraphQL** with nested relationships (no dry run; `plan_drift` shows what an update
+would change); `create_views` the **wide T-SQL views** on the SQL analytics endpoint; and, once the operator has enabled
+the permission, `create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
+`create_ontology` the **Fabric IQ ontology** with entity types, keys, relationship types and bindings, and
+`create_data_agent` the **data agent** with the plan as instructions and examples. Those four answer with a dry run
+first. Change the plan once (a confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and
+`lineage` tell you what a change reaches. The pieces agree with each other because none of them was modelled by hand.
 
 ## Fabric IQ: the same graph as an ontology
 
 Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
 types between them, and data bindings to tables. That is the information {{PRODUCT}} already infers for a source, with
-the rule behind every key and link. `ontology_draft` writes the plan in the ontology item's own shape, nothing deployed:
+the rule behind every key and relationship. `ontology_draft` writes the plan in the ontology item's own shape, nothing deployed:
 
 - a **summary** with what needs a hand (keyless tables, composite keys, composite-column relationships);
 - a **binding checklist**: entity type → table, key column, property → column, relationship → columns, each with its rule;
@@ -179,14 +215,18 @@ the rule behind every key and link. `ontology_draft` writes the plan in the onto
 
 Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace,
 and the workspace on a Fabric capacity (`POST /workspaces/{id}/ontologies`, `updateDefinition`; Microsoft's REST
-specification, read 26 October 2026). `create_ontology` does that with a dry run by default; without the permission it
-answers `consent` naming the scope. The portal route (Import ontology with the Turtle file) needs nothing beyond what
-you already have. Once an ontology exists, Fabric IQ's own pieces take over: the ontology agent and data
-agents use it as context, and the built-in graph can be materialised from its entity and relationship types. Ontology
-is in preview and its definition format can change; the draft follows the item's own definition as of 2026 and has been
-checked against recorded definitions, not yet live from {{PRODUCT}}.
+specification, read 26 October 2026). `create_ontology` does that with a dry run by default; the hosted app does not
+have the permission yet, so it answers `consent` naming the scope when asked to create. The portal route (Import ontology
+with the Turtle file) needs nothing beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take
+over: the ontology agent and data agents use it as context, and the built-in graph can be materialised from its entity
+and relationship types. Ontology is in preview and its definition format can change; the draft follows the item's own
+definition as of 2026 and has been checked against recorded definitions, not yet live from {{PRODUCT}}.
 
-## Snowflake, Databricks and other data
+## Sources
+
+**Tested end to end:** a lakehouse with schemas (the demo workspace's `demo_lh`, schema `shop`), read through its SQL
+analytics endpoint. **Experimental:** warehouses and Fabric SQL databases are read the same way through their SQL
+endpoint and are covered by unit tests; warehouses also give declared keys and foreign keys (rules K0 and R0).
 
 {{PRODUCT}} reads sources through Fabric, so data that lives elsewhere takes one of two routes:
 
@@ -202,7 +242,7 @@ checked against recorded definitions, not yet live from {{PRODUCT}}.
 
 Snowflake has no `KEY_COLUMN_USAGE` view, so keys there come from names (rule K2) and are shown as such. Unity Catalog's
 informational primary and foreign keys are read as declared keys (K0, R0). The item types, routes and `sqlEndpointProperties`
-follow Microsoft's published REST specification; a live run of these source types is still pending.
+follow Microsoft's published REST specification; these source types are experimental until a live run.
 
 ## First-time errors
 
@@ -212,7 +252,7 @@ section's link in its `hint`.
 | `kind` | What happened | What to do, in order |
 | --- | --- | --- |
 | `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Settings → Connectors → {{PRODUCT}} → Disconnect**, then **Connect** again and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
-| `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology` and `create_data_agent` the answer names the missing scope (`Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
+| `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology`, `create_data_agent`, `create_silver_notebook` and `create_drift_monitor` the answer names the missing scope (such as `Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
 | `no_access` | You can sign in, but this workspace or item is not shared with you (HTTP 403) | Ask the workspace owner for a role on the workspace: **Viewer** is enough for everything that reads and plans, **Contributor** for `create_backend`, `create_views` and the other creating tools. Then run the same request again; `list_workspaces` shows what you can see. |
 | `capacity` | The workspace has no active Fabric capacity (paused, not assigned, or expired trial) | In Fabric: **Workspace settings → License info**, assign a capacity or resume the paused one; a trial capacity is enough. Lakehouse SQL endpoints answer again a minute after the capacity is up. |
 | `schema_not_found` | The schema has no tables for this sign-in | A lakehouse without "Lakehouse schemas" has everything in `dbo`; one created with schemas has them by name (`list_tables` with another schema). Tables created minutes ago are not in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata, then try again. |
@@ -223,16 +263,14 @@ the same three fields.
 
 ## Cold start, and `min_replicas` if you run it yourself
 
-The hosted instance runs on Azure Container Apps and may scale to zero when nobody has used it for a while. The
-first call after such a pause starts the container, which takes tens of seconds; an MCP client that gives up after
-about thirty seconds, as Claude does, may report the first call as failed. Ask again: the second call answers in
-well under a second. Health probes start one second after the container does, so a cold start is as short as the
-platform allows.
+If the hosted service has been idle, the first request may take longer while Azure starts the container. If that
+request times out, try again after a short pause. If the problem continues, check the error message or
+[contact support](mailto:{{CONTACT}}).
 
-If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides this:
-`0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance warm so there is never a cold
-start, at the cost of one always-on instance. The change takes effect with `--update`. A container on a VM or in
-Docker does not scale to zero and has no cold start.
+If you run the server yourself with `deploy/krusgraph.sh`, `min_replicas` in `deploy/krusgraph.json` decides whether it
+scales to zero: `0` (the default) scales to zero when idle and is the cheapest, `1` keeps one instance running so idle
+time does not cause a cold start, at the cost of one always-on instance. A new revision or a restart can still delay a
+request. The change takes effect with `--update`. A container on a VM or in Docker does not scale to zero.
 
 ## Two steps stay manual
 
@@ -254,12 +292,12 @@ the repository's `docs/LOVABLE-END-TO-END.md`.
 A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.txt) lists the rest and
 [/llms-full.txt](/llms-full.txt) has every page in one file. MCP clients can read the server's identity and transport
 from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
-The same URL works from the command line once a client's sign-in redirect is registered on the Entra app
-(for Claude Code: `claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`); until then Claude is the tested client.
+Claude Code takes the same URL (`claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`), but its local sign-in
+redirect is not registered on the Entra app yet, so it can't sign in to {{DOMAIN}} today; Claude is the supported client.
 A Claude plugin that bundles this connector with a skill for the whole workflow and the commands `/krusgraph:plan`,
 `/krusgraph:document` and `/krusgraph:explain-schema` is built and tested in the repository (`plugin/krusgraph`) and
-coming soon; it is not published yet.
+coming soon (Planned); it is not published yet.
 
 ## Support
 
-{{CONTACT}} · [Support the work](/support) · Source (MIT): https://github.com/Krusmaster/fabric-backend
+Email Gustav at {{CONTACT}} · [Help keep {{PRODUCT}} going](/support) · Source (MIT): https://github.com/Krusmaster/fabric-backend

@@ -20,14 +20,14 @@
     <p id="m-follow-state" class="state-line">state: rest</p>
   </div>
   <div class="scene">
-    <h2 style="font-size:24px">The thinker: Accept or Skip <span class="pill demo">demo</span></h2>
-    <p class="muted">notice → consider → explain (“Review this connection.”) → your choice. Accept draws a thin sage line; Skip leaves it dashed. Both are valid. Accepted is not verified.</p>
+    <h2 style="font-size:24px">The thinker: Accept or leave unlinked <span class="pill demo">demo</span></h2>
+    <p class="muted">notice → consider → explain (“Accept this example relationship, or leave it unlinked.”) → your choice. Accept draws a thin sage line; Leave unlinked keeps it dashed. Accepting is a choice in the demo, not a check of the data.</p>
     <div class="stage">
       <span id="m-think" data-mascot="thinker" data-pose="rest" data-label="The thinker"></span>
       <svg id="m-wire" class="wire-demo" viewBox="0 0 240 60" width="240" height="60" aria-label="A connection between orders.ship_to_id and addresses.address_id"><text x="0" y="14" class="mono" style="font:700 11px monospace;fill:currentColor">orders.ship_to_id</text><path d="M10 30 C70 30 150 30 230 30"/><text x="80" y="56" style="font:700 11px monospace;fill:currentColor">addresses.address_id</text></svg>
       <div>
         <button type="button" class="btn ghost small" id="m-think-start">Start the sequence</button>
-        <div id="m-choice" class="choice" hidden><button type="button" class="btn sage small" id="m-accept">Accept</button><button type="button" class="btn ghost small" id="m-skip">Skip</button></div>
+        <div id="m-choice" class="choice" hidden><button type="button" class="btn sage small" id="m-accept">Accept in this demo</button><button type="button" class="btn ghost small" id="m-skip">Leave unlinked</button></div>
       </div>
     </div>
     <p id="m-think-state" class="state-line">state: rest</p>

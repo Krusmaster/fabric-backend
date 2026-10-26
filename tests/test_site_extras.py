@@ -80,7 +80,7 @@ def test_explore_has_the_plan_as_text(client):
     assert "<strong>audit_log</strong>: no key, rule <code>K3</code>" in html
     assert "<code>orders.customer_id</code> → <code>customers.customer_id</code> by rule <code>R1</code>" in html
     assert "<code>orders.ship_to_id</code>: no rule matched" in html
-    assert 'aria-label="Tables and legend"' in html and 'aria-label="Why this connection"' in html
+    assert 'aria-label="Tables and legend"' in html and 'aria-label="Why these tables are linked"' in html
 
 
 def test_heading_order_starts_at_h2_after_the_h1(client):

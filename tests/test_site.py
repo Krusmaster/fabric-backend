@@ -144,7 +144,8 @@ def test_mascot_review_page_is_noindex(client):
     r = client.get("/mascots")
     assert r.headers["x-robots-tag"] == "noindex, nofollow"
     assert '<meta name="robots" content="noindex,nofollow">' in r.text
-    assert "Simulate success" in r.text and "Simulate failure" in r.text and "Accept" in r.text and "Skip" in r.text
+    assert "Simulate success" in r.text and "Simulate failure" in r.text and "Accept in this demo" in r.text and "Leave unlinked" in r.text
+    assert "Both are valid" not in r.text
     assert "no Fabric call is made" in r.text
     assert "Disallow: /mascots" in client.get("/robots.txt").text
 
@@ -326,7 +327,7 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
 
 
 @pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
-                                         ("/start.md", "# Connect Krusgraph to Claude"), ("/lovable.md", "# Use Krusgraph with Lovable"),
+                                         ("/start.md", "# Connect Krusgraph to Claude"), ("/lovable.md", "# Build a Lovable app on your Fabric tables"),
                                          ("/local.md", "# Run Krusgraph locally")])
 def test_markdown_versions(client, path, needle):
     r = client.get(path)
@@ -460,7 +461,8 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     docs = client.get("/docs").text
     for t in tools:
         assert f"<code>{t}</code>" in docs, t
-    assert "Cold start" in docs and "min_replicas" in docs and "25 October 2026" in docs
+    assert "Cold start" in docs and "min_replicas" in docs and "26 October 2026" in docs
+    assert "never a cold start" not in docs and "well under a second" not in docs
     home = client.get("/").text
     assert "Check the plan against the data" in home and "Tested end to end on 26 October 2026" in home
     llms = client.get("/llms.txt").text
@@ -493,3 +495,51 @@ def test_local_page_registry_line_and_plugin_coming_soon(client):
     assert "coming soon" in docs and "plugin/krusgraph" in docs and "not published yet" in docs
     for t in (docs, client.get("/").text, client.get("/llms.txt").text):
         assert "Claude directory" not in t and "connector directory" not in t and "Verified connector" not in t
+
+
+# ------------------------------------------------------------------ status words and the data path (round n11) ----
+
+STATUS_WORDS = ("Tested end to end", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
+
+
+def test_docs_give_every_tool_a_status_in_the_shared_words(client):
+    md = client.get("/docs.md").text
+    rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
+    tools = {r.split("|")[1].strip().strip("`"): r.rstrip(" |").split("|")[-1].strip() for r in rows}
+    assert len(tools) == 30, sorted(tools)
+    for tool, status in tools.items():
+        assert status.startswith(STATUS_WORDS), (tool, status)
+    for tool in ("create_semantic_model", "create_data_agent", "create_ontology", "create_silver_notebook", "create_drift_monitor"):
+        assert tools[tool].startswith("Available when enabled by the operator"), tool
+    for tool in ("lineage", "app_readiness"):
+        assert tools[tool].startswith("Experimental"), tool
+    assert "## Test status" in md and "26 October 2026" in md and "22 tools that existed then" in md
+    assert "`create_backend` does not run it for you" in md                               # validation is a step you ask for
+
+
+def test_privacy_names_samples_and_checks_separately(client):
+    html = client.get("/privacy").text
+    assert "Everything the service handles passes through its memory and nowhere else" not in html
+    assert "only when you run a query" not in html
+    assert "<code>sample_rows</code> returns up to 20 rows" in html and "Only the counts come back" in html
+    for heading in ("Your Microsoft account", "Metadata, samples and query results", "Access tokens", "Technical logs",
+                    "Third parties: Microsoft and your MCP client", "Contact and requests"):
+        assert f">{heading}</h2>" in html, heading
+
+
+def test_explore_texts_say_the_demo_choice_stays_in_the_demo(client):
+    html = client.get("/explore").text
+    assert "Select a table or relationship to see its explanation here." in html and "Copy diagram (Mermaid)" in html
+    assert "accepted in this demo" in html and "needs review" in html and "Checks on the demo data" in html
+    assert 'href="#edge=orders.customer_id%3Ecustomers"' in html                            # Onto points at the first thing to do
+    js = client.get("/static/site.js").text
+    assert "Both are valid" not in js and "It does not update Fabric." in js and "Leave unlinked" in js
+    assert "Accept in this demo" in js and "Accepted here" not in js
+
+
+def test_use_cases_mark_outputs_with_the_docs_status(client):
+    html = client.get("/use-cases").text
+    assert "(planned)" not in html and "What could you build from your Fabric tables?" in html
+    assert "time it takes to read and accept a plan" not in html and "defensible to auditors" not in html
+    first = html.split('id="industries"')[0]                                            # the illustrative note comes first
+    assert "The schemas are illustrative examples, not customer projects." in first

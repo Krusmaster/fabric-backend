@@ -463,7 +463,7 @@
     }
     var bm = document.getElementById('btn-mermaid');
     bm.addEventListener('click', function () { // the engine's own erDiagram, from plan.json
-      var done = function (ok) { bm.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { bm.textContent = 'Copy Mermaid'; }, 1600); };
+      var done = function (ok) { bm.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { bm.textContent = 'Copy diagram (Mermaid)'; }, 1600); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(data.mermaid).then(function () { done(true); }, function () { done(false); });
       else { window.prompt('Mermaid ER diagram (select and copy):', data.mermaid); done(true); }
     });
@@ -483,24 +483,27 @@
         line.innerHTML = '<strong>' + esc(t.name) + '</strong> · ' + keyText(t) + (t.key.length ? ' <code>' + esc(t.key.join(' + ')) + '</code>' : '') + ' · <a href="#why">details below</a>';
       } else if (sel.edge.kind === 'suggested') {
         var r = sel.edge.rel, acc = g.accepted[sel.edge.id];
-        panel.innerHTML = '<h2>Why this connection?</h2><div class="why-cols"><div>' +
-          '<p class="why-head"><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'Accepted here (not verified)' : 'Suggested connection') + '</span></p>' +
+        var tgt = singular(r.target).replace(/_/g, ' ');
+        panel.innerHTML = '<h2>Does this column refer to ' + article(tgt) + ' ' + esc(tgt) + '?</h2><div class="why-cols"><div>' +
+          '<p class="why-head"><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'Accepted in this demo' : 'Needs review') + '</span></p>' +
           '<p class="why-path"><code>' + esc(r.source + '.' + r.source_cols[0]) + ' → ' + esc(r.target + '.' + r.target_cols[0]) + '</code></p>' +
-          '<p>The engine left <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code> unlinked: ' + esc(r.note) + '. This dashed wire is a <strong>' + esc(r.origin || 'demo hint') + '</strong>: ' + esc(r.why || '') + '.</p>' +
+          '<p>The engine left <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code> unlinked because no naming rule matched. The dashed line is a <strong>' + esc(r.origin || 'demo hint') + '</strong>: ' + esc(r.why || '') + '. You can accept the example relationship or leave it unlinked.</p>' +
           fields(r) + '</div><div>' +
-          '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Review this connection.</strong><br>Your choice. Both are valid.' +
-          '<div class="choice"><button type="button" class="btn sage small" id="acc" aria-pressed="' + (acc ? 'true' : 'false') + '">Accept</button><button type="button" class="btn ghost small" id="skip">Skip</button></div></div></div>' +
-          '<p class="status">' + (acc ? 'Accepted here: drawn as a solid sage line. Accepted is not verified; nothing has checked the data. In the real tools this is <code>confirmed=[…]</code>.' : 'Skip leaves it dashed. The choice lives only in this page.') + '</p></div></div>';
-        line.innerHTML = (acc ? 'Accepted here (not verified)' : 'Suggested connection') + ': <code>' + esc(r.source + '.' + r.source_cols[0] + ' → ' + r.target + '.' + r.target_cols[0]) + '</code> · <a href="#why">review it below</a>';
+          '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Accept this example relationship, or leave it unlinked.</strong><br>Your choice only affects this demo.' +
+          '<div class="choice"><button type="button" class="btn sage small" id="acc" aria-pressed="' + (acc ? 'true' : 'false') + '">Accept in this demo</button><button type="button" class="btn ghost small" id="skip">Leave unlinked</button></div></div></div>' +
+          '<p class="status">' + (acc ? 'Accepted in this demo: drawn as a solid line. Accepting does not check the data; with the real tools you pass it as a <code>confirmed</code> entry.' : 'Left unlinked: the line stays dashed.') + ' This only changes the demo on this page. It does not update Fabric.</p></div></div>';
+        line.innerHTML = (acc ? 'Accepted in this demo' : 'Needs review') + ': <code>' + esc(r.source + '.' + r.source_cols[0] + ' → ' + r.target + '.' + r.target_cols[0]) + '</code> · <a href="#why">review it below</a>';
         M.mount(panel);
         panel.querySelector('#acc').addEventListener('click', function () { g.setAccepted(sel.edge, true); render(sel); panel.querySelector('#acc').focus(); });
         panel.querySelector('#skip').addEventListener('click', function () { g.setAccepted(sel.edge, false); render(sel); panel.querySelector('#skip').focus(); });
       } else {
         var rr = sel.edge.rel;
-        panel.innerHTML = '<h2>Why this connection?</h2><div class="why-cols"><div>' +
+        var next = sug.filter(function (s) { return !g.accepted[g.edgeId(s)]; })[0];      // Onto points at the next thing to do
+        panel.innerHTML = '<h2>Why this relationship?</h2><div class="why-cols"><div>' +
           '<p class="why-head"><span class="why-rule" title="' + esc('Rule ' + rr.rule + ': ' + data.rules[rr.rule].replace(/`/g, '')) + '">' + rr.rule + '</span> <span class="muted">many ' + esc(rr.source) + ' → one ' + esc(singular(rr.target)) + '</span></p>' +
           '<p class="why-path"><code>' + esc(rr.source + '.' + rr.source_cols.join(' + ')) + ' → ' + esc(rr.target + '.' + rr.target_cols.join(' + ')) + '</code></p>' +
-          '<p>' + esc(reason(rr)) + '</p><p class="status">Rule ' + rr.rule + ', in the engine’s words: ' + rule(rr.rule) + '.</p>' + '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label="Onto"></span><div><strong>Onto’s note:</strong> a suggestion, not a guarantee. Names made this link; you can overrule it.</div></div></div><div>' + fields(rr) +
+          '<p>' + esc(reason(rr)) + '</p><p class="status">Rule ' + rr.rule + ', in the engine’s words: ' + rule(rr.rule) + '. Names made this relationship; you can overrule it.</p>' +
+          (next ? '<div class="note coral"><span data-mascot="onto" data-pose="point" data-label="Onto"></span><div><strong>Onto’s note:</strong> next, select <a href="#edge=' + encodeURIComponent(g.edgeId(next)) + '">the dashed line</a> from <code>' + esc(next.source + '.' + next.source_cols[0]) + '</code>. It is a column the rules left unlinked.</div></div>' : '') + '</div><div>' + fields(rr) +
           '<h3>In GraphQL</h3><ul class="fields"><li><code>' + esc(rr.source + '.' + rr.field) + '</code> <span class="type">one</span></li><li><code>' + esc(rr.target + '.' + rr.reverse) + '</code> <span class="type">many</span></li></ul></div></div>';
         line.innerHTML = '<span class="why-rule">' + rr.rule + '</span> <code>' + esc(rr.source + '.' + rr.source_cols.join(' + ') + ' → ' + rr.target + '.' + rr.target_cols.join(' + ')) + '</code> · <a href="#why">why, below</a>';
         M.mount(panel);
@@ -521,14 +524,14 @@
     }
     fromHash(); window.addEventListener('hashchange', fromHash);
     // Onto: follows the pointer on hover devices; a still helper on touch and for keyboard users.
-    var helper = M.follower(area, { text: 'Explore this table.' });
+    var helper = M.follower(area, { text: 'Select it to see its key.' });
     if (!helper) {
       var still = document.createElement('div'); still.className = 'g-follower visible still'; still.style.left = 'auto'; still.style.right = '4px'; still.style.top = 'auto'; still.style.bottom = '4px';
       still.setAttribute('aria-hidden', 'true'); still.innerHTML = M.svg('onto', { pose: 'rest', label: '' }); area.appendChild(still);
       g.on('select', function (sel) { if (sel && sel.type === 'table' && M.enabled()) { M.setPose(still, 'explain'); M.say(area, sel.el, 'Key and rule below.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); M.setPose(still, 'rest'); }, 2200); } });
     }
     g.on('focus', function (sel) { // keyboard users get the same help, without a pointer
-      if (sel.type === 'table' && M.enabled() && !(area.matches(':hover'))) { M.say(area, sel.el, 'Explore this table.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); }, 1800); }
+      if (sel.type === 'table' && M.enabled() && !(area.matches(':hover'))) { M.say(area, sel.el, 'Enter shows its key.', { dx: 8, dy: 0 }); setTimeout(function () { M.say(area, sel.el, ''); }, 1800); }
     });
   });
 
@@ -562,11 +565,11 @@
     });
     // Thinker: notice → consider → explain → your choice
     var tk = document.getElementById('m-think'), tkState = document.getElementById('m-think-state'), wire = document.getElementById('m-wire');
-    var seq = [['notice', 'notice'], ['think', 'consider'], ['explain', 'explain: "Review this connection."']], i = 0;
+    var seq = [['notice', 'notice'], ['think', 'consider'], ['explain', 'explain: "Accept this example relationship, or leave it unlinked."']], i = 0;
     function stepThinker() { if (i < seq.length) { M.setPose(tk, seq[i][0]); tkState.textContent = 'state: ' + seq[i][1]; i++; setTimeout(stepThinker, M.motionOK() ? 900 : 0); } else { tkState.textContent = 'state: your choice'; document.getElementById('m-choice').hidden = false; } }
     document.getElementById('m-think-start').addEventListener('click', function () { i = 0; document.getElementById('m-choice').hidden = true; wire.setAttribute('class', 'wire-demo'); stepThinker(); });
-    document.getElementById('m-accept').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo accepted'); tkState.textContent = 'accepted (thin sage line). Accepted is not verified.'; M.setPose(tk, 'rest'); });
-    document.getElementById('m-skip').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo'); tkState.textContent = 'skipped (stays dashed). Both choices are valid.'; M.setPose(tk, 'rest'); });
+    document.getElementById('m-accept').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo accepted'); tkState.textContent = 'accepted in this demo (thin sage line); the data has not been checked.'; M.setPose(tk, 'rest'); });
+    document.getElementById('m-skip').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo'); tkState.textContent = 'left unlinked (stays dashed).'; M.setPose(tk, 'rest'); });
     // Builder: ready → you start → working → success | failure → calm. Demo states only; no Fabric call is made.
     var bd = document.getElementById('m-build'), bdState = document.getElementById('m-build-state'), ok = document.getElementById('m-ok'), err = document.getElementById('m-err'), cancel = null;
     function run(outcome) {
