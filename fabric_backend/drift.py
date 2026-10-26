@@ -54,10 +54,11 @@ def compare(plan: Plan, existing: dict, name: str, workspace_id: str, source_id:
         elif not set(r.get("sourceFields") or []) <= set((new[o["sourceObject"]].get("fieldMappings") or {}).keys()):
             why = "a column it joins on is gone"
         else:
-            why = "the plan no longer infers it (a key or rule changed); pass it in `confirmed` to keep it"
+            why = ("the plan does not infer it today (it was given as `confirmed` when the API was built, or a key or rule "
+                   "changed); pass it in `confirmed` to keep it")
         entry = {"table": o.get("sourceObject"), "field": r.get("field"), "target": target,
                  "columns": list(r.get("sourceFields") or []), "why": why}
-        if why.startswith("the plan no longer infers it") and r.get("cardinality") == "ManyToOne":
+        if why.startswith("the plan does not infer it today") and r.get("cardinality") == "ManyToOne":
             entry["confirmed"] = {"source": str(o.get("sourceObject")).split(".")[-1], "source_cols": entry["columns"],
                                   "target": str(target).split(".")[-1], "target_cols": list(r.get("targetFields") or []),
                                   "field_name": r.get("field") or ""}

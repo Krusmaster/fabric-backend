@@ -58,7 +58,7 @@ def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS) -> list[dict]:
         if len(r.source_cols) != 1:
             continue
         label = next((c for c in plan.schema[r.target].column_names if c.lower() in ("name", "title", "label", "description")), r.target_cols[0])
-        out.append({"question": f"Which {r.target} have the most {r.source}?",
+        out.append({"question": f"Which {r.target} have the most rows in {r.source}?",
                     "query": (f"SELECT TOP (10) t.{qi(label)}, COUNT_BIG(*) AS {qi(r.source + '_count')} FROM {qi(schema)}.{qi(r.source)} AS s "
                               f"JOIN {qi(schema)}.{qi(r.target)} AS t ON s.{qi(r.source_cols[0])} = t.{qi(r.target_cols[0])} "
                               f"GROUP BY t.{qi(label)} ORDER BY {qi(r.source + '_count')} DESC")})
@@ -72,7 +72,9 @@ def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS) -> list[dict]:
                 if paths and (best is None or len(paths[0]) > best[0]):
                     best = (len(paths[0]), a, b, paths[0])
     if best and best[0] >= 2:
-        out.append({"question": f"Show {best[2]} together with the {best[1]} they belong to.", "query": sql_for(plan, best[1], best[3], top=100)})
+        via = [(r.target if fwd else r.source) for r, fwd in best[3]][:-1]       # the tables between start and end
+        through = f" through {', '.join(via[:-1])} and {via[-1]}" if len(via) > 1 else (f" through {via[0]}" if via else "")
+        out.append({"question": f"Show {best[1]} joined to {best[2]}{through}.", "query": sql_for(plan, best[1], best[3], top=100)})
     return out[:limit]
 
 
