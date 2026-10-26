@@ -309,6 +309,7 @@ def test_remote_server_tools_are_annotated_and_auth_reads_headers():
                                     "create_semantic_model", "create_views", "create_data_agent", "app_starter", "analyze_schema", "suggest_relationships"}
     for t in ts:
         assert t.title and t.annotations is not None and t.annotations.read_only_hint is not None   # directory requirement
+        assert t.annotations.title == t.title, t.name                                               # the directory reads annotations.title
     assert next(t for t in ts if t.name == "create_backend").annotations.read_only_hint is False
     # it can overwrite an existing API definition in place, so Claude asks before each call (directory review criteria)
     assert next(t for t in ts if t.name == "create_backend").annotations.destructive_hint is True

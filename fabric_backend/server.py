@@ -256,6 +256,19 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
 RO = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=True)
 
 
+def _titled_tool(register):
+    """The Claude directory reads a tool's name from annotations.title, not only from the tool's title: copy the
+    title into the annotations of every tool, so each listing shows a human-readable name."""
+    def tool(*args, title: str | None = None, annotations: ToolAnnotations | None = None, **kwargs):
+        if title:
+            annotations = (annotations or ToolAnnotations()).model_copy(update={"title": title})
+        return register(*args, title=title, annotations=annotations, **kwargs)
+    return tool
+
+
+mcp.tool = _titled_tool(mcp.tool)
+
+
 @mcp.tool(title="List workspaces", annotations=RO)
 @safe
 def list_workspaces(ctx: Context = None) -> str:
