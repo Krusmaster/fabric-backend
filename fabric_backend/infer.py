@@ -377,9 +377,16 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         seen.add(r.key)
         rels.append(r)
 
+    names = {t.name.lower(): t for t in schema}
+    pinned: set[tuple[str, str]] = set()                                  # (table, column) a confirmed entry already links
     for c in confirmed or []:
-        add(Relationship(c["source"], list(c["source_cols"]), c["target"], list(c.get("target_cols") or c["source_cols"]),
+        src, tgt = names.get(str(c["source"]).lower()), names.get(str(c["target"]).lower())
+        scols = [src.col(str(x)) if src else x for x in c["source_cols"]]  # the schema's own spelling, as check_input accepts any case
+        tcols = [tgt.col(str(x)) if tgt else x for x in (c.get("target_cols") or c["source_cols"])]
+        add(Relationship(src.name if src else c["source"], scols, tgt.name if tgt else c["target"], tcols,
                          "confirmed", field_name=c.get("field_name") or "", reverse_name=c.get("reverse_name") or ""))
+        if src and len(scols) == 1:
+            pinned.add((src.name, scols[0]))
 
     prefixes = {t.name: _table_prefix(t) for t in schema}
     bares = {t.name: _bare(t, prefixes[t.name]) for t in schema}
@@ -404,10 +411,10 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         own_key = set(x.lower() for x in keys.get(t.name, ([], ""))[0])
         bare = bares[t.name]
         for cols, target, tcols in t.foreign_keys:                     # R0
-            if target in schema:
+            if target in schema and not (len(cols) == 1 and (t.name, cols[0]) in pinned):
                 add(Relationship(t.name, cols, target, tcols, "R0"))
         for c in t.column_names:
-            if c.lower() in own_key and len(own_key) == 1:
+            if (c.lower() in own_key and len(own_key) == 1) or (t.name, c) in pinned:  # confirmed: never inferred again or ambiguous
                 continue
             n = bare[c]
             via = ""
@@ -476,14 +483,14 @@ def _line_like(col: str) -> bool:
 
 def composite_keys(schema: Schema, keys: dict[str, tuple[list[str], str]],
                    rels: list[Relationship]) -> dict[str, tuple[list[str], str]]:
-    """K5 and K4 for the tables still without a key, from the single-column references already inferred."""
+    """K5 and K4 for the tables still without a key, from the single-column references already inferred or confirmed."""
     out: dict[str, tuple[list[str], str]] = {}
     for t in schema:
         if t.name in keys:
             continue
         prefix = _table_prefix(t)
         bare = _bare(t, prefix)
-        refs = [r for r in rels if r.source == t.name and len(r.source_cols) == 1 and r.rule != "confirmed"]
+        refs = [r for r in rels if r.source == t.name and len(r.source_cols) == 1]
         if not refs:
             continue
         ref_cols = [r.source_cols[0] for r in refs]

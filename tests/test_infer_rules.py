@@ -127,3 +127,28 @@ def test_line_key_is_the_header_reference_plus_the_line_number():
     p = plan(schema(("orders", ["order_id"]), ("order_lines", ["order_line_id", "order_id", "position"])))
     assert p.keys["order_lines"] == (["order_line_id"], "K2")
     assert _line_like("line_no") and _line_like("OperationSequence") and _line_like("order_line") and not _line_like("deadline")
+
+
+def test_a_confirmed_column_is_neither_inferred_again_nor_ambiguous():
+    """prod_id answers to both products and producers; once the caller confirms products, the column is settled."""
+    confirmed = [{"source": "sales", "source_cols": ["prod_id"], "target": "products", "target_cols": ["product_id"]}]
+    s = schema(("products", ["product_id", "name"]), ("producers", ["producer_id"]), ("sales", ["sale_id", "prod_id"]))
+    assert [a["column"] for a in plan(s).ambiguous] == ["prod_id"]
+    p = plan(s, confirmed=confirmed)
+    assert p.ambiguous == [] and "ambiguous" not in p.summary()
+    assert [(r.target, r.rule) for r in p.relationships if r.source == "sales"] == [("products", "confirmed")]
+    # a table named prod would take the column by R1; the confirmed target still stands alone
+    s = schema(("products", ["product_id", "name"]), ("prod", ["prod_id"]), ("sales", ["sale_id", "prod_id"]))
+    assert rels(plan(s))[("sales", ("prod_id",))] == ("prod", "R1")
+    p = plan(s, confirmed=confirmed)
+    assert [(r.target, r.rule) for r in p.relationships if r.source == "sales"] == [("products", "confirmed")]
+
+
+def test_a_confirmed_header_link_keeps_the_line_key():
+    """Confirming order_items.order_id -> orders (in any case) must not move the K5 key to the product column."""
+    s = schema(("orders", ["order_id", "customer_id"]), ("products", ["product_id"]),
+               ("order_items", ["order_id", "line_no", "product_id", "quantity"]))
+    p = plan(s, confirmed=[{"source": "Order_Items", "source_cols": ["ORDER_ID"], "target": "ORDERS"}])
+    assert p.keys["order_items"] == (["order_id", "line_no"], "K5")
+    r = next(r for r in p.relationships if r.rule == "confirmed")
+    assert (r.source, r.source_cols, r.target, r.target_cols) == ("order_items", ["order_id"], "orders", ["order_id"])

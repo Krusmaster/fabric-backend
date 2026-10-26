@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- A column linked by a `confirmed` entry is settled: it is no longer also inferred to another table or listed in
+  `plan.ambiguous`, and a confirmed header link counts for the line key (K5) as the inferred one did (confirming
+  `order_items.order_id -> orders` moved the key to `product_id, line_no`). Confirmed entries take the schema's own
+  spelling of table and column names, as `check_input` already accepted any case.
 - Fixes from an independent review of this round's code, each with a test: the silver notebook can be generated again
   after its first run on a lakehouse without schemas (its own `silver_*` tables are no longer read as sources); its
   ownership mark names the source (`krusgraph.silver = <lakehouse id>/<schema>`), so two notebooks never overwrite each
