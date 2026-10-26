@@ -36,17 +36,17 @@ STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; char
 PAGES = {
     # path: (template, title, description, nav key)
     "/": ("home.html", "{{PRODUCT}} — Microsoft Fabric, connected",
-          "Turn your Microsoft Fabric tables into an explainable graph, a GraphQL API and a Fabric IQ ontology draft. Every connection shows the rule that made it.", "product"),
+          "An MCP connector for Claude: map the relationships between your Microsoft Fabric tables, check them against your data and create a GraphQL API. Every relationship shows the rule behind it.", "product"),
     "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
-                 "An illustrative demo on a synthetic shop schema: tables, inferred connections and the rule behind each one.", "product"),
-    "/start": ("start.html", "Get started — {{PRODUCT}}",
-               "Connect your Microsoft account, choose a workspace and open {{PRODUCT}} in Claude. Small steps, useful connections.", "start"),
+                 "A demo on a synthetic shop schema: select a table to inspect its key, or a line to see why two tables were linked.", "product"),
+    "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
+               "What you need, admin approval in Microsoft Entra, and how to add {{PRODUCT}} as a custom connector in Claude.", "start"),
     "/support": ("support.html", "Support {{PRODUCT}}",
-                 "Help good things keep happening: better examples, clearer docs and ongoing maintenance. Contributions open soon.", "support"),
-    "/partners": ("partners.html", "Partners — {{PRODUCT}}",
-                  "Better connections, built together. Preview an illustrative partner workspace.", "partners"),
-    "/partners/workspace": ("workspace.html", "Partner workspace preview — {{PRODUCT}}",
-                            "An illustrative partner workspace: Connect, Explore, Review, Build. No partner data connected.", "partners"),
+                 "Help keep {{PRODUCT}} going: examples, setup guides and maintenance. Online contributions aren't available yet.", "support"),
+    "/partners": ("partners.html", "Try {{PRODUCT}} on a Fabric project",
+                  "Explore a {{PRODUCT}} pilot on one schema and one question with Kruse Consulting AB. Not affiliated with Microsoft.", "partners"),
+    "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
+                            "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Ten industries, one engine: typical tables, the keys and links {{PRODUCT}} finds in them with the rule behind each, what you build, and where the value is.", "usecases"),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
@@ -286,7 +286,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     </nav>
     <div class="footer-controls">
       <button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>
-      <span class="muted tiny" id="mascot-toggle-note">Turns the figures off on every page. Saved in this browser.</span>
+      <span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>
     </div>
   </div>
 </footer>

@@ -1,42 +1,43 @@
 <div data-page="start">
 <section class="hero wrap" style="padding-bottom:12px;text-align:center">
   <span class="kicker">Get started</span>
-  <h1>Small steps. Useful connections.</h1>
-  <p class="lede" style="margin-left:auto;margin-right:auto">A clearer start with {{PRODUCT}}: three steps, and it runs inside Claude with your own Fabric permissions.</p>
+  <h1>Connect {{PRODUCT}} to Claude</h1>
+  <p class="lede" style="margin-left:auto;margin-right:auto">You’ll need a Microsoft work account, access to a Fabric workspace with capacity, and your organisation’s approval for {{PRODUCT}}’s permissions. You can <a href="/explore">explore the demo</a> without an account.</p>
 </section>
 <section class="wrap" style="padding-top:0">
   <div class="start-card">
     <ol class="start-steps" aria-label="The three steps">
-      <li><button type="button" class="start-step" data-step="1" aria-pressed="true"><span class="step-n coral">1</span><span><strong>Connect your account</strong><span class="muted">Use your Microsoft account with Fabric access.</span></span></button></li>
-      <li><button type="button" class="start-step" data-step="2" aria-pressed="false"><span class="step-n sage">2</span><span><strong>Choose a workspace</strong><span class="muted">Select the data to explore and work with.</span></span></button></li>
-      <li><button type="button" class="start-step" data-step="3" aria-pressed="false"><span class="step-n lav">3</span><span><strong>Open in Claude</strong><span class="muted">Start chatting with your data and build GraphQL APIs.</span></span></button></li>
+      <li><button type="button" class="start-step" data-step="1" aria-pressed="true"><span class="step-n coral">1</span><span><strong>Get admin approval</strong><span class="muted">Your Entra admin approves {{PRODUCT}} once.</span></span></button></li>
+      <li><button type="button" class="start-step" data-step="2" aria-pressed="false"><span class="step-n sage">2</span><span><strong>Choose a Fabric workspace</strong><span class="muted">A workspace you can open, and a source in it.</span></span></button></li>
+      <li><button type="button" class="start-step" data-step="3" aria-pressed="false"><span class="step-n lav">3</span><span><strong>Add the connector in Claude</strong><span class="muted">Paste the URL and sign in.</span></span></button></li>
     </ol>
     <div class="start-panes">
       <div class="start-pane" data-pane="1">
-        <div class="start-pane-head"><div><h2 class="h3">Start with your Microsoft account</h2>
-        <p>{{PRODUCT}} uses your signed-in Microsoft work account to reach the Fabric workspaces you can already see. Nothing is created in our name: every call runs as you.</p></div>
+        <div class="start-pane-head"><div><h2 class="h3">Get admin approval</h2>
+        <p>Your Microsoft Entra admin needs to approve the permissions {{PRODUCT}} requests. The <a href="#access">permission list below</a> explains what each one is used for. If your organisation has already approved {{PRODUCT}}, you can move on.</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-idle="breathe" data-label=""></span></div></div>
-        <p>Your Microsoft Entra admin grants consent once for your organisation: <a class="btn secondary" href="https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}">Grant admin consent in Entra</a></p>
-        <p class="muted tiny">That link opens Microsoft's own consent page for the {{PRODUCT}} app; there is no sign-in on this site. It allows {{PRODUCT}} to call Microsoft Fabric and SQL <em>as each signed-in user</em>, nothing more, and the admin can revoke it at any time under Enterprise applications in Entra. Already consented? Then there is nothing to do in this step.</p>
+        <p>For your admin: <a class="btn secondary" href="https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}">Grant admin consent in Entra</a></p>
+        <p class="muted tiny">That link opens Microsoft’s own consent page for the {{PRODUCT}} app; there is no sign-in on this site. It allows {{PRODUCT}} to call Microsoft Fabric and SQL <em>as each signed-in user</em>, so every call runs with that person’s own Fabric permissions. The admin can revoke it at any time under Enterprise applications in Entra.</p>
       </div>
       <div class="start-pane" data-pane="2">
-        <div class="start-pane-head"><div><h2 class="h3">Choose a workspace</h2>
-        <p>You need access to the Fabric workspace you want to use (Viewer is enough to plan, Contributor to create), and that workspace needs a Fabric capacity (a trial is fine). Have the workspace name or id ready; a lakehouse, warehouse or SQL database in it is the source.</p></div>
+        <div class="start-pane-head"><div><h2 class="h3">Choose a Fabric workspace</h2>
+        <p>Choose a workspace you can access and a source you want to explore, such as a lakehouse or warehouse. Keep the workspace name or ID handy. Viewer is enough to read and plan; creating needs Contributor. The workspace needs a Fabric capacity, and a trial capacity works.</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="thinker" data-pose="look" data-label=""></span></div></div>
-        <p class="muted">No workspace yet? The demo on <a href="/explore">/explore</a> runs on a synthetic schema and needs no account, and <code>fabric-backend demo</code> runs the same engine on your own laptop against a SQL Server or a folder of files (<a href="/local">/local</a>).</p>
+        <p class="muted">No workspace yet? The <a href="/explore">demo</a> runs on a synthetic schema and needs no account, and <code>fabric-backend demo</code> runs the same engine on your own laptop against a SQL Server or a folder of files (<a href="/local">run it locally</a>).</p>
       </div>
       <div class="start-pane" data-pane="3">
-        <div class="start-pane-head"><div><h2 class="h3">Open in Claude</h2>
-        <p>In Claude, open <strong>Settings → Connectors → Add custom connector</strong>, give it a name and paste this URL:</p></div>
+        <div class="start-pane-head"><div><h2 class="h3">Add the connector in Claude</h2>
+        <p>In Claude, open <strong>Settings → Connectors → Add custom connector</strong>. Give it a name and paste this URL:</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="maker" data-pose="celebrate" data-label=""></span></div></div>
         <pre><code>{{MCP_URL}}</code></pre>
-        <p>Claude asks you to sign in with your Microsoft work account. After that you can say <em>“List the data sources in workspace …”</em>, <em>“Plan a backend over the shop lakehouse”</em> (nothing is deployed) or <em>“Create it as shop_api”</em>. Five first questions that pay off on a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
-        <p class="muted">Claude is the client this is built and documented for. Claude Code and Cursor use the same URL but sign in through a local redirect that is not registered on the Entra app yet; until it is, use Claude. Full usage notes are in the <a href="/docs">docs</a>.</p>
+        <p>Sign in with your Microsoft work account. Then start with <em>“List the data sources in workspace …”</em>.</p>
+        <p>Ask for a plan before creating anything, for example <em>“Plan a backend over the shop lakehouse”</em>. Review the suggested keys and relationships, then ask Claude to check the plan against the data. When it looks right: <em>“Create it as shop_api.”</em> Five first questions for a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
+        <p class="muted">The hosted service at {{DOMAIN}} supports Claude, and that is the client it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra app yet, so they can’t sign in to {{DOMAIN}} today. Other MCP clients can be used when you host {{PRODUCT}} yourself with your own Entra app, or here once their sign-in is supported. Full usage notes are in the <a href="/docs">docs</a>.</p>
       </div>
       <p class="start-sample"><a href="/explore">Explore a sample first →</a></p>
       <details id="access" data-open-wide>
         <summary>What will {{PRODUCT}} access?</summary>
-        <p>Only what the signed-in user can already reach. The Entra app asks for these delegated permissions, all granted by your admin once and all acting as the user:</p>
+        <p>Only what the signed-in user can already reach. The hosted app asks for these delegated permissions, all approved by your admin once and all acting as the user:</p>
         <div class="table-wrap" tabindex="0"><table>
           <thead><tr><th>Permission</th><th>Used for</th></tr></thead>
           <tbody>
@@ -47,8 +48,8 @@
             <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>reading table and column names from the SQL analytics endpoint</td></tr>
           </tbody>
         </table></div>
-        <p>Why each one: <code>Workspace.Read.All</code> and <code>Item.Read.All</code> are what <code>list_workspaces</code>, <code>list_sources</code>, <code>describe_backend</code>, <code>plan_drift</code> and <code>lineage</code> read; <code>GraphQLApi.ReadWrite.All</code> is used by <code>create_backend</code> alone; <code>GraphQLApi.Execute.All</code> by <code>query_graphql</code> and <code>app_readiness</code>; the SQL permission by every tool that reads table and column names or counts rows (<code>list_tables</code>, <code>plan_backend</code>, <code>validate_plan</code>, <code>sample_rows</code>, the drafts). The creating tools for semantic models, ontologies and data agents need <code>Item.ReadWrite.All</code>, which the app does not ask for today: they answer with a dry run, and with <code>consent</code> naming that scope if asked to create.</p>
-        <p>What passes through the server: workspace, item, table and column names, and the results of queries you run. Your tokens are exchanged on your behalf and held in memory only. There is no database of our own and nothing is written to disk. Details in the <a href="/privacy">privacy policy</a>.</p>
+        <p>Why each one: <code>Workspace.Read.All</code> and <code>Item.Read.All</code> are what <code>list_workspaces</code>, <code>list_sources</code>, <code>describe_backend</code>, <code>plan_drift</code> and <code>lineage</code> read; <code>GraphQLApi.ReadWrite.All</code> is used by <code>create_backend</code> alone; <code>GraphQLApi.Execute.All</code> by <code>query_graphql</code> and <code>app_readiness</code>; the SQL permission by every tool that reads table and column names or counts rows (<code>list_tables</code>, <code>plan_backend</code>, <code>validate_plan</code>, <code>sample_rows</code>, the drafts). The tools that create semantic models, ontologies, data agents, notebooks and pipelines need <code>Item.ReadWrite.All</code> or a narrower permission per item type, which the hosted app does not ask for today. The docs mark them <a href="/docs#test-status">available when enabled by the operator</a>: their dry runs work, and asked to create they answer <code>consent</code> with the permission’s name.</p>
+        <p>What passes through {{PRODUCT}}: planning uses schema metadata (workspace, item, table and column names and types). <code>validate_plan</code> and <code>suggest_relationships</code> check keys and references against the rows in Fabric and return counts. <code>sample_rows</code> returns up to 20 example rows of one table, and <code>query_graphql</code> returns the results you ask for. Metadata, requested samples and query results pass through {{PRODUCT}} to your client and are not kept after the request. Your tokens are exchanged on your behalf and held in memory only. The <a href="/privacy">privacy policy</a> explains this, the usage records and the technical logs.</p>
         <p>Two steps stay manual in the Fabric portal because there is no API for them yet, and the connector tells you when they are needed: turning on <strong>introspection</strong> for the GraphQL item, and granting <strong>permissions</strong> on it to other apps.</p>
       </details>
     </div>

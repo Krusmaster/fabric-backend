@@ -99,8 +99,8 @@
   Graph.prototype.edgeId = function (r) { return r.source + '.' + r.source_cols.join('+') + '>' + r.target; };
   Graph.prototype.edgeLabel = function (e) {
     var r = e.rel, from = r.source + '.' + r.source_cols.join(', '), to = r.target + '.' + r.target_cols.join(', ');
-    if (e.kind === 'suggested') return this.accepted[e.id] ? 'Accepted here, not verified: ' + from + ' to ' + to
-                                                            : 'Suggested connection: ' + from + ' to ' + to + ', not linked by the engine. Review it.';
+    if (e.kind === 'suggested') return this.accepted[e.id] ? 'Accepted in this demo, not checked: ' + from + ' to ' + to
+                                                            : 'Needs review: ' + from + ' to ' + to + ', not linked by the engine.';
     return from + ' points at ' + to + ', rule ' + r.rule + ', many ' + r.source + ' to one ' + r.target;
   };
   Graph.prototype.makeEdge = function (e) {
@@ -125,7 +125,7 @@
     g.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); self.select({ type: 'edge', edge: e, el: g }); } });
   };
   Graph.prototype.setTag = function (e) {
-    var t = e.kind === 'suggested' ? (this.accepted[e.id] ? 'Accepted here (not verified)' : this.opts.autoLayout ? 'suggested' : 'Suggested connection') : e.rel.rule;
+    var t = e.kind === 'suggested' ? (this.accepted[e.id] ? 'Accepted in this demo' : this.opts.autoLayout ? 'suggested' : 'Needs review') : e.rel.rule;
     e.tagText.textContent = t; e.tagW = Math.round(t.length * (e.kind === 'suggested' ? 6.6 : 7.4) + 18);
     e.tagRect.setAttribute('width', e.tagW); e.tagRect.setAttribute('x', -e.tagW / 2); e.tagRect.setAttribute('y', -10);
     e.tagText.setAttribute('y', 4);

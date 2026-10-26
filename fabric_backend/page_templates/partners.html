@@ -3,12 +3,12 @@
   <div class="hero-grid">
     <div>
       <span class="kicker">Partners</span>
-      <h1>Better connections. Built together.</h1>
-      <p class="lede">For consultancies and data teams who want to run {{PRODUCT}} pilots with their own customers.</p>
+      <h1>Try {{PRODUCT}} on a Fabric project</h1>
+      <p class="lede">Working with Fabric at a consultancy or in a data team? Start with one schema and one question you want the API to answer. We can use that to explore whether {{PRODUCT}} fits your project.</p>
       <div class="ctas">
-        <a class="btn primary" href="/partners/workspace">Preview a workspace</a>
+        <a class="btn primary" href="mailto:{{CONTACT}}?subject=Pilot%20with%20{{PRODUCT_URL}}">Discuss a pilot</a>
         {{#IF PARTNER_SIGNIN}}<button type="button" class="btn secondary" aria-disabled="true" aria-describedby="signin-note">Continue with Microsoft</button>{{/IF}}
-        <a class="btn ghost" href="mailto:{{CONTACT}}?subject=Partnering%20on%20{{PRODUCT_URL}}">Write to us</a>
+        <a class="btn ghost" href="/partners/workspace">See a sample pilot</a>
       </div>
       {{#IF PARTNER_SIGNIN}}<p id="signin-note" class="muted tiny" style="margin-top:10px">Sign-in for partners is not wired yet. It needs a web redirect URI on the Entra app registration before this button can lead anywhere.</p>{{/IF}}
     </div>
@@ -17,14 +17,15 @@
 </section>
 <section class="wrap" style="padding-top:0">
   <div class="grid-3">
-    <div class="card soft"><h2 class="h3">What you get</h2><p class="muted">The open-source engine, the hosted connector at <code>{{MCP_URL}}</code>, a synthetic demo dataset, and a <a href="{{GITHUB}}/blob/main/docs/PILOT.md" rel="noopener">pilot outline</a> you can put in front of a customer.</p></div>
-    <div class="card soft"><h2 class="h3">What we ask</h2><p class="muted">Honest feedback from real schemas (names and shapes, never data), and a short write-up of what the pilot found.</p></div>
-    <div class="card soft"><h2 class="h3">What it is not</h2><p class="muted">There is no partner programme with tiers, badges or certifications, and no affiliation with Microsoft. It is two parties building something useful.</p></div>
+    <div class="card soft"><h2 class="h3">Start with a small example</h2><p class="muted">An anonymised example of the tables and relationships is enough to start the conversation. Include what you want to build and any keys or joins that need special attention.</p></div>
+    <div class="card soft"><h2 class="h3">Use the existing tools</h2><p class="muted">The open-source engine, the hosted connector at <code>{{MCP_URL}}</code>, the demo dataset and a <a href="{{GITHUB}}/blob/main/docs/PILOT.md" rel="noopener">pilot outline</a> are available to try. The outline gives you a starting point for reviewing a plan with the people who know the data.</p></div>
+    <div class="card soft"><h2 class="h3">Review the result together</h2><p class="muted">Check which relationships {{PRODUCT}} found, which needed correcting and whether the resulting API supports your chosen question. That feedback helps guide the next improvements.</p></div>
   </div>
   <div class="card" style="margin-top:20px">
-    <h2 style="font-size:26px">A pilot in four steps</h2>
+    <h2 style="font-size:26px">How a pilot could run</h2>
     <div class="flow" aria-label="Pilot steps"><span class="fs"><span class="f coral">Connect</span><span class="arrow" aria-hidden="true">→</span></span><span class="fs"><span class="f sage">Explore</span><span class="arrow" aria-hidden="true">→</span></span><span class="fs"><span class="f lav">Review</span><span class="arrow" aria-hidden="true">→</span></span><span class="f ink">Build</span></div>
-    <p class="muted" style="margin:0;max-width:64ch">Connect a customer workspace, explore the inferred graph together, review the ambiguous and missing links, and build the API for GraphQL item from the agreed plan. The <a href="/partners/workspace">workspace preview</a> shows the shape of it on the demo schema.</p>
+    <p class="muted" style="margin:0;max-width:64ch">Connect {{PRODUCT}} in Claude to the workspace, read the plan together, review the relationships that need a person’s judgement, and create the GraphQL API from the plan you agreed on. The <a href="/partners/workspace">sample pilot</a> shows this on the demo schema.</p>
   </div>
+  <p class="muted tiny" style="margin-top:18px;max-width:64ch">This is an invitation to explore a pilot with Kruse Consulting AB. It is not a partner programme or a certification, and it is not affiliated with Microsoft.</p>
 </section>
 </div>

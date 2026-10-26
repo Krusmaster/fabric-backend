@@ -58,25 +58,39 @@ def test_nav_and_pages_are_linked(client):
 def test_home_carries_the_one_sentence_and_the_three_steps(client):
     html = client.get("/").text
     assert "Good things happen when data connects." in html
-    assert "Turn your Microsoft Fabric tables into an explainable graph and a GraphQL API." in html
-    assert 'href="/explore"' in html and "Explore the demo" in html and "How it works" in html
-    for step in ("Discover", "Understand", "Create"):
+    first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)                         # Claude and Fabric tables in the first paragraph
+    assert "Claude" in first and "Fabric tables" in first and "GraphQL API" in first
+    assert 'href="/explore"' in html and "Try the demo" in html and "Connect Claude" in html
+    assert "From tables to a GraphQL API" in html
+    for step in ("Choose your tables", "Review the plan", "Create the API"):
         assert f"<h3>{step}</h3>" in html
+    assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
+    assert 'href="/docs#sources"' in html and 'href="/docs#test-status"' in html
+
+
+def test_home_introduces_the_developer_without_a_story(client):
+    html = client.get("/").text
+    assert "A note from the developer" in html and "I’m Gustav, the developer behind Krusgraph" in html
+    assert "through Kruse Consulting AB in Sweden" in html and 'href="mailto:hello@krusgraph.test?subject=Krusgraph"' in html
+    assert ">Email Gustav</a>" in html
 
 
 def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     html = client.get("/start").text
-    assert "Small steps. Useful connections." in html
+    assert "<h1>Connect Krusgraph to Claude</h1>" in html
     assert "https://krusgraph.test/mcp" in html
     assert "adminconsent?client_id=cid-123" in html
     assert "What will Krusgraph access?" in html and "GraphQLApi.ReadWrite.All" in html and "user_impersonation" in html
     assert "Continue with Microsoft" not in html
     assert "not registered on the Entra app yet" in html                                   # no claim that Claude Code sign-in works today
-    assert "Tested with" not in html and "tested with" not in html                          # the Claude end-to-end test is still on the to-do list
-    for step in ("Connect your account", "Choose a workspace", "Open in Claude"):
+    assert "can’t sign in to krusgraph.test today" in html                                 # nor Cursor
+    for step in ("Get admin approval", "Choose a Fabric workspace", "Add the connector in Claude"):
         assert step in html
+    assert "Ask for a plan before creating anything" in html and "check the plan against the data" in html
     assert html.count('class="start-step"') == 3 and 'data-pane="3"' in html and "Explore a sample first" in html
     assert "Why each one:" in html and "create_backend</code> alone" in html and "Item.ReadWrite.All" in html   # every scope with its reason
+    assert "notebooks and pipelines" in html and "available when enabled by the operator" in html
+    assert "<code>sample_rows</code> returns up to 20 example rows" in html and "not kept after the request" in html
     assert "Design preview" not in html and 'type="password"' not in html                                       # no fake sign-in
 
 
@@ -96,20 +110,21 @@ def test_docs_have_the_first_questions_and_the_first_time_errors(client):
     assert "first-time-errors" not in errors._answer("timeout", "x")["hint"]
 
 
-def test_support_page_shows_amounts_but_takes_no_payment(client):
+def test_support_page_takes_no_payment_and_names_no_amounts(client):
     html = client.get("/support").text
-    assert "Help good things keep happening." in html
-    for amount in ("50 SEK", "150 SEK", "500 SEK"):
-        assert amount in html
-    assert "Contributions open soon." in html and "Get in touch" in html and "mailto:hello@krusgraph.test" in html
+    assert "Help keep Krusgraph going" in html and "I’m building Krusgraph through Kruse Consulting AB" in html
+    assert "SEK" not in html and "free either way" not in html and "free forever" not in html.lower()   # no amounts until payments exist
+    assert "Online contributions aren’t available yet" in html and "Contact Gustav" in html and "mailto:hello@krusgraph.test" in html
     assert "<form" not in html and "card number" not in html.lower()
-    for card in ("Better examples", "Clearer docs", "Ongoing maintenance"):
+    for card in ("Examples you can try", "Setup guides", "Maintenance"):
         assert card in html
+    assert 'href="https://github.com/Krusmaster/fabric-backend/issues"' in html
 
 
 def test_partner_sign_in_button_only_with_flag(client, monkeypatch):
     html = client.get("/partners").text
-    assert "Better connections. Built together." in html and 'href="/partners/workspace"' in html
+    assert "Try Krusgraph on a Fabric project" in html and 'href="/partners/workspace"' in html and "Discuss a pilot" in html
+    assert "never data" not in html and "not a partner programme or a certification, and it is not affiliated with Microsoft" in html
     assert "Continue with Microsoft" not in html
     monkeypatch.setenv("PARTNER_SIGNIN", "1")
     html = client.get("/partners").text
@@ -118,8 +133,8 @@ def test_partner_sign_in_button_only_with_flag(client, monkeypatch):
 
 def test_workspace_preview_is_labelled_illustrative(client):
     html = client.get("/partners/workspace").text
-    assert "Illustrative workspace. No partner data connected." in html
-    assert "Let’s build something useful." in html
+    assert "Sample pilot · synthetic data. No customer workspace is connected." in html
+    assert "A sample Krusgraph pilot" in html and "your workspace" not in html.lower() and "partner account" not in html
     for step in ("Connect", "Explore", "Review", "Build"):
         assert f'>{step}</span>' in html
     assert "Next step" in html and 'href="/docs"' in html and "seed.py" in html
@@ -240,8 +255,8 @@ def test_home_hero_and_trust_row(client):
     html = client.get("/").text
     assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
     assert 'class="hero-figure"' not in html and 'id="home-graph"' in html               # mascots live on the graph's wires
-    assert 'class="trust"' in html and "Your permissions, not ours" in html and "Nothing stored" in html
-    assert "Illustrative demo" in html
+    assert 'class="trust"' in html and "Your Microsoft sign-in" in html and "What passes through Krusgraph" in html
+    assert "Demo · synthetic data" in html
 
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
@@ -311,7 +326,7 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
 
 
 @pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
-                                         ("/start.md", "# Small steps. Useful connections."), ("/lovable.md", "# Use Krusgraph with Lovable"),
+                                         ("/start.md", "# Connect Krusgraph to Claude"), ("/lovable.md", "# Use Krusgraph with Lovable"),
                                          ("/local.md", "# Run Krusgraph locally")])
 def test_markdown_versions(client, path, needle):
     r = client.get(path)
@@ -447,11 +462,11 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
         assert f"<code>{t}</code>" in docs, t
     assert "Cold start" in docs and "min_replicas" in docs and "25 October 2026" in docs
     home = client.get("/").text
-    assert "validate_plan" in home and "Tested end to end against a live Fabric workspace with synthetic data, 25 October 2026" in home
+    assert "Check the plan against the data" in home and "Tested end to end on 26 October 2026" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
     assert "Thirty tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
-    assert "K0–K5 and R0–R4" in home and "K0–K3" not in home and "K0–K3" not in docs
+    assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 
 def test_the_site_icon_is_served_at_the_root_where_directories_look():
