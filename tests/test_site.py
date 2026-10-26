@@ -605,3 +605,52 @@ def test_privacy_and_docs_say_exactly_what_is_read_about_personal_data_and_label
     assert "no call goes to GitHub, Azure" in html and "compare_semantic_model" in html
     docs = client.get("/docs").text
     assert "Personal data and sensitivity labels." in docs and "never from the values" in docs
+
+
+# ------------------------------------------------------------------ creating is not tested end to end (n12 follow-up) ----
+
+_CREATE_CLAIMS = [
+    # "tested end to end" said of the GraphQL API or the SQL views as things created, without "dry run" or "querying"
+    re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|\n\n|\|)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
+    # create_backend or create_views with the status word and no dry run
+    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*\(dry run\))"),
+    # create_backend said to have created something, or to have run live
+    re.compile(r"\bcreate_backend`?\s+(?:created|ran live|was run live)\b|\bLive on 25 October; `create_backend", re.I),
+    # create_views said to have created its schema or a view for real
+    re.compile(r"create_views`?[^\n]{0,120}\b(?:created (?:a |its |the )?schema|for real)\b", re.I),
+]
+
+
+def _create_claims(text: str) -> list[str]:
+    return [m.group(0)[:160] for rx in _CREATE_CLAIMS for m in rx.finditer(text)]
+
+
+def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client):
+    """Decisions 1 and 11 of 26 October 2026: create_backend has not been run live (Experimental; querying an existing API
+    with describe_backend and query_graphql is tested end to end), and create_views ran as a dry run only."""
+    import pathlib
+    from fabric_backend import server, use_cases
+    from fabric_backend.discovery import PUBLIC_PAGES
+    # the detector catches the sentences that used to be there
+    for old in ("- **GraphQL API**: an API for GraphQL item in your workspace, for an app or for questions in Claude (tested end to end)",
+                "- **SQL views**: wide T-SQL views over the plan's joins on the SQL analytics endpoint (tested end to end)",
+                "| `create_backend` | Tested end to end | creates/updates one item",
+                "`create_backend` created `shop_api` and a second run answered `mode: updated`",
+                "| Live on 25 October; `create_backend` now refuses to drop relationships",
+                "| `create_views` | Tested end to end (a schema and one wide view created for real); the header views are unit-tested |"):
+        assert _create_claims(old), old
+    for ok in ("| `create_views` | Tested end to end (dry run); creating and the header views are unit-tested |",
+               "- **GraphQL API**: an API for GraphQL item (creating it: experimental; querying an existing one: tested end to end)",
+               "- **SQL views**: wide T-SQL views (tested end to end as a dry run; creating them: experimental)"):
+        assert not _create_claims(ok), ok
+    texts = {p: client.get(p).text for p in list(PUBLIC_PAGES) + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md",
+                                                                  "/use-cases.md", "/llms.txt", "/llms-full.txt"]}
+    root = pathlib.Path(__file__).resolve().parents[1]
+    for f in [root / "README.md", *sorted((root / "docs").glob("*.md"))]:
+        texts[str(f.relative_to(root))] = f.read_text(encoding="utf-8")
+    texts["server instructions"] = server.mcp.instructions
+    found = {p: _create_claims(t) for p, t in texts.items() if _create_claims(t)}
+    assert not found, found
+    status = {name: tag for name, _what, tag in use_cases.OUTPUTS}
+    assert status["GraphQL API"].startswith("creating it: experimental") and "querying an existing one: tested end to end" in status["GraphQL API"]
+    assert status["SQL views"].startswith("tested end to end as a dry run")

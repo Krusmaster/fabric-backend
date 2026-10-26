@@ -366,14 +366,13 @@ https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 26 Octo
 tools that ran in it; `create_backend` is marked Experimental, because it is not among them. `docs/LIVE-TEST.md` is the
 checklist for the next run.
 
-**25 October 2026, evening: first end-to-end run of the hosted connector.** Claude → Entra (a work account in the
+**25 October 2026, evening: the hosted connector's first connection.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
-data from `fabric_backend/seed.py`). Every tool answered as documented: `list_tables` gave the 7 tables;
-`plan_backend` gave 7 tables, 6 with a key, 6 relationships (all R1) and `audit_log` without a key;
-`create_backend` created `shop_api` and a second run answered `mode: updated`; `query_graphql` followed three
-relationship hops and returned 13 rows; a mutation was refused; an unknown workspace came back as `not_found`.
-Work since that run (the ontology draft, Snowflake database items, mirrored catalogs) is covered by the test suite
-with Fabric mocked and has not had a live run of its own yet.
+data from `fabric_backend/seed.py`). What counts as tested end to end is the protocol of 26 October below.
+`create_backend` has not been run live: it is Experimental. The API `shop_api` is in the workspace, and querying it
+with `describe_backend` and `query_graphql` is tested end to end. Work since that evening (the ontology draft,
+Snowflake database items, mirrored catalogs) is covered by the test suite with Fabric mocked and has not had a live
+run of its own yet.
 
 **26 October 2026: 14 steps against the same workspace, no creating call.** From Claude through the hosted connector,
 read-only or dry run, nothing created. Run and passed: `list_workspaces` and `list_sources` (the workspace and

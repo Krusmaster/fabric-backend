@@ -456,8 +456,9 @@ RULE_LEGEND = [
 ]
 
 OUTPUTS = [   # (what, for what, status in the docs' words; "planned" draws the chip dashed)
-    ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude", "tested end to end"),
-    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", "tested end to end"),
+    ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude",
+     "creating it: experimental; querying an existing one: tested end to end"),
+    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", "tested end to end as a dry run; creating them: experimental"),
     ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", "draft only"),
     ("Semantic model", "a Power BI model in TMDL from the same keys", "draft; the item when enabled by the operator"),
     ("Data agent", "a Fabric data agent with the plan as instructions", "when enabled by the operator"),

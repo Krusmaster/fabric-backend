@@ -25,6 +25,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   --client-redirects` prints the az commands for Claude Code, VS Code and Cursor (docs/OPERATIONS.md section 5), runs
   nothing. `docs/LIVE-TEST.md`: the checklist for the next live run. /docs: a section on using Krusgraph beside
   Microsoft's Fabric MCP servers, and what is read about personal data and labels. Thirty-four tools.
+- /use-cases no longer calls the GraphQL API and the SQL views "tested end to end": creating the API is Experimental
+  (`create_backend` has not been run live; querying an existing API with `describe_backend` and `query_graphql` is tested
+  end to end) and the views were tested as a dry run only. The README's note of 25 October and docs/LOVABLE-END-TO-END.md
+  said the same of `create_backend`; a test now scans the site, its Markdown and llms texts, the README, docs/ and the
+  server instructions for either claim.
 - Fixes from an independent review of round n12's code, each with a test: a question grouped by a personal column of a
   table without a key no longer groups by it (one total, and the reason); a mixed-case `gold_schema` is one lower-case
   name for the notebook's guard and its CREATE statements, and the notebook's SQL is a plain string with backslashes and
