@@ -1,0 +1,241 @@
+{
+ "analyze": {
+  "bytes": 42639,
+  "sha256": "60f04ab725b5a4fce05650bd4969ef8f565b48ac36cdbd5b76c2f95c33983a12"
+ },
+ "candidates": {
+  "bytes": 29038,
+  "sha256": "01c4b3d0f600e2c7ea3c0d51b90d41b18cd2c5de8e4518bb5a300d8bdf9a41f2"
+ },
+ "composite_key_suggestions": [
+  {
+   "columns": [
+    "BusinessEntityID",
+    "StartDate"
+   ],
+   "table": "EmployeeDepartmentHistory",
+   "use": {
+    "EmployeeDepartmentHistory": [
+     "BusinessEntityID",
+     "StartDate"
+    ]
+   },
+   "why": "BusinessEntityID points at BusinessEntity and StartDate starts a validity period; check that no two rows share both"
+  },
+  {
+   "columns": [
+    "ProductID",
+    "StartDate"
+   ],
+   "table": "ProductCostHistory",
+   "use": {
+    "ProductCostHistory": [
+     "ProductID",
+     "StartDate"
+    ]
+   },
+   "why": "ProductID points at Product and StartDate starts a validity period; check that no two rows share both"
+  },
+  {
+   "columns": [
+    "ProductID",
+    "StartDate"
+   ],
+   "table": "ProductListPriceHistory",
+   "use": {
+    "ProductListPriceHistory": [
+     "ProductID",
+     "StartDate"
+    ]
+   },
+   "why": "ProductID points at Product and StartDate starts a validity period; check that no two rows share both"
+  },
+  {
+   "columns": [
+    "BusinessEntityID",
+    "StartDate"
+   ],
+   "table": "SalesTerritoryHistory",
+   "use": {
+    "SalesTerritoryHistory": [
+     "BusinessEntityID",
+     "StartDate"
+    ]
+   },
+   "why": "BusinessEntityID points at BusinessEntity and StartDate starts a validity period; check that no two rows share both"
+  }
+ ],
+ "dbt": {
+  "bytes": 63352,
+  "sha256": "dd8d1e0cdee3bd5cbf69f18f1cafeb510da92bf856ddeff7ae213c6f9263fac7"
+ },
+ "dictionary": {
+  "bytes": 105122,
+  "sha256": "d9f014eb4e9b34d20ad906f697ff82be79494df942b4388aed62c492316baa5a"
+ },
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "bytes": 60095,
+  "sha256": "a601e6ea25beef257c3dc6ad8814d60f07e5d23a741f8f04745e4465d7ed2ab1"
+ },
+ "join_paths": {
+  "bytes": 561419,
+  "sha256": "8f3c8f1d55a93453013e2e072df9f11dc2d45d0701317c899f2178b0d60ab8d5"
+ },
+ "key_sql": {
+  "Address": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [AddressID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [AddressID] FROM [dbo].[Address] WHERE [AddressID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Address]",
+  "AddressType": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [AddressTypeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [AddressTypeID] FROM [dbo].[AddressType] WHERE [AddressTypeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[AddressType]",
+  "BillOfMaterials": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [BillOfMaterialsID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [BillOfMaterialsID] FROM [dbo].[BillOfMaterials] WHERE [BillOfMaterialsID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[BillOfMaterials]",
+  "BusinessEntity": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [BusinessEntityID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [BusinessEntityID] FROM [dbo].[BusinessEntity] WHERE [BusinessEntityID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[BusinessEntity]",
+  "BusinessEntityAddress": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [BusinessEntityID] IS NULL OR [AddressID] IS NULL OR [AddressTypeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [BusinessEntityID], [AddressID], [AddressTypeID] FROM [dbo].[BusinessEntityAddress] WHERE [BusinessEntityID] IS NOT NULL AND [AddressID] IS NOT NULL AND [AddressTypeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[BusinessEntityAddress]",
+  "ContactType": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ContactTypeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ContactTypeID] FROM [dbo].[ContactType] WHERE [ContactTypeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ContactType]",
+  "CountryRegion": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CountryRegionCode] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CountryRegionCode] FROM [dbo].[CountryRegion] WHERE [CountryRegionCode] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[CountryRegion]",
+  "CountryRegionCurrency": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CountryRegionCode] IS NULL OR [CurrencyCode] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CountryRegionCode], [CurrencyCode] FROM [dbo].[CountryRegionCurrency] WHERE [CountryRegionCode] IS NOT NULL AND [CurrencyCode] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[CountryRegionCurrency]",
+  "CreditCard": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CreditCardID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CreditCardID] FROM [dbo].[CreditCard] WHERE [CreditCardID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[CreditCard]",
+  "Culture": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CultureID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CultureID] FROM [dbo].[Culture] WHERE [CultureID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Culture]",
+  "Currency": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CurrencyCode] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CurrencyCode] FROM [dbo].[Currency] WHERE [CurrencyCode] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Currency]",
+  "CurrencyRate": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CurrencyRateID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CurrencyRateID] FROM [dbo].[CurrencyRate] WHERE [CurrencyRateID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[CurrencyRate]",
+  "Customer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CustomerID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CustomerID] FROM [dbo].[Customer] WHERE [CustomerID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Customer]",
+  "DatabaseLog": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [DatabaseLogID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [DatabaseLogID] FROM [dbo].[DatabaseLog] WHERE [DatabaseLogID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[DatabaseLog]",
+  "Department": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [DepartmentID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [DepartmentID] FROM [dbo].[Department] WHERE [DepartmentID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Department]",
+  "EmailAddress": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [EmailAddressID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [EmailAddressID] FROM [dbo].[EmailAddress] WHERE [EmailAddressID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[EmailAddress]",
+  "ErrorLog": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ErrorLogID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ErrorLogID] FROM [dbo].[ErrorLog] WHERE [ErrorLogID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ErrorLog]",
+  "Illustration": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [IllustrationID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [IllustrationID] FROM [dbo].[Illustration] WHERE [IllustrationID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Illustration]",
+  "JobCandidate": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [JobCandidateID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [JobCandidateID] FROM [dbo].[JobCandidate] WHERE [JobCandidateID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[JobCandidate]",
+  "Location": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [LocationID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [LocationID] FROM [dbo].[Location] WHERE [LocationID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Location]",
+  "PersonCreditCard": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [BusinessEntityID] IS NULL OR [CreditCardID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [BusinessEntityID], [CreditCardID] FROM [dbo].[PersonCreditCard] WHERE [BusinessEntityID] IS NOT NULL AND [CreditCardID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PersonCreditCard]",
+  "PhoneNumberType": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PhoneNumberTypeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PhoneNumberTypeID] FROM [dbo].[PhoneNumberType] WHERE [PhoneNumberTypeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PhoneNumberType]",
+  "Product": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductID] FROM [dbo].[Product] WHERE [ProductID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Product]",
+  "ProductCategory": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductCategoryID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductCategoryID] FROM [dbo].[ProductCategory] WHERE [ProductCategoryID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductCategory]",
+  "ProductDescription": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductDescriptionID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductDescriptionID] FROM [dbo].[ProductDescription] WHERE [ProductDescriptionID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductDescription]",
+  "ProductInventory": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductID] IS NULL OR [LocationID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductID], [LocationID] FROM [dbo].[ProductInventory] WHERE [ProductID] IS NOT NULL AND [LocationID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductInventory]",
+  "ProductModel": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductModelID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductModelID] FROM [dbo].[ProductModel] WHERE [ProductModelID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductModel]",
+  "ProductModelIllustration": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductModelID] IS NULL OR [IllustrationID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductModelID], [IllustrationID] FROM [dbo].[ProductModelIllustration] WHERE [ProductModelID] IS NOT NULL AND [IllustrationID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductModelIllustration]",
+  "ProductModelProductDescriptionCulture": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductModelID] IS NULL OR [ProductDescriptionID] IS NULL OR [CultureID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductModelID], [ProductDescriptionID], [CultureID] FROM [dbo].[ProductModelProductDescriptionCulture] WHERE [ProductModelID] IS NOT NULL AND [ProductDescriptionID] IS NOT NULL AND [CultureID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductModelProductDescriptionCulture]",
+  "ProductPhoto": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductPhotoID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductPhotoID] FROM [dbo].[ProductPhoto] WHERE [ProductPhotoID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductPhoto]",
+  "ProductProductPhoto": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductID] IS NULL OR [ProductPhotoID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductID], [ProductPhotoID] FROM [dbo].[ProductProductPhoto] WHERE [ProductID] IS NOT NULL AND [ProductPhotoID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductProductPhoto]",
+  "ProductReview": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductReviewID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductReviewID] FROM [dbo].[ProductReview] WHERE [ProductReviewID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductReview]",
+  "ProductSubcategory": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductSubcategoryID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductSubcategoryID] FROM [dbo].[ProductSubcategory] WHERE [ProductSubcategoryID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductSubcategory]",
+  "ProductVendor": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductID] IS NULL OR [BusinessEntityID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductID], [BusinessEntityID] FROM [dbo].[ProductVendor] WHERE [ProductID] IS NOT NULL AND [BusinessEntityID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ProductVendor]",
+  "PurchaseOrderDetail": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PurchaseOrderDetailID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PurchaseOrderDetailID] FROM [dbo].[PurchaseOrderDetail] WHERE [PurchaseOrderDetailID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PurchaseOrderDetail]",
+  "PurchaseOrderHeader": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PurchaseOrderID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PurchaseOrderID] FROM [dbo].[PurchaseOrderHeader] WHERE [PurchaseOrderID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PurchaseOrderHeader]",
+  "SalesOrderDetail": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SalesOrderDetailID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SalesOrderDetailID] FROM [dbo].[SalesOrderDetail] WHERE [SalesOrderDetailID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SalesOrderDetail]",
+  "SalesOrderHeader": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SalesOrderID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SalesOrderID] FROM [dbo].[SalesOrderHeader] WHERE [SalesOrderID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SalesOrderHeader]",
+  "SalesOrderHeaderSalesReason": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SalesOrderID] IS NULL OR [SalesReasonID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SalesOrderID], [SalesReasonID] FROM [dbo].[SalesOrderHeaderSalesReason] WHERE [SalesOrderID] IS NOT NULL AND [SalesReasonID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SalesOrderHeaderSalesReason]",
+  "SalesReason": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SalesReasonID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SalesReasonID] FROM [dbo].[SalesReason] WHERE [SalesReasonID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SalesReason]",
+  "SalesTaxRate": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SalesTaxRateID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SalesTaxRateID] FROM [dbo].[SalesTaxRate] WHERE [SalesTaxRateID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SalesTaxRate]",
+  "ScrapReason": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ScrapReasonID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ScrapReasonID] FROM [dbo].[ScrapReason] WHERE [ScrapReasonID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ScrapReason]",
+  "Shift": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ShiftID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ShiftID] FROM [dbo].[Shift] WHERE [ShiftID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Shift]",
+  "ShipMethod": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ShipMethodID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ShipMethodID] FROM [dbo].[ShipMethod] WHERE [ShipMethodID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ShipMethod]",
+  "ShoppingCartItem": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ShoppingCartItemID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ShoppingCartItemID] FROM [dbo].[ShoppingCartItem] WHERE [ShoppingCartItemID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ShoppingCartItem]",
+  "SpecialOffer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SpecialOfferID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SpecialOfferID] FROM [dbo].[SpecialOffer] WHERE [SpecialOfferID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SpecialOffer]",
+  "SpecialOfferProduct": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SpecialOfferID] IS NULL OR [ProductID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SpecialOfferID], [ProductID] FROM [dbo].[SpecialOfferProduct] WHERE [SpecialOfferID] IS NOT NULL AND [ProductID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SpecialOfferProduct]",
+  "StateProvince": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [StateProvinceID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [StateProvinceID] FROM [dbo].[StateProvince] WHERE [StateProvinceID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[StateProvince]",
+  "UnitMeasure": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [UnitMeasureCode] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [UnitMeasureCode] FROM [dbo].[UnitMeasure] WHERE [UnitMeasureCode] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[UnitMeasure]",
+  "WorkOrder": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [WorkOrderID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [WorkOrderID] FROM [dbo].[WorkOrder] WHERE [WorkOrderID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[WorkOrder]",
+  "WorkOrderRouting": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [WorkOrderID] IS NULL OR [OperationSequence] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [WorkOrderID], [OperationSequence] FROM [dbo].[WorkOrderRouting] WHERE [WorkOrderID] IS NOT NULL AND [OperationSequence] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[WorkOrderRouting]"
+ },
+ "ontology_ttl": {
+  "bytes": 137426,
+  "sha256": "67c9b6375cb8fa47919b432d8cddd5e0899ef75a0a27cfa99346a4585a5d7dc4"
+ },
+ "plan": {
+  "bytes": 39763,
+  "sha256": "3e9099139eba37c96ff8016b8fbd683ed96bf9b3e8aa022e70a863bf7297ba6d"
+ },
+ "rayfin": {
+  "bytes": 115925,
+  "sha256": "e218a7cec7b2d4a0cbcd5bb140db6a25f91da8c400ae48a36f51dfc3d3e1531a"
+ },
+ "relationship_sql": {
+  "bytes": 23520,
+  "sha256": "53bcd099785653d4b946b03fbd51add4cde554a91894c8f62b0260c25184e60f"
+ },
+ "sample_sql": {
+  "AWBuildVersion": "SELECT TOP (10) [SystemInformationID], [Database Version], [VersionDate], [ModifiedDate] FROM [dbo].[AWBuildVersion]",
+  "Address": "SELECT TOP (10) [AddressID], [AddressLine1], [AddressLine2], [City], [StateProvinceID], [PostalCode], [SpatialLocation].ToString() AS [SpatialLocation], [rowguid], [ModifiedDate] FROM [dbo].[Address]",
+  "AddressType": "SELECT TOP (10) [AddressTypeID], [Name], [rowguid], [ModifiedDate] FROM [dbo].[AddressType]",
+  "BillOfMaterials": "SELECT TOP (10) [BillOfMaterialsID], [ProductAssemblyID], [ComponentID], [StartDate], [EndDate], [UnitMeasureCode], [BOMLevel], [PerAssemblyQty], [ModifiedDate] FROM [dbo].[BillOfMaterials]",
+  "BusinessEntity": "SELECT TOP (10) [BusinessEntityID], [rowguid], [ModifiedDate] FROM [dbo].[BusinessEntity]",
+  "BusinessEntityAddress": "SELECT TOP (10) [BusinessEntityID], [AddressID], [AddressTypeID], [rowguid], [ModifiedDate] FROM [dbo].[BusinessEntityAddress]",
+  "BusinessEntityContact": "SELECT TOP (10) [BusinessEntityID], [PersonID], [ContactTypeID], [rowguid], [ModifiedDate] FROM [dbo].[BusinessEntityContact]",
+  "ContactType": "SELECT TOP (10) [ContactTypeID], [Name], [ModifiedDate] FROM [dbo].[ContactType]",
+  "CountryRegion": "SELECT TOP (10) [CountryRegionCode], [Name], [ModifiedDate] FROM [dbo].[CountryRegion]",
+  "CountryRegionCurrency": "SELECT TOP (10) [CountryRegionCode], [CurrencyCode], [ModifiedDate] FROM [dbo].[CountryRegionCurrency]",
+  "CreditCard": "SELECT TOP (10) [CreditCardID], [CardType], [CardNumber], [ExpMonth], [ExpYear], [ModifiedDate] FROM [dbo].[CreditCard]",
+  "Culture": "SELECT TOP (10) [CultureID], [Name], [ModifiedDate] FROM [dbo].[Culture]",
+  "Currency": "SELECT TOP (10) [CurrencyCode], [Name], [ModifiedDate] FROM [dbo].[Currency]",
+  "CurrencyRate": "SELECT TOP (10) [CurrencyRateID], [CurrencyRateDate], [FromCurrencyCode], [ToCurrencyCode], [AverageRate], [EndOfDayRate], [ModifiedDate] FROM [dbo].[CurrencyRate]",
+  "Customer": "SELECT TOP (10) [CustomerID], [PersonID], [StoreID], [TerritoryID], [AccountNumber], [rowguid], [ModifiedDate] FROM [dbo].[Customer]",
+  "DatabaseLog": "SELECT TOP (10) [DatabaseLogID], [PostTime], [DatabaseUser], [Event], [Schema], [Object], [TSQL], [XmlEvent] FROM [dbo].[DatabaseLog]",
+  "Department": "SELECT TOP (10) [DepartmentID], [Name], [GroupName], [ModifiedDate] FROM [dbo].[Department]",
+  "Document": "SELECT TOP (10) [DocumentNode].ToString() AS [DocumentNode], [DocumentLevel], [Title], [Owner], [FolderFlag], [FileName], [FileExtension], [Revision], [ChangeNumber], [Status], [DocumentSummary], DATALENGTH([Document]) AS [Document (bytes)], [rowguid], [ModifiedDate] FROM [dbo].[Document]",
+  "EmailAddress": "SELECT TOP (10) [BusinessEntityID], [EmailAddressID], [EmailAddress], [rowguid], [ModifiedDate] FROM [dbo].[EmailAddress]",
+  "Employee": "SELECT TOP (10) [BusinessEntityID], [NationalIDNumber], [LoginID], [OrganizationNode].ToString() AS [OrganizationNode], [OrganizationLevel], [JobTitle], [BirthDate], [MaritalStatus], [Gender], [HireDate], [SalariedFlag], [VacationHours], [SickLeaveHours], [CurrentFlag], [rowguid], [ModifiedDate] FROM [dbo].[Employee]",
+  "EmployeeDepartmentHistory": "SELECT TOP (10) [BusinessEntityID], [DepartmentID], [ShiftID], [StartDate], [EndDate], [ModifiedDate] FROM [dbo].[EmployeeDepartmentHistory]",
+  "EmployeePayHistory": "SELECT TOP (10) [BusinessEntityID], [RateChangeDate], [Rate], [PayFrequency], [ModifiedDate] FROM [dbo].[EmployeePayHistory]",
+  "ErrorLog": "SELECT TOP (10) [ErrorLogID], [ErrorTime], [UserName], [ErrorNumber], [ErrorSeverity], [ErrorState], [ErrorProcedure], [ErrorLine], [ErrorMessage] FROM [dbo].[ErrorLog]",
+  "Illustration": "SELECT TOP (10) [IllustrationID], [Diagram], [ModifiedDate] FROM [dbo].[Illustration]",
+  "JobCandidate": "SELECT TOP (10) [JobCandidateID], [BusinessEntityID], [Resume], [ModifiedDate] FROM [dbo].[JobCandidate]",
+  "Location": "SELECT TOP (10) [LocationID], [Name], [CostRate], [Availability], [ModifiedDate] FROM [dbo].[Location]",
+  "Password": "SELECT TOP (10) [BusinessEntityID], [PasswordHash], [PasswordSalt], [rowguid], [ModifiedDate] FROM [dbo].[Password]",
+  "Person": "SELECT TOP (10) [BusinessEntityID], [PersonType], [NameStyle], [Title], [FirstName], [MiddleName], [LastName], [Suffix], [EmailPromotion], [AdditionalContactInfo], [Demographics], [rowguid], [ModifiedDate] FROM [dbo].[Person]",
+  "PersonCreditCard": "SELECT TOP (10) [BusinessEntityID], [CreditCardID], [ModifiedDate] FROM [dbo].[PersonCreditCard]",
+  "PersonPhone": "SELECT TOP (10) [BusinessEntityID], [PhoneNumber], [PhoneNumberTypeID], [ModifiedDate] FROM [dbo].[PersonPhone]",
+  "PhoneNumberType": "SELECT TOP (10) [PhoneNumberTypeID], [Name], [ModifiedDate] FROM [dbo].[PhoneNumberType]",
+  "Product": "SELECT TOP (10) [ProductID], [Name], [ProductNumber], [MakeFlag], [FinishedGoodsFlag], [Color], [SafetyStockLevel], [ReorderPoint], [StandardCost], [ListPrice], [Size], [SizeUnitMeasureCode], [WeightUnitMeasureCode], [Weight], [DaysToManufacture], [ProductLine], [Class], [Style], [ProductSubcategoryID], [ProductModelID], [SellStartDate], [SellEndDate], [DiscontinuedDate], [rowguid], [ModifiedDate] FROM [dbo].[Product]",
+  "ProductCategory": "SELECT TOP (10) [ProductCategoryID], [Name], [rowguid], [ModifiedDate] FROM [dbo].[ProductCategory]",
+  "ProductCostHistory": "SELECT TOP (10) [ProductID], [StartDate], [EndDate], [StandardCost], [ModifiedDate] FROM [dbo].[ProductCostHistory]",
+  "ProductDescription": "SELECT TOP (10) [ProductDescriptionID], [Description], [rowguid], [ModifiedDate] FROM [dbo].[ProductDescription]",
+  "ProductDocument": "SELECT TOP (10) [ProductID], [DocumentNode].ToString() AS [DocumentNode], [ModifiedDate] FROM [dbo].[ProductDocument]",
+  "ProductInventory": "SELECT TOP (10) [ProductID], [LocationID], [Shelf], [Bin], [Quantity], [rowguid], [ModifiedDate] FROM [dbo].[ProductInventory]",
+  "ProductListPriceHistory": "SELECT TOP (10) [ProductID], [StartDate], [EndDate], [ListPrice], [ModifiedDate] FROM [dbo].[ProductListPriceHistory]",
+  "ProductModel": "SELECT TOP (10) [ProductModelID], [Name], [CatalogDescription], [Instructions], [rowguid], [ModifiedDate] FROM [dbo].[ProductModel]",
+  "ProductModelIllustration": "SELECT TOP (10) [ProductModelID], [IllustrationID], [ModifiedDate] FROM [dbo].[ProductModelIllustration]",
+  "ProductModelProductDescriptionCulture": "SELECT TOP (10) [ProductModelID], [ProductDescriptionID], [CultureID], [ModifiedDate] FROM [dbo].[ProductModelProductDescriptionCulture]",
+  "ProductPhoto": "SELECT TOP (10) [ProductPhotoID], DATALENGTH([ThumbNailPhoto]) AS [ThumbNailPhoto (bytes)], [ThumbnailPhotoFileName], DATALENGTH([LargePhoto]) AS [LargePhoto (bytes)], [LargePhotoFileName], [ModifiedDate] FROM [dbo].[ProductPhoto]",
+  "ProductProductPhoto": "SELECT TOP (10) [ProductID], [ProductPhotoID], [Primary], [ModifiedDate] FROM [dbo].[ProductProductPhoto]",
+  "ProductReview": "SELECT TOP (10) [ProductReviewID], [ProductID], [ReviewerName], [ReviewDate], [EmailAddress], [Rating], [Comments], [ModifiedDate] FROM [dbo].[ProductReview]",
+  "ProductSubcategory": "SELECT TOP (10) [ProductSubcategoryID], [ProductCategoryID], [Name], [rowguid], [ModifiedDate] FROM [dbo].[ProductSubcategory]",
+  "ProductVendor": "SELECT TOP (10) [ProductID], [BusinessEntityID], [AverageLeadTime], [StandardPrice], [LastReceiptCost], [LastReceiptDate], [MinOrderQty], [MaxOrderQty], [OnOrderQty], [UnitMeasureCode], [ModifiedDate] FROM [dbo].[ProductVendor]",
+  "PurchaseOrderDetail": "SELECT TOP (10) [PurchaseOrderID], [PurchaseOrderDetailID], [DueDate], [OrderQty], [ProductID], [UnitPrice], [LineTotal], [ReceivedQty], [RejectedQty], [StockedQty], [ModifiedDate] FROM [dbo].[PurchaseOrderDetail]",
+  "PurchaseOrderHeader": "SELECT TOP (10) [PurchaseOrderID], [RevisionNumber], [Status], [EmployeeID], [VendorID], [ShipMethodID], [OrderDate], [ShipDate], [SubTotal], [TaxAmt], [Freight], [TotalDue], [ModifiedDate] FROM [dbo].[PurchaseOrderHeader]",
+  "SalesOrderDetail": "SELECT TOP (10) [SalesOrderID], [SalesOrderDetailID], [CarrierTrackingNumber], [OrderQty], [ProductID], [SpecialOfferID], [UnitPrice], [UnitPriceDiscount], [LineTotal], [rowguid], [ModifiedDate] FROM [dbo].[SalesOrderDetail]",
+  "SalesOrderHeader": "SELECT TOP (10) [SalesOrderID], [RevisionNumber], [OrderDate], [DueDate], [ShipDate], [Status], [OnlineOrderFlag], [SalesOrderNumber], [PurchaseOrderNumber], [AccountNumber], [CustomerID], [SalesPersonID], [TerritoryID], [BillToAddressID], [ShipToAddressID], [ShipMethodID], [CreditCardID], [CreditCardApprovalCode], [CurrencyRateID], [SubTotal], [TaxAmt], [Freight], [TotalDue], [Comment], [rowguid], [ModifiedDate] FROM [dbo].[SalesOrderHeader]",
+  "SalesOrderHeaderSalesReason": "SELECT TOP (10) [SalesOrderID], [SalesReasonID], [ModifiedDate] FROM [dbo].[SalesOrderHeaderSalesReason]",
+  "SalesPerson": "SELECT TOP (10) [BusinessEntityID], [TerritoryID], [SalesQuota], [Bonus], [CommissionPct], [SalesYTD], [SalesLastYear], [rowguid], [ModifiedDate] FROM [dbo].[SalesPerson]",
+  "SalesPersonQuotaHistory": "SELECT TOP (10) [BusinessEntityID], [QuotaDate], [SalesQuota], [rowguid], [ModifiedDate] FROM [dbo].[SalesPersonQuotaHistory]",
+  "SalesReason": "SELECT TOP (10) [SalesReasonID], [Name], [ReasonType], [ModifiedDate] FROM [dbo].[SalesReason]",
+  "SalesTaxRate": "SELECT TOP (10) [SalesTaxRateID], [StateProvinceID], [TaxType], [TaxRate], [Name], [rowguid], [ModifiedDate] FROM [dbo].[SalesTaxRate]",
+  "SalesTerritory": "SELECT TOP (10) [TerritoryID], [Name], [CountryRegionCode], [Group], [SalesYTD], [SalesLastYear], [CostYTD], [CostLastYear], [rowguid], [ModifiedDate] FROM [dbo].[SalesTerritory]",
+  "SalesTerritoryHistory": "SELECT TOP (10) [BusinessEntityID], [TerritoryID], [StartDate], [EndDate], [rowguid], [ModifiedDate] FROM [dbo].[SalesTerritoryHistory]",
+  "ScrapReason": "SELECT TOP (10) [ScrapReasonID], [Name], [ModifiedDate] FROM [dbo].[ScrapReason]",
+  "Shift": "SELECT TOP (10) [ShiftID], [Name], [StartTime], [EndTime], [ModifiedDate] FROM [dbo].[Shift]",
+  "ShipMethod": "SELECT TOP (10) [ShipMethodID], [Name], [ShipBase], [ShipRate], [rowguid], [ModifiedDate] FROM [dbo].[ShipMethod]",
+  "ShoppingCartItem": "SELECT TOP (10) [ShoppingCartItemID], [ShoppingCartID], [Quantity], [ProductID], [DateCreated], [ModifiedDate] FROM [dbo].[ShoppingCartItem]",
+  "SpecialOffer": "SELECT TOP (10) [SpecialOfferID], [Description], [DiscountPct], [Type], [Category], [StartDate], [EndDate], [MinQty], [MaxQty], [rowguid], [ModifiedDate] FROM [dbo].[SpecialOffer]",
+  "SpecialOfferProduct": "SELECT TOP (10) [SpecialOfferID], [ProductID], [rowguid], [ModifiedDate] FROM [dbo].[SpecialOfferProduct]",
+  "StateProvince": "SELECT TOP (10) [StateProvinceID], [StateProvinceCode], [CountryRegionCode], [IsOnlyStateProvinceFlag], [Name], [TerritoryID], [rowguid], [ModifiedDate] FROM [dbo].[StateProvince]",
+  "Store": "SELECT TOP (10) [BusinessEntityID], [Name], [SalesPersonID], [Demographics], [rowguid], [ModifiedDate] FROM [dbo].[Store]",
+  "TransactionHistory": "SELECT TOP (10) [TransactionID], [ProductID], [ReferenceOrderID], [ReferenceOrderLineID], [TransactionDate], [TransactionType], [Quantity], [ActualCost], [ModifiedDate] FROM [dbo].[TransactionHistory]",
+  "TransactionHistoryArchive": "SELECT TOP (10) [TransactionID], [ProductID], [ReferenceOrderID], [ReferenceOrderLineID], [TransactionDate], [TransactionType], [Quantity], [ActualCost], [ModifiedDate] FROM [dbo].[TransactionHistoryArchive]",
+  "UnitMeasure": "SELECT TOP (10) [UnitMeasureCode], [Name], [ModifiedDate] FROM [dbo].[UnitMeasure]",
+  "Vendor": "SELECT TOP (10) [BusinessEntityID], [AccountNumber], [Name], [CreditRating], [PreferredVendorStatus], [ActiveFlag], [PurchasingWebServiceURL], [ModifiedDate] FROM [dbo].[Vendor]",
+  "WorkOrder": "SELECT TOP (10) [WorkOrderID], [ProductID], [OrderQty], [StockedQty], [ScrappedQty], [StartDate], [EndDate], [DueDate], [ScrapReasonID], [ModifiedDate] FROM [dbo].[WorkOrder]",
+  "WorkOrderRouting": "SELECT TOP (10) [WorkOrderID], [ProductID], [OperationSequence], [LocationID], [ScheduledStartDate], [ScheduledEndDate], [ActualStartDate], [ActualEndDate], [ActualResourceHrs], [PlannedCost], [ActualCost], [ModifiedDate] FROM [dbo].[WorkOrderRouting]"
+ },
+ "semantic_model": {
+  "bytes": 280549,
+  "sha256": "6df5c8a16bd43fce11ed740e04688138a838e597b521028d0b457000979fad80"
+ },
+ "silver": {
+  "bytes": 118226,
+  "sha256": "670b2a93ca658c428cece84bb37b769af5a1e37f2156170303953ebdd256bad0"
+ },
+ "views": {
+  "bytes": 59775,
+  "sha256": "f9ede1af1064c1d9da555e3ad7f1eef3f130313d318b31e0814001276e804aca"
+ }
+}

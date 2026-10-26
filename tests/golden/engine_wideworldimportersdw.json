@@ -1,0 +1,1510 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "City Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Sale",
+    "target": "City",
+    "target_columns": [
+     "City Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Customer Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Sale",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Stock Item Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Sale",
+    "target": "Stock Item",
+    "target_columns": [
+     "Stock Item Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Customer Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Transaction",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Date Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Transaction",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Payment Method Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Transaction",
+    "target": "Payment Method",
+    "target_columns": [
+     "Payment Method Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Supplier Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Transaction",
+    "target": "Supplier",
+    "target_columns": [
+     "Supplier Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Transaction Type Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Transaction",
+    "target": "Transaction Type",
+    "target_columns": [
+     "Transaction Type Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Customer Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Movement",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "City Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Order",
+    "target": "City",
+    "target_columns": [
+     "City Key"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Date Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Purchase",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Stock Item Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Stock Holding",
+    "target": "Stock Item",
+    "target_columns": [
+     "Stock Item Key"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [
+    {
+     "closed_by": "Movement.Date Key -> Date (R1)",
+     "tables": [
+      "Movement",
+      "Customer",
+      "Transaction",
+      "Date"
+     ]
+    },
+    {
+     "closed_by": "Movement.Stock Item Key -> Stock Item (R1)",
+     "tables": [
+      "Movement",
+      "Customer",
+      "Sale",
+      "Stock Item"
+     ]
+    },
+    {
+     "closed_by": "Movement.Supplier Key -> Supplier (R1)",
+     "tables": [
+      "Movement",
+      "Customer",
+      "Transaction",
+      "Supplier"
+     ]
+    },
+    {
+     "closed_by": "Movement.Transaction Type Key -> Transaction Type (R1)",
+     "tables": [
+      "Movement",
+      "Customer",
+      "Transaction",
+      "Transaction Type"
+     ]
+    },
+    {
+     "closed_by": "Order.Customer Key -> Customer (R1)",
+     "tables": [
+      "Order",
+      "City",
+      "Sale",
+      "Customer"
+     ]
+    },
+    {
+     "closed_by": "Order.Stock Item Key -> Stock Item (R1)",
+     "tables": [
+      "Order",
+      "City",
+      "Sale",
+      "Stock Item"
+     ]
+    },
+    {
+     "closed_by": "Purchase.Stock Item Key -> Stock Item (R1)",
+     "tables": [
+      "Purchase",
+      "Date",
+      "Transaction",
+      "Customer",
+      "Sale",
+      "Stock Item"
+     ]
+    },
+    {
+     "closed_by": "Purchase.Supplier Key -> Supplier (R1)",
+     "tables": [
+      "Purchase",
+      "Date",
+      "Transaction",
+      "Supplier"
+     ]
+    },
+    {
+     "closed_by": "Sale.Bill To Customer Key -> Customer (R4)",
+     "tables": [
+      "Sale",
+      "Customer"
+     ]
+    },
+    {
+     "closed_by": "Sale.Delivery Date Key -> Date (R4)",
+     "tables": [
+      "Sale",
+      "Customer",
+      "Transaction",
+      "Date"
+     ]
+    },
+    {
+     "closed_by": "Sale.Invoice Date Key -> Date (R4)",
+     "tables": [
+      "Sale",
+      "Customer",
+      "Transaction",
+      "Date"
+     ]
+    },
+    {
+     "closed_by": "Transaction.Bill To Customer Key -> Customer (R4)",
+     "tables": [
+      "Transaction",
+      "Customer"
+     ]
+    },
+    {
+     "closed_by": "Order.Order Date Key -> Date (R4)",
+     "tables": [
+      "Order",
+      "City",
+      "Sale",
+      "Customer",
+      "Transaction",
+      "Date"
+     ]
+    },
+    {
+     "closed_by": "Order.Picked Date Key -> Date (R4)",
+     "tables": [
+      "Order",
+      "City",
+      "Sale",
+      "Customer",
+      "Transaction",
+      "Date"
+     ]
+    }
+   ],
+   "note": "every relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive",
+   "pairs_with_multiple_paths": [
+    [
+     "City",
+     "Customer"
+    ],
+    [
+     "City",
+     "Date"
+    ],
+    [
+     "City",
+     "Order"
+    ],
+    [
+     "City",
+     "Sale"
+    ],
+    [
+     "City",
+     "Stock Item"
+    ],
+    [
+     "City",
+     "Transaction"
+    ],
+    [
+     "Customer",
+     "Date"
+    ],
+    [
+     "Customer",
+     "Movement"
+    ],
+    [
+     "Customer",
+     "Order"
+    ],
+    [
+     "Customer",
+     "Purchase"
+    ],
+    [
+     "Customer",
+     "Sale"
+    ],
+    [
+     "Customer",
+     "Stock Item"
+    ],
+    [
+     "Customer",
+     "Supplier"
+    ],
+    [
+     "Customer",
+     "Transaction"
+    ],
+    [
+     "Customer",
+     "Transaction Type"
+    ],
+    [
+     "Date",
+     "Movement"
+    ],
+    [
+     "Date",
+     "Order"
+    ],
+    [
+     "Date",
+     "Purchase"
+    ],
+    [
+     "Date",
+     "Sale"
+    ],
+    [
+     "Date",
+     "Stock Item"
+    ],
+    [
+     "Date",
+     "Supplier"
+    ],
+    [
+     "Date",
+     "Transaction"
+    ],
+    [
+     "Movement",
+     "Sale"
+    ],
+    [
+     "Movement",
+     "Stock Item"
+    ],
+    [
+     "Movement",
+     "Supplier"
+    ],
+    [
+     "Movement",
+     "Transaction"
+    ],
+    [
+     "Movement",
+     "Transaction Type"
+    ],
+    [
+     "Order",
+     "Sale"
+    ],
+    [
+     "Order",
+     "Stock Item"
+    ],
+    [
+     "Order",
+     "Transaction"
+    ],
+    [
+     "Purchase",
+     "Sale"
+    ],
+    [
+     "Purchase",
+     "Stock Item"
+    ],
+    [
+     "Purchase",
+     "Supplier"
+    ],
+    [
+     "Purchase",
+     "Transaction"
+    ],
+    [
+     "Sale",
+     "Stock Item"
+    ],
+    [
+     "Sale",
+     "Transaction"
+    ],
+    [
+     "Stock Item",
+     "Transaction"
+    ],
+    [
+     "Supplier",
+     "Transaction"
+    ],
+    [
+     "Transaction",
+     "Transaction Type"
+    ]
+   ]
+  },
+  "areas": [
+   {
+    "central_table": "Stock Item",
+    "name": "Stock Item area",
+    "tables": [
+     "City",
+     "Customer",
+     "Date",
+     "Movement",
+     "Order",
+     "Payment Method",
+     "Purchase",
+     "Sale",
+     "Stock Holding",
+     "Stock Item",
+     "Supplier",
+     "Transaction",
+     "Transaction Type"
+    ]
+   },
+   {
+    "central_table": "Employee",
+    "name": "Employee area",
+    "tables": [
+     "Employee"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "City": 0.0016,
+    "Customer": 0.127,
+    "Date": 0.1687,
+    "Employee": 0.0,
+    "Movement": 0.1336,
+    "Order": 0.0892,
+    "Payment Method": 0.0,
+    "Purchase": 0.0367,
+    "Sale": 0.1213,
+    "Stock Holding": 0.0,
+    "Stock Item": 0.1844,
+    "Supplier": 0.0358,
+    "Transaction": 0.2218,
+    "Transaction Type": 0.0081
+   },
+   "degree": {
+    "City": {
+     "in": 2,
+     "out": 0
+    },
+    "Customer": {
+     "in": 6,
+     "out": 0
+    },
+    "Date": {
+     "in": 7,
+     "out": 0
+    },
+    "Employee": {
+     "in": 0,
+     "out": 0
+    },
+    "Movement": {
+     "in": 0,
+     "out": 5
+    },
+    "Order": {
+     "in": 0,
+     "out": 5
+    },
+    "Payment Method": {
+     "in": 1,
+     "out": 0
+    },
+    "Purchase": {
+     "in": 0,
+     "out": 3
+    },
+    "Sale": {
+     "in": 0,
+     "out": 6
+    },
+    "Stock Holding": {
+     "in": 0,
+     "out": 1
+    },
+    "Stock Item": {
+     "in": 5,
+     "out": 0
+    },
+    "Supplier": {
+     "in": 3,
+     "out": 0
+    },
+    "Transaction": {
+     "in": 0,
+     "out": 6
+    },
+    "Transaction Type": {
+     "in": 2,
+     "out": 0
+    }
+   },
+   "pagerank": {
+    "City": 0.0687,
+    "Customer": 0.0998,
+    "Date": 0.1161,
+    "Employee": 0.0524,
+    "Movement": 0.0524,
+    "Order": 0.0524,
+    "Payment Method": 0.0598,
+    "Purchase": 0.0524,
+    "Sale": 0.0524,
+    "Stock Holding": 0.0524,
+    "Stock Item": 0.1369,
+    "Supplier": 0.0835,
+    "Transaction": 0.0524,
+    "Transaction Type": 0.0687
+   },
+   "top": [
+    {
+     "betweenness": 0.1844,
+     "in": 5,
+     "out": 0,
+     "pagerank": 0.1369,
+     "role": "dimension",
+     "table": "Stock Item"
+    },
+    {
+     "betweenness": 0.1687,
+     "in": 7,
+     "out": 0,
+     "pagerank": 0.1161,
+     "role": "dimension",
+     "table": "Date"
+    },
+    {
+     "betweenness": 0.127,
+     "in": 6,
+     "out": 0,
+     "pagerank": 0.0998,
+     "role": "dimension",
+     "table": "Customer"
+    },
+    {
+     "betweenness": 0.0358,
+     "in": 3,
+     "out": 0,
+     "pagerank": 0.0835,
+     "role": "dimension",
+     "table": "Supplier"
+    },
+    {
+     "betweenness": 0.0081,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.0687,
+     "role": "dimension",
+     "table": "Transaction Type"
+    },
+    {
+     "betweenness": 0.0016,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.0687,
+     "role": "dimension",
+     "table": "City"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0598,
+     "role": "dimension",
+     "table": "Payment Method"
+    },
+    {
+     "betweenness": 0.2218,
+     "in": 0,
+     "out": 6,
+     "pagerank": 0.0524,
+     "role": "fact",
+     "table": "Transaction"
+    },
+    {
+     "betweenness": 0.1336,
+     "in": 0,
+     "out": 5,
+     "pagerank": 0.0524,
+     "role": "fact",
+     "table": "Movement"
+    },
+    {
+     "betweenness": 0.1213,
+     "in": 0,
+     "out": 6,
+     "pagerank": 0.0524,
+     "role": "fact",
+     "table": "Sale"
+    }
+   ]
+  },
+  "inactive_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Date Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Movement",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Movement - Customer - Transaction - Date; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Stock Item Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Movement",
+    "target": "Stock Item",
+    "target_columns": [
+     "Stock Item Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Movement - Customer - Sale - Stock Item; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Supplier Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Movement",
+    "target": "Supplier",
+    "target_columns": [
+     "Supplier Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Movement - Customer - Transaction - Supplier; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Transaction Type Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Movement",
+    "target": "Transaction Type",
+    "target_columns": [
+     "Transaction Type Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Movement - Customer - Transaction - Transaction Type; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Customer Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Order",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Order - City - Sale - Customer; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Stock Item Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Order",
+    "target": "Stock Item",
+    "target_columns": [
+     "Stock Item Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Order - City - Sale - Stock Item; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Stock Item Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Purchase",
+    "target": "Stock Item",
+    "target_columns": [
+     "Stock Item Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Purchase - Date - Transaction - Customer - Sale - Stock Item; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "Supplier Key"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Purchase",
+    "target": "Supplier",
+    "target_columns": [
+     "Supplier Key"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Purchase - Date - Transaction - Supplier; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Bill To Customer Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Sale",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false,
+    "why": "a relationship between these two tables is already active"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Delivery Date Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Sale",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Sale - Customer - Transaction - Date; the active path has certainty 0.8, this link 0.5"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Invoice Date Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Sale",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Sale - Customer - Transaction - Date; the active path has certainty 0.8, this link 0.5"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Bill To Customer Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Transaction",
+    "target": "Customer",
+    "target_columns": [
+     "Customer Key"
+    ],
+    "verified": false,
+    "why": "a relationship between these two tables is already active"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Order Date Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Order",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Order - City - Sale - Customer - Transaction - Date; the active path has certainty 0.8, this link 0.5"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Picked Date Key"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Order",
+    "target": "Date",
+    "target_columns": [
+     "DateKey"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Order - City - Sale - Customer - Transaction - Date; the active path has certainty 0.8, this link 0.5"
+   }
+  ],
+  "roles": {
+   "City": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out; out 0, in 2, betweenness 0.0016, measure share 0.38"
+   },
+   "Customer": {
+    "role": "dimension",
+    "why": "6 reference(s) in, 0 out; out 0, in 6, betweenness 0.127, measure share 0.4"
+   },
+   "Date": {
+    "role": "dimension",
+    "why": "7 reference(s) in, 0 out; out 0, in 7, betweenness 0.1687, measure share 0.51"
+   },
+   "Employee": {
+    "role": "isolated",
+    "why": "no relationships in or out"
+   },
+   "Movement": {
+    "role": "fact",
+    "why": "nothing points at it, 5 reference(s) out, measures 1.0; out 5, in 0, betweenness 0.1336, measure share 1.0"
+   },
+   "Order": {
+    "role": "fact",
+    "why": "nothing points at it, 5 reference(s) out, measures 0.85; out 5, in 0, betweenness 0.0892, measure share 0.85"
+   },
+   "Payment Method": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out; out 0, in 1, betweenness 0.0, measure share 0.8"
+   },
+   "Purchase": {
+    "role": "fact",
+    "why": "nothing points at it, 3 reference(s) out, measures 0.71; out 3, in 0, betweenness 0.0367, measure share 0.71"
+   },
+   "Sale": {
+    "role": "fact",
+    "why": "nothing points at it, 6 reference(s) out, measures 0.86; out 6, in 0, betweenness 0.1213, measure share 0.86"
+   },
+   "Stock Holding": {
+    "role": "fact",
+    "why": "nothing points at it, 1 reference(s) out, measures 0.86; out 1, in 0, betweenness 0.0, measure share 0.86"
+   },
+   "Stock Item": {
+    "role": "dimension",
+    "why": "5 reference(s) in, 0 out; out 0, in 5, betweenness 0.1844, measure share 0.53"
+   },
+   "Supplier": {
+    "role": "dimension",
+    "why": "3 reference(s) in, 0 out; out 0, in 3, betweenness 0.0358, measure share 0.5"
+   },
+   "Transaction": {
+    "role": "fact",
+    "why": "nothing points at it, 6 reference(s) out, measures 0.82; out 6, in 0, betweenness 0.2218, measure share 0.82"
+   },
+   "Transaction Type": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out; out 0, in 2, betweenness 0.0081, measure share 0.8"
+   }
+  },
+  "summary": "14 tables, 26 relationships; roles: 6 fact, 7 dimension, 1 isolated; 12 relationships can be active at once, 14 would be inactive; 14 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": {
+  "bytes": 24490,
+  "sha256": "753482267f881f7cc8ebece26eec3fa17db6add582746e8b6d655a41a7183a52"
+ },
+ "composite_key_suggestions": [],
+ "dbt": {
+  "bytes": 25275,
+  "sha256": "df019a719a48f7b25b6088ba1b23bdfaf98aa8fb127941fd264ca7dc63bd60b7"
+ },
+ "dictionary": {
+  "bytes": 37282,
+  "sha256": "92a1563d731f323d8cdb6b371ce1cb4030ab27a5e3703e8722f50c2ccb6bf36f"
+ },
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "bytes": 20338,
+  "sha256": "004e646c4f22ed36fd97ebe75852bd114f7bfd8282e4030c9177cecb5afbea35"
+ },
+ "join_paths": {
+  "bytes": 165914,
+  "sha256": "aa9803d94b28dd4bb9801f7aa8a6cf6b6a8b4393e43690cd4c28026db06f3b79"
+ },
+ "key_sql": {
+  "City": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [City Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [City Key] FROM [dbo].[City] WHERE [City Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[City]",
+  "Customer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Customer Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer] WHERE [Customer Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Customer]",
+  "Date": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [DateKey] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [DateKey] FROM [dbo].[Date] WHERE [DateKey] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Date]",
+  "Employee": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Employee Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Employee Key] FROM [dbo].[Employee] WHERE [Employee Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Employee]",
+  "Movement": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Movement Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Movement Key] FROM [dbo].[Movement] WHERE [Movement Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Movement]",
+  "Order": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Order Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Order Key] FROM [dbo].[Order] WHERE [Order Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Order]",
+  "Payment Method": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Payment Method Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Payment Method Key] FROM [dbo].[Payment Method] WHERE [Payment Method Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Payment Method]",
+  "Purchase": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Purchase Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Purchase Key] FROM [dbo].[Purchase] WHERE [Purchase Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Purchase]",
+  "Sale": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Sale Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Sale Key] FROM [dbo].[Sale] WHERE [Sale Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Sale]",
+  "Stock Holding": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Stock Holding Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Stock Holding Key] FROM [dbo].[Stock Holding] WHERE [Stock Holding Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Stock Holding]",
+  "Stock Item": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item] WHERE [Stock Item Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Stock Item]",
+  "Supplier": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Supplier Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Supplier Key] FROM [dbo].[Supplier] WHERE [Supplier Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Supplier]",
+  "Transaction": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Transaction Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Transaction Key] FROM [dbo].[Transaction] WHERE [Transaction Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Transaction]",
+  "Transaction Type": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [Transaction Type Key] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [Transaction Type Key] FROM [dbo].[Transaction Type] WHERE [Transaction Type Key] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Transaction Type]"
+ },
+ "ontology_ttl": {
+  "bytes": 55663,
+  "sha256": "6733e515cb49474d266bb16321b7dfd605768a922b0aebd72968f2ecf492afef"
+ },
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "City": [
+    [
+     "City Key"
+    ],
+    "K2"
+   ],
+   "Customer": [
+    [
+     "Customer Key"
+    ],
+    "K2"
+   ],
+   "Date": [
+    [
+     "DateKey"
+    ],
+    "K2"
+   ],
+   "Employee": [
+    [
+     "Employee Key"
+    ],
+    "K2"
+   ],
+   "Movement": [
+    [
+     "Movement Key"
+    ],
+    "K2"
+   ],
+   "Order": [
+    [
+     "Order Key"
+    ],
+    "K2"
+   ],
+   "Payment Method": [
+    [
+     "Payment Method Key"
+    ],
+    "K2"
+   ],
+   "Purchase": [
+    [
+     "Purchase Key"
+    ],
+    "K2"
+   ],
+   "Sale": [
+    [
+     "Sale Key"
+    ],
+    "K2"
+   ],
+   "Stock Holding": [
+    [
+     "Stock Holding Key"
+    ],
+    "K2"
+   ],
+   "Stock Item": [
+    [
+     "Stock Item Key"
+    ],
+    "K2"
+   ],
+   "Supplier": [
+    [
+     "Supplier Key"
+    ],
+    "K2"
+   ],
+   "Transaction": [
+    [
+     "Transaction Key"
+    ],
+    "K2"
+   ],
+   "Transaction Type": [
+    [
+     "Transaction Type Key"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  City {\n    City_Key int PK\n    WWI_City_ID int\n    City nvarchar\n    State_Province nvarchar\n    Country nvarchar\n    Continent nvarchar\n    Sales_Territory nvarchar\n    Region nvarchar\n    Subregion nvarchar\n    Location sys\n    Latest_Recorded_Population bigint\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Customer {\n    Customer_Key int PK\n    WWI_Customer_ID int\n    Customer nvarchar\n    Bill_To_Customer nvarchar\n    Category nvarchar\n    Buying_Group nvarchar\n    Primary_Contact nvarchar\n    Postal_Code nvarchar\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Date {\n    Date date\n    DateKey int PK\n    Day_Number int\n    Day nvarchar\n    Day_of_Year nvarchar\n    Day_of_Year_Number int\n    Day_of_Week nvarchar\n    Day_of_Week_Number int\n    Week_of_Year nvarchar\n    Month nvarchar\n    Short_Month nvarchar\n    Quarter nvarchar\n    Half_of_Year nvarchar\n    Beginning_of_Month date\n    Beginning_of_Quarter date\n    Beginning_of_Half_Year date\n    Beginning_of_Year date\n    Beginning_of_Month_Label nvarchar\n    Beginning_of_Month_Label_Short nvarchar\n    Beginning_of_Quarter_Label nvarchar\n    Beginning_of_Quarter_Label_Short nvarchar\n    Beginning_of_Half_Year_Label nvarchar\n    Beginning_of_Half_Year_Label_Short nvarchar\n    Beginning_of_Year_Label nvarchar\n    Beginning_of_Year_Label_Short nvarchar\n    Calendar_Day_Label nvarchar\n    Calendar_Day_Label_Short nvarchar\n    Calendar_Week_Number int\n    Calendar_Week_Label nvarchar\n    Calendar_Month_Number int\n    Calendar_Month_Label nvarchar\n    Calendar_Month_Year_Label nvarchar\n    Calendar_Quarter_Number int\n    Calendar_Quarter_Label nvarchar\n    Calendar_Quarter_Year_Label nvarchar\n    Calendar_Half_of_Year_Number int\n    Calendar_Half_of_Year_Label nvarchar\n    Calendar_Year_Half_of_Year_Label nvarchar\n    Calendar_Year int\n    Calendar_Year_Label nvarchar\n    Fiscal_Month_Number int\n    Fiscal_Month_Label nvarchar\n    Fiscal_Quarter_Number int\n    Fiscal_Quarter_Label nvarchar\n    Fiscal_Half_of_Year_Number int\n    Fiscal_Half_of_Year_Label nvarchar\n    Fiscal_Year int\n    Fiscal_Year_Label nvarchar\n    Date_Key int\n    Year_Week_Key int\n    Year_Month_Key int\n    Year_Quarter_Key int\n    Year_Half_of_Year_Key int\n    Year_Key int\n    Beginning_of_Month_Key int\n    Beginning_of_Quarter_Key int\n    Beginning_of_Half_Year_Key int\n    Beginning_of_Year_Key int\n    Fiscal_Year_Month_Key int\n    Fiscal_Year_Quarter_Key int\n    Fiscal_Year_Half_of_Year_Key int\n    ISO_Week_Number int\n  }\n  Employee {\n    Employee_Key int PK\n    WWI_Employee_ID int\n    Employee nvarchar\n    Preferred_Name nvarchar\n    Is_Salesperson bit\n    Photo varbinary\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Payment_Method {\n    Payment_Method_Key int PK\n    WWI_Payment_Method_ID int\n    Payment_Method nvarchar\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Stock_Item {\n    Stock_Item_Key int PK\n    WWI_Stock_Item_ID int\n    Stock_Item nvarchar\n    Color nvarchar\n    Selling_Package nvarchar\n    Buying_Package nvarchar\n    Brand nvarchar\n    Size nvarchar\n    Lead_Time_Days int\n    Quantity_Per_Outer int\n    Is_Chiller_Stock bit\n    Barcode nvarchar\n    Tax_Rate decimal\n    Unit_Price decimal\n    Recommended_Retail_Price decimal\n    Typical_Weight_Per_Unit decimal\n    Photo varbinary\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Supplier {\n    Supplier_Key int PK\n    WWI_Supplier_ID int\n    Supplier nvarchar\n    Category nvarchar\n    Primary_Contact nvarchar\n    Supplier_Reference nvarchar\n    Payment_Days int\n    Postal_Code nvarchar\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Transaction_Type {\n    Transaction_Type_Key int PK\n    WWI_Transaction_Type_ID int\n    Transaction_Type nvarchar\n    Valid_From datetime2\n    Valid_To datetime2\n    Lineage_Key int\n  }\n  Movement {\n    Movement_Key bigint PK\n    Date_Key date\n    Stock_Item_Key int\n    Customer_Key int\n    Supplier_Key int\n    Transaction_Type_Key int\n    WWI_Stock_Item_Transaction_ID int\n    WWI_Invoice_ID int\n    WWI_Purchase_Order_ID int\n    Quantity int\n    Lineage_Key int\n  }\n  Order {\n    Order_Key bigint PK\n    City_Key int\n    Customer_Key int\n    Stock_Item_Key int\n    Order_Date_Key date\n    Picked_Date_Key date\n    Salesperson_Key int\n    Picker_Key int\n    WWI_Order_ID int\n    WWI_Backorder_ID int\n    Description nvarchar\n    Package nvarchar\n    Quantity int\n    Unit_Price decimal\n    Tax_Rate decimal\n    Total_Excluding_Tax decimal\n    Tax_Amount decimal\n    Total_Including_Tax decimal\n    Lineage_Key int\n  }\n  Purchase {\n    Purchase_Key bigint PK\n    Date_Key date\n    Supplier_Key int\n    Stock_Item_Key int\n    WWI_Purchase_Order_ID int\n    Ordered_Outers int\n    Ordered_Quantity int\n    Received_Outers int\n    Package nvarchar\n    Is_Order_Finalized bit\n    Lineage_Key int\n  }\n  Sale {\n    Sale_Key bigint PK\n    City_Key int\n    Customer_Key int\n    Bill_To_Customer_Key int\n    Stock_Item_Key int\n    Invoice_Date_Key date\n    Delivery_Date_Key date\n    Salesperson_Key int\n    WWI_Invoice_ID int\n    Description nvarchar\n    Package nvarchar\n    Quantity int\n    Unit_Price decimal\n    Tax_Rate decimal\n    Total_Excluding_Tax decimal\n    Tax_Amount decimal\n    Profit decimal\n    Total_Including_Tax decimal\n    Total_Dry_Items int\n    Total_Chiller_Items int\n    Lineage_Key int\n  }\n  Stock_Holding {\n    Stock_Holding_Key bigint PK\n    Stock_Item_Key int\n    Quantity_On_Hand int\n    Bin_Location nvarchar\n    Last_Stocktake_Quantity int\n    Last_Cost_Price decimal\n    Reorder_Level int\n    Target_Stock_Level int\n    Lineage_Key int\n  }\n  Transaction {\n    Transaction_Key bigint PK\n    Date_Key date\n    Customer_Key int\n    Bill_To_Customer_Key int\n    Supplier_Key int\n    Transaction_Type_Key int\n    Payment_Method_Key int\n    WWI_Customer_Transaction_ID int\n    WWI_Supplier_Transaction_ID int\n    WWI_Invoice_ID int\n    WWI_Purchase_Order_ID int\n    Supplier_Invoice_Number nvarchar\n    Total_Excluding_Tax decimal\n    Tax_Amount decimal\n    Total_Including_Tax decimal\n    Outstanding_Balance decimal\n    Is_Finalized bit\n    Lineage_Key int\n  }\n  Date ||--o{ Movement : \"Date Key R1\"\n  Stock_Item ||--o{ Movement : \"Stock Item Key R1\"\n  Customer ||--o{ Movement : \"Customer Key R1\"\n  Supplier ||--o{ Movement : \"Supplier Key R1\"\n  Transaction_Type ||--o{ Movement : \"Transaction Type Key R1\"\n  City ||--o{ Order : \"City Key R1\"\n  Customer ||--o{ Order : \"Customer Key R1\"\n  Stock_Item ||--o{ Order : \"Stock Item Key R1\"\n  Date ||--o{ Order : \"Order Date Key R4\"\n  Date ||--o{ Order : \"Picked Date Key R4\"\n  Date ||--o{ Purchase : \"Date Key R1\"\n  Supplier ||--o{ Purchase : \"Supplier Key R1\"\n  Stock_Item ||--o{ Purchase : \"Stock Item Key R1\"\n  City ||--o{ Sale : \"City Key R1\"\n  Customer ||--o{ Sale : \"Customer Key R1\"\n  Customer ||--o{ Sale : \"Bill To Customer Key R4\"\n  Stock_Item ||--o{ Sale : \"Stock Item Key R1\"\n  Date ||--o{ Sale : \"Invoice Date Key R4\"\n  Date ||--o{ Sale : \"Delivery Date Key R4\"\n  Stock_Item ||--o{ Stock_Holding : \"Stock Item Key R1\"\n  Date ||--o{ Transaction : \"Date Key R1\"\n  Customer ||--o{ Transaction : \"Customer Key R1\"\n  Customer ||--o{ Transaction : \"Bill To Customer Key R4\"\n  Supplier ||--o{ Transaction : \"Supplier Key R1\"\n  Transaction_Type ||--o{ Transaction : \"Transaction Type Key R1\"\n  Payment_Method ||--o{ Transaction : \"Payment Method Key R1\"",
+  "relationships": [
+   {
+    "field_name": "date",
+    "note": "",
+    "reverse_name": "movement",
+    "rule": "R1",
+    "source": "Movement",
+    "source_cols": [
+     "Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "stock_item",
+    "note": "",
+    "reverse_name": "movement",
+    "rule": "R1",
+    "source": "Movement",
+    "source_cols": [
+     "Stock Item Key"
+    ],
+    "target": "Stock Item",
+    "target_cols": [
+     "Stock Item Key"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "movement",
+    "rule": "R1",
+    "source": "Movement",
+    "source_cols": [
+     "Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "movement",
+    "rule": "R1",
+    "source": "Movement",
+    "source_cols": [
+     "Supplier Key"
+    ],
+    "target": "Supplier",
+    "target_cols": [
+     "Supplier Key"
+    ]
+   },
+   {
+    "field_name": "transaction_type",
+    "note": "",
+    "reverse_name": "movement",
+    "rule": "R1",
+    "source": "Movement",
+    "source_cols": [
+     "Transaction Type Key"
+    ],
+    "target": "Transaction Type",
+    "target_cols": [
+     "Transaction Type Key"
+    ]
+   },
+   {
+    "field_name": "city",
+    "note": "",
+    "reverse_name": "order",
+    "rule": "R1",
+    "source": "Order",
+    "source_cols": [
+     "City Key"
+    ],
+    "target": "City",
+    "target_cols": [
+     "City Key"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "order",
+    "rule": "R1",
+    "source": "Order",
+    "source_cols": [
+     "Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "stock_item",
+    "note": "",
+    "reverse_name": "order",
+    "rule": "R1",
+    "source": "Order",
+    "source_cols": [
+     "Stock Item Key"
+    ],
+    "target": "Stock Item",
+    "target_cols": [
+     "Stock Item Key"
+    ]
+   },
+   {
+    "field_name": "order_date_",
+    "note": "",
+    "reverse_name": "order_as_order_date_",
+    "rule": "R4",
+    "source": "Order",
+    "source_cols": [
+     "Order Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "picked_date_",
+    "note": "",
+    "reverse_name": "order_as_picked_date_",
+    "rule": "R4",
+    "source": "Order",
+    "source_cols": [
+     "Picked Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "date",
+    "note": "",
+    "reverse_name": "purchase",
+    "rule": "R1",
+    "source": "Purchase",
+    "source_cols": [
+     "Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "purchase",
+    "rule": "R1",
+    "source": "Purchase",
+    "source_cols": [
+     "Supplier Key"
+    ],
+    "target": "Supplier",
+    "target_cols": [
+     "Supplier Key"
+    ]
+   },
+   {
+    "field_name": "stock_item",
+    "note": "",
+    "reverse_name": "purchase",
+    "rule": "R1",
+    "source": "Purchase",
+    "source_cols": [
+     "Stock Item Key"
+    ],
+    "target": "Stock Item",
+    "target_cols": [
+     "Stock Item Key"
+    ]
+   },
+   {
+    "field_name": "city",
+    "note": "",
+    "reverse_name": "sale",
+    "rule": "R1",
+    "source": "Sale",
+    "source_cols": [
+     "City Key"
+    ],
+    "target": "City",
+    "target_cols": [
+     "City Key"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "sale",
+    "rule": "R1",
+    "source": "Sale",
+    "source_cols": [
+     "Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "bill_to_customer_",
+    "note": "",
+    "reverse_name": "sale_as_bill_to_customer_",
+    "rule": "R4",
+    "source": "Sale",
+    "source_cols": [
+     "Bill To Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "stock_item",
+    "note": "",
+    "reverse_name": "sale",
+    "rule": "R1",
+    "source": "Sale",
+    "source_cols": [
+     "Stock Item Key"
+    ],
+    "target": "Stock Item",
+    "target_cols": [
+     "Stock Item Key"
+    ]
+   },
+   {
+    "field_name": "invoice_date_",
+    "note": "",
+    "reverse_name": "sale_as_invoice_date_",
+    "rule": "R4",
+    "source": "Sale",
+    "source_cols": [
+     "Invoice Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "delivery_date_",
+    "note": "",
+    "reverse_name": "sale_as_delivery_date_",
+    "rule": "R4",
+    "source": "Sale",
+    "source_cols": [
+     "Delivery Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "stock_item",
+    "note": "",
+    "reverse_name": "stock_holding",
+    "rule": "R1",
+    "source": "Stock Holding",
+    "source_cols": [
+     "Stock Item Key"
+    ],
+    "target": "Stock Item",
+    "target_cols": [
+     "Stock Item Key"
+    ]
+   },
+   {
+    "field_name": "date",
+    "note": "",
+    "reverse_name": "transaction",
+    "rule": "R1",
+    "source": "Transaction",
+    "source_cols": [
+     "Date Key"
+    ],
+    "target": "Date",
+    "target_cols": [
+     "DateKey"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "transaction",
+    "rule": "R1",
+    "source": "Transaction",
+    "source_cols": [
+     "Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "bill_to_customer_",
+    "note": "",
+    "reverse_name": "transaction_as_bill_to_customer_",
+    "rule": "R4",
+    "source": "Transaction",
+    "source_cols": [
+     "Bill To Customer Key"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "Customer Key"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "transaction",
+    "rule": "R1",
+    "source": "Transaction",
+    "source_cols": [
+     "Supplier Key"
+    ],
+    "target": "Supplier",
+    "target_cols": [
+     "Supplier Key"
+    ]
+   },
+   {
+    "field_name": "transaction_type",
+    "note": "",
+    "reverse_name": "transaction",
+    "rule": "R1",
+    "source": "Transaction",
+    "source_cols": [
+     "Transaction Type Key"
+    ],
+    "target": "Transaction Type",
+    "target_cols": [
+     "Transaction Type Key"
+    ]
+   },
+   {
+    "field_name": "payment_method",
+    "note": "",
+    "reverse_name": "transaction",
+    "rule": "R1",
+    "source": "Transaction",
+    "source_cols": [
+     "Payment Method Key"
+    ],
+    "target": "Payment Method",
+    "target_cols": [
+     "Payment Method Key"
+    ]
+   }
+  ],
+  "summary": "14 tables, 14 with keys, 26 relationships",
+  "synonyms": []
+ },
+ "rayfin": {
+  "bytes": 34461,
+  "sha256": "79728ebc7825fc9bc89755db88621c9e18733c15720a2cbaa85ad195a6dedcd0"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Date Key] = t.[DateKey] WHERE s.[Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item]) AS t ON s.[Stock Item Key] = t.[Stock Item Key] WHERE s.[Stock Item Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Customer Key] = t.[Customer Key] WHERE s.[Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Supplier Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [Supplier Key] FROM [dbo].[Supplier]) AS t ON s.[Supplier Key] = t.[Supplier Key] WHERE s.[Supplier Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Transaction Type Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [Transaction Type Key] FROM [dbo].[Transaction Type]) AS t ON s.[Transaction Type Key] = t.[Transaction Type Key] WHERE s.[Transaction Type Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[City Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order] AS s LEFT JOIN (SELECT DISTINCT [City Key] FROM [dbo].[City]) AS t ON s.[City Key] = t.[City Key] WHERE s.[City Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Customer Key] = t.[Customer Key] WHERE s.[Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order] AS s LEFT JOIN (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item]) AS t ON s.[Stock Item Key] = t.[Stock Item Key] WHERE s.[Stock Item Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Order Date Key] = t.[DateKey] WHERE s.[Order Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Picked Date Key] = t.[DateKey] WHERE s.[Picked Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Purchase] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Date Key] = t.[DateKey] WHERE s.[Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Supplier Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Purchase] AS s LEFT JOIN (SELECT DISTINCT [Supplier Key] FROM [dbo].[Supplier]) AS t ON s.[Supplier Key] = t.[Supplier Key] WHERE s.[Supplier Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Purchase] AS s LEFT JOIN (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item]) AS t ON s.[Stock Item Key] = t.[Stock Item Key] WHERE s.[Stock Item Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[City Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [City Key] FROM [dbo].[City]) AS t ON s.[City Key] = t.[City Key] WHERE s.[City Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Customer Key] = t.[Customer Key] WHERE s.[Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Bill To Customer Key] = t.[Customer Key] WHERE s.[Bill To Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item]) AS t ON s.[Stock Item Key] = t.[Stock Item Key] WHERE s.[Stock Item Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Invoice Date Key] = t.[DateKey] WHERE s.[Invoice Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Sale] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Delivery Date Key] = t.[DateKey] WHERE s.[Delivery Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Stock Item Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Stock Holding] AS s LEFT JOIN (SELECT DISTINCT [Stock Item Key] FROM [dbo].[Stock Item]) AS t ON s.[Stock Item Key] = t.[Stock Item Key] WHERE s.[Stock Item Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Date Key] = t.[DateKey] WHERE s.[Date Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Customer Key] = t.[Customer Key] WHERE s.[Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Customer Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [Customer Key] FROM [dbo].[Customer]) AS t ON s.[Bill To Customer Key] = t.[Customer Key] WHERE s.[Bill To Customer Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Supplier Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [Supplier Key] FROM [dbo].[Supplier]) AS t ON s.[Supplier Key] = t.[Supplier Key] WHERE s.[Supplier Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Transaction Type Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [Transaction Type Key] FROM [dbo].[Transaction Type]) AS t ON s.[Transaction Type Key] = t.[Transaction Type Key] WHERE s.[Transaction Type Key] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[Payment Method Key] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Transaction] AS s LEFT JOIN (SELECT DISTINCT [Payment Method Key] FROM [dbo].[Payment Method]) AS t ON s.[Payment Method Key] = t.[Payment Method Key] WHERE s.[Payment Method Key] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "City": "SELECT TOP (10) [City Key], [WWI City ID], [City], [State Province], [Country], [Continent], [Sales Territory], [Region], [Subregion], [Location], [Latest Recorded Population], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[City]",
+  "Customer": "SELECT TOP (10) [Customer Key], [WWI Customer ID], [Customer], [Bill To Customer], [Category], [Buying Group], [Primary Contact], [Postal Code], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Customer]",
+  "Date": "SELECT TOP (10) [Date], [DateKey], [Day Number], [Day], [Day of Year], [Day of Year Number], [Day of Week], [Day of Week Number], [Week of Year], [Month], [Short Month], [Quarter], [Half of Year], [Beginning of Month], [Beginning of Quarter], [Beginning of Half Year], [Beginning of Year], [Beginning of Month Label], [Beginning of Month Label Short], [Beginning of Quarter Label], [Beginning of Quarter Label Short], [Beginning of Half Year Label], [Beginning of Half Year Label Short], [Beginning of Year Label], [Beginning of Year Label Short], [Calendar Day Label], [Calendar Day Label Short], [Calendar Week Number], [Calendar Week Label], [Calendar Month Number], [Calendar Month Label], [Calendar Month Year Label], [Calendar Quarter Number], [Calendar Quarter Label], [Calendar Quarter Year Label], [Calendar Half of Year Number], [Calendar Half of Year Label], [Calendar Year Half of Year Label], [Calendar Year], [Calendar Year Label], [Fiscal Month Number], [Fiscal Month Label], [Fiscal Quarter Number], [Fiscal Quarter Label], [Fiscal Half of Year Number], [Fiscal Half of Year Label], [Fiscal Year], [Fiscal Year Label], [Date Key], [Year Week Key], [Year Month Key], [Year Quarter Key], [Year Half of Year Key], [Year Key], [Beginning of Month Key], [Beginning of Quarter Key], [Beginning of Half Year Key], [Beginning of Year Key], [Fiscal Year Month Key], [Fiscal Year Quarter Key], [Fiscal Year Half of Year Key], [ISO Week Number] FROM [dbo].[Date]",
+  "Employee": "SELECT TOP (10) [Employee Key], [WWI Employee ID], [Employee], [Preferred Name], [Is Salesperson], DATALENGTH([Photo]) AS [Photo (bytes)], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Employee]",
+  "Movement": "SELECT TOP (10) [Movement Key], [Date Key], [Stock Item Key], [Customer Key], [Supplier Key], [Transaction Type Key], [WWI Stock Item Transaction ID], [WWI Invoice ID], [WWI Purchase Order ID], [Quantity], [Lineage Key] FROM [dbo].[Movement]",
+  "Order": "SELECT TOP (10) [Order Key], [City Key], [Customer Key], [Stock Item Key], [Order Date Key], [Picked Date Key], [Salesperson Key], [Picker Key], [WWI Order ID], [WWI Backorder ID], [Description], [Package], [Quantity], [Unit Price], [Tax Rate], [Total Excluding Tax], [Tax Amount], [Total Including Tax], [Lineage Key] FROM [dbo].[Order]",
+  "Payment Method": "SELECT TOP (10) [Payment Method Key], [WWI Payment Method ID], [Payment Method], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Payment Method]",
+  "Purchase": "SELECT TOP (10) [Purchase Key], [Date Key], [Supplier Key], [Stock Item Key], [WWI Purchase Order ID], [Ordered Outers], [Ordered Quantity], [Received Outers], [Package], [Is Order Finalized], [Lineage Key] FROM [dbo].[Purchase]",
+  "Sale": "SELECT TOP (10) [Sale Key], [City Key], [Customer Key], [Bill To Customer Key], [Stock Item Key], [Invoice Date Key], [Delivery Date Key], [Salesperson Key], [WWI Invoice ID], [Description], [Package], [Quantity], [Unit Price], [Tax Rate], [Total Excluding Tax], [Tax Amount], [Profit], [Total Including Tax], [Total Dry Items], [Total Chiller Items], [Lineage Key] FROM [dbo].[Sale]",
+  "Stock Holding": "SELECT TOP (10) [Stock Holding Key], [Stock Item Key], [Quantity On Hand], [Bin Location], [Last Stocktake Quantity], [Last Cost Price], [Reorder Level], [Target Stock Level], [Lineage Key] FROM [dbo].[Stock Holding]",
+  "Stock Item": "SELECT TOP (10) [Stock Item Key], [WWI Stock Item ID], [Stock Item], [Color], [Selling Package], [Buying Package], [Brand], [Size], [Lead Time Days], [Quantity Per Outer], [Is Chiller Stock], [Barcode], [Tax Rate], [Unit Price], [Recommended Retail Price], [Typical Weight Per Unit], DATALENGTH([Photo]) AS [Photo (bytes)], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Stock Item]",
+  "Supplier": "SELECT TOP (10) [Supplier Key], [WWI Supplier ID], [Supplier], [Category], [Primary Contact], [Supplier Reference], [Payment Days], [Postal Code], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Supplier]",
+  "Transaction": "SELECT TOP (10) [Transaction Key], [Date Key], [Customer Key], [Bill To Customer Key], [Supplier Key], [Transaction Type Key], [Payment Method Key], [WWI Customer Transaction ID], [WWI Supplier Transaction ID], [WWI Invoice ID], [WWI Purchase Order ID], [Supplier Invoice Number], [Total Excluding Tax], [Tax Amount], [Total Including Tax], [Outstanding Balance], [Is Finalized], [Lineage Key] FROM [dbo].[Transaction]",
+  "Transaction Type": "SELECT TOP (10) [Transaction Type Key], [WWI Transaction Type ID], [Transaction Type], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Transaction Type]"
+ },
+ "semantic_model": {
+  "bytes": 115555,
+  "sha256": "a1199312f1303daea76c4520726c5a2ac56eb4b89b51d85a437d7d1ce0f27d7e"
+ },
+ "silver": {
+  "bytes": 37452,
+  "sha256": "948aa901c8e41ca76cb8ca8b0034ef0d74c35bcac960270264dfc02122cc9ec0"
+ },
+ "views": {
+  "bytes": 74384,
+  "sha256": "f1dcc8cdf48eed3be4d6173fe08e717fd10f481d55d5854c5ec4cfa7154cdab9"
+ }
+}

@@ -1,0 +1,1051 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "OrderId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "tbl_order_lines",
+    "target": "tbl_orders",
+    "target_columns": [
+     "OrderId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "ProdId"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "tbl_order_lines",
+    "target": "products",
+    "target_columns": [
+     "ProductId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "EmpId"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "tbl_orders",
+    "target": "employees",
+    "target_columns": [
+     "EmployeeId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "CustId"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "tbl_orders",
+    "target": "tbl_customers",
+    "target_columns": [
+     "CustomerId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "DeptId"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "employees",
+    "target": "departments",
+    "target_columns": [
+     "DepartmentId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "CatId"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "products",
+    "target": "categories",
+    "target_columns": [
+     "CategoryId"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [],
+   "note": "no cycles: every pair of connected tables has exactly one path",
+   "pairs_with_multiple_paths": []
+  },
+  "areas": [
+   {
+    "central_table": "tbl_customers",
+    "name": "tbl_customers area",
+    "tables": [
+     "tbl_customers",
+     "tbl_order_lines",
+     "tbl_orders"
+    ]
+   },
+   {
+    "central_table": "categories",
+    "name": "categories area",
+    "tables": [
+     "categories",
+     "products"
+    ]
+   },
+   {
+    "central_table": "departments",
+    "name": "departments area",
+    "tables": [
+     "departments",
+     "employees"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "categories": 0.0,
+    "departments": 0.0,
+    "employees": 0.3333,
+    "products": 0.3333,
+    "tbl_customers": 0.0,
+    "tbl_order_lines": 0.5333,
+    "tbl_orders": 0.7333
+   },
+   "degree": {
+    "categories": {
+     "in": 1,
+     "out": 0
+    },
+    "departments": {
+     "in": 1,
+     "out": 0
+    },
+    "employees": {
+     "in": 1,
+     "out": 1
+    },
+    "products": {
+     "in": 1,
+     "out": 1
+    },
+    "tbl_customers": {
+     "in": 1,
+     "out": 0
+    },
+    "tbl_order_lines": {
+     "in": 0,
+     "out": 2
+    },
+    "tbl_orders": {
+     "in": 1,
+     "out": 2
+    }
+   },
+   "pagerank": {
+    "categories": 0.19,
+    "departments": 0.2032,
+    "employees": 0.138,
+    "products": 0.1225,
+    "tbl_customers": 0.138,
+    "tbl_order_lines": 0.0859,
+    "tbl_orders": 0.1225
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.2032,
+     "role": "dimension",
+     "table": "departments"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.19,
+     "role": "dimension",
+     "table": "categories"
+    },
+    {
+     "betweenness": 0.3333,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.138,
+     "role": "fact",
+     "table": "employees"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.138,
+     "role": "dimension",
+     "table": "tbl_customers"
+    },
+    {
+     "betweenness": 0.7333,
+     "in": 1,
+     "out": 2,
+     "pagerank": 0.1225,
+     "role": "fact",
+     "table": "tbl_orders"
+    },
+    {
+     "betweenness": 0.3333,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.1225,
+     "role": "dimension",
+     "table": "products"
+    },
+    {
+     "betweenness": 0.5333,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0859,
+     "role": "fact",
+     "table": "tbl_order_lines"
+    }
+   ]
+  },
+  "inactive_relationships": [],
+  "roles": {
+   "categories": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "departments": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "employees": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.3333, measure share 0.5"
+   },
+   "products": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0"
+   },
+   "tbl_customers": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out; out 0, in 1, betweenness 0.0, measure share 0.5"
+   },
+   "tbl_order_lines": {
+    "role": "fact",
+    "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0"
+   },
+   "tbl_orders": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.7333, measure share 1.0"
+   }
+  },
+  "summary": "7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "employees",
+   "source_cols": [
+    "ManagerId"
+   ],
+   "target": "categories",
+   "target_cols": [
+    "CategoryId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "employees.ManagerId (int) is in no relationship and matches the type of categories.CategoryId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "employees",
+   "source_cols": [
+    "ManagerId"
+   ],
+   "target": "products",
+   "target_cols": [
+    "ProductId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "employees.ManagerId (int) is in no relationship and matches the type of products.ProductId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "employees",
+   "source_cols": [
+    "ManagerId"
+   ],
+   "target": "tbl_orders",
+   "target_cols": [
+    "OrderId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "employees.ManagerId (int) is in no relationship and matches the type of tbl_orders.OrderId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "tbl_customers",
+   "source_cols": [
+    "AcctMgrId"
+   ],
+   "target": "categories",
+   "target_cols": [
+    "CategoryId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "tbl_customers.AcctMgrId (int) is in no relationship and matches the type of categories.CategoryId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "tbl_customers",
+   "source_cols": [
+    "AcctMgrId"
+   ],
+   "target": "departments",
+   "target_cols": [
+    "DepartmentId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "tbl_customers.AcctMgrId (int) is in no relationship and matches the type of departments.DepartmentId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "tbl_customers",
+   "source_cols": [
+    "AcctMgrId"
+   ],
+   "target": "products",
+   "target_cols": [
+    "ProductId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "tbl_customers.AcctMgrId (int) is in no relationship and matches the type of products.ProductId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "tbl_customers",
+   "source_cols": [
+    "AcctMgrId"
+   ],
+   "target": "tbl_orders",
+   "target_cols": [
+    "OrderId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "tbl_customers.AcctMgrId (int) is in no relationship and matches the type of tbl_orders.OrderId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "employees already refers to departments through DeptId"
+   ],
+   "score": 1.25,
+   "source": "employees",
+   "source_cols": [
+    "ManagerId"
+   ],
+   "target": "departments",
+   "target_cols": [
+    "DepartmentId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "employees.ManagerId (int) is in no relationship and matches the type of departments.DepartmentId; but employees already refers to departments through DeptId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "tbl_orders already joins employees and tbl_customers (many-to-many through it)"
+   ],
+   "score": 1.0,
+   "source": "employees",
+   "source_cols": [
+    "ManagerId"
+   ],
+   "target": "tbl_customers",
+   "target_cols": [
+    "CustomerId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "employees.ManagerId (int) is in no relationship and matches the type of tbl_customers.CustomerId; but tbl_orders already joins employees and tbl_customers (many-to-many through it)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "tbl_orders already joins tbl_customers and employees (many-to-many through it)"
+   ],
+   "score": 1.0,
+   "source": "tbl_customers",
+   "source_cols": [
+    "AcctMgrId"
+   ],
+   "target": "employees",
+   "target_cols": [
+    "EmployeeId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "tbl_customers.AcctMgrId (int) is in no relationship and matches the type of employees.EmployeeId; but tbl_orders already joins tbl_customers and employees (many-to-many through it)"
+  }
+ ],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: tbl_customers\n        columns:\n          - name: CustomerId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CustomerName\n            description: \"\"  # nvarchar\n          - name: AcctMgrId\n            description: \"\"  # int\n      - name: departments\n        columns:\n          - name: DepartmentId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: DepartmentName\n            description: \"\"  # nvarchar\n      - name: employees\n        columns:\n          - name: EmployeeId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: FullName\n            description: \"\"  # nvarchar\n          - name: DeptId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'departments')\n                    field: DepartmentId\n          - name: ManagerId\n            description: \"\"  # int\n      - name: tbl_orders\n        columns:\n          - name: OrderId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CustId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'tbl_customers')\n                    field: CustomerId\n          - name: EmpId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'employees')\n                    field: EmployeeId\n          - name: OrderDate\n            description: \"\"  # date\n          - name: TotalAmount\n            description: \"\"  # decimal\n      - name: tbl_order_lines\n        # composite key OrderId+LineNo (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [OrderId, LineNo]\n        columns:\n          - name: OrderId\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'tbl_orders')\n                    field: OrderId\n          - name: LineNo\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n          - name: ProdId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'products')\n                    field: ProductId\n          - name: Qty\n            description: \"\"  # int\n      - name: products\n        columns:\n          - name: ProductId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: ProductName\n            description: \"\"  # nvarchar\n          - name: CatId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'categories')\n                    field: CategoryId\n      - name: categories\n        columns:\n          - name: CategoryId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CategoryName\n            description: \"\"  # nvarchar\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 7 with keys, 6 relationships\n- Tables without a key: none\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### tbl_customers\n\nKey: CustomerId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CustomerId | int | yes |  |  |\n| CustomerName | nvarchar |  |  |  |\n| AcctMgrId | int |  |  |  |\n\n### departments\n\nKey: DepartmentId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| DepartmentId | int | yes |  |  |\n| DepartmentName | nvarchar |  |  |  |\n\n### employees\n\nKey: EmployeeId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| EmployeeId | int | yes |  |  |\n| FullName | nvarchar |  |  |  |\n| DeptId | int |  | departments.DepartmentId (R4) |  |\n| ManagerId | int |  |  |  |\n\n### tbl_orders\n\nKey: OrderId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderId | int | yes |  |  |\n| CustId | int |  | tbl_customers.CustomerId (R4) |  |\n| EmpId | int |  | employees.EmployeeId (R4) |  |\n| OrderDate | date |  |  |  |\n| TotalAmount | decimal |  |  |  |\n\n### tbl_order_lines\n\nKey: OrderId+LineNo (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderId | int | yes | tbl_orders.OrderId (R1) |  |\n| LineNo | int | yes |  |  |\n| ProdId | int |  | products.ProductId (R4) |  |\n| Qty | int |  |  |  |\n\n### products\n\nKey: ProductId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| ProductId | int | yes |  |  |\n| ProductName | nvarchar |  |  |  |\n| CatId | int |  | categories.CategoryId (R4) |  |\n\n### categories\n\nKey: CategoryId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CategoryId | int | yes |  |  |\n| CategoryName | nvarchar |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| tbl_customers | CustomerId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| departments | DepartmentId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| employees | EmployeeId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| tbl_orders | OrderId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| tbl_order_lines | OrderId+LineNo | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| products | ProductId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | CategoryId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| employees | DeptId | departments | DepartmentId | R4 | department / employees |\n| tbl_orders | CustId | tbl_customers | CustomerId | R4 | cust / tbl_orders_as_cust |\n| tbl_orders | EmpId | employees | EmployeeId | R4 | employee / tbl_orders |\n| tbl_order_lines | OrderId | tbl_orders | OrderId | R1 | tbl_order / tbl_order_lines |\n| tbl_order_lines | ProdId | products | ProductId | R4 | product / tbl_order_lines |\n| products | CatId | categories | CategoryId | R4 | category / products |\n\n## Tables without a key\n\nNone.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| tbl_customers | dimension | 1 reference(s) in, 0 out; out 0, in 1, betweenness 0.0, measure share 0.5 |\n| departments | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| employees | fact | pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.3333, measure share 0.5 |\n| tbl_orders | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.7333, measure share 1.0 |\n| tbl_order_lines | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- tbl_customers area: tbl_customers, tbl_order_lines, tbl_orders\n- categories area: categories, products\n- departments area: departments, employees\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  tbl_customers {\n    CustomerId int PK\n    CustomerName nvarchar\n    AcctMgrId int\n  }\n  departments {\n    DepartmentId int PK\n    DepartmentName nvarchar\n  }\n  employees {\n    EmployeeId int PK\n    FullName nvarchar\n    DeptId int\n    ManagerId int\n  }\n  tbl_orders {\n    OrderId int PK\n    CustId int\n    EmpId int\n    OrderDate date\n    TotalAmount decimal\n  }\n  tbl_order_lines {\n    OrderId int PK\n    LineNo int PK\n    ProdId int\n    Qty int\n  }\n  products {\n    ProductId int PK\n    ProductName nvarchar\n    CatId int\n  }\n  categories {\n    CategoryId int PK\n    CategoryName nvarchar\n  }\n  departments ||--o{ employees : \"DeptId R4\"\n  tbl_customers ||--o{ tbl_orders : \"CustId R4\"\n  employees ||--o{ tbl_orders : \"EmpId R4\"\n  tbl_orders ||--o{ tbl_order_lines : \"OrderId R1\"\n  products ||--o{ tbl_order_lines : \"ProdId R4\"\n  categories ||--o{ products : \"CatId R4\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "AcctMgrId": "AcctMgrId",
+       "CustomerId": "CustomerId",
+       "CustomerName": "CustomerName"
+      },
+      "graphqlType": "tbl_customers",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "tbl_orders_as_cust",
+        "sourceFields": [
+         "CustomerId"
+        ],
+        "targetFields": [
+         "CustId"
+        ],
+        "targetObject": "dbo.tbl_orders"
+       }
+      ],
+      "sourceObject": "dbo.tbl_customers",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "DepartmentId": "DepartmentId",
+       "DepartmentName": "DepartmentName"
+      },
+      "graphqlType": "departments",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "employees",
+        "sourceFields": [
+         "DepartmentId"
+        ],
+        "targetFields": [
+         "DeptId"
+        ],
+        "targetObject": "dbo.employees"
+       }
+      ],
+      "sourceObject": "dbo.departments",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "DeptId": "DeptId",
+       "EmployeeId": "EmployeeId",
+       "FullName": "FullName",
+       "ManagerId": "ManagerId"
+      },
+      "graphqlType": "employees",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "department",
+        "sourceFields": [
+         "DeptId"
+        ],
+        "targetFields": [
+         "DepartmentId"
+        ],
+        "targetObject": "dbo.departments"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "tbl_orders",
+        "sourceFields": [
+         "EmployeeId"
+        ],
+        "targetFields": [
+         "EmpId"
+        ],
+        "targetObject": "dbo.tbl_orders"
+       }
+      ],
+      "sourceObject": "dbo.employees",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CustId": "CustId",
+       "EmpId": "EmpId",
+       "OrderDate": "OrderDate",
+       "OrderId": "OrderId",
+       "TotalAmount": "TotalAmount"
+      },
+      "graphqlType": "tbl_orders",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "cust",
+        "sourceFields": [
+         "CustId"
+        ],
+        "targetFields": [
+         "CustomerId"
+        ],
+        "targetObject": "dbo.tbl_customers"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "employee",
+        "sourceFields": [
+         "EmpId"
+        ],
+        "targetFields": [
+         "EmployeeId"
+        ],
+        "targetObject": "dbo.employees"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "tbl_order_lines",
+        "sourceFields": [
+         "OrderId"
+        ],
+        "targetFields": [
+         "OrderId"
+        ],
+        "targetObject": "dbo.tbl_order_lines"
+       }
+      ],
+      "sourceObject": "dbo.tbl_orders",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "LineNo": "LineNo",
+       "OrderId": "OrderId",
+       "ProdId": "ProdId",
+       "Qty": "Qty"
+      },
+      "graphqlType": "tbl_order_lines",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "tbl_order",
+        "sourceFields": [
+         "OrderId"
+        ],
+        "targetFields": [
+         "OrderId"
+        ],
+        "targetObject": "dbo.tbl_orders"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "product",
+        "sourceFields": [
+         "ProdId"
+        ],
+        "targetFields": [
+         "ProductId"
+        ],
+        "targetObject": "dbo.products"
+       }
+      ],
+      "sourceObject": "dbo.tbl_order_lines",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CatId": "CatId",
+       "ProductId": "ProductId",
+       "ProductName": "ProductName"
+      },
+      "graphqlType": "products",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "tbl_order_lines",
+        "sourceFields": [
+         "ProductId"
+        ],
+        "targetFields": [
+         "ProdId"
+        ],
+        "targetObject": "dbo.tbl_order_lines"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "category",
+        "sourceFields": [
+         "CatId"
+        ],
+        "targetFields": [
+         "CategoryId"
+        ],
+        "targetObject": "dbo.categories"
+       }
+      ],
+      "sourceObject": "dbo.products",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CategoryId": "CategoryId",
+       "CategoryName": "CategoryName"
+      },
+      "graphqlType": "categories",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "products",
+        "sourceFields": [
+         "CategoryId"
+        ],
+        "targetFields": [
+         "CatId"
+        ],
+        "targetObject": "dbo.products"
+       }
+      ],
+      "sourceObject": "dbo.categories",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 31494,
+  "sha256": "ad07f00860112802810c3720833f7e03d0d0d0651e95008a370be4f404e70a29"
+ },
+ "key_sql": {
+  "categories": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CategoryId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CategoryId] FROM [dbo].[categories] WHERE [CategoryId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[categories]",
+  "departments": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [DepartmentId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [DepartmentId] FROM [dbo].[departments] WHERE [DepartmentId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[departments]",
+  "employees": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [EmployeeId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [EmployeeId] FROM [dbo].[employees] WHERE [EmployeeId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[employees]",
+  "products": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductId] FROM [dbo].[products] WHERE [ProductId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[products]",
+  "tbl_customers": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CustomerId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CustomerId] FROM [dbo].[tbl_customers] WHERE [CustomerId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[tbl_customers]",
+  "tbl_order_lines": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderId] IS NULL OR [LineNo] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderId], [LineNo] FROM [dbo].[tbl_order_lines] WHERE [OrderId] IS NOT NULL AND [LineNo] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[tbl_order_lines]",
+  "tbl_orders": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderId] FROM [dbo].[tbl_orders] WHERE [OrderId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[tbl_orders]"
+ },
+ "ontology_ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:onto#> .\n\n<urn:krusgraph:ontology:onto> a owl:Ontology ;\n    rdfs:label \"onto\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:TblCustomers a owl:Class ;\n    rdfs:label \"TblCustomers\" ;\n    skos:altLabel \"tbl_customers\" ;\n    rdfs:comment \"Table dbo.tbl_customers; key CustomerId (K2).\" .\n\n:TblCustomers__CustomerId a owl:DatatypeProperty ;\n    rdfs:label \"CustomerId\" ;\n    rdfs:domain :TblCustomers ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CustomerId (int); key.\" .\n\n:TblCustomers__CustomerName a owl:DatatypeProperty ;\n    rdfs:label \"CustomerName\" ;\n    rdfs:domain :TblCustomers ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column CustomerName (nvarchar).\" .\n\n:TblCustomers__AcctMgrId a owl:DatatypeProperty ;\n    rdfs:label \"AcctMgrId\" ;\n    rdfs:domain :TblCustomers ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column AcctMgrId (int).\" .\n\n:Departments a owl:Class ;\n    rdfs:label \"Departments\" ;\n    skos:altLabel \"departments\" ;\n    rdfs:comment \"Table dbo.departments; key DepartmentId (K2).\" .\n\n:Departments__DepartmentId a owl:DatatypeProperty ;\n    rdfs:label \"DepartmentId\" ;\n    rdfs:domain :Departments ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column DepartmentId (int); key.\" .\n\n:Departments__DepartmentName a owl:DatatypeProperty ;\n    rdfs:label \"DepartmentName\" ;\n    rdfs:domain :Departments ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column DepartmentName (nvarchar).\" .\n\n:Employees a owl:Class ;\n    rdfs:label \"Employees\" ;\n    skos:altLabel \"employees\" ;\n    rdfs:comment \"Table dbo.employees; key EmployeeId (K2).\" .\n\n:Employees__EmployeeId a owl:DatatypeProperty ;\n    rdfs:label \"EmployeeId\" ;\n    rdfs:domain :Employees ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column EmployeeId (int); key.\" .\n\n:Employees__FullName a owl:DatatypeProperty ;\n    rdfs:label \"FullName\" ;\n    rdfs:domain :Employees ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column FullName (nvarchar).\" .\n\n:Employees__DeptId a owl:DatatypeProperty ;\n    rdfs:label \"DeptId\" ;\n    rdfs:domain :Employees ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column DeptId (int).\" .\n\n:Employees__ManagerId a owl:DatatypeProperty ;\n    rdfs:label \"ManagerId\" ;\n    rdfs:domain :Employees ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ManagerId (int).\" .\n\n:TblOrders a owl:Class ;\n    rdfs:label \"TblOrders\" ;\n    skos:altLabel \"tbl_orders\" ;\n    rdfs:comment \"Table dbo.tbl_orders; key OrderId (K2).\" .\n\n:TblOrders__OrderId a owl:DatatypeProperty ;\n    rdfs:label \"OrderId\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column OrderId (int); key.\" .\n\n:TblOrders__CustId a owl:DatatypeProperty ;\n    rdfs:label \"CustId\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CustId (int).\" .\n\n:TblOrders__EmpId a owl:DatatypeProperty ;\n    rdfs:label \"EmpId\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column EmpId (int).\" .\n\n:TblOrders__OrderDate a owl:DatatypeProperty ;\n    rdfs:label \"OrderDate\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column OrderDate (date).\" .\n\n:TblOrders__TotalAmount a owl:DatatypeProperty ;\n    rdfs:label \"TotalAmount\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column TotalAmount (decimal).\" .\n\n:TblOrderLines a owl:Class ;\n    rdfs:label \"TblOrderLines\" ;\n    skos:altLabel \"tbl_order_lines\" ;\n    rdfs:comment \"Table dbo.tbl_order_lines; key OrderId+LineNo (K5).\" .\n\n:TblOrderLines__OrderId a owl:DatatypeProperty ;\n    rdfs:label \"OrderId\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column OrderId (int); key.\" .\n\n:TblOrderLines__LineNo a owl:DatatypeProperty ;\n    rdfs:label \"LineNo\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column LineNo (int); key.\" .\n\n:TblOrderLines__ProdId a owl:DatatypeProperty ;\n    rdfs:label \"ProdId\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ProdId (int).\" .\n\n:TblOrderLines__Qty a owl:DatatypeProperty ;\n    rdfs:label \"Qty\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Qty (int).\" .\n\n:Products a owl:Class ;\n    rdfs:label \"Products\" ;\n    skos:altLabel \"products\" ;\n    rdfs:comment \"Table dbo.products; key ProductId (K2).\" .\n\n:Products__ProductId a owl:DatatypeProperty ;\n    rdfs:label \"ProductId\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ProductId (int); key.\" .\n\n:Products__ProductName a owl:DatatypeProperty ;\n    rdfs:label \"ProductName\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column ProductName (nvarchar).\" .\n\n:Products__CatId a owl:DatatypeProperty ;\n    rdfs:label \"CatId\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CatId (int).\" .\n\n:Categories a owl:Class ;\n    rdfs:label \"Categories\" ;\n    skos:altLabel \"categories\" ;\n    rdfs:comment \"Table dbo.categories; key CategoryId (K2).\" .\n\n:Categories__CategoryId a owl:DatatypeProperty ;\n    rdfs:label \"CategoryId\" ;\n    rdfs:domain :Categories ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CategoryId (int); key.\" .\n\n:Categories__CategoryName a owl:DatatypeProperty ;\n    rdfs:label \"CategoryName\" ;\n    rdfs:domain :Categories ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column CategoryName (nvarchar).\" .\n\n:EmployeesHasDepartments a owl:ObjectProperty ;\n    rdfs:label \"EmployeesHasDepartments\" ;\n    rdfs:domain :Employees ;\n    rdfs:range :Departments ;\n    rdfs:comment \"employees.DeptId -> departments.DepartmentId by rule R4.\" .\n\n:TblOrdersHasTblCustomers a owl:ObjectProperty ;\n    rdfs:label \"TblOrdersHasTblCustomers\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range :TblCustomers ;\n    rdfs:comment \"tbl_orders.CustId -> tbl_customers.CustomerId by rule R4.\" .\n\n:TblOrdersHasEmployees a owl:ObjectProperty ;\n    rdfs:label \"TblOrdersHasEmployees\" ;\n    rdfs:domain :TblOrders ;\n    rdfs:range :Employees ;\n    rdfs:comment \"tbl_orders.EmpId -> employees.EmployeeId by rule R4.\" .\n\n:TblOrderLinesHasTblOrders a owl:ObjectProperty ;\n    rdfs:label \"TblOrderLinesHasTblOrders\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range :TblOrders ;\n    rdfs:comment \"tbl_order_lines.OrderId -> tbl_orders.OrderId by rule R1.\" .\n\n:TblOrderLinesHasProducts a owl:ObjectProperty ;\n    rdfs:label \"TblOrderLinesHasProducts\" ;\n    rdfs:domain :TblOrderLines ;\n    rdfs:range :Products ;\n    rdfs:comment \"tbl_order_lines.ProdId -> products.ProductId by rule R4.\" .\n\n:ProductsHasCategories a owl:ObjectProperty ;\n    rdfs:label \"ProductsHasCategories\" ;\n    rdfs:domain :Products ;\n    rdfs:range :Categories ;\n    rdfs:comment \"products.CatId -> categories.CategoryId by rule R4.\" .\n",
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "categories": [
+    [
+     "CategoryId"
+    ],
+    "K2"
+   ],
+   "departments": [
+    [
+     "DepartmentId"
+    ],
+    "K2"
+   ],
+   "employees": [
+    [
+     "EmployeeId"
+    ],
+    "K2"
+   ],
+   "products": [
+    [
+     "ProductId"
+    ],
+    "K2"
+   ],
+   "tbl_customers": [
+    [
+     "CustomerId"
+    ],
+    "K2"
+   ],
+   "tbl_order_lines": [
+    [
+     "OrderId",
+     "LineNo"
+    ],
+    "K5"
+   ],
+   "tbl_orders": [
+    [
+     "OrderId"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  tbl_customers {\n    CustomerId int PK\n    CustomerName nvarchar\n    AcctMgrId int\n  }\n  departments {\n    DepartmentId int PK\n    DepartmentName nvarchar\n  }\n  employees {\n    EmployeeId int PK\n    FullName nvarchar\n    DeptId int\n    ManagerId int\n  }\n  tbl_orders {\n    OrderId int PK\n    CustId int\n    EmpId int\n    OrderDate date\n    TotalAmount decimal\n  }\n  tbl_order_lines {\n    OrderId int PK\n    LineNo int PK\n    ProdId int\n    Qty int\n  }\n  products {\n    ProductId int PK\n    ProductName nvarchar\n    CatId int\n  }\n  categories {\n    CategoryId int PK\n    CategoryName nvarchar\n  }\n  departments ||--o{ employees : \"DeptId R4\"\n  tbl_customers ||--o{ tbl_orders : \"CustId R4\"\n  employees ||--o{ tbl_orders : \"EmpId R4\"\n  tbl_orders ||--o{ tbl_order_lines : \"OrderId R1\"\n  products ||--o{ tbl_order_lines : \"ProdId R4\"\n  categories ||--o{ products : \"CatId R4\"",
+  "relationships": [
+   {
+    "field_name": "department",
+    "note": "through the synonym table: dept -> department",
+    "reverse_name": "employees",
+    "rule": "R4",
+    "source": "employees",
+    "source_cols": [
+     "DeptId"
+    ],
+    "target": "departments",
+    "target_cols": [
+     "DepartmentId"
+    ]
+   },
+   {
+    "field_name": "cust",
+    "note": "through the synonym table: cust -> customer",
+    "reverse_name": "tbl_orders_as_cust",
+    "rule": "R4",
+    "source": "tbl_orders",
+    "source_cols": [
+     "CustId"
+    ],
+    "target": "tbl_customers",
+    "target_cols": [
+     "CustomerId"
+    ]
+   },
+   {
+    "field_name": "employee",
+    "note": "through the synonym table: emp -> employee",
+    "reverse_name": "tbl_orders",
+    "rule": "R4",
+    "source": "tbl_orders",
+    "source_cols": [
+     "EmpId"
+    ],
+    "target": "employees",
+    "target_cols": [
+     "EmployeeId"
+    ]
+   },
+   {
+    "field_name": "tbl_order",
+    "note": "",
+    "reverse_name": "tbl_order_lines",
+    "rule": "R1",
+    "source": "tbl_order_lines",
+    "source_cols": [
+     "OrderId"
+    ],
+    "target": "tbl_orders",
+    "target_cols": [
+     "OrderId"
+    ]
+   },
+   {
+    "field_name": "product",
+    "note": "through the synonym table: prod -> product",
+    "reverse_name": "tbl_order_lines",
+    "rule": "R4",
+    "source": "tbl_order_lines",
+    "source_cols": [
+     "ProdId"
+    ],
+    "target": "products",
+    "target_cols": [
+     "ProductId"
+    ]
+   },
+   {
+    "field_name": "category",
+    "note": "through the synonym table: cat -> category",
+    "reverse_name": "products",
+    "rule": "R4",
+    "source": "products",
+    "source_cols": [
+     "CatId"
+    ],
+    "target": "categories",
+    "target_cols": [
+     "CategoryId"
+    ]
+   }
+  ],
+  "summary": "7 tables, 7 with keys, 6 relationships\n5 name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms",
+  "synonyms": [
+   {
+    "column": "DeptId",
+    "rule": "R4",
+    "table": "employees",
+    "target": "departments",
+    "via": "dept -> department"
+   },
+   {
+    "column": "CustId",
+    "rule": "R4",
+    "table": "tbl_orders",
+    "target": "tbl_customers",
+    "via": "cust -> customer"
+   },
+   {
+    "column": "EmpId",
+    "rule": "R4",
+    "table": "tbl_orders",
+    "target": "employees",
+    "via": "emp -> employee"
+   },
+   {
+    "column": "ProdId",
+    "rule": "R4",
+    "table": "tbl_order_lines",
+    "target": "products",
+    "via": "prod -> product"
+   },
+   {
+    "column": "CatId",
+    "rule": "R4",
+    "table": "products",
+    "target": "categories",
+    "via": "cat -> category"
+   }
+  ]
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Categories.ts": "// rayfin/connectors/<connector>/Categories.ts — generated by fabric-backend from dbo.categories\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key CategoryId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Categories extends Source({ schema: 'dbo', table: 'categories', primaryKey: ['categoryId'] }) {\n  @int({ column: 'CategoryId' }) categoryId!: number;\n  @text({ column: 'CategoryName' }) categoryName!: string;\n\n  @many(() => Products, { sourceFields: ['categoryId'], targetFields: ['catId'] }) products?: Products[];    // products.CatId [R4]\n}\n",
+  "rayfin/connectors/data/Departments.ts": "// rayfin/connectors/<connector>/Departments.ts — generated by fabric-backend from dbo.departments\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Employees } from './Employees.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key DepartmentId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Departments extends Source({ schema: 'dbo', table: 'departments', primaryKey: ['departmentId'] }) {\n  @int({ column: 'DepartmentId' }) departmentId!: number;\n  @text({ column: 'DepartmentName' }) departmentName!: string;\n\n  @many(() => Employees, { sourceFields: ['departmentId'], targetFields: ['deptId'] }) employees?: Employees[];    // employees.DeptId [R4]\n}\n",
+  "rayfin/connectors/data/Employees.ts": "// rayfin/connectors/<connector>/Employees.ts — generated by fabric-backend from dbo.employees\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Departments } from './Departments.js';\nimport { TblOrders } from './TblOrders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key EmployeeId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Employees extends Source({ schema: 'dbo', table: 'employees', primaryKey: ['employeeId'] }) {\n  @int({ column: 'EmployeeId' }) employeeId!: number;\n  @text({ column: 'FullName' }) fullName!: string;\n  @int({ column: 'DeptId' }) deptId!: number;\n  @int({ column: 'ManagerId' }) managerId!: number;\n\n  @one(() => Departments, { sourceFields: ['deptId'], targetFields: ['departmentId'] }) department?: Departments;    // DeptId -> departments [R4]\n  @many(() => TblOrders, { sourceFields: ['employeeId'], targetFields: ['empId'] }) tblOrders?: TblOrders[];    // tbl_orders.EmpId [R4]\n}\n",
+  "rayfin/connectors/data/Products.ts": "// rayfin/connectors/<connector>/Products.ts — generated by fabric-backend from dbo.products\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Categories } from './Categories.js';\nimport { TblOrderLines } from './TblOrderLines.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key ProductId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Products extends Source({ schema: 'dbo', table: 'products', primaryKey: ['productId'] }) {\n  @int({ column: 'ProductId' }) productId!: number;\n  @text({ column: 'ProductName' }) productName!: string;\n  @int({ column: 'CatId' }) catId!: number;\n\n  @many(() => TblOrderLines, { sourceFields: ['productId'], targetFields: ['prodId'] }) tblOrderLines?: TblOrderLines[];    // tbl_order_lines.ProdId [R4]\n  @one(() => Categories, { sourceFields: ['catId'], targetFields: ['categoryId'] }) category?: Categories;    // CatId -> categories [R4]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n7 entities, 6 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: TblCustomers, Departments, Employees, TblOrders, TblOrderLines, Products, Categories\n",
+  "rayfin/connectors/data/TblCustomers.ts": "// rayfin/connectors/<connector>/TblCustomers.ts — generated by fabric-backend from dbo.tbl_customers\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { TblOrders } from './TblOrders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key CustomerId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class TblCustomers extends Source({ schema: 'dbo', table: 'tbl_customers', primaryKey: ['customerId'] }) {\n  @int({ column: 'CustomerId' }) customerId!: number;\n  @text({ column: 'CustomerName' }) customerName!: string;\n  @int({ column: 'AcctMgrId' }) acctMgrId!: number;\n\n  @many(() => TblOrders, { sourceFields: ['customerId'], targetFields: ['custId'] }) tblOrdersAsCust?: TblOrders[];    // tbl_orders.CustId [R4]\n}\n",
+  "rayfin/connectors/data/TblOrderLines.ts": "// rayfin/connectors/<connector>/TblOrderLines.ts — generated by fabric-backend from dbo.tbl_order_lines\nimport { entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\nimport { TblOrders } from './TblOrders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderId+LineNo by rule K5\nexport class TblOrderLines extends Source({ schema: 'dbo', table: 'tbl_order_lines', primaryKey: ['orderId', 'lineNo'] }) {\n  @int({ column: 'OrderId' }) orderId!: number;\n  @int({ column: 'LineNo' }) lineNo!: number;\n  @int({ column: 'ProdId' }) prodId!: number;\n  @int({ column: 'Qty' }) qty!: number;\n\n  @one(() => TblOrders, { sourceFields: ['orderId'], targetFields: ['orderId'] }) tblOrder?: TblOrders;    // OrderId -> tbl_orders [R1]\n  @one(() => Products, { sourceFields: ['prodId'], targetFields: ['productId'] }) product?: Products;    // ProdId -> products [R4]\n}\n",
+  "rayfin/connectors/data/TblOrders.ts": "// rayfin/connectors/<connector>/TblOrders.ts — generated by fabric-backend from dbo.tbl_orders\nimport { date, decimal, entity, int, many, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Employees } from './Employees.js';\nimport { TblCustomers } from './TblCustomers.js';\nimport { TblOrderLines } from './TblOrderLines.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class TblOrders extends Source({ schema: 'dbo', table: 'tbl_orders', primaryKey: ['orderId'] }) {\n  @int({ column: 'OrderId' }) orderId!: number;\n  @int({ column: 'CustId' }) custId!: number;\n  @int({ column: 'EmpId' }) empId!: number;\n  @date({ column: 'OrderDate' }) orderDate!: Date;\n  @decimal({ column: 'TotalAmount' }) totalAmount!: number;\n\n  @one(() => TblCustomers, { sourceFields: ['custId'], targetFields: ['customerId'] }) cust?: TblCustomers;    // CustId -> tbl_customers [R4]\n  @one(() => Employees, { sourceFields: ['empId'], targetFields: ['employeeId'] }) employee?: Employees;    // EmpId -> employees [R4]\n  @many(() => TblOrderLines, { sourceFields: ['orderId'], targetFields: ['orderId'] }) tblOrderLines?: TblOrderLines[];    // tbl_order_lines.OrderId [R1]\n}\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { TblCustomers } from './TblCustomers.js';\nimport { Departments } from './Departments.js';\nimport { Employees } from './Employees.js';\nimport { TblOrders } from './TblOrders.js';\nimport { TblOrderLines } from './TblOrderLines.js';\nimport { Products } from './Products.js';\nimport { Categories } from './Categories.js';\n\nexport { TblCustomers } from './TblCustomers.js';\nexport { Departments } from './Departments.js';\nexport { Employees } from './Employees.js';\nexport { TblOrders } from './TblOrders.js';\nexport { TblOrderLines } from './TblOrderLines.js';\nexport { Products } from './Products.js';\nexport { Categories } from './Categories.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { TblCustomers, Departments, Employees, TblOrders, TblOrderLines, Products, Categories },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { TblCustomers: typeof TblCustomers, Departments: typeof Departments, Employees: typeof Employees, TblOrders: typeof TblOrders, TblOrderLines: typeof TblOrderLines, Products: typeof Products, Categories: typeof Categories },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DepartmentId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[employees] AS s LEFT JOIN (SELECT DISTINCT [DepartmentId] FROM [dbo].[departments]) AS t ON s.[DeptId] = t.[DepartmentId] WHERE s.[DeptId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CustomerId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[tbl_orders] AS s LEFT JOIN (SELECT DISTINCT [CustomerId] FROM [dbo].[tbl_customers]) AS t ON s.[CustId] = t.[CustomerId] WHERE s.[CustId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[EmployeeId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[tbl_orders] AS s LEFT JOIN (SELECT DISTINCT [EmployeeId] FROM [dbo].[employees]) AS t ON s.[EmpId] = t.[EmployeeId] WHERE s.[EmpId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[OrderId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[tbl_order_lines] AS s LEFT JOIN (SELECT DISTINCT [OrderId] FROM [dbo].[tbl_orders]) AS t ON s.[OrderId] = t.[OrderId] WHERE s.[OrderId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[ProductId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[tbl_order_lines] AS s LEFT JOIN (SELECT DISTINCT [ProductId] FROM [dbo].[products]) AS t ON s.[ProdId] = t.[ProductId] WHERE s.[ProdId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CategoryId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[products] AS s LEFT JOIN (SELECT DISTINCT [CategoryId] FROM [dbo].[categories]) AS t ON s.[CatId] = t.[CategoryId] WHERE s.[CatId] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "categories": "SELECT TOP (10) [CategoryId], [CategoryName] FROM [dbo].[categories]",
+  "departments": "SELECT TOP (10) [DepartmentId], [DepartmentName] FROM [dbo].[departments]",
+  "employees": "SELECT TOP (10) [EmployeeId], [FullName], [DeptId], [ManagerId] FROM [dbo].[employees]",
+  "products": "SELECT TOP (10) [ProductId], [ProductName], [CatId] FROM [dbo].[products]",
+  "tbl_customers": "SELECT TOP (10) [CustomerId], [CustomerName], [AcctMgrId] FROM [dbo].[tbl_customers]",
+  "tbl_order_lines": "SELECT TOP (10) [OrderId], [LineNo], [ProdId], [Qty] FROM [dbo].[tbl_order_lines]",
+  "tbl_orders": "SELECT TOP (10) [OrderId], [CustId], [EmpId], [OrderDate], [TotalAmount] FROM [dbo].[tbl_orders]"
+ },
+ "semantic_model": {
+  "bytes": 20914,
+  "sha256": "8b3b7a1f0e0ee5acfb36309829af87b6e1a60ea2efbc4f5fde9f8dc80eb3bbef"
+ },
+ "silver": "# Fabric notebook source\n\n# METADATA ********************\n\n# META {\n# META   \"kernel_info\": {\n# META     \"name\": \"synapse_pyspark\"\n# META   },\n# META   \"dependencies\": {\n# META     \"lakehouse\": {\n# META       \"default_lakehouse\": \"lh-1\",\n# META       \"default_lakehouse_name\": \"src\",\n# META       \"default_lakehouse_workspace_id\": \"ws-1\"\n# META     }\n# META   }\n# META }\n\n# MARKDOWN ********************\n\n# # Silver tables for src.dbo\n#\n# Generated by Krusgraph from the plan: clean copies of 7 table(s) in tables prefixed `silver_`, de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in `krusgraph_quarantine` with the reason. The source tables are only read. Run it again at any time: every silver table is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.\n\n# PARAMETERS CELL ********************\n\nSILVER_SCHEMA = \"silver\"   # where the silver tables go; never the source schema\nTABLE_FORMAT = \"delta\"     # lakehouse tables are Delta; leave as it is\nMASK_PERSONAL_DATA = True   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\nfrom datetime import datetime, timezone\nfrom pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nSOURCE_SCHEMA = None\nSCHEMAS_ENABLED = False\n# Written into every silver table as the property krusgraph.silver: a table carrying another value (or none) belongs to\n# someone else, and this notebook never overwrites it.\nOWNER = \"lh-1/dbo\"\n# Every table of the source schema: none of them is ever a write target.\nSOURCE_TABLES = [\"categories\", \"departments\", \"employees\", \"products\", \"tbl_customers\", \"tbl_order_lines\", \"tbl_orders\"]\n# The silver tables this notebook writes, plus the quarantine table.\nWRITES = [\"categories\", \"departments\", \"employees\", \"products\", \"tbl_customers\", \"tbl_orders\", \"tbl_order_lines\", \"krusgraph_quarantine\"]\n# Columns whose name looks like personal data (Krusgraph's rules P1-P6, by name): masked in the quarantine's row_json while\n# MASK_PERSONAL_DATA is True. The silver tables themselves keep every column.\nPERSONAL_COLUMNS = {\"employees\": [\"FullName\"], \"tbl_customers\": [\"CustomerName\"]}\nRUN_AT = datetime.now(timezone.utc).replace(microsecond=0)\n\n\ndef q(*parts):\n    \"\"\"A table name with every part quoted, for names with spaces or other characters.\"\"\"\n    return \".\".join(\"`\" + str(p).replace(\"`\", \"``\") + \"`\" for p in parts if p)\n\n\ndef source(table):\n    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)\n\n\ndef target(table):\n    # The silver tables live in a schema of their own (on a lakehouse without schemas: a prefix), never on a source table.\n    return q(SILVER_SCHEMA, table) if SCHEMAS_ENABLED else q(f\"{SILVER_SCHEMA}_{table}\")\n\n\ndef col(name):\n    return F.col(\"`\" + name.replace(\"`\", \"``\") + \"`\")\n\n\ndef is_ours_or_absent(name):\n    \"\"\"A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = OWNER).\"\"\"\n    if not spark.catalog.tableExists(name):\n        return True\n    props = {r[0]: r[1] for r in spark.sql(f\"SHOW TBLPROPERTIES {name}\").collect()}\n    return props.get(\"krusgraph.silver\") == OWNER\n\n\n# Guard before anything is written: no target is a source table, and no target is someone else's table.\n_sources = {source(t).lower() for t in SOURCE_TABLES}\nfor _t in WRITES:\n    if target(_t).lower() in _sources:\n        raise ValueError(f\"{target(_t)} is a source table; choose another SILVER_SCHEMA. Nothing was written.\")\n    if not is_ours_or_absent(target(_t)):\n        raise ValueError(f\"{target(_t)} exists and was not written by this notebook (for {OWNER}); nothing was written. \"\n                         \"Choose another SILVER_SCHEMA.\")\nif SCHEMAS_ENABLED:\n    spark.sql(f\"CREATE SCHEMA IF NOT EXISTS {q(SILVER_SCHEMA)}\")\n\nquarantined = []      # (rows, source table, rule, reason), written together at the end\nsilver = {}           # table -> its silver DataFrame, read back after writing\nread_counts = {}\n\n\ndef to_quarantine(rows, table, rule, reason):\n    masked = set(PERSONAL_COLUMNS.get(table, [])) if MASK_PERSONAL_DATA else set()\n    fields = [F.when(col(c).isNull(), F.lit(None).cast(\"string\")).otherwise(F.lit(\"***\")).alias(c) if c in masked else col(c)\n              for c in rows.columns]\n    quarantined.append(rows.select(F.lit(table).alias(\"source_table\"), F.lit(rule).alias(\"rule\"), F.lit(reason).alias(\"reason\"),\n                                   F.to_json(F.struct(*fields)).alias(\"row_json\")))\n\n\ndef drop_null_keys(df, key, table, rule):\n    missing = None\n    for c in key:\n        missing = col(c).isNull() if missing is None else (missing | col(c).isNull())\n    to_quarantine(df.filter(missing), table, rule, f\"the key ({', '.join(key)}) is NULL\")\n    return df.filter(~missing)\n\n\ndef keep_latest(df, key, order_column, table, rule):\n    content = F.sha2(F.to_json(F.struct(*[col(c) for c in df.columns])), 256)\n    order = ([col(order_column).desc_nulls_last()] if order_column else []) + [content.desc()]\n    ranked = df.withColumn(\"_krusgraph_rank\", F.row_number().over(Window.partitionBy(*[col(c) for c in key]).orderBy(*order)))\n    reason = (f\"another row has the same key ({', '.join(key)}); the row with the latest {order_column} was kept\" if order_column\n              else f\"another row has the same key ({', '.join(key)}); one row per key was kept (no ordering column: pass order_by)\")\n    to_quarantine(ranked.filter(F.col(\"_krusgraph_rank\") > 1).drop(\"_krusgraph_rank\"), table, rule, reason)\n    return ranked.filter(F.col(\"_krusgraph_rank\") == 1).drop(\"_krusgraph_rank\")\n\n\ndef check_reference(df, columns, parent_df, parent_columns, table, rule, reason):\n    \"\"\"Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays.\"\"\"\n    parent_keys = parent_df.select(*[col(c).alias(f\"_krusgraph_p{i}\") for i, c in enumerate(parent_columns)]).distinct()\n    has_ref, on = None, None\n    for i, c in enumerate(columns):\n        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())\n        match = col(c) == F.col(f\"_krusgraph_p{i}\")\n        on = match if on is None else (on & match)\n    with_ref = df.filter(has_ref)\n    to_quarantine(with_ref.join(parent_keys, on, \"left_anti\"), table, rule, reason)\n    return df.filter(~has_ref).unionByName(with_ref.join(parent_keys, on, \"left_semi\"))\n\n\ndef write_silver(df, table):\n    name = target(table)\n    if not is_ours_or_absent(name):\n        raise ValueError(f\"{name} exists and was not written by this notebook; it was left as it is.\")\n    df.write.format(TABLE_FORMAT).mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(name)\n    spark.sql(f\"ALTER TABLE {name} SET TBLPROPERTIES ('krusgraph.silver' = '{OWNER.replace(chr(39), chr(39) * 2)}')\")\n    return spark.read.table(name)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- categories -> silver_categories ----\n# Key CategoryId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"CategoryId\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"CategoryId\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- departments -> silver_departments ----\n# Key DepartmentId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"departments\"))\nread_counts[\"departments\"] = df.count()\ndf = drop_null_keys(df, [\"DepartmentId\"], \"departments\", \"K2\")\ndf = keep_latest(df, [\"DepartmentId\"], None, \"departments\", \"K2\")\nsilver[\"departments\"] = write_silver(df, \"departments\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- employees -> silver_employees ----\n# Key EmployeeId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"employees\"))\nread_counts[\"employees\"] = df.count()\ndf = drop_null_keys(df, [\"EmployeeId\"], \"employees\", \"K2\")\ndf = keep_latest(df, [\"EmployeeId\"], None, \"employees\", \"K2\")\n# Reference employees.DeptId = departments.DepartmentId (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: dept -> department).\n# Checked against the silver departments, so rows whose departments was quarantined follow it there.\ndf = check_reference(df, [\"DeptId\"], silver[\"departments\"], [\"DepartmentId\"], \"employees\", \"R4\", \"DeptId has no row in departments (employees.DeptId = departments.DepartmentId)\")\nsilver[\"employees\"] = write_silver(df, \"employees\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- products -> silver_products ----\n# Key ProductId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"ProductId\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"ProductId\"], None, \"products\", \"K2\")\n# Reference products.CatId = categories.CategoryId (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: cat -> category).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"CatId\"], silver[\"categories\"], [\"CategoryId\"], \"products\", \"R4\", \"CatId has no row in categories (products.CatId = categories.CategoryId)\")\nsilver[\"products\"] = write_silver(df, \"products\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- tbl_customers -> silver_tbl_customers ----\n# Key CustomerId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"tbl_customers\"))\nread_counts[\"tbl_customers\"] = df.count()\ndf = drop_null_keys(df, [\"CustomerId\"], \"tbl_customers\", \"K2\")\ndf = keep_latest(df, [\"CustomerId\"], None, \"tbl_customers\", \"K2\")\nsilver[\"tbl_customers\"] = write_silver(df, \"tbl_customers\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- tbl_orders -> silver_tbl_orders ----\n# Key OrderId (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"tbl_orders\"))\nread_counts[\"tbl_orders\"] = df.count()\ndf = drop_null_keys(df, [\"OrderId\"], \"tbl_orders\", \"K2\")\ndf = keep_latest(df, [\"OrderId\"], None, \"tbl_orders\", \"K2\")\n# Reference tbl_orders.CustId = tbl_customers.CustomerId (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: cust -> customer).\n# Checked against the silver tbl_customers, so rows whose tbl_customers was quarantined follow it there.\ndf = check_reference(df, [\"CustId\"], silver[\"tbl_customers\"], [\"CustomerId\"], \"tbl_orders\", \"R4\", \"CustId has no row in tbl_customers (tbl_orders.CustId = tbl_customers.CustomerId)\")\n# Reference tbl_orders.EmpId = employees.EmployeeId (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: emp -> employee).\n# Checked against the silver employees, so rows whose employees was quarantined follow it there.\ndf = check_reference(df, [\"EmpId\"], silver[\"employees\"], [\"EmployeeId\"], \"tbl_orders\", \"R4\", \"EmpId has no row in employees (tbl_orders.EmpId = employees.EmployeeId)\")\nsilver[\"tbl_orders\"] = write_silver(df, \"tbl_orders\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- tbl_order_lines -> silver_tbl_order_lines ----\n# Key OrderId + LineNo (rule K5: line: no column names a key).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"tbl_order_lines\"))\nread_counts[\"tbl_order_lines\"] = df.count()\ndf = drop_null_keys(df, [\"OrderId\", \"LineNo\"], \"tbl_order_lines\", \"K5\")\ndf = keep_latest(df, [\"OrderId\", \"LineNo\"], None, \"tbl_order_lines\", \"K5\")\n# Reference tbl_order_lines.OrderId = tbl_orders.OrderId (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver tbl_orders, so rows whose tbl_orders was quarantined follow it there.\ndf = check_reference(df, [\"OrderId\"], silver[\"tbl_orders\"], [\"OrderId\"], \"tbl_order_lines\", \"R1\", \"OrderId has no row in tbl_orders (tbl_order_lines.OrderId = tbl_orders.OrderId)\")\n# Reference tbl_order_lines.ProdId = products.ProductId (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: prod -> product).\n# Checked against the silver products, so rows whose products was quarantined follow it there.\ndf = check_reference(df, [\"ProdId\"], silver[\"products\"], [\"ProductId\"], \"tbl_order_lines\", \"R4\", \"ProdId has no row in products (tbl_order_lines.ProdId = products.ProductId)\")\nsilver[\"tbl_order_lines\"] = write_silver(df, \"tbl_order_lines\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- quarantine and summary ----\n# Every row left out above is in the quarantine table with its source table, the rule and the reason. The table is\n# rewritten on every run, so it always shows the latest run.\nq_rows = spark.createDataFrame([], \"source_table string, rule string, reason string, row_json string\")\nfor part in quarantined:\n    q_rows = q_rows.unionByName(part)\nq_rows = q_rows.withColumn(\"checked_at\", F.lit(RUN_AT))\nwrite_silver(q_rows, \"krusgraph_quarantine\")\nsummary = {t: {\"read\": read_counts[t], \"silver\": silver[t].count()} for t in silver}\nfor r in spark.read.table(target(\"krusgraph_quarantine\")).groupBy(\"source_table\", \"rule\", \"reason\").count().collect():\n    summary[r[\"source_table\"]].setdefault(\"quarantined\", []).append({\"rule\": r[\"rule\"], \"reason\": r[\"reason\"], \"rows\": r[\"count\"]})\nfor t, s in summary.items():\n    print(t, s)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n",
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_tbl_order_lines",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_order_lines] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[LineNo] AS [LineNo],\n    f.[ProdId] AS [ProdId],\n    f.[Qty] AS [Qty],\n    d1.[ProductId] AS [products_ProductId],\n    d1.[ProductName] AS [products_ProductName],\n    d1.[CatId] AS [products_CatId],\n    d2.[OrderId] AS [tbl_orders_OrderId],\n    d2.[CustId] AS [tbl_orders_CustId],\n    d2.[EmpId] AS [tbl_orders_EmpId],\n    d2.[OrderDate] AS [tbl_orders_OrderDate],\n    d2.[TotalAmount] AS [tbl_orders_TotalAmount],\n    d3.[CategoryId] AS [categories_CategoryId],\n    d3.[CategoryName] AS [categories_CategoryName],\n    d4.[EmployeeId] AS [employees_EmployeeId],\n    d4.[FullName] AS [employees_FullName],\n    d4.[DeptId] AS [employees_DeptId],\n    d4.[ManagerId] AS [employees_ManagerId],\n    d5.[CustomerId] AS [tbl_customers_CustomerId],\n    d5.[CustomerName] AS [tbl_customers_CustomerName],\n    d5.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d6.[DepartmentId] AS [departments_DepartmentId],\n    d6.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_order_lines] AS f\n    LEFT JOIN [dbo].[products] AS d1 ON f.[ProdId] = d1.[ProductId]\n    LEFT JOIN [dbo].[tbl_orders] AS d2 ON f.[OrderId] = d2.[OrderId]\n    LEFT JOIN [dbo].[categories] AS d3 ON d1.[CatId] = d3.[CategoryId]\n    LEFT JOIN [dbo].[employees] AS d4 ON d2.[EmpId] = d4.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d5 ON d2.[CustId] = d5.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d6 ON d4.[DeptId] = d6.[DepartmentId]",
+    "tables": [
+     "tbl_order_lines",
+     "products",
+     "tbl_orders",
+     "categories",
+     "employees",
+     "tbl_customers",
+     "departments"
+    ],
+    "why": "tbl_order_lines is a fact table (6 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_tbl_orders",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[CustId] AS [CustId],\n    f.[EmpId] AS [EmpId],\n    f.[OrderDate] AS [OrderDate],\n    f.[TotalAmount] AS [TotalAmount],\n    d1.[EmployeeId] AS [employees_EmployeeId],\n    d1.[FullName] AS [employees_FullName],\n    d1.[DeptId] AS [employees_DeptId],\n    d1.[ManagerId] AS [employees_ManagerId],\n    d2.[CustomerId] AS [tbl_customers_CustomerId],\n    d2.[CustomerName] AS [tbl_customers_CustomerName],\n    d2.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d3.[DepartmentId] AS [departments_DepartmentId],\n    d3.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_orders] AS f\n    LEFT JOIN [dbo].[employees] AS d1 ON f.[EmpId] = d1.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d2 ON f.[CustId] = d2.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d3 ON d1.[DeptId] = d3.[DepartmentId]",
+    "tables": [
+     "tbl_orders",
+     "employees",
+     "tbl_customers",
+     "departments"
+    ],
+    "why": "tbl_orders is a header table: tbl_order_lines holds its lines; one row per tbl_orders row, with its 3 dimension(s) joined in"
+   },
+   {
+    "name": "vw_employees_department",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_employees_department] AS\nSELECT\n    s.[EmployeeId] AS [EmployeeId],\n    s.[FullName] AS [FullName],\n    s.[DeptId] AS [DeptId],\n    s.[ManagerId] AS [ManagerId],\n    t.[DepartmentId] AS [departments_DepartmentId],\n    t.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[employees] AS s\n    LEFT JOIN [dbo].[departments] AS t ON s.[DeptId] = t.[DepartmentId]",
+    "tables": [
+     "employees",
+     "departments"
+    ],
+    "why": "employees.DeptId -> departments (R4): the column abbreviates or role-prefixes the target"
+   },
+   {
+    "name": "vw_tbl_orders_cust",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_cust] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[CustomerId] AS [tbl_customers_CustomerId],\n    t.[CustomerName] AS [tbl_customers_CustomerName],\n    t.[AcctMgrId] AS [tbl_customers_AcctMgrId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[tbl_customers] AS t ON s.[CustId] = t.[CustomerId]",
+    "tables": [
+     "tbl_orders",
+     "tbl_customers"
+    ],
+    "why": "tbl_orders.CustId -> tbl_customers (R4): the column abbreviates or role-prefixes the target"
+   },
+   {
+    "name": "vw_tbl_orders_employee",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_employee] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[EmployeeId] AS [employees_EmployeeId],\n    t.[FullName] AS [employees_FullName],\n    t.[DeptId] AS [employees_DeptId],\n    t.[ManagerId] AS [employees_ManagerId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[employees] AS t ON s.[EmpId] = t.[EmployeeId]",
+    "tables": [
+     "tbl_orders",
+     "employees"
+    ],
+    "why": "tbl_orders.EmpId -> employees (R4): the column abbreviates or role-prefixes the target"
+   },
+   {
+    "name": "vw_tbl_order_lines_product",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_order_lines_product] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[LineNo] AS [LineNo],\n    s.[ProdId] AS [ProdId],\n    s.[Qty] AS [Qty],\n    t.[ProductId] AS [products_ProductId],\n    t.[ProductName] AS [products_ProductName],\n    t.[CatId] AS [products_CatId]\nFROM [dbo].[tbl_order_lines] AS s\n    LEFT JOIN [dbo].[products] AS t ON s.[ProdId] = t.[ProductId]",
+    "tables": [
+     "tbl_order_lines",
+     "products"
+    ],
+    "why": "tbl_order_lines.ProdId -> products (R4): the column abbreviates or role-prefixes the target"
+   },
+   {
+    "name": "vw_products_category",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_products_category] AS\nSELECT\n    s.[ProductId] AS [ProductId],\n    s.[ProductName] AS [ProductName],\n    s.[CatId] AS [CatId],\n    t.[CategoryId] AS [categories_CategoryId],\n    t.[CategoryName] AS [categories_CategoryName]\nFROM [dbo].[products] AS s\n    LEFT JOIN [dbo].[categories] AS t ON s.[CatId] = t.[CategoryId]",
+    "tables": [
+     "products",
+     "categories"
+    ],
+    "why": "products.CatId -> categories (R4): the column abbreviates or role-prefixes the target"
+   }
+  ]
+ }
+}

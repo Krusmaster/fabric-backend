@@ -1,0 +1,3111 @@
+{
+ "instructions": "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and relationships against the rows (create_backend does not run it, and has no dry run), then create_backend. Before query_graphql, describe_backend gives the exact field names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4); ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft (a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; plan_drift before re-running create_backend on an existing API, to see what would change. One plan, five Fabric pieces: create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all but create_backend answer with what they would create until dry_run=false. Creating a semantic model, ontology, data agent, notebook or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use it (introspection, permissions, keys, relationships) with the next step per item. lineage shows which GraphQL APIs, semantic models, views and data agents in the workspace build on a source's tables and what a change to one table reaches; plan_drift names those objects for the tables and columns a re-run would drop. analyze_schema reads an unknown lakehouse as a graph (table roles, central tables, subject areas, cycles, which relationships can be active); suggest_relationships when the plan lacks links: it ranks candidate columns and checks the best against the data, suggesting only. From understanding to building: silver_notebook_draft and create_silver_notebook give a Fabric PySpark notebook that writes de-duplicated silver tables with every reference checked and a quarantine table, never over the source; drift_monitor_draft and create_drift_monitor a nightly notebook and pipeline that compare the plan with the last one and message a webhook; answer_query_draft turns a question (Swedish or English) into T-SQL over the safest join path, or GraphQL for an existing API, and query_graphql with question= runs it. gold_views_draft and create_gold_views give materialized lake views over the silver tables, one wide view per fact table with the plan's keys and relationships as data quality rules; compare_semantic_model checks an existing Power BI semantic model against the plan (missing, contradicted, cardinality, direction, active); export_item_definitions gives what the creating tools would create as files in Fabric's Git format, for the user's own repository. Columns that look like personal data by name are masked in sample_rows and left out of drafted queries and gold views unless show_personal_data=true. Alongside Microsoft's own Fabric MCP servers (Fabric Core and the local Fabric MCP Server for workspaces, items and files; Fabric IQ MCP for questions to semantic models; Power BI Modeling MCP for editing a model), this server is the part that works out how the tables relate and builds from that plan. A call that cannot be completed answers with error (plain words), kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, rate_limited with retry_after) and hint (the next step that fixes it). Five first questions that pay off on a lakehouse nobody has documented: (1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; (4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the hand-over document with everything above.",
+ "tools": [
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Analyse the schema as a graph (roles, centrality, areas, ambiguity)"
+   },
+   "description": "The plan as a graph, from metadata only (no data queries): each table's role (fact, dimension, bridge,\nisolated) with the numbers behind it, the ten most central tables (in/out degree, betweenness, PageRank),\nsubject areas, cycles and table pairs with more than one path (where a Power BI model gets ambiguous filter\npaths), and the relationships that can be active at once in a semantic model with the rest explained as inactive.\nUseful on a lakehouse nobody has documented. `tables` narrows the answer to names or patterns; `detail` is\n\"auto\" (full up to 60 tables, then tables grouped by role, the central tables, areas by size and counts), \"full\"\nor \"summary\".",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "detail": {
+      "default": "auto",
+      "title": "Detail",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "analyze_schemaArguments",
+    "type": "object"
+   },
+   "name": "analyze_schema",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "analyze_schemaOutput",
+    "type": "object"
+   },
+   "title": "Analyse the schema as a graph (roles, centrality, areas, ambiguity)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Suggest a GraphQL or T-SQL query for a question (runs nothing)"
+   },
+   "description": "A query for a question in Swedish or English about the given tables: T-SQL over the safest join path of the plan\n(each step with the rule behind its relationship), and with `api` (an API for GraphQL item over the source) the\nGraphQL query in that API's field names, or why GraphQL cannot answer it (aggregations group only by a table's own\ncolumns). Reads counts, sums, averages, \"per\"/\"för varje\" groupings, top N and \"latest\" from the question and\nlists what it assumed. Columns that look like personal data by name are left out of the query (grouped by the key\ninstead) unless show_personal_data=true. Runs nothing; query_graphql with question= runs the GraphQL version.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Api"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "question": {
+      "title": "Question",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "items": {
+       "type": "string"
+      },
+      "title": "Tables",
+      "type": "array"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "question",
+     "tables"
+    ],
+    "title": "answer_query_draftArguments",
+    "type": "object"
+   },
+   "name": "answer_query_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "answer_query_draftOutput",
+    "type": "object"
+   },
+   "title": "Suggest a GraphQL or T-SQL query for a question (runs nothing)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "What an app still needs on a GraphQL API"
+   },
+   "description": "For an existing API for GraphQL item (name or id): what is in place and what is missing before an app can use it.\nReads the item's definition (types without a key, types in no relationship, write access) and sends one\nintrospection query to the endpoint to see whether introspection is on; permissions and the tenant setting for\nservice principals cannot be read through the Fabric API and are reported as unknown with the portal path.\nEach item carries its next step.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "title": "Api",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "api"
+    ],
+    "title": "app_readinessArguments",
+    "type": "object"
+   },
+   "name": "app_readiness",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "app_readinessOutput",
+    "type": "object"
+   },
+   "title": "What an app still needs on a GraphQL API"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Starter pack for an app on a GraphQL API"
+   },
+   "description": "Everything needed to start an app on a created API for GraphQL item, read from its definition: a Lovable\nprompt describing the data model and the main views, a connection description, five GraphQL queries that walk\nthe relationships, and the manual portal steps (introspection, permissions). Generates text only.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "title": "Api",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "api"
+    ],
+    "title": "app_starterArguments",
+    "type": "object"
+   },
+   "name": "app_starter",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "app_starterOutput",
+    "type": "object"
+   },
+   "title": "Starter pack for an app on a GraphQL API"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Compare an existing Power BI semantic model with the plan"
+   },
+   "description": "An existing semantic model in the workspace (name or id) against the plan for the source it reads: the\nrelationships the model lacks, the ones a rule of the plan or the data contradicts (with that rule or count), other\ncardinality, filters in both directions, active where the plan says inactive or the reverse, and links the plan does\nnot have (with a ready `confirmed` entry); also tables and columns that no longer match, columns summed that the\nplan would not sum, and the suggested measures the model lacks. The model is read through Fabric's getDefinition\n(TMDL), which needs SemanticModel.ReadWrite.All or Item.ReadWrite.All and write permission on the model; `tmdl`\n({path: text} of the model's definition files, as in a PBIP folder or Git) is read instead and needs no\npermission. check_data=true counts the plan's keys and relationships and the model's extra links against the rows\n(max_items caps the queries). Changes nothing.",
+   "input_schema": {
+    "properties": {
+     "check_data": {
+      "default": false,
+      "title": "Check Data",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "max_items": {
+      "default": 60,
+      "title": "Max Items",
+      "type": "integer"
+     },
+     "model": {
+      "default": "",
+      "title": "Model",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tmdl": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tmdl"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "compare_semantic_modelArguments",
+    "type": "object"
+   },
+   "name": "compare_semantic_model",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "compare_semantic_modelOutput",
+    "type": "object"
+   },
+   "title": "Compare an existing Power BI semantic model with the plan"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update the GraphQL API"
+   },
+   "description": "Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update\nthe item of that name in place. Creates one item; never deletes an item. When an API of that name exists and\nthe update would drop relationships it has (often ones confirmed earlier), nothing is written: the answer lists\nthem with ready `confirmed` entries; pass those to keep them, or allow_removals=true to drop them on purpose.\nReturns the endpoint URL and the portal steps that remain (introspection, service principal permission).",
+   "input_schema": {
+    "properties": {
+     "allow_removals": {
+      "default": false,
+      "title": "Allow Removals",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     },
+     "writable": {
+      "default": false,
+      "title": "Writable",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_backendArguments",
+    "type": "object"
+   },
+   "name": "create_backend",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_backendOutput",
+    "type": "object"
+   },
+   "title": "Create or update the GraphQL API"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update a Fabric data agent from the plan (dry run by default)"
+   },
+   "description": "A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its\ninstructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL\npairs, then published. Created through the public staging REST API; re-running updates the same agent, data\nsource and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls\nto review. Needs the delegated permission Item.ReadWrite.All (or DataAgent.ReadWrite.All for the staging calls).",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "publish": {
+      "default": true,
+      "title": "Publish",
+      "type": "boolean"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_data_agentArguments",
+    "type": "object"
+   },
+   "name": "create_data_agent",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_data_agentOutput",
+    "type": "object"
+   },
+   "title": "Create or update a Fabric data agent from the plan (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update the nightly drift monitor in Fabric (dry run by default)"
+   },
+   "description": "Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in\nplace, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret\nis written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the\ndefault) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or\nItem.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json).",
+   "input_schema": {
+    "properties": {
+     "at": {
+      "default": "02:00",
+      "title": "At",
+      "type": "string"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "library_ref": {
+      "default": "main",
+      "title": "Library Ref",
+      "type": "string"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "schedule": {
+      "default": true,
+      "title": "Schedule",
+      "type": "boolean"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "time_zone": {
+      "default": "W. Europe Standard Time",
+      "title": "Time Zone",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_drift_monitorArguments",
+    "type": "object"
+   },
+   "name": "create_drift_monitor",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_drift_monitorOutput",
+    "type": "object"
+   },
+   "title": "Create or update the nightly drift monitor in Fabric (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update the gold-views notebook in Fabric (dry run by default)"
+   },
+   "description": "Create a Fabric notebook item with the gold_views_draft notebook, attached to the lakehouse, or update the notebook\nof that name in place; never deletes, and creating it runs nothing: the views are created when the notebook runs,\nand it stops before writing over a source table, a silver table or any table it did not create. dry_run=true (the\ndefault) returns the views, the notebook and the REST call. Needs Notebook.ReadWrite.All or Item.ReadWrite.All and\nContributor on the workspace (fabric-rest-api-specs, notebook/swagger.json).",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "gold_schema": {
+      "default": "gold",
+      "title": "Gold Schema",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "silver",
+      "title": "Silver Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_gold_viewsArguments",
+    "type": "object"
+   },
+   "name": "create_gold_views",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_gold_viewsOutput",
+    "type": "object"
+   },
+   "title": "Create or update the gold-views notebook in Fabric (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update a Fabric IQ ontology from the plan (dry run by default)"
+   },
+   "description": "Create the Fabric IQ ontology (preview) item from the plan, or update the item of that name in place; never\ndeletes. dry_run=true (the default) returns the definition parts and the REST call without creating anything.\nPOST /workspaces/{id}/ontologies and .../updateDefinition need the delegated permission Item.ReadWrite.All and\nContributor on the workspace, and the workspace must be on a Fabric capacity (fabric-rest-api-specs,\nontology/swagger.json). Entity types with keys and properties, relationship types and the bindings come from the\nsame plan as the GraphQL API, the semantic model, the views and the data agent.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_ontologyArguments",
+    "type": "object"
+   },
+   "name": "create_ontology",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_ontologyOutput",
+    "type": "object"
+   },
+   "title": "Create or update a Fabric IQ ontology from the plan (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update a Power BI semantic model (dry run by default)"
+   },
+   "description": "Create a Fabric SemanticModel item from the TMDL draft (Direct Lake on the source's SQL analytics endpoint), or\nupdate the item of that name in place; never deletes. dry_run=true (the default) returns exactly what would be\nsent — the parts and the REST call — without creating anything. Needs the delegated permission\nSemanticModel.ReadWrite.All or Item.ReadWrite.All and Contributor on the workspace. After creation the model may\nneed a first refresh (framing) and, in the portal, a connection/credential for the endpoint.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_semantic_modelArguments",
+    "type": "object"
+   },
+   "name": "create_semantic_model",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_semantic_modelOutput",
+    "type": "object"
+   },
+   "title": "Create or update a Power BI semantic model (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or update the silver-tables notebook in Fabric (dry run by default)"
+   },
+   "description": "Create a Fabric notebook item with the silver_notebook_draft notebook, attached to the source lakehouse, or update\nthe notebook of that name in place; never deletes, and creating it runs nothing (the notebook runs when someone\nruns it in Fabric). dry_run=true (the default) returns the notebook and the REST call without creating anything.\nPOST /workspaces/{id}/notebooks and .../updateDefinition need the delegated permission Notebook.ReadWrite.All or\nItem.ReadWrite.All and Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json).",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "title": "Name",
+      "type": "string"
+     },
+     "order_by": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Order By"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "silver",
+      "title": "Silver Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "name"
+    ],
+    "title": "create_silver_notebookArguments",
+    "type": "object"
+   },
+   "name": "create_silver_notebook",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_silver_notebookOutput",
+    "type": "object"
+   },
+   "title": "Create or update the silver-tables notebook in Fabric (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": true,
+    "idempotent_hint": true,
+    "open_world_hint": true,
+    "read_only_hint": false,
+    "title": "Create or alter T-SQL views in a schema of their own (dry run by default)"
+   },
+   "description": "Wide views over the plan in the source's SQL analytics endpoint or warehouse, only inside `views_schema`\n(created if missing): one per fact table with its dimensions joined in, one per header table (vw_orders: the\norders with their customer and, once confirmed, the ship-to address), plus one per relationship that is hard to\nread from the names. CREATE OR ALTER VIEW only — never DROP, never anything outside that schema; identifiers\ncome from the source's metadata. dry_run=true returns the SQL. Needs rights to create objects on the endpoint\n(Contributor on the workspace is enough for a warehouse or a lakehouse's endpoint).",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "dry_run": {
+      "default": true,
+      "title": "Dry Run",
+      "type": "boolean"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "views_schema": {
+      "default": "krusgraph",
+      "title": "Views Schema",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "create_viewsArguments",
+    "type": "object"
+   },
+   "name": "create_views",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "create_viewsOutput",
+    "type": "object"
+   },
+   "title": "Create or alter T-SQL views in a schema of their own (dry run by default)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Data dictionary in Markdown"
+   },
+   "description": "Hand-over documentation for the source: every table with columns and types, keys and relationships with their\nrules, keyless tables, ambiguous columns and the ER diagram, with an empty Description column to fill in. With\nvalidate=true the counts from validate_plan (key uniqueness, orphans) are included. `tables` takes names or\npatterns ([\"sales_*\"]) for one part of a large schema at a time; an answer over 60 000 characters is cut on a line\nand says so. Returns Markdown.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "max_items": {
+      "default": 60,
+      "title": "Max Items",
+      "type": "integer"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "validate": {
+      "default": false,
+      "title": "Validate",
+      "type": "boolean"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "data_dictionaryArguments",
+    "type": "object"
+   },
+   "name": "data_dictionary",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "data_dictionaryOutput",
+    "type": "object"
+   },
+   "title": "Data dictionary in Markdown"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "dbt schema.yml with source tests"
+   },
+   "description": "A dbt sources file for the schema: `unique` and `not_null` on every inferred key column and `relationships`\non every single-column relationship, in the syntax the dbt documentation gives (test arguments under\n`arguments:`; arguments_block=false writes them top-level for dbt before 1.10.5). Composite keys and\ncomposite-column relationships are noted as comments. `tables` takes names or patterns ([\"sales_*\"]); an\nanswer over 60 000 characters is cut on a line and says so. Returns the YAML text.",
+   "input_schema": {
+    "properties": {
+     "arguments_block": {
+      "default": true,
+      "title": "Arguments Block",
+      "type": "boolean"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "source_name": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source Name"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "dbt_schemaArguments",
+    "type": "object"
+   },
+   "name": "dbt_schema",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "dbt_schemaOutput",
+    "type": "object"
+   },
+   "title": "dbt schema.yml with source tests"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Describe a GraphQL API"
+   },
+   "description": "Types, fields and relationships of an existing API for GraphQL item (name or id), in the names a query\nuses — read from the item's definition, so it works without introspection; these are the names a GraphQL query uses.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "title": "Api",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "api"
+    ],
+    "title": "describe_backendArguments",
+    "type": "object"
+   },
+   "name": "describe_backend",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "describe_backendOutput",
+    "type": "object"
+   },
+   "title": "Describe a GraphQL API"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)"
+   },
+   "description": "A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one\nsaved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the\nlakehouse (krusgraph.plans), and send a short summary (\"column X in table Y disappeared; these APIs and views use\nit\") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone\nid). Returns the notebook, the pipeline definition and the schedule; creates nothing.",
+   "input_schema": {
+    "properties": {
+     "at": {
+      "default": "02:00",
+      "title": "At",
+      "type": "string"
+     },
+     "library_ref": {
+      "default": "main",
+      "title": "Library Ref",
+      "type": "string"
+     },
+     "name": {
+      "default": "",
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "time_zone": {
+      "default": "W. Europe Standard Time",
+      "title": "Time Zone",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "drift_monitor_draftArguments",
+    "type": "object"
+   },
+   "name": "drift_monitor_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "drift_monitor_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Export what the creating tools would create, in Fabric's Git format"
+   },
+   "description": "The items create_backend, create_semantic_model, create_silver_notebook, create_drift_monitor and create_gold_views\nwould create, as files in Fabric's Git format: one folder per item named `<name>.<type>` with its `.platform` and\ndefinition files (graphql-definition.json, definition.pbism and TMDL, notebook-content.py, pipeline-content.json),\nplus create_views' T-SQL as a .sql file (Fabric's Git integration does not carry SQL analytics endpoint views) and a\nREADME with the steps. For committing to the repository connected to the workspace, so that Fabric's Git\nintegration or a deployment pipeline makes the change. `items` picks tools from that list; `names` sets the display\nname per tool. Calls no Git provider and creates nothing.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "gold_schema": {
+      "default": "gold",
+      "title": "Gold Schema",
+      "type": "string"
+     },
+     "items": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Items"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "names": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Names"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "silver",
+      "title": "Silver Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "views_schema": {
+      "default": "krusgraph",
+      "title": "Views Schema",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     },
+     "writable": {
+      "default": false,
+      "title": "Writable",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "export_item_definitionsArguments",
+    "type": "object"
+   },
+   "name": "export_item_definitions",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "export_item_definitionsOutput",
+    "type": "object"
+   },
+   "title": "Export what the creating tools would create, in Fabric's Git format"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft gold views as materialized lake views (nothing created)"
+   },
+   "description": "Materialized lake views in Spark SQL for a lakehouse with schemas, generated from the plan: one wide view per fact\ntable in `gold_schema`, over the silver tables create_silver_notebook writes, with its dimensions joined in over the\nsafest many-to-one paths, and CONSTRAINT ... CHECK ... ON MISMATCH DROP rules that mirror the plan's keys and\nrelationships, each commented with its rule. Columns that look like personal data by name are left out unless\nshow_personal_data=true. Returns the SQL per view and the notebook that creates them; creates nothing.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "gold_schema": {
+      "default": "gold",
+      "title": "Gold Schema",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "silver",
+      "title": "Silver Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "gold_views_draftArguments",
+    "type": "object"
+   },
+   "name": "gold_views_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "gold_views_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft gold views as materialized lake views (nothing created)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Shortest join path between two tables"
+   },
+   "description": "How two tables connect through the plan's relationships: the shortest chain of hops with the rule per step and\na ready T-SQL SELECT … JOIN … with quoted identifiers (equally short paths are all listed). When no path exists it\nsays so and suggests which relationship is missing, as a `confirmed` entry. Reads metadata only.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "end": {
+      "title": "End",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "start": {
+      "title": "Start",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "start",
+     "end"
+    ],
+    "title": "join_pathArguments",
+    "type": "object"
+   },
+   "name": "join_path",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "join_pathOutput",
+    "type": "object"
+   },
+   "title": "Shortest join path between two tables"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Lineage: what builds on a source's tables"
+   },
+   "description": "Which Fabric objects in the workspace build on the source's tables: GraphQL APIs (from their definition),\nsemantic models (from their TMDL definition), views on the SQL analytics endpoint (INFORMATION_SCHEMA.VIEW_TABLE_USAGE)\nand data agents (named in their definition). Returns a graph (nodes: tables and objects; edges: used by), the\nobjects per table, the tables used by nothing, the items that could not be read, and with `table` the answer to\nwhat a change to that table reaches. Read-only.",
+   "input_schema": {
+    "properties": {
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "table": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Table"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "lineageArguments",
+    "type": "object"
+   },
+   "name": "lineage",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "lineageOutput",
+    "type": "object"
+   },
+   "title": "Lineage: what builds on a source's tables"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "List data sources in a workspace"
+   },
+   "description": "Lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases (Snowflake, Azure SQL, Cosmos DB,\nSAP, ...), mirrored Databricks catalogs and mirrored catalogs in a Fabric workspace (id or name), plus existing API\nfor GraphQL items. The display name or id identifies the `source`.",
+   "input_schema": {
+    "properties": {
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace"
+    ],
+    "title": "list_sourcesArguments",
+    "type": "object"
+   },
+   "name": "list_sources",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "list_sourcesOutput",
+    "type": "object"
+   },
+   "title": "List data sources in a workspace"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "List tables and columns"
+   },
+   "description": "Tables and columns (with types) in one schema of a source. Read-only. `tables` narrows the answer to names or\npatterns ([\"sales_*\"]); `detail` is \"auto\" (full up to 60 tables, then a summary with the column count per table),\n\"full\" or \"summary\".",
+   "input_schema": {
+    "properties": {
+     "detail": {
+      "default": "auto",
+      "title": "Detail",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "list_tablesArguments",
+    "type": "object"
+   },
+   "name": "list_tables",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "list_tablesOutput",
+    "type": "object"
+   },
+   "title": "List tables and columns"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "List workspaces"
+   },
+   "description": "The Fabric workspaces the signed-in account can see, with id, name and capacity. The id or the name\nidentifies the workspace in every tool.",
+   "input_schema": {
+    "properties": {},
+    "title": "list_workspacesArguments",
+    "type": "object"
+   },
+   "name": "list_workspaces",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "list_workspacesOutput",
+    "type": "object"
+   },
+   "title": "List workspaces"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft a Fabric IQ ontology from the plan (nothing deployed)"
+   },
+   "description": "The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: a summary with the\nrule behind every key and link, the binding checklist, a Turtle file the portal's Import ontology accepts, and the\ngeneration-2 item definition (TMDL parts) ready for POST /ontologies or Git. Deploys nothing. `tables` keeps\nit small; the definition is the same information as plan_backend, in Fabric IQ's shape.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "default": "ontology",
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "ontology_draftArguments",
+    "type": "object"
+   },
+   "name": "ontology_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "ontology_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft a Fabric IQ ontology from the plan (nothing deployed)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Plan keys and relationships (nothing deployed)"
+   },
+   "description": "Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule\nthat produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, names read through the synonym\ntable, and a Mermaid ER diagram. Pass `keys` for composite keys ({\"order_items\": [\"order_id\",\"line_no\"]}) and\n`confirmed` for relationships the rules missed. `tables` narrows the answer to names or patterns ([\"sales_*\"]);\nthe plan is still made from the whole schema. `detail` is \"auto\" (full up to 60 tables, then one line per key\nand relationship without field names or diagram), \"full\" or \"summary\"; mermaid=false leaves the diagram out of a\nfull answer. Deploys nothing.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "detail": {
+      "default": "auto",
+      "title": "Detail",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "mermaid": {
+      "default": true,
+      "title": "Mermaid",
+      "type": "boolean"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "plan_backendArguments",
+    "type": "object"
+   },
+   "name": "plan_backend",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "plan_backendOutput",
+    "type": "object"
+   },
+   "title": "Plan keys and relationships (nothing deployed)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Compare today's plan with an existing GraphQL API"
+   },
+   "description": "Today's plan against the definition of an existing API for GraphQL item (name or id): new tables and\ncolumns, columns the API still maps that the source no longer has, relationships the plan no longer supports,\nand whether a create_backend with the same name would change anything. Changes nothing.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "title": "Api",
+      "type": "string"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     },
+     "writable": {
+      "default": false,
+      "title": "Writable",
+      "type": "boolean"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "api"
+    ],
+    "title": "plan_driftArguments",
+    "type": "object"
+   },
+   "name": "plan_drift",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "plan_driftOutput",
+    "type": "object"
+   },
+   "title": "Compare today's plan with an existing GraphQL API"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Run a GraphQL query"
+   },
+   "description": "Run a read-only GraphQL query against a Microsoft Fabric API for GraphQL item (name or id) in the workspace,\nsee https://learn.microsoft.com/fabric/data-engineering/api-graphql-overview. Query fields are named <type>s,\ne.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest; describe_backend lists the\nexact names. Instead of `query`, pass `question` with `tables` and `source` (the lakehouse or warehouse the API\nreads): the query answer_query_draft suggests is built and run, and the answer shows it. Mutations and\nsubscriptions are refused.",
+   "input_schema": {
+    "properties": {
+     "api": {
+      "title": "Api",
+      "type": "string"
+     },
+     "query": {
+      "default": "",
+      "title": "Query",
+      "type": "string"
+     },
+     "question": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Question"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Source"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "variables": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Variables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "api"
+    ],
+    "title": "query_graphqlArguments",
+    "type": "object"
+   },
+   "name": "query_graphql",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "query_graphqlOutput",
+    "type": "object"
+   },
+   "title": "Run a GraphQL query"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Generate Rayfin connector entities"
+   },
+   "description": "Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with inferred keys and\n@one/@many relationships (sourceFields/targetFields spelled out). Returns {path: content}; nothing is deployed.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "connector": {
+      "default": "data",
+      "title": "Connector",
+      "type": "string"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "relationships": {
+      "default": true,
+      "title": "Relationships",
+      "type": "boolean"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "rayfin_connectorArguments",
+    "type": "object"
+   },
+   "name": "rayfin_connector",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "rayfin_connectorOutput",
+    "type": "object"
+   },
+   "title": "Generate Rayfin connector entities"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Show a few rows of a table"
+   },
+   "description": "The first n rows (at most 20) of one table, read-only, so the meaning of columns can be checked before\ndeciding on keys or relationships. Long text values are shortened. Columns whose name looks like personal data\n(names, e-mail, phone, national id, address, birth date; one rule per pattern) come back masked, with the rule\nand a notice; show_personal_data=true returns them as they are. The source's sensitivity label is named when\nFabric returns one.",
+   "input_schema": {
+    "properties": {
+     "n": {
+      "default": 10,
+      "title": "N",
+      "type": "integer"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "table": {
+      "title": "Table",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source",
+     "table"
+    ],
+    "title": "sample_rowsArguments",
+    "type": "object"
+   },
+   "name": "sample_rows",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "sample_rowsOutput",
+    "type": "object"
+   },
+   "title": "Show a few rows of a table"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft a Power BI semantic model (TMDL, nothing created)"
+   },
+   "description": "The plan as a Power BI semantic model in TMDL: one table per source table in Direct Lake mode on the source's\nSQL analytics endpoint, relationships with cardinality and filter direction (one active path per table pair, the\nrest inactive with the reason), keyless tables without relationships into them. Returns {path: content} for the\ndefinition/ folder plus README.generated.md listing every decision to check. `tables` takes names or patterns\n([\"sales_*\"]); on a large schema the table files are left out of the answer and `tables` gets them a few at a\ntime. Creates nothing in Fabric.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "name": {
+      "default": "semantic_model",
+      "title": "Name",
+      "type": "string"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "semantic_model_draftArguments",
+    "type": "object"
+   },
+   "name": "semantic_model_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "semantic_model_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft a Power BI semantic model (TMDL, nothing created)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Draft a PySpark notebook that builds silver tables (nothing created)"
+   },
+   "description": "A Fabric notebook (PySpark) that builds clean silver tables from a lakehouse's tables, generated from the plan:\nper table it de-duplicates on the inferred or given key (the latest row by `order_by` {table: column} wins, else a\ncolumn named like updated_at), checks every relationship and puts rows whose reference is missing in the\nquarantine table krusgraph_quarantine with the reason, and writes Delta tables in `silver_schema` only. Every step\nis commented with the rule (K0–K5, R0–R4) behind it; re-running it rewrites the same tables. Rows kept in quarantine\nhave their personal-data columns (by name) masked unless show_personal_data=true. Returns the steps and the notebook\nsource; creates nothing.",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "order_by": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "type": "string"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Order By"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
+     },
+     "silver_schema": {
+      "default": "silver",
+      "title": "Silver Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Tables"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "silver_notebook_draftArguments",
+    "type": "object"
+   },
+   "name": "silver_notebook_draft",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "silver_notebook_draftOutput",
+    "type": "object"
+   },
+   "title": "Draft a PySpark notebook that builds silver tables (nothing created)"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Suggest missing relationships, checked against the data"
+   },
+   "description": "Columns that could point at another table's key but are in no relationship, ranked by name similarity, type\nand triangular closure, then the best `check` (default 15) counted against the data: the share of the column's\nvalues that exist in the target key and how many distinct values it has. Suggestions only — nothing is applied;\neach one carries a ready `confirmed` entry for plan_backend or create_backend. Read-only counting queries.",
+   "input_schema": {
+    "properties": {
+     "check": {
+      "default": 15,
+      "title": "Check",
+      "type": "integer"
+     },
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "suggest_relationshipsArguments",
+    "type": "object"
+   },
+   "name": "suggest_relationships",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "suggest_relationshipsOutput",
+    "type": "object"
+   },
+   "title": "Suggest missing relationships, checked against the data"
+  },
+  {
+   "annotations": {
+    "destructive_hint": false,
+    "open_world_hint": true,
+    "read_only_hint": true,
+    "title": "Check the plan against the data"
+   },
+   "description": "Check the plan's keys and relationships against the rows, read-only: is each key unique and free of NULLs,\nand does every reference find its target (orphan count)? Returns counts and a verdict per key and relationship.\nIt turns name-based suggestions into evidence. Takes the same keys/confirmed as\nplan_backend; runs one small counting query per key and per relationship (max_items caps the total).",
+   "input_schema": {
+    "properties": {
+     "confirmed": {
+      "anyOf": [
+       {
+        "items": {
+         "additionalProperties": true,
+         "type": "object"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Confirmed"
+     },
+     "keys": {
+      "anyOf": [
+       {
+        "additionalProperties": {
+         "items": {
+          "type": "string"
+         },
+         "type": "array"
+        },
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Keys"
+     },
+     "max_items": {
+      "default": 60,
+      "title": "Max Items",
+      "type": "integer"
+     },
+     "schema": {
+      "default": "dbo",
+      "title": "Schema",
+      "type": "string"
+     },
+     "source": {
+      "title": "Source",
+      "type": "string"
+     },
+     "workspace": {
+      "title": "Workspace",
+      "type": "string"
+     }
+    },
+    "required": [
+     "workspace",
+     "source"
+    ],
+    "title": "validate_planArguments",
+    "type": "object"
+   },
+   "name": "validate_plan",
+   "output_schema": {
+    "properties": {
+     "result": {
+      "title": "Result",
+      "type": "string"
+     }
+    },
+    "required": [
+     "result"
+    ],
+    "title": "validate_planOutput",
+    "type": "object"
+   },
+   "title": "Check the plan against the data"
+  }
+ ]
+}

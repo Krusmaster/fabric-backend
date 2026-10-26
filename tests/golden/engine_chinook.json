@@ -1,0 +1,1336 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "AlbumId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Track",
+    "target": "Album",
+    "target_columns": [
+     "AlbumId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "GenreId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Track",
+    "target": "Genre",
+    "target_columns": [
+     "GenreId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "MediaTypeId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Track",
+    "target": "MediaType",
+    "target_columns": [
+     "MediaTypeId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "InvoiceId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "InvoiceLine",
+    "target": "Invoice",
+    "target_columns": [
+     "InvoiceId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "TrackId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "InvoiceLine",
+    "target": "Track",
+    "target_columns": [
+     "TrackId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "PlaylistId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "PlaylistTrack",
+    "target": "Playlist",
+    "target_columns": [
+     "PlaylistId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "TrackId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "PlaylistTrack",
+    "target": "Track",
+    "target_columns": [
+     "TrackId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "ArtistId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Album",
+    "target": "Artist",
+    "target_columns": [
+     "ArtistId"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "CustomerId"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Invoice",
+    "target": "Customer",
+    "target_columns": [
+     "CustomerId"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [],
+   "note": "no cycles: every pair of connected tables has exactly one path",
+   "pairs_with_multiple_paths": []
+  },
+  "areas": [
+   {
+    "central_table": "Customer",
+    "name": "Customer area",
+    "tables": [
+     "Customer",
+     "Invoice",
+     "InvoiceLine"
+    ]
+   },
+   {
+    "central_table": "Track",
+    "name": "Track area",
+    "tables": [
+     "Genre",
+     "MediaType",
+     "Track"
+    ]
+   },
+   {
+    "central_table": "Artist",
+    "name": "Artist area",
+    "tables": [
+     "Album",
+     "Artist"
+    ]
+   },
+   {
+    "central_table": "Playlist",
+    "name": "Playlist area",
+    "tables": [
+     "Playlist",
+     "PlaylistTrack"
+    ]
+   },
+   {
+    "central_table": "Employee",
+    "name": "Employee area",
+    "tables": [
+     "Employee"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "Album": 0.1778,
+    "Artist": 0.0,
+    "Customer": 0.0,
+    "Employee": 0.0,
+    "Genre": 0.0,
+    "Invoice": 0.1778,
+    "InvoiceLine": 0.3111,
+    "MediaType": 0.0,
+    "Playlist": 0.0,
+    "PlaylistTrack": 0.1778,
+    "Track": 0.6889
+   },
+   "degree": {
+    "Album": {
+     "in": 1,
+     "out": 1
+    },
+    "Artist": {
+     "in": 1,
+     "out": 0
+    },
+    "Customer": {
+     "in": 1,
+     "out": 0
+    },
+    "Employee": {
+     "in": 0,
+     "out": 0
+    },
+    "Genre": {
+     "in": 1,
+     "out": 0
+    },
+    "Invoice": {
+     "in": 1,
+     "out": 1
+    },
+    "InvoiceLine": {
+     "in": 0,
+     "out": 2
+    },
+    "MediaType": {
+     "in": 1,
+     "out": 0
+    },
+    "Playlist": {
+     "in": 1,
+     "out": 0
+    },
+    "PlaylistTrack": {
+     "in": 0,
+     "out": 2
+    },
+    "Track": {
+     "in": 2,
+     "out": 3
+    }
+   },
+   "pagerank": {
+    "Album": 0.0908,
+    "Artist": 0.1368,
+    "Customer": 0.1318,
+    "Employee": 0.0596,
+    "Genre": 0.0908,
+    "Invoice": 0.0849,
+    "InvoiceLine": 0.0596,
+    "MediaType": 0.0908,
+    "Playlist": 0.0849,
+    "PlaylistTrack": 0.0596,
+    "Track": 0.1103
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1368,
+     "role": "dimension",
+     "table": "Artist"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1318,
+     "role": "dimension",
+     "table": "Customer"
+    },
+    {
+     "betweenness": 0.6889,
+     "in": 2,
+     "out": 3,
+     "pagerank": 0.1103,
+     "role": "fact",
+     "table": "Track"
+    },
+    {
+     "betweenness": 0.1778,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.0908,
+     "role": "dimension",
+     "table": "Album"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0908,
+     "role": "dimension",
+     "table": "Genre"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0908,
+     "role": "dimension",
+     "table": "MediaType"
+    },
+    {
+     "betweenness": 0.1778,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.0849,
+     "role": "dimension",
+     "table": "Invoice"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0849,
+     "role": "dimension",
+     "table": "Playlist"
+    },
+    {
+     "betweenness": 0.3111,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0596,
+     "role": "fact",
+     "table": "InvoiceLine"
+    },
+    {
+     "betweenness": 0.1778,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0596,
+     "role": "bridge",
+     "table": "PlaylistTrack"
+    }
+   ]
+  },
+  "inactive_relationships": [],
+  "roles": {
+   "Album": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.1778, measure share 0.0"
+   },
+   "Artist": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Customer": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.08); out 0, in 1, betweenness 0.0, measure share 0.08"
+   },
+   "Employee": {
+    "role": "isolated",
+    "why": "no relationships in or out"
+   },
+   "Genre": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Invoice": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.29); out 1, in 1, betweenness 0.1778, measure share 0.29"
+   },
+   "InvoiceLine": {
+    "role": "fact",
+    "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.3111, measure share 1.0"
+   },
+   "MediaType": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Playlist": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "PlaylistTrack": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.1778, measure share 0.0"
+   },
+   "Track": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 3 reference(s) out, measures 0.6 (a header table); out 3, in 2, betweenness 0.6889, measure share 0.6"
+   }
+  },
+  "summary": "11 tables, 9 relationships; roles: 2 fact, 7 dimension, 1 bridge, 1 isolated; 9 relationships can be active at once, 0 would be inactive; 0 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "role word",
+   "name_similarity": 0.6,
+   "penalties": [],
+   "score": 3.3,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Employee",
+   "target_cols": [
+    "EmployeeId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Employee.EmployeeId; a role held by a person (0.6)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Album",
+   "target_cols": [
+    "AlbumId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Album.AlbumId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Artist",
+   "target_cols": [
+    "ArtistId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Artist.ArtistId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Genre",
+   "target_cols": [
+    "GenreId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Genre.GenreId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Invoice",
+   "target_cols": [
+    "InvoiceId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Invoice.InvoiceId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "MediaType",
+   "target_cols": [
+    "MediaTypeId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of MediaType.MediaTypeId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Playlist",
+   "target_cols": [
+    "PlaylistId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Playlist.PlaylistId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "Track",
+   "target_cols": [
+    "TrackId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of Track.TrackId"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "InvoiceLine looks like a fact table (2 references out, none in)"
+   ],
+   "score": 1.0,
+   "source": "Customer",
+   "source_cols": [
+    "SupportRepId"
+   ],
+   "target": "InvoiceLine",
+   "target_cols": [
+    "InvoiceLineId"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customer.SupportRepId (int) is in no relationship and matches the type of InvoiceLine.InvoiceLineId; but InvoiceLine looks like a fact table (2 references out, none in)"
+  }
+ ],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: Album\n        columns:\n          - name: AlbumId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Title\n            description: \"\"  # nvarchar\n          - name: ArtistId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Artist')\n                    field: ArtistId\n      - name: Artist\n        columns:\n          - name: ArtistId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n      - name: Customer\n        columns:\n          - name: CustomerId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: FirstName\n            description: \"\"  # nvarchar\n          - name: LastName\n            description: \"\"  # nvarchar\n          - name: Company\n            description: \"\"  # nvarchar\n          - name: Address\n            description: \"\"  # nvarchar\n          - name: City\n            description: \"\"  # nvarchar\n          - name: State\n            description: \"\"  # nvarchar\n          - name: Country\n            description: \"\"  # nvarchar\n          - name: PostalCode\n            description: \"\"  # nvarchar\n          - name: Phone\n            description: \"\"  # nvarchar\n          - name: Fax\n            description: \"\"  # nvarchar\n          - name: Email\n            description: \"\"  # nvarchar\n          - name: SupportRepId\n            description: \"\"  # int\n      - name: Employee\n        columns:\n          - name: EmployeeId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: LastName\n            description: \"\"  # nvarchar\n          - name: FirstName\n            description: \"\"  # nvarchar\n          - name: Title\n            description: \"\"  # nvarchar\n          - name: ReportsTo\n            description: \"\"  # int\n          - name: BirthDate\n            description: \"\"  # datetime\n          - name: HireDate\n            description: \"\"  # datetime\n          - name: Address\n            description: \"\"  # nvarchar\n          - name: City\n            description: \"\"  # nvarchar\n          - name: State\n            description: \"\"  # nvarchar\n          - name: Country\n            description: \"\"  # nvarchar\n          - name: PostalCode\n            description: \"\"  # nvarchar\n          - name: Phone\n            description: \"\"  # nvarchar\n          - name: Fax\n            description: \"\"  # nvarchar\n          - name: Email\n            description: \"\"  # nvarchar\n      - name: Genre\n        columns:\n          - name: GenreId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n      - name: Invoice\n        columns:\n          - name: InvoiceId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CustomerId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Customer')\n                    field: CustomerId\n          - name: InvoiceDate\n            description: \"\"  # datetime\n          - name: BillingAddress\n            description: \"\"  # nvarchar\n          - name: BillingCity\n            description: \"\"  # nvarchar\n          - name: BillingState\n            description: \"\"  # nvarchar\n          - name: BillingCountry\n            description: \"\"  # nvarchar\n          - name: BillingPostalCode\n            description: \"\"  # nvarchar\n          - name: Total\n            description: \"\"  # numeric\n      - name: InvoiceLine\n        columns:\n          - name: InvoiceLineId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: InvoiceId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Invoice')\n                    field: InvoiceId\n          - name: TrackId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Track')\n                    field: TrackId\n          - name: UnitPrice\n            description: \"\"  # numeric\n          - name: Quantity\n            description: \"\"  # int\n      - name: MediaType\n        columns:\n          - name: MediaTypeId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n      - name: Playlist\n        columns:\n          - name: PlaylistId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n      - name: PlaylistTrack\n        # composite key PlaylistId+TrackId (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [PlaylistId, TrackId]\n        columns:\n          - name: PlaylistId\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Playlist')\n                    field: PlaylistId\n          - name: TrackId\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Track')\n                    field: TrackId\n      - name: Track\n        columns:\n          - name: TrackId\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n          - name: AlbumId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Album')\n                    field: AlbumId\n          - name: MediaTypeId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'MediaType')\n                    field: MediaTypeId\n          - name: GenreId\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Genre')\n                    field: GenreId\n          - name: Composer\n            description: \"\"  # nvarchar\n          - name: Milliseconds\n            description: \"\"  # int\n          - name: Bytes\n            description: \"\"  # int\n          - name: UnitPrice\n            description: \"\"  # numeric\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 11 tables, 11 with keys, 9 relationships\n- Tables without a key: none\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### Album\n\nKey: AlbumId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| AlbumId | int | yes |  |  |\n| Title | nvarchar |  |  |  |\n| ArtistId | int |  | Artist.ArtistId (R1) |  |\n\n### Artist\n\nKey: ArtistId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| ArtistId | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n\n### Customer\n\nKey: CustomerId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CustomerId | int | yes |  |  |\n| FirstName | nvarchar |  |  |  |\n| LastName | nvarchar |  |  |  |\n| Company | nvarchar |  |  |  |\n| Address | nvarchar |  |  |  |\n| City | nvarchar |  |  |  |\n| State | nvarchar |  |  |  |\n| Country | nvarchar |  |  |  |\n| PostalCode | nvarchar |  |  |  |\n| Phone | nvarchar |  |  |  |\n| Fax | nvarchar |  |  |  |\n| Email | nvarchar |  |  |  |\n| SupportRepId | int |  |  |  |\n\n### Employee\n\nKey: EmployeeId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| EmployeeId | int | yes |  |  |\n| LastName | nvarchar |  |  |  |\n| FirstName | nvarchar |  |  |  |\n| Title | nvarchar |  |  |  |\n| ReportsTo | int |  |  |  |\n| BirthDate | datetime |  |  |  |\n| HireDate | datetime |  |  |  |\n| Address | nvarchar |  |  |  |\n| City | nvarchar |  |  |  |\n| State | nvarchar |  |  |  |\n| Country | nvarchar |  |  |  |\n| PostalCode | nvarchar |  |  |  |\n| Phone | nvarchar |  |  |  |\n| Fax | nvarchar |  |  |  |\n| Email | nvarchar |  |  |  |\n\n### Genre\n\nKey: GenreId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| GenreId | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n\n### Invoice\n\nKey: InvoiceId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| InvoiceId | int | yes |  |  |\n| CustomerId | int |  | Customer.CustomerId (R1) |  |\n| InvoiceDate | datetime |  |  |  |\n| BillingAddress | nvarchar |  |  |  |\n| BillingCity | nvarchar |  |  |  |\n| BillingState | nvarchar |  |  |  |\n| BillingCountry | nvarchar |  |  |  |\n| BillingPostalCode | nvarchar |  |  |  |\n| Total | numeric |  |  |  |\n\n### InvoiceLine\n\nKey: InvoiceLineId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| InvoiceLineId | int | yes |  |  |\n| InvoiceId | int |  | Invoice.InvoiceId (R1) |  |\n| TrackId | int |  | Track.TrackId (R1) |  |\n| UnitPrice | numeric |  |  |  |\n| Quantity | int |  |  |  |\n\n### MediaType\n\nKey: MediaTypeId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| MediaTypeId | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n\n### Playlist\n\nKey: PlaylistId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| PlaylistId | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n\n### PlaylistTrack\n\nKey: PlaylistId+TrackId (rule K4)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| PlaylistId | int | yes | Playlist.PlaylistId (R1) |  |\n| TrackId | int | yes | Track.TrackId (R1) |  |\n\n### Track\n\nKey: TrackId (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| TrackId | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n| AlbumId | int |  | Album.AlbumId (R1) |  |\n| MediaTypeId | int |  | MediaType.MediaTypeId (R1) |  |\n| GenreId | int |  | Genre.GenreId (R1) |  |\n| Composer | nvarchar |  |  |  |\n| Milliseconds | int |  |  |  |\n| Bytes | int |  |  |  |\n| UnitPrice | numeric |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| Album | AlbumId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Artist | ArtistId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Customer | CustomerId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Employee | EmployeeId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Genre | GenreId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Invoice | InvoiceId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| InvoiceLine | InvoiceLineId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| MediaType | MediaTypeId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Playlist | PlaylistId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| PlaylistTrack | PlaylistId+TrackId | K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| Track | TrackId | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| Album | ArtistId | Artist | ArtistId | R1 | artist / album |\n| Invoice | CustomerId | Customer | CustomerId | R1 | customer / invoice |\n| InvoiceLine | InvoiceId | Invoice | InvoiceId | R1 | invoice / invoiceline |\n| InvoiceLine | TrackId | Track | TrackId | R1 | track / invoiceline |\n| PlaylistTrack | PlaylistId | Playlist | PlaylistId | R1 | playlist / playlisttrack |\n| PlaylistTrack | TrackId | Track | TrackId | R1 | track / playlisttrack |\n| Track | AlbumId | Album | AlbumId | R1 | album / track |\n| Track | MediaTypeId | MediaType | MediaTypeId | R1 | mediatype / track |\n| Track | GenreId | Genre | GenreId | R1 | genre / track |\n\n## Tables without a key\n\nNone.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n11 tables, 9 relationships; roles: 2 fact, 7 dimension, 1 bridge, 1 isolated; 9 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| Album | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.1778, measure share 0.0 |\n| Artist | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Customer | dimension | 1 reference(s) in, 0 out, few measures (0.08); out 0, in 1, betweenness 0.0, measure share 0.08 |\n| Employee | isolated | no relationships in or out |\n| Genre | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Invoice | dimension | 1 reference(s) in, 1 out, few measures (0.29); out 1, in 1, betweenness 0.1778, measure share 0.29 |\n| InvoiceLine | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.3111, measure share 1.0 |\n| MediaType | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Playlist | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| PlaylistTrack | bridge | many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.1778, measure share 0.0 |\n| Track | fact | pointed at by a fact table, 3 reference(s) out, measures 0.6 (a header table); out 3, in 2, betweenness 0.6889, measure share 0.6 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- Customer area: Customer, Invoice, InvoiceLine\n- Track area: Genre, MediaType, Track\n- Artist area: Album, Artist\n- Playlist area: Playlist, PlaylistTrack\n- Employee area: Employee\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  Album {\n    AlbumId int PK\n    Title nvarchar\n    ArtistId int\n  }\n  Artist {\n    ArtistId int PK\n    Name nvarchar\n  }\n  Customer {\n    CustomerId int PK\n    FirstName nvarchar\n    LastName nvarchar\n    Company nvarchar\n    Address nvarchar\n    City nvarchar\n    State nvarchar\n    Country nvarchar\n    PostalCode nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    Email nvarchar\n    SupportRepId int\n  }\n  Employee {\n    EmployeeId int PK\n    LastName nvarchar\n    FirstName nvarchar\n    Title nvarchar\n    ReportsTo int\n    BirthDate datetime\n    HireDate datetime\n    Address nvarchar\n    City nvarchar\n    State nvarchar\n    Country nvarchar\n    PostalCode nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    Email nvarchar\n  }\n  Genre {\n    GenreId int PK\n    Name nvarchar\n  }\n  Invoice {\n    InvoiceId int PK\n    CustomerId int\n    InvoiceDate datetime\n    BillingAddress nvarchar\n    BillingCity nvarchar\n    BillingState nvarchar\n    BillingCountry nvarchar\n    BillingPostalCode nvarchar\n    Total numeric\n  }\n  InvoiceLine {\n    InvoiceLineId int PK\n    InvoiceId int\n    TrackId int\n    UnitPrice numeric\n    Quantity int\n  }\n  MediaType {\n    MediaTypeId int PK\n    Name nvarchar\n  }\n  Playlist {\n    PlaylistId int PK\n    Name nvarchar\n  }\n  PlaylistTrack {\n    PlaylistId int PK\n    TrackId int PK\n  }\n  Track {\n    TrackId int PK\n    Name nvarchar\n    AlbumId int\n    MediaTypeId int\n    GenreId int\n    Composer nvarchar\n    Milliseconds int\n    Bytes int\n    UnitPrice numeric\n  }\n  Artist ||--o{ Album : \"ArtistId R1\"\n  Customer ||--o{ Invoice : \"CustomerId R1\"\n  Invoice ||--o{ InvoiceLine : \"InvoiceId R1\"\n  Track ||--o{ InvoiceLine : \"TrackId R1\"\n  Playlist ||--o{ PlaylistTrack : \"PlaylistId R1\"\n  Track ||--o{ PlaylistTrack : \"TrackId R1\"\n  Album ||--o{ Track : \"AlbumId R1\"\n  MediaType ||--o{ Track : \"MediaTypeId R1\"\n  Genre ||--o{ Track : \"GenreId R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "AlbumId": "AlbumId",
+       "ArtistId": "ArtistId",
+       "Title": "Title"
+      },
+      "graphqlType": "Album",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "artist",
+        "sourceFields": [
+         "ArtistId"
+        ],
+        "targetFields": [
+         "ArtistId"
+        ],
+        "targetObject": "dbo.Artist"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "track",
+        "sourceFields": [
+         "AlbumId"
+        ],
+        "targetFields": [
+         "AlbumId"
+        ],
+        "targetObject": "dbo.Track"
+       }
+      ],
+      "sourceObject": "dbo.Album",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "ArtistId": "ArtistId",
+       "Name": "Name"
+      },
+      "graphqlType": "Artist",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "album",
+        "sourceFields": [
+         "ArtistId"
+        ],
+        "targetFields": [
+         "ArtistId"
+        ],
+        "targetObject": "dbo.Album"
+       }
+      ],
+      "sourceObject": "dbo.Artist",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Address": "Address",
+       "City": "City",
+       "Company": "Company",
+       "Country": "Country",
+       "CustomerId": "CustomerId",
+       "Email": "Email",
+       "Fax": "Fax",
+       "FirstName": "FirstName",
+       "LastName": "LastName",
+       "Phone": "Phone",
+       "PostalCode": "PostalCode",
+       "State": "State",
+       "SupportRepId": "SupportRepId"
+      },
+      "graphqlType": "Customer",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "invoice",
+        "sourceFields": [
+         "CustomerId"
+        ],
+        "targetFields": [
+         "CustomerId"
+        ],
+        "targetObject": "dbo.Invoice"
+       }
+      ],
+      "sourceObject": "dbo.Customer",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Address": "Address",
+       "BirthDate": "BirthDate",
+       "City": "City",
+       "Country": "Country",
+       "Email": "Email",
+       "EmployeeId": "EmployeeId",
+       "Fax": "Fax",
+       "FirstName": "FirstName",
+       "HireDate": "HireDate",
+       "LastName": "LastName",
+       "Phone": "Phone",
+       "PostalCode": "PostalCode",
+       "ReportsTo": "ReportsTo",
+       "State": "State",
+       "Title": "Title"
+      },
+      "graphqlType": "Employee",
+      "relationships": [],
+      "sourceObject": "dbo.Employee",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "GenreId": "GenreId",
+       "Name": "Name"
+      },
+      "graphqlType": "Genre",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "track",
+        "sourceFields": [
+         "GenreId"
+        ],
+        "targetFields": [
+         "GenreId"
+        ],
+        "targetObject": "dbo.Track"
+       }
+      ],
+      "sourceObject": "dbo.Genre",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "BillingAddress": "BillingAddress",
+       "BillingCity": "BillingCity",
+       "BillingCountry": "BillingCountry",
+       "BillingPostalCode": "BillingPostalCode",
+       "BillingState": "BillingState",
+       "CustomerId": "CustomerId",
+       "InvoiceDate": "InvoiceDate",
+       "InvoiceId": "InvoiceId",
+       "Total": "Total"
+      },
+      "graphqlType": "Invoice",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "CustomerId"
+        ],
+        "targetFields": [
+         "CustomerId"
+        ],
+        "targetObject": "dbo.Customer"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "invoiceline",
+        "sourceFields": [
+         "InvoiceId"
+        ],
+        "targetFields": [
+         "InvoiceId"
+        ],
+        "targetObject": "dbo.InvoiceLine"
+       }
+      ],
+      "sourceObject": "dbo.Invoice",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "InvoiceId": "InvoiceId",
+       "InvoiceLineId": "InvoiceLineId",
+       "Quantity": "Quantity",
+       "TrackId": "TrackId",
+       "UnitPrice": "UnitPrice"
+      },
+      "graphqlType": "InvoiceLine",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "invoice",
+        "sourceFields": [
+         "InvoiceId"
+        ],
+        "targetFields": [
+         "InvoiceId"
+        ],
+        "targetObject": "dbo.Invoice"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "track",
+        "sourceFields": [
+         "TrackId"
+        ],
+        "targetFields": [
+         "TrackId"
+        ],
+        "targetObject": "dbo.Track"
+       }
+      ],
+      "sourceObject": "dbo.InvoiceLine",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "MediaTypeId": "MediaTypeId",
+       "Name": "Name"
+      },
+      "graphqlType": "MediaType",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "track",
+        "sourceFields": [
+         "MediaTypeId"
+        ],
+        "targetFields": [
+         "MediaTypeId"
+        ],
+        "targetObject": "dbo.Track"
+       }
+      ],
+      "sourceObject": "dbo.MediaType",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Name": "Name",
+       "PlaylistId": "PlaylistId"
+      },
+      "graphqlType": "Playlist",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "playlisttrack",
+        "sourceFields": [
+         "PlaylistId"
+        ],
+        "targetFields": [
+         "PlaylistId"
+        ],
+        "targetObject": "dbo.PlaylistTrack"
+       }
+      ],
+      "sourceObject": "dbo.Playlist",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "PlaylistId": "PlaylistId",
+       "TrackId": "TrackId"
+      },
+      "graphqlType": "PlaylistTrack",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "playlist",
+        "sourceFields": [
+         "PlaylistId"
+        ],
+        "targetFields": [
+         "PlaylistId"
+        ],
+        "targetObject": "dbo.Playlist"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "track",
+        "sourceFields": [
+         "TrackId"
+        ],
+        "targetFields": [
+         "TrackId"
+        ],
+        "targetObject": "dbo.Track"
+       }
+      ],
+      "sourceObject": "dbo.PlaylistTrack",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "AlbumId": "AlbumId",
+       "Bytes": "Bytes",
+       "Composer": "Composer",
+       "GenreId": "GenreId",
+       "MediaTypeId": "MediaTypeId",
+       "Milliseconds": "Milliseconds",
+       "Name": "Name",
+       "TrackId": "TrackId",
+       "UnitPrice": "UnitPrice"
+      },
+      "graphqlType": "Track",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "invoiceline",
+        "sourceFields": [
+         "TrackId"
+        ],
+        "targetFields": [
+         "TrackId"
+        ],
+        "targetObject": "dbo.InvoiceLine"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "playlisttrack",
+        "sourceFields": [
+         "TrackId"
+        ],
+        "targetFields": [
+         "TrackId"
+        ],
+        "targetObject": "dbo.PlaylistTrack"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "album",
+        "sourceFields": [
+         "AlbumId"
+        ],
+        "targetFields": [
+         "AlbumId"
+        ],
+        "targetObject": "dbo.Album"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "mediatype",
+        "sourceFields": [
+         "MediaTypeId"
+        ],
+        "targetFields": [
+         "MediaTypeId"
+        ],
+        "targetObject": "dbo.MediaType"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "genre",
+        "sourceFields": [
+         "GenreId"
+        ],
+        "targetFields": [
+         "GenreId"
+        ],
+        "targetObject": "dbo.Genre"
+       }
+      ],
+      "sourceObject": "dbo.Track",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 51883,
+  "sha256": "bb7f61fd074935c4f257cd66f18cda0f4af9498a4841490fccfccda2f8fc3fff"
+ },
+ "key_sql": {
+  "Album": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [AlbumId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [AlbumId] FROM [dbo].[Album] WHERE [AlbumId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Album]",
+  "Artist": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ArtistId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ArtistId] FROM [dbo].[Artist] WHERE [ArtistId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Artist]",
+  "Customer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CustomerId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CustomerId] FROM [dbo].[Customer] WHERE [CustomerId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Customer]",
+  "Employee": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [EmployeeId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [EmployeeId] FROM [dbo].[Employee] WHERE [EmployeeId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Employee]",
+  "Genre": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [GenreId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [GenreId] FROM [dbo].[Genre] WHERE [GenreId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Genre]",
+  "Invoice": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [InvoiceId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [InvoiceId] FROM [dbo].[Invoice] WHERE [InvoiceId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Invoice]",
+  "InvoiceLine": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [InvoiceLineId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [InvoiceLineId] FROM [dbo].[InvoiceLine] WHERE [InvoiceLineId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[InvoiceLine]",
+  "MediaType": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [MediaTypeId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [MediaTypeId] FROM [dbo].[MediaType] WHERE [MediaTypeId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[MediaType]",
+  "Playlist": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PlaylistId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PlaylistId] FROM [dbo].[Playlist] WHERE [PlaylistId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Playlist]",
+  "PlaylistTrack": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PlaylistId] IS NULL OR [TrackId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PlaylistId], [TrackId] FROM [dbo].[PlaylistTrack] WHERE [PlaylistId] IS NOT NULL AND [TrackId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PlaylistTrack]",
+  "Track": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [TrackId] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [TrackId] FROM [dbo].[Track] WHERE [TrackId] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Track]"
+ },
+ "ontology_ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:onto#> .\n\n<urn:krusgraph:ontology:onto> a owl:Ontology ;\n    rdfs:label \"onto\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:Album a owl:Class ;\n    rdfs:label \"Album\" ;\n    skos:altLabel \"Album\" ;\n    rdfs:comment \"Table dbo.Album; key AlbumId (K2).\" .\n\n:Album__AlbumId a owl:DatatypeProperty ;\n    rdfs:label \"AlbumId\" ;\n    rdfs:domain :Album ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column AlbumId (int); key.\" .\n\n:Album__Title a owl:DatatypeProperty ;\n    rdfs:label \"Title\" ;\n    rdfs:domain :Album ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Title (nvarchar).\" .\n\n:Album__ArtistId a owl:DatatypeProperty ;\n    rdfs:label \"ArtistId\" ;\n    rdfs:domain :Album ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ArtistId (int).\" .\n\n:Artist a owl:Class ;\n    rdfs:label \"Artist\" ;\n    skos:altLabel \"Artist\" ;\n    rdfs:comment \"Table dbo.Artist; key ArtistId (K2).\" .\n\n:Artist__ArtistId a owl:DatatypeProperty ;\n    rdfs:label \"ArtistId\" ;\n    rdfs:domain :Artist ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ArtistId (int); key.\" .\n\n:Artist__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Artist ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Customer a owl:Class ;\n    rdfs:label \"Customer\" ;\n    skos:altLabel \"Customer\" ;\n    rdfs:comment \"Table dbo.Customer; key CustomerId (K2).\" .\n\n:Customer__CustomerId a owl:DatatypeProperty ;\n    rdfs:label \"CustomerId\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CustomerId (int); key.\" .\n\n:Customer__FirstName a owl:DatatypeProperty ;\n    rdfs:label \"FirstName\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column FirstName (nvarchar).\" .\n\n:Customer__LastName a owl:DatatypeProperty ;\n    rdfs:label \"LastName\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column LastName (nvarchar).\" .\n\n:Customer__Company a owl:DatatypeProperty ;\n    rdfs:label \"Company\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Company (nvarchar).\" .\n\n:Customer__Address a owl:DatatypeProperty ;\n    rdfs:label \"Address\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Address (nvarchar).\" .\n\n:Customer__City a owl:DatatypeProperty ;\n    rdfs:label \"City\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column City (nvarchar).\" .\n\n:Customer__State a owl:DatatypeProperty ;\n    rdfs:label \"State\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column State (nvarchar).\" .\n\n:Customer__Country a owl:DatatypeProperty ;\n    rdfs:label \"Country\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Country (nvarchar).\" .\n\n:Customer__PostalCode a owl:DatatypeProperty ;\n    rdfs:label \"PostalCode\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column PostalCode (nvarchar).\" .\n\n:Customer__Phone a owl:DatatypeProperty ;\n    rdfs:label \"Phone\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Phone (nvarchar).\" .\n\n:Customer__Fax a owl:DatatypeProperty ;\n    rdfs:label \"Fax\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Fax (nvarchar).\" .\n\n:Customer__Email a owl:DatatypeProperty ;\n    rdfs:label \"Email\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Email (nvarchar).\" .\n\n:Customer__SupportRepId a owl:DatatypeProperty ;\n    rdfs:label \"SupportRepId\" ;\n    rdfs:domain :Customer ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column SupportRepId (int).\" .\n\n:Employee a owl:Class ;\n    rdfs:label \"Employee\" ;\n    skos:altLabel \"Employee\" ;\n    rdfs:comment \"Table dbo.Employee; key EmployeeId (K2).\" .\n\n:Employee__EmployeeId a owl:DatatypeProperty ;\n    rdfs:label \"EmployeeId\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column EmployeeId (int); key.\" .\n\n:Employee__LastName a owl:DatatypeProperty ;\n    rdfs:label \"LastName\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column LastName (nvarchar).\" .\n\n:Employee__FirstName a owl:DatatypeProperty ;\n    rdfs:label \"FirstName\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column FirstName (nvarchar).\" .\n\n:Employee__Title a owl:DatatypeProperty ;\n    rdfs:label \"Title\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Title (nvarchar).\" .\n\n:Employee__ReportsTo a owl:DatatypeProperty ;\n    rdfs:label \"ReportsTo\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ReportsTo (int).\" .\n\n:Employee__BirthDate a owl:DatatypeProperty ;\n    rdfs:label \"BirthDate\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column BirthDate (datetime).\" .\n\n:Employee__HireDate a owl:DatatypeProperty ;\n    rdfs:label \"HireDate\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column HireDate (datetime).\" .\n\n:Employee__Address a owl:DatatypeProperty ;\n    rdfs:label \"Address\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Address (nvarchar).\" .\n\n:Employee__City a owl:DatatypeProperty ;\n    rdfs:label \"City\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column City (nvarchar).\" .\n\n:Employee__State a owl:DatatypeProperty ;\n    rdfs:label \"State\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column State (nvarchar).\" .\n\n:Employee__Country a owl:DatatypeProperty ;\n    rdfs:label \"Country\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Country (nvarchar).\" .\n\n:Employee__PostalCode a owl:DatatypeProperty ;\n    rdfs:label \"PostalCode\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column PostalCode (nvarchar).\" .\n\n:Employee__Phone a owl:DatatypeProperty ;\n    rdfs:label \"Phone\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Phone (nvarchar).\" .\n\n:Employee__Fax a owl:DatatypeProperty ;\n    rdfs:label \"Fax\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Fax (nvarchar).\" .\n\n:Employee__Email a owl:DatatypeProperty ;\n    rdfs:label \"Email\" ;\n    rdfs:domain :Employee ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Email (nvarchar).\" .\n\n:Genre a owl:Class ;\n    rdfs:label \"Genre\" ;\n    skos:altLabel \"Genre\" ;\n    rdfs:comment \"Table dbo.Genre; key GenreId (K2).\" .\n\n:Genre__GenreId a owl:DatatypeProperty ;\n    rdfs:label \"GenreId\" ;\n    rdfs:domain :Genre ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column GenreId (int); key.\" .\n\n:Genre__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Genre ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Invoice a owl:Class ;\n    rdfs:label \"Invoice\" ;\n    skos:altLabel \"Invoice\" ;\n    rdfs:comment \"Table dbo.Invoice; key InvoiceId (K2).\" .\n\n:Invoice__InvoiceId a owl:DatatypeProperty ;\n    rdfs:label \"InvoiceId\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column InvoiceId (int); key.\" .\n\n:Invoice__CustomerId a owl:DatatypeProperty ;\n    rdfs:label \"CustomerId\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column CustomerId (int).\" .\n\n:Invoice__InvoiceDate a owl:DatatypeProperty ;\n    rdfs:label \"InvoiceDate\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column InvoiceDate (datetime).\" .\n\n:Invoice__BillingAddress a owl:DatatypeProperty ;\n    rdfs:label \"BillingAddress\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column BillingAddress (nvarchar).\" .\n\n:Invoice__BillingCity a owl:DatatypeProperty ;\n    rdfs:label \"BillingCity\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column BillingCity (nvarchar).\" .\n\n:Invoice__BillingState a owl:DatatypeProperty ;\n    rdfs:label \"BillingState\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column BillingState (nvarchar).\" .\n\n:Invoice__BillingCountry a owl:DatatypeProperty ;\n    rdfs:label \"BillingCountry\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column BillingCountry (nvarchar).\" .\n\n:Invoice__BillingPostalCode a owl:DatatypeProperty ;\n    rdfs:label \"BillingPostalCode\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column BillingPostalCode (nvarchar).\" .\n\n:Invoice__Total a owl:DatatypeProperty ;\n    rdfs:label \"Total\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column Total (numeric).\" .\n\n:InvoiceLine a owl:Class ;\n    rdfs:label \"InvoiceLine\" ;\n    skos:altLabel \"InvoiceLine\" ;\n    rdfs:comment \"Table dbo.InvoiceLine; key InvoiceLineId (K2).\" .\n\n:InvoiceLine__InvoiceLineId a owl:DatatypeProperty ;\n    rdfs:label \"InvoiceLineId\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column InvoiceLineId (int); key.\" .\n\n:InvoiceLine__InvoiceId a owl:DatatypeProperty ;\n    rdfs:label \"InvoiceId\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column InvoiceId (int).\" .\n\n:InvoiceLine__TrackId a owl:DatatypeProperty ;\n    rdfs:label \"TrackId\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column TrackId (int).\" .\n\n:InvoiceLine__UnitPrice a owl:DatatypeProperty ;\n    rdfs:label \"UnitPrice\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column UnitPrice (numeric).\" .\n\n:InvoiceLine__Quantity a owl:DatatypeProperty ;\n    rdfs:label \"Quantity\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Quantity (int).\" .\n\n:MediaType a owl:Class ;\n    rdfs:label \"MediaType\" ;\n    skos:altLabel \"MediaType\" ;\n    rdfs:comment \"Table dbo.MediaType; key MediaTypeId (K2).\" .\n\n:MediaType__MediaTypeId a owl:DatatypeProperty ;\n    rdfs:label \"MediaTypeId\" ;\n    rdfs:domain :MediaType ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column MediaTypeId (int); key.\" .\n\n:MediaType__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :MediaType ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Playlist a owl:Class ;\n    rdfs:label \"Playlist\" ;\n    skos:altLabel \"Playlist\" ;\n    rdfs:comment \"Table dbo.Playlist; key PlaylistId (K2).\" .\n\n:Playlist__PlaylistId a owl:DatatypeProperty ;\n    rdfs:label \"PlaylistId\" ;\n    rdfs:domain :Playlist ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column PlaylistId (int); key.\" .\n\n:Playlist__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Playlist ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:PlaylistTrack a owl:Class ;\n    rdfs:label \"PlaylistTrack\" ;\n    skos:altLabel \"PlaylistTrack\" ;\n    rdfs:comment \"Table dbo.PlaylistTrack; key PlaylistId+TrackId (K4).\" .\n\n:PlaylistTrack__PlaylistId a owl:DatatypeProperty ;\n    rdfs:label \"PlaylistId\" ;\n    rdfs:domain :PlaylistTrack ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column PlaylistId (int); key.\" .\n\n:PlaylistTrack__TrackId a owl:DatatypeProperty ;\n    rdfs:label \"TrackId\" ;\n    rdfs:domain :PlaylistTrack ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column TrackId (int); key.\" .\n\n:Track a owl:Class ;\n    rdfs:label \"Track\" ;\n    skos:altLabel \"Track\" ;\n    rdfs:comment \"Table dbo.Track; key TrackId (K2).\" .\n\n:Track__TrackId a owl:DatatypeProperty ;\n    rdfs:label \"TrackId\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column TrackId (int); key.\" .\n\n:Track__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Track__AlbumId a owl:DatatypeProperty ;\n    rdfs:label \"AlbumId\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column AlbumId (int).\" .\n\n:Track__MediaTypeId a owl:DatatypeProperty ;\n    rdfs:label \"MediaTypeId\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column MediaTypeId (int).\" .\n\n:Track__GenreId a owl:DatatypeProperty ;\n    rdfs:label \"GenreId\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column GenreId (int).\" .\n\n:Track__Composer a owl:DatatypeProperty ;\n    rdfs:label \"Composer\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Composer (nvarchar).\" .\n\n:Track__Milliseconds a owl:DatatypeProperty ;\n    rdfs:label \"Milliseconds\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Milliseconds (int).\" .\n\n:Track__Bytes a owl:DatatypeProperty ;\n    rdfs:label \"Bytes\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Bytes (int).\" .\n\n:Track__UnitPrice a owl:DatatypeProperty ;\n    rdfs:label \"UnitPrice\" ;\n    rdfs:domain :Track ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column UnitPrice (numeric).\" .\n\n:AlbumHasArtist a owl:ObjectProperty ;\n    rdfs:label \"AlbumHasArtist\" ;\n    rdfs:domain :Album ;\n    rdfs:range :Artist ;\n    rdfs:comment \"Album.ArtistId -> Artist.ArtistId by rule R1.\" .\n\n:InvoiceHasCustomer a owl:ObjectProperty ;\n    rdfs:label \"InvoiceHasCustomer\" ;\n    rdfs:domain :Invoice ;\n    rdfs:range :Customer ;\n    rdfs:comment \"Invoice.CustomerId -> Customer.CustomerId by rule R1.\" .\n\n:InvoiceLineHasInvoice a owl:ObjectProperty ;\n    rdfs:label \"InvoiceLineHasInvoice\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range :Invoice ;\n    rdfs:comment \"InvoiceLine.InvoiceId -> Invoice.InvoiceId by rule R1.\" .\n\n:InvoiceLineHasTrack a owl:ObjectProperty ;\n    rdfs:label \"InvoiceLineHasTrack\" ;\n    rdfs:domain :InvoiceLine ;\n    rdfs:range :Track ;\n    rdfs:comment \"InvoiceLine.TrackId -> Track.TrackId by rule R1.\" .\n\n:PlaylistTrackHasPlaylist a owl:ObjectProperty ;\n    rdfs:label \"PlaylistTrackHasPlaylist\" ;\n    rdfs:domain :PlaylistTrack ;\n    rdfs:range :Playlist ;\n    rdfs:comment \"PlaylistTrack.PlaylistId -> Playlist.PlaylistId by rule R1.\" .\n\n:PlaylistTrackHasTrack a owl:ObjectProperty ;\n    rdfs:label \"PlaylistTrackHasTrack\" ;\n    rdfs:domain :PlaylistTrack ;\n    rdfs:range :Track ;\n    rdfs:comment \"PlaylistTrack.TrackId -> Track.TrackId by rule R1.\" .\n\n:TrackHasAlbum a owl:ObjectProperty ;\n    rdfs:label \"TrackHasAlbum\" ;\n    rdfs:domain :Track ;\n    rdfs:range :Album ;\n    rdfs:comment \"Track.AlbumId -> Album.AlbumId by rule R1.\" .\n\n:TrackHasMediaType a owl:ObjectProperty ;\n    rdfs:label \"TrackHasMediaType\" ;\n    rdfs:domain :Track ;\n    rdfs:range :MediaType ;\n    rdfs:comment \"Track.MediaTypeId -> MediaType.MediaTypeId by rule R1.\" .\n\n:TrackHasGenre a owl:ObjectProperty ;\n    rdfs:label \"TrackHasGenre\" ;\n    rdfs:domain :Track ;\n    rdfs:range :Genre ;\n    rdfs:comment \"Track.GenreId -> Genre.GenreId by rule R1.\" .\n",
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "Album": [
+    [
+     "AlbumId"
+    ],
+    "K2"
+   ],
+   "Artist": [
+    [
+     "ArtistId"
+    ],
+    "K2"
+   ],
+   "Customer": [
+    [
+     "CustomerId"
+    ],
+    "K2"
+   ],
+   "Employee": [
+    [
+     "EmployeeId"
+    ],
+    "K2"
+   ],
+   "Genre": [
+    [
+     "GenreId"
+    ],
+    "K2"
+   ],
+   "Invoice": [
+    [
+     "InvoiceId"
+    ],
+    "K2"
+   ],
+   "InvoiceLine": [
+    [
+     "InvoiceLineId"
+    ],
+    "K2"
+   ],
+   "MediaType": [
+    [
+     "MediaTypeId"
+    ],
+    "K2"
+   ],
+   "Playlist": [
+    [
+     "PlaylistId"
+    ],
+    "K2"
+   ],
+   "PlaylistTrack": [
+    [
+     "PlaylistId",
+     "TrackId"
+    ],
+    "K4"
+   ],
+   "Track": [
+    [
+     "TrackId"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  Album {\n    AlbumId int PK\n    Title nvarchar\n    ArtistId int\n  }\n  Artist {\n    ArtistId int PK\n    Name nvarchar\n  }\n  Customer {\n    CustomerId int PK\n    FirstName nvarchar\n    LastName nvarchar\n    Company nvarchar\n    Address nvarchar\n    City nvarchar\n    State nvarchar\n    Country nvarchar\n    PostalCode nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    Email nvarchar\n    SupportRepId int\n  }\n  Employee {\n    EmployeeId int PK\n    LastName nvarchar\n    FirstName nvarchar\n    Title nvarchar\n    ReportsTo int\n    BirthDate datetime\n    HireDate datetime\n    Address nvarchar\n    City nvarchar\n    State nvarchar\n    Country nvarchar\n    PostalCode nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    Email nvarchar\n  }\n  Genre {\n    GenreId int PK\n    Name nvarchar\n  }\n  Invoice {\n    InvoiceId int PK\n    CustomerId int\n    InvoiceDate datetime\n    BillingAddress nvarchar\n    BillingCity nvarchar\n    BillingState nvarchar\n    BillingCountry nvarchar\n    BillingPostalCode nvarchar\n    Total numeric\n  }\n  InvoiceLine {\n    InvoiceLineId int PK\n    InvoiceId int\n    TrackId int\n    UnitPrice numeric\n    Quantity int\n  }\n  MediaType {\n    MediaTypeId int PK\n    Name nvarchar\n  }\n  Playlist {\n    PlaylistId int PK\n    Name nvarchar\n  }\n  PlaylistTrack {\n    PlaylistId int PK\n    TrackId int PK\n  }\n  Track {\n    TrackId int PK\n    Name nvarchar\n    AlbumId int\n    MediaTypeId int\n    GenreId int\n    Composer nvarchar\n    Milliseconds int\n    Bytes int\n    UnitPrice numeric\n  }\n  Artist ||--o{ Album : \"ArtistId R1\"\n  Customer ||--o{ Invoice : \"CustomerId R1\"\n  Invoice ||--o{ InvoiceLine : \"InvoiceId R1\"\n  Track ||--o{ InvoiceLine : \"TrackId R1\"\n  Playlist ||--o{ PlaylistTrack : \"PlaylistId R1\"\n  Track ||--o{ PlaylistTrack : \"TrackId R1\"\n  Album ||--o{ Track : \"AlbumId R1\"\n  MediaType ||--o{ Track : \"MediaTypeId R1\"\n  Genre ||--o{ Track : \"GenreId R1\"",
+  "relationships": [
+   {
+    "field_name": "artist",
+    "note": "",
+    "reverse_name": "album",
+    "rule": "R1",
+    "source": "Album",
+    "source_cols": [
+     "ArtistId"
+    ],
+    "target": "Artist",
+    "target_cols": [
+     "ArtistId"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "invoice",
+    "rule": "R1",
+    "source": "Invoice",
+    "source_cols": [
+     "CustomerId"
+    ],
+    "target": "Customer",
+    "target_cols": [
+     "CustomerId"
+    ]
+   },
+   {
+    "field_name": "invoice",
+    "note": "",
+    "reverse_name": "invoiceline",
+    "rule": "R1",
+    "source": "InvoiceLine",
+    "source_cols": [
+     "InvoiceId"
+    ],
+    "target": "Invoice",
+    "target_cols": [
+     "InvoiceId"
+    ]
+   },
+   {
+    "field_name": "track",
+    "note": "",
+    "reverse_name": "invoiceline",
+    "rule": "R1",
+    "source": "InvoiceLine",
+    "source_cols": [
+     "TrackId"
+    ],
+    "target": "Track",
+    "target_cols": [
+     "TrackId"
+    ]
+   },
+   {
+    "field_name": "playlist",
+    "note": "",
+    "reverse_name": "playlisttrack",
+    "rule": "R1",
+    "source": "PlaylistTrack",
+    "source_cols": [
+     "PlaylistId"
+    ],
+    "target": "Playlist",
+    "target_cols": [
+     "PlaylistId"
+    ]
+   },
+   {
+    "field_name": "track",
+    "note": "",
+    "reverse_name": "playlisttrack",
+    "rule": "R1",
+    "source": "PlaylistTrack",
+    "source_cols": [
+     "TrackId"
+    ],
+    "target": "Track",
+    "target_cols": [
+     "TrackId"
+    ]
+   },
+   {
+    "field_name": "album",
+    "note": "",
+    "reverse_name": "track",
+    "rule": "R1",
+    "source": "Track",
+    "source_cols": [
+     "AlbumId"
+    ],
+    "target": "Album",
+    "target_cols": [
+     "AlbumId"
+    ]
+   },
+   {
+    "field_name": "mediatype",
+    "note": "",
+    "reverse_name": "track",
+    "rule": "R1",
+    "source": "Track",
+    "source_cols": [
+     "MediaTypeId"
+    ],
+    "target": "MediaType",
+    "target_cols": [
+     "MediaTypeId"
+    ]
+   },
+   {
+    "field_name": "genre",
+    "note": "",
+    "reverse_name": "track",
+    "rule": "R1",
+    "source": "Track",
+    "source_cols": [
+     "GenreId"
+    ],
+    "target": "Genre",
+    "target_cols": [
+     "GenreId"
+    ]
+   }
+  ],
+  "summary": "11 tables, 11 with keys, 9 relationships",
+  "synonyms": []
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Album.ts": "// rayfin/connectors/<connector>/Album.ts — generated by fabric-backend from dbo.Album\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Artist } from './Artist.js';\nimport { Track } from './Track.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key AlbumId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Album extends Source({ schema: 'dbo', table: 'Album', primaryKey: ['albumId'] }) {\n  @int({ column: 'AlbumId' }) albumId!: number;\n  @text({ column: 'Title' }) title!: string;\n  @int({ column: 'ArtistId' }) artistId!: number;\n\n  @one(() => Artist, { sourceFields: ['artistId'], targetFields: ['artistId'] }) artist?: Artist;    // ArtistId -> Artist [R1]\n  @many(() => Track, { sourceFields: ['albumId'], targetFields: ['albumId'] }) track?: Track[];    // Track.AlbumId [R1]\n}\n",
+  "rayfin/connectors/data/Artist.ts": "// rayfin/connectors/<connector>/Artist.ts — generated by fabric-backend from dbo.Artist\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Album } from './Album.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key ArtistId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Artist extends Source({ schema: 'dbo', table: 'Artist', primaryKey: ['artistId'] }) {\n  @int({ column: 'ArtistId' }) artistId!: number;\n  @text({ column: 'Name' }) name!: string;\n\n  @many(() => Album, { sourceFields: ['artistId'], targetFields: ['artistId'] }) album?: Album[];    // Album.ArtistId [R1]\n}\n",
+  "rayfin/connectors/data/Customer.ts": "// rayfin/connectors/<connector>/Customer.ts — generated by fabric-backend from dbo.Customer\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Invoice } from './Invoice.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key CustomerId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Customer extends Source({ schema: 'dbo', table: 'Customer', primaryKey: ['customerId'] }) {\n  @int({ column: 'CustomerId' }) customerId!: number;\n  @text({ column: 'FirstName' }) firstName!: string;\n  @text({ column: 'LastName' }) lastName!: string;\n  @text({ column: 'Company' }) company!: string;\n  @text({ column: 'Address' }) address!: string;\n  @text({ column: 'City' }) city!: string;\n  @text({ column: 'State' }) state!: string;\n  @text({ column: 'Country' }) country!: string;\n  @text({ column: 'PostalCode' }) postalCode!: string;\n  @text({ column: 'Phone' }) phone!: string;\n  @text({ column: 'Fax' }) fax!: string;\n  @text({ column: 'Email' }) email!: string;\n  @int({ column: 'SupportRepId' }) supportRepId!: number;\n\n  @many(() => Invoice, { sourceFields: ['customerId'], targetFields: ['customerId'] }) invoice?: Invoice[];    // Invoice.CustomerId [R1]\n}\n",
+  "rayfin/connectors/data/Employee.ts": "// rayfin/connectors/<connector>/Employee.ts — generated by fabric-backend from dbo.Employee\nimport { date, entity, int, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\n\n@role('authenticated', ['read'])\n@entity()\n// key EmployeeId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Employee extends Source({ schema: 'dbo', table: 'Employee', primaryKey: ['employeeId'] }) {\n  @int({ column: 'EmployeeId' }) employeeId!: number;\n  @text({ column: 'LastName' }) lastName!: string;\n  @text({ column: 'FirstName' }) firstName!: string;\n  @text({ column: 'Title' }) title!: string;\n  @int({ column: 'ReportsTo' }) reportsTo!: number;\n  @date({ column: 'BirthDate' }) birthDate!: Date;\n  @date({ column: 'HireDate' }) hireDate!: Date;\n  @text({ column: 'Address' }) address!: string;\n  @text({ column: 'City' }) city!: string;\n  @text({ column: 'State' }) state!: string;\n  @text({ column: 'Country' }) country!: string;\n  @text({ column: 'PostalCode' }) postalCode!: string;\n  @text({ column: 'Phone' }) phone!: string;\n  @text({ column: 'Fax' }) fax!: string;\n  @text({ column: 'Email' }) email!: string;\n}\n",
+  "rayfin/connectors/data/Genre.ts": "// rayfin/connectors/<connector>/Genre.ts — generated by fabric-backend from dbo.Genre\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Track } from './Track.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key GenreId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Genre extends Source({ schema: 'dbo', table: 'Genre', primaryKey: ['genreId'] }) {\n  @int({ column: 'GenreId' }) genreId!: number;\n  @text({ column: 'Name' }) name!: string;\n\n  @many(() => Track, { sourceFields: ['genreId'], targetFields: ['genreId'] }) track?: Track[];    // Track.GenreId [R1]\n}\n",
+  "rayfin/connectors/data/Invoice.ts": "// rayfin/connectors/<connector>/Invoice.ts — generated by fabric-backend from dbo.Invoice\nimport { date, decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customer } from './Customer.js';\nimport { InvoiceLine } from './InvoiceLine.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key InvoiceId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Invoice extends Source({ schema: 'dbo', table: 'Invoice', primaryKey: ['invoiceId'] }) {\n  @int({ column: 'InvoiceId' }) invoiceId!: number;\n  @int({ column: 'CustomerId' }) customerId!: number;\n  @date({ column: 'InvoiceDate' }) invoiceDate!: Date;\n  @text({ column: 'BillingAddress' }) billingAddress!: string;\n  @text({ column: 'BillingCity' }) billingCity!: string;\n  @text({ column: 'BillingState' }) billingState!: string;\n  @text({ column: 'BillingCountry' }) billingCountry!: string;\n  @text({ column: 'BillingPostalCode' }) billingPostalCode!: string;\n  @decimal({ column: 'Total' }) total!: number;\n\n  @one(() => Customer, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customer;    // CustomerId -> Customer [R1]\n  @many(() => InvoiceLine, { sourceFields: ['invoiceId'], targetFields: ['invoiceId'] }) invoiceline?: InvoiceLine[];    // InvoiceLine.InvoiceId [R1]\n}\n",
+  "rayfin/connectors/data/InvoiceLine.ts": "// rayfin/connectors/<connector>/InvoiceLine.ts — generated by fabric-backend from dbo.InvoiceLine\nimport { decimal, entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Invoice } from './Invoice.js';\nimport { Track } from './Track.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key InvoiceLineId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class InvoiceLine extends Source({ schema: 'dbo', table: 'InvoiceLine', primaryKey: ['invoiceLineId'] }) {\n  @int({ column: 'InvoiceLineId' }) invoiceLineId!: number;\n  @int({ column: 'InvoiceId' }) invoiceId!: number;\n  @int({ column: 'TrackId' }) trackId!: number;\n  @decimal({ column: 'UnitPrice' }) unitPrice!: number;\n  @int({ column: 'Quantity' }) quantity!: number;\n\n  @one(() => Invoice, { sourceFields: ['invoiceId'], targetFields: ['invoiceId'] }) invoice?: Invoice;    // InvoiceId -> Invoice [R1]\n  @one(() => Track, { sourceFields: ['trackId'], targetFields: ['trackId'] }) track?: Track;    // TrackId -> Track [R1]\n}\n",
+  "rayfin/connectors/data/MediaType.ts": "// rayfin/connectors/<connector>/MediaType.ts — generated by fabric-backend from dbo.MediaType\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Track } from './Track.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key MediaTypeId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class MediaType extends Source({ schema: 'dbo', table: 'MediaType', primaryKey: ['mediaTypeId'] }) {\n  @int({ column: 'MediaTypeId' }) mediaTypeId!: number;\n  @text({ column: 'Name' }) name!: string;\n\n  @many(() => Track, { sourceFields: ['mediaTypeId'], targetFields: ['mediaTypeId'] }) track?: Track[];    // Track.MediaTypeId [R1]\n}\n",
+  "rayfin/connectors/data/Playlist.ts": "// rayfin/connectors/<connector>/Playlist.ts — generated by fabric-backend from dbo.Playlist\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { PlaylistTrack } from './PlaylistTrack.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key PlaylistId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Playlist extends Source({ schema: 'dbo', table: 'Playlist', primaryKey: ['playlistId'] }) {\n  @int({ column: 'PlaylistId' }) playlistId!: number;\n  @text({ column: 'Name' }) name!: string;\n\n  @many(() => PlaylistTrack, { sourceFields: ['playlistId'], targetFields: ['playlistId'] }) playlisttrack?: PlaylistTrack[];    // PlaylistTrack.PlaylistId [R1]\n}\n",
+  "rayfin/connectors/data/PlaylistTrack.ts": "// rayfin/connectors/<connector>/PlaylistTrack.ts — generated by fabric-backend from dbo.PlaylistTrack\nimport { entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Playlist } from './Playlist.js';\nimport { Track } from './Track.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key PlaylistId+TrackId by rule K4\nexport class PlaylistTrack extends Source({ schema: 'dbo', table: 'PlaylistTrack', primaryKey: ['playlistId', 'trackId'] }) {\n  @int({ column: 'PlaylistId' }) playlistId!: number;\n  @int({ column: 'TrackId' }) trackId!: number;\n\n  @one(() => Playlist, { sourceFields: ['playlistId'], targetFields: ['playlistId'] }) playlist?: Playlist;    // PlaylistId -> Playlist [R1]\n  @one(() => Track, { sourceFields: ['trackId'], targetFields: ['trackId'] }) track?: Track;    // TrackId -> Track [R1]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n11 entities, 9 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Album, Artist, Customer, Employee, Genre, Invoice, InvoiceLine, MediaType, Playlist, PlaylistTrack, Track\n",
+  "rayfin/connectors/data/Track.ts": "// rayfin/connectors/<connector>/Track.ts — generated by fabric-backend from dbo.Track\nimport { decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Album } from './Album.js';\nimport { Genre } from './Genre.js';\nimport { InvoiceLine } from './InvoiceLine.js';\nimport { MediaType } from './MediaType.js';\nimport { PlaylistTrack } from './PlaylistTrack.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key TrackId by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Track extends Source({ schema: 'dbo', table: 'Track', primaryKey: ['trackId'] }) {\n  @int({ column: 'TrackId' }) trackId!: number;\n  @text({ column: 'Name' }) name!: string;\n  @int({ column: 'AlbumId' }) albumId!: number;\n  @int({ column: 'MediaTypeId' }) mediaTypeId!: number;\n  @int({ column: 'GenreId' }) genreId!: number;\n  @text({ column: 'Composer' }) composer!: string;\n  @int({ column: 'Milliseconds' }) milliseconds!: number;\n  @int({ column: 'Bytes' }) bytes!: number;\n  @decimal({ column: 'UnitPrice' }) unitPrice!: number;\n\n  @many(() => InvoiceLine, { sourceFields: ['trackId'], targetFields: ['trackId'] }) invoiceline?: InvoiceLine[];    // InvoiceLine.TrackId [R1]\n  @many(() => PlaylistTrack, { sourceFields: ['trackId'], targetFields: ['trackId'] }) playlisttrack?: PlaylistTrack[];    // PlaylistTrack.TrackId [R1]\n  @one(() => Album, { sourceFields: ['albumId'], targetFields: ['albumId'] }) album?: Album;    // AlbumId -> Album [R1]\n  @one(() => MediaType, { sourceFields: ['mediaTypeId'], targetFields: ['mediaTypeId'] }) mediatype?: MediaType;    // MediaTypeId -> MediaType [R1]\n  @one(() => Genre, { sourceFields: ['genreId'], targetFields: ['genreId'] }) genre?: Genre;    // GenreId -> Genre [R1]\n}\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Album } from './Album.js';\nimport { Artist } from './Artist.js';\nimport { Customer } from './Customer.js';\nimport { Employee } from './Employee.js';\nimport { Genre } from './Genre.js';\nimport { Invoice } from './Invoice.js';\nimport { InvoiceLine } from './InvoiceLine.js';\nimport { MediaType } from './MediaType.js';\nimport { Playlist } from './Playlist.js';\nimport { PlaylistTrack } from './PlaylistTrack.js';\nimport { Track } from './Track.js';\n\nexport { Album } from './Album.js';\nexport { Artist } from './Artist.js';\nexport { Customer } from './Customer.js';\nexport { Employee } from './Employee.js';\nexport { Genre } from './Genre.js';\nexport { Invoice } from './Invoice.js';\nexport { InvoiceLine } from './InvoiceLine.js';\nexport { MediaType } from './MediaType.js';\nexport { Playlist } from './Playlist.js';\nexport { PlaylistTrack } from './PlaylistTrack.js';\nexport { Track } from './Track.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Album, Artist, Customer, Employee, Genre, Invoice, InvoiceLine, MediaType, Playlist, PlaylistTrack, Track },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { Album: typeof Album, Artist: typeof Artist, Customer: typeof Customer, Employee: typeof Employee, Genre: typeof Genre, Invoice: typeof Invoice, InvoiceLine: typeof InvoiceLine, MediaType: typeof MediaType, Playlist: typeof Playlist, PlaylistTrack: typeof PlaylistTrack, Track: typeof Track },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[ArtistId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Album] AS s LEFT JOIN (SELECT DISTINCT [ArtistId] FROM [dbo].[Artist]) AS t ON s.[ArtistId] = t.[ArtistId] WHERE s.[ArtistId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CustomerId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Invoice] AS s LEFT JOIN (SELECT DISTINCT [CustomerId] FROM [dbo].[Customer]) AS t ON s.[CustomerId] = t.[CustomerId] WHERE s.[CustomerId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[InvoiceId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[InvoiceLine] AS s LEFT JOIN (SELECT DISTINCT [InvoiceId] FROM [dbo].[Invoice]) AS t ON s.[InvoiceId] = t.[InvoiceId] WHERE s.[InvoiceId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[TrackId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[InvoiceLine] AS s LEFT JOIN (SELECT DISTINCT [TrackId] FROM [dbo].[Track]) AS t ON s.[TrackId] = t.[TrackId] WHERE s.[TrackId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[PlaylistId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[PlaylistTrack] AS s LEFT JOIN (SELECT DISTINCT [PlaylistId] FROM [dbo].[Playlist]) AS t ON s.[PlaylistId] = t.[PlaylistId] WHERE s.[PlaylistId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[TrackId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[PlaylistTrack] AS s LEFT JOIN (SELECT DISTINCT [TrackId] FROM [dbo].[Track]) AS t ON s.[TrackId] = t.[TrackId] WHERE s.[TrackId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[AlbumId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Track] AS s LEFT JOIN (SELECT DISTINCT [AlbumId] FROM [dbo].[Album]) AS t ON s.[AlbumId] = t.[AlbumId] WHERE s.[AlbumId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[MediaTypeId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Track] AS s LEFT JOIN (SELECT DISTINCT [MediaTypeId] FROM [dbo].[MediaType]) AS t ON s.[MediaTypeId] = t.[MediaTypeId] WHERE s.[MediaTypeId] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[GenreId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Track] AS s LEFT JOIN (SELECT DISTINCT [GenreId] FROM [dbo].[Genre]) AS t ON s.[GenreId] = t.[GenreId] WHERE s.[GenreId] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "Album": "SELECT TOP (10) [AlbumId], [Title], [ArtistId] FROM [dbo].[Album]",
+  "Artist": "SELECT TOP (10) [ArtistId], [Name] FROM [dbo].[Artist]",
+  "Customer": "SELECT TOP (10) [CustomerId], [FirstName], [LastName], [Company], [Address], [City], [State], [Country], [PostalCode], [Phone], [Fax], [Email], [SupportRepId] FROM [dbo].[Customer]",
+  "Employee": "SELECT TOP (10) [EmployeeId], [LastName], [FirstName], [Title], [ReportsTo], [BirthDate], [HireDate], [Address], [City], [State], [Country], [PostalCode], [Phone], [Fax], [Email] FROM [dbo].[Employee]",
+  "Genre": "SELECT TOP (10) [GenreId], [Name] FROM [dbo].[Genre]",
+  "Invoice": "SELECT TOP (10) [InvoiceId], [CustomerId], [InvoiceDate], [BillingAddress], [BillingCity], [BillingState], [BillingCountry], [BillingPostalCode], [Total] FROM [dbo].[Invoice]",
+  "InvoiceLine": "SELECT TOP (10) [InvoiceLineId], [InvoiceId], [TrackId], [UnitPrice], [Quantity] FROM [dbo].[InvoiceLine]",
+  "MediaType": "SELECT TOP (10) [MediaTypeId], [Name] FROM [dbo].[MediaType]",
+  "Playlist": "SELECT TOP (10) [PlaylistId], [Name] FROM [dbo].[Playlist]",
+  "PlaylistTrack": "SELECT TOP (10) [PlaylistId], [TrackId] FROM [dbo].[PlaylistTrack]",
+  "Track": "SELECT TOP (10) [TrackId], [Name], [AlbumId], [MediaTypeId], [GenreId], [Composer], [Milliseconds], [Bytes], [UnitPrice] FROM [dbo].[Track]"
+ },
+ "semantic_model": {
+  "bytes": 32895,
+  "sha256": "d678589e47a624a4532c2acff6880c325bafefa7753a869557b31811f8cd09c5"
+ },
+ "silver": {
+  "bytes": 24281,
+  "sha256": "80a32a5e23d159b3a9bd59463f91598bccbef6075135f5343974ae7513404f5d"
+ },
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_InvoiceLine",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_InvoiceLine] AS\nSELECT\n    f.[InvoiceLineId] AS [InvoiceLineId],\n    f.[InvoiceId] AS [InvoiceId],\n    f.[TrackId] AS [TrackId],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    d1.[InvoiceId] AS [Invoice_InvoiceId],\n    d1.[CustomerId] AS [Invoice_CustomerId],\n    d1.[InvoiceDate] AS [Invoice_InvoiceDate],\n    d1.[BillingAddress] AS [Invoice_BillingAddress],\n    d1.[BillingCity] AS [Invoice_BillingCity],\n    d1.[BillingState] AS [Invoice_BillingState],\n    d1.[BillingCountry] AS [Invoice_BillingCountry],\n    d1.[BillingPostalCode] AS [Invoice_BillingPostalCode],\n    d1.[Total] AS [Invoice_Total],\n    d2.[TrackId] AS [Track_TrackId],\n    d2.[Name] AS [Track_Name],\n    d2.[AlbumId] AS [Track_AlbumId],\n    d2.[MediaTypeId] AS [Track_MediaTypeId],\n    d2.[GenreId] AS [Track_GenreId],\n    d2.[Composer] AS [Track_Composer],\n    d2.[Milliseconds] AS [Track_Milliseconds],\n    d2.[Bytes] AS [Track_Bytes],\n    d2.[UnitPrice] AS [Track_UnitPrice],\n    d3.[CustomerId] AS [Customer_CustomerId],\n    d3.[FirstName] AS [Customer_FirstName],\n    d3.[LastName] AS [Customer_LastName],\n    d3.[Company] AS [Customer_Company],\n    d3.[Address] AS [Customer_Address],\n    d3.[City] AS [Customer_City],\n    d3.[State] AS [Customer_State],\n    d3.[Country] AS [Customer_Country],\n    d3.[PostalCode] AS [Customer_PostalCode],\n    d3.[Phone] AS [Customer_Phone],\n    d3.[Fax] AS [Customer_Fax],\n    d3.[Email] AS [Customer_Email],\n    d3.[SupportRepId] AS [Customer_SupportRepId],\n    d4.[AlbumId] AS [Album_AlbumId],\n    d4.[Title] AS [Album_Title],\n    d4.[ArtistId] AS [Album_ArtistId],\n    d5.[GenreId] AS [Genre_GenreId],\n    d5.[Name] AS [Genre_Name],\n    d6.[MediaTypeId] AS [MediaType_MediaTypeId],\n    d6.[Name] AS [MediaType_Name],\n    d7.[ArtistId] AS [Artist_ArtistId],\n    d7.[Name] AS [Artist_Name]\nFROM [dbo].[InvoiceLine] AS f\n    LEFT JOIN [dbo].[Invoice] AS d1 ON f.[InvoiceId] = d1.[InvoiceId]\n    LEFT JOIN [dbo].[Track] AS d2 ON f.[TrackId] = d2.[TrackId]\n    LEFT JOIN [dbo].[Customer] AS d3 ON d1.[CustomerId] = d3.[CustomerId]\n    LEFT JOIN [dbo].[Album] AS d4 ON d2.[AlbumId] = d4.[AlbumId]\n    LEFT JOIN [dbo].[Genre] AS d5 ON d2.[GenreId] = d5.[GenreId]\n    LEFT JOIN [dbo].[MediaType] AS d6 ON d2.[MediaTypeId] = d6.[MediaTypeId]\n    LEFT JOIN [dbo].[Artist] AS d7 ON d4.[ArtistId] = d7.[ArtistId]",
+    "tables": [
+     "InvoiceLine",
+     "Invoice",
+     "Track",
+     "Customer",
+     "Album",
+     "Genre",
+     "MediaType",
+     "Artist"
+    ],
+    "why": "InvoiceLine is a fact table (7 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_PlaylistTrack",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_PlaylistTrack] AS\nSELECT\n    f.[PlaylistId] AS [PlaylistId],\n    f.[TrackId] AS [TrackId],\n    d1.[PlaylistId] AS [Playlist_PlaylistId],\n    d1.[Name] AS [Playlist_Name],\n    d2.[TrackId] AS [Track_TrackId],\n    d2.[Name] AS [Track_Name],\n    d2.[AlbumId] AS [Track_AlbumId],\n    d2.[MediaTypeId] AS [Track_MediaTypeId],\n    d2.[GenreId] AS [Track_GenreId],\n    d2.[Composer] AS [Track_Composer],\n    d2.[Milliseconds] AS [Track_Milliseconds],\n    d2.[Bytes] AS [Track_Bytes],\n    d2.[UnitPrice] AS [Track_UnitPrice],\n    d3.[AlbumId] AS [Album_AlbumId],\n    d3.[Title] AS [Album_Title],\n    d3.[ArtistId] AS [Album_ArtistId],\n    d4.[GenreId] AS [Genre_GenreId],\n    d4.[Name] AS [Genre_Name],\n    d5.[MediaTypeId] AS [MediaType_MediaTypeId],\n    d5.[Name] AS [MediaType_Name],\n    d6.[ArtistId] AS [Artist_ArtistId],\n    d6.[Name] AS [Artist_Name]\nFROM [dbo].[PlaylistTrack] AS f\n    LEFT JOIN [dbo].[Playlist] AS d1 ON f.[PlaylistId] = d1.[PlaylistId]\n    LEFT JOIN [dbo].[Track] AS d2 ON f.[TrackId] = d2.[TrackId]\n    LEFT JOIN [dbo].[Album] AS d3 ON d2.[AlbumId] = d3.[AlbumId]\n    LEFT JOIN [dbo].[Genre] AS d4 ON d2.[GenreId] = d4.[GenreId]\n    LEFT JOIN [dbo].[MediaType] AS d5 ON d2.[MediaTypeId] = d5.[MediaTypeId]\n    LEFT JOIN [dbo].[Artist] AS d6 ON d3.[ArtistId] = d6.[ArtistId]",
+    "tables": [
+     "PlaylistTrack",
+     "Playlist",
+     "Track",
+     "Album",
+     "Genre",
+     "MediaType",
+     "Artist"
+    ],
+    "why": "PlaylistTrack is a fact table (6 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_Invoice",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Invoice] AS\nSELECT\n    f.[InvoiceId] AS [InvoiceId],\n    f.[CustomerId] AS [CustomerId],\n    f.[InvoiceDate] AS [InvoiceDate],\n    f.[BillingAddress] AS [BillingAddress],\n    f.[BillingCity] AS [BillingCity],\n    f.[BillingState] AS [BillingState],\n    f.[BillingCountry] AS [BillingCountry],\n    f.[BillingPostalCode] AS [BillingPostalCode],\n    f.[Total] AS [Total],\n    d1.[CustomerId] AS [Customer_CustomerId],\n    d1.[FirstName] AS [Customer_FirstName],\n    d1.[LastName] AS [Customer_LastName],\n    d1.[Company] AS [Customer_Company],\n    d1.[Address] AS [Customer_Address],\n    d1.[City] AS [Customer_City],\n    d1.[State] AS [Customer_State],\n    d1.[Country] AS [Customer_Country],\n    d1.[PostalCode] AS [Customer_PostalCode],\n    d1.[Phone] AS [Customer_Phone],\n    d1.[Fax] AS [Customer_Fax],\n    d1.[Email] AS [Customer_Email],\n    d1.[SupportRepId] AS [Customer_SupportRepId]\nFROM [dbo].[Invoice] AS f\n    LEFT JOIN [dbo].[Customer] AS d1 ON f.[CustomerId] = d1.[CustomerId]",
+    "tables": [
+     "Invoice",
+     "Customer"
+    ],
+    "why": "Invoice is a header table: InvoiceLine holds its lines; one row per Invoice row, with its 1 dimension(s) joined in"
+   }
+  ]
+ }
+}

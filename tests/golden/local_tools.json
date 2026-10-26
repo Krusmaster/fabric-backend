@@ -1,0 +1,2104 @@
+[
+ {
+  "answer": {
+   "addresses": [
+    [
+     "address_id",
+     "int"
+    ],
+    [
+     "customer_id",
+     "int"
+    ],
+    [
+     "city",
+     "string"
+    ]
+   ],
+   "audit_log": [
+    [
+     "event",
+     "string"
+    ],
+    [
+     "customer_id",
+     "int"
+    ],
+    [
+     "happened_at",
+     "timestamp"
+    ]
+   ],
+   "categories": [
+    [
+     "id",
+     "int"
+    ],
+    [
+     "name",
+     "string"
+    ]
+   ],
+   "customers": [
+    [
+     "customer_id",
+     "int"
+    ],
+    [
+     "name",
+     "string"
+    ],
+    [
+     "country",
+     "string"
+    ]
+   ],
+   "order_items": [
+    [
+     "order_id",
+     "int"
+    ],
+    [
+     "line_no",
+     "int"
+    ],
+    [
+     "product_id",
+     "int"
+    ],
+    [
+     "quantity",
+     "double"
+    ]
+   ],
+   "orders": [
+    [
+     "order_id",
+     "int"
+    ],
+    [
+     "customer_id",
+     "int"
+    ],
+    [
+     "order_date",
+     "date"
+    ],
+    [
+     "ship_to_id",
+     "int"
+    ]
+   ],
+   "products": [
+    [
+     "product_id",
+     "int"
+    ],
+    [
+     "name",
+     "string"
+    ],
+    [
+     "category_id",
+     "int"
+    ]
+   ]
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "list_tables"
+ },
+ {
+  "answer": {},
+  "args": {
+   "schema": "dbo"
+  },
+  "rest": [],
+  "tool": "list_tables"
+ },
+ {
+  "answer": {
+   "ambiguous": [],
+   "keyless": [
+    "audit_log"
+   ],
+   "keys": {
+    "addresses": {
+     "columns": [
+      "address_id"
+     ],
+     "rule": "K2"
+    },
+    "categories": {
+     "columns": [
+      "id"
+     ],
+     "rule": "K2"
+    },
+    "customers": {
+     "columns": [
+      "customer_id"
+     ],
+     "rule": "K2"
+    },
+    "order_items": {
+     "columns": [
+      "order_id",
+      "line_no"
+     ],
+     "rule": "K5"
+    },
+    "orders": {
+     "columns": [
+      "order_id"
+     ],
+     "rule": "K2"
+    },
+    "products": {
+     "columns": [
+      "product_id"
+     ],
+     "rule": "K2"
+    }
+   },
+   "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+   "relationships": [
+    {
+     "field_name": "category",
+     "reverse_name": "products",
+     "rule": "R1",
+     "source": "products",
+     "source_cols": [
+      "category_id"
+     ],
+     "target": "categories",
+     "target_cols": [
+      "id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "addresses",
+     "rule": "R1",
+     "source": "addresses",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "orders",
+     "rule": "R1",
+     "source": "orders",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "field_name": "order",
+     "reverse_name": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "order_id"
+     ],
+     "target": "orders",
+     "target_cols": [
+      "order_id"
+     ]
+    },
+    {
+     "field_name": "product",
+     "reverse_name": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "product_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "audit_log",
+     "rule": "R1",
+     "source": "audit_log",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    }
+   ],
+   "suggested_keys": [],
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "plan_backend"
+ },
+ {
+  "answer": {
+   "ambiguous": [],
+   "keyless": [
+    "audit_log"
+   ],
+   "keys": {
+    "addresses": {
+     "columns": [
+      "address_id"
+     ],
+     "rule": "K2"
+    },
+    "categories": {
+     "columns": [
+      "id"
+     ],
+     "rule": "K2"
+    },
+    "customers": {
+     "columns": [
+      "customer_id"
+     ],
+     "rule": "K2"
+    },
+    "order_items": {
+     "columns": [
+      "order_id",
+      "line_no"
+     ],
+     "rule": "K1"
+    },
+    "orders": {
+     "columns": [
+      "order_id"
+     ],
+     "rule": "K2"
+    },
+    "products": {
+     "columns": [
+      "product_id"
+     ],
+     "rule": "K2"
+    }
+   },
+   "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  addresses ||--o{ orders : \"ship_to_id confirmed\"\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+   "relationships": [
+    {
+     "field_name": "ship_to",
+     "reverse_name": "orders_as_ship_to",
+     "rule": "confirmed",
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    },
+    {
+     "field_name": "category",
+     "reverse_name": "products",
+     "rule": "R1",
+     "source": "products",
+     "source_cols": [
+      "category_id"
+     ],
+     "target": "categories",
+     "target_cols": [
+      "id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "addresses",
+     "rule": "R1",
+     "source": "addresses",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "orders",
+     "rule": "R1",
+     "source": "orders",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "field_name": "order",
+     "reverse_name": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "order_id"
+     ],
+     "target": "orders",
+     "target_cols": [
+      "order_id"
+     ]
+    },
+    {
+     "field_name": "product",
+     "reverse_name": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "product_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ]
+    },
+    {
+     "field_name": "customer",
+     "reverse_name": "audit_log",
+     "rule": "R1",
+     "source": "audit_log",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    }
+   ],
+   "suggested_keys": [],
+   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "confirmed": [
+    {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    }
+   ],
+   "keys": {
+    "order_items": [
+     "order_id",
+     "line_no"
+    ]
+   },
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "plan_backend"
+ },
+ {
+  "answer": {
+   "ambiguous": [],
+   "detail": "summary",
+   "keyless": [],
+   "keys": {
+    "order_items": "order_id+line_no (K5)",
+    "orders": "order_id (K2)"
+   },
+   "note": "Summary form (2 of 7 tables shown): detail=\"full\" adds the GraphQL field names, the suggested-key details and the Mermaid ER diagram; tables=[\"pattern*\"] narrows the answer to matching tables.",
+   "relationships": [
+    "orders.customer_id -> customers [R1]",
+    "order_items.order_id -> orders [R1]",
+    "order_items.product_id -> products [R1]"
+   ],
+   "suggested_keys": [],
+   "summary": "2 tables, 2 with keys, 3 relationships",
+   "synonyms": []
+  },
+  "args": {
+   "detail": "summary",
+   "schema": "shop",
+   "tables": [
+    "order*"
+   ]
+  },
+  "rest": [],
+  "tool": "plan_backend"
+ },
+ {
+  "answer": {
+   "keys": [
+    {
+     "columns": [
+      "customer_id"
+     ],
+     "distinct": 10,
+     "nulls": 0,
+     "rows": 10,
+     "rule": "K2",
+     "table": "customers",
+     "verdict": "unique in all 10 rows"
+    },
+    {
+     "columns": [
+      "id"
+     ],
+     "distinct": 3,
+     "nulls": 0,
+     "rows": 3,
+     "rule": "K2",
+     "table": "categories",
+     "verdict": "unique in all 3 rows"
+    },
+    {
+     "columns": [
+      "product_id"
+     ],
+     "distinct": 8,
+     "nulls": 0,
+     "rows": 8,
+     "rule": "K2",
+     "table": "products",
+     "verdict": "unique in all 8 rows"
+    },
+    {
+     "columns": [
+      "address_id"
+     ],
+     "distinct": 17,
+     "nulls": 0,
+     "rows": 17,
+     "rule": "K2",
+     "table": "addresses",
+     "verdict": "unique in all 17 rows"
+    },
+    {
+     "columns": [
+      "order_id"
+     ],
+     "distinct": 60,
+     "nulls": 0,
+     "rows": 60,
+     "rule": "K2",
+     "table": "orders",
+     "verdict": "unique in all 60 rows"
+    },
+    {
+     "columns": [
+      "order_id",
+      "line_no"
+     ],
+     "distinct": 134,
+     "nulls": 0,
+     "rows": 134,
+     "rule": "K5",
+     "table": "order_items",
+     "verdict": "unique in all 134 rows"
+    }
+   ],
+   "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
+   "relationships": [
+    {
+     "columns": [
+      "category_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 8,
+     "rule": "R1",
+     "source": "products",
+     "target": "categories",
+     "target_columns": [
+      "id"
+     ],
+     "verdict": "holds for all 8 rows with a value"
+    },
+    {
+     "columns": [
+      "customer_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 17,
+     "rule": "R1",
+     "source": "addresses",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verdict": "holds for all 17 rows with a value"
+    },
+    {
+     "columns": [
+      "customer_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 60,
+     "rule": "R1",
+     "source": "orders",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verdict": "holds for all 60 rows with a value"
+    },
+    {
+     "columns": [
+      "order_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 134,
+     "rule": "R1",
+     "source": "order_items",
+     "target": "orders",
+     "target_columns": [
+      "order_id"
+     ],
+     "verdict": "holds for all 134 rows with a value"
+    },
+    {
+     "columns": [
+      "product_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 134,
+     "rule": "R1",
+     "source": "order_items",
+     "target": "products",
+     "target_columns": [
+      "product_id"
+     ],
+     "verdict": "holds for all 134 rows with a value"
+    },
+    {
+     "columns": [
+      "customer_id"
+     ],
+     "orphans": 0,
+     "rows_with_value": 40,
+     "rule": "R1",
+     "source": "audit_log",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verdict": "holds for all 40 rows with a value"
+    }
+   ],
+   "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "validate_plan"
+ },
+ {
+  "answer": {
+   "personal_data": {
+    "columns": [
+     {
+      "column": "name",
+      "rule": "P1",
+      "table": "customers",
+      "what": "a person's name",
+      "why": "'name' in 'customers', a table that holds people, is a person's name"
+     }
+    ],
+    "masked": true,
+    "notice": "Masked because the column name looks like personal data (rule per column, judged by name only, values not read): customers.name (P1). To see the values, ask again with show_personal_data=true; your own Fabric permissions still decide what you can read."
+   },
+   "rows": [
+    {
+     "country": "DE",
+     "customer_id": 1,
+     "name": "***"
+    },
+    {
+     "country": "NO",
+     "customer_id": 2,
+     "name": "***"
+    },
+    {
+     "country": "SE",
+     "customer_id": 3,
+     "name": "***"
+    },
+    {
+     "country": "DE",
+     "customer_id": 4,
+     "name": "***"
+    },
+    {
+     "country": "SE",
+     "customer_id": 5,
+     "name": "***"
+    },
+    {
+     "country": "DE",
+     "customer_id": 6,
+     "name": "***"
+    },
+    {
+     "country": "FI",
+     "customer_id": 7,
+     "name": "***"
+    },
+    {
+     "country": "DE",
+     "customer_id": 8,
+     "name": "***"
+    },
+    {
+     "country": "SE",
+     "customer_id": 9,
+     "name": "***"
+    },
+    {
+     "country": "DE",
+     "customer_id": 10,
+     "name": "***"
+    }
+   ],
+   "table": "customers"
+  },
+  "args": {
+   "schema": "shop",
+   "table": "customers"
+  },
+  "rest": [],
+  "tool": "sample_rows"
+ },
+ {
+  "answer": {
+   "error": "tables: not in the schema: 'ghost'",
+   "hint": "Check the keys and confirmed you passed: table and column names must match list_tables (case does not matter).",
+   "kind": "bad_input"
+  },
+  "args": {
+   "schema": "shop",
+   "table": "ghost"
+  },
+  "rest": [],
+  "tool": "sample_rows"
+ },
+ {
+  "answer": {
+   "card": null,
+   "result": null,
+   "skipped_relationships": [],
+   "source": {
+    "id": "aaaaaaaa-0000-0000-0000-000000000002",
+    "type": "SqlAnalyticsEndpoint"
+   },
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "dry_run": true,
+   "name": "shop_api_v2",
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "11111111-2222-3333-4444-555555555555"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ]
+  ],
+  "tool": "create_backend"
+ },
+ {
+  "answer": {
+   "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "result": {
+    "id": "new-graphQLApis",
+    "mode": "created",
+    "status": "Succeeded"
+   },
+   "skipped_relationships": [],
+   "source": {
+    "id": "aaaaaaaa-0000-0000-0000-000000000002",
+    "type": "SqlAnalyticsEndpoint"
+   },
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "name": "shop_api_v2",
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "11111111-2222-3333-4444-555555555555"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items?type=GraphQLApi"
+   ],
+   [
+    "POST",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   ]
+  ],
+  "tool": "create_backend"
+ },
+ {
+  "answer": {
+   "rayfin/connectors/shop/Addresses.ts": "// rayfin/connectors/<connector>/Addresses.ts — generated by fabric-backend from shop.addresses\nimport { entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key address_id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Addresses extends Source({ schema: 'shop', table: 'addresses', primaryKey: ['addressId'] }) {\n  @int({ column: 'address_id' }) addressId!: number;\n  @int({ column: 'customer_id' }) customerId!: number;\n  @text() city!: string;\n\n  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]\n}\n",
+   "rayfin/connectors/shop/AuditLog.ts": "// rayfin/connectors/<connector>/AuditLog.ts — generated by fabric-backend from shop.audit_log\nimport { date, entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// no key (rule K3): query only, no key-addressed operations\nexport class AuditLog extends Source({ schema: 'shop', table: 'audit_log' }) {\n  @text() event!: string;\n  @int({ column: 'customer_id' }) customerId!: number;\n  @date({ column: 'happened_at' }) happenedAt!: Date;\n\n  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]\n}\n",
+   "rayfin/connectors/shop/Categories.ts": "// rayfin/connectors/<connector>/Categories.ts — generated by fabric-backend from shop.categories\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Categories extends Source({ schema: 'shop', table: 'categories', primaryKey: ['id'] }) {\n  @int() id!: number;\n  @text() name!: string;\n\n  @many(() => Products, { sourceFields: ['id'], targetFields: ['categoryId'] }) products?: Products[];    // products.category_id [R1]\n}\n",
+   "rayfin/connectors/shop/Customers.ts": "// rayfin/connectors/<connector>/Customers.ts — generated by fabric-backend from shop.customers\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Addresses } from './Addresses.js';\nimport { AuditLog } from './AuditLog.js';\nimport { Orders } from './Orders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key customer_id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Customers extends Source({ schema: 'shop', table: 'customers', primaryKey: ['customerId'] }) {\n  @int({ column: 'customer_id' }) customerId!: number;\n  @text() name!: string;\n  @text() country!: string;\n\n  @many(() => Addresses, { sourceFields: ['customerId'], targetFields: ['customerId'] }) addresses?: Addresses[];    // addresses.customer_id [R1]\n  @many(() => Orders, { sourceFields: ['customerId'], targetFields: ['customerId'] }) orders?: Orders[];    // orders.customer_id [R1]\n  @many(() => AuditLog, { sourceFields: ['customerId'], targetFields: ['customerId'] }) auditLog?: AuditLog[];    // audit_log.customer_id [R1]\n}\n",
+   "rayfin/connectors/shop/OrderItems.ts": "// rayfin/connectors/<connector>/OrderItems.ts — generated by fabric-backend from shop.order_items\nimport { decimal, entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Orders } from './Orders.js';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key order_id+line_no by rule K5\nexport class OrderItems extends Source({ schema: 'shop', table: 'order_items', primaryKey: ['orderId', 'lineNo'] }) {\n  @int({ column: 'order_id' }) orderId!: number;\n  @int({ column: 'line_no' }) lineNo!: number;\n  @int({ column: 'product_id' }) productId!: number;\n  @decimal() quantity!: number;\n\n  @one(() => Orders, { sourceFields: ['orderId'], targetFields: ['orderId'] }) order?: Orders;    // order_id -> orders [R1]\n  @one(() => Products, { sourceFields: ['productId'], targetFields: ['productId'] }) product?: Products;    // product_id -> products [R1]\n}\n",
+   "rayfin/connectors/shop/Orders.ts": "// rayfin/connectors/<connector>/Orders.ts — generated by fabric-backend from shop.orders\nimport { date, entity, int, many, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\nimport { OrderItems } from './OrderItems.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key order_id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Orders extends Source({ schema: 'shop', table: 'orders', primaryKey: ['orderId'] }) {\n  @int({ column: 'order_id' }) orderId!: number;\n  @int({ column: 'customer_id' }) customerId!: number;\n  @date({ column: 'order_date' }) orderDate!: Date;\n  @int({ column: 'ship_to_id' }) shipToId!: number;\n\n  @one(() => Customers, { sourceFields: ['customerId'], targetFields: ['customerId'] }) customer?: Customers;    // customer_id -> customers [R1]\n  @many(() => OrderItems, { sourceFields: ['orderId'], targetFields: ['orderId'] }) orderItems?: OrderItems[];    // order_items.order_id [R1]\n}\n",
+   "rayfin/connectors/shop/Products.ts": "// rayfin/connectors/<connector>/Products.ts — generated by fabric-backend from shop.products\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Categories } from './Categories.js';\nimport { OrderItems } from './OrderItems.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key product_id by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Products extends Source({ schema: 'shop', table: 'products', primaryKey: ['productId'] }) {\n  @int({ column: 'product_id' }) productId!: number;\n  @text() name!: string;\n  @int({ column: 'category_id' }) categoryId!: number;\n\n  @one(() => Categories, { sourceFields: ['categoryId'], targetFields: ['id'] }) category?: Categories;    // category_id -> categories [R1]\n  @many(() => OrderItems, { sourceFields: ['productId'], targetFields: ['productId'] }) orderItems?: OrderItems[];    // order_items.product_id [R1]\n}\n",
+   "rayfin/connectors/shop/README.generated.md": "# shop — generated by fabric-backend\n\n7 entities, 6 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Customers, Categories, Products, Addresses, Orders, OrderItems, AuditLog\n",
+   "rayfin/connectors/shop/schema.ts": "// rayfin/connectors/shop/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\nimport { Categories } from './Categories.js';\nimport { Products } from './Products.js';\nimport { Addresses } from './Addresses.js';\nimport { Orders } from './Orders.js';\nimport { OrderItems } from './OrderItems.js';\nimport { AuditLog } from './AuditLog.js';\n\nexport { Customers } from './Customers.js';\nexport { Categories } from './Categories.js';\nexport { Products } from './Products.js';\nexport { Addresses } from './Addresses.js';\nexport { Orders } from './Orders.js';\nexport { OrderItems } from './OrderItems.js';\nexport { AuditLog } from './AuditLog.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Customers, Categories, Products, Addresses, Orders, OrderItems, AuditLog },\n} as const satisfies ConnectorConfig;\n\nexport type ShopSchema = GraphQLBackedConnector<\n  { Customers: typeof Customers, Categories: typeof Categories, Products: typeof Products, Addresses: typeof Addresses, Orders: typeof Orders, OrderItems: typeof OrderItems, AuditLog: typeof AuditLog },\n  typeof connectorConfig\n>;\n"
+  },
+  "args": {
+   "connector": "shop",
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "rayfin_connector"
+ },
+ {
+  "answer": {
+   "bindings": [
+    {
+     "entity_type": "Customers",
+     "key": "customer_id",
+     "key_columns": [
+      "customer_id"
+     ],
+     "key_rule": "K2",
+     "properties": [
+      {
+       "column": "customer_id",
+       "name": "customer_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "name",
+       "name": "name",
+       "source_type": "string",
+       "type": "string"
+      },
+      {
+       "column": "country",
+       "name": "country",
+       "source_type": "string",
+       "type": "string"
+      }
+     ],
+     "relationships": [],
+     "source": "demo_lh",
+     "table": "shop.customers"
+    },
+    {
+     "entity_type": "Categories",
+     "key": "id",
+     "key_columns": [
+      "id"
+     ],
+     "key_rule": "K2",
+     "properties": [
+      {
+       "column": "id",
+       "name": "id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "name",
+       "name": "name",
+       "source_type": "string",
+       "type": "string"
+      }
+     ],
+     "relationships": [],
+     "source": "demo_lh",
+     "table": "shop.categories"
+    },
+    {
+     "entity_type": "Products",
+     "key": "product_id",
+     "key_columns": [
+      "product_id"
+     ],
+     "key_rule": "K2",
+     "properties": [
+      {
+       "column": "product_id",
+       "name": "product_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "name",
+       "name": "name",
+       "source_type": "string",
+       "type": "string"
+      },
+      {
+       "column": "category_id",
+       "name": "category_id",
+       "source_type": "int",
+       "type": "integer"
+      }
+     ],
+     "relationships": [
+      {
+       "from_columns": [
+        "category_id"
+       ],
+       "name": "ProductsHasCategories",
+       "rule": "R1",
+       "to": "Categories",
+       "to_columns": [
+        "id"
+       ]
+      }
+     ],
+     "source": "demo_lh",
+     "table": "shop.products"
+    },
+    {
+     "entity_type": "Addresses",
+     "key": "address_id",
+     "key_columns": [
+      "address_id"
+     ],
+     "key_rule": "K2",
+     "properties": [
+      {
+       "column": "address_id",
+       "name": "address_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "customer_id",
+       "name": "customer_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "city",
+       "name": "city",
+       "source_type": "string",
+       "type": "string"
+      }
+     ],
+     "relationships": [
+      {
+       "from_columns": [
+        "customer_id"
+       ],
+       "name": "AddressesHasCustomers",
+       "rule": "R1",
+       "to": "Customers",
+       "to_columns": [
+        "customer_id"
+       ]
+      }
+     ],
+     "source": "demo_lh",
+     "table": "shop.addresses"
+    },
+    {
+     "entity_type": "Orders",
+     "key": "order_id",
+     "key_columns": [
+      "order_id"
+     ],
+     "key_rule": "K2",
+     "properties": [
+      {
+       "column": "order_id",
+       "name": "order_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "customer_id",
+       "name": "customer_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "order_date",
+       "name": "order_date",
+       "source_type": "date",
+       "type": "datetime"
+      },
+      {
+       "column": "ship_to_id",
+       "name": "ship_to_id",
+       "source_type": "int",
+       "type": "integer"
+      }
+     ],
+     "relationships": [
+      {
+       "from_columns": [
+        "customer_id"
+       ],
+       "name": "OrdersHasCustomers",
+       "rule": "R1",
+       "to": "Customers",
+       "to_columns": [
+        "customer_id"
+       ]
+      }
+     ],
+     "source": "demo_lh",
+     "table": "shop.orders"
+    },
+    {
+     "entity_type": "OrderItems",
+     "key": null,
+     "key_columns": [
+      "order_id",
+      "line_no"
+     ],
+     "key_rule": "K5",
+     "properties": [
+      {
+       "column": "order_id",
+       "name": "order_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "line_no",
+       "name": "line_no",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "product_id",
+       "name": "product_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "quantity",
+       "name": "quantity",
+       "source_type": "double",
+       "type": "double"
+      }
+     ],
+     "relationships": [
+      {
+       "from_columns": [
+        "order_id"
+       ],
+       "name": "OrderItemsHasOrders",
+       "rule": "R1",
+       "to": "Orders",
+       "to_columns": [
+        "order_id"
+       ]
+      },
+      {
+       "from_columns": [
+        "product_id"
+       ],
+       "name": "OrderItemsHasProducts",
+       "rule": "R1",
+       "to": "Products",
+       "to_columns": [
+        "product_id"
+       ]
+      }
+     ],
+     "source": "demo_lh",
+     "table": "shop.order_items"
+    },
+    {
+     "entity_type": "AuditLog",
+     "key": null,
+     "key_columns": [],
+     "key_rule": "K3",
+     "properties": [
+      {
+       "column": "event",
+       "name": "event",
+       "source_type": "string",
+       "type": "string"
+      },
+      {
+       "column": "customer_id",
+       "name": "customer_id",
+       "source_type": "int",
+       "type": "integer"
+      },
+      {
+       "column": "happened_at",
+       "name": "happened_at",
+       "source_type": "timestamp",
+       "type": "datetime"
+      }
+     ],
+     "relationships": [
+      {
+       "from_columns": [
+        "customer_id"
+       ],
+       "name": "AuditLogHasCustomers",
+       "rule": "R1",
+       "to": "Customers",
+       "to_columns": [
+        "customer_id"
+       ]
+      }
+     ],
+     "source": "demo_lh",
+     "table": "shop.audit_log"
+    }
+   ],
+   "summary": {
+    "entity_types": 7,
+    "notes": [
+     "OrderItems: composite key ['order_id', 'line_no'] is emitted as a keyless entity type with the key columns as properties; the ontology key is one string or integer property, so pick or add one in the portal.",
+     "AuditLog: no key was found (rule K3); the entity type is keyless, so nothing can point at it. Set a key in the portal if the table has one."
+    ],
+    "relationship_types": 6,
+    "skipped_relationships": 0,
+    "with_key": 5
+   },
+   "ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:ontology#> .\n\n<urn:krusgraph:ontology:ontology> a owl:Ontology ;\n    rdfs:label \"ontology\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:Customers a owl:Class ;\n    rdfs:label \"Customers\" ;\n    skos:altLabel \"customers\" ;\n    rdfs:comment \"Table shop.customers; key customer_id (K2).\" .\n\n:Customers__customer_id a owl:DatatypeProperty ;\n    rdfs:label \"customer_id\" ;\n    rdfs:domain :Customers ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column customer_id (int); key.\" .\n\n:Customers__name a owl:DatatypeProperty ;\n    rdfs:label \"name\" ;\n    rdfs:domain :Customers ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column name (string).\" .\n\n:Customers__country a owl:DatatypeProperty ;\n    rdfs:label \"country\" ;\n    rdfs:domain :Customers ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column country (string).\" .\n\n:Categories a owl:Class ;\n    rdfs:label \"Categories\" ;\n    skos:altLabel \"categories\" ;\n    rdfs:comment \"Table shop.categories; key id (K2).\" .\n\n:Categories__id a owl:DatatypeProperty ;\n    rdfs:label \"id\" ;\n    rdfs:domain :Categories ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column id (int); key.\" .\n\n:Categories__name a owl:DatatypeProperty ;\n    rdfs:label \"name\" ;\n    rdfs:domain :Categories ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column name (string).\" .\n\n:Products a owl:Class ;\n    rdfs:label \"Products\" ;\n    skos:altLabel \"products\" ;\n    rdfs:comment \"Table shop.products; key product_id (K2).\" .\n\n:Products__product_id a owl:DatatypeProperty ;\n    rdfs:label \"product_id\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column product_id (int); key.\" .\n\n:Products__name a owl:DatatypeProperty ;\n    rdfs:label \"name\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column name (string).\" .\n\n:Products__category_id a owl:DatatypeProperty ;\n    rdfs:label \"category_id\" ;\n    rdfs:domain :Products ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column category_id (int).\" .\n\n:Addresses a owl:Class ;\n    rdfs:label \"Addresses\" ;\n    skos:altLabel \"addresses\" ;\n    rdfs:comment \"Table shop.addresses; key address_id (K2).\" .\n\n:Addresses__address_id a owl:DatatypeProperty ;\n    rdfs:label \"address_id\" ;\n    rdfs:domain :Addresses ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column address_id (int); key.\" .\n\n:Addresses__customer_id a owl:DatatypeProperty ;\n    rdfs:label \"customer_id\" ;\n    rdfs:domain :Addresses ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column customer_id (int).\" .\n\n:Addresses__city a owl:DatatypeProperty ;\n    rdfs:label \"city\" ;\n    rdfs:domain :Addresses ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column city (string).\" .\n\n:Orders a owl:Class ;\n    rdfs:label \"Orders\" ;\n    skos:altLabel \"orders\" ;\n    rdfs:comment \"Table shop.orders; key order_id (K2).\" .\n\n:Orders__order_id a owl:DatatypeProperty ;\n    rdfs:label \"order_id\" ;\n    rdfs:domain :Orders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column order_id (int); key.\" .\n\n:Orders__customer_id a owl:DatatypeProperty ;\n    rdfs:label \"customer_id\" ;\n    rdfs:domain :Orders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column customer_id (int).\" .\n\n:Orders__order_date a owl:DatatypeProperty ;\n    rdfs:label \"order_date\" ;\n    rdfs:domain :Orders ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column order_date (date).\" .\n\n:Orders__ship_to_id a owl:DatatypeProperty ;\n    rdfs:label \"ship_to_id\" ;\n    rdfs:domain :Orders ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ship_to_id (int).\" .\n\n:OrderItems a owl:Class ;\n    rdfs:label \"OrderItems\" ;\n    skos:altLabel \"order_items\" ;\n    rdfs:comment \"Table shop.order_items; key order_id+line_no (K5).\" .\n\n:OrderItems__order_id a owl:DatatypeProperty ;\n    rdfs:label \"order_id\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column order_id (int); key.\" .\n\n:OrderItems__line_no a owl:DatatypeProperty ;\n    rdfs:label \"line_no\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column line_no (int); key.\" .\n\n:OrderItems__product_id a owl:DatatypeProperty ;\n    rdfs:label \"product_id\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column product_id (int).\" .\n\n:OrderItems__quantity a owl:DatatypeProperty ;\n    rdfs:label \"quantity\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column quantity (double).\" .\n\n:AuditLog a owl:Class ;\n    rdfs:label \"AuditLog\" ;\n    skos:altLabel \"audit_log\" ;\n    rdfs:comment \"Table shop.audit_log; no key (K3).\" .\n\n:AuditLog__event a owl:DatatypeProperty ;\n    rdfs:label \"event\" ;\n    rdfs:domain :AuditLog ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column event (string).\" .\n\n:AuditLog__customer_id a owl:DatatypeProperty ;\n    rdfs:label \"customer_id\" ;\n    rdfs:domain :AuditLog ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column customer_id (int).\" .\n\n:AuditLog__happened_at a owl:DatatypeProperty ;\n    rdfs:label \"happened_at\" ;\n    rdfs:domain :AuditLog ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column happened_at (timestamp).\" .\n\n:ProductsHasCategories a owl:ObjectProperty ;\n    rdfs:label \"ProductsHasCategories\" ;\n    rdfs:domain :Products ;\n    rdfs:range :Categories ;\n    rdfs:comment \"products.category_id -> categories.id by rule R1.\" .\n\n:AddressesHasCustomers a owl:ObjectProperty ;\n    rdfs:label \"AddressesHasCustomers\" ;\n    rdfs:domain :Addresses ;\n    rdfs:range :Customers ;\n    rdfs:comment \"addresses.customer_id -> customers.customer_id by rule R1.\" .\n\n:OrdersHasCustomers a owl:ObjectProperty ;\n    rdfs:label \"OrdersHasCustomers\" ;\n    rdfs:domain :Orders ;\n    rdfs:range :Customers ;\n    rdfs:comment \"orders.customer_id -> customers.customer_id by rule R1.\" .\n\n:OrderItemsHasOrders a owl:ObjectProperty ;\n    rdfs:label \"OrderItemsHasOrders\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range :Orders ;\n    rdfs:comment \"order_items.order_id -> orders.order_id by rule R1.\" .\n\n:OrderItemsHasProducts a owl:ObjectProperty ;\n    rdfs:label \"OrderItemsHasProducts\" ;\n    rdfs:domain :OrderItems ;\n    rdfs:range :Products ;\n    rdfs:comment \"order_items.product_id -> products.product_id by rule R1.\" .\n\n:AuditLogHasCustomers a owl:ObjectProperty ;\n    rdfs:label \"AuditLogHasCustomers\" ;\n    rdfs:domain :AuditLog ;\n    rdfs:range :Customers ;\n    rdfs:comment \"audit_log.customer_id -> customers.customer_id by rule R1.\" .\n"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "ontology_draft"
+ },
+ {
+  "answer": {
+   "note": "Drafted locally: the SQL endpoint host and database come from FABRIC_ODBC, the item kind from FABRIC_SOURCE_KIND. Unit-tested against Microsoft's sample definitions; not yet created in a live workspace.",
+   "parts": {
+    "README.generated.md": "# semantic_model: generated semantic model (TMDL)\n\nSource: Lakehouse `demo_lh`, schema `shop`, SQL analytics endpoint `abc123.datawarehouse.fabric.microsoft.com`.\nStorage mode: Direct Lake on the SQL analytics endpoint (`mode: directLake`, shared expression `DatabaseQuery` = `Sql.Database(endpoint, \"demo_lh\")`), compatibility level 1604. Chosen because the plan comes from that endpoint and Direct Lake reads the Delta tables in place; Import would add a refresh and a copy for nothing. For Direct Lake on OneLake replace the expression with `AzureStorage.DataLake(\"https://onelake.dfs.fabric.microsoft.com/<workspace id>/<item id>\", [HierarchicalNavigation=true])` as in Microsoft's fabric-samples model.\n\nTables: 7. Relationships: 6 active, 0 inactive, 0 not expressible. The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule.\n\n## Table roles (from the plan's graph, see analyze_schema)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| `customers` | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| `categories` | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| `products` | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| `addresses` | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| `orders` | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| `order_items` | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| `audit_log` | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nFact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns are the ones to turn into measures.\n\n## Relationships\n\n| From | To | Rule | Active |\n| --- | --- | --- | --- |\n| `order_items.order_id` | `orders.order_id` | R1 | yes |\n| `order_items.product_id` | `products.product_id` | R1 | yes |\n| `addresses.customer_id` | `customers.customer_id` | R1 | yes |\n| `audit_log.customer_id` | `customers.customer_id` | R1 | yes |\n| `orders.customer_id` | `customers.customer_id` | R1 | yes |\n| `products.category_id` | `categories.id` | R1 | yes |\n\n## Decisions to check\n\n- `audit_log` has no key: it is in the model but nothing relates to it (rule K3). Give `keys` to change that.\n- `order_items` has a composite key (order_id+line_no): no `isKey` column and nothing can relate to it one-to-many.\n\n## Uncertain, written down rather than guessed\n\n- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with duplicates when the model is framed; run `validate_plan` first.\n- `schemaName`: written for every partition (docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). If this is wrong for your lakehouse, add or remove the `schemaName` lines.\n- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.\n- Dates are `dateTime` (TMDL has no date type).\n- The TMDL language reference itself could not be fetched when this generator was written; the syntax follows Microsoft's published sample definitions listed in fabric_backend/semantic_model.py.\n\n## Suggested measures\n\n- `Rows in orders` = `COUNTROWS('orders')` on `orders`: orders is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Rows in order_items` = `COUNTROWS('order_items')` on `order_items`: order_items is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Total quantity` = `SUM('order_items'[quantity])` on `order_items`: order_items.quantity is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit.\n- `Rows in audit_log` = `COUNTROWS('audit_log')` on `audit_log`: audit_log is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\nNo measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get no sums; their numbers describe one row.\n\n## Date table\n\n`Calendar` is a calculated table (`CALENDAR` with `Year` and `Month`) marked as the date table (`dataCategory: Time`, `isKey` on `Date`); a calculated table that references no Direct Lake table is allowed in Direct Lake on SQL (direct-lake-overview.md).\n- The range 2020-01-01 to 2030-12-31 is a placeholder: this draft reads no rows. Set it to your data's first and last year in the partition's `source`, or rows outside it have no date to filter by.\n- `orders.order_date -> Calendar.Date` (active)\n- `audit_log.happened_at` carries a time of day and is not related: Direct Lake on SQL does not relate on the date part of a datetime (direct-lake-overview.md). Add a date column (for example in a gold view) and relate that.\n\n## Files\n\n- `definition/database.tmdl`\n- `definition/model.tmdl`\n- `definition/expressions.tmdl`\n- `definition/tables/customers.tmdl`\n- `definition/tables/categories.tmdl`\n- `definition/tables/products.tmdl`\n- `definition/tables/addresses.tmdl`\n- `definition/tables/orders.tmdl`\n- `definition/tables/order_items.tmdl`\n- `definition/tables/audit_log.tmdl`\n- `definition/tables/Calendar.tmdl`\n- `definition/relationships.tmdl`\n- `definition.pbism`\n",
+    "definition.pbism": "{\n  \"$schema\": \"https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json\",\n  \"version\": \"4.2\",\n  \"settings\": {}\n}\n",
+    "definition/database.tmdl": "database\n\tcompatibilityLevel: 1604\n",
+    "definition/expressions.tmdl": "expression DatabaseQuery =\n\t\tlet\n\t\t    database = Sql.Database(\"abc123.datawarehouse.fabric.microsoft.com\", \"demo_lh\")\n\t\tin\n\t\t    database\n\tlineageTag: 8a8ac770-9acd-5bf5-9ab1-ec26e7c275cd\n\n\tannotation PBI_IncludeFutureArtifacts = False\n",
+    "definition/model.tmdl": "model Model\n\tculture: en-US\n\tdefaultPowerBIDataSourceVersion: powerBI_V3\n\tsourceQueryCulture: en-US\n\tdataAccessOptions\n\t\tlegacyRedirects\n\t\treturnErrorValuesAsNull\n\nannotation PBI_QueryOrder = [\"DatabaseQuery\"]\n\nannotation __PBI_TimeIntelligenceEnabled = 0\n\nref table customers\nref table categories\nref table products\nref table addresses\nref table orders\nref table order_items\nref table audit_log\nref table Calendar\n",
+    "definition/relationships.tmdl": "relationship de08aa3b-4a33-554d-bed3-58aee49b1e01\n\tfromColumn: order_items.order_id\n\ttoColumn: orders.order_id\n\nrelationship 8118e92c-1737-5d86-8bbc-17196696af63\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\nrelationship c5b97621-3bcc-543b-aff8-516c6e02ac1f\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 2343572a-6c3d-594c-a4ad-0c68c4c89fe5\n\tfromColumn: audit_log.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 41c53f0d-8f02-5b83-a9d2-a43b2473ea99\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 9ed820cf-7e55-5846-9bd5-520bc74a624b\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship a359a18a-a71c-5071-83e1-c5adcc518fc0\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n",
+    "definition/tables/Calendar.tmdl": "/// The model's date table, generated because fact tables have date columns; marked as the date table (dataCategory: Time).\ntable Calendar\n\tlineageTag: 6f1954ff-6838-5f2e-8e7c-0067c76d6e56\n\tdataCategory: Time\n\n\tcolumn Date\n\t\tdataType: dateTime\n\t\tisKey\n\t\tformatString: yyyy-mm-dd\n\t\tlineageTag: 3b2058a1-0e8a-5b3f-9538-8da4bed85164\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Date]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Year\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 4e5c1dbc-9d10-5395-8a92-8d802a755924\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Year]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Month\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 7007323f-4c5e-5643-ad58-e3916a70eae1\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Month]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Calendar = calculated\n\t\tmode: import\n\t\tsource = ADDCOLUMNS(CALENDAR(DATE(2020, 1, 1), DATE(2030, 12, 31)), \"Year\", YEAR([Date]), \"Month\", MONTH([Date]))\n",
+    "definition/tables/addresses.tmdl": "table addresses\n\tlineageTag: 5504a33a-8a2e-52ce-82d7-360307e45189\n\tsourceLineageTag: [shop].[addresses]\n\n\tcolumn address_id\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 4d4ba885-a4a4-53f7-83e3-233e42445387\n\t\tsourceLineageTag: address_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: address_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn customer_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: fa67244c-66b5-5b1b-8a05-defc021b7ea5\n\t\tsourceLineageTag: customer_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: customer_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn city\n\t\tdataType: string\n\t\tlineageTag: 33de7c05-2bea-5dbf-ae7c-1de12e5c2508\n\t\tsourceLineageTag: city\n\t\tsummarizeBy: none\n\t\tsourceColumn: city\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition addresses = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: addresses\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n",
+    "definition/tables/audit_log.tmdl": "table audit_log\n\tlineageTag: d8609bf7-d4b4-5c75-96f9-548a39457412\n\tsourceLineageTag: [shop].[audit_log]\n\n\t/// Suggested by Krusgraph: audit_log is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in audit_log' = COUNTROWS('audit_log')\n\t\tformatString: #,##0\n\t\tlineageTag: 3e899548-bd26-557e-9e9a-cc136e67f544\n\n\tcolumn event\n\t\tdataType: string\n\t\tlineageTag: 8d32fa3a-3df4-53ff-aa4e-4b9d61fb5f75\n\t\tsourceLineageTag: event\n\t\tsummarizeBy: none\n\t\tsourceColumn: event\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn customer_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: cf8d9431-ba7b-51a7-923a-5c64d5965df6\n\t\tsourceLineageTag: customer_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: customer_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn happened_at\n\t\tdataType: dateTime\n\t\tlineageTag: 1e44b185-4b4d-5200-88ca-d6d9406f2b60\n\t\tsourceLineageTag: happened_at\n\t\tsummarizeBy: none\n\t\tsourceColumn: happened_at\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition audit_log = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: audit_log\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n",
+    "definition/tables/categories.tmdl": "table categories\n\tlineageTag: 7bec9531-9553-5f0c-852b-e78d5a565ddb\n\tsourceLineageTag: [shop].[categories]\n\n\tcolumn id\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 3adfcd08-0bf9-57a3-b8bb-4d6264bc8d36\n\t\tsourceLineageTag: id\n\t\tsummarizeBy: none\n\t\tsourceColumn: id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn name\n\t\tdataType: string\n\t\tlineageTag: 2eb34224-ab7d-5317-a9f8-e57a08f61a91\n\t\tsourceLineageTag: name\n\t\tsummarizeBy: none\n\t\tsourceColumn: name\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition categories = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: categories\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n",
+    "definition/tables/customers.tmdl": "table customers\n\tlineageTag: 8bd8a6a8-13f6-51ae-9a7f-757f1f2f6a45\n\tsourceLineageTag: [shop].[customers]\n\n\tcolumn customer_id\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: af183672-d67f-5587-b0e6-13f71e3fd7bc\n\t\tsourceLineageTag: customer_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: customer_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn name\n\t\tdataType: string\n\t\tlineageTag: 44a5c831-cf43-561e-a223-2969b8e270a2\n\t\tsourceLineageTag: name\n\t\tsummarizeBy: none\n\t\tsourceColumn: name\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn country\n\t\tdataType: string\n\t\tlineageTag: 7da31f64-4b8d-55ab-a5bf-5ba63230cb1a\n\t\tsourceLineageTag: country\n\t\tsummarizeBy: none\n\t\tsourceColumn: country\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition customers = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: customers\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n",
+    "definition/tables/order_items.tmdl": "table order_items\n\tlineageTag: 7c8b2527-5347-55dc-b052-2a0e3f266456\n\tsourceLineageTag: [shop].[order_items]\n\n\t/// Suggested by Krusgraph: order_items is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,##0\n\t\tlineageTag: babe8dcb-f399-5124-97f5-d8102d9a0822\n\n\t/// Suggested by Krusgraph: order_items.quantity is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit.\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: 955afe4c-dccb-5eaa-900f-e4144fee508a\n\n\tcolumn order_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: e6495e62-edab-5ff0-aebd-6f1fdae584e4\n\t\tsourceLineageTag: order_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: order_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn line_no\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: eb519348-a8be-5748-90dc-3feea5680d04\n\t\tsourceLineageTag: line_no\n\t\tsummarizeBy: none\n\t\tsourceColumn: line_no\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn product_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 52db8de4-3fe0-5953-b776-7a5e30455571\n\t\tsourceLineageTag: product_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: product_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn quantity\n\t\tdataType: double\n\t\tlineageTag: 3705fb9d-b397-5998-becc-305ad6b581e3\n\t\tsourceLineageTag: quantity\n\t\tsummarizeBy: sum\n\t\tsourceColumn: quantity\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition order_items = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: order_items\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n",
+    "definition/tables/orders.tmdl": "table orders\n\tlineageTag: edcc7bb1-3db0-509c-90d7-c729124fb3c7\n\tsourceLineageTag: [shop].[orders]\n\n\t/// Suggested by Krusgraph: orders is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,##0\n\t\tlineageTag: cdd26790-1634-5e57-b37c-7ef415002b6e\n\n\tcolumn order_id\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 6b18fbd7-7349-5a2b-8984-bd083ff41ee3\n\t\tsourceLineageTag: order_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: order_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn customer_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: ba059c00-7c7b-503d-8c50-0a6485bc04f1\n\t\tsourceLineageTag: customer_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: customer_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn order_date\n\t\tdataType: dateTime\n\t\tlineageTag: fe1a1e1e-483d-5734-856e-d1569e73f21f\n\t\tsourceLineageTag: order_date\n\t\tsummarizeBy: none\n\t\tsourceColumn: order_date\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn ship_to_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: f3c9cb4a-2383-519f-b149-e460cc7c328a\n\t\tsourceLineageTag: ship_to_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: ship_to_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition orders = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: orders\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n",
+    "definition/tables/products.tmdl": "table products\n\tlineageTag: 17c3f889-c3dc-5315-ba2e-177bb6bfedd9\n\tsourceLineageTag: [shop].[products]\n\n\tcolumn product_id\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 25ed4d12-7d02-51cd-b2f4-a7ed771d343e\n\t\tsourceLineageTag: product_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: product_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn name\n\t\tdataType: string\n\t\tlineageTag: 454bc5d9-bada-54e7-bc22-c726b2753cc3\n\t\tsourceLineageTag: name\n\t\tsummarizeBy: none\n\t\tsourceColumn: name\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn category_id\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: a2b42403-7d53-5851-866e-c90ce61146e9\n\t\tsourceLineageTag: category_id\n\t\tsummarizeBy: none\n\t\tsourceColumn: category_id\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition products = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: products\n\t\t\tschemaName: shop\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n"
+   },
+   "summary": {
+    "compatibility_level": 1604,
+    "composite_keys": [
+     "order_items"
+    ],
+    "date_table": {
+     "marked_as_date_table": true,
+     "name": "Calendar",
+     "not_related": [
+      {
+       "column": "happened_at",
+       "fact": "audit_log",
+       "why": "datetime with a time of day"
+      }
+     ],
+     "range": "2020-01-01 to 2030-12-31 (placeholder; see README)",
+     "related": [
+      {
+       "active": true,
+       "column": "order_date",
+       "fact": "orders"
+      }
+     ]
+    },
+    "inactive": [],
+    "keyless": [
+     "audit_log"
+    ],
+    "measures": [
+     {
+      "expression": "COUNTROWS('orders')",
+      "name": "Rows in orders",
+      "table": "orders",
+      "why": "orders is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+     },
+     {
+      "expression": "COUNTROWS('order_items')",
+      "name": "Rows in order_items",
+      "table": "order_items",
+      "why": "order_items is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+     },
+     {
+      "expression": "SUM('order_items'[quantity])",
+      "name": "Total quantity",
+      "table": "order_items",
+      "why": "order_items.quantity is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit"
+     },
+     {
+      "expression": "COUNTROWS('audit_log')",
+      "name": "Rows in audit_log",
+      "table": "audit_log",
+      "why": "audit_log is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+     }
+    ],
+    "relationships_active": 6,
+    "relationships_inactive": 0,
+    "relationships_not_expressible": 0,
+    "roles": {
+     "addresses": "dimension",
+     "audit_log": "fact",
+     "categories": "dimension",
+     "customers": "dimension",
+     "order_items": "fact",
+     "orders": "fact",
+     "products": "dimension"
+    },
+    "storage_mode": "directLake (SQL analytics endpoint)",
+    "tables": 7
+   }
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "semantic_model_draft"
+ },
+ {
+  "answer": {
+   "end": "categories",
+   "paths": [
+    {
+     "cost": 5.0,
+     "hops": 4,
+     "sql": "SELECT TOP (100) t0.[customer_id] AS [customers_customer_id], t4.[id], t4.[name]\nFROM [shop].[customers] AS t0\nJOIN [shop].[orders] AS t1 ON t0.[customer_id] = t1.[customer_id]\nJOIN [shop].[order_items] AS t2 ON t1.[order_id] = t2.[order_id]\nJOIN [shop].[products] AS t3 ON t2.[product_id] = t3.[product_id]\nJOIN [shop].[categories] AS t4 ON t3.[category_id] = t4.[id]",
+     "steps": [
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "customers",
+       "on": [
+        "customer_id = customer_id"
+       ],
+       "rule": "R1",
+       "to": "orders"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "orders",
+       "on": [
+        "order_id = order_id"
+       ],
+       "rule": "R1",
+       "to": "order_items"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "many-to-one",
+       "from": "order_items",
+       "on": [
+        "product_id = product_id"
+       ],
+       "rule": "R1",
+       "to": "products"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "many-to-one",
+       "from": "products",
+       "on": [
+        "category_id = id"
+       ],
+       "rule": "R1",
+       "to": "categories"
+      }
+     ],
+     "tables": [
+      "customers",
+      "orders",
+      "order_items",
+      "products",
+      "categories"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 5.0,
+    "hops": 4,
+    "sql": "SELECT TOP (100) t0.[customer_id] AS [customers_customer_id], t4.[id], t4.[name]\nFROM [shop].[customers] AS t0\nJOIN [shop].[orders] AS t1 ON t0.[customer_id] = t1.[customer_id]\nJOIN [shop].[order_items] AS t2 ON t1.[order_id] = t2.[order_id]\nJOIN [shop].[products] AS t3 ON t2.[product_id] = t3.[product_id]\nJOIN [shop].[categories] AS t4 ON t3.[category_id] = t4.[id]",
+    "steps": [
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "customers",
+      "on": [
+       "customer_id = customer_id"
+      ],
+      "rule": "R1",
+      "to": "orders"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "orders",
+      "on": [
+       "order_id = order_id"
+      ],
+      "rule": "R1",
+      "to": "order_items"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "many-to-one",
+      "from": "order_items",
+      "on": [
+       "product_id = product_id"
+      ],
+      "rule": "R1",
+      "to": "products"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "many-to-one",
+      "from": "products",
+      "on": [
+       "category_id = id"
+      ],
+      "rule": "R1",
+      "to": "categories"
+     }
+    ],
+    "tables": [
+     "customers",
+     "orders",
+     "order_items",
+     "products",
+     "categories"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "customers"
+  },
+  "args": {
+   "end": "categories",
+   "schema": "shop",
+   "start": "customers"
+  },
+  "rest": [],
+  "tool": "join_path"
+ },
+ {
+  "answer": {
+   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 6 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  |  |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| products | product_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| addresses | address_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| orders | order_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+   "path": "docs/shop-data-dictionary.md",
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "data_dictionary"
+ },
+ {
+  "answer": {
+   "markdown": "# Data dictionary: demo_lh / shop\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 7 tables, 6 with keys, 6 relationships\n- Tables without a key: audit_log\n- Ambiguous columns (not applied): 0\n- Checked against the data: 6 of 6 keys unique, 6 of 6 relationships hold without orphans\n\n## Tables\n\n### customers\n\nKey: customer_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| customer_id | int | yes |  |  |\n| name | string |  |  |  |\n| country | string |  |  |  |\n\n### categories\n\nKey: id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| id | int | yes |  |  |\n| name | string |  |  |  |\n\n### products\n\nKey: product_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| product_id | int | yes |  |  |\n| name | string |  |  |  |\n| category_id | int |  | categories.id (R1) |  |\n\n### addresses\n\nKey: address_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| address_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| city | string |  |  |  |\n\n### orders\n\nKey: order_id (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| order_date | date |  |  |  |\n| ship_to_id | int |  |  |  |\n\n### order_items\n\nKey: order_id+line_no (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| order_id | int | yes | orders.order_id (R1) |  |\n| line_no | int | yes |  |  |\n| product_id | int |  | products.product_id (R1) |  |\n| quantity | double |  |  |  |\n\n### audit_log\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| event | string |  |  |  |\n| customer_id | int |  | customers.customer_id (R1) |  |\n| happened_at | timestamp |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| customers | customer_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| categories | id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| products | product_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| addresses | address_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| orders | order_id | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| order_items | order_id+line_no | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| audit_log | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | id | R1 | category / products |\n| addresses | customer_id | customers | customer_id | R1 | customer / addresses |\n| orders | customer_id | customers | customer_id | R1 | customer / orders |\n| order_items | order_id | orders | order_id | R1 | order / order_items |\n| order_items | product_id | products | product_id | R1 | product / order_items |\n| audit_log | customer_id | customers | customer_id | R1 | customer / audit_log |\n\n## Tables without a key\n\n- audit_log: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Checked against the data\n\nCounts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.\n\n| Table | Key | Rows | NULLs | Distinct | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| customers | customer_id | 10 | 0 | 10 | unique in all 10 rows |\n| categories | id | 3 | 0 | 3 | unique in all 3 rows |\n| products | product_id | 8 | 0 | 8 | unique in all 8 rows |\n| addresses | address_id | 17 | 0 | 17 | unique in all 17 rows |\n| orders | order_id | 60 | 0 | 60 | unique in all 60 rows |\n| order_items | order_id+line_no | 134 | 0 | 134 | unique in all 134 rows |\n\n| From | Columns | To | Rows with a value | Orphans | Verdict |\n| --- | --- | --- | --- | --- | --- |\n| products | category_id | categories | 8 | 0 | holds for all 8 rows with a value |\n| addresses | customer_id | customers | 17 | 0 | holds for all 17 rows with a value |\n| orders | customer_id | customers | 60 | 0 | holds for all 60 rows with a value |\n| order_items | order_id | orders | 134 | 0 | holds for all 134 rows with a value |\n| order_items | product_id | products | 134 | 0 | holds for all 134 rows with a value |\n| audit_log | customer_id | customers | 40 | 0 | holds for all 40 rows with a value |\n\n## Roles, subject areas and ambiguity\n\n7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| customers | dimension | 3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0 |\n| categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| products | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0 |\n| addresses | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| orders | fact | pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0 |\n| order_items | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0 |\n| audit_log | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- customers area: addresses, audit_log, categories, customers, order_items, orders, products\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+   "path": "docs/shop-data-dictionary.md",
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "schema": "shop",
+   "validate": true
+  },
+  "rest": [],
+  "tool": "data_dictionary"
+ },
+ {
+  "answer": {
+   "path": "models/sources/shop.yml",
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "yaml": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: shop\n    database: demo_lh\n    tables:\n      - name: customers\n        columns:\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: country\n            description: \"\"  # string\n      - name: categories\n        columns:\n          - name: id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n      - name: products\n        columns:\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # string\n          - name: category_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'categories')\n                    field: id\n      - name: addresses\n        columns:\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: city\n            description: \"\"  # string\n      - name: orders\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: order_date\n            description: \"\"  # date\n          - name: ship_to_id\n            description: \"\"  # int\n      - name: order_items\n        # composite key order_id+line_no (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [order_id, line_no]\n        columns:\n          - name: order_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'orders')\n                    field: order_id\n          - name: line_no\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n          - name: product_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'products')\n                    field: product_id\n          - name: quantity\n            description: \"\"  # double\n      - name: audit_log\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: event\n            description: \"\"  # string\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('shop', 'customers')\n                    field: customer_id\n          - name: happened_at\n            description: \"\"  # timestamp\n"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "dbt_schema"
+ },
+ {
+  "answer": {
+   "active_relationships": [
+    {
+     "certainty": 0.8,
+     "columns": [
+      "order_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "order_items",
+     "target": "orders",
+     "target_columns": [
+      "order_id"
+     ],
+     "verified": false
+    },
+    {
+     "certainty": 0.8,
+     "columns": [
+      "product_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "order_items",
+     "target": "products",
+     "target_columns": [
+      "product_id"
+     ],
+     "verified": false
+    },
+    {
+     "certainty": 0.8,
+     "columns": [
+      "customer_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "addresses",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verified": false
+    },
+    {
+     "certainty": 0.8,
+     "columns": [
+      "customer_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "audit_log",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verified": false
+    },
+    {
+     "certainty": 0.8,
+     "columns": [
+      "customer_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "orders",
+     "target": "customers",
+     "target_columns": [
+      "customer_id"
+     ],
+     "verified": false
+    },
+    {
+     "certainty": 0.8,
+     "columns": [
+      "category_id"
+     ],
+     "cost": 1.25,
+     "rule": "R1",
+     "source": "products",
+     "target": "categories",
+     "target_columns": [
+      "id"
+     ],
+     "verified": false
+    }
+   ],
+   "ambiguity": {
+    "cycles": [],
+    "note": "no cycles: every pair of connected tables has exactly one path",
+    "pairs_with_multiple_paths": []
+   },
+   "areas": [
+    {
+     "central_table": "customers",
+     "name": "customers area",
+     "tables": [
+      "addresses",
+      "audit_log",
+      "categories",
+      "customers",
+      "order_items",
+      "orders",
+      "products"
+     ]
+    }
+   ],
+   "centrality": {
+    "top": [
+     {
+      "betweenness": 0.6,
+      "in": 3,
+      "out": 0,
+      "pagerank": 0.3267,
+      "role": "dimension",
+      "table": "customers"
+     },
+     {
+      "betweenness": 0.0,
+      "in": 1,
+      "out": 0,
+      "pagerank": 0.1847,
+      "role": "dimension",
+      "table": "categories"
+     },
+     {
+      "betweenness": 0.6,
+      "in": 1,
+      "out": 1,
+      "pagerank": 0.119,
+      "role": "fact",
+      "table": "orders"
+     },
+     {
+      "betweenness": 0.3333,
+      "in": 1,
+      "out": 1,
+      "pagerank": 0.119,
+      "role": "dimension",
+      "table": "products"
+     },
+     {
+      "betweenness": 0.5333,
+      "in": 0,
+      "out": 2,
+      "pagerank": 0.0835,
+      "role": "fact",
+      "table": "order_items"
+     },
+     {
+      "betweenness": 0.0,
+      "in": 0,
+      "out": 1,
+      "pagerank": 0.0835,
+      "role": "dimension",
+      "table": "addresses"
+     },
+     {
+      "betweenness": 0.0,
+      "in": 0,
+      "out": 1,
+      "pagerank": 0.0835,
+      "role": "fact",
+      "table": "audit_log"
+     }
+    ]
+   },
+   "inactive_relationships": [],
+   "roles": {
+    "addresses": {
+     "role": "dimension",
+     "why": "a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0"
+    },
+    "audit_log": {
+     "role": "fact",
+     "why": "nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5"
+    },
+    "categories": {
+     "role": "dimension",
+     "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+    },
+    "customers": {
+     "role": "dimension",
+     "why": "3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0"
+    },
+    "order_items": {
+     "role": "fact",
+     "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0"
+    },
+    "orders": {
+     "role": "fact",
+     "why": "pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0"
+    },
+    "products": {
+     "role": "dimension",
+     "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0"
+    }
+   },
+   "summary": "7 tables, 6 with keys, 6 relationships; 7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "analyze_schema"
+ },
+ {
+  "answer": {
+   "candidates": [
+    {
+     "closure": 0.64,
+     "closure_via": "orders -> customers <- addresses",
+     "confirmed": {
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "addresses",
+      "target_cols": [
+       "address_id"
+      ]
+     },
+     "evidence": {
+      "distinct_values": 15,
+      "inclusion": 1.0,
+      "matched": 60,
+      "rows_with_value": 60,
+      "verdict": "every value exists in the target key"
+     },
+     "final_score": 6.94,
+     "name_basis": "role word",
+     "name_similarity": 0.6,
+     "penalties": [],
+     "score": 3.94,
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ],
+     "triangular_closure": true,
+     "type_similarity": 1.0,
+     "why": "orders.ship_to_id (int) is in no relationship and matches the type of addresses.address_id; an address role (ship-to, bill-to, mail-to) (0.6); closes a triangle orders -> customers <- addresses (certainty 0.64)"
+    },
+    {
+     "closure": 0.0,
+     "closure_via": "",
+     "confirmed": {
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "customers",
+      "target_cols": [
+       "customer_id"
+      ]
+     },
+     "evidence": {
+      "distinct_values": 15,
+      "inclusion": 0.5833,
+      "matched": 35,
+      "rows_with_value": 60,
+      "verdict": "25 value(s) not in the target key"
+     },
+     "final_score": 3.0,
+     "name_basis": "",
+     "name_similarity": 0.0,
+     "penalties": [
+      "orders already refers to customers through customer_id"
+     ],
+     "score": 1.25,
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ],
+     "triangular_closure": false,
+     "type_similarity": 1.0,
+     "why": "orders.ship_to_id (int) is in no relationship and matches the type of customers.customer_id; but orders already refers to customers through customer_id"
+    },
+    {
+     "closure": 0.0,
+     "closure_via": "",
+     "confirmed": {
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "products",
+      "target_cols": [
+       "product_id"
+      ]
+     },
+     "evidence": {
+      "distinct_values": 15,
+      "inclusion": 0.5,
+      "matched": 30,
+      "rows_with_value": 60,
+      "verdict": "30 value(s) not in the target key"
+     },
+     "final_score": 2.5,
+     "name_basis": "",
+     "name_similarity": 0.0,
+     "penalties": [
+      "order_items already joins orders and products (many-to-many through it)"
+     ],
+     "score": 1.0,
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ],
+     "triangular_closure": false,
+     "type_similarity": 1.0,
+     "why": "orders.ship_to_id (int) is in no relationship and matches the type of products.product_id; but order_items already joins orders and products (many-to-many through it)"
+    },
+    {
+     "closure": 0.0,
+     "closure_via": "",
+     "confirmed": {
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "categories",
+      "target_cols": [
+       "id"
+      ]
+     },
+     "evidence": {
+      "distinct_values": 15,
+      "inclusion": 0.1333,
+      "matched": 8,
+      "rows_with_value": 60,
+      "verdict": "52 value(s) not in the target key"
+     },
+     "final_score": 1.9,
+     "name_basis": "",
+     "name_similarity": 0.0,
+     "penalties": [],
+     "score": 1.5,
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "categories",
+     "target_cols": [
+      "id"
+     ],
+     "triangular_closure": false,
+     "type_similarity": 1.0,
+     "why": "orders.ship_to_id (int) is in no relationship and matches the type of categories.id"
+    }
+   ],
+   "checked_against_data": 4,
+   "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with many distinct values is strong evidence, 100% with two distinct values is not. After the data check the order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score.",
+   "summary": "7 tables, 6 with keys, 6 relationships; 4 candidate(s), 4 checked against the data"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "suggest_relationships"
+ },
+ {
+  "answer": {
+   "dry_run": true,
+   "schema": "krusgraph",
+   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "views": [
+    {
+     "name": "vw_order_items",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+     "tables": [
+      "order_items",
+      "orders",
+      "products",
+      "customers",
+      "categories"
+     ],
+     "why": "order_items is a fact table (4 dimensions joined in through the plan's relationships)"
+    },
+    {
+     "name": "vw_orders",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
+     "tables": [
+      "orders",
+      "customers"
+     ],
+     "why": "orders is a header table: order_items holds its lines; one row per orders row, with its 1 dimension(s) joined in"
+    }
+   ]
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "create_views"
+ },
+ {
+  "answer": {
+   "applied": [
+    {
+     "name": "krusgraph",
+     "statement": "schema",
+     "status": "ok"
+    },
+    {
+     "name": "vw_order_items",
+     "statement": "view",
+     "status": "ok"
+    },
+    {
+     "name": "vw_orders",
+     "statement": "view",
+     "status": "ok"
+    }
+   ],
+   "dry_run": false,
+   "result": {
+    "schema": "krusgraph",
+    "status": "Succeeded",
+    "views": 2
+   },
+   "schema": "krusgraph",
+   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "views": [
+    {
+     "name": "vw_order_items",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+     "tables": [
+      "order_items",
+      "orders",
+      "products",
+      "customers",
+      "categories"
+     ],
+     "why": "order_items is a fact table (4 dimensions joined in through the plan's relationships)"
+    },
+    {
+     "name": "vw_orders",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
+     "tables": [
+      "orders",
+      "customers"
+     ],
+     "why": "orders is a header table: order_items holds its lines; one row per orders row, with its 1 dimension(s) joined in"
+    }
+   ]
+  },
+  "args": {
+   "dry_run": false,
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "create_views"
+ },
+ {
+  "answer": {
+   "assumptions": [],
+   "path": [
+    {
+     "certainty": 0.8,
+     "direction": "many-to-one",
+     "forward": true,
+     "from": "orders",
+     "on": [
+      "customer_id = customer_id"
+     ],
+     "rule": "R1",
+     "to": "customers"
+    }
+   ],
+   "personal_data": {
+    "left_out": [
+     "customers.name (P1: a person's name)"
+    ],
+    "notice": "left out by name (privacy rules); the key stands in where the table has one. show_personal_data=true includes them."
+   },
+   "question": "Hur många ordrar per kund?",
+   "runs": "nothing: the T-SQL runs on the connection in FABRIC_ODBC (SQL analytics endpoint, warehouse or SQL Server)",
+   "starts_at": "orders",
+   "tables": [
+    "orders",
+    "customers"
+   ],
+   "tsql": "SELECT t1.[customer_id], COUNT_BIG(*) AS [orders_count]\nFROM [shop].[orders] AS t0\nJOIN [shop].[customers] AS t1 ON t0.[customer_id] = t1.[customer_id]\nGROUP BY t1.[customer_id]\nORDER BY [orders_count] DESC",
+   "understood": {
+    "aggregate": "count",
+    "counted": "orders",
+    "group_table": "customers"
+   }
+  },
+  "args": {
+   "question": "Hur många ordrar per kund?",
+   "schema": "shop",
+   "tables": [
+    "orders",
+    "customers"
+   ]
+  },
+  "rest": [],
+  "tool": "answer_query_draft"
+ },
+ {
+  "answer": {
+   "not_checked": [],
+   "note": "Unit-tested; the generated notebook ran on a local PySpark 4.0.1 against the shop seed; not yet run in Fabric.",
+   "notebook": {
+    "content": "# Fabric notebook source\n\n# METADATA ********************\n\n# META {\n# META   \"kernel_info\": {\n# META     \"name\": \"synapse_pyspark\"\n# META   }\n# META }\n\n# MARKDOWN ********************\n\n# # Silver tables for demo_lh.shop\n#\n# Generated by Krusgraph from the plan: clean copies of 7 table(s) in the schema `silver`, de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in `krusgraph_quarantine` with the reason. The source tables are only read. Run it again at any time: every silver table is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.\n\n# PARAMETERS CELL ********************\n\nSILVER_SCHEMA = \"silver\"   # where the silver tables go; never the source schema\nTABLE_FORMAT = \"delta\"     # lakehouse tables are Delta; leave as it is\nMASK_PERSONAL_DATA = True   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\nfrom datetime import datetime, timezone\nfrom pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nSOURCE_SCHEMA = \"shop\"\nSCHEMAS_ENABLED = True\n# Written into every silver table as the property krusgraph.silver: a table carrying another value (or none) belongs to\n# someone else, and this notebook never overwrites it.\nOWNER = \"demo_lh/shop\"\n# Every table of the source schema: none of them is ever a write target.\nSOURCE_TABLES = [\"addresses\", \"audit_log\", \"categories\", \"customers\", \"order_items\", \"orders\", \"products\"]\n# The silver tables this notebook writes, plus the quarantine table.\nWRITES = [\"categories\", \"customers\", \"addresses\", \"audit_log\", \"orders\", \"products\", \"order_items\", \"krusgraph_quarantine\"]\n# Columns whose name looks like personal data (Krusgraph's rules P1-P6, by name): masked in the quarantine's row_json while\n# MASK_PERSONAL_DATA is True. The silver tables themselves keep every column.\nPERSONAL_COLUMNS = {\"addresses\": [\"city\"], \"customers\": [\"name\"]}\nRUN_AT = datetime.now(timezone.utc).replace(microsecond=0)\n\n\ndef q(*parts):\n    \"\"\"A table name with every part quoted, for names with spaces or other characters.\"\"\"\n    return \".\".join(\"`\" + str(p).replace(\"`\", \"``\") + \"`\" for p in parts if p)\n\n\ndef source(table):\n    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)\n\n\ndef target(table):\n    # The silver tables live in a schema of their own (on a lakehouse without schemas: a prefix), never on a source table.\n    return q(SILVER_SCHEMA, table) if SCHEMAS_ENABLED else q(f\"{SILVER_SCHEMA}_{table}\")\n\n\ndef col(name):\n    return F.col(\"`\" + name.replace(\"`\", \"``\") + \"`\")\n\n\ndef is_ours_or_absent(name):\n    \"\"\"A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = OWNER).\"\"\"\n    if not spark.catalog.tableExists(name):\n        return True\n    props = {r[0]: r[1] for r in spark.sql(f\"SHOW TBLPROPERTIES {name}\").collect()}\n    return props.get(\"krusgraph.silver\") == OWNER\n\n\n# Guard before anything is written: no target is a source table, and no target is someone else's table.\n_sources = {source(t).lower() for t in SOURCE_TABLES}\nfor _t in WRITES:\n    if target(_t).lower() in _sources:\n        raise ValueError(f\"{target(_t)} is a source table; choose another SILVER_SCHEMA. Nothing was written.\")\n    if not is_ours_or_absent(target(_t)):\n        raise ValueError(f\"{target(_t)} exists and was not written by this notebook (for {OWNER}); nothing was written. \"\n                         \"Choose another SILVER_SCHEMA.\")\nif SCHEMAS_ENABLED:\n    spark.sql(f\"CREATE SCHEMA IF NOT EXISTS {q(SILVER_SCHEMA)}\")\n\nquarantined = []      # (rows, source table, rule, reason), written together at the end\nsilver = {}           # table -> its silver DataFrame, read back after writing\nread_counts = {}\n\n\ndef to_quarantine(rows, table, rule, reason):\n    masked = set(PERSONAL_COLUMNS.get(table, [])) if MASK_PERSONAL_DATA else set()\n    fields = [F.when(col(c).isNull(), F.lit(None).cast(\"string\")).otherwise(F.lit(\"***\")).alias(c) if c in masked else col(c)\n              for c in rows.columns]\n    quarantined.append(rows.select(F.lit(table).alias(\"source_table\"), F.lit(rule).alias(\"rule\"), F.lit(reason).alias(\"reason\"),\n                                   F.to_json(F.struct(*fields)).alias(\"row_json\")))\n\n\ndef drop_null_keys(df, key, table, rule):\n    missing = None\n    for c in key:\n        missing = col(c).isNull() if missing is None else (missing | col(c).isNull())\n    to_quarantine(df.filter(missing), table, rule, f\"the key ({', '.join(key)}) is NULL\")\n    return df.filter(~missing)\n\n\ndef keep_latest(df, key, order_column, table, rule):\n    content = F.sha2(F.to_json(F.struct(*[col(c) for c in df.columns])), 256)\n    order = ([col(order_column).desc_nulls_last()] if order_column else []) + [content.desc()]\n    ranked = df.withColumn(\"_krusgraph_rank\", F.row_number().over(Window.partitionBy(*[col(c) for c in key]).orderBy(*order)))\n    reason = (f\"another row has the same key ({', '.join(key)}); the row with the latest {order_column} was kept\" if order_column\n              else f\"another row has the same key ({', '.join(key)}); one row per key was kept (no ordering column: pass order_by)\")\n    to_quarantine(ranked.filter(F.col(\"_krusgraph_rank\") > 1).drop(\"_krusgraph_rank\"), table, rule, reason)\n    return ranked.filter(F.col(\"_krusgraph_rank\") == 1).drop(\"_krusgraph_rank\")\n\n\ndef check_reference(df, columns, parent_df, parent_columns, table, rule, reason):\n    \"\"\"Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays.\"\"\"\n    parent_keys = parent_df.select(*[col(c).alias(f\"_krusgraph_p{i}\") for i, c in enumerate(parent_columns)]).distinct()\n    has_ref, on = None, None\n    for i, c in enumerate(columns):\n        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())\n        match = col(c) == F.col(f\"_krusgraph_p{i}\")\n        on = match if on is None else (on & match)\n    with_ref = df.filter(has_ref)\n    to_quarantine(with_ref.join(parent_keys, on, \"left_anti\"), table, rule, reason)\n    return df.filter(~has_ref).unionByName(with_ref.join(parent_keys, on, \"left_semi\"))\n\n\ndef write_silver(df, table):\n    name = target(table)\n    if not is_ours_or_absent(name):\n        raise ValueError(f\"{name} exists and was not written by this notebook; it was left as it is.\")\n    df.write.format(TABLE_FORMAT).mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(name)\n    spark.sql(f\"ALTER TABLE {name} SET TBLPROPERTIES ('krusgraph.silver' = '{OWNER.replace(chr(39), chr(39) * 2)}')\")\n    return spark.read.table(name)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"id\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"id\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\ndf = drop_null_keys(df, [\"customer_id\"], \"customers\", \"K2\")\ndf = keep_latest(df, [\"customer_id\"], None, \"customers\", \"K2\")\nsilver[\"customers\"] = write_silver(df, \"customers\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\ndf = drop_null_keys(df, [\"address_id\"], \"addresses\", \"K2\")\ndf = keep_latest(df, [\"address_id\"], None, \"addresses\", \"K2\")\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- audit_log -> silver.audit_log ----\n# No key (rule K3: nothing): every row is kept as it is; nothing to de-duplicate on.\ndf = spark.read.table(source(\"audit_log\"))\nread_counts[\"audit_log\"] = df.count()\n# Reference audit_log.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"audit_log\", \"R1\", \"customer_id has no row in customers (audit_log.customer_id = customers.customer_id)\")\nsilver[\"audit_log\"] = write_silver(df, \"audit_log\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\"], \"orders\", \"K2\")\ndf = keep_latest(df, [\"order_id\"], None, \"orders\", \"K2\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"product_id\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"product_id\"], None, \"products\", \"K2\")\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- order_items -> silver.order_items ----\n# Key order_id + line_no (rule K5: line: no column names a key).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"order_items\"))\nread_counts[\"order_items\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\", \"line_no\"], \"order_items\", \"K5\")\ndf = keep_latest(df, [\"order_id\", \"line_no\"], None, \"order_items\", \"K5\")\n# Reference order_items.order_id = orders.order_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver orders, so rows whose orders was quarantined follow it there.\ndf = check_reference(df, [\"order_id\"], silver[\"orders\"], [\"order_id\"], \"order_items\", \"R1\", \"order_id has no row in orders (order_items.order_id = orders.order_id)\")\n# Reference order_items.product_id = products.product_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver products, so rows whose products was quarantined follow it there.\ndf = check_reference(df, [\"product_id\"], silver[\"products\"], [\"product_id\"], \"order_items\", \"R1\", \"product_id has no row in products (order_items.product_id = products.product_id)\")\nsilver[\"order_items\"] = write_silver(df, \"order_items\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- quarantine and summary ----\n# Every row left out above is in the quarantine table with its source table, the rule and the reason. The table is\n# rewritten on every run, so it always shows the latest run.\nq_rows = spark.createDataFrame([], \"source_table string, rule string, reason string, row_json string\")\nfor part in quarantined:\n    q_rows = q_rows.unionByName(part)\nq_rows = q_rows.withColumn(\"checked_at\", F.lit(RUN_AT))\nwrite_silver(q_rows, \"krusgraph_quarantine\")\nsummary = {t: {\"read\": read_counts[t], \"silver\": silver[t].count()} for t in silver}\nfor r in spark.read.table(target(\"krusgraph_quarantine\")).groupBy(\"source_table\", \"rule\", \"reason\").count().collect():\n    summary[r[\"source_table\"]].setdefault(\"quarantined\", []).append({\"rule\": r[\"rule\"], \"reason\": r[\"reason\"], \"rows\": r[\"count\"]})\nfor t, s in summary.items():\n    print(t, s)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n",
+    "format": "fabricGitSource",
+    "path": "notebook-content.py"
+   },
+   "run": [
+    "In Fabric: import the notebook (or paste the cells), attach it to the lakehouse, and Run all; the item ids are not known here, so the notebook carries no default lakehouse.",
+    "Lakehouse with schemas: True (FABRIC_SCHEMAS_ENABLED; a schema other than dbo implies yes)."
+   ],
+   "steps": [
+    {
+     "checks": [],
+     "deduplicate_on": {
+      "key": [
+       "id"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K2"
+     },
+     "table": "categories",
+     "writes": "silver.categories"
+    },
+    {
+     "checks": [],
+     "deduplicate_on": {
+      "key": [
+       "customer_id"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K2"
+     },
+     "table": "customers",
+     "writes": "silver.customers"
+    },
+    {
+     "checks": [
+      {
+       "columns": [
+        "customer_id"
+       ],
+       "parent": "customers",
+       "rule": "R1"
+      }
+     ],
+     "deduplicate_on": {
+      "key": [
+       "address_id"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K2"
+     },
+     "table": "addresses",
+     "writes": "silver.addresses"
+    },
+    {
+     "checks": [
+      {
+       "columns": [
+        "customer_id"
+       ],
+       "parent": "customers",
+       "rule": "R1"
+      }
+     ],
+     "deduplicate_on": "no key (K3): rows kept as they are",
+     "table": "audit_log",
+     "writes": "silver.audit_log"
+    },
+    {
+     "checks": [
+      {
+       "columns": [
+        "customer_id"
+       ],
+       "parent": "customers",
+       "rule": "R1"
+      }
+     ],
+     "deduplicate_on": {
+      "key": [
+       "order_id"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K2"
+     },
+     "table": "orders",
+     "writes": "silver.orders"
+    },
+    {
+     "checks": [
+      {
+       "columns": [
+        "category_id"
+       ],
+       "parent": "categories",
+       "rule": "R1"
+      }
+     ],
+     "deduplicate_on": {
+      "key": [
+       "product_id"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K2"
+     },
+     "table": "products",
+     "writes": "silver.products"
+    },
+    {
+     "checks": [
+      {
+       "columns": [
+        "order_id"
+       ],
+       "parent": "orders",
+       "rule": "R1"
+      },
+      {
+       "columns": [
+        "product_id"
+       ],
+       "parent": "products",
+       "rule": "R1"
+      }
+     ],
+     "deduplicate_on": {
+      "key": [
+       "order_id",
+       "line_no"
+      ],
+      "latest_by": "none (a stable row per key; pass order_by)",
+      "rule": "K5"
+     },
+     "table": "order_items",
+     "writes": "silver.order_items"
+    }
+   ],
+   "summary": "7 tables, 6 with keys, 6 relationships; the notebook writes 7 silver table(s) and krusgraph_quarantine"
+  },
+  "args": {
+   "schema": "shop"
+  },
+  "rest": [],
+  "tool": "silver_notebook_draft"
+ },
+ {
+  "answer": {
+   "error": "semantic_model_draft is Fabric-specific: a Power BI semantic model in Direct Lake mode reads Delta tables through a Fabric SQL analytics endpoint; FABRIC_SOURCE_KIND is SQLServer, so there is no such endpoint or item.",
+   "hint": "For SQL Server, open the tables in Power BI Desktop (Import or DirectQuery) and use the plan's keys and relationships from plan_backend, join_path or data_dictionary; dbt_schema, create_views and the rest work on SQL Server. Mirror the database into Fabric (Mirrored database for SQL Server) to get the Fabric drafts.",
+   "kind": "unsupported"
+  },
+  "kind": "SQLServer",
+  "tool": "semantic_model_draft"
+ },
+ {
+  "answer": {
+   "error": "ontology_draft is Fabric-specific: a Fabric IQ ontology binds to tables of a Fabric item; FABRIC_SOURCE_KIND is SQLServer, so there is no such endpoint or item.",
+   "hint": "Mirror the database into Fabric (Mirrored database for SQL Server) or use the plan directly; plan_backend, join_path, data_dictionary, dbt_schema and create_views work on SQL Server.",
+   "kind": "unsupported"
+  },
+  "kind": "SQLServer",
+  "tool": "ontology_draft"
+ },
+ {
+  "answer": {
+   "error": "The silver notebook writes Delta tables with Spark in a lakehouse; FABRIC_SOURCE_KIND is SQLServer.",
+   "hint": "Plan a lakehouse (FABRIC_SOURCE_KIND=Lakehouse), or mirror the tables into Fabric and add them to a lakehouse as OneLake shortcuts; answer_query_draft, create_views and the rest work on this source.",
+   "kind": "unsupported"
+  },
+  "kind": "SQLServer",
+  "tool": "silver_notebook_draft"
+ },
+ {
+  "answer": {
+   "error": "FABRIC_ODBC is not set: the stdio server needs an ODBC connection string for the SQL analytics endpoint",
+   "hint": "This is a configuration problem on the connector itself, not with your account. Contact the operator.",
+   "kind": "server_config"
+  },
+  "no_odbc": true,
+  "tool": "plan_backend"
+ },
+ {
+  "created": [
+   {
+    "body": {
+     "definition": {
+      "parts": [
+       {
+        "path": "graphql-definition.json",
+        "payload": "eyIkc2NoZW1hIjoiaHR0cHM6Ly9kZXZlbG9wZXIubWljcm9zb2Z0LmNvbS9qc29uLXNjaGVtYXMvZmFicmljL2l0ZW0vZ3JhcGhxbEFwaS9kZWZpbml0aW9uLzEuMC4wL3NjaGVtYS5qc29uIiwiZGF0YXNvdXJjZXMiOlt7InNvdXJjZUl0ZW1JZCI6ImFhYWFhYWFhLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDAwMiIsInNvdXJjZVdvcmtzcGFjZUlkIjoiMTExMTExMTEtMjIyMi0zMzMzLTQ0NDQtNTU1NTU1NTU1NTU1Iiwic291cmNlVHlwZSI6IlNxbEFuYWx5dGljc0VuZHBvaW50Iiwib2JqZWN0cyI6W3siZ3JhcGhxbFR5cGUiOiJjdXN0b21lcnMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLmN1c3RvbWVycyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsiY3VzdG9tZXJfaWQiOiJjdXN0b21lcl9pZCIsIm5hbWUiOiJuYW1lIiwiY291bnRyeSI6ImNvdW50cnkifSwicmVsYXRpb25zaGlwcyI6W3siZmllbGQiOiJhZGRyZXNzZXMiLCJjYXJkaW5hbGl0eSI6Ik9uZVRvTWFueSIsInRhcmdldE9iamVjdCI6InNob3AuYWRkcmVzc2VzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfSx7ImZpZWxkIjoib3JkZXJzIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLm9yZGVycyIsInNvdXJjZUZpZWxkcyI6WyJjdXN0b21lcl9pZCJdLCJ0YXJnZXRGaWVsZHMiOlsiY3VzdG9tZXJfaWQiXX0seyJmaWVsZCI6ImF1ZGl0X2xvZyIsImNhcmRpbmFsaXR5IjoiT25lVG9NYW55IiwidGFyZ2V0T2JqZWN0Ijoic2hvcC5hdWRpdF9sb2ciLCJzb3VyY2VGaWVsZHMiOlsiY3VzdG9tZXJfaWQiXSwidGFyZ2V0RmllbGRzIjpbImN1c3RvbWVyX2lkIl19XX0seyJncmFwaHFsVHlwZSI6ImNhdGVnb3JpZXMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLmNhdGVnb3JpZXMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7ImlkIjoiaWQiLCJuYW1lIjoibmFtZSJ9LCJyZWxhdGlvbnNoaXBzIjpbeyJmaWVsZCI6InByb2R1Y3RzIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLnByb2R1Y3RzIiwic291cmNlRmllbGRzIjpbImlkIl0sInRhcmdldEZpZWxkcyI6WyJjYXRlZ29yeV9pZCJdfV19LHsiZ3JhcGhxbFR5cGUiOiJwcm9kdWN0cyIsInNvdXJjZU9iamVjdCI6InNob3AucHJvZHVjdHMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7InByb2R1Y3RfaWQiOiJwcm9kdWN0X2lkIiwibmFtZSI6Im5hbWUiLCJjYXRlZ29yeV9pZCI6ImNhdGVnb3J5X2lkIn0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY2F0ZWdvcnkiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY2F0ZWdvcmllcyIsInNvdXJjZUZpZWxkcyI6WyJjYXRlZ29yeV9pZCJdLCJ0YXJnZXRGaWVsZHMiOlsiaWQiXX0seyJmaWVsZCI6Im9yZGVyX2l0ZW1zIiwiY2FyZGluYWxpdHkiOiJPbmVUb01hbnkiLCJ0YXJnZXRPYmplY3QiOiJzaG9wLm9yZGVyX2l0ZW1zIiwic291cmNlRmllbGRzIjpbInByb2R1Y3RfaWQiXSwidGFyZ2V0RmllbGRzIjpbInByb2R1Y3RfaWQiXX1dfSx7ImdyYXBocWxUeXBlIjoiYWRkcmVzc2VzIiwic291cmNlT2JqZWN0Ijoic2hvcC5hZGRyZXNzZXMiLCJzb3VyY2VPYmplY3RUeXBlIjoiVGFibGUiLCJhY3Rpb25zIjp7IlF1ZXJ5IjoiRW5hYmxlZCIsIlF1ZXJ5X2J5X3BrIjoiRW5hYmxlZCIsIkNyZWF0ZSI6IkRpc2FibGVkIiwiVXBkYXRlIjoiRGlzYWJsZWQiLCJEZWxldGUiOiJEaXNhYmxlZCJ9LCJmaWVsZE1hcHBpbmdzIjp7ImFkZHJlc3NfaWQiOiJhZGRyZXNzX2lkIiwiY3VzdG9tZXJfaWQiOiJjdXN0b21lcl9pZCIsImNpdHkiOiJjaXR5In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfV19LHsiZ3JhcGhxbFR5cGUiOiJvcmRlcnMiLCJzb3VyY2VPYmplY3QiOiJzaG9wLm9yZGVycyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsib3JkZXJfaWQiOiJvcmRlcl9pZCIsImN1c3RvbWVyX2lkIjoiY3VzdG9tZXJfaWQiLCJvcmRlcl9kYXRlIjoib3JkZXJfZGF0ZSIsInNoaXBfdG9faWQiOiJzaGlwX3RvX2lkIn0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfSx7ImZpZWxkIjoib3JkZXJfaXRlbXMiLCJjYXJkaW5hbGl0eSI6Ik9uZVRvTWFueSIsInRhcmdldE9iamVjdCI6InNob3Aub3JkZXJfaXRlbXMiLCJzb3VyY2VGaWVsZHMiOlsib3JkZXJfaWQiXSwidGFyZ2V0RmllbGRzIjpbIm9yZGVyX2lkIl19XX0seyJncmFwaHFsVHlwZSI6Im9yZGVyX2l0ZW1zIiwic291cmNlT2JqZWN0Ijoic2hvcC5vcmRlcl9pdGVtcyIsInNvdXJjZU9iamVjdFR5cGUiOiJUYWJsZSIsImFjdGlvbnMiOnsiUXVlcnkiOiJFbmFibGVkIiwiUXVlcnlfYnlfcGsiOiJFbmFibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsib3JkZXJfaWQiOiJvcmRlcl9pZCIsImxpbmVfbm8iOiJsaW5lX25vIiwicHJvZHVjdF9pZCI6InByb2R1Y3RfaWQiLCJxdWFudGl0eSI6InF1YW50aXR5In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoib3JkZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3Aub3JkZXJzIiwic291cmNlRmllbGRzIjpbIm9yZGVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJvcmRlcl9pZCJdfSx7ImZpZWxkIjoicHJvZHVjdCIsImNhcmRpbmFsaXR5IjoiTWFueVRvT25lIiwidGFyZ2V0T2JqZWN0Ijoic2hvcC5wcm9kdWN0cyIsInNvdXJjZUZpZWxkcyI6WyJwcm9kdWN0X2lkIl0sInRhcmdldEZpZWxkcyI6WyJwcm9kdWN0X2lkIl19XX0seyJncmFwaHFsVHlwZSI6ImF1ZGl0X2xvZyIsInNvdXJjZU9iamVjdCI6InNob3AuYXVkaXRfbG9nIiwic291cmNlT2JqZWN0VHlwZSI6IlRhYmxlIiwiYWN0aW9ucyI6eyJRdWVyeSI6IkVuYWJsZWQiLCJRdWVyeV9ieV9wayI6IkRpc2FibGVkIiwiQ3JlYXRlIjoiRGlzYWJsZWQiLCJVcGRhdGUiOiJEaXNhYmxlZCIsIkRlbGV0ZSI6IkRpc2FibGVkIn0sImZpZWxkTWFwcGluZ3MiOnsiZXZlbnQiOiJldmVudCIsImN1c3RvbWVyX2lkIjoiY3VzdG9tZXJfaWQiLCJoYXBwZW5lZF9hdCI6ImhhcHBlbmVkX2F0In0sInJlbGF0aW9uc2hpcHMiOlt7ImZpZWxkIjoiY3VzdG9tZXIiLCJjYXJkaW5hbGl0eSI6Ik1hbnlUb09uZSIsInRhcmdldE9iamVjdCI6InNob3AuY3VzdG9tZXJzIiwic291cmNlRmllbGRzIjpbImN1c3RvbWVyX2lkIl0sInRhcmdldEZpZWxkcyI6WyJjdXN0b21lcl9pZCJdfV19XX1dfQ==",
+        "payloadType": "InlineBase64"
+       },
+       {
+        "path": ".platform",
+        "payload": "eyIkc2NoZW1hIjoiaHR0cHM6Ly9kZXZlbG9wZXIubWljcm9zb2Z0LmNvbS9qc29uLXNjaGVtYXMvZmFicmljL2dpdEludGVncmF0aW9uL3BsYXRmb3JtUHJvcGVydGllcy8yLjAuMC9zY2hlbWEuanNvbiIsIm1ldGFkYXRhIjp7InR5cGUiOiJHcmFwaFFMQXBpIiwiZGlzcGxheU5hbWUiOiJzaG9wX2FwaV92MiJ9LCJjb25maWciOnsidmVyc2lvbiI6IjIuMCIsImxvZ2ljYWxJZCI6IjUxYTk1NmI4LTMxY2UtNWZhZC1hOWM1LWYwYWIwOWU4NDQ1YSJ9fQ==",
+        "payloadType": "InlineBase64"
+       }
+      ]
+     },
+     "displayName": "shop_api_v2"
+    },
+    "route": "graphQLApis"
+   }
+  ],
+  "ddl": [
+   "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+   "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+   "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]"
+  ]
+ }
+]

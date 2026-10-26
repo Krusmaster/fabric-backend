@@ -1,0 +1,319 @@
+{
+ "suggest": {
+  "candidates": [
+   {
+    "closure": 0.64,
+    "closure_via": "orders -> customers <- addresses",
+    "confirmed": {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    },
+    "evidence": {
+     "distinct_values": 15,
+     "inclusion": 1.0,
+     "matched": 60,
+     "rows_with_value": 60,
+     "verdict": "every value exists in the target key"
+    },
+    "final_score": 6.94,
+    "name_basis": "role word",
+    "name_similarity": 0.6,
+    "penalties": [],
+    "score": 3.94,
+    "source": "orders",
+    "source_cols": [
+     "ship_to_id"
+    ],
+    "target": "addresses",
+    "target_cols": [
+     "address_id"
+    ],
+    "triangular_closure": true,
+    "type_similarity": 1.0,
+    "why": "orders.ship_to_id (int) is in no relationship and matches the type of addresses.address_id; an address role (ship-to, bill-to, mail-to) (0.6); closes a triangle orders -> customers <- addresses (certainty 0.64)"
+   },
+   {
+    "closure": 0.0,
+    "closure_via": "",
+    "confirmed": {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    "evidence": {
+     "distinct_values": 15,
+     "inclusion": 0.5833,
+     "matched": 35,
+     "rows_with_value": 60,
+     "verdict": "25 value(s) not in the target key"
+    },
+    "final_score": 3.0,
+    "name_basis": "",
+    "name_similarity": 0.0,
+    "penalties": [
+     "orders already refers to customers through customer_id"
+    ],
+    "score": 1.25,
+    "source": "orders",
+    "source_cols": [
+     "ship_to_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ],
+    "triangular_closure": false,
+    "type_similarity": 1.0,
+    "why": "orders.ship_to_id (int) is in no relationship and matches the type of customers.customer_id; but orders already refers to customers through customer_id"
+   },
+   {
+    "closure": 0.0,
+    "closure_via": "",
+    "confirmed": {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ]
+    },
+    "evidence": {
+     "distinct_values": 15,
+     "inclusion": 0.5,
+     "matched": 30,
+     "rows_with_value": 60,
+     "verdict": "30 value(s) not in the target key"
+    },
+    "final_score": 2.5,
+    "name_basis": "",
+    "name_similarity": 0.0,
+    "penalties": [
+     "order_items already joins orders and products (many-to-many through it)"
+    ],
+    "score": 1.0,
+    "source": "orders",
+    "source_cols": [
+     "ship_to_id"
+    ],
+    "target": "products",
+    "target_cols": [
+     "product_id"
+    ],
+    "triangular_closure": false,
+    "type_similarity": 1.0,
+    "why": "orders.ship_to_id (int) is in no relationship and matches the type of products.product_id; but order_items already joins orders and products (many-to-many through it)"
+   },
+   {
+    "closure": 0.0,
+    "closure_via": "",
+    "confirmed": {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "categories",
+     "target_cols": [
+      "id"
+     ]
+    },
+    "evidence": {
+     "distinct_values": 15,
+     "inclusion": 0.1333,
+     "matched": 8,
+     "rows_with_value": 60,
+     "verdict": "52 value(s) not in the target key"
+    },
+    "final_score": 1.9,
+    "name_basis": "",
+    "name_similarity": 0.0,
+    "penalties": [],
+    "score": 1.5,
+    "source": "orders",
+    "source_cols": [
+     "ship_to_id"
+    ],
+    "target": "categories",
+    "target_cols": [
+     "id"
+    ],
+    "triangular_closure": false,
+    "type_similarity": 1.0,
+    "why": "orders.ship_to_id (int) is in no relationship and matches the type of categories.id"
+   }
+  ],
+  "checked_against_data": 4,
+  "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with many distinct values is strong evidence, 100% with two distinct values is not. After the data check the order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score."
+ },
+ "validate": {
+  "keys": [
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "distinct": 10,
+    "nulls": 0,
+    "rows": 10,
+    "rule": "K2",
+    "table": "customers",
+    "verdict": "unique in all 10 rows"
+   },
+   {
+    "columns": [
+     "id"
+    ],
+    "distinct": 3,
+    "nulls": 0,
+    "rows": 3,
+    "rule": "K2",
+    "table": "categories",
+    "verdict": "unique in all 3 rows"
+   },
+   {
+    "columns": [
+     "product_id"
+    ],
+    "distinct": 8,
+    "nulls": 0,
+    "rows": 8,
+    "rule": "K2",
+    "table": "products",
+    "verdict": "unique in all 8 rows"
+   },
+   {
+    "columns": [
+     "address_id"
+    ],
+    "distinct": 17,
+    "nulls": 0,
+    "rows": 17,
+    "rule": "K2",
+    "table": "addresses",
+    "verdict": "unique in all 17 rows"
+   },
+   {
+    "columns": [
+     "order_id"
+    ],
+    "distinct": 60,
+    "nulls": 0,
+    "rows": 60,
+    "rule": "K2",
+    "table": "orders",
+    "verdict": "unique in all 60 rows"
+   },
+   {
+    "columns": [
+     "order_id",
+     "line_no"
+    ],
+    "distinct": 134,
+    "nulls": 0,
+    "rows": 134,
+    "rule": "K5",
+    "table": "order_items",
+    "verdict": "unique in all 134 rows"
+   }
+  ],
+  "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
+  "relationships": [
+   {
+    "columns": [
+     "category_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 8,
+    "rule": "R1",
+    "source": "products",
+    "target": "categories",
+    "target_columns": [
+     "id"
+    ],
+    "verdict": "holds for all 8 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 17,
+    "rule": "R1",
+    "source": "addresses",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 17 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 60,
+    "rule": "R1",
+    "source": "orders",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 60 rows with a value"
+   },
+   {
+    "columns": [
+     "order_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 134,
+    "rule": "R1",
+    "source": "order_items",
+    "target": "orders",
+    "target_columns": [
+     "order_id"
+    ],
+    "verdict": "holds for all 134 rows with a value"
+   },
+   {
+    "columns": [
+     "product_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 134,
+    "rule": "R1",
+    "source": "order_items",
+    "target": "products",
+    "target_columns": [
+     "product_id"
+    ],
+    "verdict": "holds for all 134 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 40,
+    "rule": "R1",
+    "source": "audit_log",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 40 rows with a value"
+   }
+  ],
+  "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+ }
+}

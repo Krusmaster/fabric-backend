@@ -1,0 +1,1615 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "MitarbeiterID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Bestellungen",
+    "target": "Mitarbeiter",
+    "target_columns": [
+     "MitarbeiterID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "Kunde_ID"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Bestellungen",
+    "target": "Kunden",
+    "target_columns": [
+     "KundeID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "AbteilungID"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Mitarbeiter",
+    "target": "Abteilungen",
+    "target_columns": [
+     "AbteilungID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "BestellungID"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Rechnungen",
+    "target": "Bestellungen",
+    "target_columns": [
+     "BestellungID"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [],
+   "note": "no cycles: every pair of connected tables has exactly one path",
+   "pairs_with_multiple_paths": []
+  },
+  "areas": [
+   {
+    "central_table": "Abteilungen",
+    "name": "Abteilungen area",
+    "tables": [
+     "Abteilungen",
+     "Bestellungen",
+     "Kunden",
+     "Mitarbeiter",
+     "Rechnungen"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "Abteilungen": 0.0,
+    "Bestellungen": 0.8333,
+    "Kunden": 0.0,
+    "Mitarbeiter": 0.5,
+    "Rechnungen": 0.0
+   },
+   "degree": {
+    "Abteilungen": {
+     "in": 1,
+     "out": 0
+    },
+    "Bestellungen": {
+     "in": 1,
+     "out": 2
+    },
+    "Kunden": {
+     "in": 1,
+     "out": 0
+    },
+    "Mitarbeiter": {
+     "in": 1,
+     "out": 1
+    },
+    "Rechnungen": {
+     "in": 0,
+     "out": 1
+    }
+   },
+   "pagerank": {
+    "Abteilungen": 0.2817,
+    "Bestellungen": 0.2069,
+    "Kunden": 0.1998,
+    "Mitarbeiter": 0.1998,
+    "Rechnungen": 0.1118
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.2817,
+     "role": "dimension",
+     "table": "Abteilungen"
+    },
+    {
+     "betweenness": 0.8333,
+     "in": 1,
+     "out": 2,
+     "pagerank": 0.2069,
+     "role": "fact",
+     "table": "Bestellungen"
+    },
+    {
+     "betweenness": 0.5,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.1998,
+     "role": "fact",
+     "table": "Mitarbeiter"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1998,
+     "role": "dimension",
+     "table": "Kunden"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 0,
+     "out": 1,
+     "pagerank": 0.1118,
+     "role": "fact",
+     "table": "Rechnungen"
+    }
+   ]
+  },
+  "inactive_relationships": [],
+  "roles": {
+   "Abteilungen": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Bestellungen": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.8333, measure share 1.0"
+   },
+   "Kunden": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Mitarbeiter": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.5, measure share 0.5"
+   },
+   "Rechnungen": {
+    "role": "fact",
+    "why": "nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5"
+   }
+  },
+  "summary": "5 tables, 4 relationships; roles: 3 fact, 2 dimension; 4 relationships can be active at once, 0 would be inactive; 0 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Mitarbeiter",
+   "source_cols": [
+    "VorgesetzterID"
+   ],
+   "target": "Bestellungen",
+   "target_cols": [
+    "BestellungID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Mitarbeiter.VorgesetzterID (int) is in no relationship and matches the type of Bestellungen.BestellungID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Mitarbeiter",
+   "source_cols": [
+    "VorgesetzterID"
+   ],
+   "target": "Rechnungen",
+   "target_cols": [
+    "RechnungID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Mitarbeiter.VorgesetzterID (int) is in no relationship and matches the type of Rechnungen.RechnungID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "Mitarbeiter already refers to Abteilungen through AbteilungID"
+   ],
+   "score": 1.25,
+   "source": "Mitarbeiter",
+   "source_cols": [
+    "VorgesetzterID"
+   ],
+   "target": "Abteilungen",
+   "target_cols": [
+    "AbteilungID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Mitarbeiter.VorgesetzterID (int) is in no relationship and matches the type of Abteilungen.AbteilungID; but Mitarbeiter already refers to Abteilungen through AbteilungID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "Bestellungen already joins Mitarbeiter and Kunden (many-to-many through it)"
+   ],
+   "score": 1.0,
+   "source": "Mitarbeiter",
+   "source_cols": [
+    "VorgesetzterID"
+   ],
+   "target": "Kunden",
+   "target_cols": [
+    "KundeID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Mitarbeiter.VorgesetzterID (int) is in no relationship and matches the type of Kunden.KundeID; but Bestellungen already joins Mitarbeiter and Kunden (many-to-many through it)"
+  }
+ ],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: Kunden\n        columns:\n          - name: KundeID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n          - name: Land\n            description: \"\"  # nvarchar\n      - name: Abteilungen\n        columns:\n          - name: AbteilungID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Bezeichnung\n            description: \"\"  # nvarchar\n      - name: Mitarbeiter\n        columns:\n          - name: MitarbeiterID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Name\n            description: \"\"  # nvarchar\n          - name: AbteilungID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Abteilungen')\n                    field: AbteilungID\n          - name: VorgesetzterID\n            description: \"\"  # int\n      - name: Bestellungen\n        columns:\n          - name: BestellungID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Kunde_ID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Kunden')\n                    field: KundeID\n          - name: MitarbeiterID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Mitarbeiter')\n                    field: MitarbeiterID\n          - name: Bestelldatum\n            description: \"\"  # date\n      - name: Rechnungen\n        columns:\n          - name: RechnungID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: BestellungID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Bestellungen')\n                    field: BestellungID\n          - name: Betrag\n            description: \"\"  # decimal\n          - name: \"Währung\"\n            description: \"\"  # nvarchar\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 5 tables, 5 with keys, 4 relationships\n- Tables without a key: none\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### Kunden\n\nKey: KundeID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| KundeID | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n| Land | nvarchar |  |  |  |\n\n### Abteilungen\n\nKey: AbteilungID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| AbteilungID | int | yes |  |  |\n| Bezeichnung | nvarchar |  |  |  |\n\n### Mitarbeiter\n\nKey: MitarbeiterID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| MitarbeiterID | int | yes |  |  |\n| Name | nvarchar |  |  |  |\n| AbteilungID | int |  | Abteilungen.AbteilungID (R2) |  |\n| VorgesetzterID | int |  |  |  |\n\n### Bestellungen\n\nKey: BestellungID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| BestellungID | int | yes |  |  |\n| Kunde_ID | int |  | Kunden.KundeID (R2) |  |\n| MitarbeiterID | int |  | Mitarbeiter.MitarbeiterID (R1) |  |\n| Bestelldatum | date |  |  |  |\n\n### Rechnungen\n\nKey: RechnungID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| RechnungID | int | yes |  |  |\n| BestellungID | int |  | Bestellungen.BestellungID (R2) |  |\n| Betrag | decimal |  |  |  |\n| Währung | nvarchar |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| Kunden | KundeID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Abteilungen | AbteilungID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Mitarbeiter | MitarbeiterID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Bestellungen | BestellungID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Rechnungen | RechnungID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| Mitarbeiter | AbteilungID | Abteilungen | AbteilungID | R2 | abteilungen / mitarbeiter |\n| Bestellungen | Kunde_ID | Kunden | KundeID | R2 | kunden / bestellungen |\n| Bestellungen | MitarbeiterID | Mitarbeiter | MitarbeiterID | R1 | mitarbeiter / bestellungen |\n| Rechnungen | BestellungID | Bestellungen | BestellungID | R2 | bestellungen / rechnungen |\n\n## Tables without a key\n\nNone.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n5 tables, 4 relationships; roles: 3 fact, 2 dimension; 4 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| Kunden | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Abteilungen | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Mitarbeiter | fact | pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.5, measure share 0.5 |\n| Bestellungen | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.8333, measure share 1.0 |\n| Rechnungen | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- Abteilungen area: Abteilungen, Bestellungen, Kunden, Mitarbeiter, Rechnungen\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  Kunden {\n    KundeID int PK\n    Name nvarchar\n    Land nvarchar\n  }\n  Abteilungen {\n    AbteilungID int PK\n    Bezeichnung nvarchar\n  }\n  Mitarbeiter {\n    MitarbeiterID int PK\n    Name nvarchar\n    AbteilungID int\n    VorgesetzterID int\n  }\n  Bestellungen {\n    BestellungID int PK\n    Kunde_ID int\n    MitarbeiterID int\n    Bestelldatum date\n  }\n  Rechnungen {\n    RechnungID int PK\n    BestellungID int\n    Betrag decimal\n    W_hrung nvarchar\n  }\n  Abteilungen ||--o{ Mitarbeiter : \"AbteilungID R2\"\n  Kunden ||--o{ Bestellungen : \"Kunde_ID R2\"\n  Mitarbeiter ||--o{ Bestellungen : \"MitarbeiterID R1\"\n  Bestellungen ||--o{ Rechnungen : \"BestellungID R2\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "KundeID": "KundeID",
+       "Land": "Land",
+       "Name": "Name"
+      },
+      "graphqlType": "Kunden",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "bestellungen",
+        "sourceFields": [
+         "KundeID"
+        ],
+        "targetFields": [
+         "Kunde_ID"
+        ],
+        "targetObject": "dbo.Bestellungen"
+       }
+      ],
+      "sourceObject": "dbo.Kunden",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "AbteilungID": "AbteilungID",
+       "Bezeichnung": "Bezeichnung"
+      },
+      "graphqlType": "Abteilungen",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "mitarbeiter",
+        "sourceFields": [
+         "AbteilungID"
+        ],
+        "targetFields": [
+         "AbteilungID"
+        ],
+        "targetObject": "dbo.Mitarbeiter"
+       }
+      ],
+      "sourceObject": "dbo.Abteilungen",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "AbteilungID": "AbteilungID",
+       "MitarbeiterID": "MitarbeiterID",
+       "Name": "Name",
+       "VorgesetzterID": "VorgesetzterID"
+      },
+      "graphqlType": "Mitarbeiter",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "abteilungen",
+        "sourceFields": [
+         "AbteilungID"
+        ],
+        "targetFields": [
+         "AbteilungID"
+        ],
+        "targetObject": "dbo.Abteilungen"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "bestellungen",
+        "sourceFields": [
+         "MitarbeiterID"
+        ],
+        "targetFields": [
+         "MitarbeiterID"
+        ],
+        "targetObject": "dbo.Bestellungen"
+       }
+      ],
+      "sourceObject": "dbo.Mitarbeiter",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Bestelldatum": "Bestelldatum",
+       "BestellungID": "BestellungID",
+       "Kunde_ID": "Kunde_ID",
+       "MitarbeiterID": "MitarbeiterID"
+      },
+      "graphqlType": "Bestellungen",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "kunden",
+        "sourceFields": [
+         "Kunde_ID"
+        ],
+        "targetFields": [
+         "KundeID"
+        ],
+        "targetObject": "dbo.Kunden"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "mitarbeiter",
+        "sourceFields": [
+         "MitarbeiterID"
+        ],
+        "targetFields": [
+         "MitarbeiterID"
+        ],
+        "targetObject": "dbo.Mitarbeiter"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "rechnungen",
+        "sourceFields": [
+         "BestellungID"
+        ],
+        "targetFields": [
+         "BestellungID"
+        ],
+        "targetObject": "dbo.Rechnungen"
+       }
+      ],
+      "sourceObject": "dbo.Bestellungen",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "BestellungID": "BestellungID",
+       "Betrag": "Betrag",
+       "RechnungID": "RechnungID",
+       "Währung": "W_hrung"
+      },
+      "graphqlType": "Rechnungen",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "bestellungen",
+        "sourceFields": [
+         "BestellungID"
+        ],
+        "targetFields": [
+         "BestellungID"
+        ],
+        "targetObject": "dbo.Bestellungen"
+       }
+      ],
+      "sourceObject": "dbo.Rechnungen",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "Abteilungen->Bestellungen": {
+   "end": "Bestellungen",
+   "paths": [
+    {
+     "cost": 2.9167,
+     "hops": 2,
+     "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t2.[BestellungID], t2.[Kunde_ID], t2.[MitarbeiterID], t2.[Bestelldatum]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Abteilungen",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Mitarbeiter"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      }
+     ],
+     "tables": [
+      "Abteilungen",
+      "Mitarbeiter",
+      "Bestellungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 2.9167,
+    "hops": 2,
+    "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t2.[BestellungID], t2.[Kunde_ID], t2.[MitarbeiterID], t2.[Bestelldatum]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Abteilungen",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Mitarbeiter"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     }
+    ],
+    "tables": [
+     "Abteilungen",
+     "Mitarbeiter",
+     "Bestellungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Abteilungen"
+  },
+  "Abteilungen->Kunden": {
+   "end": "Kunden",
+   "paths": [
+    {
+     "cost": 4.5834,
+     "hops": 3,
+     "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t3.[KundeID], t3.[Name], t3.[Land]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Kunden] AS t3 ON t2.[Kunde_ID] = t3.[KundeID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Abteilungen",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Mitarbeiter"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "many-to-one",
+       "from": "Bestellungen",
+       "on": [
+        "Kunde_ID = KundeID"
+       ],
+       "rule": "R2",
+       "to": "Kunden"
+      }
+     ],
+     "tables": [
+      "Abteilungen",
+      "Mitarbeiter",
+      "Bestellungen",
+      "Kunden"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 4.5834,
+    "hops": 3,
+    "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t3.[KundeID], t3.[Name], t3.[Land]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Kunden] AS t3 ON t2.[Kunde_ID] = t3.[KundeID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Abteilungen",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Mitarbeiter"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "many-to-one",
+      "from": "Bestellungen",
+      "on": [
+       "Kunde_ID = KundeID"
+      ],
+      "rule": "R2",
+      "to": "Kunden"
+     }
+    ],
+    "tables": [
+     "Abteilungen",
+     "Mitarbeiter",
+     "Bestellungen",
+     "Kunden"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Abteilungen"
+  },
+  "Abteilungen->Mitarbeiter": {
+   "end": "Mitarbeiter",
+   "paths": [
+    {
+     "cost": 1.6667,
+     "hops": 1,
+     "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t1.[MitarbeiterID], t1.[Name], t1.[AbteilungID], t1.[VorgesetzterID]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Abteilungen",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Mitarbeiter"
+      }
+     ],
+     "tables": [
+      "Abteilungen",
+      "Mitarbeiter"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 1.6667,
+    "hops": 1,
+    "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t1.[MitarbeiterID], t1.[Name], t1.[AbteilungID], t1.[VorgesetzterID]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Abteilungen",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Mitarbeiter"
+     }
+    ],
+    "tables": [
+     "Abteilungen",
+     "Mitarbeiter"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Abteilungen"
+  },
+  "Abteilungen->Rechnungen": {
+   "end": "Rechnungen",
+   "paths": [
+    {
+     "cost": 4.5834,
+     "hops": 3,
+     "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t3.[RechnungID], t3.[BestellungID], t3.[Betrag], t3.[Währung]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Rechnungen] AS t3 ON t2.[BestellungID] = t3.[BestellungID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Abteilungen",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Mitarbeiter"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Bestellungen",
+       "on": [
+        "BestellungID = BestellungID"
+       ],
+       "rule": "R2",
+       "to": "Rechnungen"
+      }
+     ],
+     "tables": [
+      "Abteilungen",
+      "Mitarbeiter",
+      "Bestellungen",
+      "Rechnungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 4.5834,
+    "hops": 3,
+    "sql": "SELECT TOP (100) t0.[AbteilungID] AS [Abteilungen_AbteilungID], t3.[RechnungID], t3.[BestellungID], t3.[Betrag], t3.[Währung]\nFROM [dbo].[Abteilungen] AS t0\nJOIN [dbo].[Mitarbeiter] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]\nJOIN [dbo].[Bestellungen] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Rechnungen] AS t3 ON t2.[BestellungID] = t3.[BestellungID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Abteilungen",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Mitarbeiter"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Bestellungen",
+      "on": [
+       "BestellungID = BestellungID"
+      ],
+      "rule": "R2",
+      "to": "Rechnungen"
+     }
+    ],
+    "tables": [
+     "Abteilungen",
+     "Mitarbeiter",
+     "Bestellungen",
+     "Rechnungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Abteilungen"
+  },
+  "Kunden->Abteilungen": {
+   "end": "Abteilungen",
+   "paths": [
+    {
+     "cost": 4.5834,
+     "hops": 3,
+     "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t3.[AbteilungID], t3.[Bezeichnung]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Mitarbeiter] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Abteilungen] AS t3 ON t2.[AbteilungID] = t3.[AbteilungID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Kunden",
+       "on": [
+        "KundeID = Kunde_ID"
+       ],
+       "rule": "R2",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "many-to-one",
+       "from": "Bestellungen",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Mitarbeiter"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "many-to-one",
+       "from": "Mitarbeiter",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Abteilungen"
+      }
+     ],
+     "tables": [
+      "Kunden",
+      "Bestellungen",
+      "Mitarbeiter",
+      "Abteilungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 4.5834,
+    "hops": 3,
+    "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t3.[AbteilungID], t3.[Bezeichnung]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Mitarbeiter] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]\nJOIN [dbo].[Abteilungen] AS t3 ON t2.[AbteilungID] = t3.[AbteilungID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Kunden",
+      "on": [
+       "KundeID = Kunde_ID"
+      ],
+      "rule": "R2",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "many-to-one",
+      "from": "Bestellungen",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Mitarbeiter"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "many-to-one",
+      "from": "Mitarbeiter",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Abteilungen"
+     }
+    ],
+    "tables": [
+     "Kunden",
+     "Bestellungen",
+     "Mitarbeiter",
+     "Abteilungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Kunden"
+  },
+  "Kunden->Bestellungen": {
+   "end": "Bestellungen",
+   "paths": [
+    {
+     "cost": 1.6667,
+     "hops": 1,
+     "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t1.[BestellungID], t1.[Kunde_ID], t1.[MitarbeiterID], t1.[Bestelldatum]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Kunden",
+       "on": [
+        "KundeID = Kunde_ID"
+       ],
+       "rule": "R2",
+       "to": "Bestellungen"
+      }
+     ],
+     "tables": [
+      "Kunden",
+      "Bestellungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 1.6667,
+    "hops": 1,
+    "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t1.[BestellungID], t1.[Kunde_ID], t1.[MitarbeiterID], t1.[Bestelldatum]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Kunden",
+      "on": [
+       "KundeID = Kunde_ID"
+      ],
+      "rule": "R2",
+      "to": "Bestellungen"
+     }
+    ],
+    "tables": [
+     "Kunden",
+     "Bestellungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Kunden"
+  },
+  "Kunden->Mitarbeiter": {
+   "end": "Mitarbeiter",
+   "paths": [
+    {
+     "cost": 2.9167,
+     "hops": 2,
+     "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t2.[MitarbeiterID], t2.[Name], t2.[AbteilungID], t2.[VorgesetzterID]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Mitarbeiter] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Kunden",
+       "on": [
+        "KundeID = Kunde_ID"
+       ],
+       "rule": "R2",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "many-to-one",
+       "from": "Bestellungen",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Mitarbeiter"
+      }
+     ],
+     "tables": [
+      "Kunden",
+      "Bestellungen",
+      "Mitarbeiter"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 2.9167,
+    "hops": 2,
+    "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t2.[MitarbeiterID], t2.[Name], t2.[AbteilungID], t2.[VorgesetzterID]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Mitarbeiter] AS t2 ON t1.[MitarbeiterID] = t2.[MitarbeiterID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Kunden",
+      "on": [
+       "KundeID = Kunde_ID"
+      ],
+      "rule": "R2",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "many-to-one",
+      "from": "Bestellungen",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Mitarbeiter"
+     }
+    ],
+    "tables": [
+     "Kunden",
+     "Bestellungen",
+     "Mitarbeiter"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Kunden"
+  },
+  "Kunden->Rechnungen": {
+   "end": "Rechnungen",
+   "paths": [
+    {
+     "cost": 3.3334,
+     "hops": 2,
+     "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t2.[RechnungID], t2.[BestellungID], t2.[Betrag], t2.[Währung]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Rechnungen] AS t2 ON t1.[BestellungID] = t2.[BestellungID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Kunden",
+       "on": [
+        "KundeID = Kunde_ID"
+       ],
+       "rule": "R2",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Bestellungen",
+       "on": [
+        "BestellungID = BestellungID"
+       ],
+       "rule": "R2",
+       "to": "Rechnungen"
+      }
+     ],
+     "tables": [
+      "Kunden",
+      "Bestellungen",
+      "Rechnungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 3.3334,
+    "hops": 2,
+    "sql": "SELECT TOP (100) t0.[KundeID] AS [Kunden_KundeID], t2.[RechnungID], t2.[BestellungID], t2.[Betrag], t2.[Währung]\nFROM [dbo].[Kunden] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[KundeID] = t1.[Kunde_ID]\nJOIN [dbo].[Rechnungen] AS t2 ON t1.[BestellungID] = t2.[BestellungID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Kunden",
+      "on": [
+       "KundeID = Kunde_ID"
+      ],
+      "rule": "R2",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Bestellungen",
+      "on": [
+       "BestellungID = BestellungID"
+      ],
+      "rule": "R2",
+      "to": "Rechnungen"
+     }
+    ],
+    "tables": [
+     "Kunden",
+     "Bestellungen",
+     "Rechnungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Kunden"
+  },
+  "Mitarbeiter->Abteilungen": {
+   "end": "Abteilungen",
+   "paths": [
+    {
+     "cost": 1.6667,
+     "hops": 1,
+     "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t1.[AbteilungID], t1.[Bezeichnung]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Abteilungen] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]",
+     "steps": [
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "many-to-one",
+       "from": "Mitarbeiter",
+       "on": [
+        "AbteilungID = AbteilungID"
+       ],
+       "rule": "R2",
+       "to": "Abteilungen"
+      }
+     ],
+     "tables": [
+      "Mitarbeiter",
+      "Abteilungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 1.6667,
+    "hops": 1,
+    "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t1.[AbteilungID], t1.[Bezeichnung]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Abteilungen] AS t1 ON t0.[AbteilungID] = t1.[AbteilungID]",
+    "steps": [
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "many-to-one",
+      "from": "Mitarbeiter",
+      "on": [
+       "AbteilungID = AbteilungID"
+      ],
+      "rule": "R2",
+      "to": "Abteilungen"
+     }
+    ],
+    "tables": [
+     "Mitarbeiter",
+     "Abteilungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Mitarbeiter"
+  },
+  "Mitarbeiter->Bestellungen": {
+   "end": "Bestellungen",
+   "paths": [
+    {
+     "cost": 1.25,
+     "hops": 1,
+     "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t1.[BestellungID], t1.[Kunde_ID], t1.[MitarbeiterID], t1.[Bestelldatum]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]",
+     "steps": [
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      }
+     ],
+     "tables": [
+      "Mitarbeiter",
+      "Bestellungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 1.25,
+    "hops": 1,
+    "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t1.[BestellungID], t1.[Kunde_ID], t1.[MitarbeiterID], t1.[Bestelldatum]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]",
+    "steps": [
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     }
+    ],
+    "tables": [
+     "Mitarbeiter",
+     "Bestellungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Mitarbeiter"
+  },
+  "Mitarbeiter->Kunden": {
+   "end": "Kunden",
+   "paths": [
+    {
+     "cost": 2.9167,
+     "hops": 2,
+     "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t2.[KundeID], t2.[Name], t2.[Land]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]\nJOIN [dbo].[Kunden] AS t2 ON t1.[Kunde_ID] = t2.[KundeID]",
+     "steps": [
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "many-to-one",
+       "from": "Bestellungen",
+       "on": [
+        "Kunde_ID = KundeID"
+       ],
+       "rule": "R2",
+       "to": "Kunden"
+      }
+     ],
+     "tables": [
+      "Mitarbeiter",
+      "Bestellungen",
+      "Kunden"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 2.9167,
+    "hops": 2,
+    "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t2.[KundeID], t2.[Name], t2.[Land]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]\nJOIN [dbo].[Kunden] AS t2 ON t1.[Kunde_ID] = t2.[KundeID]",
+    "steps": [
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "many-to-one",
+      "from": "Bestellungen",
+      "on": [
+       "Kunde_ID = KundeID"
+      ],
+      "rule": "R2",
+      "to": "Kunden"
+     }
+    ],
+    "tables": [
+     "Mitarbeiter",
+     "Bestellungen",
+     "Kunden"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Mitarbeiter"
+  },
+  "Mitarbeiter->Rechnungen": {
+   "end": "Rechnungen",
+   "paths": [
+    {
+     "cost": 2.9167,
+     "hops": 2,
+     "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t2.[RechnungID], t2.[BestellungID], t2.[Betrag], t2.[Währung]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]\nJOIN [dbo].[Rechnungen] AS t2 ON t1.[BestellungID] = t2.[BestellungID]",
+     "steps": [
+      {
+       "certainty": 0.8,
+       "cost": 1.25,
+       "direction": "one-to-many",
+       "from": "Mitarbeiter",
+       "on": [
+        "MitarbeiterID = MitarbeiterID"
+       ],
+       "rule": "R1",
+       "to": "Bestellungen"
+      },
+      {
+       "certainty": 0.6,
+       "cost": 1.6667,
+       "direction": "one-to-many",
+       "from": "Bestellungen",
+       "on": [
+        "BestellungID = BestellungID"
+       ],
+       "rule": "R2",
+       "to": "Rechnungen"
+      }
+     ],
+     "tables": [
+      "Mitarbeiter",
+      "Bestellungen",
+      "Rechnungen"
+     ]
+    }
+   ],
+   "safest": {
+    "cost": 2.9167,
+    "hops": 2,
+    "sql": "SELECT TOP (100) t0.[MitarbeiterID] AS [Mitarbeiter_MitarbeiterID], t2.[RechnungID], t2.[BestellungID], t2.[Betrag], t2.[Währung]\nFROM [dbo].[Mitarbeiter] AS t0\nJOIN [dbo].[Bestellungen] AS t1 ON t0.[MitarbeiterID] = t1.[MitarbeiterID]\nJOIN [dbo].[Rechnungen] AS t2 ON t1.[BestellungID] = t2.[BestellungID]",
+    "steps": [
+     {
+      "certainty": 0.8,
+      "cost": 1.25,
+      "direction": "one-to-many",
+      "from": "Mitarbeiter",
+      "on": [
+       "MitarbeiterID = MitarbeiterID"
+      ],
+      "rule": "R1",
+      "to": "Bestellungen"
+     },
+     {
+      "certainty": 0.6,
+      "cost": 1.6667,
+      "direction": "one-to-many",
+      "from": "Bestellungen",
+      "on": [
+       "BestellungID = BestellungID"
+      ],
+      "rule": "R2",
+      "to": "Rechnungen"
+     }
+    ],
+    "tables": [
+     "Mitarbeiter",
+     "Bestellungen",
+     "Rechnungen"
+    ],
+    "why": "the shortest path is also the safest"
+   },
+   "start": "Mitarbeiter"
+  }
+ },
+ "key_sql": {
+  "Abteilungen": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [AbteilungID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [AbteilungID] FROM [dbo].[Abteilungen] WHERE [AbteilungID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Abteilungen]",
+  "Bestellungen": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [BestellungID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [BestellungID] FROM [dbo].[Bestellungen] WHERE [BestellungID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Bestellungen]",
+  "Kunden": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [KundeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [KundeID] FROM [dbo].[Kunden] WHERE [KundeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Kunden]",
+  "Mitarbeiter": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [MitarbeiterID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [MitarbeiterID] FROM [dbo].[Mitarbeiter] WHERE [MitarbeiterID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Mitarbeiter]",
+  "Rechnungen": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [RechnungID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [RechnungID] FROM [dbo].[Rechnungen] WHERE [RechnungID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Rechnungen]"
+ },
+ "ontology_ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:onto#> .\n\n<urn:krusgraph:ontology:onto> a owl:Ontology ;\n    rdfs:label \"onto\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:Kunden a owl:Class ;\n    rdfs:label \"Kunden\" ;\n    skos:altLabel \"Kunden\" ;\n    rdfs:comment \"Table dbo.Kunden; key KundeID (K2).\" .\n\n:Kunden__KundeID a owl:DatatypeProperty ;\n    rdfs:label \"KundeID\" ;\n    rdfs:domain :Kunden ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column KundeID (int); key.\" .\n\n:Kunden__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Kunden ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Kunden__Land a owl:DatatypeProperty ;\n    rdfs:label \"Land\" ;\n    rdfs:domain :Kunden ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Land (nvarchar).\" .\n\n:Abteilungen a owl:Class ;\n    rdfs:label \"Abteilungen\" ;\n    skos:altLabel \"Abteilungen\" ;\n    rdfs:comment \"Table dbo.Abteilungen; key AbteilungID (K2).\" .\n\n:Abteilungen__AbteilungID a owl:DatatypeProperty ;\n    rdfs:label \"AbteilungID\" ;\n    rdfs:domain :Abteilungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column AbteilungID (int); key.\" .\n\n:Abteilungen__Bezeichnung a owl:DatatypeProperty ;\n    rdfs:label \"Bezeichnung\" ;\n    rdfs:domain :Abteilungen ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Bezeichnung (nvarchar).\" .\n\n:Mitarbeiter a owl:Class ;\n    rdfs:label \"Mitarbeiter\" ;\n    skos:altLabel \"Mitarbeiter\" ;\n    rdfs:comment \"Table dbo.Mitarbeiter; key MitarbeiterID (K2).\" .\n\n:Mitarbeiter__MitarbeiterID a owl:DatatypeProperty ;\n    rdfs:label \"MitarbeiterID\" ;\n    rdfs:domain :Mitarbeiter ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column MitarbeiterID (int); key.\" .\n\n:Mitarbeiter__Name a owl:DatatypeProperty ;\n    rdfs:label \"Name\" ;\n    rdfs:domain :Mitarbeiter ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Name (nvarchar).\" .\n\n:Mitarbeiter__AbteilungID a owl:DatatypeProperty ;\n    rdfs:label \"AbteilungID\" ;\n    rdfs:domain :Mitarbeiter ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column AbteilungID (int).\" .\n\n:Mitarbeiter__VorgesetzterID a owl:DatatypeProperty ;\n    rdfs:label \"VorgesetzterID\" ;\n    rdfs:domain :Mitarbeiter ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column VorgesetzterID (int).\" .\n\n:Bestellungen a owl:Class ;\n    rdfs:label \"Bestellungen\" ;\n    skos:altLabel \"Bestellungen\" ;\n    rdfs:comment \"Table dbo.Bestellungen; key BestellungID (K2).\" .\n\n:Bestellungen__BestellungID a owl:DatatypeProperty ;\n    rdfs:label \"BestellungID\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column BestellungID (int); key.\" .\n\n:Bestellungen__Kunde_ID a owl:DatatypeProperty ;\n    rdfs:label \"Kunde_ID\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Kunde_ID (int).\" .\n\n:Bestellungen__MitarbeiterID a owl:DatatypeProperty ;\n    rdfs:label \"MitarbeiterID\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column MitarbeiterID (int).\" .\n\n:Bestellungen__Bestelldatum a owl:DatatypeProperty ;\n    rdfs:label \"Bestelldatum\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column Bestelldatum (date).\" .\n\n:Rechnungen a owl:Class ;\n    rdfs:label \"Rechnungen\" ;\n    skos:altLabel \"Rechnungen\" ;\n    rdfs:comment \"Table dbo.Rechnungen; key RechnungID (K2).\" .\n\n:Rechnungen__RechnungID a owl:DatatypeProperty ;\n    rdfs:label \"RechnungID\" ;\n    rdfs:domain :Rechnungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column RechnungID (int); key.\" .\n\n:Rechnungen__BestellungID a owl:DatatypeProperty ;\n    rdfs:label \"BestellungID\" ;\n    rdfs:domain :Rechnungen ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column BestellungID (int).\" .\n\n:Rechnungen__Betrag a owl:DatatypeProperty ;\n    rdfs:label \"Betrag\" ;\n    rdfs:domain :Rechnungen ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column Betrag (decimal).\" .\n\n:Rechnungen__W_hrung a owl:DatatypeProperty ;\n    rdfs:label \"Währung\" ;\n    rdfs:domain :Rechnungen ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Währung (nvarchar).\" .\n\n:MitarbeiterHasAbteilungen a owl:ObjectProperty ;\n    rdfs:label \"MitarbeiterHasAbteilungen\" ;\n    rdfs:domain :Mitarbeiter ;\n    rdfs:range :Abteilungen ;\n    rdfs:comment \"Mitarbeiter.AbteilungID -> Abteilungen.AbteilungID by rule R2.\" .\n\n:BestellungenHasKunden a owl:ObjectProperty ;\n    rdfs:label \"BestellungenHasKunden\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range :Kunden ;\n    rdfs:comment \"Bestellungen.Kunde_ID -> Kunden.KundeID by rule R2.\" .\n\n:BestellungenHasMitarbeiter a owl:ObjectProperty ;\n    rdfs:label \"BestellungenHasMitarbeiter\" ;\n    rdfs:domain :Bestellungen ;\n    rdfs:range :Mitarbeiter ;\n    rdfs:comment \"Bestellungen.MitarbeiterID -> Mitarbeiter.MitarbeiterID by rule R1.\" .\n\n:RechnungenHasBestellungen a owl:ObjectProperty ;\n    rdfs:label \"RechnungenHasBestellungen\" ;\n    rdfs:domain :Rechnungen ;\n    rdfs:range :Bestellungen ;\n    rdfs:comment \"Rechnungen.BestellungID -> Bestellungen.BestellungID by rule R2.\" .\n",
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "Abteilungen": [
+    [
+     "AbteilungID"
+    ],
+    "K2"
+   ],
+   "Bestellungen": [
+    [
+     "BestellungID"
+    ],
+    "K2"
+   ],
+   "Kunden": [
+    [
+     "KundeID"
+    ],
+    "K2"
+   ],
+   "Mitarbeiter": [
+    [
+     "MitarbeiterID"
+    ],
+    "K2"
+   ],
+   "Rechnungen": [
+    [
+     "RechnungID"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  Kunden {\n    KundeID int PK\n    Name nvarchar\n    Land nvarchar\n  }\n  Abteilungen {\n    AbteilungID int PK\n    Bezeichnung nvarchar\n  }\n  Mitarbeiter {\n    MitarbeiterID int PK\n    Name nvarchar\n    AbteilungID int\n    VorgesetzterID int\n  }\n  Bestellungen {\n    BestellungID int PK\n    Kunde_ID int\n    MitarbeiterID int\n    Bestelldatum date\n  }\n  Rechnungen {\n    RechnungID int PK\n    BestellungID int\n    Betrag decimal\n    W_hrung nvarchar\n  }\n  Abteilungen ||--o{ Mitarbeiter : \"AbteilungID R2\"\n  Kunden ||--o{ Bestellungen : \"Kunde_ID R2\"\n  Mitarbeiter ||--o{ Bestellungen : \"MitarbeiterID R1\"\n  Bestellungen ||--o{ Rechnungen : \"BestellungID R2\"",
+  "relationships": [
+   {
+    "field_name": "abteilungen",
+    "note": "",
+    "reverse_name": "mitarbeiter",
+    "rule": "R2",
+    "source": "Mitarbeiter",
+    "source_cols": [
+     "AbteilungID"
+    ],
+    "target": "Abteilungen",
+    "target_cols": [
+     "AbteilungID"
+    ]
+   },
+   {
+    "field_name": "kunden",
+    "note": "",
+    "reverse_name": "bestellungen",
+    "rule": "R2",
+    "source": "Bestellungen",
+    "source_cols": [
+     "Kunde_ID"
+    ],
+    "target": "Kunden",
+    "target_cols": [
+     "KundeID"
+    ]
+   },
+   {
+    "field_name": "mitarbeiter",
+    "note": "",
+    "reverse_name": "bestellungen",
+    "rule": "R1",
+    "source": "Bestellungen",
+    "source_cols": [
+     "MitarbeiterID"
+    ],
+    "target": "Mitarbeiter",
+    "target_cols": [
+     "MitarbeiterID"
+    ]
+   },
+   {
+    "field_name": "bestellungen",
+    "note": "",
+    "reverse_name": "rechnungen",
+    "rule": "R2",
+    "source": "Rechnungen",
+    "source_cols": [
+     "BestellungID"
+    ],
+    "target": "Bestellungen",
+    "target_cols": [
+     "BestellungID"
+    ]
+   }
+  ],
+  "summary": "5 tables, 5 with keys, 4 relationships\n4 name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms",
+  "synonyms": [
+   {
+    "column": "KundeID",
+    "rule": "K2",
+    "table": "Kunden",
+    "via": "kunden -> customer, kunde -> customer"
+   },
+   {
+    "column": "AbteilungID",
+    "rule": "K2",
+    "table": "Abteilungen",
+    "via": "abteilungen -> department, abteilung -> department"
+   },
+   {
+    "column": "BestellungID",
+    "rule": "K2",
+    "table": "Bestellungen",
+    "via": "bestellungen -> order, bestellung -> order"
+   },
+   {
+    "column": "RechnungID",
+    "rule": "K2",
+    "table": "Rechnungen",
+    "via": "rechnungen -> invoice, rechnung -> invoice"
+   }
+  ]
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Abteilungen.ts": "// rayfin/connectors/<connector>/Abteilungen.ts — generated by fabric-backend from dbo.Abteilungen\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Mitarbeiter } from './Mitarbeiter.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key AbteilungID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Abteilungen extends Source({ schema: 'dbo', table: 'Abteilungen', primaryKey: ['abteilungID'] }) {\n  @int({ column: 'AbteilungID' }) abteilungID!: number;\n  @text({ column: 'Bezeichnung' }) bezeichnung!: string;\n\n  @many(() => Mitarbeiter, { sourceFields: ['abteilungID'], targetFields: ['abteilungID'] }) mitarbeiter?: Mitarbeiter[];    // Mitarbeiter.AbteilungID [R2]\n}\n",
+  "rayfin/connectors/data/Bestellungen.ts": "// rayfin/connectors/<connector>/Bestellungen.ts — generated by fabric-backend from dbo.Bestellungen\nimport { date, entity, int, many, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Kunden } from './Kunden.js';\nimport { Mitarbeiter } from './Mitarbeiter.js';\nimport { Rechnungen } from './Rechnungen.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key BestellungID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Bestellungen extends Source({ schema: 'dbo', table: 'Bestellungen', primaryKey: ['bestellungID'] }) {\n  @int({ column: 'BestellungID' }) bestellungID!: number;\n  @int({ column: 'Kunde_ID' }) kundeId!: number;\n  @int({ column: 'MitarbeiterID' }) mitarbeiterID!: number;\n  @date({ column: 'Bestelldatum' }) bestelldatum!: Date;\n\n  @one(() => Kunden, { sourceFields: ['kundeId'], targetFields: ['kundeID'] }) kunden?: Kunden;    // Kunde_ID -> Kunden [R2]\n  @one(() => Mitarbeiter, { sourceFields: ['mitarbeiterID'], targetFields: ['mitarbeiterID'] }) mitarbeiter?: Mitarbeiter;    // MitarbeiterID -> Mitarbeiter [R1]\n  @many(() => Rechnungen, { sourceFields: ['bestellungID'], targetFields: ['bestellungID'] }) rechnungen?: Rechnungen[];    // Rechnungen.BestellungID [R2]\n}\n",
+  "rayfin/connectors/data/Kunden.ts": "// rayfin/connectors/<connector>/Kunden.ts — generated by fabric-backend from dbo.Kunden\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Bestellungen } from './Bestellungen.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key KundeID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Kunden extends Source({ schema: 'dbo', table: 'Kunden', primaryKey: ['kundeID'] }) {\n  @int({ column: 'KundeID' }) kundeID!: number;\n  @text({ column: 'Name' }) name!: string;\n  @text({ column: 'Land' }) land!: string;\n\n  @many(() => Bestellungen, { sourceFields: ['kundeID'], targetFields: ['kundeId'] }) bestellungen?: Bestellungen[];    // Bestellungen.Kunde_ID [R2]\n}\n",
+  "rayfin/connectors/data/Mitarbeiter.ts": "// rayfin/connectors/<connector>/Mitarbeiter.ts — generated by fabric-backend from dbo.Mitarbeiter\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Abteilungen } from './Abteilungen.js';\nimport { Bestellungen } from './Bestellungen.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key MitarbeiterID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Mitarbeiter extends Source({ schema: 'dbo', table: 'Mitarbeiter', primaryKey: ['mitarbeiterID'] }) {\n  @int({ column: 'MitarbeiterID' }) mitarbeiterID!: number;\n  @text({ column: 'Name' }) name!: string;\n  @int({ column: 'AbteilungID' }) abteilungID!: number;\n  @int({ column: 'VorgesetzterID' }) vorgesetzterID!: number;\n\n  @one(() => Abteilungen, { sourceFields: ['abteilungID'], targetFields: ['abteilungID'] }) abteilungen?: Abteilungen;    // AbteilungID -> Abteilungen [R2]\n  @many(() => Bestellungen, { sourceFields: ['mitarbeiterID'], targetFields: ['mitarbeiterID'] }) bestellungen?: Bestellungen[];    // Bestellungen.MitarbeiterID [R1]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n5 entities, 4 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Kunden, Abteilungen, Mitarbeiter, Bestellungen, Rechnungen\n",
+  "rayfin/connectors/data/Rechnungen.ts": "// rayfin/connectors/<connector>/Rechnungen.ts — generated by fabric-backend from dbo.Rechnungen\nimport { decimal, entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Bestellungen } from './Bestellungen.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key RechnungID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Rechnungen extends Source({ schema: 'dbo', table: 'Rechnungen', primaryKey: ['rechnungID'] }) {\n  @int({ column: 'RechnungID' }) rechnungID!: number;\n  @int({ column: 'BestellungID' }) bestellungID!: number;\n  @decimal({ column: 'Betrag' }) betrag!: number;\n  @text({ column: 'Währung' }) wHrung!: string;\n\n  @one(() => Bestellungen, { sourceFields: ['bestellungID'], targetFields: ['bestellungID'] }) bestellungen?: Bestellungen;    // BestellungID -> Bestellungen [R2]\n}\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Kunden } from './Kunden.js';\nimport { Abteilungen } from './Abteilungen.js';\nimport { Mitarbeiter } from './Mitarbeiter.js';\nimport { Bestellungen } from './Bestellungen.js';\nimport { Rechnungen } from './Rechnungen.js';\n\nexport { Kunden } from './Kunden.js';\nexport { Abteilungen } from './Abteilungen.js';\nexport { Mitarbeiter } from './Mitarbeiter.js';\nexport { Bestellungen } from './Bestellungen.js';\nexport { Rechnungen } from './Rechnungen.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Kunden, Abteilungen, Mitarbeiter, Bestellungen, Rechnungen },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { Kunden: typeof Kunden, Abteilungen: typeof Abteilungen, Mitarbeiter: typeof Mitarbeiter, Bestellungen: typeof Bestellungen, Rechnungen: typeof Rechnungen },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[AbteilungID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Mitarbeiter] AS s LEFT JOIN (SELECT DISTINCT [AbteilungID] FROM [dbo].[Abteilungen]) AS t ON s.[AbteilungID] = t.[AbteilungID] WHERE s.[AbteilungID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[KundeID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Bestellungen] AS s LEFT JOIN (SELECT DISTINCT [KundeID] FROM [dbo].[Kunden]) AS t ON s.[Kunde_ID] = t.[KundeID] WHERE s.[Kunde_ID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[MitarbeiterID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Bestellungen] AS s LEFT JOIN (SELECT DISTINCT [MitarbeiterID] FROM [dbo].[Mitarbeiter]) AS t ON s.[MitarbeiterID] = t.[MitarbeiterID] WHERE s.[MitarbeiterID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[BestellungID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Rechnungen] AS s LEFT JOIN (SELECT DISTINCT [BestellungID] FROM [dbo].[Bestellungen]) AS t ON s.[BestellungID] = t.[BestellungID] WHERE s.[BestellungID] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "Abteilungen": "SELECT TOP (10) [AbteilungID], [Bezeichnung] FROM [dbo].[Abteilungen]",
+  "Bestellungen": "SELECT TOP (10) [BestellungID], [Kunde_ID], [MitarbeiterID], [Bestelldatum] FROM [dbo].[Bestellungen]",
+  "Kunden": "SELECT TOP (10) [KundeID], [Name], [Land] FROM [dbo].[Kunden]",
+  "Mitarbeiter": "SELECT TOP (10) [MitarbeiterID], [Name], [AbteilungID], [VorgesetzterID] FROM [dbo].[Mitarbeiter]",
+  "Rechnungen": "SELECT TOP (10) [RechnungID], [BestellungID], [Betrag], [Währung] FROM [dbo].[Rechnungen]"
+ },
+ "semantic_model": {
+  "parts": {
+   "README.generated.md": "# model: generated semantic model (TMDL)\n\nSource: Lakehouse `src`, schema `dbo`, SQL analytics endpoint `x.datawarehouse.fabric.microsoft.com`.\nStorage mode: Direct Lake on the SQL analytics endpoint (`mode: directLake`, shared expression `DatabaseQuery` = `Sql.Database(endpoint, \"src\")`), compatibility level 1604. Chosen because the plan comes from that endpoint and Direct Lake reads the Delta tables in place; Import would add a refresh and a copy for nothing. For Direct Lake on OneLake replace the expression with `AzureStorage.DataLake(\"https://onelake.dfs.fabric.microsoft.com/<workspace id>/<item id>\", [HierarchicalNavigation=true])` as in Microsoft's fabric-samples model.\n\nTables: 5. Relationships: 4 active, 0 inactive, 0 not expressible. The active set keeps one path between any two tables and prefers the higher-confidence rule (declared/confirmed, then R1, R2, R4, R3); a relationship made inactive lost to one of a higher or equal rule.\n\n## Table roles (from the plan's graph, see analyze_schema)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| `Kunden` | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| `Abteilungen` | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| `Mitarbeiter` | fact | pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.5, measure share 0.5 |\n| `Bestellungen` | fact | pointed at by a fact table, 2 reference(s) out, measures 1.0 (a header table); out 2, in 1, betweenness 0.8333, measure share 1.0 |\n| `Rechnungen` | fact | nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5 |\n\nFact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns are the ones to turn into measures.\n\n## Relationships\n\n| From | To | Rule | Active |\n| --- | --- | --- | --- |\n| `Bestellungen.MitarbeiterID` | `Mitarbeiter.MitarbeiterID` | R1 | yes |\n| `Bestellungen.Kunde_ID` | `Kunden.KundeID` | R2 | yes |\n| `Mitarbeiter.AbteilungID` | `Abteilungen.AbteilungID` | R2 | yes |\n| `Rechnungen.BestellungID` | `Bestellungen.BestellungID` | R2 | yes |\n\n## Decisions to check\n\n\n## Uncertain, written down rather than guessed\n\n- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with duplicates when the model is framed; run `validate_plan` first.\n- `schemaName`: omitted because a lakehouse without schemas exposes dbo without one (docs: direct-lake-power-bi-desktop.md; the REST property `defaultSchema` tells the two kinds of lakehouse apart). If this is wrong for your lakehouse, add or remove the `schemaName` lines.\n- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.\n- Dates are `dateTime` (TMDL has no date type).\n- The TMDL language reference itself could not be fetched when this generator was written; the syntax follows Microsoft's published sample definitions listed in fabric_backend/semantic_model.py.\n\n## Suggested measures\n\n- `Rows in Mitarbeiter` = `COUNTROWS('Mitarbeiter')` on `Mitarbeiter`: Mitarbeiter is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Rows in Bestellungen` = `COUNTROWS('Bestellungen')` on `Bestellungen`: Bestellungen is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Rows in Rechnungen` = `COUNTROWS('Rechnungen')` on `Rechnungen`: Rechnungen is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n- `Total Betrag` = `SUM('Rechnungen'[Betrag])` on `Rechnungen`: Rechnungen.Betrag is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit.\n\nNo measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get no sums; their numbers describe one row.\n\n## Date table\n\n`Calendar` is a calculated table (`CALENDAR` with `Year` and `Month`) marked as the date table (`dataCategory: Time`, `isKey` on `Date`); a calculated table that references no Direct Lake table is allowed in Direct Lake on SQL (direct-lake-overview.md).\n- The range 2020-01-01 to 2030-12-31 is a placeholder: this draft reads no rows. Set it to your data's first and last year in the partition's `source`, or rows outside it have no date to filter by.\n- `Bestellungen.Bestelldatum -> Calendar.Date` (active)\n\n## Files\n\n- `definition/database.tmdl`\n- `definition/model.tmdl`\n- `definition/expressions.tmdl`\n- `definition/tables/Kunden.tmdl`\n- `definition/tables/Abteilungen.tmdl`\n- `definition/tables/Mitarbeiter.tmdl`\n- `definition/tables/Bestellungen.tmdl`\n- `definition/tables/Rechnungen.tmdl`\n- `definition/tables/Calendar.tmdl`\n- `definition/relationships.tmdl`\n- `definition.pbism`\n",
+   "definition.pbism": "{\n  \"$schema\": \"https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json\",\n  \"version\": \"4.2\",\n  \"settings\": {}\n}\n",
+   "definition/database.tmdl": "database\n\tcompatibilityLevel: 1604\n",
+   "definition/expressions.tmdl": "expression DatabaseQuery =\n\t\tlet\n\t\t    database = Sql.Database(\"x.datawarehouse.fabric.microsoft.com\", \"src\")\n\t\tin\n\t\t    database\n\tlineageTag: 004cbec2-e34f-5891-b013-d24c48822aca\n\n\tannotation PBI_IncludeFutureArtifacts = False\n",
+   "definition/model.tmdl": "model Model\n\tculture: en-US\n\tdefaultPowerBIDataSourceVersion: powerBI_V3\n\tsourceQueryCulture: en-US\n\tdataAccessOptions\n\t\tlegacyRedirects\n\t\treturnErrorValuesAsNull\n\nannotation PBI_QueryOrder = [\"DatabaseQuery\"]\n\nannotation __PBI_TimeIntelligenceEnabled = 0\n\nref table Kunden\nref table Abteilungen\nref table Mitarbeiter\nref table Bestellungen\nref table Rechnungen\nref table Calendar\n",
+   "definition/relationships.tmdl": "relationship 4ac0ce7f-659d-50d6-a1b1-b0c2257a7343\n\tfromColumn: Bestellungen.MitarbeiterID\n\ttoColumn: Mitarbeiter.MitarbeiterID\n\nrelationship c511f8be-ca71-562f-820f-ba8fbed4f74c\n\tfromColumn: Bestellungen.Kunde_ID\n\ttoColumn: Kunden.KundeID\n\nrelationship ec65a8f1-f6f4-5d61-9f9e-ef4825512fbe\n\tfromColumn: Mitarbeiter.AbteilungID\n\ttoColumn: Abteilungen.AbteilungID\n\nrelationship d9e3b05e-d671-55dc-b1a4-6926fe800ec2\n\tfromColumn: Rechnungen.BestellungID\n\ttoColumn: Bestellungen.BestellungID\n\nrelationship 370facf3-331a-5658-afb3-090a5c6c35c5\n\tfromColumn: Bestellungen.Bestelldatum\n\ttoColumn: Calendar.Date\n",
+   "definition/tables/Abteilungen.tmdl": "table Abteilungen\n\tlineageTag: 7961320f-03d1-5900-b82d-fe5451670fc6\n\tsourceLineageTag: [dbo].[Abteilungen]\n\n\tcolumn AbteilungID\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 2fc8b149-c426-56a8-b210-fc56fbe61373\n\t\tsourceLineageTag: AbteilungID\n\t\tsummarizeBy: none\n\t\tsourceColumn: AbteilungID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Bezeichnung\n\t\tdataType: string\n\t\tlineageTag: 9beef732-acde-5b0c-b278-dd0d375b889f\n\t\tsourceLineageTag: Bezeichnung\n\t\tsummarizeBy: none\n\t\tsourceColumn: Bezeichnung\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Abteilungen = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: Abteilungen\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n",
+   "definition/tables/Bestellungen.tmdl": "table Bestellungen\n\tlineageTag: d30618eb-ff50-5adc-8161-f6736aeb6e58\n\tsourceLineageTag: [dbo].[Bestellungen]\n\n\t/// Suggested by Krusgraph: Bestellungen is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in Bestellungen' = COUNTROWS('Bestellungen')\n\t\tformatString: #,##0\n\t\tlineageTag: dfa8f531-e04a-5962-afd7-c94cf9e898fa\n\n\tcolumn BestellungID\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: 953a963a-f680-5f39-beb4-582c4177e952\n\t\tsourceLineageTag: BestellungID\n\t\tsummarizeBy: none\n\t\tsourceColumn: BestellungID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Kunde_ID\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 80c2e7b0-93df-5c7c-8e37-f20a679f8471\n\t\tsourceLineageTag: Kunde_ID\n\t\tsummarizeBy: none\n\t\tsourceColumn: Kunde_ID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn MitarbeiterID\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 6e326302-ff38-5d0d-87fb-bacddba397e9\n\t\tsourceLineageTag: MitarbeiterID\n\t\tsummarizeBy: none\n\t\tsourceColumn: MitarbeiterID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Bestelldatum\n\t\tdataType: dateTime\n\t\tlineageTag: 3d415ea0-a9d9-50b2-a4a8-c687e927463c\n\t\tsourceLineageTag: Bestelldatum\n\t\tsummarizeBy: none\n\t\tsourceColumn: Bestelldatum\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Bestellungen = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: Bestellungen\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n",
+   "definition/tables/Calendar.tmdl": "/// The model's date table, generated because fact tables have date columns; marked as the date table (dataCategory: Time).\ntable Calendar\n\tlineageTag: 85383a70-33bd-5439-bebe-222436cdaf63\n\tdataCategory: Time\n\n\tcolumn Date\n\t\tdataType: dateTime\n\t\tisKey\n\t\tformatString: yyyy-mm-dd\n\t\tlineageTag: e10273bb-cbbb-59cf-acec-235369666809\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Date]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Year\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: ccc2886d-5e6f-525c-8857-9ccd6f04ce36\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Year]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Month\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: c00f869b-acb7-5ffc-a86e-5c582bb98926\n\t\tsummarizeBy: none\n\t\tisDataTypeInferred\n\t\tsourceColumn: [Month]\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Calendar = calculated\n\t\tmode: import\n\t\tsource = ADDCOLUMNS(CALENDAR(DATE(2020, 1, 1), DATE(2030, 12, 31)), \"Year\", YEAR([Date]), \"Month\", MONTH([Date]))\n",
+   "definition/tables/Kunden.tmdl": "table Kunden\n\tlineageTag: 40b03628-91cf-52c7-928a-435869ae49b7\n\tsourceLineageTag: [dbo].[Kunden]\n\n\tcolumn KundeID\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: a60184b5-8ce9-5b1b-8c8c-420a2fe2153d\n\t\tsourceLineageTag: KundeID\n\t\tsummarizeBy: none\n\t\tsourceColumn: KundeID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Name\n\t\tdataType: string\n\t\tlineageTag: 4af73646-88dc-5cc7-8cf4-d57c6cde20a3\n\t\tsourceLineageTag: Name\n\t\tsummarizeBy: none\n\t\tsourceColumn: Name\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Land\n\t\tdataType: string\n\t\tlineageTag: 8efef430-5439-5679-9a3c-559109171dd9\n\t\tsourceLineageTag: Land\n\t\tsummarizeBy: none\n\t\tsourceColumn: Land\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Kunden = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: Kunden\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = dimension\n",
+   "definition/tables/Mitarbeiter.tmdl": "table Mitarbeiter\n\tlineageTag: 17841b25-0ff5-5eda-83f1-b37ce8259cf3\n\tsourceLineageTag: [dbo].[Mitarbeiter]\n\n\t/// Suggested by Krusgraph: Mitarbeiter is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in Mitarbeiter' = COUNTROWS('Mitarbeiter')\n\t\tformatString: #,##0\n\t\tlineageTag: b5ebe5b5-9375-5e8a-bb86-aba45042339a\n\n\tcolumn MitarbeiterID\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: a174fbed-d641-5e10-bb8a-3b7f25f67556\n\t\tsourceLineageTag: MitarbeiterID\n\t\tsummarizeBy: none\n\t\tsourceColumn: MitarbeiterID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Name\n\t\tdataType: string\n\t\tlineageTag: e98b6b5c-259a-5691-9be4-84e0b4c85a4a\n\t\tsourceLineageTag: Name\n\t\tsummarizeBy: none\n\t\tsourceColumn: Name\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn AbteilungID\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: a7e3b0e3-6ea1-5bc2-852c-6adf75bf4cb8\n\t\tsourceLineageTag: AbteilungID\n\t\tsummarizeBy: none\n\t\tsourceColumn: AbteilungID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn VorgesetzterID\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 909893bd-6501-5254-a1e8-ba77167b59d9\n\t\tsourceLineageTag: VorgesetzterID\n\t\tsummarizeBy: none\n\t\tsourceColumn: VorgesetzterID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Mitarbeiter = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: Mitarbeiter\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n",
+   "definition/tables/Rechnungen.tmdl": "table Rechnungen\n\tlineageTag: c152c738-3c6b-5963-b179-69bf81e2b17b\n\tsourceLineageTag: [dbo].[Rechnungen]\n\n\t/// Suggested by Krusgraph: Rechnungen is a fact table (role from the plan's graph): its row count is the first number a report asks for.\n\tmeasure 'Rows in Rechnungen' = COUNTROWS('Rechnungen')\n\t\tformatString: #,##0\n\t\tlineageTag: f063b1a8-1363-5998-b9e1-93b3e026bc94\n\n\t/// Suggested by Krusgraph: Rechnungen.Betrag is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit.\n\tmeasure 'Total Betrag' = SUM('Rechnungen'[Betrag])\n\t\tformatString: #,##0.00\n\t\tlineageTag: d682d1b0-8433-5543-949b-4e40c47e2fcd\n\n\tcolumn RechnungID\n\t\tdataType: int64\n\t\tisKey\n\t\tformatString: 0\n\t\tlineageTag: baa9b9e0-a27c-50de-9c8a-8e670c98b399\n\t\tsourceLineageTag: RechnungID\n\t\tsummarizeBy: none\n\t\tsourceColumn: RechnungID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn BestellungID\n\t\tdataType: int64\n\t\tformatString: 0\n\t\tlineageTag: 253dca2e-855c-5491-9681-7158759a2ead\n\t\tsourceLineageTag: BestellungID\n\t\tsummarizeBy: none\n\t\tsourceColumn: BestellungID\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn Betrag\n\t\tdataType: decimal\n\t\tlineageTag: 0acb4510-d75f-5688-a891-3481368e9415\n\t\tsourceLineageTag: Betrag\n\t\tsummarizeBy: sum\n\t\tsourceColumn: Betrag\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tcolumn 'Währung'\n\t\tdataType: string\n\t\tlineageTag: 7b70fd4d-5f86-5d76-b42c-4093d5b92ba1\n\t\tsourceLineageTag: Währung\n\t\tsummarizeBy: none\n\t\tsourceColumn: Währung\n\n\t\tannotation SummarizationSetBy = Automatic\n\n\tpartition Rechnungen = entity\n\t\tmode: directLake\n\t\tsource\n\t\t\tentityName: Rechnungen\n\t\t\texpressionSource: DatabaseQuery\n\n\tannotation PBI_ResultType = Table\n\n\tannotation Krusgraph_Role = fact\n"
+  },
+  "summary": {
+   "compatibility_level": 1604,
+   "composite_keys": [],
+   "date_table": {
+    "marked_as_date_table": true,
+    "name": "Calendar",
+    "not_related": [],
+    "range": "2020-01-01 to 2030-12-31 (placeholder; see README)",
+    "related": [
+     {
+      "active": true,
+      "column": "Bestelldatum",
+      "fact": "Bestellungen"
+     }
+    ]
+   },
+   "inactive": [],
+   "keyless": [],
+   "measures": [
+    {
+     "expression": "COUNTROWS('Mitarbeiter')",
+     "name": "Rows in Mitarbeiter",
+     "table": "Mitarbeiter",
+     "why": "Mitarbeiter is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+    },
+    {
+     "expression": "COUNTROWS('Bestellungen')",
+     "name": "Rows in Bestellungen",
+     "table": "Bestellungen",
+     "why": "Bestellungen is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+    },
+    {
+     "expression": "COUNTROWS('Rechnungen')",
+     "name": "Rows in Rechnungen",
+     "table": "Rechnungen",
+     "why": "Rechnungen is a fact table (role from the plan's graph): its row count is the first number a report asks for"
+    },
+    {
+     "expression": "SUM('Rechnungen'[Betrag])",
+     "name": "Total Betrag",
+     "table": "Rechnungen",
+     "why": "Rechnungen.Betrag is a number in a fact table and neither a key, a reference nor an id, code or year, so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit"
+    }
+   ],
+   "relationships_active": 4,
+   "relationships_inactive": 0,
+   "relationships_not_expressible": 0,
+   "roles": {
+    "Abteilungen": "dimension",
+    "Bestellungen": "fact",
+    "Kunden": "dimension",
+    "Mitarbeiter": "fact",
+    "Rechnungen": "fact"
+   },
+   "storage_mode": "directLake (SQL analytics endpoint)",
+   "tables": 5
+  }
+ },
+ "silver": "# Fabric notebook source\n\n# METADATA ********************\n\n# META {\n# META   \"kernel_info\": {\n# META     \"name\": \"synapse_pyspark\"\n# META   },\n# META   \"dependencies\": {\n# META     \"lakehouse\": {\n# META       \"default_lakehouse\": \"lh-1\",\n# META       \"default_lakehouse_name\": \"src\",\n# META       \"default_lakehouse_workspace_id\": \"ws-1\"\n# META     }\n# META   }\n# META }\n\n# MARKDOWN ********************\n\n# # Silver tables for src.dbo\n#\n# Generated by Krusgraph from the plan: clean copies of 5 table(s) in tables prefixed `silver_`, de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in `krusgraph_quarantine` with the reason. The source tables are only read. Run it again at any time: every silver table is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.\n\n# PARAMETERS CELL ********************\n\nSILVER_SCHEMA = \"silver\"   # where the silver tables go; never the source schema\nTABLE_FORMAT = \"delta\"     # lakehouse tables are Delta; leave as it is\nMASK_PERSONAL_DATA = True   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\nfrom datetime import datetime, timezone\nfrom pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nSOURCE_SCHEMA = None\nSCHEMAS_ENABLED = False\n# Written into every silver table as the property krusgraph.silver: a table carrying another value (or none) belongs to\n# someone else, and this notebook never overwrites it.\nOWNER = \"lh-1/dbo\"\n# Every table of the source schema: none of them is ever a write target.\nSOURCE_TABLES = [\"Abteilungen\", \"Bestellungen\", \"Kunden\", \"Mitarbeiter\", \"Rechnungen\"]\n# The silver tables this notebook writes, plus the quarantine table.\nWRITES = [\"Abteilungen\", \"Kunden\", \"Mitarbeiter\", \"Bestellungen\", \"Rechnungen\", \"krusgraph_quarantine\"]\n# Columns whose name looks like personal data (Krusgraph's rules P1-P6, by name): masked in the quarantine's row_json while\n# MASK_PERSONAL_DATA is True. The silver tables themselves keep every column.\nPERSONAL_COLUMNS = {\"Kunden\": [\"Name\"], \"Mitarbeiter\": [\"Name\"]}\nRUN_AT = datetime.now(timezone.utc).replace(microsecond=0)\n\n\ndef q(*parts):\n    \"\"\"A table name with every part quoted, for names with spaces or other characters.\"\"\"\n    return \".\".join(\"`\" + str(p).replace(\"`\", \"``\") + \"`\" for p in parts if p)\n\n\ndef source(table):\n    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)\n\n\ndef target(table):\n    # The silver tables live in a schema of their own (on a lakehouse without schemas: a prefix), never on a source table.\n    return q(SILVER_SCHEMA, table) if SCHEMAS_ENABLED else q(f\"{SILVER_SCHEMA}_{table}\")\n\n\ndef col(name):\n    return F.col(\"`\" + name.replace(\"`\", \"``\") + \"`\")\n\n\ndef is_ours_or_absent(name):\n    \"\"\"A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = OWNER).\"\"\"\n    if not spark.catalog.tableExists(name):\n        return True\n    props = {r[0]: r[1] for r in spark.sql(f\"SHOW TBLPROPERTIES {name}\").collect()}\n    return props.get(\"krusgraph.silver\") == OWNER\n\n\n# Guard before anything is written: no target is a source table, and no target is someone else's table.\n_sources = {source(t).lower() for t in SOURCE_TABLES}\nfor _t in WRITES:\n    if target(_t).lower() in _sources:\n        raise ValueError(f\"{target(_t)} is a source table; choose another SILVER_SCHEMA. Nothing was written.\")\n    if not is_ours_or_absent(target(_t)):\n        raise ValueError(f\"{target(_t)} exists and was not written by this notebook (for {OWNER}); nothing was written. \"\n                         \"Choose another SILVER_SCHEMA.\")\nif SCHEMAS_ENABLED:\n    spark.sql(f\"CREATE SCHEMA IF NOT EXISTS {q(SILVER_SCHEMA)}\")\n\nquarantined = []      # (rows, source table, rule, reason), written together at the end\nsilver = {}           # table -> its silver DataFrame, read back after writing\nread_counts = {}\n\n\ndef to_quarantine(rows, table, rule, reason):\n    masked = set(PERSONAL_COLUMNS.get(table, [])) if MASK_PERSONAL_DATA else set()\n    fields = [F.when(col(c).isNull(), F.lit(None).cast(\"string\")).otherwise(F.lit(\"***\")).alias(c) if c in masked else col(c)\n              for c in rows.columns]\n    quarantined.append(rows.select(F.lit(table).alias(\"source_table\"), F.lit(rule).alias(\"rule\"), F.lit(reason).alias(\"reason\"),\n                                   F.to_json(F.struct(*fields)).alias(\"row_json\")))\n\n\ndef drop_null_keys(df, key, table, rule):\n    missing = None\n    for c in key:\n        missing = col(c).isNull() if missing is None else (missing | col(c).isNull())\n    to_quarantine(df.filter(missing), table, rule, f\"the key ({', '.join(key)}) is NULL\")\n    return df.filter(~missing)\n\n\ndef keep_latest(df, key, order_column, table, rule):\n    content = F.sha2(F.to_json(F.struct(*[col(c) for c in df.columns])), 256)\n    order = ([col(order_column).desc_nulls_last()] if order_column else []) + [content.desc()]\n    ranked = df.withColumn(\"_krusgraph_rank\", F.row_number().over(Window.partitionBy(*[col(c) for c in key]).orderBy(*order)))\n    reason = (f\"another row has the same key ({', '.join(key)}); the row with the latest {order_column} was kept\" if order_column\n              else f\"another row has the same key ({', '.join(key)}); one row per key was kept (no ordering column: pass order_by)\")\n    to_quarantine(ranked.filter(F.col(\"_krusgraph_rank\") > 1).drop(\"_krusgraph_rank\"), table, rule, reason)\n    return ranked.filter(F.col(\"_krusgraph_rank\") == 1).drop(\"_krusgraph_rank\")\n\n\ndef check_reference(df, columns, parent_df, parent_columns, table, rule, reason):\n    \"\"\"Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays.\"\"\"\n    parent_keys = parent_df.select(*[col(c).alias(f\"_krusgraph_p{i}\") for i, c in enumerate(parent_columns)]).distinct()\n    has_ref, on = None, None\n    for i, c in enumerate(columns):\n        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())\n        match = col(c) == F.col(f\"_krusgraph_p{i}\")\n        on = match if on is None else (on & match)\n    with_ref = df.filter(has_ref)\n    to_quarantine(with_ref.join(parent_keys, on, \"left_anti\"), table, rule, reason)\n    return df.filter(~has_ref).unionByName(with_ref.join(parent_keys, on, \"left_semi\"))\n\n\ndef write_silver(df, table):\n    name = target(table)\n    if not is_ours_or_absent(name):\n        raise ValueError(f\"{name} exists and was not written by this notebook; it was left as it is.\")\n    df.write.format(TABLE_FORMAT).mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(name)\n    spark.sql(f\"ALTER TABLE {name} SET TBLPROPERTIES ('krusgraph.silver' = '{OWNER.replace(chr(39), chr(39) * 2)}')\")\n    return spark.read.table(name)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Abteilungen -> silver_Abteilungen ----\n# Key AbteilungID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Abteilungen\"))\nread_counts[\"Abteilungen\"] = df.count()\ndf = drop_null_keys(df, [\"AbteilungID\"], \"Abteilungen\", \"K2\")\ndf = keep_latest(df, [\"AbteilungID\"], None, \"Abteilungen\", \"K2\")\nsilver[\"Abteilungen\"] = write_silver(df, \"Abteilungen\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Kunden -> silver_Kunden ----\n# Key KundeID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Kunden\"))\nread_counts[\"Kunden\"] = df.count()\ndf = drop_null_keys(df, [\"KundeID\"], \"Kunden\", \"K2\")\ndf = keep_latest(df, [\"KundeID\"], None, \"Kunden\", \"K2\")\nsilver[\"Kunden\"] = write_silver(df, \"Kunden\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Mitarbeiter -> silver_Mitarbeiter ----\n# Key MitarbeiterID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Mitarbeiter\"))\nread_counts[\"Mitarbeiter\"] = df.count()\ndf = drop_null_keys(df, [\"MitarbeiterID\"], \"Mitarbeiter\", \"K2\")\ndf = keep_latest(df, [\"MitarbeiterID\"], None, \"Mitarbeiter\", \"K2\")\n# Reference Mitarbeiter.AbteilungID = Abteilungen.AbteilungID (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Abteilungen, so rows whose Abteilungen was quarantined follow it there.\ndf = check_reference(df, [\"AbteilungID\"], silver[\"Abteilungen\"], [\"AbteilungID\"], \"Mitarbeiter\", \"R2\", \"AbteilungID has no row in Abteilungen (Mitarbeiter.AbteilungID = Abteilungen.AbteilungID)\")\nsilver[\"Mitarbeiter\"] = write_silver(df, \"Mitarbeiter\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Bestellungen -> silver_Bestellungen ----\n# Key BestellungID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Bestellungen\"))\nread_counts[\"Bestellungen\"] = df.count()\ndf = drop_null_keys(df, [\"BestellungID\"], \"Bestellungen\", \"K2\")\ndf = keep_latest(df, [\"BestellungID\"], None, \"Bestellungen\", \"K2\")\n# Reference Bestellungen.Kunde_ID = Kunden.KundeID (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Kunden, so rows whose Kunden was quarantined follow it there.\ndf = check_reference(df, [\"Kunde_ID\"], silver[\"Kunden\"], [\"KundeID\"], \"Bestellungen\", \"R2\", \"Kunde_ID has no row in Kunden (Bestellungen.Kunde_ID = Kunden.KundeID)\")\n# Reference Bestellungen.MitarbeiterID = Mitarbeiter.MitarbeiterID (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver Mitarbeiter, so rows whose Mitarbeiter was quarantined follow it there.\ndf = check_reference(df, [\"MitarbeiterID\"], silver[\"Mitarbeiter\"], [\"MitarbeiterID\"], \"Bestellungen\", \"R1\", \"MitarbeiterID has no row in Mitarbeiter (Bestellungen.MitarbeiterID = Mitarbeiter.MitarbeiterID)\")\nsilver[\"Bestellungen\"] = write_silver(df, \"Bestellungen\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Rechnungen -> silver_Rechnungen ----\n# Key RechnungID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Rechnungen\"))\nread_counts[\"Rechnungen\"] = df.count()\ndf = drop_null_keys(df, [\"RechnungID\"], \"Rechnungen\", \"K2\")\ndf = keep_latest(df, [\"RechnungID\"], None, \"Rechnungen\", \"K2\")\n# Reference Rechnungen.BestellungID = Bestellungen.BestellungID (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Bestellungen, so rows whose Bestellungen was quarantined follow it there.\ndf = check_reference(df, [\"BestellungID\"], silver[\"Bestellungen\"], [\"BestellungID\"], \"Rechnungen\", \"R2\", \"BestellungID has no row in Bestellungen (Rechnungen.BestellungID = Bestellungen.BestellungID)\")\nsilver[\"Rechnungen\"] = write_silver(df, \"Rechnungen\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- quarantine and summary ----\n# Every row left out above is in the quarantine table with its source table, the rule and the reason. The table is\n# rewritten on every run, so it always shows the latest run.\nq_rows = spark.createDataFrame([], \"source_table string, rule string, reason string, row_json string\")\nfor part in quarantined:\n    q_rows = q_rows.unionByName(part)\nq_rows = q_rows.withColumn(\"checked_at\", F.lit(RUN_AT))\nwrite_silver(q_rows, \"krusgraph_quarantine\")\nsummary = {t: {\"read\": read_counts[t], \"silver\": silver[t].count()} for t in silver}\nfor r in spark.read.table(target(\"krusgraph_quarantine\")).groupBy(\"source_table\", \"rule\", \"reason\").count().collect():\n    summary[r[\"source_table\"]].setdefault(\"quarantined\", []).append({\"rule\": r[\"rule\"], \"reason\": r[\"reason\"], \"rows\": r[\"count\"]})\nfor t, s in summary.items():\n    print(t, s)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n",
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_Mitarbeiter_abteilungen",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Mitarbeiter_abteilungen] AS\nSELECT\n    s.[MitarbeiterID] AS [MitarbeiterID],\n    s.[Name] AS [Name],\n    s.[AbteilungID] AS [AbteilungID],\n    s.[VorgesetzterID] AS [VorgesetzterID],\n    t.[AbteilungID] AS [Abteilungen_AbteilungID],\n    t.[Bezeichnung] AS [Abteilungen_Bezeichnung]\nFROM [dbo].[Mitarbeiter] AS s\n    LEFT JOIN [dbo].[Abteilungen] AS t ON s.[AbteilungID] = t.[AbteilungID]",
+    "tables": [
+     "Mitarbeiter",
+     "Abteilungen"
+    ],
+    "why": "Mitarbeiter.AbteilungID -> Abteilungen (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Bestellungen_kunden",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Bestellungen_kunden] AS\nSELECT\n    s.[BestellungID] AS [BestellungID],\n    s.[Kunde_ID] AS [Kunde_ID],\n    s.[MitarbeiterID] AS [MitarbeiterID],\n    s.[Bestelldatum] AS [Bestelldatum],\n    t.[KundeID] AS [Kunden_KundeID],\n    t.[Name] AS [Kunden_Name],\n    t.[Land] AS [Kunden_Land]\nFROM [dbo].[Bestellungen] AS s\n    LEFT JOIN [dbo].[Kunden] AS t ON s.[Kunde_ID] = t.[KundeID]",
+    "tables": [
+     "Bestellungen",
+     "Kunden"
+    ],
+    "why": "Bestellungen.Kunde_ID -> Kunden (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Rechnungen_bestellungen",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Rechnungen_bestellungen] AS\nSELECT\n    s.[RechnungID] AS [RechnungID],\n    s.[BestellungID] AS [BestellungID],\n    s.[Betrag] AS [Betrag],\n    s.[Währung] AS [Währung],\n    t.[BestellungID] AS [Bestellungen_BestellungID],\n    t.[Kunde_ID] AS [Bestellungen_Kunde_ID],\n    t.[MitarbeiterID] AS [Bestellungen_MitarbeiterID],\n    t.[Bestelldatum] AS [Bestellungen_Bestelldatum]\nFROM [dbo].[Rechnungen] AS s\n    LEFT JOIN [dbo].[Bestellungen] AS t ON s.[BestellungID] = t.[BestellungID]",
+    "tables": [
+     "Rechnungen",
+     "Bestellungen"
+    ],
+    "why": "Rechnungen.BestellungID -> Bestellungen (R2): the column has the target key's name, not the target's name"
+   }
+  ]
+ }
+}

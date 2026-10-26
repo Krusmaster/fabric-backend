@@ -1,0 +1,2257 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "customer_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "payment",
+    "target": "customer",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "rental_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "payment",
+    "target": "rental",
+    "target_columns": [
+     "rental_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "staff_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "payment",
+    "target": "staff",
+    "target_columns": [
+     "staff_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "inventory_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "rental",
+    "target": "inventory",
+    "target_columns": [
+     "inventory_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "address_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "customer",
+    "target": "address",
+    "target_columns": [
+     "address_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "store_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "customer",
+    "target": "store",
+    "target_columns": [
+     "store_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "language_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film",
+    "target": "language",
+    "target_columns": [
+     "language_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "actor_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film_actor",
+    "target": "actor",
+    "target_columns": [
+     "actor_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "film_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film_actor",
+    "target": "film",
+    "target_columns": [
+     "film_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "category_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film_category",
+    "target": "category",
+    "target_columns": [
+     "category_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "film_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film_category",
+    "target": "film",
+    "target_columns": [
+     "film_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "film_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "inventory",
+    "target": "film",
+    "target_columns": [
+     "film_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "city_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "address",
+    "target": "city",
+    "target_columns": [
+     "city_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "country_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "city",
+    "target": "country",
+    "target_columns": [
+     "country_id"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "film_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "film_text",
+    "target": "film",
+    "target_columns": [
+     "film_id"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [
+    {
+     "closed_by": "rental.customer_id -> customer (R1)",
+     "tables": [
+      "rental",
+      "payment",
+      "customer"
+     ]
+    },
+    {
+     "closed_by": "rental.staff_id -> staff (R1)",
+     "tables": [
+      "rental",
+      "payment",
+      "staff"
+     ]
+    },
+    {
+     "closed_by": "inventory.store_id -> store (R1)",
+     "tables": [
+      "inventory",
+      "rental",
+      "payment",
+      "customer",
+      "store"
+     ]
+    },
+    {
+     "closed_by": "staff.address_id -> address (R1)",
+     "tables": [
+      "staff",
+      "payment",
+      "customer",
+      "address"
+     ]
+    },
+    {
+     "closed_by": "staff.store_id -> store (R1)",
+     "tables": [
+      "staff",
+      "payment",
+      "customer",
+      "store"
+     ]
+    },
+    {
+     "closed_by": "store.address_id -> address (R1)",
+     "tables": [
+      "store",
+      "customer",
+      "address"
+     ]
+    },
+    {
+     "closed_by": "film.original_language_id -> language (R4)",
+     "tables": [
+      "film",
+      "language"
+     ]
+    },
+    {
+     "closed_by": "store.manager_staff_id -> staff (R4)",
+     "tables": [
+      "store",
+      "customer",
+      "payment",
+      "staff"
+     ]
+    }
+   ],
+   "note": "every relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive",
+   "pairs_with_multiple_paths": [
+    [
+     "address",
+     "customer"
+    ],
+    [
+     "address",
+     "payment"
+    ],
+    [
+     "address",
+     "staff"
+    ],
+    [
+     "address",
+     "store"
+    ],
+    [
+     "customer",
+     "inventory"
+    ],
+    [
+     "customer",
+     "payment"
+    ],
+    [
+     "customer",
+     "rental"
+    ],
+    [
+     "customer",
+     "staff"
+    ],
+    [
+     "customer",
+     "store"
+    ],
+    [
+     "film",
+     "language"
+    ],
+    [
+     "inventory",
+     "payment"
+    ],
+    [
+     "inventory",
+     "rental"
+    ],
+    [
+     "inventory",
+     "store"
+    ],
+    [
+     "payment",
+     "rental"
+    ],
+    [
+     "payment",
+     "staff"
+    ],
+    [
+     "payment",
+     "store"
+    ],
+    [
+     "rental",
+     "staff"
+    ],
+    [
+     "rental",
+     "store"
+    ],
+    [
+     "staff",
+     "store"
+    ]
+   ]
+  },
+  "areas": [
+   {
+    "central_table": "country",
+    "name": "country area",
+    "tables": [
+     "address",
+     "city",
+     "country",
+     "customer",
+     "inventory",
+     "payment",
+     "rental",
+     "staff",
+     "store"
+    ]
+   },
+   {
+    "central_table": "language",
+    "name": "language area",
+    "tables": [
+     "film",
+     "film_text",
+     "language"
+    ]
+   },
+   {
+    "central_table": "actor",
+    "name": "actor area",
+    "tables": [
+     "actor",
+     "film_actor"
+    ]
+   },
+   {
+    "central_table": "category",
+    "name": "category area",
+    "tables": [
+     "category",
+     "film_category"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "actor": 0.0,
+    "address": 0.2495,
+    "category": 0.0,
+    "city": 0.1333,
+    "country": 0.0,
+    "customer": 0.0341,
+    "film": 0.6381,
+    "film_actor": 0.1333,
+    "film_category": 0.1333,
+    "film_text": 0.0,
+    "inventory": 0.5357,
+    "language": 0.0,
+    "payment": 0.0019,
+    "rental": 0.1416,
+    "staff": 0.0397,
+    "store": 0.3213
+   },
+   "degree": {
+    "actor": {
+     "in": 1,
+     "out": 0
+    },
+    "address": {
+     "in": 3,
+     "out": 1
+    },
+    "category": {
+     "in": 1,
+     "out": 0
+    },
+    "city": {
+     "in": 1,
+     "out": 1
+    },
+    "country": {
+     "in": 1,
+     "out": 0
+    },
+    "customer": {
+     "in": 2,
+     "out": 2
+    },
+    "film": {
+     "in": 4,
+     "out": 2
+    },
+    "film_actor": {
+     "in": 0,
+     "out": 2
+    },
+    "film_category": {
+     "in": 0,
+     "out": 2
+    },
+    "film_text": {
+     "in": 0,
+     "out": 1
+    },
+    "inventory": {
+     "in": 1,
+     "out": 2
+    },
+    "language": {
+     "in": 2,
+     "out": 0
+    },
+    "payment": {
+     "in": 0,
+     "out": 3
+    },
+    "rental": {
+     "in": 1,
+     "out": 3
+    },
+    "staff": {
+     "in": 3,
+     "out": 2
+    },
+    "store": {
+     "in": 3,
+     "out": 2
+    }
+   },
+   "pagerank": {
+    "actor": 0.0359,
+    "address": 0.1158,
+    "category": 0.0359,
+    "city": 0.1236,
+    "country": 0.1303,
+    "customer": 0.0415,
+    "film": 0.0825,
+    "film_actor": 0.0252,
+    "film_category": 0.0252,
+    "film_text": 0.0252,
+    "inventory": 0.0343,
+    "language": 0.0953,
+    "payment": 0.0252,
+    "rental": 0.0323,
+    "staff": 0.0804,
+    "store": 0.0915
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1303,
+     "role": "dimension",
+     "table": "country"
+    },
+    {
+     "betweenness": 0.1333,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.1236,
+     "role": "dimension",
+     "table": "city"
+    },
+    {
+     "betweenness": 0.2495,
+     "in": 3,
+     "out": 1,
+     "pagerank": 0.1158,
+     "role": "dimension",
+     "table": "address"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.0953,
+     "role": "dimension",
+     "table": "language"
+    },
+    {
+     "betweenness": 0.3213,
+     "in": 3,
+     "out": 2,
+     "pagerank": 0.0915,
+     "role": "bridge",
+     "table": "store"
+    },
+    {
+     "betweenness": 0.6381,
+     "in": 4,
+     "out": 2,
+     "pagerank": 0.0825,
+     "role": "bridge",
+     "table": "film"
+    },
+    {
+     "betweenness": 0.0397,
+     "in": 3,
+     "out": 2,
+     "pagerank": 0.0804,
+     "role": "other",
+     "table": "staff"
+    },
+    {
+     "betweenness": 0.0341,
+     "in": 2,
+     "out": 2,
+     "pagerank": 0.0415,
+     "role": "other",
+     "table": "customer"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0359,
+     "role": "dimension",
+     "table": "actor"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0359,
+     "role": "dimension",
+     "table": "category"
+    }
+   ]
+  },
+  "inactive_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "customer_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "rental",
+    "target": "customer",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with rental - payment - customer; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "staff_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "rental",
+    "target": "staff",
+    "target_columns": [
+     "staff_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with rental - payment - staff; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "store_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "inventory",
+    "target": "store",
+    "target_columns": [
+     "store_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with inventory - rental - payment - customer - store; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "address_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "staff",
+    "target": "address",
+    "target_columns": [
+     "address_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with staff - payment - customer - address; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "store_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "staff",
+    "target": "store",
+    "target_columns": [
+     "store_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with staff - payment - customer - store; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "address_id"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "store",
+    "target": "address",
+    "target_columns": [
+     "address_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with store - customer - address; the active path has certainty 0.8, this link 0.8"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "original_language_id"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "film",
+    "target": "language",
+    "target_columns": [
+     "language_id"
+    ],
+    "verified": false,
+    "why": "a relationship between these two tables is already active"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "manager_staff_id"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "store",
+    "target": "staff",
+    "target_columns": [
+     "staff_id"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with store - customer - payment - staff; the active path has certainty 0.8, this link 0.5"
+   }
+  ],
+  "roles": {
+   "actor": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "address": {
+    "role": "dimension",
+    "why": "3 reference(s) in, 1 out, few measures (0.0); out 1, in 3, betweenness 0.2495, measure share 0.0"
+   },
+   "category": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "city": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.1333, measure share 0.0"
+   },
+   "country": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "customer": {
+    "role": "other",
+    "why": "out 2, in 2, betweenness 0.0341, measure share 0.2"
+   },
+   "film": {
+    "role": "bridge",
+    "why": "high betweenness (0.6381 of max 0.6381) as a many side between 2 tables with 4 in; out 2, in 4, betweenness 0.6381, measure share 0.44"
+   },
+   "film_actor": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.1333, measure share 0.0"
+   },
+   "film_category": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.1333, measure share 0.0"
+   },
+   "film_text": {
+    "role": "dimension",
+    "why": "a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0"
+   },
+   "inventory": {
+    "role": "bridge",
+    "why": "high betweenness (0.5357 of max 0.6381) as a many side between 2 tables with 1 in; out 2, in 1, betweenness 0.5357, measure share 0.0"
+   },
+   "language": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out, few measures (0.0); out 0, in 2, betweenness 0.0, measure share 0.0"
+   },
+   "payment": {
+    "role": "fact",
+    "why": "nothing points at it, 3 reference(s) out, measures 1.0; out 3, in 0, betweenness 0.0019, measure share 1.0"
+   },
+   "rental": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 3 reference(s) out, measures 1.0 (a header table); out 3, in 1, betweenness 0.1416, measure share 1.0"
+   },
+   "staff": {
+    "role": "other",
+    "why": "out 2, in 3, betweenness 0.0397, measure share 0.0"
+   },
+   "store": {
+    "role": "bridge",
+    "why": "high betweenness (0.3213 of max 0.6381) as a many side between 2 tables with 3 in; out 2, in 3, betweenness 0.3213, measure share 0.0"
+   }
+  },
+  "summary": "16 tables, 23 relationships; roles: 2 fact, 7 dimension, 5 bridge, 2 other; 15 relationships can be active at once, 8 would be inactive; 8 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "name",
+   "name_similarity": 0.5,
+   "penalties": [],
+   "score": 2.3,
+   "source": "film",
+   "source_cols": [
+    "rental_duration"
+   ],
+   "target": "rental",
+   "target_cols": [
+    "rental_id"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "film.rental_duration (tinyint) is in no relationship and matches the type of rental.rental_id; its name resembles rental (0.5)"
+  }
+ ],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: actor\n        columns:\n          - name: actor_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: first_name\n            description: \"\"  # varchar\n          - name: last_name\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: country\n        columns:\n          - name: country_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: country\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: city\n        columns:\n          - name: city_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: city\n            description: \"\"  # varchar\n          - name: country_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'country')\n                    field: country_id\n          - name: last_update\n            description: \"\"  # datetime\n      - name: address\n        columns:\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: address\n            description: \"\"  # varchar\n          - name: address2\n            description: \"\"  # varchar\n          - name: district\n            description: \"\"  # varchar\n          - name: city_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'city')\n                    field: city_id\n          - name: postal_code\n            description: \"\"  # varchar\n          - name: phone\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: language\n        columns:\n          - name: language_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # char\n          - name: last_update\n            description: \"\"  # datetime\n      - name: category\n        columns:\n          - name: category_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: name\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: customer\n        columns:\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: store_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'store')\n                    field: store_id\n          - name: first_name\n            description: \"\"  # varchar\n          - name: last_name\n            description: \"\"  # varchar\n          - name: email\n            description: \"\"  # varchar\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'address')\n                    field: address_id\n          - name: active\n            description: \"\"  # char\n          - name: create_date\n            description: \"\"  # datetime\n          - name: last_update\n            description: \"\"  # datetime\n      - name: film\n        columns:\n          - name: film_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: title\n            description: \"\"  # varchar\n          - name: description\n            description: \"\"  # text\n          - name: release_year\n            description: \"\"  # varchar\n          - name: language_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'language')\n                    field: language_id\n          - name: original_language_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'language')\n                    field: language_id\n          - name: rental_duration\n            description: \"\"  # tinyint\n          - name: rental_rate\n            description: \"\"  # decimal\n          - name: length\n            description: \"\"  # smallint\n          - name: replacement_cost\n            description: \"\"  # decimal\n          - name: rating\n            description: \"\"  # varchar\n          - name: special_features\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: film_actor\n        # composite key actor_id+film_id (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [actor_id, film_id]\n        columns:\n          - name: actor_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'actor')\n                    field: actor_id\n          - name: film_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'film')\n                    field: film_id\n          - name: last_update\n            description: \"\"  # datetime\n      - name: film_category\n        # composite key film_id+category_id (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [film_id, category_id]\n        columns:\n          - name: film_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'film')\n                    field: film_id\n          - name: category_id\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'category')\n                    field: category_id\n          - name: last_update\n            description: \"\"  # datetime\n      - name: film_text\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: film_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'film')\n                    field: film_id\n          - name: title\n            description: \"\"  # varchar\n          - name: description\n            description: \"\"  # text\n      - name: inventory\n        columns:\n          - name: inventory_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: film_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'film')\n                    field: film_id\n          - name: store_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'store')\n                    field: store_id\n          - name: last_update\n            description: \"\"  # datetime\n      - name: staff\n        columns:\n          - name: staff_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: first_name\n            description: \"\"  # varchar\n          - name: last_name\n            description: \"\"  # varchar\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'address')\n                    field: address_id\n          - name: picture\n            description: \"\"  # image\n          - name: email\n            description: \"\"  # varchar\n          - name: store_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'store')\n                    field: store_id\n          - name: active\n            description: \"\"  # bit\n          - name: username\n            description: \"\"  # varchar\n          - name: password\n            description: \"\"  # varchar\n          - name: last_update\n            description: \"\"  # datetime\n      - name: store\n        columns:\n          - name: store_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: manager_staff_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'staff')\n                    field: staff_id\n          - name: address_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'address')\n                    field: address_id\n          - name: last_update\n            description: \"\"  # datetime\n      - name: payment\n        columns:\n          - name: payment_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'customer')\n                    field: customer_id\n          - name: staff_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'staff')\n                    field: staff_id\n          - name: rental_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'rental')\n                    field: rental_id\n          - name: amount\n            description: \"\"  # decimal\n          - name: payment_date\n            description: \"\"  # datetime\n          - name: last_update\n            description: \"\"  # datetime\n      - name: rental\n        columns:\n          - name: rental_id\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: rental_date\n            description: \"\"  # datetime\n          - name: inventory_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'inventory')\n                    field: inventory_id\n          - name: customer_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'customer')\n                    field: customer_id\n          - name: return_date\n            description: \"\"  # datetime\n          - name: staff_id\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'staff')\n                    field: staff_id\n          - name: last_update\n            description: \"\"  # datetime\n",
+ "dictionary": {
+  "bytes": 25235,
+  "sha256": "2d45d1d27e8a16c218b06a032f3bbaa1c3fb1f32ae82636bb666f3a71669c508"
+ },
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "actor_id": "actor_id",
+       "first_name": "first_name",
+       "last_name": "last_name",
+       "last_update": "last_update"
+      },
+      "graphqlType": "actor",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "film_actor",
+        "sourceFields": [
+         "actor_id"
+        ],
+        "targetFields": [
+         "actor_id"
+        ],
+        "targetObject": "dbo.film_actor"
+       }
+      ],
+      "sourceObject": "dbo.actor",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "country": "country",
+       "country_id": "country_id",
+       "last_update": "last_update"
+      },
+      "graphqlType": "country",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "city",
+        "sourceFields": [
+         "country_id"
+        ],
+        "targetFields": [
+         "country_id"
+        ],
+        "targetObject": "dbo.city"
+       }
+      ],
+      "sourceObject": "dbo.country",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "city": "city",
+       "city_id": "city_id",
+       "country_id": "country_id",
+       "last_update": "last_update"
+      },
+      "graphqlType": "city",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "country",
+        "sourceFields": [
+         "country_id"
+        ],
+        "targetFields": [
+         "country_id"
+        ],
+        "targetObject": "dbo.country"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "address",
+        "sourceFields": [
+         "city_id"
+        ],
+        "targetFields": [
+         "city_id"
+        ],
+        "targetObject": "dbo.address"
+       }
+      ],
+      "sourceObject": "dbo.city",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "address": "address",
+       "address2": "address2",
+       "address_id": "address_id",
+       "city_id": "city_id",
+       "district": "district",
+       "last_update": "last_update",
+       "phone": "phone",
+       "postal_code": "postal_code"
+      },
+      "graphqlType": "address",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "city",
+        "sourceFields": [
+         "city_id"
+        ],
+        "targetFields": [
+         "city_id"
+        ],
+        "targetObject": "dbo.city"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "customer",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.customer"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "staff",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.staff"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "store",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.store"
+       }
+      ],
+      "sourceObject": "dbo.address",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "language_id": "language_id",
+       "last_update": "last_update",
+       "name": "name"
+      },
+      "graphqlType": "language",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "film",
+        "sourceFields": [
+         "language_id"
+        ],
+        "targetFields": [
+         "language_id"
+        ],
+        "targetObject": "dbo.film"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "film_as_original_language",
+        "sourceFields": [
+         "language_id"
+        ],
+        "targetFields": [
+         "original_language_id"
+        ],
+        "targetObject": "dbo.film"
+       }
+      ],
+      "sourceObject": "dbo.language",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "category_id": "category_id",
+       "last_update": "last_update",
+       "name": "name"
+      },
+      "graphqlType": "category",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "film_category",
+        "sourceFields": [
+         "category_id"
+        ],
+        "targetFields": [
+         "category_id"
+        ],
+        "targetObject": "dbo.film_category"
+       }
+      ],
+      "sourceObject": "dbo.category",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "active": "active",
+       "address_id": "address_id",
+       "create_date": "create_date",
+       "customer_id": "customer_id",
+       "email": "email",
+       "first_name": "first_name",
+       "last_name": "last_name",
+       "last_update": "last_update",
+       "store_id": "store_id"
+      },
+      "graphqlType": "customer",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "store",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.store"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "address",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.address"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "payment",
+        "sourceFields": [
+         "customer_id"
+        ],
+        "targetFields": [
+         "customer_id"
+        ],
+        "targetObject": "dbo.payment"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "rental",
+        "sourceFields": [
+         "customer_id"
+        ],
+        "targetFields": [
+         "customer_id"
+        ],
+        "targetObject": "dbo.rental"
+       }
+      ],
+      "sourceObject": "dbo.customer",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "description": "description",
+       "film_id": "film_id",
+       "language_id": "language_id",
+       "last_update": "last_update",
+       "length": "length",
+       "original_language_id": "original_language_id",
+       "rating": "rating",
+       "release_year": "release_year",
+       "rental_duration": "rental_duration",
+       "rental_rate": "rental_rate",
+       "replacement_cost": "replacement_cost",
+       "special_features": "special_features",
+       "title": "title"
+      },
+      "graphqlType": "film",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "language",
+        "sourceFields": [
+         "language_id"
+        ],
+        "targetFields": [
+         "language_id"
+        ],
+        "targetObject": "dbo.language"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "original_language",
+        "sourceFields": [
+         "original_language_id"
+        ],
+        "targetFields": [
+         "language_id"
+        ],
+        "targetObject": "dbo.language"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "film_actor",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film_actor"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "film_category",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film_category"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "film_text",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film_text"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "inventory",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.inventory"
+       }
+      ],
+      "sourceObject": "dbo.film",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "actor_id": "actor_id",
+       "film_id": "film_id",
+       "last_update": "last_update"
+      },
+      "graphqlType": "film_actor",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "actor",
+        "sourceFields": [
+         "actor_id"
+        ],
+        "targetFields": [
+         "actor_id"
+        ],
+        "targetObject": "dbo.actor"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "film",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film"
+       }
+      ],
+      "sourceObject": "dbo.film_actor",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "category_id": "category_id",
+       "film_id": "film_id",
+       "last_update": "last_update"
+      },
+      "graphqlType": "film_category",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "film",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "category",
+        "sourceFields": [
+         "category_id"
+        ],
+        "targetFields": [
+         "category_id"
+        ],
+        "targetObject": "dbo.category"
+       }
+      ],
+      "sourceObject": "dbo.film_category",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Disabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "description": "description",
+       "film_id": "film_id",
+       "title": "title"
+      },
+      "graphqlType": "film_text",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "film",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film"
+       }
+      ],
+      "sourceObject": "dbo.film_text",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "film_id": "film_id",
+       "inventory_id": "inventory_id",
+       "last_update": "last_update",
+       "store_id": "store_id"
+      },
+      "graphqlType": "inventory",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "film",
+        "sourceFields": [
+         "film_id"
+        ],
+        "targetFields": [
+         "film_id"
+        ],
+        "targetObject": "dbo.film"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "store",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.store"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "rental",
+        "sourceFields": [
+         "inventory_id"
+        ],
+        "targetFields": [
+         "inventory_id"
+        ],
+        "targetObject": "dbo.rental"
+       }
+      ],
+      "sourceObject": "dbo.inventory",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "active": "active",
+       "address_id": "address_id",
+       "email": "email",
+       "first_name": "first_name",
+       "last_name": "last_name",
+       "last_update": "last_update",
+       "password": "password",
+       "picture": "picture",
+       "staff_id": "staff_id",
+       "store_id": "store_id",
+       "username": "username"
+      },
+      "graphqlType": "staff",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "address",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.address"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "store",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.store"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "store_as_manager_staff",
+        "sourceFields": [
+         "staff_id"
+        ],
+        "targetFields": [
+         "manager_staff_id"
+        ],
+        "targetObject": "dbo.store"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "payment",
+        "sourceFields": [
+         "staff_id"
+        ],
+        "targetFields": [
+         "staff_id"
+        ],
+        "targetObject": "dbo.payment"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "rental",
+        "sourceFields": [
+         "staff_id"
+        ],
+        "targetFields": [
+         "staff_id"
+        ],
+        "targetObject": "dbo.rental"
+       }
+      ],
+      "sourceObject": "dbo.staff",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "address_id": "address_id",
+       "last_update": "last_update",
+       "manager_staff_id": "manager_staff_id",
+       "store_id": "store_id"
+      },
+      "graphqlType": "store",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "customer",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.customer"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "inventory",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.inventory"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "staff",
+        "sourceFields": [
+         "store_id"
+        ],
+        "targetFields": [
+         "store_id"
+        ],
+        "targetObject": "dbo.staff"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "manager_staff",
+        "sourceFields": [
+         "manager_staff_id"
+        ],
+        "targetFields": [
+         "staff_id"
+        ],
+        "targetObject": "dbo.staff"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "address",
+        "sourceFields": [
+         "address_id"
+        ],
+        "targetFields": [
+         "address_id"
+        ],
+        "targetObject": "dbo.address"
+       }
+      ],
+      "sourceObject": "dbo.store",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "amount": "amount",
+       "customer_id": "customer_id",
+       "last_update": "last_update",
+       "payment_date": "payment_date",
+       "payment_id": "payment_id",
+       "rental_id": "rental_id",
+       "staff_id": "staff_id"
+      },
+      "graphqlType": "payment",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "customer_id"
+        ],
+        "targetFields": [
+         "customer_id"
+        ],
+        "targetObject": "dbo.customer"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "staff",
+        "sourceFields": [
+         "staff_id"
+        ],
+        "targetFields": [
+         "staff_id"
+        ],
+        "targetObject": "dbo.staff"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "rental",
+        "sourceFields": [
+         "rental_id"
+        ],
+        "targetFields": [
+         "rental_id"
+        ],
+        "targetObject": "dbo.rental"
+       }
+      ],
+      "sourceObject": "dbo.payment",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "customer_id": "customer_id",
+       "inventory_id": "inventory_id",
+       "last_update": "last_update",
+       "rental_date": "rental_date",
+       "rental_id": "rental_id",
+       "return_date": "return_date",
+       "staff_id": "staff_id"
+      },
+      "graphqlType": "rental",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "payment",
+        "sourceFields": [
+         "rental_id"
+        ],
+        "targetFields": [
+         "rental_id"
+        ],
+        "targetObject": "dbo.payment"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "inventory",
+        "sourceFields": [
+         "inventory_id"
+        ],
+        "targetFields": [
+         "inventory_id"
+        ],
+        "targetObject": "dbo.inventory"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "customer_id"
+        ],
+        "targetFields": [
+         "customer_id"
+        ],
+        "targetObject": "dbo.customer"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "staff",
+        "sourceFields": [
+         "staff_id"
+        ],
+        "targetFields": [
+         "staff_id"
+        ],
+        "targetObject": "dbo.staff"
+       }
+      ],
+      "sourceObject": "dbo.rental",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 117241,
+  "sha256": "084d115d9bc9b60ec39f92f2cfeb9b4540b1702283a8444496483f40fd828b4e"
+ },
+ "key_sql": {
+  "actor": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [actor_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [actor_id] FROM [dbo].[actor] WHERE [actor_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[actor]",
+  "address": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [address_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [address_id] FROM [dbo].[address] WHERE [address_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[address]",
+  "category": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [category_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [category_id] FROM [dbo].[category] WHERE [category_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[category]",
+  "city": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [city_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [city_id] FROM [dbo].[city] WHERE [city_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[city]",
+  "country": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [country_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [country_id] FROM [dbo].[country] WHERE [country_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[country]",
+  "customer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [customer_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [customer_id] FROM [dbo].[customer] WHERE [customer_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[customer]",
+  "film": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [film_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [film_id] FROM [dbo].[film] WHERE [film_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[film]",
+  "film_actor": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [actor_id] IS NULL OR [film_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [actor_id], [film_id] FROM [dbo].[film_actor] WHERE [actor_id] IS NOT NULL AND [film_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[film_actor]",
+  "film_category": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [film_id] IS NULL OR [category_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [film_id], [category_id] FROM [dbo].[film_category] WHERE [film_id] IS NOT NULL AND [category_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[film_category]",
+  "inventory": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [inventory_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [inventory_id] FROM [dbo].[inventory] WHERE [inventory_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[inventory]",
+  "language": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [language_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [language_id] FROM [dbo].[language] WHERE [language_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[language]",
+  "payment": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [payment_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [payment_id] FROM [dbo].[payment] WHERE [payment_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[payment]",
+  "rental": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [rental_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [rental_id] FROM [dbo].[rental] WHERE [rental_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[rental]",
+  "staff": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [staff_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [staff_id] FROM [dbo].[staff] WHERE [staff_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[staff]",
+  "store": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [store_id] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [store_id] FROM [dbo].[store] WHERE [store_id] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[store]"
+ },
+ "ontology_ttl": {
+  "bytes": 24771,
+  "sha256": "eb321415ff406891771a4b84e856ee5a6e28e6696b33d56290493d422a9626a5"
+ },
+ "plan": {
+  "ambiguous": [],
+  "keyless": [
+   "film_text"
+  ],
+  "keys": {
+   "actor": [
+    [
+     "actor_id"
+    ],
+    "K2"
+   ],
+   "address": [
+    [
+     "address_id"
+    ],
+    "K2"
+   ],
+   "category": [
+    [
+     "category_id"
+    ],
+    "K2"
+   ],
+   "city": [
+    [
+     "city_id"
+    ],
+    "K2"
+   ],
+   "country": [
+    [
+     "country_id"
+    ],
+    "K2"
+   ],
+   "customer": [
+    [
+     "customer_id"
+    ],
+    "K2"
+   ],
+   "film": [
+    [
+     "film_id"
+    ],
+    "K2"
+   ],
+   "film_actor": [
+    [
+     "actor_id",
+     "film_id"
+    ],
+    "K4"
+   ],
+   "film_category": [
+    [
+     "film_id",
+     "category_id"
+    ],
+    "K4"
+   ],
+   "inventory": [
+    [
+     "inventory_id"
+    ],
+    "K2"
+   ],
+   "language": [
+    [
+     "language_id"
+    ],
+    "K2"
+   ],
+   "payment": [
+    [
+     "payment_id"
+    ],
+    "K2"
+   ],
+   "rental": [
+    [
+     "rental_id"
+    ],
+    "K2"
+   ],
+   "staff": [
+    [
+     "staff_id"
+    ],
+    "K2"
+   ],
+   "store": [
+    [
+     "store_id"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  actor {\n    actor_id int PK\n    first_name varchar\n    last_name varchar\n    last_update datetime\n  }\n  country {\n    country_id int PK\n    country varchar\n    last_update datetime\n  }\n  city {\n    city_id int PK\n    city varchar\n    country_id int\n    last_update datetime\n  }\n  address {\n    address_id int PK\n    address varchar\n    address2 varchar\n    district varchar\n    city_id int\n    postal_code varchar\n    phone varchar\n    last_update datetime\n  }\n  language {\n    language_id int PK\n    name char\n    last_update datetime\n  }\n  category {\n    category_id int PK\n    name varchar\n    last_update datetime\n  }\n  customer {\n    customer_id int PK\n    store_id int\n    first_name varchar\n    last_name varchar\n    email varchar\n    address_id int\n    active char\n    create_date datetime\n    last_update datetime\n  }\n  film {\n    film_id int PK\n    title varchar\n    description text\n    release_year varchar\n    language_id int\n    original_language_id int\n    rental_duration tinyint\n    rental_rate decimal\n    length smallint\n    replacement_cost decimal\n    rating varchar\n    special_features varchar\n    last_update datetime\n  }\n  film_actor {\n    actor_id int PK\n    film_id int PK\n    last_update datetime\n  }\n  film_category {\n    film_id int PK\n    category_id int PK\n    last_update datetime\n  }\n  film_text {\n    film_id int\n    title varchar\n    description text\n  }\n  inventory {\n    inventory_id int PK\n    film_id int\n    store_id int\n    last_update datetime\n  }\n  staff {\n    staff_id int PK\n    first_name varchar\n    last_name varchar\n    address_id int\n    picture image\n    email varchar\n    store_id int\n    active bit\n    username varchar\n    password varchar\n    last_update datetime\n  }\n  store {\n    store_id int PK\n    manager_staff_id int\n    address_id int\n    last_update datetime\n  }\n  payment {\n    payment_id int PK\n    customer_id int\n    staff_id int\n    rental_id int\n    amount decimal\n    payment_date datetime\n    last_update datetime\n  }\n  rental {\n    rental_id int PK\n    rental_date datetime\n    inventory_id int\n    customer_id int\n    return_date datetime\n    staff_id int\n    last_update datetime\n  }\n  country ||--o{ city : \"country_id R1\"\n  city ||--o{ address : \"city_id R1\"\n  store ||--o{ customer : \"store_id R1\"\n  address ||--o{ customer : \"address_id R1\"\n  language ||--o{ film : \"language_id R1\"\n  language ||--o{ film : \"original_language_id R4\"\n  actor ||--o{ film_actor : \"actor_id R1\"\n  film ||--o{ film_actor : \"film_id R1\"\n  film ||--o{ film_category : \"film_id R1\"\n  category ||--o{ film_category : \"category_id R1\"\n  film ||--o{ film_text : \"film_id R1\"\n  film ||--o{ inventory : \"film_id R1\"\n  store ||--o{ inventory : \"store_id R1\"\n  address ||--o{ staff : \"address_id R1\"\n  store ||--o{ staff : \"store_id R1\"\n  staff ||--o{ store : \"manager_staff_id R4\"\n  address ||--o{ store : \"address_id R1\"\n  customer ||--o{ payment : \"customer_id R1\"\n  staff ||--o{ payment : \"staff_id R1\"\n  rental ||--o{ payment : \"rental_id R1\"\n  inventory ||--o{ rental : \"inventory_id R1\"\n  customer ||--o{ rental : \"customer_id R1\"\n  staff ||--o{ rental : \"staff_id R1\"",
+  "relationships": [
+   {
+    "field_name": "country",
+    "note": "",
+    "reverse_name": "city",
+    "rule": "R1",
+    "source": "city",
+    "source_cols": [
+     "country_id"
+    ],
+    "target": "country",
+    "target_cols": [
+     "country_id"
+    ]
+   },
+   {
+    "field_name": "city",
+    "note": "",
+    "reverse_name": "address",
+    "rule": "R1",
+    "source": "address",
+    "source_cols": [
+     "city_id"
+    ],
+    "target": "city",
+    "target_cols": [
+     "city_id"
+    ]
+   },
+   {
+    "field_name": "store",
+    "note": "",
+    "reverse_name": "customer",
+    "rule": "R1",
+    "source": "customer",
+    "source_cols": [
+     "store_id"
+    ],
+    "target": "store",
+    "target_cols": [
+     "store_id"
+    ]
+   },
+   {
+    "field_name": "address",
+    "note": "",
+    "reverse_name": "customer",
+    "rule": "R1",
+    "source": "customer",
+    "source_cols": [
+     "address_id"
+    ],
+    "target": "address",
+    "target_cols": [
+     "address_id"
+    ]
+   },
+   {
+    "field_name": "language",
+    "note": "",
+    "reverse_name": "film",
+    "rule": "R1",
+    "source": "film",
+    "source_cols": [
+     "language_id"
+    ],
+    "target": "language",
+    "target_cols": [
+     "language_id"
+    ]
+   },
+   {
+    "field_name": "original_language",
+    "note": "",
+    "reverse_name": "film_as_original_language",
+    "rule": "R4",
+    "source": "film",
+    "source_cols": [
+     "original_language_id"
+    ],
+    "target": "language",
+    "target_cols": [
+     "language_id"
+    ]
+   },
+   {
+    "field_name": "actor",
+    "note": "",
+    "reverse_name": "film_actor",
+    "rule": "R1",
+    "source": "film_actor",
+    "source_cols": [
+     "actor_id"
+    ],
+    "target": "actor",
+    "target_cols": [
+     "actor_id"
+    ]
+   },
+   {
+    "field_name": "film",
+    "note": "",
+    "reverse_name": "film_actor",
+    "rule": "R1",
+    "source": "film_actor",
+    "source_cols": [
+     "film_id"
+    ],
+    "target": "film",
+    "target_cols": [
+     "film_id"
+    ]
+   },
+   {
+    "field_name": "film",
+    "note": "",
+    "reverse_name": "film_category",
+    "rule": "R1",
+    "source": "film_category",
+    "source_cols": [
+     "film_id"
+    ],
+    "target": "film",
+    "target_cols": [
+     "film_id"
+    ]
+   },
+   {
+    "field_name": "category",
+    "note": "",
+    "reverse_name": "film_category",
+    "rule": "R1",
+    "source": "film_category",
+    "source_cols": [
+     "category_id"
+    ],
+    "target": "category",
+    "target_cols": [
+     "category_id"
+    ]
+   },
+   {
+    "field_name": "film",
+    "note": "",
+    "reverse_name": "film_text",
+    "rule": "R1",
+    "source": "film_text",
+    "source_cols": [
+     "film_id"
+    ],
+    "target": "film",
+    "target_cols": [
+     "film_id"
+    ]
+   },
+   {
+    "field_name": "film",
+    "note": "",
+    "reverse_name": "inventory",
+    "rule": "R1",
+    "source": "inventory",
+    "source_cols": [
+     "film_id"
+    ],
+    "target": "film",
+    "target_cols": [
+     "film_id"
+    ]
+   },
+   {
+    "field_name": "store",
+    "note": "",
+    "reverse_name": "inventory",
+    "rule": "R1",
+    "source": "inventory",
+    "source_cols": [
+     "store_id"
+    ],
+    "target": "store",
+    "target_cols": [
+     "store_id"
+    ]
+   },
+   {
+    "field_name": "address",
+    "note": "",
+    "reverse_name": "staff",
+    "rule": "R1",
+    "source": "staff",
+    "source_cols": [
+     "address_id"
+    ],
+    "target": "address",
+    "target_cols": [
+     "address_id"
+    ]
+   },
+   {
+    "field_name": "store",
+    "note": "",
+    "reverse_name": "staff",
+    "rule": "R1",
+    "source": "staff",
+    "source_cols": [
+     "store_id"
+    ],
+    "target": "store",
+    "target_cols": [
+     "store_id"
+    ]
+   },
+   {
+    "field_name": "manager_staff",
+    "note": "",
+    "reverse_name": "store_as_manager_staff",
+    "rule": "R4",
+    "source": "store",
+    "source_cols": [
+     "manager_staff_id"
+    ],
+    "target": "staff",
+    "target_cols": [
+     "staff_id"
+    ]
+   },
+   {
+    "field_name": "address",
+    "note": "",
+    "reverse_name": "store",
+    "rule": "R1",
+    "source": "store",
+    "source_cols": [
+     "address_id"
+    ],
+    "target": "address",
+    "target_cols": [
+     "address_id"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "payment",
+    "rule": "R1",
+    "source": "payment",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customer",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "field_name": "staff",
+    "note": "",
+    "reverse_name": "payment",
+    "rule": "R1",
+    "source": "payment",
+    "source_cols": [
+     "staff_id"
+    ],
+    "target": "staff",
+    "target_cols": [
+     "staff_id"
+    ]
+   },
+   {
+    "field_name": "rental",
+    "note": "",
+    "reverse_name": "payment",
+    "rule": "R1",
+    "source": "payment",
+    "source_cols": [
+     "rental_id"
+    ],
+    "target": "rental",
+    "target_cols": [
+     "rental_id"
+    ]
+   },
+   {
+    "field_name": "inventory",
+    "note": "",
+    "reverse_name": "rental",
+    "rule": "R1",
+    "source": "rental",
+    "source_cols": [
+     "inventory_id"
+    ],
+    "target": "inventory",
+    "target_cols": [
+     "inventory_id"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "rental",
+    "rule": "R1",
+    "source": "rental",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customer",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "field_name": "staff",
+    "note": "",
+    "reverse_name": "rental",
+    "rule": "R1",
+    "source": "rental",
+    "source_cols": [
+     "staff_id"
+    ],
+    "target": "staff",
+    "target_cols": [
+     "staff_id"
+    ]
+   }
+  ],
+  "summary": "16 tables, 15 with keys, 23 relationships\nno key (query only; can reference others, cannot be referenced): film_text",
+  "synonyms": []
+ },
+ "rayfin": {
+  "bytes": 23335,
+  "sha256": "f64c82db8f2599c5134cca04cc138b1971e5df76900b18fdafa9620ce0f11408"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[country_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[city] AS s LEFT JOIN (SELECT DISTINCT [country_id] FROM [dbo].[country]) AS t ON s.[country_id] = t.[country_id] WHERE s.[country_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[city_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[address] AS s LEFT JOIN (SELECT DISTINCT [city_id] FROM [dbo].[city]) AS t ON s.[city_id] = t.[city_id] WHERE s.[city_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[store_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[customer] AS s LEFT JOIN (SELECT DISTINCT [store_id] FROM [dbo].[store]) AS t ON s.[store_id] = t.[store_id] WHERE s.[store_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[address_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[customer] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [dbo].[address]) AS t ON s.[address_id] = t.[address_id] WHERE s.[address_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[language_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film] AS s LEFT JOIN (SELECT DISTINCT [language_id] FROM [dbo].[language]) AS t ON s.[language_id] = t.[language_id] WHERE s.[language_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[language_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film] AS s LEFT JOIN (SELECT DISTINCT [language_id] FROM [dbo].[language]) AS t ON s.[original_language_id] = t.[language_id] WHERE s.[original_language_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[actor_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film_actor] AS s LEFT JOIN (SELECT DISTINCT [actor_id] FROM [dbo].[actor]) AS t ON s.[actor_id] = t.[actor_id] WHERE s.[actor_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[film_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film_actor] AS s LEFT JOIN (SELECT DISTINCT [film_id] FROM [dbo].[film]) AS t ON s.[film_id] = t.[film_id] WHERE s.[film_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[film_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film_category] AS s LEFT JOIN (SELECT DISTINCT [film_id] FROM [dbo].[film]) AS t ON s.[film_id] = t.[film_id] WHERE s.[film_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[category_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film_category] AS s LEFT JOIN (SELECT DISTINCT [category_id] FROM [dbo].[category]) AS t ON s.[category_id] = t.[category_id] WHERE s.[category_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[film_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[film_text] AS s LEFT JOIN (SELECT DISTINCT [film_id] FROM [dbo].[film]) AS t ON s.[film_id] = t.[film_id] WHERE s.[film_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[film_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[inventory] AS s LEFT JOIN (SELECT DISTINCT [film_id] FROM [dbo].[film]) AS t ON s.[film_id] = t.[film_id] WHERE s.[film_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[store_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[inventory] AS s LEFT JOIN (SELECT DISTINCT [store_id] FROM [dbo].[store]) AS t ON s.[store_id] = t.[store_id] WHERE s.[store_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[address_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[staff] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [dbo].[address]) AS t ON s.[address_id] = t.[address_id] WHERE s.[address_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[store_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[staff] AS s LEFT JOIN (SELECT DISTINCT [store_id] FROM [dbo].[store]) AS t ON s.[store_id] = t.[store_id] WHERE s.[store_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[staff_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[store] AS s LEFT JOIN (SELECT DISTINCT [staff_id] FROM [dbo].[staff]) AS t ON s.[manager_staff_id] = t.[staff_id] WHERE s.[manager_staff_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[address_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[store] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [dbo].[address]) AS t ON s.[address_id] = t.[address_id] WHERE s.[address_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[customer_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[payment] AS s LEFT JOIN (SELECT DISTINCT [customer_id] FROM [dbo].[customer]) AS t ON s.[customer_id] = t.[customer_id] WHERE s.[customer_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[staff_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[payment] AS s LEFT JOIN (SELECT DISTINCT [staff_id] FROM [dbo].[staff]) AS t ON s.[staff_id] = t.[staff_id] WHERE s.[staff_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[rental_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[payment] AS s LEFT JOIN (SELECT DISTINCT [rental_id] FROM [dbo].[rental]) AS t ON s.[rental_id] = t.[rental_id] WHERE s.[rental_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[inventory_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[rental] AS s LEFT JOIN (SELECT DISTINCT [inventory_id] FROM [dbo].[inventory]) AS t ON s.[inventory_id] = t.[inventory_id] WHERE s.[inventory_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[customer_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[rental] AS s LEFT JOIN (SELECT DISTINCT [customer_id] FROM [dbo].[customer]) AS t ON s.[customer_id] = t.[customer_id] WHERE s.[customer_id] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[staff_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[rental] AS s LEFT JOIN (SELECT DISTINCT [staff_id] FROM [dbo].[staff]) AS t ON s.[staff_id] = t.[staff_id] WHERE s.[staff_id] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "actor": "SELECT TOP (10) [actor_id], [first_name], [last_name], [last_update] FROM [dbo].[actor]",
+  "address": "SELECT TOP (10) [address_id], [address], [address2], [district], [city_id], [postal_code], [phone], [last_update] FROM [dbo].[address]",
+  "category": "SELECT TOP (10) [category_id], [name], [last_update] FROM [dbo].[category]",
+  "city": "SELECT TOP (10) [city_id], [city], [country_id], [last_update] FROM [dbo].[city]",
+  "country": "SELECT TOP (10) [country_id], [country], [last_update] FROM [dbo].[country]",
+  "customer": "SELECT TOP (10) [customer_id], [store_id], [first_name], [last_name], [email], [address_id], [active], [create_date], [last_update] FROM [dbo].[customer]",
+  "film": "SELECT TOP (10) [film_id], [title], [description], [release_year], [language_id], [original_language_id], [rental_duration], [rental_rate], [length], [replacement_cost], [rating], [special_features], [last_update] FROM [dbo].[film]",
+  "film_actor": "SELECT TOP (10) [actor_id], [film_id], [last_update] FROM [dbo].[film_actor]",
+  "film_category": "SELECT TOP (10) [film_id], [category_id], [last_update] FROM [dbo].[film_category]",
+  "film_text": "SELECT TOP (10) [film_id], [title], [description] FROM [dbo].[film_text]",
+  "inventory": "SELECT TOP (10) [inventory_id], [film_id], [store_id], [last_update] FROM [dbo].[inventory]",
+  "language": "SELECT TOP (10) [language_id], [name], [last_update] FROM [dbo].[language]",
+  "payment": "SELECT TOP (10) [payment_id], [customer_id], [staff_id], [rental_id], [amount], [payment_date], [last_update] FROM [dbo].[payment]",
+  "rental": "SELECT TOP (10) [rental_id], [rental_date], [inventory_id], [customer_id], [return_date], [staff_id], [last_update] FROM [dbo].[rental]",
+  "staff": "SELECT TOP (10) [staff_id], [first_name], [last_name], [address_id], DATALENGTH([picture]) AS [picture (bytes)], [email], [store_id], [active], [username], [password], [last_update] FROM [dbo].[staff]",
+  "store": "SELECT TOP (10) [store_id], [manager_staff_id], [address_id], [last_update] FROM [dbo].[store]"
+ },
+ "semantic_model": {
+  "bytes": 48573,
+  "sha256": "0297fafb1be66791c784cfc1bd72499851d7ea4ecb7b712e078f0a5178d45f05"
+ },
+ "silver": {
+  "bytes": 34899,
+  "sha256": "95be0c47870d07466cf76fb5e8c1809be32d5224524bf35fec3fa4f114e3bfec"
+ },
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_film_actor",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_film_actor] AS\nSELECT\n    f.[actor_id] AS [actor_id],\n    f.[film_id] AS [film_id],\n    f.[last_update] AS [last_update],\n    d1.[actor_id] AS [actor_actor_id],\n    d1.[first_name] AS [actor_first_name],\n    d1.[last_name] AS [actor_last_name],\n    d1.[last_update] AS [actor_last_update],\n    d2.[film_id] AS [film_film_id],\n    d2.[title] AS [film_title],\n    d2.[description] AS [film_description],\n    d2.[release_year] AS [film_release_year],\n    d2.[language_id] AS [film_language_id],\n    d2.[original_language_id] AS [film_original_language_id],\n    d2.[rental_duration] AS [film_rental_duration],\n    d2.[rental_rate] AS [film_rental_rate],\n    d2.[length] AS [film_length],\n    d2.[replacement_cost] AS [film_replacement_cost],\n    d2.[rating] AS [film_rating],\n    d2.[special_features] AS [film_special_features],\n    d2.[last_update] AS [film_last_update],\n    d3.[language_id] AS [language_language_id],\n    d3.[name] AS [language_name],\n    d3.[last_update] AS [language_last_update]\nFROM [dbo].[film_actor] AS f\n    LEFT JOIN [dbo].[actor] AS d1 ON f.[actor_id] = d1.[actor_id]\n    LEFT JOIN [dbo].[film] AS d2 ON f.[film_id] = d2.[film_id]\n    LEFT JOIN [dbo].[language] AS d3 ON d2.[language_id] = d3.[language_id]",
+    "tables": [
+     "film_actor",
+     "actor",
+     "film",
+     "language"
+    ],
+    "why": "film_actor is a fact table (3 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_film_category",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_film_category] AS\nSELECT\n    f.[film_id] AS [film_id],\n    f.[category_id] AS [category_id],\n    f.[last_update] AS [last_update],\n    d1.[category_id] AS [category_category_id],\n    d1.[name] AS [category_name],\n    d1.[last_update] AS [category_last_update],\n    d2.[film_id] AS [film_film_id],\n    d2.[title] AS [film_title],\n    d2.[description] AS [film_description],\n    d2.[release_year] AS [film_release_year],\n    d2.[language_id] AS [film_language_id],\n    d2.[original_language_id] AS [film_original_language_id],\n    d2.[rental_duration] AS [film_rental_duration],\n    d2.[rental_rate] AS [film_rental_rate],\n    d2.[length] AS [film_length],\n    d2.[replacement_cost] AS [film_replacement_cost],\n    d2.[rating] AS [film_rating],\n    d2.[special_features] AS [film_special_features],\n    d2.[last_update] AS [film_last_update],\n    d3.[language_id] AS [language_language_id],\n    d3.[name] AS [language_name],\n    d3.[last_update] AS [language_last_update]\nFROM [dbo].[film_category] AS f\n    LEFT JOIN [dbo].[category] AS d1 ON f.[category_id] = d1.[category_id]\n    LEFT JOIN [dbo].[film] AS d2 ON f.[film_id] = d2.[film_id]\n    LEFT JOIN [dbo].[language] AS d3 ON d2.[language_id] = d3.[language_id]",
+    "tables": [
+     "film_category",
+     "category",
+     "film",
+     "language"
+    ],
+    "why": "film_category is a fact table (3 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_payment",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_payment] AS\nSELECT\n    f.[payment_id] AS [payment_id],\n    f.[customer_id] AS [customer_id],\n    f.[staff_id] AS [staff_id],\n    f.[rental_id] AS [rental_id],\n    f.[amount] AS [amount],\n    f.[payment_date] AS [payment_date],\n    f.[last_update] AS [last_update],\n    d1.[customer_id] AS [customer_customer_id],\n    d1.[store_id] AS [customer_store_id],\n    d1.[first_name] AS [customer_first_name],\n    d1.[last_name] AS [customer_last_name],\n    d1.[email] AS [customer_email],\n    d1.[address_id] AS [customer_address_id],\n    d1.[active] AS [customer_active],\n    d1.[create_date] AS [customer_create_date],\n    d1.[last_update] AS [customer_last_update],\n    d2.[rental_id] AS [rental_rental_id],\n    d2.[rental_date] AS [rental_rental_date],\n    d2.[inventory_id] AS [rental_inventory_id],\n    d2.[customer_id] AS [rental_customer_id],\n    d2.[return_date] AS [rental_return_date],\n    d2.[staff_id] AS [rental_staff_id],\n    d2.[last_update] AS [rental_last_update],\n    d3.[staff_id] AS [staff_staff_id],\n    d3.[first_name] AS [staff_first_name],\n    d3.[last_name] AS [staff_last_name],\n    d3.[address_id] AS [staff_address_id],\n    d3.[picture] AS [staff_picture],\n    d3.[email] AS [staff_email],\n    d3.[store_id] AS [staff_store_id],\n    d3.[active] AS [staff_active],\n    d3.[username] AS [staff_username],\n    d3.[password] AS [staff_password],\n    d3.[last_update] AS [staff_last_update],\n    d4.[address_id] AS [address_address_id],\n    d4.[address] AS [address_address],\n    d4.[address2] AS [address_address2],\n    d4.[district] AS [address_district],\n    d4.[city_id] AS [address_city_id],\n    d4.[postal_code] AS [address_postal_code],\n    d4.[phone] AS [address_phone],\n    d4.[last_update] AS [address_last_update],\n    d5.[store_id] AS [store_store_id],\n    d5.[manager_staff_id] AS [store_manager_staff_id],\n    d5.[address_id] AS [store_address_id],\n    d5.[last_update] AS [store_last_update],\n    d6.[inventory_id] AS [inventory_inventory_id],\n    d6.[film_id] AS [inventory_film_id],\n    d6.[store_id] AS [inventory_store_id],\n    d6.[last_update] AS [inventory_last_update],\n    d7.[city_id] AS [city_city_id],\n    d7.[city] AS [city_city],\n    d7.[country_id] AS [city_country_id],\n    d7.[last_update] AS [city_last_update],\n    d8.[film_id] AS [film_film_id],\n    d8.[title] AS [film_title],\n    d8.[description] AS [film_description],\n    d8.[release_year] AS [film_release_year],\n    d8.[language_id] AS [film_language_id],\n    d8.[original_language_id] AS [film_original_language_id],\n    d8.[rental_duration] AS [film_rental_duration],\n    d8.[rental_rate] AS [film_rental_rate],\n    d8.[length] AS [film_length],\n    d8.[replacement_cost] AS [film_replacement_cost],\n    d8.[rating] AS [film_rating],\n    d8.[special_features] AS [film_special_features],\n    d8.[last_update] AS [film_last_update],\n    d9.[country_id] AS [country_country_id],\n    d9.[country] AS [country_country],\n    d9.[last_update] AS [country_last_update],\n    d10.[language_id] AS [language_language_id],\n    d10.[name] AS [language_name],\n    d10.[last_update] AS [language_last_update]\nFROM [dbo].[payment] AS f\n    LEFT JOIN [dbo].[customer] AS d1 ON f.[customer_id] = d1.[customer_id]\n    LEFT JOIN [dbo].[rental] AS d2 ON f.[rental_id] = d2.[rental_id]\n    LEFT JOIN [dbo].[staff] AS d3 ON f.[staff_id] = d3.[staff_id]\n    LEFT JOIN [dbo].[address] AS d4 ON d1.[address_id] = d4.[address_id]\n    LEFT JOIN [dbo].[store] AS d5 ON d1.[store_id] = d5.[store_id]\n    LEFT JOIN [dbo].[inventory] AS d6 ON d2.[inventory_id] = d6.[inventory_id]\n    LEFT JOIN [dbo].[city] AS d7 ON d4.[city_id] = d7.[city_id]\n    LEFT JOIN [dbo].[film] AS d8 ON d6.[film_id] = d8.[film_id]\n    LEFT JOIN [dbo].[country] AS d9 ON d7.[country_id] = d9.[country_id]\n    LEFT JOIN [dbo].[language] AS d10 ON d8.[language_id] = d10.[language_id]",
+    "tables": [
+     "payment",
+     "customer",
+     "rental",
+     "staff",
+     "address",
+     "store",
+     "inventory",
+     "city",
+     "film",
+     "country",
+     "language"
+    ],
+    "why": "payment is a fact table (10 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_film_original_language",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_film_original_language] AS\nSELECT\n    s.[film_id] AS [film_id],\n    s.[title] AS [title],\n    s.[description] AS [description],\n    s.[release_year] AS [release_year],\n    s.[language_id] AS [language_id],\n    s.[original_language_id] AS [original_language_id],\n    s.[rental_duration] AS [rental_duration],\n    s.[rental_rate] AS [rental_rate],\n    s.[length] AS [length],\n    s.[replacement_cost] AS [replacement_cost],\n    s.[rating] AS [rating],\n    s.[special_features] AS [special_features],\n    s.[last_update] AS [last_update],\n    t.[language_id] AS [language_language_id],\n    t.[name] AS [language_name],\n    t.[last_update] AS [language_last_update]\nFROM [dbo].[film] AS s\n    LEFT JOIN [dbo].[language] AS t ON s.[original_language_id] = t.[language_id]",
+    "tables": [
+     "film",
+     "language"
+    ],
+    "why": "film.original_language_id -> language (R4): the column abbreviates or role-prefixes the target"
+   },
+   {
+    "name": "vw_store_manager_staff",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_store_manager_staff] AS\nSELECT\n    s.[store_id] AS [store_id],\n    s.[manager_staff_id] AS [manager_staff_id],\n    s.[address_id] AS [address_id],\n    s.[last_update] AS [last_update],\n    t.[staff_id] AS [staff_staff_id],\n    t.[first_name] AS [staff_first_name],\n    t.[last_name] AS [staff_last_name],\n    t.[address_id] AS [staff_address_id],\n    t.[picture] AS [staff_picture],\n    t.[email] AS [staff_email],\n    t.[store_id] AS [staff_store_id],\n    t.[active] AS [staff_active],\n    t.[username] AS [staff_username],\n    t.[password] AS [staff_password],\n    t.[last_update] AS [staff_last_update]\nFROM [dbo].[store] AS s\n    LEFT JOIN [dbo].[staff] AS t ON s.[manager_staff_id] = t.[staff_id]",
+    "tables": [
+     "store",
+     "staff"
+    ],
+    "why": "store.manager_staff_id -> staff (R4): the column abbreviates or role-prefixes the target"
+   }
+  ]
+ }
+}

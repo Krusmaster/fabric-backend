@@ -1,0 +1,1556 @@
+{
+ "demo_plan": {
+  "ambiguous": [],
+  "engine": "fabric_backend.infer.plan",
+  "keyless": [
+   "audit_log"
+  ],
+  "keys_given": {
+   "order_items": [
+    "order_id",
+    "line_no"
+   ]
+  },
+  "label": "Illustrative demo",
+  "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+  "name": "shop",
+  "relationships": [
+   {
+    "field": "category",
+    "reverse": "products",
+    "rule": "R1",
+    "source": "products",
+    "source_cols": [
+     "category_id"
+    ],
+    "target": "categories",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "field": "customer",
+    "reverse": "addresses",
+    "rule": "R1",
+    "source": "addresses",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "field": "customer",
+    "reverse": "orders",
+    "rule": "R1",
+    "source": "orders",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "field": "order",
+    "reverse": "order_items",
+    "rule": "R1",
+    "source": "order_items",
+    "source_cols": [
+     "order_id"
+    ],
+    "target": "orders",
+    "target_cols": [
+     "order_id"
+    ]
+   },
+   {
+    "field": "product",
+    "reverse": "order_items",
+    "rule": "R1",
+    "source": "order_items",
+    "source_cols": [
+     "product_id"
+    ],
+    "target": "products",
+    "target_cols": [
+     "product_id"
+    ]
+   },
+   {
+    "field": "customer",
+    "reverse": "audit_log",
+    "rule": "R1",
+    "source": "audit_log",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   }
+  ],
+  "rules": {
+   "K0": "declared primary key",
+   "K1": "`keys` override from the caller",
+   "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+   "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
+   "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
+   "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
+   "R0": "declared foreign key",
+   "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key",
+   "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
+   "R3": "all of B's composite key columns appear in A",
+   "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+   "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
+  },
+  "suggestions": [
+   {
+    "column": "ship_to_id",
+    "source": "demo hint, not inferred",
+    "table": "orders",
+    "target": "addresses",
+    "target_cols": [
+     "address_id"
+    ],
+    "why": "the synthetic seed stores address ids in this column"
+   }
+  ],
+  "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+  "tables": [
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": true,
+      "name": "customer_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "name",
+      "type": "string"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "country",
+      "type": "string"
+     }
+    ],
+    "key": [
+     "customer_id"
+    ],
+    "key_rule": "K2",
+    "name": "customers",
+    "rows": 10
+   },
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": true,
+      "name": "id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "name",
+      "type": "string"
+     }
+    ],
+    "key": [
+     "id"
+    ],
+    "key_rule": "K2",
+    "name": "categories",
+    "rows": 3
+   },
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": true,
+      "name": "product_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "name",
+      "type": "string"
+     },
+     {
+      "key": false,
+      "linked": true,
+      "name": "category_id",
+      "type": "int"
+     }
+    ],
+    "key": [
+     "product_id"
+    ],
+    "key_rule": "K2",
+    "name": "products",
+    "rows": 8
+   },
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": false,
+      "name": "address_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": true,
+      "name": "customer_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "city",
+      "type": "string"
+     }
+    ],
+    "key": [
+     "address_id"
+    ],
+    "key_rule": "K2",
+    "name": "addresses",
+    "rows": 17
+   },
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": true,
+      "name": "order_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": true,
+      "name": "customer_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "order_date",
+      "type": "date"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "ship_to_id",
+      "type": "int"
+     }
+    ],
+    "key": [
+     "order_id"
+    ],
+    "key_rule": "K2",
+    "name": "orders",
+    "rows": 60
+   },
+   {
+    "columns": [
+     {
+      "key": true,
+      "linked": true,
+      "name": "order_id",
+      "type": "int"
+     },
+     {
+      "key": true,
+      "linked": false,
+      "name": "line_no",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": true,
+      "name": "product_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "quantity",
+      "type": "double"
+     }
+    ],
+    "key": [
+     "order_id",
+     "line_no"
+    ],
+    "key_rule": "K1",
+    "name": "order_items",
+    "rows": 134
+   },
+   {
+    "columns": [
+     {
+      "key": false,
+      "linked": false,
+      "name": "event",
+      "type": "string"
+     },
+     {
+      "key": false,
+      "linked": true,
+      "name": "customer_id",
+      "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "happened_at",
+      "type": "timestamp"
+     }
+    ],
+    "key": [],
+    "key_rule": "K3",
+    "name": "audit_log",
+    "rows": 40
+   }
+  ],
+  "unlinked": [
+   {
+    "column": "ship_to_id",
+    "note": "no rule matched: not named after another table, and not another table's key name",
+    "table": "orders"
+   }
+  ]
+ },
+ "demo_validation": {
+  "computed": "on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same checks validate_plan runs on a Fabric source",
+  "keys": [
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "distinct": 10,
+    "nulls": 0,
+    "rows": 10,
+    "rule": "K2",
+    "table": "customers",
+    "verdict": "unique in all 10 rows"
+   },
+   {
+    "columns": [
+     "id"
+    ],
+    "distinct": 3,
+    "nulls": 0,
+    "rows": 3,
+    "rule": "K2",
+    "table": "categories",
+    "verdict": "unique in all 3 rows"
+   },
+   {
+    "columns": [
+     "product_id"
+    ],
+    "distinct": 8,
+    "nulls": 0,
+    "rows": 8,
+    "rule": "K2",
+    "table": "products",
+    "verdict": "unique in all 8 rows"
+   },
+   {
+    "columns": [
+     "address_id"
+    ],
+    "distinct": 17,
+    "nulls": 0,
+    "rows": 17,
+    "rule": "K2",
+    "table": "addresses",
+    "verdict": "unique in all 17 rows"
+   },
+   {
+    "columns": [
+     "order_id"
+    ],
+    "distinct": 60,
+    "nulls": 0,
+    "rows": 60,
+    "rule": "K2",
+    "table": "orders",
+    "verdict": "unique in all 60 rows"
+   },
+   {
+    "columns": [
+     "order_id",
+     "line_no"
+    ],
+    "distinct": 134,
+    "nulls": 0,
+    "rows": 134,
+    "rule": "K1",
+    "table": "order_items",
+    "verdict": "unique in all 134 rows"
+   }
+  ],
+  "keys_given": {
+   "order_items": [
+    "order_id",
+    "line_no"
+   ]
+  },
+  "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
+  "relationships": [
+   {
+    "columns": [
+     "category_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 8,
+    "rule": "R1",
+    "source": "products",
+    "target": "categories",
+    "target_columns": [
+     "id"
+    ],
+    "verdict": "holds for all 8 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 17,
+    "rule": "R1",
+    "source": "addresses",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 17 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 60,
+    "rule": "R1",
+    "source": "orders",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 60 rows with a value"
+   },
+   {
+    "columns": [
+     "order_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 134,
+    "rule": "R1",
+    "source": "order_items",
+    "target": "orders",
+    "target_columns": [
+     "order_id"
+    ],
+    "verdict": "holds for all 134 rows with a value"
+   },
+   {
+    "columns": [
+     "product_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 134,
+    "rule": "R1",
+    "source": "order_items",
+    "target": "products",
+    "target_columns": [
+     "product_id"
+    ],
+    "verdict": "holds for all 134 rows with a value"
+   },
+   {
+    "columns": [
+     "customer_id"
+    ],
+    "orphans": 0,
+    "rows_with_value": 40,
+    "rule": "R1",
+    "source": "audit_log",
+    "target": "customers",
+    "target_columns": [
+     "customer_id"
+    ],
+    "verdict": "holds for all 40 rows with a value"
+   }
+  ],
+  "suggested_keys": [],
+  "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+ },
+ "folder": {
+  "analysis": {
+   "areas": [
+    {
+     "central_table": "kunder",
+     "name": "kunder area",
+     "tables": [
+      "kunder",
+      "ordrar"
+     ]
+    }
+   ],
+   "central": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.6491,
+     "role": "dimension",
+     "table": "kunder"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 0,
+     "out": 1,
+     "pagerank": 0.3509,
+     "role": "fact",
+     "table": "ordrar"
+    }
+   ],
+   "inactive": [],
+   "roles": {
+    "kunder": {
+     "role": "dimension",
+     "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+    },
+    "ordrar": {
+     "role": "fact",
+     "why": "nothing points at it, 1 reference(s) out, measures 1.0; out 1, in 0, betweenness 0.0, measure share 1.0"
+    }
+   },
+   "summary": "2 tables, 1 relationships; roles: 1 fact, 1 dimension; 1 relationships can be active at once, 0 would be inactive; 0 cycle(s)"
+  },
+  "current_step": 2,
+  "decisions": {
+   "confirmed": [],
+   "keys": {},
+   "skipped": []
+  },
+  "exports": [
+   {
+    "href": "/export/dictionary.md",
+    "name": "dictionary.md"
+   },
+   {
+    "href": "/export/schema.yml",
+    "name": "schema.yml"
+   },
+   {
+    "href": "/export/lovable-prompt.md",
+    "name": "lovable-prompt.md"
+   },
+   {
+    "href": "/export/plan.json",
+    "name": "plan.json"
+   },
+   {
+    "href": "/export/er.mmd",
+    "name": "er.mmd"
+   }
+  ],
+  "health": {
+   "checked": true,
+   "findings": [
+    {
+     "accepted": false,
+     "can_accept": false,
+     "evidence": "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[kund_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [data].[ordrar] AS s LEFT JOIN (SELECT DISTINCT [kund_id] FROM [data].[kunder]) AS t ON s.[kund_id] = t.[kund_id] WHERE s.[kund_id] IS NOT NULL",
+     "id": "rel:ordrar.kund_id>kunder",
+     "kind": "relationship",
+     "means": "Either the link is right and the data has gaps (deleted parents, loads out of order), or the column points at another table. Both are worth knowing before an app is built on it.",
+     "next": {
+      "sql": "SELECT s.* FROM [data].[ordrar] AS s LEFT JOIN [data].[kunder] AS t ON s.[kund_id] = t.[kund_id] WHERE t.[kund_id] IS NULL AND s.[kund_id] IS NOT NULL"
+     },
+     "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",
+     "saw": "3 rows with a value, 1 of them point at nothing in kunder (rule R2). 1 of 3 rows (33.3%) point at nothing.",
+     "severity": "warning",
+     "skipped": false,
+     "table": "ordrar",
+     "title": "ordrar.kund_id → kunder: 1 orphan(s)"
+    }
+   ],
+   "note": "Counts over the whole tables now. Accepting a suggestion is your decision; nothing here calls it verified.",
+   "open": 1,
+   "summary": "2 of 2 keys unique, 0 of 1 relationships hold without orphans"
+  },
+  "host": "127.0.0.1",
+  "now": "<time>",
+  "plan": {
+   "ambiguous": [],
+   "keyless": [],
+   "mermaid": "erDiagram\n  kunder {\n    kund_id int PK\n    namn text\n    ort text\n  }\n  ordrar {\n    order_id int PK\n    kund_id int\n    belopp real\n    datum date\n  }\n  kunder ||--o{ ordrar : \"kund_id R2\"",
+   "name": "data",
+   "relationships": [
+    {
+     "accepted_here": false,
+     "field": "kunder",
+     "reverse": "ordrar",
+     "rule": "R2",
+     "source": "ordrar",
+     "source_cols": [
+      "kund_id"
+     ],
+     "target": "kunder",
+     "target_cols": [
+      "kund_id"
+     ]
+    }
+   ],
+   "rules": {
+    "K0": "declared primary key",
+    "K1": "`keys` override from the caller",
+    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+    "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
+    "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
+    "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
+    "R0": "declared foreign key",
+    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key",
+    "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
+    "R3": "all of B's composite key columns appear in A",
+    "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+    "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
+   },
+   "summary": "2 tables, 2 with keys, 1 relationships\n2 name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms",
+   "tables": [
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "kund_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "namn",
+       "type": "text"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "ort",
+       "type": "text"
+      }
+     ],
+     "key": [
+      "kund_id"
+     ],
+     "key_rule": "K2",
+     "name": "kunder"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": false,
+       "name": "order_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "kund_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "belopp",
+       "type": "real"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "datum",
+       "type": "date"
+      }
+     ],
+     "key": [
+      "order_id"
+     ],
+     "key_rule": "K2",
+     "name": "ordrar"
+    }
+   ]
+  },
+  "questions": [
+   {
+    "columns": [
+     "namn",
+     "rows"
+    ],
+    "id": "count:ordrar>kunder",
+    "rows": [
+     [
+      "Två AB",
+      "1"
+     ],
+     [
+      "Ett AB",
+      "1"
+     ]
+    ],
+    "sql": "SELECT t.[namn] AS [namn], COUNT(*) AS [rows]\nFROM [data].[ordrar] AS s\nJOIN [data].[kunder] AS t ON s.[kund_id] = t.[kund_id]\nGROUP BY t.[namn]\nORDER BY COUNT(*) DESC\nLIMIT 10",
+    "title": "How many ordrar rows per kunder?",
+    "why": "ordrar.kund_id points at kunder (rule R2); namn names each kunder row."
+   },
+   {
+    "columns": [
+     "namn",
+     "total_belopp"
+    ],
+    "id": "sum:ordrar.belopp>kunder",
+    "rows": [
+     [
+      "Ett AB",
+      "99.5"
+     ],
+     [
+      "Två AB",
+      "12"
+     ]
+    ],
+    "sql": "SELECT t.[namn] AS [namn], SUM(s.[belopp]) AS [total_belopp]\nFROM [data].[ordrar] AS s\nJOIN [data].[kunder] AS t ON s.[kund_id] = t.[kund_id]\nGROUP BY t.[namn]\nORDER BY SUM(s.[belopp]) DESC\nLIMIT 10",
+    "title": "Total belopp per kunder",
+    "why": "belopp is a number in ordrar that is neither its key nor a reference; summed over the R2 link to kunder."
+   },
+   {
+    "columns": [],
+    "id": "none:kunder<ordrar",
+    "rows": [],
+    "sql": "SELECT t.[namn] AS [namn]\nFROM [data].[kunder] AS t\nLEFT JOIN [data].[ordrar] AS s ON s.[kund_id] = t.[kund_id]\nWHERE s.[kund_id] IS NULL\nORDER BY t.[namn]\nLIMIT 10",
+    "title": "Which kunder have no ordrar?",
+    "why": "Rows of kunder that nothing in ordrar points at: often the first data-quality question a customer asks."
+   },
+   {
+    "columns": [
+     "month",
+     "rows"
+    ],
+    "id": "month:ordrar.datum",
+    "rows": [
+     [
+      "2026-10",
+      "3"
+     ]
+    ],
+    "sql": "SELECT substr([datum], 1, 7) AS [month], COUNT(*) AS [rows]\nFROM [data].[ordrar]\nWHERE [datum] IS NOT NULL\nGROUP BY substr([datum], 1, 7)\nORDER BY substr([datum], 1, 7) DESC\nLIMIT 12",
+    "title": "Rows in ordrar per month",
+    "why": "datum is a date column; the month profile shows how far the data reaches and where the gaps are."
+   },
+   {
+    "columns": [
+     "table_name",
+     "rows"
+    ],
+    "id": "counts",
+    "rows": [
+     [
+      "kunder",
+      "2"
+     ],
+     [
+      "ordrar",
+      "3"
+     ]
+    ],
+    "sql": "SELECT 'kunder' AS [table_name], COUNT(*) AS [rows] FROM [data].[kunder]\nUNION ALL\nSELECT 'ordrar' AS [table_name], COUNT(*) AS [rows] FROM [data].[ordrar]",
+    "title": "How many rows in every table?",
+    "why": "The first thing to know, and the fastest way to see that the connection works."
+   }
+  ],
+  "source": {
+   "dialect": "sqlite",
+   "has_data": true,
+   "kind": "folder",
+   "label": "2 table(s) from <folder>",
+   "notes": [
+    "kunder.csv → kunder: 2 rows, 3 columns",
+    "ordrar.csv → ordrar: 3 rows, 4 columns"
+   ],
+   "schema": "data",
+   "tables": 2
+  },
+  "started": "<time>",
+  "steps": [
+   {
+    "current": false,
+    "entered": "<time>",
+    "key": "connect",
+    "minutes": 4,
+    "n": 1,
+    "title": "Connect",
+    "what": "Point the demo at the customer's data. The page talks only to that database or folder."
+   },
+   {
+    "current": true,
+    "entered": "<time>",
+    "key": "map",
+    "minutes": 4,
+    "n": 2,
+    "title": "The map",
+    "what": "Keys and relationships, each with the rule that made it. Roles and subject areas."
+   },
+   {
+    "current": false,
+    "entered": null,
+    "key": "health",
+    "minutes": 7,
+    "n": 3,
+    "title": "Health check",
+    "what": "The plan checked against the rows. Each finding: what we saw, what it means, the next step, the evidence."
+   },
+   {
+    "current": false,
+    "entered": null,
+    "key": "value",
+    "minutes": 5,
+    "n": 4,
+    "title": "The value",
+    "what": "Five questions the data can answer, run here with the SQL shown. Exports for the hand-over."
+   }
+  ]
+ },
+ "sample": {
+  "analysis": {
+   "areas": [
+    {
+     "central_table": "customers",
+     "name": "customers area",
+     "tables": [
+      "addresses",
+      "audit_log",
+      "categories",
+      "customers",
+      "order_items",
+      "orders",
+      "products"
+     ]
+    }
+   ],
+   "central": [
+    {
+     "betweenness": 0.6,
+     "in": 3,
+     "out": 0,
+     "pagerank": 0.3267,
+     "role": "dimension",
+     "table": "customers"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1847,
+     "role": "dimension",
+     "table": "categories"
+    },
+    {
+     "betweenness": 0.6,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.119,
+     "role": "fact",
+     "table": "orders"
+    },
+    {
+     "betweenness": 0.3333,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.119,
+     "role": "dimension",
+     "table": "products"
+    },
+    {
+     "betweenness": 0.5333,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0835,
+     "role": "fact",
+     "table": "order_items"
+    }
+   ],
+   "inactive": [],
+   "roles": {
+    "addresses": {
+     "role": "dimension",
+     "why": "a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0"
+    },
+    "audit_log": {
+     "role": "fact",
+     "why": "nothing points at it, 1 reference(s) out, measures 0.5; out 1, in 0, betweenness 0.0, measure share 0.5"
+    },
+    "categories": {
+     "role": "dimension",
+     "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+    },
+    "customers": {
+     "role": "dimension",
+     "why": "3 reference(s) in, 0 out, few measures (0.0); out 0, in 3, betweenness 0.6, measure share 0.0"
+    },
+    "order_items": {
+     "role": "fact",
+     "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.5333, measure share 1.0"
+    },
+    "orders": {
+     "role": "fact",
+     "why": "pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table); out 1, in 1, betweenness 0.6, measure share 1.0"
+    },
+    "products": {
+     "role": "dimension",
+     "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.3333, measure share 0.0"
+    }
+   },
+   "summary": "7 tables, 6 relationships; roles: 3 fact, 4 dimension; 6 relationships can be active at once, 0 would be inactive; 0 cycle(s)"
+  },
+  "current_step": 2,
+  "decisions": {
+   "confirmed": [],
+   "keys": {},
+   "skipped": []
+  },
+  "exports": [
+   {
+    "href": "/export/dictionary.md",
+    "name": "dictionary.md"
+   },
+   {
+    "href": "/export/schema.yml",
+    "name": "schema.yml"
+   },
+   {
+    "href": "/export/lovable-prompt.md",
+    "name": "lovable-prompt.md"
+   },
+   {
+    "href": "/export/plan.json",
+    "name": "plan.json"
+   },
+   {
+    "href": "/export/er.mmd",
+    "name": "er.mmd"
+   }
+  ],
+  "health": {
+   "checked": true,
+   "findings": [
+    {
+     "accepted": false,
+     "can_accept": true,
+     "evidence": "SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.[address_id]) AS matched, COUNT_BIG(DISTINCT s.[ship_to_id]) AS distinct_values FROM [shop].[orders] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [shop].[addresses]) AS t ON s.[ship_to_id] = t.[address_id] WHERE s.[ship_to_id] IS NOT NULL",
+     "id": "sug:orders.ship_to_id>addresses",
+     "kind": "suggestion",
+     "means": "Every value exists in the target key and there are enough distinct values for that to mean something: orders.ship_to_id (int) is in no relationship and matches the type of addresses.address_id; an address role (ship-to, bill-to, mail-to) (0.6); closes a triangle orders -> customers <- addresses (certainty 0.64)",
+     "next": {
+      "confirmed": {
+       "source": "orders",
+       "source_cols": [
+        "ship_to_id"
+       ],
+       "target": "addresses",
+       "target_cols": [
+        "address_id"
+       ]
+      }
+     },
+     "next_text": "Accept to add it as a confirmed relationship; Skip to leave the column alone. Accepted is your decision, not a verified fact.",
+     "saw": "60 rows with a value, 60 found in addresses's key, 15 distinct values (inclusion 100%). every value exists in the target key.",
+     "severity": "suggestion",
+     "skipped": false,
+     "strength": "strong",
+     "table": "orders",
+     "title": "Suggested: orders.ship_to_id → addresses.address_id"
+    },
+    {
+     "accepted": false,
+     "can_accept": false,
+     "evidence": "names only",
+     "id": "nokey:audit_log",
+     "kind": "keyless",
+     "means": "The table can be listed and can point at others, but nothing can point at it. Logs and event tables are often like this, and that is fine.",
+     "next": {
+      "sql": "SELECT COUNT(*) AS n, COUNT(DISTINCT [event]) AS distinct_first FROM [shop].[audit_log]"
+     },
+     "next_text": "If it does have a key, give it as `keys`.",
+     "saw": "No column is named like a key (rule K3), and none of the first six columns is unique.",
+     "severity": "info",
+     "skipped": false,
+     "table": "audit_log",
+     "title": "audit_log has no key"
+    }
+   ],
+   "note": "Counts over the whole tables now. Accepting a suggestion is your decision; nothing here calls it verified.",
+   "open": 2,
+   "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+  },
+  "host": "127.0.0.1",
+  "now": "<time>",
+  "plan": {
+   "ambiguous": [],
+   "keyless": [
+    "audit_log"
+   ],
+   "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+   "name": "shop",
+   "relationships": [
+    {
+     "accepted_here": false,
+     "field": "category",
+     "reverse": "products",
+     "rule": "R1",
+     "source": "products",
+     "source_cols": [
+      "category_id"
+     ],
+     "target": "categories",
+     "target_cols": [
+      "id"
+     ]
+    },
+    {
+     "accepted_here": false,
+     "field": "customer",
+     "reverse": "addresses",
+     "rule": "R1",
+     "source": "addresses",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "accepted_here": false,
+     "field": "customer",
+     "reverse": "orders",
+     "rule": "R1",
+     "source": "orders",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "accepted_here": false,
+     "field": "order",
+     "reverse": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "order_id"
+     ],
+     "target": "orders",
+     "target_cols": [
+      "order_id"
+     ]
+    },
+    {
+     "accepted_here": false,
+     "field": "product",
+     "reverse": "order_items",
+     "rule": "R1",
+     "source": "order_items",
+     "source_cols": [
+      "product_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ]
+    },
+    {
+     "accepted_here": false,
+     "field": "customer",
+     "reverse": "audit_log",
+     "rule": "R1",
+     "source": "audit_log",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    }
+   ],
+   "rules": {
+    "K0": "declared primary key",
+    "K1": "`keys` override from the caller",
+    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+    "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
+    "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
+    "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
+    "R0": "declared foreign key",
+    "R1": "column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key",
+    "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
+    "R3": "all of B's composite key columns appear in A",
+    "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+    "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
+   },
+   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "tables": [
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "customer_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "name",
+       "type": "string"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "country",
+       "type": "string"
+      }
+     ],
+     "key": [
+      "customer_id"
+     ],
+     "key_rule": "K2",
+     "name": "customers"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "name",
+       "type": "string"
+      }
+     ],
+     "key": [
+      "id"
+     ],
+     "key_rule": "K2",
+     "name": "categories"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "product_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "name",
+       "type": "string"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "category_id",
+       "type": "int"
+      }
+     ],
+     "key": [
+      "product_id"
+     ],
+     "key_rule": "K2",
+     "name": "products"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": false,
+       "name": "address_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "customer_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "city",
+       "type": "string"
+      }
+     ],
+     "key": [
+      "address_id"
+     ],
+     "key_rule": "K2",
+     "name": "addresses"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "order_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "customer_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "order_date",
+       "type": "date"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "ship_to_id",
+       "type": "int"
+      }
+     ],
+     "key": [
+      "order_id"
+     ],
+     "key_rule": "K2",
+     "name": "orders"
+    },
+    {
+     "columns": [
+      {
+       "key": true,
+       "linked": true,
+       "name": "order_id",
+       "type": "int"
+      },
+      {
+       "key": true,
+       "linked": false,
+       "name": "line_no",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "product_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "quantity",
+       "type": "double"
+      }
+     ],
+     "key": [
+      "order_id",
+      "line_no"
+     ],
+     "key_rule": "K5",
+     "name": "order_items"
+    },
+    {
+     "columns": [
+      {
+       "key": false,
+       "linked": false,
+       "name": "event",
+       "type": "string"
+      },
+      {
+       "key": false,
+       "linked": true,
+       "name": "customer_id",
+       "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "happened_at",
+       "type": "timestamp"
+      }
+     ],
+     "key": [],
+     "key_rule": "K3",
+     "name": "audit_log"
+    }
+   ]
+  },
+  "questions": [
+   {
+    "columns": [
+     "name",
+     "rows"
+    ],
+    "id": "count:orders>customers",
+    "rows": [
+     [
+      "Moorland Tea Co",
+      "8"
+     ],
+     [
+      "Heath Cycles",
+      "8"
+     ],
+     [
+      "Fjord Outdoor",
+      "8"
+     ],
+     [
+      "Elbe Sport",
+      "8"
+     ],
+     [
+      "Baltic Leaf",
+      "8"
+     ],
+     [
+      "Rhine Velo",
+      "5"
+     ],
+     [
+      "Nordic Pedal",
+      "5"
+     ],
+     [
+      "Harbour Bikes",
+      "5"
+     ],
+     [
+      "Lakeside Tea House",
+      "4"
+     ],
+     [
+      "Gotland Gear",
+      "1"
+     ]
+    ],
+    "sql": "SELECT t.[name] AS [name], COUNT(*) AS [rows]\nFROM [shop].[orders] AS s\nJOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id]\nGROUP BY t.[name]\nORDER BY COUNT(*) DESC\nLIMIT 10",
+    "title": "How many orders rows per customers?",
+    "why": "orders.customer_id points at customers (rule R1); name names each customers row."
+   },
+   {
+    "columns": [
+     "name",
+     "total_quantity"
+    ],
+    "id": "sum:order_items.quantity>products",
+    "rows": [
+     [
+      "Black tea 100 g",
+      "59"
+     ],
+     [
+      "Bottle",
+      "51"
+     ],
+     [
+      "Rooibos 100 g",
+      "48"
+     ],
+     [
+      "City bike",
+      "39"
+     ],
+     [
+      "Lights set",
+      "38"
+     ],
+     [
+      "Green tea 100 g",
+      "34"
+     ],
+     [
+      "Helmet",
+      "31"
+     ],
+     [
+      "Trail bike",
+      "24"
+     ]
+    ],
+    "sql": "SELECT t.[name] AS [name], SUM(s.[quantity]) AS [total_quantity]\nFROM [shop].[order_items] AS s\nJOIN [shop].[products] AS t ON s.[product_id] = t.[product_id]\nGROUP BY t.[name]\nORDER BY SUM(s.[quantity]) DESC\nLIMIT 10",
+    "title": "Total quantity per products",
+    "why": "quantity is a number in order_items that is neither its key nor a reference; summed over the R1 link to products."
+   },
+   {
+    "columns": [],
+    "id": "none:customers<orders",
+    "rows": [],
+    "sql": "SELECT t.[name] AS [name]\nFROM [shop].[customers] AS t\nLEFT JOIN [shop].[orders] AS s ON s.[customer_id] = t.[customer_id]\nWHERE s.[customer_id] IS NULL\nORDER BY t.[name]\nLIMIT 10",
+    "title": "Which customers have no orders?",
+    "why": "Rows of customers that nothing in orders points at: often the first data-quality question a customer asks."
+   },
+   {
+    "columns": [
+     "month",
+     "rows"
+    ],
+    "id": "month:orders.order_date",
+    "rows": [
+     [
+      "2026-10",
+      "36"
+     ],
+     [
+      "2026-09",
+      "24"
+     ]
+    ],
+    "sql": "SELECT substr([order_date], 1, 7) AS [month], COUNT(*) AS [rows]\nFROM [shop].[orders]\nWHERE [order_date] IS NOT NULL\nGROUP BY substr([order_date], 1, 7)\nORDER BY substr([order_date], 1, 7) DESC\nLIMIT 12",
+    "title": "Rows in orders per month",
+    "why": "order_date is a date column; the month profile shows how far the data reaches and where the gaps are."
+   },
+   {
+    "columns": [
+     "addresses_address_id",
+     "id",
+     "name"
+    ],
+    "id": "path:addresses>categories",
+    "rows": [
+     [
+      "1",
+      "1",
+      "Bikes"
+     ],
+     [
+      "1",
+      "3",
+      "Accessories"
+     ],
+     [
+      "1",
+      "2",
+      "Tea"
+     ],
+     [
+      "1",
+      "3",
+      "Accessories"
+     ],
+     [
+      "1",
+      "2",
+      "Tea"
+     ],
+     [
+      "1",
+      "2",
+      "Tea"
+     ],
+     [
+      "1",
+      "2",
+      "Tea"
+     ],
+     [
+      "1",
+      "3",
+      "Accessories"
+     ],
+     [
+      "1",
+      "2",
+      "Tea"
+     ],
+     [
+      "1",
+      "3",
+      "Accessories"
+     ]
+    ],
+    "sql": "SELECT t0.[address_id] AS [addresses_address_id], t5.[id], t5.[name]\nFROM [shop].[addresses] AS t0\nJOIN [shop].[customers] AS t1 ON t0.[customer_id] = t1.[customer_id]\nJOIN [shop].[orders] AS t2 ON t1.[customer_id] = t2.[customer_id]\nJOIN [shop].[order_items] AS t3 ON t2.[order_id] = t3.[order_id]\nJOIN [shop].[products] AS t4 ON t3.[product_id] = t4.[product_id]\nJOIN [shop].[categories] AS t5 ON t4.[category_id] = t5.[id]\nLIMIT 10",
+    "title": "From addresses to categories in one query",
+    "why": "The longest shortest path in the graph: addresses → customers → orders → order_items → products → categories. join_path writes this SQL."
+   }
+  ],
+  "source": {
+   "dialect": "sqlite",
+   "has_data": true,
+   "kind": "sample",
+   "label": "Synthetic shop data (seven tables, no real company)",
+   "notes": [
+    "Synthetic rows from fabric_backend.seed: invented shop names, no customer data."
+   ],
+   "schema": "shop",
+   "tables": 7
+  },
+  "started": "<time>",
+  "steps": [
+   {
+    "current": false,
+    "entered": "<time>",
+    "key": "connect",
+    "minutes": 4,
+    "n": 1,
+    "title": "Connect",
+    "what": "Point the demo at the customer's data. The page talks only to that database or folder."
+   },
+   {
+    "current": true,
+    "entered": "<time>",
+    "key": "map",
+    "minutes": 4,
+    "n": 2,
+    "title": "The map",
+    "what": "Keys and relationships, each with the rule that made it. Roles and subject areas."
+   },
+   {
+    "current": false,
+    "entered": null,
+    "key": "health",
+    "minutes": 7,
+    "n": 3,
+    "title": "Health check",
+    "what": "The plan checked against the rows. Each finding: what we saw, what it means, the next step, the evidence."
+   },
+   {
+    "current": false,
+    "entered": null,
+    "key": "value",
+    "minutes": 5,
+    "n": 4,
+    "title": "The value",
+    "what": "Five questions the data can answer, run here with the SQL shown. Exports for the hand-over."
+   }
+  ]
+ }
+}

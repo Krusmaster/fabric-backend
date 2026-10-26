@@ -1,0 +1,1195 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "L_ORDERKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "LINEITEM",
+    "target": "ORDERS",
+    "target_columns": [
+     "O_ORDERKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "L_PARTKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "LINEITEM",
+    "target": "PART",
+    "target_columns": [
+     "P_PARTKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "PS_PARTKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "PARTSUPP",
+    "target": "PART",
+    "target_columns": [
+     "P_PARTKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "C_NATIONKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "CUSTOMER",
+    "target": "NATION",
+    "target_columns": [
+     "N_NATIONKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "N_REGIONKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "NATION",
+    "target": "REGION",
+    "target_columns": [
+     "R_REGIONKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "S_NATIONKEY"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "SUPPLIER",
+    "target": "NATION",
+    "target_columns": [
+     "N_NATIONKEY"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "L_SUPPKEY"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "LINEITEM",
+    "target": "SUPPLIER",
+    "target_columns": [
+     "S_SUPPKEY"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [
+    {
+     "closed_by": "PARTSUPP.PS_SUPPKEY -> SUPPLIER (R2)",
+     "tables": [
+      "PARTSUPP",
+      "PART",
+      "LINEITEM",
+      "SUPPLIER"
+     ]
+    },
+    {
+     "closed_by": "ORDERS.O_CUSTKEY -> CUSTOMER (R2)",
+     "tables": [
+      "ORDERS",
+      "LINEITEM",
+      "SUPPLIER",
+      "NATION",
+      "CUSTOMER"
+     ]
+    },
+    {
+     "closed_by": "LINEITEM.L_PARTKEY+L_SUPPKEY -> PARTSUPP (R3)",
+     "tables": [
+      "LINEITEM",
+      "PART",
+      "PARTSUPP"
+     ]
+    }
+   ],
+   "note": "every relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive",
+   "pairs_with_multiple_paths": [
+    [
+     "CUSTOMER",
+     "LINEITEM"
+    ],
+    [
+     "CUSTOMER",
+     "NATION"
+    ],
+    [
+     "CUSTOMER",
+     "ORDERS"
+    ],
+    [
+     "CUSTOMER",
+     "SUPPLIER"
+    ],
+    [
+     "LINEITEM",
+     "NATION"
+    ],
+    [
+     "LINEITEM",
+     "ORDERS"
+    ],
+    [
+     "LINEITEM",
+     "PART"
+    ],
+    [
+     "LINEITEM",
+     "PARTSUPP"
+    ],
+    [
+     "LINEITEM",
+     "SUPPLIER"
+    ],
+    [
+     "NATION",
+     "ORDERS"
+    ],
+    [
+     "NATION",
+     "SUPPLIER"
+    ],
+    [
+     "ORDERS",
+     "SUPPLIER"
+    ],
+    [
+     "PART",
+     "PARTSUPP"
+    ],
+    [
+     "PART",
+     "SUPPLIER"
+    ],
+    [
+     "PARTSUPP",
+     "SUPPLIER"
+    ]
+   ]
+  },
+  "areas": [
+   {
+    "central_table": "PART",
+    "name": "PART area",
+    "tables": [
+     "LINEITEM",
+     "ORDERS",
+     "PART",
+     "PARTSUPP",
+     "SUPPLIER"
+    ]
+   },
+   {
+    "central_table": "REGION",
+    "name": "REGION area",
+    "tables": [
+     "CUSTOMER",
+     "NATION",
+     "REGION"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "CUSTOMER": 0.0952,
+    "LINEITEM": 0.2857,
+    "NATION": 0.3571,
+    "ORDERS": 0.119,
+    "PART": 0.0,
+    "PARTSUPP": 0.0714,
+    "REGION": 0.0,
+    "SUPPLIER": 0.3095
+   },
+   "degree": {
+    "CUSTOMER": {
+     "in": 1,
+     "out": 1
+    },
+    "LINEITEM": {
+     "in": 0,
+     "out": 4
+    },
+    "NATION": {
+     "in": 2,
+     "out": 1
+    },
+    "ORDERS": {
+     "in": 1,
+     "out": 1
+    },
+    "PART": {
+     "in": 2,
+     "out": 0
+    },
+    "PARTSUPP": {
+     "in": 1,
+     "out": 2
+    },
+    "REGION": {
+     "in": 1,
+     "out": 0
+    },
+    "SUPPLIER": {
+     "in": 2,
+     "out": 1
+    }
+   },
+   "pagerank": {
+    "CUSTOMER": 0.1149,
+    "LINEITEM": 0.0566,
+    "NATION": 0.2374,
+    "ORDERS": 0.0686,
+    "PART": 0.0978,
+    "PARTSUPP": 0.0686,
+    "REGION": 0.2584,
+    "SUPPLIER": 0.0978
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.2584,
+     "role": "dimension",
+     "table": "REGION"
+    },
+    {
+     "betweenness": 0.3571,
+     "in": 2,
+     "out": 1,
+     "pagerank": 0.2374,
+     "role": "dimension",
+     "table": "NATION"
+    },
+    {
+     "betweenness": 0.0952,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.1149,
+     "role": "dimension",
+     "table": "CUSTOMER"
+    },
+    {
+     "betweenness": 0.3095,
+     "in": 2,
+     "out": 1,
+     "pagerank": 0.0978,
+     "role": "dimension",
+     "table": "SUPPLIER"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.0978,
+     "role": "dimension",
+     "table": "PART"
+    },
+    {
+     "betweenness": 0.119,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.0686,
+     "role": "fact",
+     "table": "ORDERS"
+    },
+    {
+     "betweenness": 0.0714,
+     "in": 1,
+     "out": 2,
+     "pagerank": 0.0686,
+     "role": "bridge",
+     "table": "PARTSUPP"
+    },
+    {
+     "betweenness": 0.2857,
+     "in": 0,
+     "out": 4,
+     "pagerank": 0.0566,
+     "role": "fact",
+     "table": "LINEITEM"
+    }
+   ]
+  },
+  "inactive_relationships": [
+   {
+    "certainty": 0.6,
+    "columns": [
+     "PS_SUPPKEY"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "PARTSUPP",
+    "target": "SUPPLIER",
+    "target_columns": [
+     "S_SUPPKEY"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with PARTSUPP - PART - LINEITEM - SUPPLIER; the active path has certainty 0.6, this link 0.6"
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "O_CUSTKEY"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "ORDERS",
+    "target": "CUSTOMER",
+    "target_columns": [
+     "C_CUSTKEY"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with ORDERS - LINEITEM - SUPPLIER - NATION - CUSTOMER; the active path has certainty 0.6, this link 0.6"
+   },
+   {
+    "certainty": 0.5,
+    "columns": [
+     "L_PARTKEY",
+     "L_SUPPKEY"
+    ],
+    "cost": 2.0,
+    "rule": "R3",
+    "source": "LINEITEM",
+    "target": "PARTSUPP",
+    "target_columns": [
+     "PS_PARTKEY",
+     "PS_SUPPKEY"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with LINEITEM - PART - PARTSUPP; the active path has certainty 0.8, this link 0.5"
+   }
+  ],
+  "roles": {
+   "CUSTOMER": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.17); out 1, in 1, betweenness 0.0952, measure share 0.17"
+   },
+   "LINEITEM": {
+    "role": "fact",
+    "why": "nothing points at it, 4 reference(s) out, measures 0.58; out 4, in 0, betweenness 0.2857, measure share 0.58"
+   },
+   "NATION": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 1 out, few measures (0.0); out 1, in 2, betweenness 0.3571, measure share 0.0"
+   },
+   "ORDERS": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 1 reference(s) out, measures 0.43 (a header table); out 1, in 1, betweenness 0.119, measure share 0.43"
+   },
+   "PART": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out, few measures (0.25); out 0, in 2, betweenness 0.0, measure share 0.25"
+   },
+   "PARTSUPP": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 1, betweenness 0.0714, measure share 0.67"
+   },
+   "REGION": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "SUPPLIER": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 1 out, few measures (0.2); out 1, in 2, betweenness 0.3095, measure share 0.2"
+   }
+  },
+  "summary": "8 tables, 10 relationships; roles: 2 fact, 5 dimension, 1 bridge; 7 relationships can be active at once, 3 would be inactive; 3 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: NATION\n        columns:\n          - name: N_NATIONKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: N_NAME\n            description: \"\"  # char\n          - name: N_REGIONKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'REGION')\n                    field: R_REGIONKEY\n          - name: N_COMMENT\n            description: \"\"  # varchar\n      - name: REGION\n        columns:\n          - name: R_REGIONKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: R_NAME\n            description: \"\"  # char\n          - name: R_COMMENT\n            description: \"\"  # varchar\n      - name: PART\n        columns:\n          - name: P_PARTKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: P_NAME\n            description: \"\"  # varchar\n          - name: P_MFGR\n            description: \"\"  # char\n          - name: P_BRAND\n            description: \"\"  # char\n          - name: P_TYPE\n            description: \"\"  # varchar\n          - name: P_SIZE\n            description: \"\"  # integer\n          - name: P_CONTAINER\n            description: \"\"  # char\n          - name: P_RETAILPRICE\n            description: \"\"  # decimal\n          - name: P_COMMENT\n            description: \"\"  # varchar\n      - name: SUPPLIER\n        columns:\n          - name: S_SUPPKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: S_NAME\n            description: \"\"  # char\n          - name: S_ADDRESS\n            description: \"\"  # varchar\n          - name: S_NATIONKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'NATION')\n                    field: N_NATIONKEY\n          - name: S_PHONE\n            description: \"\"  # char\n          - name: S_ACCTBAL\n            description: \"\"  # decimal\n          - name: S_COMMENT\n            description: \"\"  # varchar\n      - name: PARTSUPP\n        # composite key PS_PARTKEY+PS_SUPPKEY (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [PS_PARTKEY, PS_SUPPKEY]\n        columns:\n          - name: PS_PARTKEY\n            description: \"\"  # integer\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'PART')\n                    field: P_PARTKEY\n          - name: PS_SUPPKEY\n            description: \"\"  # integer\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'SUPPLIER')\n                    field: S_SUPPKEY\n          - name: PS_AVAILQTY\n            description: \"\"  # integer\n          - name: PS_SUPPLYCOST\n            description: \"\"  # decimal\n          - name: PS_COMMENT\n            description: \"\"  # varchar\n      - name: CUSTOMER\n        columns:\n          - name: C_CUSTKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: C_NAME\n            description: \"\"  # varchar\n          - name: C_ADDRESS\n            description: \"\"  # varchar\n          - name: C_NATIONKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'NATION')\n                    field: N_NATIONKEY\n          - name: C_PHONE\n            description: \"\"  # char\n          - name: C_ACCTBAL\n            description: \"\"  # decimal\n          - name: C_MKTSEGMENT\n            description: \"\"  # char\n          - name: C_COMMENT\n            description: \"\"  # varchar\n      - name: ORDERS\n        columns:\n          - name: O_ORDERKEY\n            description: \"\"  # integer\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: O_CUSTKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'CUSTOMER')\n                    field: C_CUSTKEY\n          - name: O_ORDERSTATUS\n            description: \"\"  # char\n          - name: O_TOTALPRICE\n            description: \"\"  # decimal\n          - name: O_ORDERDATE\n            description: \"\"  # date\n          - name: O_ORDERPRIORITY\n            description: \"\"  # char\n          - name: O_CLERK\n            description: \"\"  # char\n          - name: O_SHIPPRIORITY\n            description: \"\"  # integer\n          - name: O_COMMENT\n            description: \"\"  # varchar\n      - name: LINEITEM\n        # composite key L_ORDERKEY+L_LINENUMBER (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [L_ORDERKEY, L_LINENUMBER]\n        # relationship L_PARTKEY+L_SUPPKEY -> PARTSUPP (R3) spans several columns; the built-in relationships test takes one\n        columns:\n          - name: L_ORDERKEY\n            description: \"\"  # integer\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'ORDERS')\n                    field: O_ORDERKEY\n          - name: L_PARTKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'PART')\n                    field: P_PARTKEY\n          - name: L_SUPPKEY\n            description: \"\"  # integer\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'SUPPLIER')\n                    field: S_SUPPKEY\n          - name: L_LINENUMBER\n            description: \"\"  # integer\n            data_tests:\n              - not_null  # key, rule K5\n          - name: L_QUANTITY\n            description: \"\"  # decimal\n          - name: L_EXTENDEDPRICE\n            description: \"\"  # decimal\n          - name: L_DISCOUNT\n            description: \"\"  # decimal\n          - name: L_TAX\n            description: \"\"  # decimal\n          - name: L_RETURNFLAG\n            description: \"\"  # char\n          - name: L_LINESTATUS\n            description: \"\"  # char\n          - name: L_SHIPDATE\n            description: \"\"  # date\n          - name: L_COMMITDATE\n            description: \"\"  # date\n          - name: L_RECEIPTDATE\n            description: \"\"  # date\n          - name: L_SHIPINSTRUCT\n            description: \"\"  # char\n          - name: L_SHIPMODE\n            description: \"\"  # char\n          - name: L_COMMENT\n            description: \"\"  # varchar\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 8 tables, 8 with keys, 10 relationships\n- Tables without a key: none\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### NATION\n\nKey: N_NATIONKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| N_NATIONKEY | integer | yes |  |  |\n| N_NAME | char |  |  |  |\n| N_REGIONKEY | integer |  | REGION.R_REGIONKEY (R1) |  |\n| N_COMMENT | varchar |  |  |  |\n\n### REGION\n\nKey: R_REGIONKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| R_REGIONKEY | integer | yes |  |  |\n| R_NAME | char |  |  |  |\n| R_COMMENT | varchar |  |  |  |\n\n### PART\n\nKey: P_PARTKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| P_PARTKEY | integer | yes |  |  |\n| P_NAME | varchar |  |  |  |\n| P_MFGR | char |  |  |  |\n| P_BRAND | char |  |  |  |\n| P_TYPE | varchar |  |  |  |\n| P_SIZE | integer |  |  |  |\n| P_CONTAINER | char |  |  |  |\n| P_RETAILPRICE | decimal |  |  |  |\n| P_COMMENT | varchar |  |  |  |\n\n### SUPPLIER\n\nKey: S_SUPPKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| S_SUPPKEY | integer | yes |  |  |\n| S_NAME | char |  |  |  |\n| S_ADDRESS | varchar |  |  |  |\n| S_NATIONKEY | integer |  | NATION.N_NATIONKEY (R1) |  |\n| S_PHONE | char |  |  |  |\n| S_ACCTBAL | decimal |  |  |  |\n| S_COMMENT | varchar |  |  |  |\n\n### PARTSUPP\n\nKey: PS_PARTKEY+PS_SUPPKEY (rule K4)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| PS_PARTKEY | integer | yes | PART.P_PARTKEY (R1) |  |\n| PS_SUPPKEY | integer | yes | SUPPLIER.S_SUPPKEY (R2) |  |\n| PS_AVAILQTY | integer |  |  |  |\n| PS_SUPPLYCOST | decimal |  |  |  |\n| PS_COMMENT | varchar |  |  |  |\n\n### CUSTOMER\n\nKey: C_CUSTKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| C_CUSTKEY | integer | yes |  |  |\n| C_NAME | varchar |  |  |  |\n| C_ADDRESS | varchar |  |  |  |\n| C_NATIONKEY | integer |  | NATION.N_NATIONKEY (R1) |  |\n| C_PHONE | char |  |  |  |\n| C_ACCTBAL | decimal |  |  |  |\n| C_MKTSEGMENT | char |  |  |  |\n| C_COMMENT | varchar |  |  |  |\n\n### ORDERS\n\nKey: O_ORDERKEY (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| O_ORDERKEY | integer | yes |  |  |\n| O_CUSTKEY | integer |  | CUSTOMER.C_CUSTKEY (R2) |  |\n| O_ORDERSTATUS | char |  |  |  |\n| O_TOTALPRICE | decimal |  |  |  |\n| O_ORDERDATE | date |  |  |  |\n| O_ORDERPRIORITY | char |  |  |  |\n| O_CLERK | char |  |  |  |\n| O_SHIPPRIORITY | integer |  |  |  |\n| O_COMMENT | varchar |  |  |  |\n\n### LINEITEM\n\nKey: L_ORDERKEY+L_LINENUMBER (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| L_ORDERKEY | integer | yes | ORDERS.O_ORDERKEY (R1) |  |\n| L_PARTKEY | integer |  | PART.P_PARTKEY (R1), PARTSUPP.PS_PARTKEY+PS_SUPPKEY (R3) |  |\n| L_SUPPKEY | integer |  | SUPPLIER.S_SUPPKEY (R2), PARTSUPP.PS_PARTKEY+PS_SUPPKEY (R3) |  |\n| L_LINENUMBER | integer | yes |  |  |\n| L_QUANTITY | decimal |  |  |  |\n| L_EXTENDEDPRICE | decimal |  |  |  |\n| L_DISCOUNT | decimal |  |  |  |\n| L_TAX | decimal |  |  |  |\n| L_RETURNFLAG | char |  |  |  |\n| L_LINESTATUS | char |  |  |  |\n| L_SHIPDATE | date |  |  |  |\n| L_COMMITDATE | date |  |  |  |\n| L_RECEIPTDATE | date |  |  |  |\n| L_SHIPINSTRUCT | char |  |  |  |\n| L_SHIPMODE | char |  |  |  |\n| L_COMMENT | varchar |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| NATION | N_NATIONKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| REGION | R_REGIONKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| PART | P_PARTKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| SUPPLIER | S_SUPPKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| PARTSUPP | PS_PARTKEY+PS_SUPPKEY | K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| CUSTOMER | C_CUSTKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| ORDERS | O_ORDERKEY | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| LINEITEM | L_ORDERKEY+L_LINENUMBER | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| NATION | N_REGIONKEY | REGION | R_REGIONKEY | R1 | region / nation |\n| SUPPLIER | S_NATIONKEY | NATION | N_NATIONKEY | R1 | nation / supplier |\n| PARTSUPP | PS_PARTKEY | PART | P_PARTKEY | R1 | part / partsupp |\n| PARTSUPP | PS_SUPPKEY | SUPPLIER | S_SUPPKEY | R2 | supplier / partsupp |\n| CUSTOMER | C_NATIONKEY | NATION | N_NATIONKEY | R1 | nation / customer |\n| ORDERS | O_CUSTKEY | CUSTOMER | C_CUSTKEY | R2 | customer / orders |\n| LINEITEM | L_ORDERKEY | ORDERS | O_ORDERKEY | R1 | order / lineitem |\n| LINEITEM | L_PARTKEY | PART | P_PARTKEY | R1 | part / lineitem |\n| LINEITEM | L_SUPPKEY | SUPPLIER | S_SUPPKEY | R2 | supplier / lineitem |\n| LINEITEM | L_PARTKEY+L_SUPPKEY | PARTSUPP | PS_PARTKEY+PS_SUPPKEY | R3 | partsupp / lineitem |\n\n## Tables without a key\n\nNone.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n8 tables, 10 relationships; roles: 2 fact, 5 dimension, 1 bridge; 7 relationships can be active at once, 3 would be inactive; 3 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| NATION | dimension | 2 reference(s) in, 1 out, few measures (0.0); out 1, in 2, betweenness 0.3571, measure share 0.0 |\n| REGION | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| PART | dimension | 2 reference(s) in, 0 out, few measures (0.25); out 0, in 2, betweenness 0.0, measure share 0.25 |\n| SUPPLIER | dimension | 2 reference(s) in, 1 out, few measures (0.2); out 1, in 2, betweenness 0.3095, measure share 0.2 |\n| PARTSUPP | bridge | many-to-many pattern: 2 references out and a junction key (K4); out 2, in 1, betweenness 0.0714, measure share 0.67 |\n| CUSTOMER | dimension | 1 reference(s) in, 1 out, few measures (0.17); out 1, in 1, betweenness 0.0952, measure share 0.17 |\n| ORDERS | fact | pointed at by a fact table, 1 reference(s) out, measures 0.43 (a header table); out 1, in 1, betweenness 0.119, measure share 0.43 |\n| LINEITEM | fact | nothing points at it, 4 reference(s) out, measures 0.58; out 4, in 0, betweenness 0.2857, measure share 0.58 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- PART area: LINEITEM, ORDERS, PART, PARTSUPP, SUPPLIER\n- REGION area: CUSTOMER, NATION, REGION\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through PARTSUPP - PART - LINEITEM - SUPPLIER, closed by PARTSUPP.PS_SUPPKEY -> SUPPLIER (R2)\n- cycle through ORDERS - LINEITEM - SUPPLIER - NATION - CUSTOMER, closed by ORDERS.O_CUSTKEY -> CUSTOMER (R2)\n- cycle through LINEITEM - PART - PARTSUPP, closed by LINEITEM.L_PARTKEY+L_SUPPKEY -> PARTSUPP (R3)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- PARTSUPP.PS_SUPPKEY -> SUPPLIER (R2, certainty 0.6): it would close a cycle with PARTSUPP - PART - LINEITEM - SUPPLIER; the active path has certainty 0.6, this link 0.6\n- ORDERS.O_CUSTKEY -> CUSTOMER (R2, certainty 0.6): it would close a cycle with ORDERS - LINEITEM - SUPPLIER - NATION - CUSTOMER; the active path has certainty 0.6, this link 0.6\n- LINEITEM.L_PARTKEY+L_SUPPKEY -> PARTSUPP (R3, certainty 0.5): it would close a cycle with LINEITEM - PART - PARTSUPP; the active path has certainty 0.8, this link 0.5\n\n## Diagram\n\n```mermaid\nerDiagram\n  NATION {\n    N_NATIONKEY integer PK\n    N_NAME char\n    N_REGIONKEY integer\n    N_COMMENT varchar\n  }\n  REGION {\n    R_REGIONKEY integer PK\n    R_NAME char\n    R_COMMENT varchar\n  }\n  PART {\n    P_PARTKEY integer PK\n    P_NAME varchar\n    P_MFGR char\n    P_BRAND char\n    P_TYPE varchar\n    P_SIZE integer\n    P_CONTAINER char\n    P_RETAILPRICE decimal\n    P_COMMENT varchar\n  }\n  SUPPLIER {\n    S_SUPPKEY integer PK\n    S_NAME char\n    S_ADDRESS varchar\n    S_NATIONKEY integer\n    S_PHONE char\n    S_ACCTBAL decimal\n    S_COMMENT varchar\n  }\n  PARTSUPP {\n    PS_PARTKEY integer PK\n    PS_SUPPKEY integer PK\n    PS_AVAILQTY integer\n    PS_SUPPLYCOST decimal\n    PS_COMMENT varchar\n  }\n  CUSTOMER {\n    C_CUSTKEY integer PK\n    C_NAME varchar\n    C_ADDRESS varchar\n    C_NATIONKEY integer\n    C_PHONE char\n    C_ACCTBAL decimal\n    C_MKTSEGMENT char\n    C_COMMENT varchar\n  }\n  ORDERS {\n    O_ORDERKEY integer PK\n    O_CUSTKEY integer\n    O_ORDERSTATUS char\n    O_TOTALPRICE decimal\n    O_ORDERDATE date\n    O_ORDERPRIORITY char\n    O_CLERK char\n    O_SHIPPRIORITY integer\n    O_COMMENT varchar\n  }\n  LINEITEM {\n    L_ORDERKEY integer PK\n    L_PARTKEY integer\n    L_SUPPKEY integer\n    L_LINENUMBER integer PK\n    L_QUANTITY decimal\n    L_EXTENDEDPRICE decimal\n    L_DISCOUNT decimal\n    L_TAX decimal\n    L_RETURNFLAG char\n    L_LINESTATUS char\n    L_SHIPDATE date\n    L_COMMITDATE date\n    L_RECEIPTDATE date\n    L_SHIPINSTRUCT char\n    L_SHIPMODE char\n    L_COMMENT varchar\n  }\n  REGION ||--o{ NATION : \"N_REGIONKEY R1\"\n  NATION ||--o{ SUPPLIER : \"S_NATIONKEY R1\"\n  PART ||--o{ PARTSUPP : \"PS_PARTKEY R1\"\n  SUPPLIER ||--o{ PARTSUPP : \"PS_SUPPKEY R2\"\n  NATION ||--o{ CUSTOMER : \"C_NATIONKEY R1\"\n  CUSTOMER ||--o{ ORDERS : \"O_CUSTKEY R2\"\n  ORDERS ||--o{ LINEITEM : \"L_ORDERKEY R1\"\n  PART ||--o{ LINEITEM : \"L_PARTKEY R1\"\n  SUPPLIER ||--o{ LINEITEM : \"L_SUPPKEY R2\"\n  PARTSUPP ||--o{ LINEITEM : \"L_PARTKEY+L_SUPPKEY R3\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "N_COMMENT": "N_COMMENT",
+       "N_NAME": "N_NAME",
+       "N_NATIONKEY": "N_NATIONKEY",
+       "N_REGIONKEY": "N_REGIONKEY"
+      },
+      "graphqlType": "NATION",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "region",
+        "sourceFields": [
+         "N_REGIONKEY"
+        ],
+        "targetFields": [
+         "R_REGIONKEY"
+        ],
+        "targetObject": "dbo.REGION"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "supplier",
+        "sourceFields": [
+         "N_NATIONKEY"
+        ],
+        "targetFields": [
+         "S_NATIONKEY"
+        ],
+        "targetObject": "dbo.SUPPLIER"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "customer",
+        "sourceFields": [
+         "N_NATIONKEY"
+        ],
+        "targetFields": [
+         "C_NATIONKEY"
+        ],
+        "targetObject": "dbo.CUSTOMER"
+       }
+      ],
+      "sourceObject": "dbo.NATION",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "R_COMMENT": "R_COMMENT",
+       "R_NAME": "R_NAME",
+       "R_REGIONKEY": "R_REGIONKEY"
+      },
+      "graphqlType": "REGION",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "nation",
+        "sourceFields": [
+         "R_REGIONKEY"
+        ],
+        "targetFields": [
+         "N_REGIONKEY"
+        ],
+        "targetObject": "dbo.NATION"
+       }
+      ],
+      "sourceObject": "dbo.REGION",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "P_BRAND": "P_BRAND",
+       "P_COMMENT": "P_COMMENT",
+       "P_CONTAINER": "P_CONTAINER",
+       "P_MFGR": "P_MFGR",
+       "P_NAME": "P_NAME",
+       "P_PARTKEY": "P_PARTKEY",
+       "P_RETAILPRICE": "P_RETAILPRICE",
+       "P_SIZE": "P_SIZE",
+       "P_TYPE": "P_TYPE"
+      },
+      "graphqlType": "PART",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "partsupp",
+        "sourceFields": [
+         "P_PARTKEY"
+        ],
+        "targetFields": [
+         "PS_PARTKEY"
+        ],
+        "targetObject": "dbo.PARTSUPP"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "lineitem",
+        "sourceFields": [
+         "P_PARTKEY"
+        ],
+        "targetFields": [
+         "L_PARTKEY"
+        ],
+        "targetObject": "dbo.LINEITEM"
+       }
+      ],
+      "sourceObject": "dbo.PART",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "S_ACCTBAL": "S_ACCTBAL",
+       "S_ADDRESS": "S_ADDRESS",
+       "S_COMMENT": "S_COMMENT",
+       "S_NAME": "S_NAME",
+       "S_NATIONKEY": "S_NATIONKEY",
+       "S_PHONE": "S_PHONE",
+       "S_SUPPKEY": "S_SUPPKEY"
+      },
+      "graphqlType": "SUPPLIER",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "nation",
+        "sourceFields": [
+         "S_NATIONKEY"
+        ],
+        "targetFields": [
+         "N_NATIONKEY"
+        ],
+        "targetObject": "dbo.NATION"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "partsupp",
+        "sourceFields": [
+         "S_SUPPKEY"
+        ],
+        "targetFields": [
+         "PS_SUPPKEY"
+        ],
+        "targetObject": "dbo.PARTSUPP"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "lineitem",
+        "sourceFields": [
+         "S_SUPPKEY"
+        ],
+        "targetFields": [
+         "L_SUPPKEY"
+        ],
+        "targetObject": "dbo.LINEITEM"
+       }
+      ],
+      "sourceObject": "dbo.SUPPLIER",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "PS_AVAILQTY": "PS_AVAILQTY",
+       "PS_COMMENT": "PS_COMMENT",
+       "PS_PARTKEY": "PS_PARTKEY",
+       "PS_SUPPKEY": "PS_SUPPKEY",
+       "PS_SUPPLYCOST": "PS_SUPPLYCOST"
+      },
+      "graphqlType": "PARTSUPP",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "part",
+        "sourceFields": [
+         "PS_PARTKEY"
+        ],
+        "targetFields": [
+         "P_PARTKEY"
+        ],
+        "targetObject": "dbo.PART"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "supplier",
+        "sourceFields": [
+         "PS_SUPPKEY"
+        ],
+        "targetFields": [
+         "S_SUPPKEY"
+        ],
+        "targetObject": "dbo.SUPPLIER"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "lineitem",
+        "sourceFields": [
+         "PS_PARTKEY",
+         "PS_SUPPKEY"
+        ],
+        "targetFields": [
+         "L_PARTKEY",
+         "L_SUPPKEY"
+        ],
+        "targetObject": "dbo.LINEITEM"
+       }
+      ],
+      "sourceObject": "dbo.PARTSUPP",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "C_ACCTBAL": "C_ACCTBAL",
+       "C_ADDRESS": "C_ADDRESS",
+       "C_COMMENT": "C_COMMENT",
+       "C_CUSTKEY": "C_CUSTKEY",
+       "C_MKTSEGMENT": "C_MKTSEGMENT",
+       "C_NAME": "C_NAME",
+       "C_NATIONKEY": "C_NATIONKEY",
+       "C_PHONE": "C_PHONE"
+      },
+      "graphqlType": "CUSTOMER",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "nation",
+        "sourceFields": [
+         "C_NATIONKEY"
+        ],
+        "targetFields": [
+         "N_NATIONKEY"
+        ],
+        "targetObject": "dbo.NATION"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "orders",
+        "sourceFields": [
+         "C_CUSTKEY"
+        ],
+        "targetFields": [
+         "O_CUSTKEY"
+        ],
+        "targetObject": "dbo.ORDERS"
+       }
+      ],
+      "sourceObject": "dbo.CUSTOMER",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "O_CLERK": "O_CLERK",
+       "O_COMMENT": "O_COMMENT",
+       "O_CUSTKEY": "O_CUSTKEY",
+       "O_ORDERDATE": "O_ORDERDATE",
+       "O_ORDERKEY": "O_ORDERKEY",
+       "O_ORDERPRIORITY": "O_ORDERPRIORITY",
+       "O_ORDERSTATUS": "O_ORDERSTATUS",
+       "O_SHIPPRIORITY": "O_SHIPPRIORITY",
+       "O_TOTALPRICE": "O_TOTALPRICE"
+      },
+      "graphqlType": "ORDERS",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "O_CUSTKEY"
+        ],
+        "targetFields": [
+         "C_CUSTKEY"
+        ],
+        "targetObject": "dbo.CUSTOMER"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "lineitem",
+        "sourceFields": [
+         "O_ORDERKEY"
+        ],
+        "targetFields": [
+         "L_ORDERKEY"
+        ],
+        "targetObject": "dbo.LINEITEM"
+       }
+      ],
+      "sourceObject": "dbo.ORDERS",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "L_COMMENT": "L_COMMENT",
+       "L_COMMITDATE": "L_COMMITDATE",
+       "L_DISCOUNT": "L_DISCOUNT",
+       "L_EXTENDEDPRICE": "L_EXTENDEDPRICE",
+       "L_LINENUMBER": "L_LINENUMBER",
+       "L_LINESTATUS": "L_LINESTATUS",
+       "L_ORDERKEY": "L_ORDERKEY",
+       "L_PARTKEY": "L_PARTKEY",
+       "L_QUANTITY": "L_QUANTITY",
+       "L_RECEIPTDATE": "L_RECEIPTDATE",
+       "L_RETURNFLAG": "L_RETURNFLAG",
+       "L_SHIPDATE": "L_SHIPDATE",
+       "L_SHIPINSTRUCT": "L_SHIPINSTRUCT",
+       "L_SHIPMODE": "L_SHIPMODE",
+       "L_SUPPKEY": "L_SUPPKEY",
+       "L_TAX": "L_TAX"
+      },
+      "graphqlType": "LINEITEM",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "order",
+        "sourceFields": [
+         "L_ORDERKEY"
+        ],
+        "targetFields": [
+         "O_ORDERKEY"
+        ],
+        "targetObject": "dbo.ORDERS"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "part",
+        "sourceFields": [
+         "L_PARTKEY"
+        ],
+        "targetFields": [
+         "P_PARTKEY"
+        ],
+        "targetObject": "dbo.PART"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "supplier",
+        "sourceFields": [
+         "L_SUPPKEY"
+        ],
+        "targetFields": [
+         "S_SUPPKEY"
+        ],
+        "targetObject": "dbo.SUPPLIER"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "partsupp",
+        "sourceFields": [
+         "L_PARTKEY",
+         "L_SUPPKEY"
+        ],
+        "targetFields": [
+         "PS_PARTKEY",
+         "PS_SUPPKEY"
+        ],
+        "targetObject": "dbo.PARTSUPP"
+       }
+      ],
+      "sourceObject": "dbo.LINEITEM",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 40452,
+  "sha256": "3f23a19521859867bb949f7c35f6d73aac41a1d5ce1b14ac1c85c48cd05e3053"
+ },
+ "key_sql": {
+  "CUSTOMER": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [C_CUSTKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [C_CUSTKEY] FROM [dbo].[CUSTOMER] WHERE [C_CUSTKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[CUSTOMER]",
+  "LINEITEM": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [L_ORDERKEY] IS NULL OR [L_LINENUMBER] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [L_ORDERKEY], [L_LINENUMBER] FROM [dbo].[LINEITEM] WHERE [L_ORDERKEY] IS NOT NULL AND [L_LINENUMBER] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[LINEITEM]",
+  "NATION": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [N_NATIONKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [N_NATIONKEY] FROM [dbo].[NATION] WHERE [N_NATIONKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[NATION]",
+  "ORDERS": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [O_ORDERKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [O_ORDERKEY] FROM [dbo].[ORDERS] WHERE [O_ORDERKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[ORDERS]",
+  "PART": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [P_PARTKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [P_PARTKEY] FROM [dbo].[PART] WHERE [P_PARTKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PART]",
+  "PARTSUPP": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [PS_PARTKEY] IS NULL OR [PS_SUPPKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [PS_PARTKEY], [PS_SUPPKEY] FROM [dbo].[PARTSUPP] WHERE [PS_PARTKEY] IS NOT NULL AND [PS_SUPPKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[PARTSUPP]",
+  "REGION": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [R_REGIONKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [R_REGIONKEY] FROM [dbo].[REGION] WHERE [R_REGIONKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[REGION]",
+  "SUPPLIER": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [S_SUPPKEY] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [S_SUPPKEY] FROM [dbo].[SUPPLIER] WHERE [S_SUPPKEY] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[SUPPLIER]"
+ },
+ "ontology_ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:onto#> .\n\n<urn:krusgraph:ontology:onto> a owl:Ontology ;\n    rdfs:label \"onto\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:NATION a owl:Class ;\n    rdfs:label \"NATION\" ;\n    skos:altLabel \"NATION\" ;\n    rdfs:comment \"Table dbo.NATION; key N_NATIONKEY (K2).\" .\n\n:NATION__N_NATIONKEY a owl:DatatypeProperty ;\n    rdfs:label \"N_NATIONKEY\" ;\n    rdfs:domain :NATION ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column N_NATIONKEY (integer); key.\" .\n\n:NATION__N_NAME a owl:DatatypeProperty ;\n    rdfs:label \"N_NAME\" ;\n    rdfs:domain :NATION ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column N_NAME (char).\" .\n\n:NATION__N_REGIONKEY a owl:DatatypeProperty ;\n    rdfs:label \"N_REGIONKEY\" ;\n    rdfs:domain :NATION ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column N_REGIONKEY (integer).\" .\n\n:NATION__N_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"N_COMMENT\" ;\n    rdfs:domain :NATION ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column N_COMMENT (varchar).\" .\n\n:REGION a owl:Class ;\n    rdfs:label \"REGION\" ;\n    skos:altLabel \"REGION\" ;\n    rdfs:comment \"Table dbo.REGION; key R_REGIONKEY (K2).\" .\n\n:REGION__R_REGIONKEY a owl:DatatypeProperty ;\n    rdfs:label \"R_REGIONKEY\" ;\n    rdfs:domain :REGION ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column R_REGIONKEY (integer); key.\" .\n\n:REGION__R_NAME a owl:DatatypeProperty ;\n    rdfs:label \"R_NAME\" ;\n    rdfs:domain :REGION ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column R_NAME (char).\" .\n\n:REGION__R_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"R_COMMENT\" ;\n    rdfs:domain :REGION ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column R_COMMENT (varchar).\" .\n\n:PART a owl:Class ;\n    rdfs:label \"PART\" ;\n    skos:altLabel \"PART\" ;\n    rdfs:comment \"Table dbo.PART; key P_PARTKEY (K2).\" .\n\n:PART__P_PARTKEY a owl:DatatypeProperty ;\n    rdfs:label \"P_PARTKEY\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column P_PARTKEY (integer); key.\" .\n\n:PART__P_NAME a owl:DatatypeProperty ;\n    rdfs:label \"P_NAME\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_NAME (varchar).\" .\n\n:PART__P_MFGR a owl:DatatypeProperty ;\n    rdfs:label \"P_MFGR\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_MFGR (char).\" .\n\n:PART__P_BRAND a owl:DatatypeProperty ;\n    rdfs:label \"P_BRAND\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_BRAND (char).\" .\n\n:PART__P_TYPE a owl:DatatypeProperty ;\n    rdfs:label \"P_TYPE\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_TYPE (varchar).\" .\n\n:PART__P_SIZE a owl:DatatypeProperty ;\n    rdfs:label \"P_SIZE\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column P_SIZE (integer).\" .\n\n:PART__P_CONTAINER a owl:DatatypeProperty ;\n    rdfs:label \"P_CONTAINER\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_CONTAINER (char).\" .\n\n:PART__P_RETAILPRICE a owl:DatatypeProperty ;\n    rdfs:label \"P_RETAILPRICE\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column P_RETAILPRICE (decimal).\" .\n\n:PART__P_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"P_COMMENT\" ;\n    rdfs:domain :PART ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column P_COMMENT (varchar).\" .\n\n:SUPPLIER a owl:Class ;\n    rdfs:label \"SUPPLIER\" ;\n    skos:altLabel \"SUPPLIER\" ;\n    rdfs:comment \"Table dbo.SUPPLIER; key S_SUPPKEY (K2).\" .\n\n:SUPPLIER__S_SUPPKEY a owl:DatatypeProperty ;\n    rdfs:label \"S_SUPPKEY\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column S_SUPPKEY (integer); key.\" .\n\n:SUPPLIER__S_NAME a owl:DatatypeProperty ;\n    rdfs:label \"S_NAME\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column S_NAME (char).\" .\n\n:SUPPLIER__S_ADDRESS a owl:DatatypeProperty ;\n    rdfs:label \"S_ADDRESS\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column S_ADDRESS (varchar).\" .\n\n:SUPPLIER__S_NATIONKEY a owl:DatatypeProperty ;\n    rdfs:label \"S_NATIONKEY\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column S_NATIONKEY (integer).\" .\n\n:SUPPLIER__S_PHONE a owl:DatatypeProperty ;\n    rdfs:label \"S_PHONE\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column S_PHONE (char).\" .\n\n:SUPPLIER__S_ACCTBAL a owl:DatatypeProperty ;\n    rdfs:label \"S_ACCTBAL\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column S_ACCTBAL (decimal).\" .\n\n:SUPPLIER__S_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"S_COMMENT\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column S_COMMENT (varchar).\" .\n\n:PARTSUPP a owl:Class ;\n    rdfs:label \"PARTSUPP\" ;\n    skos:altLabel \"PARTSUPP\" ;\n    rdfs:comment \"Table dbo.PARTSUPP; key PS_PARTKEY+PS_SUPPKEY (K4).\" .\n\n:PARTSUPP__PS_PARTKEY a owl:DatatypeProperty ;\n    rdfs:label \"PS_PARTKEY\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column PS_PARTKEY (integer); key.\" .\n\n:PARTSUPP__PS_SUPPKEY a owl:DatatypeProperty ;\n    rdfs:label \"PS_SUPPKEY\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column PS_SUPPKEY (integer); key.\" .\n\n:PARTSUPP__PS_AVAILQTY a owl:DatatypeProperty ;\n    rdfs:label \"PS_AVAILQTY\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column PS_AVAILQTY (integer).\" .\n\n:PARTSUPP__PS_SUPPLYCOST a owl:DatatypeProperty ;\n    rdfs:label \"PS_SUPPLYCOST\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column PS_SUPPLYCOST (decimal).\" .\n\n:PARTSUPP__PS_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"PS_COMMENT\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column PS_COMMENT (varchar).\" .\n\n:CUSTOMER a owl:Class ;\n    rdfs:label \"CUSTOMER\" ;\n    skos:altLabel \"CUSTOMER\" ;\n    rdfs:comment \"Table dbo.CUSTOMER; key C_CUSTKEY (K2).\" .\n\n:CUSTOMER__C_CUSTKEY a owl:DatatypeProperty ;\n    rdfs:label \"C_CUSTKEY\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column C_CUSTKEY (integer); key.\" .\n\n:CUSTOMER__C_NAME a owl:DatatypeProperty ;\n    rdfs:label \"C_NAME\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column C_NAME (varchar).\" .\n\n:CUSTOMER__C_ADDRESS a owl:DatatypeProperty ;\n    rdfs:label \"C_ADDRESS\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column C_ADDRESS (varchar).\" .\n\n:CUSTOMER__C_NATIONKEY a owl:DatatypeProperty ;\n    rdfs:label \"C_NATIONKEY\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column C_NATIONKEY (integer).\" .\n\n:CUSTOMER__C_PHONE a owl:DatatypeProperty ;\n    rdfs:label \"C_PHONE\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column C_PHONE (char).\" .\n\n:CUSTOMER__C_ACCTBAL a owl:DatatypeProperty ;\n    rdfs:label \"C_ACCTBAL\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column C_ACCTBAL (decimal).\" .\n\n:CUSTOMER__C_MKTSEGMENT a owl:DatatypeProperty ;\n    rdfs:label \"C_MKTSEGMENT\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column C_MKTSEGMENT (char).\" .\n\n:CUSTOMER__C_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"C_COMMENT\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column C_COMMENT (varchar).\" .\n\n:ORDERS a owl:Class ;\n    rdfs:label \"ORDERS\" ;\n    skos:altLabel \"ORDERS\" ;\n    rdfs:comment \"Table dbo.ORDERS; key O_ORDERKEY (K2).\" .\n\n:ORDERS__O_ORDERKEY a owl:DatatypeProperty ;\n    rdfs:label \"O_ORDERKEY\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column O_ORDERKEY (integer); key.\" .\n\n:ORDERS__O_CUSTKEY a owl:DatatypeProperty ;\n    rdfs:label \"O_CUSTKEY\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column O_CUSTKEY (integer).\" .\n\n:ORDERS__O_ORDERSTATUS a owl:DatatypeProperty ;\n    rdfs:label \"O_ORDERSTATUS\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column O_ORDERSTATUS (char).\" .\n\n:ORDERS__O_TOTALPRICE a owl:DatatypeProperty ;\n    rdfs:label \"O_TOTALPRICE\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column O_TOTALPRICE (decimal).\" .\n\n:ORDERS__O_ORDERDATE a owl:DatatypeProperty ;\n    rdfs:label \"O_ORDERDATE\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column O_ORDERDATE (date).\" .\n\n:ORDERS__O_ORDERPRIORITY a owl:DatatypeProperty ;\n    rdfs:label \"O_ORDERPRIORITY\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column O_ORDERPRIORITY (char).\" .\n\n:ORDERS__O_CLERK a owl:DatatypeProperty ;\n    rdfs:label \"O_CLERK\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column O_CLERK (char).\" .\n\n:ORDERS__O_SHIPPRIORITY a owl:DatatypeProperty ;\n    rdfs:label \"O_SHIPPRIORITY\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column O_SHIPPRIORITY (integer).\" .\n\n:ORDERS__O_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"O_COMMENT\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column O_COMMENT (varchar).\" .\n\n:LINEITEM a owl:Class ;\n    rdfs:label \"LINEITEM\" ;\n    skos:altLabel \"LINEITEM\" ;\n    rdfs:comment \"Table dbo.LINEITEM; key L_ORDERKEY+L_LINENUMBER (K5).\" .\n\n:LINEITEM__L_ORDERKEY a owl:DatatypeProperty ;\n    rdfs:label \"L_ORDERKEY\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column L_ORDERKEY (integer); key.\" .\n\n:LINEITEM__L_PARTKEY a owl:DatatypeProperty ;\n    rdfs:label \"L_PARTKEY\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column L_PARTKEY (integer).\" .\n\n:LINEITEM__L_SUPPKEY a owl:DatatypeProperty ;\n    rdfs:label \"L_SUPPKEY\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column L_SUPPKEY (integer).\" .\n\n:LINEITEM__L_LINENUMBER a owl:DatatypeProperty ;\n    rdfs:label \"L_LINENUMBER\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column L_LINENUMBER (integer); key.\" .\n\n:LINEITEM__L_QUANTITY a owl:DatatypeProperty ;\n    rdfs:label \"L_QUANTITY\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column L_QUANTITY (decimal).\" .\n\n:LINEITEM__L_EXTENDEDPRICE a owl:DatatypeProperty ;\n    rdfs:label \"L_EXTENDEDPRICE\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column L_EXTENDEDPRICE (decimal).\" .\n\n:LINEITEM__L_DISCOUNT a owl:DatatypeProperty ;\n    rdfs:label \"L_DISCOUNT\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column L_DISCOUNT (decimal).\" .\n\n:LINEITEM__L_TAX a owl:DatatypeProperty ;\n    rdfs:label \"L_TAX\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column L_TAX (decimal).\" .\n\n:LINEITEM__L_RETURNFLAG a owl:DatatypeProperty ;\n    rdfs:label \"L_RETURNFLAG\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column L_RETURNFLAG (char).\" .\n\n:LINEITEM__L_LINESTATUS a owl:DatatypeProperty ;\n    rdfs:label \"L_LINESTATUS\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column L_LINESTATUS (char).\" .\n\n:LINEITEM__L_SHIPDATE a owl:DatatypeProperty ;\n    rdfs:label \"L_SHIPDATE\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column L_SHIPDATE (date).\" .\n\n:LINEITEM__L_COMMITDATE a owl:DatatypeProperty ;\n    rdfs:label \"L_COMMITDATE\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column L_COMMITDATE (date).\" .\n\n:LINEITEM__L_RECEIPTDATE a owl:DatatypeProperty ;\n    rdfs:label \"L_RECEIPTDATE\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column L_RECEIPTDATE (date).\" .\n\n:LINEITEM__L_SHIPINSTRUCT a owl:DatatypeProperty ;\n    rdfs:label \"L_SHIPINSTRUCT\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column L_SHIPINSTRUCT (char).\" .\n\n:LINEITEM__L_SHIPMODE a owl:DatatypeProperty ;\n    rdfs:label \"L_SHIPMODE\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column L_SHIPMODE (char).\" .\n\n:LINEITEM__L_COMMENT a owl:DatatypeProperty ;\n    rdfs:label \"L_COMMENT\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column L_COMMENT (varchar).\" .\n\n:NATIONHasREGION a owl:ObjectProperty ;\n    rdfs:label \"NATIONHasREGION\" ;\n    rdfs:domain :NATION ;\n    rdfs:range :REGION ;\n    rdfs:comment \"NATION.N_REGIONKEY -> REGION.R_REGIONKEY by rule R1.\" .\n\n:SUPPLIERHasNATION a owl:ObjectProperty ;\n    rdfs:label \"SUPPLIERHasNATION\" ;\n    rdfs:domain :SUPPLIER ;\n    rdfs:range :NATION ;\n    rdfs:comment \"SUPPLIER.S_NATIONKEY -> NATION.N_NATIONKEY by rule R1.\" .\n\n:PARTSUPPHasPART a owl:ObjectProperty ;\n    rdfs:label \"PARTSUPPHasPART\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range :PART ;\n    rdfs:comment \"PARTSUPP.PS_PARTKEY -> PART.P_PARTKEY by rule R1.\" .\n\n:PARTSUPPHasSUPPLIER a owl:ObjectProperty ;\n    rdfs:label \"PARTSUPPHasSUPPLIER\" ;\n    rdfs:domain :PARTSUPP ;\n    rdfs:range :SUPPLIER ;\n    rdfs:comment \"PARTSUPP.PS_SUPPKEY -> SUPPLIER.S_SUPPKEY by rule R2.\" .\n\n:CUSTOMERHasNATION a owl:ObjectProperty ;\n    rdfs:label \"CUSTOMERHasNATION\" ;\n    rdfs:domain :CUSTOMER ;\n    rdfs:range :NATION ;\n    rdfs:comment \"CUSTOMER.C_NATIONKEY -> NATION.N_NATIONKEY by rule R1.\" .\n\n:ORDERSHasCUSTOMER a owl:ObjectProperty ;\n    rdfs:label \"ORDERSHasCUSTOMER\" ;\n    rdfs:domain :ORDERS ;\n    rdfs:range :CUSTOMER ;\n    rdfs:comment \"ORDERS.O_CUSTKEY -> CUSTOMER.C_CUSTKEY by rule R2.\" .\n\n:LINEITEMHasORDERS a owl:ObjectProperty ;\n    rdfs:label \"LINEITEMHasORDERS\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range :ORDERS ;\n    rdfs:comment \"LINEITEM.L_ORDERKEY -> ORDERS.O_ORDERKEY by rule R1.\" .\n\n:LINEITEMHasPART a owl:ObjectProperty ;\n    rdfs:label \"LINEITEMHasPART\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range :PART ;\n    rdfs:comment \"LINEITEM.L_PARTKEY -> PART.P_PARTKEY by rule R1.\" .\n\n:LINEITEMHasSUPPLIER a owl:ObjectProperty ;\n    rdfs:label \"LINEITEMHasSUPPLIER\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range :SUPPLIER ;\n    rdfs:comment \"LINEITEM.L_SUPPKEY -> SUPPLIER.S_SUPPKEY by rule R2.\" .\n\n:LINEITEMHasPARTSUPP a owl:ObjectProperty ;\n    rdfs:label \"LINEITEMHasPARTSUPP\" ;\n    rdfs:domain :LINEITEM ;\n    rdfs:range :PARTSUPP ;\n    rdfs:comment \"LINEITEM.L_PARTKEY+L_SUPPKEY -> PARTSUPP.PS_PARTKEY+PS_SUPPKEY by rule R3.\" .\n",
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "CUSTOMER": [
+    [
+     "C_CUSTKEY"
+    ],
+    "K2"
+   ],
+   "LINEITEM": [
+    [
+     "L_ORDERKEY",
+     "L_LINENUMBER"
+    ],
+    "K5"
+   ],
+   "NATION": [
+    [
+     "N_NATIONKEY"
+    ],
+    "K2"
+   ],
+   "ORDERS": [
+    [
+     "O_ORDERKEY"
+    ],
+    "K2"
+   ],
+   "PART": [
+    [
+     "P_PARTKEY"
+    ],
+    "K2"
+   ],
+   "PARTSUPP": [
+    [
+     "PS_PARTKEY",
+     "PS_SUPPKEY"
+    ],
+    "K4"
+   ],
+   "REGION": [
+    [
+     "R_REGIONKEY"
+    ],
+    "K2"
+   ],
+   "SUPPLIER": [
+    [
+     "S_SUPPKEY"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  NATION {\n    N_NATIONKEY integer PK\n    N_NAME char\n    N_REGIONKEY integer\n    N_COMMENT varchar\n  }\n  REGION {\n    R_REGIONKEY integer PK\n    R_NAME char\n    R_COMMENT varchar\n  }\n  PART {\n    P_PARTKEY integer PK\n    P_NAME varchar\n    P_MFGR char\n    P_BRAND char\n    P_TYPE varchar\n    P_SIZE integer\n    P_CONTAINER char\n    P_RETAILPRICE decimal\n    P_COMMENT varchar\n  }\n  SUPPLIER {\n    S_SUPPKEY integer PK\n    S_NAME char\n    S_ADDRESS varchar\n    S_NATIONKEY integer\n    S_PHONE char\n    S_ACCTBAL decimal\n    S_COMMENT varchar\n  }\n  PARTSUPP {\n    PS_PARTKEY integer PK\n    PS_SUPPKEY integer PK\n    PS_AVAILQTY integer\n    PS_SUPPLYCOST decimal\n    PS_COMMENT varchar\n  }\n  CUSTOMER {\n    C_CUSTKEY integer PK\n    C_NAME varchar\n    C_ADDRESS varchar\n    C_NATIONKEY integer\n    C_PHONE char\n    C_ACCTBAL decimal\n    C_MKTSEGMENT char\n    C_COMMENT varchar\n  }\n  ORDERS {\n    O_ORDERKEY integer PK\n    O_CUSTKEY integer\n    O_ORDERSTATUS char\n    O_TOTALPRICE decimal\n    O_ORDERDATE date\n    O_ORDERPRIORITY char\n    O_CLERK char\n    O_SHIPPRIORITY integer\n    O_COMMENT varchar\n  }\n  LINEITEM {\n    L_ORDERKEY integer PK\n    L_PARTKEY integer\n    L_SUPPKEY integer\n    L_LINENUMBER integer PK\n    L_QUANTITY decimal\n    L_EXTENDEDPRICE decimal\n    L_DISCOUNT decimal\n    L_TAX decimal\n    L_RETURNFLAG char\n    L_LINESTATUS char\n    L_SHIPDATE date\n    L_COMMITDATE date\n    L_RECEIPTDATE date\n    L_SHIPINSTRUCT char\n    L_SHIPMODE char\n    L_COMMENT varchar\n  }\n  REGION ||--o{ NATION : \"N_REGIONKEY R1\"\n  NATION ||--o{ SUPPLIER : \"S_NATIONKEY R1\"\n  PART ||--o{ PARTSUPP : \"PS_PARTKEY R1\"\n  SUPPLIER ||--o{ PARTSUPP : \"PS_SUPPKEY R2\"\n  NATION ||--o{ CUSTOMER : \"C_NATIONKEY R1\"\n  CUSTOMER ||--o{ ORDERS : \"O_CUSTKEY R2\"\n  ORDERS ||--o{ LINEITEM : \"L_ORDERKEY R1\"\n  PART ||--o{ LINEITEM : \"L_PARTKEY R1\"\n  SUPPLIER ||--o{ LINEITEM : \"L_SUPPKEY R2\"\n  PARTSUPP ||--o{ LINEITEM : \"L_PARTKEY+L_SUPPKEY R3\"",
+  "relationships": [
+   {
+    "field_name": "region",
+    "note": "",
+    "reverse_name": "nation",
+    "rule": "R1",
+    "source": "NATION",
+    "source_cols": [
+     "N_REGIONKEY"
+    ],
+    "target": "REGION",
+    "target_cols": [
+     "R_REGIONKEY"
+    ]
+   },
+   {
+    "field_name": "nation",
+    "note": "",
+    "reverse_name": "supplier",
+    "rule": "R1",
+    "source": "SUPPLIER",
+    "source_cols": [
+     "S_NATIONKEY"
+    ],
+    "target": "NATION",
+    "target_cols": [
+     "N_NATIONKEY"
+    ]
+   },
+   {
+    "field_name": "part",
+    "note": "",
+    "reverse_name": "partsupp",
+    "rule": "R1",
+    "source": "PARTSUPP",
+    "source_cols": [
+     "PS_PARTKEY"
+    ],
+    "target": "PART",
+    "target_cols": [
+     "P_PARTKEY"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "partsupp",
+    "rule": "R2",
+    "source": "PARTSUPP",
+    "source_cols": [
+     "PS_SUPPKEY"
+    ],
+    "target": "SUPPLIER",
+    "target_cols": [
+     "S_SUPPKEY"
+    ]
+   },
+   {
+    "field_name": "nation",
+    "note": "",
+    "reverse_name": "customer",
+    "rule": "R1",
+    "source": "CUSTOMER",
+    "source_cols": [
+     "C_NATIONKEY"
+    ],
+    "target": "NATION",
+    "target_cols": [
+     "N_NATIONKEY"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "orders",
+    "rule": "R2",
+    "source": "ORDERS",
+    "source_cols": [
+     "O_CUSTKEY"
+    ],
+    "target": "CUSTOMER",
+    "target_cols": [
+     "C_CUSTKEY"
+    ]
+   },
+   {
+    "field_name": "order",
+    "note": "",
+    "reverse_name": "lineitem",
+    "rule": "R1",
+    "source": "LINEITEM",
+    "source_cols": [
+     "L_ORDERKEY"
+    ],
+    "target": "ORDERS",
+    "target_cols": [
+     "O_ORDERKEY"
+    ]
+   },
+   {
+    "field_name": "part",
+    "note": "",
+    "reverse_name": "lineitem",
+    "rule": "R1",
+    "source": "LINEITEM",
+    "source_cols": [
+     "L_PARTKEY"
+    ],
+    "target": "PART",
+    "target_cols": [
+     "P_PARTKEY"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "lineitem",
+    "rule": "R2",
+    "source": "LINEITEM",
+    "source_cols": [
+     "L_SUPPKEY"
+    ],
+    "target": "SUPPLIER",
+    "target_cols": [
+     "S_SUPPKEY"
+    ]
+   },
+   {
+    "field_name": "partsupp",
+    "note": "",
+    "reverse_name": "lineitem",
+    "rule": "R3",
+    "source": "LINEITEM",
+    "source_cols": [
+     "L_PARTKEY",
+     "L_SUPPKEY"
+    ],
+    "target": "PARTSUPP",
+    "target_cols": [
+     "PS_PARTKEY",
+     "PS_SUPPKEY"
+    ]
+   }
+  ],
+  "summary": "8 tables, 8 with keys, 10 relationships",
+  "synonyms": []
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Customer.ts": "// rayfin/connectors/<connector>/Customer.ts — generated by fabric-backend from dbo.CUSTOMER\nimport { decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Nation } from './Nation.js';\nimport { Orders } from './Orders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key C_CUSTKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Customer extends Source({ schema: 'dbo', table: 'CUSTOMER', primaryKey: ['cCustkey'] }) {\n  @int({ column: 'C_CUSTKEY' }) cCustkey!: number;\n  @text({ column: 'C_NAME' }) cName!: string;\n  @text({ column: 'C_ADDRESS' }) cAddress!: string;\n  @int({ column: 'C_NATIONKEY' }) cNationkey!: number;\n  @text({ column: 'C_PHONE' }) cPhone!: string;\n  @decimal({ column: 'C_ACCTBAL' }) cAcctbal!: number;\n  @text({ column: 'C_MKTSEGMENT' }) cMktsegment!: string;\n  @text({ column: 'C_COMMENT' }) cComment!: string;\n\n  @one(() => Nation, { sourceFields: ['cNationkey'], targetFields: ['nNationkey'] }) nation?: Nation;    // C_NATIONKEY -> NATION [R1]\n  @many(() => Orders, { sourceFields: ['cCustkey'], targetFields: ['oCustkey'] }) orders?: Orders[];    // ORDERS.O_CUSTKEY [R2]\n}\n",
+  "rayfin/connectors/data/Lineitem.ts": "// rayfin/connectors/<connector>/Lineitem.ts — generated by fabric-backend from dbo.LINEITEM\nimport { date, decimal, entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Orders } from './Orders.js';\nimport { Part } from './Part.js';\nimport { Partsupp } from './Partsupp.js';\nimport { Supplier } from './Supplier.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key L_ORDERKEY+L_LINENUMBER by rule K5\nexport class Lineitem extends Source({ schema: 'dbo', table: 'LINEITEM', primaryKey: ['lOrderkey', 'lLinenumber'] }) {\n  @int({ column: 'L_ORDERKEY' }) lOrderkey!: number;\n  @int({ column: 'L_PARTKEY' }) lPartkey!: number;\n  @int({ column: 'L_SUPPKEY' }) lSuppkey!: number;\n  @int({ column: 'L_LINENUMBER' }) lLinenumber!: number;\n  @decimal({ column: 'L_QUANTITY' }) lQuantity!: number;\n  @decimal({ column: 'L_EXTENDEDPRICE' }) lExtendedprice!: number;\n  @decimal({ column: 'L_DISCOUNT' }) lDiscount!: number;\n  @decimal({ column: 'L_TAX' }) lTax!: number;\n  @text({ column: 'L_RETURNFLAG' }) lReturnflag!: string;\n  @text({ column: 'L_LINESTATUS' }) lLinestatus!: string;\n  @date({ column: 'L_SHIPDATE' }) lShipdate!: Date;\n  @date({ column: 'L_COMMITDATE' }) lCommitdate!: Date;\n  @date({ column: 'L_RECEIPTDATE' }) lReceiptdate!: Date;\n  @text({ column: 'L_SHIPINSTRUCT' }) lShipinstruct!: string;\n  @text({ column: 'L_SHIPMODE' }) lShipmode!: string;\n  @text({ column: 'L_COMMENT' }) lComment!: string;\n\n  @one(() => Orders, { sourceFields: ['lOrderkey'], targetFields: ['oOrderkey'] }) order?: Orders;    // L_ORDERKEY -> ORDERS [R1]\n  @one(() => Part, { sourceFields: ['lPartkey'], targetFields: ['pPartkey'] }) part?: Part;    // L_PARTKEY -> PART [R1]\n  @one(() => Supplier, { sourceFields: ['lSuppkey'], targetFields: ['sSuppkey'] }) supplier?: Supplier;    // L_SUPPKEY -> SUPPLIER [R2]\n  @one(() => Partsupp, { sourceFields: ['lPartkey', 'lSuppkey'], targetFields: ['psPartkey', 'psSuppkey'] }) partsupp?: Partsupp;    // L_PARTKEY+L_SUPPKEY -> PARTSUPP [R3]\n}\n",
+  "rayfin/connectors/data/Nation.ts": "// rayfin/connectors/<connector>/Nation.ts — generated by fabric-backend from dbo.NATION\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customer } from './Customer.js';\nimport { Region } from './Region.js';\nimport { Supplier } from './Supplier.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key N_NATIONKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Nation extends Source({ schema: 'dbo', table: 'NATION', primaryKey: ['nNationkey'] }) {\n  @int({ column: 'N_NATIONKEY' }) nNationkey!: number;\n  @text({ column: 'N_NAME' }) nName!: string;\n  @int({ column: 'N_REGIONKEY' }) nRegionkey!: number;\n  @text({ column: 'N_COMMENT' }) nComment!: string;\n\n  @one(() => Region, { sourceFields: ['nRegionkey'], targetFields: ['rRegionkey'] }) region?: Region;    // N_REGIONKEY -> REGION [R1]\n  @many(() => Supplier, { sourceFields: ['nNationkey'], targetFields: ['sNationkey'] }) supplier?: Supplier[];    // SUPPLIER.S_NATIONKEY [R1]\n  @many(() => Customer, { sourceFields: ['nNationkey'], targetFields: ['cNationkey'] }) customer?: Customer[];    // CUSTOMER.C_NATIONKEY [R1]\n}\n",
+  "rayfin/connectors/data/Orders.ts": "// rayfin/connectors/<connector>/Orders.ts — generated by fabric-backend from dbo.ORDERS\nimport { date, decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customer } from './Customer.js';\nimport { Lineitem } from './Lineitem.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key O_ORDERKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Orders extends Source({ schema: 'dbo', table: 'ORDERS', primaryKey: ['oOrderkey'] }) {\n  @int({ column: 'O_ORDERKEY' }) oOrderkey!: number;\n  @int({ column: 'O_CUSTKEY' }) oCustkey!: number;\n  @text({ column: 'O_ORDERSTATUS' }) oOrderstatus!: string;\n  @decimal({ column: 'O_TOTALPRICE' }) oTotalprice!: number;\n  @date({ column: 'O_ORDERDATE' }) oOrderdate!: Date;\n  @text({ column: 'O_ORDERPRIORITY' }) oOrderpriority!: string;\n  @text({ column: 'O_CLERK' }) oClerk!: string;\n  @int({ column: 'O_SHIPPRIORITY' }) oShippriority!: number;\n  @text({ column: 'O_COMMENT' }) oComment!: string;\n\n  @one(() => Customer, { sourceFields: ['oCustkey'], targetFields: ['cCustkey'] }) customer?: Customer;    // O_CUSTKEY -> CUSTOMER [R2]\n  @many(() => Lineitem, { sourceFields: ['oOrderkey'], targetFields: ['lOrderkey'] }) lineitem?: Lineitem[];    // LINEITEM.L_ORDERKEY [R1]\n}\n",
+  "rayfin/connectors/data/Part.ts": "// rayfin/connectors/<connector>/Part.ts — generated by fabric-backend from dbo.PART\nimport { decimal, entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Lineitem } from './Lineitem.js';\nimport { Partsupp } from './Partsupp.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key P_PARTKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Part extends Source({ schema: 'dbo', table: 'PART', primaryKey: ['pPartkey'] }) {\n  @int({ column: 'P_PARTKEY' }) pPartkey!: number;\n  @text({ column: 'P_NAME' }) pName!: string;\n  @text({ column: 'P_MFGR' }) pMfgr!: string;\n  @text({ column: 'P_BRAND' }) pBrand!: string;\n  @text({ column: 'P_TYPE' }) pType!: string;\n  @int({ column: 'P_SIZE' }) pSize!: number;\n  @text({ column: 'P_CONTAINER' }) pContainer!: string;\n  @decimal({ column: 'P_RETAILPRICE' }) pRetailprice!: number;\n  @text({ column: 'P_COMMENT' }) pComment!: string;\n\n  @many(() => Partsupp, { sourceFields: ['pPartkey'], targetFields: ['psPartkey'] }) partsupp?: Partsupp[];    // PARTSUPP.PS_PARTKEY [R1]\n  @many(() => Lineitem, { sourceFields: ['pPartkey'], targetFields: ['lPartkey'] }) lineitem?: Lineitem[];    // LINEITEM.L_PARTKEY [R1]\n}\n",
+  "rayfin/connectors/data/Partsupp.ts": "// rayfin/connectors/<connector>/Partsupp.ts — generated by fabric-backend from dbo.PARTSUPP\nimport { decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Lineitem } from './Lineitem.js';\nimport { Part } from './Part.js';\nimport { Supplier } from './Supplier.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key PS_PARTKEY+PS_SUPPKEY by rule K4\nexport class Partsupp extends Source({ schema: 'dbo', table: 'PARTSUPP', primaryKey: ['psPartkey', 'psSuppkey'] }) {\n  @int({ column: 'PS_PARTKEY' }) psPartkey!: number;\n  @int({ column: 'PS_SUPPKEY' }) psSuppkey!: number;\n  @int({ column: 'PS_AVAILQTY' }) psAvailqty!: number;\n  @decimal({ column: 'PS_SUPPLYCOST' }) psSupplycost!: number;\n  @text({ column: 'PS_COMMENT' }) psComment!: string;\n\n  @one(() => Part, { sourceFields: ['psPartkey'], targetFields: ['pPartkey'] }) part?: Part;    // PS_PARTKEY -> PART [R1]\n  @one(() => Supplier, { sourceFields: ['psSuppkey'], targetFields: ['sSuppkey'] }) supplier?: Supplier;    // PS_SUPPKEY -> SUPPLIER [R2]\n  @many(() => Lineitem, { sourceFields: ['psPartkey', 'psSuppkey'], targetFields: ['lPartkey', 'lSuppkey'] }) lineitem?: Lineitem[];    // LINEITEM.L_PARTKEY+L_SUPPKEY [R3]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n8 entities, 10 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Nation, Region, Part, Supplier, Partsupp, Customer, Orders, Lineitem\n",
+  "rayfin/connectors/data/Region.ts": "// rayfin/connectors/<connector>/Region.ts — generated by fabric-backend from dbo.REGION\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Nation } from './Nation.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key R_REGIONKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Region extends Source({ schema: 'dbo', table: 'REGION', primaryKey: ['rRegionkey'] }) {\n  @int({ column: 'R_REGIONKEY' }) rRegionkey!: number;\n  @text({ column: 'R_NAME' }) rName!: string;\n  @text({ column: 'R_COMMENT' }) rComment!: string;\n\n  @many(() => Nation, { sourceFields: ['rRegionkey'], targetFields: ['nRegionkey'] }) nation?: Nation[];    // NATION.N_REGIONKEY [R1]\n}\n",
+  "rayfin/connectors/data/Supplier.ts": "// rayfin/connectors/<connector>/Supplier.ts — generated by fabric-backend from dbo.SUPPLIER\nimport { decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Lineitem } from './Lineitem.js';\nimport { Nation } from './Nation.js';\nimport { Partsupp } from './Partsupp.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key S_SUPPKEY by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Supplier extends Source({ schema: 'dbo', table: 'SUPPLIER', primaryKey: ['sSuppkey'] }) {\n  @int({ column: 'S_SUPPKEY' }) sSuppkey!: number;\n  @text({ column: 'S_NAME' }) sName!: string;\n  @text({ column: 'S_ADDRESS' }) sAddress!: string;\n  @int({ column: 'S_NATIONKEY' }) sNationkey!: number;\n  @text({ column: 'S_PHONE' }) sPhone!: string;\n  @decimal({ column: 'S_ACCTBAL' }) sAcctbal!: number;\n  @text({ column: 'S_COMMENT' }) sComment!: string;\n\n  @one(() => Nation, { sourceFields: ['sNationkey'], targetFields: ['nNationkey'] }) nation?: Nation;    // S_NATIONKEY -> NATION [R1]\n  @many(() => Partsupp, { sourceFields: ['sSuppkey'], targetFields: ['psSuppkey'] }) partsupp?: Partsupp[];    // PARTSUPP.PS_SUPPKEY [R2]\n  @many(() => Lineitem, { sourceFields: ['sSuppkey'], targetFields: ['lSuppkey'] }) lineitem?: Lineitem[];    // LINEITEM.L_SUPPKEY [R2]\n}\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Nation } from './Nation.js';\nimport { Region } from './Region.js';\nimport { Part } from './Part.js';\nimport { Supplier } from './Supplier.js';\nimport { Partsupp } from './Partsupp.js';\nimport { Customer } from './Customer.js';\nimport { Orders } from './Orders.js';\nimport { Lineitem } from './Lineitem.js';\n\nexport { Nation } from './Nation.js';\nexport { Region } from './Region.js';\nexport { Part } from './Part.js';\nexport { Supplier } from './Supplier.js';\nexport { Partsupp } from './Partsupp.js';\nexport { Customer } from './Customer.js';\nexport { Orders } from './Orders.js';\nexport { Lineitem } from './Lineitem.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Nation, Region, Part, Supplier, Partsupp, Customer, Orders, Lineitem },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { Nation: typeof Nation, Region: typeof Region, Part: typeof Part, Supplier: typeof Supplier, Partsupp: typeof Partsupp, Customer: typeof Customer, Orders: typeof Orders, Lineitem: typeof Lineitem },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[R_REGIONKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[NATION] AS s LEFT JOIN (SELECT DISTINCT [R_REGIONKEY] FROM [dbo].[REGION]) AS t ON s.[N_REGIONKEY] = t.[R_REGIONKEY] WHERE s.[N_REGIONKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[N_NATIONKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[SUPPLIER] AS s LEFT JOIN (SELECT DISTINCT [N_NATIONKEY] FROM [dbo].[NATION]) AS t ON s.[S_NATIONKEY] = t.[N_NATIONKEY] WHERE s.[S_NATIONKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[P_PARTKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[PARTSUPP] AS s LEFT JOIN (SELECT DISTINCT [P_PARTKEY] FROM [dbo].[PART]) AS t ON s.[PS_PARTKEY] = t.[P_PARTKEY] WHERE s.[PS_PARTKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[S_SUPPKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[PARTSUPP] AS s LEFT JOIN (SELECT DISTINCT [S_SUPPKEY] FROM [dbo].[SUPPLIER]) AS t ON s.[PS_SUPPKEY] = t.[S_SUPPKEY] WHERE s.[PS_SUPPKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[N_NATIONKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[CUSTOMER] AS s LEFT JOIN (SELECT DISTINCT [N_NATIONKEY] FROM [dbo].[NATION]) AS t ON s.[C_NATIONKEY] = t.[N_NATIONKEY] WHERE s.[C_NATIONKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[C_CUSTKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[ORDERS] AS s LEFT JOIN (SELECT DISTINCT [C_CUSTKEY] FROM [dbo].[CUSTOMER]) AS t ON s.[O_CUSTKEY] = t.[C_CUSTKEY] WHERE s.[O_CUSTKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[O_ORDERKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[LINEITEM] AS s LEFT JOIN (SELECT DISTINCT [O_ORDERKEY] FROM [dbo].[ORDERS]) AS t ON s.[L_ORDERKEY] = t.[O_ORDERKEY] WHERE s.[L_ORDERKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[P_PARTKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[LINEITEM] AS s LEFT JOIN (SELECT DISTINCT [P_PARTKEY] FROM [dbo].[PART]) AS t ON s.[L_PARTKEY] = t.[P_PARTKEY] WHERE s.[L_PARTKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[S_SUPPKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[LINEITEM] AS s LEFT JOIN (SELECT DISTINCT [S_SUPPKEY] FROM [dbo].[SUPPLIER]) AS t ON s.[L_SUPPKEY] = t.[S_SUPPKEY] WHERE s.[L_SUPPKEY] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[PS_PARTKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[LINEITEM] AS s LEFT JOIN (SELECT DISTINCT [PS_PARTKEY], [PS_SUPPKEY] FROM [dbo].[PARTSUPP]) AS t ON s.[L_PARTKEY] = t.[PS_PARTKEY] AND s.[L_SUPPKEY] = t.[PS_SUPPKEY] WHERE s.[L_PARTKEY] IS NOT NULL AND s.[L_SUPPKEY] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "CUSTOMER": "SELECT TOP (10) [C_CUSTKEY], [C_NAME], [C_ADDRESS], [C_NATIONKEY], [C_PHONE], [C_ACCTBAL], [C_MKTSEGMENT], [C_COMMENT] FROM [dbo].[CUSTOMER]",
+  "LINEITEM": "SELECT TOP (10) [L_ORDERKEY], [L_PARTKEY], [L_SUPPKEY], [L_LINENUMBER], [L_QUANTITY], [L_EXTENDEDPRICE], [L_DISCOUNT], [L_TAX], [L_RETURNFLAG], [L_LINESTATUS], [L_SHIPDATE], [L_COMMITDATE], [L_RECEIPTDATE], [L_SHIPINSTRUCT], [L_SHIPMODE], [L_COMMENT] FROM [dbo].[LINEITEM]",
+  "NATION": "SELECT TOP (10) [N_NATIONKEY], [N_NAME], [N_REGIONKEY], [N_COMMENT] FROM [dbo].[NATION]",
+  "ORDERS": "SELECT TOP (10) [O_ORDERKEY], [O_CUSTKEY], [O_ORDERSTATUS], [O_TOTALPRICE], [O_ORDERDATE], [O_ORDERPRIORITY], [O_CLERK], [O_SHIPPRIORITY], [O_COMMENT] FROM [dbo].[ORDERS]",
+  "PART": "SELECT TOP (10) [P_PARTKEY], [P_NAME], [P_MFGR], [P_BRAND], [P_TYPE], [P_SIZE], [P_CONTAINER], [P_RETAILPRICE], [P_COMMENT] FROM [dbo].[PART]",
+  "PARTSUPP": "SELECT TOP (10) [PS_PARTKEY], [PS_SUPPKEY], [PS_AVAILQTY], [PS_SUPPLYCOST], [PS_COMMENT] FROM [dbo].[PARTSUPP]",
+  "REGION": "SELECT TOP (10) [R_REGIONKEY], [R_NAME], [R_COMMENT] FROM [dbo].[REGION]",
+  "SUPPLIER": "SELECT TOP (10) [S_SUPPKEY], [S_NAME], [S_ADDRESS], [S_NATIONKEY], [S_PHONE], [S_ACCTBAL], [S_COMMENT] FROM [dbo].[SUPPLIER]"
+ },
+ "semantic_model": {
+  "bytes": 36676,
+  "sha256": "d507ab0ed14d07061a280ab1d3777417887fe132ef683a2dd3b1af8b88a17653"
+ },
+ "silver": {
+  "bytes": 21100,
+  "sha256": "6bccbc1f67ac0fdd5b201aaabd5c0057537fba09ba6fd3166cb52dce840fa5f5"
+ },
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_LINEITEM",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_LINEITEM] AS\nSELECT\n    f.[L_ORDERKEY] AS [L_ORDERKEY],\n    f.[L_PARTKEY] AS [L_PARTKEY],\n    f.[L_SUPPKEY] AS [L_SUPPKEY],\n    f.[L_LINENUMBER] AS [L_LINENUMBER],\n    f.[L_QUANTITY] AS [L_QUANTITY],\n    f.[L_EXTENDEDPRICE] AS [L_EXTENDEDPRICE],\n    f.[L_DISCOUNT] AS [L_DISCOUNT],\n    f.[L_TAX] AS [L_TAX],\n    f.[L_RETURNFLAG] AS [L_RETURNFLAG],\n    f.[L_LINESTATUS] AS [L_LINESTATUS],\n    f.[L_SHIPDATE] AS [L_SHIPDATE],\n    f.[L_COMMITDATE] AS [L_COMMITDATE],\n    f.[L_RECEIPTDATE] AS [L_RECEIPTDATE],\n    f.[L_SHIPINSTRUCT] AS [L_SHIPINSTRUCT],\n    f.[L_SHIPMODE] AS [L_SHIPMODE],\n    f.[L_COMMENT] AS [L_COMMENT],\n    d1.[O_ORDERKEY] AS [ORDERS_O_ORDERKEY],\n    d1.[O_CUSTKEY] AS [ORDERS_O_CUSTKEY],\n    d1.[O_ORDERSTATUS] AS [ORDERS_O_ORDERSTATUS],\n    d1.[O_TOTALPRICE] AS [ORDERS_O_TOTALPRICE],\n    d1.[O_ORDERDATE] AS [ORDERS_O_ORDERDATE],\n    d1.[O_ORDERPRIORITY] AS [ORDERS_O_ORDERPRIORITY],\n    d1.[O_CLERK] AS [ORDERS_O_CLERK],\n    d1.[O_SHIPPRIORITY] AS [ORDERS_O_SHIPPRIORITY],\n    d1.[O_COMMENT] AS [ORDERS_O_COMMENT],\n    d2.[P_PARTKEY] AS [PART_P_PARTKEY],\n    d2.[P_NAME] AS [PART_P_NAME],\n    d2.[P_MFGR] AS [PART_P_MFGR],\n    d2.[P_BRAND] AS [PART_P_BRAND],\n    d2.[P_TYPE] AS [PART_P_TYPE],\n    d2.[P_SIZE] AS [PART_P_SIZE],\n    d2.[P_CONTAINER] AS [PART_P_CONTAINER],\n    d2.[P_RETAILPRICE] AS [PART_P_RETAILPRICE],\n    d2.[P_COMMENT] AS [PART_P_COMMENT],\n    d3.[PS_PARTKEY] AS [PARTSUPP_PS_PARTKEY],\n    d3.[PS_SUPPKEY] AS [PARTSUPP_PS_SUPPKEY],\n    d3.[PS_AVAILQTY] AS [PARTSUPP_PS_AVAILQTY],\n    d3.[PS_SUPPLYCOST] AS [PARTSUPP_PS_SUPPLYCOST],\n    d3.[PS_COMMENT] AS [PARTSUPP_PS_COMMENT],\n    d4.[S_SUPPKEY] AS [SUPPLIER_S_SUPPKEY],\n    d4.[S_NAME] AS [SUPPLIER_S_NAME],\n    d4.[S_ADDRESS] AS [SUPPLIER_S_ADDRESS],\n    d4.[S_NATIONKEY] AS [SUPPLIER_S_NATIONKEY],\n    d4.[S_PHONE] AS [SUPPLIER_S_PHONE],\n    d4.[S_ACCTBAL] AS [SUPPLIER_S_ACCTBAL],\n    d4.[S_COMMENT] AS [SUPPLIER_S_COMMENT],\n    d5.[C_CUSTKEY] AS [CUSTOMER_C_CUSTKEY],\n    d5.[C_NAME] AS [CUSTOMER_C_NAME],\n    d5.[C_ADDRESS] AS [CUSTOMER_C_ADDRESS],\n    d5.[C_NATIONKEY] AS [CUSTOMER_C_NATIONKEY],\n    d5.[C_PHONE] AS [CUSTOMER_C_PHONE],\n    d5.[C_ACCTBAL] AS [CUSTOMER_C_ACCTBAL],\n    d5.[C_MKTSEGMENT] AS [CUSTOMER_C_MKTSEGMENT],\n    d5.[C_COMMENT] AS [CUSTOMER_C_COMMENT],\n    d6.[N_NATIONKEY] AS [NATION_N_NATIONKEY],\n    d6.[N_NAME] AS [NATION_N_NAME],\n    d6.[N_REGIONKEY] AS [NATION_N_REGIONKEY],\n    d6.[N_COMMENT] AS [NATION_N_COMMENT],\n    d7.[R_REGIONKEY] AS [REGION_R_REGIONKEY],\n    d7.[R_NAME] AS [REGION_R_NAME],\n    d7.[R_COMMENT] AS [REGION_R_COMMENT]\nFROM [dbo].[LINEITEM] AS f\n    LEFT JOIN [dbo].[ORDERS] AS d1 ON f.[L_ORDERKEY] = d1.[O_ORDERKEY]\n    LEFT JOIN [dbo].[PART] AS d2 ON f.[L_PARTKEY] = d2.[P_PARTKEY]\n    LEFT JOIN [dbo].[PARTSUPP] AS d3 ON f.[L_PARTKEY] = d3.[PS_PARTKEY] AND f.[L_SUPPKEY] = d3.[PS_SUPPKEY]\n    LEFT JOIN [dbo].[SUPPLIER] AS d4 ON f.[L_SUPPKEY] = d4.[S_SUPPKEY]\n    LEFT JOIN [dbo].[CUSTOMER] AS d5 ON d1.[O_CUSTKEY] = d5.[C_CUSTKEY]\n    LEFT JOIN [dbo].[NATION] AS d6 ON d4.[S_NATIONKEY] = d6.[N_NATIONKEY]\n    LEFT JOIN [dbo].[REGION] AS d7 ON d6.[N_REGIONKEY] = d7.[R_REGIONKEY]",
+    "tables": [
+     "LINEITEM",
+     "ORDERS",
+     "PART",
+     "PARTSUPP",
+     "SUPPLIER",
+     "CUSTOMER",
+     "NATION",
+     "REGION"
+    ],
+    "why": "LINEITEM is a fact table (7 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_ORDERS",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_ORDERS] AS\nSELECT\n    f.[O_ORDERKEY] AS [O_ORDERKEY],\n    f.[O_CUSTKEY] AS [O_CUSTKEY],\n    f.[O_ORDERSTATUS] AS [O_ORDERSTATUS],\n    f.[O_TOTALPRICE] AS [O_TOTALPRICE],\n    f.[O_ORDERDATE] AS [O_ORDERDATE],\n    f.[O_ORDERPRIORITY] AS [O_ORDERPRIORITY],\n    f.[O_CLERK] AS [O_CLERK],\n    f.[O_SHIPPRIORITY] AS [O_SHIPPRIORITY],\n    f.[O_COMMENT] AS [O_COMMENT],\n    d1.[C_CUSTKEY] AS [CUSTOMER_C_CUSTKEY],\n    d1.[C_NAME] AS [CUSTOMER_C_NAME],\n    d1.[C_ADDRESS] AS [CUSTOMER_C_ADDRESS],\n    d1.[C_NATIONKEY] AS [CUSTOMER_C_NATIONKEY],\n    d1.[C_PHONE] AS [CUSTOMER_C_PHONE],\n    d1.[C_ACCTBAL] AS [CUSTOMER_C_ACCTBAL],\n    d1.[C_MKTSEGMENT] AS [CUSTOMER_C_MKTSEGMENT],\n    d1.[C_COMMENT] AS [CUSTOMER_C_COMMENT],\n    d2.[N_NATIONKEY] AS [NATION_N_NATIONKEY],\n    d2.[N_NAME] AS [NATION_N_NAME],\n    d2.[N_REGIONKEY] AS [NATION_N_REGIONKEY],\n    d2.[N_COMMENT] AS [NATION_N_COMMENT],\n    d3.[R_REGIONKEY] AS [REGION_R_REGIONKEY],\n    d3.[R_NAME] AS [REGION_R_NAME],\n    d3.[R_COMMENT] AS [REGION_R_COMMENT]\nFROM [dbo].[ORDERS] AS f\n    LEFT JOIN [dbo].[CUSTOMER] AS d1 ON f.[O_CUSTKEY] = d1.[C_CUSTKEY]\n    LEFT JOIN [dbo].[NATION] AS d2 ON d1.[C_NATIONKEY] = d2.[N_NATIONKEY]\n    LEFT JOIN [dbo].[REGION] AS d3 ON d2.[N_REGIONKEY] = d3.[R_REGIONKEY]",
+    "tables": [
+     "ORDERS",
+     "CUSTOMER",
+     "NATION",
+     "REGION"
+    ],
+    "why": "ORDERS is a header table: LINEITEM holds its lines; one row per ORDERS row, with its 3 dimension(s) joined in"
+   },
+   {
+    "name": "vw_PARTSUPP_supplier",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_PARTSUPP_supplier] AS\nSELECT\n    s.[PS_PARTKEY] AS [PS_PARTKEY],\n    s.[PS_SUPPKEY] AS [PS_SUPPKEY],\n    s.[PS_AVAILQTY] AS [PS_AVAILQTY],\n    s.[PS_SUPPLYCOST] AS [PS_SUPPLYCOST],\n    s.[PS_COMMENT] AS [PS_COMMENT],\n    t.[S_SUPPKEY] AS [SUPPLIER_S_SUPPKEY],\n    t.[S_NAME] AS [SUPPLIER_S_NAME],\n    t.[S_ADDRESS] AS [SUPPLIER_S_ADDRESS],\n    t.[S_NATIONKEY] AS [SUPPLIER_S_NATIONKEY],\n    t.[S_PHONE] AS [SUPPLIER_S_PHONE],\n    t.[S_ACCTBAL] AS [SUPPLIER_S_ACCTBAL],\n    t.[S_COMMENT] AS [SUPPLIER_S_COMMENT]\nFROM [dbo].[PARTSUPP] AS s\n    LEFT JOIN [dbo].[SUPPLIER] AS t ON s.[PS_SUPPKEY] = t.[S_SUPPKEY]",
+    "tables": [
+     "PARTSUPP",
+     "SUPPLIER"
+    ],
+    "why": "PARTSUPP.PS_SUPPKEY -> SUPPLIER (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_ORDERS_customer",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_ORDERS_customer] AS\nSELECT\n    s.[O_ORDERKEY] AS [O_ORDERKEY],\n    s.[O_CUSTKEY] AS [O_CUSTKEY],\n    s.[O_ORDERSTATUS] AS [O_ORDERSTATUS],\n    s.[O_TOTALPRICE] AS [O_TOTALPRICE],\n    s.[O_ORDERDATE] AS [O_ORDERDATE],\n    s.[O_ORDERPRIORITY] AS [O_ORDERPRIORITY],\n    s.[O_CLERK] AS [O_CLERK],\n    s.[O_SHIPPRIORITY] AS [O_SHIPPRIORITY],\n    s.[O_COMMENT] AS [O_COMMENT],\n    t.[C_CUSTKEY] AS [CUSTOMER_C_CUSTKEY],\n    t.[C_NAME] AS [CUSTOMER_C_NAME],\n    t.[C_ADDRESS] AS [CUSTOMER_C_ADDRESS],\n    t.[C_NATIONKEY] AS [CUSTOMER_C_NATIONKEY],\n    t.[C_PHONE] AS [CUSTOMER_C_PHONE],\n    t.[C_ACCTBAL] AS [CUSTOMER_C_ACCTBAL],\n    t.[C_MKTSEGMENT] AS [CUSTOMER_C_MKTSEGMENT],\n    t.[C_COMMENT] AS [CUSTOMER_C_COMMENT]\nFROM [dbo].[ORDERS] AS s\n    LEFT JOIN [dbo].[CUSTOMER] AS t ON s.[O_CUSTKEY] = t.[C_CUSTKEY]",
+    "tables": [
+     "ORDERS",
+     "CUSTOMER"
+    ],
+    "why": "ORDERS.O_CUSTKEY -> CUSTOMER (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_LINEITEM_supplier",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_LINEITEM_supplier] AS\nSELECT\n    s.[L_ORDERKEY] AS [L_ORDERKEY],\n    s.[L_PARTKEY] AS [L_PARTKEY],\n    s.[L_SUPPKEY] AS [L_SUPPKEY],\n    s.[L_LINENUMBER] AS [L_LINENUMBER],\n    s.[L_QUANTITY] AS [L_QUANTITY],\n    s.[L_EXTENDEDPRICE] AS [L_EXTENDEDPRICE],\n    s.[L_DISCOUNT] AS [L_DISCOUNT],\n    s.[L_TAX] AS [L_TAX],\n    s.[L_RETURNFLAG] AS [L_RETURNFLAG],\n    s.[L_LINESTATUS] AS [L_LINESTATUS],\n    s.[L_SHIPDATE] AS [L_SHIPDATE],\n    s.[L_COMMITDATE] AS [L_COMMITDATE],\n    s.[L_RECEIPTDATE] AS [L_RECEIPTDATE],\n    s.[L_SHIPINSTRUCT] AS [L_SHIPINSTRUCT],\n    s.[L_SHIPMODE] AS [L_SHIPMODE],\n    s.[L_COMMENT] AS [L_COMMENT],\n    t.[S_SUPPKEY] AS [SUPPLIER_S_SUPPKEY],\n    t.[S_NAME] AS [SUPPLIER_S_NAME],\n    t.[S_ADDRESS] AS [SUPPLIER_S_ADDRESS],\n    t.[S_NATIONKEY] AS [SUPPLIER_S_NATIONKEY],\n    t.[S_PHONE] AS [SUPPLIER_S_PHONE],\n    t.[S_ACCTBAL] AS [SUPPLIER_S_ACCTBAL],\n    t.[S_COMMENT] AS [SUPPLIER_S_COMMENT]\nFROM [dbo].[LINEITEM] AS s\n    LEFT JOIN [dbo].[SUPPLIER] AS t ON s.[L_SUPPKEY] = t.[S_SUPPKEY]",
+    "tables": [
+     "LINEITEM",
+     "SUPPLIER"
+    ],
+    "why": "LINEITEM.L_SUPPKEY -> SUPPLIER (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_LINEITEM_partsupp",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_LINEITEM_partsupp] AS\nSELECT\n    s.[L_ORDERKEY] AS [L_ORDERKEY],\n    s.[L_PARTKEY] AS [L_PARTKEY],\n    s.[L_SUPPKEY] AS [L_SUPPKEY],\n    s.[L_LINENUMBER] AS [L_LINENUMBER],\n    s.[L_QUANTITY] AS [L_QUANTITY],\n    s.[L_EXTENDEDPRICE] AS [L_EXTENDEDPRICE],\n    s.[L_DISCOUNT] AS [L_DISCOUNT],\n    s.[L_TAX] AS [L_TAX],\n    s.[L_RETURNFLAG] AS [L_RETURNFLAG],\n    s.[L_LINESTATUS] AS [L_LINESTATUS],\n    s.[L_SHIPDATE] AS [L_SHIPDATE],\n    s.[L_COMMITDATE] AS [L_COMMITDATE],\n    s.[L_RECEIPTDATE] AS [L_RECEIPTDATE],\n    s.[L_SHIPINSTRUCT] AS [L_SHIPINSTRUCT],\n    s.[L_SHIPMODE] AS [L_SHIPMODE],\n    s.[L_COMMENT] AS [L_COMMENT],\n    t.[PS_PARTKEY] AS [PARTSUPP_PS_PARTKEY],\n    t.[PS_SUPPKEY] AS [PARTSUPP_PS_SUPPKEY],\n    t.[PS_AVAILQTY] AS [PARTSUPP_PS_AVAILQTY],\n    t.[PS_SUPPLYCOST] AS [PARTSUPP_PS_SUPPLYCOST],\n    t.[PS_COMMENT] AS [PARTSUPP_PS_COMMENT]\nFROM [dbo].[LINEITEM] AS s\n    LEFT JOIN [dbo].[PARTSUPP] AS t ON s.[L_PARTKEY] = t.[PS_PARTKEY] AND s.[L_SUPPKEY] = t.[PS_SUPPKEY]",
+    "tables": [
+     "LINEITEM",
+     "PARTSUPP"
+    ],
+    "why": "LINEITEM.L_PARTKEY+L_SUPPKEY -> PARTSUPP (R3): the link spans several columns"
+   }
+  ]
+ }
+}

@@ -1,0 +1,1550 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.8,
+    "columns": [
+     "EmployeeID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "EmployeeTerritories",
+    "target": "Employees",
+    "target_columns": [
+     "EmployeeID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "TerritoryID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "EmployeeTerritories",
+    "target": "Territories",
+    "target_columns": [
+     "TerritoryID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "OrderID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Order Details",
+    "target": "Orders",
+    "target_columns": [
+     "OrderID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "ProductID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Order Details",
+    "target": "Products",
+    "target_columns": [
+     "ProductID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "CustomerID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Orders",
+    "target": "Customers",
+    "target_columns": [
+     "CustomerID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "EmployeeID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Orders",
+    "target": "Employees",
+    "target_columns": [
+     "EmployeeID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "CategoryID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Products",
+    "target": "Categories",
+    "target_columns": [
+     "CategoryID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "SupplierID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Products",
+    "target": "Suppliers",
+    "target_columns": [
+     "SupplierID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "CustomerID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "CustomerCustomerDemo",
+    "target": "Customers",
+    "target_columns": [
+     "CustomerID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.8,
+    "columns": [
+     "RegionID"
+    ],
+    "cost": 1.25,
+    "rule": "R1",
+    "source": "Territories",
+    "target": "Region",
+    "target_columns": [
+     "RegionID"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [],
+   "note": "no cycles: every pair of connected tables has exactly one path",
+   "pairs_with_multiple_paths": []
+  },
+  "areas": [
+   {
+    "central_table": "Customers",
+    "name": "Customers area",
+    "tables": [
+     "CustomerCustomerDemo",
+     "Customers",
+     "EmployeeTerritories",
+     "Employees",
+     "Order Details",
+     "Orders",
+     "Region",
+     "Territories"
+    ]
+   },
+   {
+    "central_table": "Categories",
+    "name": "Categories area",
+    "tables": [
+     "Categories",
+     "Products",
+     "Suppliers"
+    ]
+   },
+   {
+    "central_table": "CustomerDemographics",
+    "name": "CustomerDemographics area",
+    "tables": [
+     "CustomerDemographics"
+    ]
+   },
+   {
+    "central_table": "Shippers",
+    "name": "Shippers area",
+    "tables": [
+     "Shippers"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "Categories": 0.0,
+    "CustomerCustomerDemo": 0.0,
+    "CustomerDemographics": 0.0,
+    "Customers": 0.1364,
+    "EmployeeTerritories": 0.2424,
+    "Employees": 0.3182,
+    "Order Details": 0.3182,
+    "Orders": 0.4848,
+    "Products": 0.2576,
+    "Region": 0.0,
+    "Shippers": 0.0,
+    "Suppliers": 0.0,
+    "Territories": 0.1364
+   },
+   "degree": {
+    "Categories": {
+     "in": 1,
+     "out": 0
+    },
+    "CustomerCustomerDemo": {
+     "in": 0,
+     "out": 1
+    },
+    "CustomerDemographics": {
+     "in": 0,
+     "out": 0
+    },
+    "Customers": {
+     "in": 2,
+     "out": 0
+    },
+    "EmployeeTerritories": {
+     "in": 0,
+     "out": 2
+    },
+    "Employees": {
+     "in": 2,
+     "out": 0
+    },
+    "Order Details": {
+     "in": 0,
+     "out": 2
+    },
+    "Orders": {
+     "in": 1,
+     "out": 2
+    },
+    "Products": {
+     "in": 1,
+     "out": 2
+    },
+    "Region": {
+     "in": 1,
+     "out": 0
+    },
+    "Shippers": {
+     "in": 0,
+     "out": 0
+    },
+    "Suppliers": {
+     "in": 1,
+     "out": 0
+    },
+    "Territories": {
+     "in": 1,
+     "out": 1
+    }
+   },
+   "pagerank": {
+    "Categories": 0.0837,
+    "CustomerCustomerDemo": 0.0521,
+    "CustomerDemographics": 0.0521,
+    "Customers": 0.128,
+    "EmployeeTerritories": 0.0521,
+    "Employees": 0.1059,
+    "Order Details": 0.0521,
+    "Orders": 0.0743,
+    "Products": 0.0743,
+    "Region": 0.1153,
+    "Shippers": 0.0521,
+    "Suppliers": 0.0837,
+    "Territories": 0.0743
+   },
+   "top": [
+    {
+     "betweenness": 0.1364,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.128,
+     "role": "dimension",
+     "table": "Customers"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.1153,
+     "role": "dimension",
+     "table": "Region"
+    },
+    {
+     "betweenness": 0.3182,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.1059,
+     "role": "dimension",
+     "table": "Employees"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0837,
+     "role": "dimension",
+     "table": "Categories"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.0837,
+     "role": "dimension",
+     "table": "Suppliers"
+    },
+    {
+     "betweenness": 0.4848,
+     "in": 1,
+     "out": 2,
+     "pagerank": 0.0743,
+     "role": "bridge",
+     "table": "Orders"
+    },
+    {
+     "betweenness": 0.2576,
+     "in": 1,
+     "out": 2,
+     "pagerank": 0.0743,
+     "role": "bridge",
+     "table": "Products"
+    },
+    {
+     "betweenness": 0.1364,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.0743,
+     "role": "dimension",
+     "table": "Territories"
+    },
+    {
+     "betweenness": 0.3182,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0521,
+     "role": "bridge",
+     "table": "Order Details"
+    },
+    {
+     "betweenness": 0.2424,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0521,
+     "role": "bridge",
+     "table": "EmployeeTerritories"
+    }
+   ]
+  },
+  "inactive_relationships": [],
+  "roles": {
+   "Categories": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "CustomerCustomerDemo": {
+    "role": "dimension",
+    "why": "a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0"
+   },
+   "CustomerDemographics": {
+    "role": "isolated",
+    "why": "no relationships in or out"
+   },
+   "Customers": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out, few measures (0.0); out 0, in 2, betweenness 0.1364, measure share 0.0"
+   },
+   "EmployeeTerritories": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.2424, measure share 0.0"
+   },
+   "Employees": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out, few measures (0.18); out 0, in 2, betweenness 0.3182, measure share 0.18"
+   },
+   "Order Details": {
+    "role": "bridge",
+    "why": "many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.3182, measure share 1.0"
+   },
+   "Orders": {
+    "role": "bridge",
+    "why": "high betweenness (0.4848 of max 0.4848) as a many side between 2 tables with 1 in; out 2, in 1, betweenness 0.4848, measure share 0.45"
+   },
+   "Products": {
+    "role": "bridge",
+    "why": "high betweenness (0.2576 of max 0.4848) as a many side between 2 tables with 1 in; out 2, in 1, betweenness 0.2576, measure share 0.57"
+   },
+   "Region": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Shippers": {
+    "role": "isolated",
+    "why": "no relationships in or out"
+   },
+   "Suppliers": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Territories": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.1364, measure share 0.0"
+   }
+  },
+  "summary": "13 tables, 10 relationships; roles: 7 dimension, 4 bridge, 2 isolated; 10 relationships can be active at once, 0 would be inactive; 0 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "abbreviation",
+   "name_similarity": 0.7,
+   "penalties": [],
+   "score": 3.6,
+   "source": "CustomerDemographics",
+   "source_cols": [
+    "CustomerTypeID"
+   ],
+   "target": "Customers",
+   "target_cols": [
+    "CustomerID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "CustomerDemographics.CustomerTypeID (nchar) is in no relationship and matches the type of Customers.CustomerID; its name resembles Customers (0.7)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "abbreviation",
+   "name_similarity": 0.7,
+   "penalties": [
+    "CustomerCustomerDemo already refers to Customers through CustomerID"
+   ],
+   "score": 3.35,
+   "source": "CustomerCustomerDemo",
+   "source_cols": [
+    "CustomerTypeID"
+   ],
+   "target": "Customers",
+   "target_cols": [
+    "CustomerID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "CustomerCustomerDemo.CustomerTypeID (nchar) is in no relationship and matches the type of Customers.CustomerID; its name resembles Customers (0.7); but CustomerCustomerDemo already refers to Customers through CustomerID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "abbreviation",
+   "name_similarity": 0.7,
+   "penalties": [],
+   "score": 3.1,
+   "source": "Orders",
+   "source_cols": [
+    "ShipVia"
+   ],
+   "target": "Shippers",
+   "target_cols": [
+    "ShipperID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Orders.ShipVia (int) is in no relationship and matches the type of Shippers.ShipperID; its name resembles Shippers (0.7)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "abbreviation",
+   "name_similarity": 0.7,
+   "penalties": [
+    "Order Details already joins Products and Orders (many-to-many through it)"
+   ],
+   "score": 2.4,
+   "source": "Products",
+   "source_cols": [
+    "UnitsOnOrder"
+   ],
+   "target": "Orders",
+   "target_cols": [
+    "OrderID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "Products.UnitsOnOrder (smallint) is in no relationship and matches the type of Orders.OrderID; its name resembles Orders (0.7); but Order Details already joins Products and Orders (many-to-many through it)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Customers",
+   "source_cols": [
+    "PostalCode"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Customers.PostalCode (nvarchar) is in no relationship and matches the type of Territories.TerritoryID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Orders",
+   "source_cols": [
+    "ShipPostalCode"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Orders.ShipPostalCode (nvarchar) is in no relationship and matches the type of Territories.TerritoryID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.5,
+   "source": "Suppliers",
+   "source_cols": [
+    "PostalCode"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Suppliers.PostalCode (nvarchar) is in no relationship and matches the type of Territories.TerritoryID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.3,
+   "source": "CustomerCustomerDemo",
+   "source_cols": [
+    "CustomerTypeID"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "CustomerCustomerDemo.CustomerTypeID (nchar) is in no relationship and matches the type of Territories.TerritoryID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.3,
+   "source": "CustomerDemographics",
+   "source_cols": [
+    "CustomerTypeID"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "CustomerDemographics.CustomerTypeID (nchar) is in no relationship and matches the type of Territories.TerritoryID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [],
+   "score": 1.3,
+   "source": "Suppliers",
+   "source_cols": [
+    "PostalCode"
+   ],
+   "target": "Customers",
+   "target_cols": [
+    "CustomerID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "Suppliers.PostalCode (nvarchar) is in no relationship and matches the type of Customers.CustomerID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "Orders already refers to Customers through CustomerID"
+   ],
+   "score": 1.05,
+   "source": "Orders",
+   "source_cols": [
+    "ShipPostalCode"
+   ],
+   "target": "Customers",
+   "target_cols": [
+    "CustomerID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "Orders.ShipPostalCode (nvarchar) is in no relationship and matches the type of Customers.CustomerID; but Orders already refers to Customers through CustomerID"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "EmployeeTerritories already joins Employees and Territories (many-to-many through it)"
+   ],
+   "score": 1.0,
+   "source": "Employees",
+   "source_cols": [
+    "PostalCode"
+   ],
+   "target": "Territories",
+   "target_cols": [
+    "TerritoryID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 1.0,
+   "why": "Employees.PostalCode (nvarchar) is in no relationship and matches the type of Territories.TerritoryID; but EmployeeTerritories already joins Employees and Territories (many-to-many through it)"
+  },
+  {
+   "closure": 0.0,
+   "closure_via": "",
+   "name_basis": "",
+   "name_similarity": 0.0,
+   "penalties": [
+    "Orders already joins Employees and Customers (many-to-many through it)"
+   ],
+   "score": 0.8,
+   "source": "Employees",
+   "source_cols": [
+    "PostalCode"
+   ],
+   "target": "Customers",
+   "target_cols": [
+    "CustomerID"
+   ],
+   "triangular_closure": false,
+   "type_similarity": 0.8,
+   "why": "Employees.PostalCode (nvarchar) is in no relationship and matches the type of Customers.CustomerID; but Orders already joins Employees and Customers (many-to-many through it)"
+  }
+ ],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: Employees\n        columns:\n          - name: EmployeeID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: LastName\n            description: \"\"  # nvarchar\n          - name: FirstName\n            description: \"\"  # nvarchar\n          - name: Title\n            description: \"\"  # nvarchar\n          - name: TitleOfCourtesy\n            description: \"\"  # nvarchar\n          - name: BirthDate\n            description: \"\"  # datetime\n          - name: HireDate\n            description: \"\"  # datetime\n          - name: Address\n            description: \"\"  # nvarchar\n          - name: City\n            description: \"\"  # nvarchar\n          - name: Region\n            description: \"\"  # nvarchar\n          - name: PostalCode\n            description: \"\"  # nvarchar\n          - name: Country\n            description: \"\"  # nvarchar\n          - name: HomePhone\n            description: \"\"  # nvarchar\n          - name: Extension\n            description: \"\"  # nvarchar\n          - name: Photo\n            description: \"\"  # image\n          - name: Notes\n            description: \"\"  # ntext\n          - name: ReportsTo\n            description: \"\"  # int\n          - name: PhotoPath\n            description: \"\"  # nvarchar\n      - name: Categories\n        columns:\n          - name: CategoryID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CategoryName\n            description: \"\"  # nvarchar\n          - name: Description\n            description: \"\"  # ntext\n          - name: Picture\n            description: \"\"  # image\n      - name: Customers\n        columns:\n          - name: CustomerID\n            description: \"\"  # nchar\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CompanyName\n            description: \"\"  # nvarchar\n          - name: ContactName\n            description: \"\"  # nvarchar\n          - name: ContactTitle\n            description: \"\"  # nvarchar\n          - name: Address\n            description: \"\"  # nvarchar\n          - name: City\n            description: \"\"  # nvarchar\n          - name: Region\n            description: \"\"  # nvarchar\n          - name: PostalCode\n            description: \"\"  # nvarchar\n          - name: Country\n            description: \"\"  # nvarchar\n          - name: Phone\n            description: \"\"  # nvarchar\n          - name: Fax\n            description: \"\"  # nvarchar\n      - name: Shippers\n        columns:\n          - name: ShipperID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CompanyName\n            description: \"\"  # nvarchar\n          - name: Phone\n            description: \"\"  # nvarchar\n      - name: Suppliers\n        columns:\n          - name: SupplierID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CompanyName\n            description: \"\"  # nvarchar\n          - name: ContactName\n            description: \"\"  # nvarchar\n          - name: ContactTitle\n            description: \"\"  # nvarchar\n          - name: Address\n            description: \"\"  # nvarchar\n          - name: City\n            description: \"\"  # nvarchar\n          - name: Region\n            description: \"\"  # nvarchar\n          - name: PostalCode\n            description: \"\"  # nvarchar\n          - name: Country\n            description: \"\"  # nvarchar\n          - name: Phone\n            description: \"\"  # nvarchar\n          - name: Fax\n            description: \"\"  # nvarchar\n          - name: HomePage\n            description: \"\"  # ntext\n      - name: Orders\n        columns:\n          - name: OrderID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: CustomerID\n            description: \"\"  # nchar\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Customers')\n                    field: CustomerID\n          - name: EmployeeID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Employees')\n                    field: EmployeeID\n          - name: OrderDate\n            description: \"\"  # datetime\n          - name: RequiredDate\n            description: \"\"  # datetime\n          - name: ShippedDate\n            description: \"\"  # datetime\n          - name: ShipVia\n            description: \"\"  # int\n          - name: Freight\n            description: \"\"  # money\n          - name: ShipName\n            description: \"\"  # nvarchar\n          - name: ShipAddress\n            description: \"\"  # nvarchar\n          - name: ShipCity\n            description: \"\"  # nvarchar\n          - name: ShipRegion\n            description: \"\"  # nvarchar\n          - name: ShipPostalCode\n            description: \"\"  # nvarchar\n          - name: ShipCountry\n            description: \"\"  # nvarchar\n      - name: Products\n        columns:\n          - name: ProductID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: ProductName\n            description: \"\"  # nvarchar\n          - name: SupplierID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Suppliers')\n                    field: SupplierID\n          - name: CategoryID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Categories')\n                    field: CategoryID\n          - name: QuantityPerUnit\n            description: \"\"  # nvarchar\n          - name: UnitPrice\n            description: \"\"  # money\n          - name: UnitsInStock\n            description: \"\"  # smallint\n          - name: UnitsOnOrder\n            description: \"\"  # smallint\n          - name: ReorderLevel\n            description: \"\"  # smallint\n          - name: Discontinued\n            description: \"\"  # bit\n      - name: \"Order Details\"\n        # composite key OrderID+ProductID (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [OrderID, ProductID]\n        columns:\n          - name: OrderID\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Orders')\n                    field: OrderID\n          - name: ProductID\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Products')\n                    field: ProductID\n          - name: UnitPrice\n            description: \"\"  # money\n          - name: Quantity\n            description: \"\"  # smallint\n          - name: Discount\n            description: \"\"  # real\n      - name: CustomerCustomerDemo\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: CustomerID\n            description: \"\"  # nchar\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Customers')\n                    field: CustomerID\n          - name: CustomerTypeID\n            description: \"\"  # nchar\n      - name: CustomerDemographics\n        # no key inferred (rule K3): no unique/not_null tests\n        columns:\n          - name: CustomerTypeID\n            description: \"\"  # nchar\n          - name: CustomerDesc\n            description: \"\"  # ntext\n      - name: Region\n        columns:\n          - name: RegionID\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: RegionDescription\n            description: \"\"  # nchar\n      - name: Territories\n        columns:\n          - name: TerritoryID\n            description: \"\"  # nvarchar\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: TerritoryDescription\n            description: \"\"  # nchar\n          - name: RegionID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Region')\n                    field: RegionID\n      - name: EmployeeTerritories\n        # composite key EmployeeID+TerritoryID (rule K4): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [EmployeeID, TerritoryID]\n        columns:\n          - name: EmployeeID\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Employees')\n                    field: EmployeeID\n          - name: TerritoryID\n            description: \"\"  # nvarchar\n            data_tests:\n              - not_null  # key, rule K4\n              - relationships:  # rule R1\n                  arguments:\n                    to: source('src', 'Territories')\n                    field: TerritoryID\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 13 tables, 11 with keys, 10 relationships\n- Tables without a key: CustomerCustomerDemo, CustomerDemographics\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### Employees\n\nKey: EmployeeID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| EmployeeID | int | yes |  |  |\n| LastName | nvarchar |  |  |  |\n| FirstName | nvarchar |  |  |  |\n| Title | nvarchar |  |  |  |\n| TitleOfCourtesy | nvarchar |  |  |  |\n| BirthDate | datetime |  |  |  |\n| HireDate | datetime |  |  |  |\n| Address | nvarchar |  |  |  |\n| City | nvarchar |  |  |  |\n| Region | nvarchar |  |  |  |\n| PostalCode | nvarchar |  |  |  |\n| Country | nvarchar |  |  |  |\n| HomePhone | nvarchar |  |  |  |\n| Extension | nvarchar |  |  |  |\n| Photo | image |  |  |  |\n| Notes | ntext |  |  |  |\n| ReportsTo | int |  |  |  |\n| PhotoPath | nvarchar |  |  |  |\n\n### Categories\n\nKey: CategoryID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CategoryID | int | yes |  |  |\n| CategoryName | nvarchar |  |  |  |\n| Description | ntext |  |  |  |\n| Picture | image |  |  |  |\n\n### Customers\n\nKey: CustomerID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CustomerID | nchar | yes |  |  |\n| CompanyName | nvarchar |  |  |  |\n| ContactName | nvarchar |  |  |  |\n| ContactTitle | nvarchar |  |  |  |\n| Address | nvarchar |  |  |  |\n| City | nvarchar |  |  |  |\n| Region | nvarchar |  |  |  |\n| PostalCode | nvarchar |  |  |  |\n| Country | nvarchar |  |  |  |\n| Phone | nvarchar |  |  |  |\n| Fax | nvarchar |  |  |  |\n\n### Shippers\n\nKey: ShipperID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| ShipperID | int | yes |  |  |\n| CompanyName | nvarchar |  |  |  |\n| Phone | nvarchar |  |  |  |\n\n### Suppliers\n\nKey: SupplierID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| SupplierID | int | yes |  |  |\n| CompanyName | nvarchar |  |  |  |\n| ContactName | nvarchar |  |  |  |\n| ContactTitle | nvarchar |  |  |  |\n| Address | nvarchar |  |  |  |\n| City | nvarchar |  |  |  |\n| Region | nvarchar |  |  |  |\n| PostalCode | nvarchar |  |  |  |\n| Country | nvarchar |  |  |  |\n| Phone | nvarchar |  |  |  |\n| Fax | nvarchar |  |  |  |\n| HomePage | ntext |  |  |  |\n\n### Orders\n\nKey: OrderID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderID | int | yes |  |  |\n| CustomerID | nchar |  | Customers.CustomerID (R1) |  |\n| EmployeeID | int |  | Employees.EmployeeID (R1) |  |\n| OrderDate | datetime |  |  |  |\n| RequiredDate | datetime |  |  |  |\n| ShippedDate | datetime |  |  |  |\n| ShipVia | int |  |  |  |\n| Freight | money |  |  |  |\n| ShipName | nvarchar |  |  |  |\n| ShipAddress | nvarchar |  |  |  |\n| ShipCity | nvarchar |  |  |  |\n| ShipRegion | nvarchar |  |  |  |\n| ShipPostalCode | nvarchar |  |  |  |\n| ShipCountry | nvarchar |  |  |  |\n\n### Products\n\nKey: ProductID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| ProductID | int | yes |  |  |\n| ProductName | nvarchar |  |  |  |\n| SupplierID | int |  | Suppliers.SupplierID (R1) |  |\n| CategoryID | int |  | Categories.CategoryID (R1) |  |\n| QuantityPerUnit | nvarchar |  |  |  |\n| UnitPrice | money |  |  |  |\n| UnitsInStock | smallint |  |  |  |\n| UnitsOnOrder | smallint |  |  |  |\n| ReorderLevel | smallint |  |  |  |\n| Discontinued | bit |  |  |  |\n\n### Order Details\n\nKey: OrderID+ProductID (rule K4)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderID | int | yes | Orders.OrderID (R1) |  |\n| ProductID | int | yes | Products.ProductID (R1) |  |\n| UnitPrice | money |  |  |  |\n| Quantity | smallint |  |  |  |\n| Discount | real |  |  |  |\n\n### CustomerCustomerDemo\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CustomerID | nchar |  | Customers.CustomerID (R1) |  |\n| CustomerTypeID | nchar |  |  |  |\n\n### CustomerDemographics\n\nKey: none (rule K3)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| CustomerTypeID | nchar |  |  |  |\n| CustomerDesc | ntext |  |  |  |\n\n### Region\n\nKey: RegionID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| RegionID | int | yes |  |  |\n| RegionDescription | nchar |  |  |  |\n\n### Territories\n\nKey: TerritoryID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| TerritoryID | nvarchar | yes |  |  |\n| TerritoryDescription | nchar |  |  |  |\n| RegionID | int |  | Region.RegionID (R1) |  |\n\n### EmployeeTerritories\n\nKey: EmployeeID+TerritoryID (rule K4)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| EmployeeID | int | yes | Employees.EmployeeID (R1) |  |\n| TerritoryID | nvarchar | yes | Territories.TerritoryID (R1) |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| Employees | EmployeeID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Categories | CategoryID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Customers | CustomerID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Shippers | ShipperID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Suppliers | SupplierID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Orders | OrderID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Products | ProductID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Order Details | OrderID+ProductID | K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| CustomerCustomerDemo | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| CustomerDemographics | — | K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| Region | RegionID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Territories | TerritoryID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| EmployeeTerritories | EmployeeID+TerritoryID | K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| Orders | CustomerID | Customers | CustomerID | R1 | customer / orders |\n| Orders | EmployeeID | Employees | EmployeeID | R1 | employee / orders |\n| Products | SupplierID | Suppliers | SupplierID | R1 | supplier / products |\n| Products | CategoryID | Categories | CategoryID | R1 | category / products |\n| Order Details | OrderID | Orders | OrderID | R1 | order / order_details |\n| Order Details | ProductID | Products | ProductID | R1 | product / order_details |\n| CustomerCustomerDemo | CustomerID | Customers | CustomerID | R1 | customer / customercustomerdemo |\n| Territories | RegionID | Region | RegionID | R1 | region / territories |\n| EmployeeTerritories | EmployeeID | Employees | EmployeeID | R1 | employee / employeeterritories |\n| EmployeeTerritories | TerritoryID | Territories | TerritoryID | R1 | territory / employeeterritories |\n\n## Tables without a key\n\n- CustomerCustomerDemo: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n- CustomerDemographics: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n13 tables, 10 relationships; roles: 7 dimension, 4 bridge, 2 isolated; 10 relationships can be active at once, 0 would be inactive; 0 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| Employees | dimension | 2 reference(s) in, 0 out, few measures (0.18); out 0, in 2, betweenness 0.3182, measure share 0.18 |\n| Categories | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Customers | dimension | 2 reference(s) in, 0 out, few measures (0.0); out 0, in 2, betweenness 0.1364, measure share 0.0 |\n| Shippers | isolated | no relationships in or out |\n| Suppliers | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Orders | bridge | high betweenness (0.4848 of max 0.4848) as a many side between 2 tables with 1 in; out 2, in 1, betweenness 0.4848, measure share 0.45 |\n| Products | bridge | high betweenness (0.2576 of max 0.4848) as a many side between 2 tables with 1 in; out 2, in 1, betweenness 0.2576, measure share 0.57 |\n| Order Details | bridge | many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.3182, measure share 1.0 |\n| CustomerCustomerDemo | dimension | a leaf that only refers to others (a child entity without measures); out 1, in 0, betweenness 0.0, measure share 0.0 |\n| CustomerDemographics | isolated | no relationships in or out |\n| Region | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Territories | dimension | 1 reference(s) in, 1 out, few measures (0.0); out 1, in 1, betweenness 0.1364, measure share 0.0 |\n| EmployeeTerritories | bridge | many-to-many pattern: 2 references out and a junction key (K4); out 2, in 0, betweenness 0.2424, measure share 0.0 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- Customers area: CustomerCustomerDemo, Customers, EmployeeTerritories, Employees, Order Details, Orders, Region, Territories\n- Categories area: Categories, Products, Suppliers\n- CustomerDemographics area: CustomerDemographics\n- Shippers area: Shippers\n\nno cycles: every pair of connected tables has exactly one path.\n\n## Diagram\n\n```mermaid\nerDiagram\n  Employees {\n    EmployeeID int PK\n    LastName nvarchar\n    FirstName nvarchar\n    Title nvarchar\n    TitleOfCourtesy nvarchar\n    BirthDate datetime\n    HireDate datetime\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    HomePhone nvarchar\n    Extension nvarchar\n    Photo image\n    Notes ntext\n    ReportsTo int\n    PhotoPath nvarchar\n  }\n  Categories {\n    CategoryID int PK\n    CategoryName nvarchar\n    Description ntext\n    Picture image\n  }\n  Customers {\n    CustomerID nchar PK\n    CompanyName nvarchar\n    ContactName nvarchar\n    ContactTitle nvarchar\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    Phone nvarchar\n    Fax nvarchar\n  }\n  Shippers {\n    ShipperID int PK\n    CompanyName nvarchar\n    Phone nvarchar\n  }\n  Suppliers {\n    SupplierID int PK\n    CompanyName nvarchar\n    ContactName nvarchar\n    ContactTitle nvarchar\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    HomePage ntext\n  }\n  Orders {\n    OrderID int PK\n    CustomerID nchar\n    EmployeeID int\n    OrderDate datetime\n    RequiredDate datetime\n    ShippedDate datetime\n    ShipVia int\n    Freight money\n    ShipName nvarchar\n    ShipAddress nvarchar\n    ShipCity nvarchar\n    ShipRegion nvarchar\n    ShipPostalCode nvarchar\n    ShipCountry nvarchar\n  }\n  Products {\n    ProductID int PK\n    ProductName nvarchar\n    SupplierID int\n    CategoryID int\n    QuantityPerUnit nvarchar\n    UnitPrice money\n    UnitsInStock smallint\n    UnitsOnOrder smallint\n    ReorderLevel smallint\n    Discontinued bit\n  }\n  Order_Details {\n    OrderID int PK\n    ProductID int PK\n    UnitPrice money\n    Quantity smallint\n    Discount real\n  }\n  CustomerCustomerDemo {\n    CustomerID nchar\n    CustomerTypeID nchar\n  }\n  CustomerDemographics {\n    CustomerTypeID nchar\n    CustomerDesc ntext\n  }\n  Region {\n    RegionID int PK\n    RegionDescription nchar\n  }\n  Territories {\n    TerritoryID nvarchar PK\n    TerritoryDescription nchar\n    RegionID int\n  }\n  EmployeeTerritories {\n    EmployeeID int PK\n    TerritoryID nvarchar PK\n  }\n  Customers ||--o{ Orders : \"CustomerID R1\"\n  Employees ||--o{ Orders : \"EmployeeID R1\"\n  Suppliers ||--o{ Products : \"SupplierID R1\"\n  Categories ||--o{ Products : \"CategoryID R1\"\n  Orders ||--o{ Order_Details : \"OrderID R1\"\n  Products ||--o{ Order_Details : \"ProductID R1\"\n  Customers ||--o{ CustomerCustomerDemo : \"CustomerID R1\"\n  Region ||--o{ Territories : \"RegionID R1\"\n  Employees ||--o{ EmployeeTerritories : \"EmployeeID R1\"\n  Territories ||--o{ EmployeeTerritories : \"TerritoryID R1\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Address": "Address",
+       "BirthDate": "BirthDate",
+       "City": "City",
+       "Country": "Country",
+       "EmployeeID": "EmployeeID",
+       "Extension": "Extension",
+       "FirstName": "FirstName",
+       "HireDate": "HireDate",
+       "HomePhone": "HomePhone",
+       "LastName": "LastName",
+       "Notes": "Notes",
+       "Photo": "Photo",
+       "PhotoPath": "PhotoPath",
+       "PostalCode": "PostalCode",
+       "Region": "Region",
+       "ReportsTo": "ReportsTo",
+       "Title": "Title",
+       "TitleOfCourtesy": "TitleOfCourtesy"
+      },
+      "graphqlType": "Employees",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "orders",
+        "sourceFields": [
+         "EmployeeID"
+        ],
+        "targetFields": [
+         "EmployeeID"
+        ],
+        "targetObject": "dbo.Orders"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "employeeterritories",
+        "sourceFields": [
+         "EmployeeID"
+        ],
+        "targetFields": [
+         "EmployeeID"
+        ],
+        "targetObject": "dbo.EmployeeTerritories"
+       }
+      ],
+      "sourceObject": "dbo.Employees",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CategoryID": "CategoryID",
+       "CategoryName": "CategoryName",
+       "Description": "Description",
+       "Picture": "Picture"
+      },
+      "graphqlType": "Categories",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "products",
+        "sourceFields": [
+         "CategoryID"
+        ],
+        "targetFields": [
+         "CategoryID"
+        ],
+        "targetObject": "dbo.Products"
+       }
+      ],
+      "sourceObject": "dbo.Categories",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Address": "Address",
+       "City": "City",
+       "CompanyName": "CompanyName",
+       "ContactName": "ContactName",
+       "ContactTitle": "ContactTitle",
+       "Country": "Country",
+       "CustomerID": "CustomerID",
+       "Fax": "Fax",
+       "Phone": "Phone",
+       "PostalCode": "PostalCode",
+       "Region": "Region"
+      },
+      "graphqlType": "Customers",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "orders",
+        "sourceFields": [
+         "CustomerID"
+        ],
+        "targetFields": [
+         "CustomerID"
+        ],
+        "targetObject": "dbo.Orders"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "customercustomerdemo",
+        "sourceFields": [
+         "CustomerID"
+        ],
+        "targetFields": [
+         "CustomerID"
+        ],
+        "targetObject": "dbo.CustomerCustomerDemo"
+       }
+      ],
+      "sourceObject": "dbo.Customers",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CompanyName": "CompanyName",
+       "Phone": "Phone",
+       "ShipperID": "ShipperID"
+      },
+      "graphqlType": "Shippers",
+      "relationships": [],
+      "sourceObject": "dbo.Shippers",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Address": "Address",
+       "City": "City",
+       "CompanyName": "CompanyName",
+       "ContactName": "ContactName",
+       "ContactTitle": "ContactTitle",
+       "Country": "Country",
+       "Fax": "Fax",
+       "HomePage": "HomePage",
+       "Phone": "Phone",
+       "PostalCode": "PostalCode",
+       "Region": "Region",
+       "SupplierID": "SupplierID"
+      },
+      "graphqlType": "Suppliers",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "products",
+        "sourceFields": [
+         "SupplierID"
+        ],
+        "targetFields": [
+         "SupplierID"
+        ],
+        "targetObject": "dbo.Products"
+       }
+      ],
+      "sourceObject": "dbo.Suppliers",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CustomerID": "CustomerID",
+       "EmployeeID": "EmployeeID",
+       "Freight": "Freight",
+       "OrderDate": "OrderDate",
+       "OrderID": "OrderID",
+       "RequiredDate": "RequiredDate",
+       "ShipAddress": "ShipAddress",
+       "ShipCity": "ShipCity",
+       "ShipCountry": "ShipCountry",
+       "ShipName": "ShipName",
+       "ShipPostalCode": "ShipPostalCode",
+       "ShipRegion": "ShipRegion",
+       "ShipVia": "ShipVia",
+       "ShippedDate": "ShippedDate"
+      },
+      "graphqlType": "Orders",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "CustomerID"
+        ],
+        "targetFields": [
+         "CustomerID"
+        ],
+        "targetObject": "dbo.Customers"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "employee",
+        "sourceFields": [
+         "EmployeeID"
+        ],
+        "targetFields": [
+         "EmployeeID"
+        ],
+        "targetObject": "dbo.Employees"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "order_details",
+        "sourceFields": [
+         "OrderID"
+        ],
+        "targetFields": [
+         "OrderID"
+        ],
+        "targetObject": "dbo.Order Details"
+       }
+      ],
+      "sourceObject": "dbo.Orders",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CategoryID": "CategoryID",
+       "Discontinued": "Discontinued",
+       "ProductID": "ProductID",
+       "ProductName": "ProductName",
+       "QuantityPerUnit": "QuantityPerUnit",
+       "ReorderLevel": "ReorderLevel",
+       "SupplierID": "SupplierID",
+       "UnitPrice": "UnitPrice",
+       "UnitsInStock": "UnitsInStock",
+       "UnitsOnOrder": "UnitsOnOrder"
+      },
+      "graphqlType": "Products",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "supplier",
+        "sourceFields": [
+         "SupplierID"
+        ],
+        "targetFields": [
+         "SupplierID"
+        ],
+        "targetObject": "dbo.Suppliers"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "category",
+        "sourceFields": [
+         "CategoryID"
+        ],
+        "targetFields": [
+         "CategoryID"
+        ],
+        "targetObject": "dbo.Categories"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "order_details",
+        "sourceFields": [
+         "ProductID"
+        ],
+        "targetFields": [
+         "ProductID"
+        ],
+        "targetObject": "dbo.Order Details"
+       }
+      ],
+      "sourceObject": "dbo.Products",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Discount": "Discount",
+       "OrderID": "OrderID",
+       "ProductID": "ProductID",
+       "Quantity": "Quantity",
+       "UnitPrice": "UnitPrice"
+      },
+      "graphqlType": "Order_Details",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "order",
+        "sourceFields": [
+         "OrderID"
+        ],
+        "targetFields": [
+         "OrderID"
+        ],
+        "targetObject": "dbo.Orders"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "product",
+        "sourceFields": [
+         "ProductID"
+        ],
+        "targetFields": [
+         "ProductID"
+        ],
+        "targetObject": "dbo.Products"
+       }
+      ],
+      "sourceObject": "dbo.Order Details",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Disabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CustomerID": "CustomerID",
+       "CustomerTypeID": "CustomerTypeID"
+      },
+      "graphqlType": "CustomerCustomerDemo",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "customer",
+        "sourceFields": [
+         "CustomerID"
+        ],
+        "targetFields": [
+         "CustomerID"
+        ],
+        "targetObject": "dbo.Customers"
+       }
+      ],
+      "sourceObject": "dbo.CustomerCustomerDemo",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Disabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "CustomerDesc": "CustomerDesc",
+       "CustomerTypeID": "CustomerTypeID"
+      },
+      "graphqlType": "CustomerDemographics",
+      "relationships": [],
+      "sourceObject": "dbo.CustomerDemographics",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "RegionDescription": "RegionDescription",
+       "RegionID": "RegionID"
+      },
+      "graphqlType": "Region",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "territories",
+        "sourceFields": [
+         "RegionID"
+        ],
+        "targetFields": [
+         "RegionID"
+        ],
+        "targetObject": "dbo.Territories"
+       }
+      ],
+      "sourceObject": "dbo.Region",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "RegionID": "RegionID",
+       "TerritoryDescription": "TerritoryDescription",
+       "TerritoryID": "TerritoryID"
+      },
+      "graphqlType": "Territories",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "region",
+        "sourceFields": [
+         "RegionID"
+        ],
+        "targetFields": [
+         "RegionID"
+        ],
+        "targetObject": "dbo.Region"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "employeeterritories",
+        "sourceFields": [
+         "TerritoryID"
+        ],
+        "targetFields": [
+         "TerritoryID"
+        ],
+        "targetObject": "dbo.EmployeeTerritories"
+       }
+      ],
+      "sourceObject": "dbo.Territories",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "EmployeeID": "EmployeeID",
+       "TerritoryID": "TerritoryID"
+      },
+      "graphqlType": "EmployeeTerritories",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "employee",
+        "sourceFields": [
+         "EmployeeID"
+        ],
+        "targetFields": [
+         "EmployeeID"
+        ],
+        "targetObject": "dbo.Employees"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "territory",
+        "sourceFields": [
+         "TerritoryID"
+        ],
+        "targetFields": [
+         "TerritoryID"
+        ],
+        "targetObject": "dbo.Territories"
+       }
+      ],
+      "sourceObject": "dbo.EmployeeTerritories",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 67150,
+  "sha256": "052f8c14e6d2704a4de59d26324641e0795eedbcff086dcc4d2724a3dec4f488"
+ },
+ "key_sql": {
+  "Categories": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CategoryID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CategoryID] FROM [dbo].[Categories] WHERE [CategoryID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Categories]",
+  "Customers": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [CustomerID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [CustomerID] FROM [dbo].[Customers] WHERE [CustomerID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Customers]",
+  "EmployeeTerritories": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [EmployeeID] IS NULL OR [TerritoryID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [EmployeeID], [TerritoryID] FROM [dbo].[EmployeeTerritories] WHERE [EmployeeID] IS NOT NULL AND [TerritoryID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[EmployeeTerritories]",
+  "Employees": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [EmployeeID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [EmployeeID] FROM [dbo].[Employees] WHERE [EmployeeID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Employees]",
+  "Order Details": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderID] IS NULL OR [ProductID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderID], [ProductID] FROM [dbo].[Order Details] WHERE [OrderID] IS NOT NULL AND [ProductID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Order Details]",
+  "Orders": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderID] FROM [dbo].[Orders] WHERE [OrderID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Orders]",
+  "Products": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ProductID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ProductID] FROM [dbo].[Products] WHERE [ProductID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Products]",
+  "Region": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [RegionID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [RegionID] FROM [dbo].[Region] WHERE [RegionID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Region]",
+  "Shippers": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ShipperID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ShipperID] FROM [dbo].[Shippers] WHERE [ShipperID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Shippers]",
+  "Suppliers": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [SupplierID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [SupplierID] FROM [dbo].[Suppliers] WHERE [SupplierID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Suppliers]",
+  "Territories": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [TerritoryID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [TerritoryID] FROM [dbo].[Territories] WHERE [TerritoryID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Territories]"
+ },
+ "ontology_ttl": {
+  "bytes": 22322,
+  "sha256": "eec140978f79a3ab0ebde82caec2068eece3a4813e8858f8b70ac41d20d270ce"
+ },
+ "plan": {
+  "ambiguous": [],
+  "keyless": [
+   "CustomerCustomerDemo",
+   "CustomerDemographics"
+  ],
+  "keys": {
+   "Categories": [
+    [
+     "CategoryID"
+    ],
+    "K2"
+   ],
+   "Customers": [
+    [
+     "CustomerID"
+    ],
+    "K2"
+   ],
+   "EmployeeTerritories": [
+    [
+     "EmployeeID",
+     "TerritoryID"
+    ],
+    "K4"
+   ],
+   "Employees": [
+    [
+     "EmployeeID"
+    ],
+    "K2"
+   ],
+   "Order Details": [
+    [
+     "OrderID",
+     "ProductID"
+    ],
+    "K4"
+   ],
+   "Orders": [
+    [
+     "OrderID"
+    ],
+    "K2"
+   ],
+   "Products": [
+    [
+     "ProductID"
+    ],
+    "K2"
+   ],
+   "Region": [
+    [
+     "RegionID"
+    ],
+    "K2"
+   ],
+   "Shippers": [
+    [
+     "ShipperID"
+    ],
+    "K2"
+   ],
+   "Suppliers": [
+    [
+     "SupplierID"
+    ],
+    "K2"
+   ],
+   "Territories": [
+    [
+     "TerritoryID"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  Employees {\n    EmployeeID int PK\n    LastName nvarchar\n    FirstName nvarchar\n    Title nvarchar\n    TitleOfCourtesy nvarchar\n    BirthDate datetime\n    HireDate datetime\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    HomePhone nvarchar\n    Extension nvarchar\n    Photo image\n    Notes ntext\n    ReportsTo int\n    PhotoPath nvarchar\n  }\n  Categories {\n    CategoryID int PK\n    CategoryName nvarchar\n    Description ntext\n    Picture image\n  }\n  Customers {\n    CustomerID nchar PK\n    CompanyName nvarchar\n    ContactName nvarchar\n    ContactTitle nvarchar\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    Phone nvarchar\n    Fax nvarchar\n  }\n  Shippers {\n    ShipperID int PK\n    CompanyName nvarchar\n    Phone nvarchar\n  }\n  Suppliers {\n    SupplierID int PK\n    CompanyName nvarchar\n    ContactName nvarchar\n    ContactTitle nvarchar\n    Address nvarchar\n    City nvarchar\n    Region nvarchar\n    PostalCode nvarchar\n    Country nvarchar\n    Phone nvarchar\n    Fax nvarchar\n    HomePage ntext\n  }\n  Orders {\n    OrderID int PK\n    CustomerID nchar\n    EmployeeID int\n    OrderDate datetime\n    RequiredDate datetime\n    ShippedDate datetime\n    ShipVia int\n    Freight money\n    ShipName nvarchar\n    ShipAddress nvarchar\n    ShipCity nvarchar\n    ShipRegion nvarchar\n    ShipPostalCode nvarchar\n    ShipCountry nvarchar\n  }\n  Products {\n    ProductID int PK\n    ProductName nvarchar\n    SupplierID int\n    CategoryID int\n    QuantityPerUnit nvarchar\n    UnitPrice money\n    UnitsInStock smallint\n    UnitsOnOrder smallint\n    ReorderLevel smallint\n    Discontinued bit\n  }\n  Order_Details {\n    OrderID int PK\n    ProductID int PK\n    UnitPrice money\n    Quantity smallint\n    Discount real\n  }\n  CustomerCustomerDemo {\n    CustomerID nchar\n    CustomerTypeID nchar\n  }\n  CustomerDemographics {\n    CustomerTypeID nchar\n    CustomerDesc ntext\n  }\n  Region {\n    RegionID int PK\n    RegionDescription nchar\n  }\n  Territories {\n    TerritoryID nvarchar PK\n    TerritoryDescription nchar\n    RegionID int\n  }\n  EmployeeTerritories {\n    EmployeeID int PK\n    TerritoryID nvarchar PK\n  }\n  Customers ||--o{ Orders : \"CustomerID R1\"\n  Employees ||--o{ Orders : \"EmployeeID R1\"\n  Suppliers ||--o{ Products : \"SupplierID R1\"\n  Categories ||--o{ Products : \"CategoryID R1\"\n  Orders ||--o{ Order_Details : \"OrderID R1\"\n  Products ||--o{ Order_Details : \"ProductID R1\"\n  Customers ||--o{ CustomerCustomerDemo : \"CustomerID R1\"\n  Region ||--o{ Territories : \"RegionID R1\"\n  Employees ||--o{ EmployeeTerritories : \"EmployeeID R1\"\n  Territories ||--o{ EmployeeTerritories : \"TerritoryID R1\"",
+  "relationships": [
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "orders",
+    "rule": "R1",
+    "source": "Orders",
+    "source_cols": [
+     "CustomerID"
+    ],
+    "target": "Customers",
+    "target_cols": [
+     "CustomerID"
+    ]
+   },
+   {
+    "field_name": "employee",
+    "note": "",
+    "reverse_name": "orders",
+    "rule": "R1",
+    "source": "Orders",
+    "source_cols": [
+     "EmployeeID"
+    ],
+    "target": "Employees",
+    "target_cols": [
+     "EmployeeID"
+    ]
+   },
+   {
+    "field_name": "supplier",
+    "note": "",
+    "reverse_name": "products",
+    "rule": "R1",
+    "source": "Products",
+    "source_cols": [
+     "SupplierID"
+    ],
+    "target": "Suppliers",
+    "target_cols": [
+     "SupplierID"
+    ]
+   },
+   {
+    "field_name": "category",
+    "note": "",
+    "reverse_name": "products",
+    "rule": "R1",
+    "source": "Products",
+    "source_cols": [
+     "CategoryID"
+    ],
+    "target": "Categories",
+    "target_cols": [
+     "CategoryID"
+    ]
+   },
+   {
+    "field_name": "order",
+    "note": "",
+    "reverse_name": "order_details",
+    "rule": "R1",
+    "source": "Order Details",
+    "source_cols": [
+     "OrderID"
+    ],
+    "target": "Orders",
+    "target_cols": [
+     "OrderID"
+    ]
+   },
+   {
+    "field_name": "product",
+    "note": "",
+    "reverse_name": "order_details",
+    "rule": "R1",
+    "source": "Order Details",
+    "source_cols": [
+     "ProductID"
+    ],
+    "target": "Products",
+    "target_cols": [
+     "ProductID"
+    ]
+   },
+   {
+    "field_name": "customer",
+    "note": "",
+    "reverse_name": "customercustomerdemo",
+    "rule": "R1",
+    "source": "CustomerCustomerDemo",
+    "source_cols": [
+     "CustomerID"
+    ],
+    "target": "Customers",
+    "target_cols": [
+     "CustomerID"
+    ]
+   },
+   {
+    "field_name": "region",
+    "note": "",
+    "reverse_name": "territories",
+    "rule": "R1",
+    "source": "Territories",
+    "source_cols": [
+     "RegionID"
+    ],
+    "target": "Region",
+    "target_cols": [
+     "RegionID"
+    ]
+   },
+   {
+    "field_name": "employee",
+    "note": "",
+    "reverse_name": "employeeterritories",
+    "rule": "R1",
+    "source": "EmployeeTerritories",
+    "source_cols": [
+     "EmployeeID"
+    ],
+    "target": "Employees",
+    "target_cols": [
+     "EmployeeID"
+    ]
+   },
+   {
+    "field_name": "territory",
+    "note": "",
+    "reverse_name": "employeeterritories",
+    "rule": "R1",
+    "source": "EmployeeTerritories",
+    "source_cols": [
+     "TerritoryID"
+    ],
+    "target": "Territories",
+    "target_cols": [
+     "TerritoryID"
+    ]
+   }
+  ],
+  "summary": "13 tables, 11 with keys, 10 relationships\nno key (query only; can reference others, cannot be referenced): CustomerCustomerDemo, CustomerDemographics",
+  "synonyms": []
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Categories.ts": "// rayfin/connectors/<connector>/Categories.ts — generated by fabric-backend from dbo.Categories\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key CategoryID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Categories extends Source({ schema: 'dbo', table: 'Categories', primaryKey: ['categoryID'] }) {\n  @int({ column: 'CategoryID' }) categoryID!: number;\n  @text({ column: 'CategoryName' }) categoryName!: string;\n  @text({ column: 'Description' }) description!: string;\n  @text({ column: 'Picture' }) picture!: string;\n\n  @many(() => Products, { sourceFields: ['categoryID'], targetFields: ['categoryID'] }) products?: Products[];    // Products.CategoryID [R1]\n}\n",
+  "rayfin/connectors/data/CustomerCustomerDemo.ts": "// rayfin/connectors/<connector>/CustomerCustomerDemo.ts — generated by fabric-backend from dbo.CustomerCustomerDemo\nimport { entity, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// no key (rule K3): query only, no key-addressed operations\nexport class CustomerCustomerDemo extends Source({ schema: 'dbo', table: 'CustomerCustomerDemo' }) {\n  @text({ column: 'CustomerID' }) customerID!: string;\n  @text({ column: 'CustomerTypeID' }) customerTypeID!: string;\n\n  @one(() => Customers, { sourceFields: ['customerID'], targetFields: ['customerID'] }) customer?: Customers;    // CustomerID -> Customers [R1]\n}\n",
+  "rayfin/connectors/data/CustomerDemographics.ts": "// rayfin/connectors/<connector>/CustomerDemographics.ts — generated by fabric-backend from dbo.CustomerDemographics\nimport { entity, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\n\n@role('authenticated', ['read'])\n@entity()\n// no key (rule K3): query only, no key-addressed operations\nexport class CustomerDemographics extends Source({ schema: 'dbo', table: 'CustomerDemographics' }) {\n  @text({ column: 'CustomerTypeID' }) customerTypeID!: string;\n  @text({ column: 'CustomerDesc' }) customerDesc!: string;\n}\n",
+  "rayfin/connectors/data/Customers.ts": "// rayfin/connectors/<connector>/Customers.ts — generated by fabric-backend from dbo.Customers\nimport { entity, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { CustomerCustomerDemo } from './CustomerCustomerDemo.js';\nimport { Orders } from './Orders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key CustomerID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Customers extends Source({ schema: 'dbo', table: 'Customers', primaryKey: ['customerID'] }) {\n  @text({ column: 'CustomerID' }) customerID!: string;\n  @text({ column: 'CompanyName' }) companyName!: string;\n  @text({ column: 'ContactName' }) contactName!: string;\n  @text({ column: 'ContactTitle' }) contactTitle!: string;\n  @text({ column: 'Address' }) address!: string;\n  @text({ column: 'City' }) city!: string;\n  @text({ column: 'Region' }) region!: string;\n  @text({ column: 'PostalCode' }) postalCode!: string;\n  @text({ column: 'Country' }) country!: string;\n  @text({ column: 'Phone' }) phone!: string;\n  @text({ column: 'Fax' }) fax!: string;\n\n  @many(() => Orders, { sourceFields: ['customerID'], targetFields: ['customerID'] }) orders?: Orders[];    // Orders.CustomerID [R1]\n  @many(() => CustomerCustomerDemo, { sourceFields: ['customerID'], targetFields: ['customerID'] }) customercustomerdemo?: CustomerCustomerDemo[];    // CustomerCustomerDemo.CustomerID [R1]\n}\n",
+  "rayfin/connectors/data/EmployeeTerritories.ts": "// rayfin/connectors/<connector>/EmployeeTerritories.ts — generated by fabric-backend from dbo.EmployeeTerritories\nimport { entity, int, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Employees } from './Employees.js';\nimport { Territories } from './Territories.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key EmployeeID+TerritoryID by rule K4\nexport class EmployeeTerritories extends Source({ schema: 'dbo', table: 'EmployeeTerritories', primaryKey: ['employeeID', 'territoryID'] }) {\n  @int({ column: 'EmployeeID' }) employeeID!: number;\n  @text({ column: 'TerritoryID' }) territoryID!: string;\n\n  @one(() => Employees, { sourceFields: ['employeeID'], targetFields: ['employeeID'] }) employee?: Employees;    // EmployeeID -> Employees [R1]\n  @one(() => Territories, { sourceFields: ['territoryID'], targetFields: ['territoryID'] }) territory?: Territories;    // TerritoryID -> Territories [R1]\n}\n",
+  "rayfin/connectors/data/Employees.ts": "// rayfin/connectors/<connector>/Employees.ts — generated by fabric-backend from dbo.Employees\nimport { date, entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { EmployeeTerritories } from './EmployeeTerritories.js';\nimport { Orders } from './Orders.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key EmployeeID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Employees extends Source({ schema: 'dbo', table: 'Employees', primaryKey: ['employeeID'] }) {\n  @int({ column: 'EmployeeID' }) employeeID!: number;\n  @text({ column: 'LastName' }) lastName!: string;\n  @text({ column: 'FirstName' }) firstName!: string;\n  @text({ column: 'Title' }) title!: string;\n  @text({ column: 'TitleOfCourtesy' }) titleOfCourtesy!: string;\n  @date({ column: 'BirthDate' }) birthDate!: Date;\n  @date({ column: 'HireDate' }) hireDate!: Date;\n  @text({ column: 'Address' }) address!: string;\n  @text({ column: 'City' }) city!: string;\n  @text({ column: 'Region' }) region!: string;\n  @text({ column: 'PostalCode' }) postalCode!: string;\n  @text({ column: 'Country' }) country!: string;\n  @text({ column: 'HomePhone' }) homePhone!: string;\n  @text({ column: 'Extension' }) extension!: string;\n  @text({ column: 'Photo' }) photo!: string;\n  @text({ column: 'Notes' }) notes!: string;\n  @int({ column: 'ReportsTo' }) reportsTo!: number;\n  @text({ column: 'PhotoPath' }) photoPath!: string;\n\n  @many(() => Orders, { sourceFields: ['employeeID'], targetFields: ['employeeID'] }) orders?: Orders[];    // Orders.EmployeeID [R1]\n  @many(() => EmployeeTerritories, { sourceFields: ['employeeID'], targetFields: ['employeeID'] }) employeeterritories?: EmployeeTerritories[];    // EmployeeTerritories.EmployeeID [R1]\n}\n",
+  "rayfin/connectors/data/OrderDetails.ts": "// rayfin/connectors/<connector>/OrderDetails.ts — generated by fabric-backend from dbo.Order Details\nimport { decimal, entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Orders } from './Orders.js';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderID+ProductID by rule K4\nexport class OrderDetails extends Source({ schema: 'dbo', table: 'Order Details', primaryKey: ['orderID', 'productID'] }) {\n  @int({ column: 'OrderID' }) orderID!: number;\n  @int({ column: 'ProductID' }) productID!: number;\n  @decimal({ column: 'UnitPrice' }) unitPrice!: number;\n  @int({ column: 'Quantity' }) quantity!: number;\n  @decimal({ column: 'Discount' }) discount!: number;\n\n  @one(() => Orders, { sourceFields: ['orderID'], targetFields: ['orderID'] }) order?: Orders;    // OrderID -> Orders [R1]\n  @one(() => Products, { sourceFields: ['productID'], targetFields: ['productID'] }) product?: Products;    // ProductID -> Products [R1]\n}\n",
+  "rayfin/connectors/data/Orders.ts": "// rayfin/connectors/<connector>/Orders.ts — generated by fabric-backend from dbo.Orders\nimport { date, decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Customers } from './Customers.js';\nimport { Employees } from './Employees.js';\nimport { OrderDetails } from './OrderDetails.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Orders extends Source({ schema: 'dbo', table: 'Orders', primaryKey: ['orderID'] }) {\n  @int({ column: 'OrderID' }) orderID!: number;\n  @text({ column: 'CustomerID' }) customerID!: string;\n  @int({ column: 'EmployeeID' }) employeeID!: number;\n  @date({ column: 'OrderDate' }) orderDate!: Date;\n  @date({ column: 'RequiredDate' }) requiredDate!: Date;\n  @date({ column: 'ShippedDate' }) shippedDate!: Date;\n  @int({ column: 'ShipVia' }) shipVia!: number;\n  @decimal({ column: 'Freight' }) freight!: number;\n  @text({ column: 'ShipName' }) shipName!: string;\n  @text({ column: 'ShipAddress' }) shipAddress!: string;\n  @text({ column: 'ShipCity' }) shipCity!: string;\n  @text({ column: 'ShipRegion' }) shipRegion!: string;\n  @text({ column: 'ShipPostalCode' }) shipPostalCode!: string;\n  @text({ column: 'ShipCountry' }) shipCountry!: string;\n\n  @one(() => Customers, { sourceFields: ['customerID'], targetFields: ['customerID'] }) customer?: Customers;    // CustomerID -> Customers [R1]\n  @one(() => Employees, { sourceFields: ['employeeID'], targetFields: ['employeeID'] }) employee?: Employees;    // EmployeeID -> Employees [R1]\n  @many(() => OrderDetails, { sourceFields: ['orderID'], targetFields: ['orderID'] }) orderDetails?: OrderDetails[];    // Order Details.OrderID [R1]\n}\n",
+  "rayfin/connectors/data/Products.ts": "// rayfin/connectors/<connector>/Products.ts — generated by fabric-backend from dbo.Products\nimport { boolean, decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Categories } from './Categories.js';\nimport { OrderDetails } from './OrderDetails.js';\nimport { Suppliers } from './Suppliers.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key ProductID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Products extends Source({ schema: 'dbo', table: 'Products', primaryKey: ['productID'] }) {\n  @int({ column: 'ProductID' }) productID!: number;\n  @text({ column: 'ProductName' }) productName!: string;\n  @int({ column: 'SupplierID' }) supplierID!: number;\n  @int({ column: 'CategoryID' }) categoryID!: number;\n  @text({ column: 'QuantityPerUnit' }) quantityPerUnit!: string;\n  @decimal({ column: 'UnitPrice' }) unitPrice!: number;\n  @int({ column: 'UnitsInStock' }) unitsInStock!: number;\n  @int({ column: 'UnitsOnOrder' }) unitsOnOrder!: number;\n  @int({ column: 'ReorderLevel' }) reorderLevel!: number;\n  @boolean({ column: 'Discontinued' }) discontinued!: boolean;\n\n  @one(() => Suppliers, { sourceFields: ['supplierID'], targetFields: ['supplierID'] }) supplier?: Suppliers;    // SupplierID -> Suppliers [R1]\n  @one(() => Categories, { sourceFields: ['categoryID'], targetFields: ['categoryID'] }) category?: Categories;    // CategoryID -> Categories [R1]\n  @many(() => OrderDetails, { sourceFields: ['productID'], targetFields: ['productID'] }) orderDetails?: OrderDetails[];    // Order Details.ProductID [R1]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n13 entities, 10 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Employees, Categories, Customers, Shippers, Suppliers, Orders, Products, OrderDetails, CustomerCustomerDemo, CustomerDemographics, Region, Territories, EmployeeTerritories\n",
+  "rayfin/connectors/data/Region.ts": "// rayfin/connectors/<connector>/Region.ts — generated by fabric-backend from dbo.Region\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Territories } from './Territories.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key RegionID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Region extends Source({ schema: 'dbo', table: 'Region', primaryKey: ['regionID'] }) {\n  @int({ column: 'RegionID' }) regionID!: number;\n  @text({ column: 'RegionDescription' }) regionDescription!: string;\n\n  @many(() => Territories, { sourceFields: ['regionID'], targetFields: ['regionID'] }) territories?: Territories[];    // Territories.RegionID [R1]\n}\n",
+  "rayfin/connectors/data/Shippers.ts": "// rayfin/connectors/<connector>/Shippers.ts — generated by fabric-backend from dbo.Shippers\nimport { entity, int, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\n\n@role('authenticated', ['read'])\n@entity()\n// key ShipperID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Shippers extends Source({ schema: 'dbo', table: 'Shippers', primaryKey: ['shipperID'] }) {\n  @int({ column: 'ShipperID' }) shipperID!: number;\n  @text({ column: 'CompanyName' }) companyName!: string;\n  @text({ column: 'Phone' }) phone!: string;\n}\n",
+  "rayfin/connectors/data/Suppliers.ts": "// rayfin/connectors/<connector>/Suppliers.ts — generated by fabric-backend from dbo.Suppliers\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Products } from './Products.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key SupplierID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Suppliers extends Source({ schema: 'dbo', table: 'Suppliers', primaryKey: ['supplierID'] }) {\n  @int({ column: 'SupplierID' }) supplierID!: number;\n  @text({ column: 'CompanyName' }) companyName!: string;\n  @text({ column: 'ContactName' }) contactName!: string;\n  @text({ column: 'ContactTitle' }) contactTitle!: string;\n  @text({ column: 'Address' }) address!: string;\n  @text({ column: 'City' }) city!: string;\n  @text({ column: 'Region' }) region!: string;\n  @text({ column: 'PostalCode' }) postalCode!: string;\n  @text({ column: 'Country' }) country!: string;\n  @text({ column: 'Phone' }) phone!: string;\n  @text({ column: 'Fax' }) fax!: string;\n  @text({ column: 'HomePage' }) homePage!: string;\n\n  @many(() => Products, { sourceFields: ['supplierID'], targetFields: ['supplierID'] }) products?: Products[];    // Products.SupplierID [R1]\n}\n",
+  "rayfin/connectors/data/Territories.ts": "// rayfin/connectors/<connector>/Territories.ts — generated by fabric-backend from dbo.Territories\nimport { entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { EmployeeTerritories } from './EmployeeTerritories.js';\nimport { Region } from './Region.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key TerritoryID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Territories extends Source({ schema: 'dbo', table: 'Territories', primaryKey: ['territoryID'] }) {\n  @text({ column: 'TerritoryID' }) territoryID!: string;\n  @text({ column: 'TerritoryDescription' }) territoryDescription!: string;\n  @int({ column: 'RegionID' }) regionID!: number;\n\n  @one(() => Region, { sourceFields: ['regionID'], targetFields: ['regionID'] }) region?: Region;    // RegionID -> Region [R1]\n  @many(() => EmployeeTerritories, { sourceFields: ['territoryID'], targetFields: ['territoryID'] }) employeeterritories?: EmployeeTerritories[];    // EmployeeTerritories.TerritoryID [R1]\n}\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Employees } from './Employees.js';\nimport { Categories } from './Categories.js';\nimport { Customers } from './Customers.js';\nimport { Shippers } from './Shippers.js';\nimport { Suppliers } from './Suppliers.js';\nimport { Orders } from './Orders.js';\nimport { Products } from './Products.js';\nimport { OrderDetails } from './OrderDetails.js';\nimport { CustomerCustomerDemo } from './CustomerCustomerDemo.js';\nimport { CustomerDemographics } from './CustomerDemographics.js';\nimport { Region } from './Region.js';\nimport { Territories } from './Territories.js';\nimport { EmployeeTerritories } from './EmployeeTerritories.js';\n\nexport { Employees } from './Employees.js';\nexport { Categories } from './Categories.js';\nexport { Customers } from './Customers.js';\nexport { Shippers } from './Shippers.js';\nexport { Suppliers } from './Suppliers.js';\nexport { Orders } from './Orders.js';\nexport { Products } from './Products.js';\nexport { OrderDetails } from './OrderDetails.js';\nexport { CustomerCustomerDemo } from './CustomerCustomerDemo.js';\nexport { CustomerDemographics } from './CustomerDemographics.js';\nexport { Region } from './Region.js';\nexport { Territories } from './Territories.js';\nexport { EmployeeTerritories } from './EmployeeTerritories.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Employees, Categories, Customers, Shippers, Suppliers, Orders, Products, OrderDetails, CustomerCustomerDemo, CustomerDemographics, Region, Territories, EmployeeTerritories },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { Employees: typeof Employees, Categories: typeof Categories, Customers: typeof Customers, Shippers: typeof Shippers, Suppliers: typeof Suppliers, Orders: typeof Orders, Products: typeof Products, OrderDetails: typeof OrderDetails, CustomerCustomerDemo: typeof CustomerCustomerDemo, CustomerDemographics: typeof CustomerDemographics, Region: typeof Region, Territories: typeof Territories, EmployeeTerritories: typeof EmployeeTerritories },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CustomerID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Orders] AS s LEFT JOIN (SELECT DISTINCT [CustomerID] FROM [dbo].[Customers]) AS t ON s.[CustomerID] = t.[CustomerID] WHERE s.[CustomerID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[EmployeeID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Orders] AS s LEFT JOIN (SELECT DISTINCT [EmployeeID] FROM [dbo].[Employees]) AS t ON s.[EmployeeID] = t.[EmployeeID] WHERE s.[EmployeeID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[SupplierID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Products] AS s LEFT JOIN (SELECT DISTINCT [SupplierID] FROM [dbo].[Suppliers]) AS t ON s.[SupplierID] = t.[SupplierID] WHERE s.[SupplierID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CategoryID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Products] AS s LEFT JOIN (SELECT DISTINCT [CategoryID] FROM [dbo].[Categories]) AS t ON s.[CategoryID] = t.[CategoryID] WHERE s.[CategoryID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[OrderID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order Details] AS s LEFT JOIN (SELECT DISTINCT [OrderID] FROM [dbo].[Orders]) AS t ON s.[OrderID] = t.[OrderID] WHERE s.[OrderID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[ProductID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Order Details] AS s LEFT JOIN (SELECT DISTINCT [ProductID] FROM [dbo].[Products]) AS t ON s.[ProductID] = t.[ProductID] WHERE s.[ProductID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CustomerID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[CustomerCustomerDemo] AS s LEFT JOIN (SELECT DISTINCT [CustomerID] FROM [dbo].[Customers]) AS t ON s.[CustomerID] = t.[CustomerID] WHERE s.[CustomerID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[RegionID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Territories] AS s LEFT JOIN (SELECT DISTINCT [RegionID] FROM [dbo].[Region]) AS t ON s.[RegionID] = t.[RegionID] WHERE s.[RegionID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[EmployeeID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[EmployeeTerritories] AS s LEFT JOIN (SELECT DISTINCT [EmployeeID] FROM [dbo].[Employees]) AS t ON s.[EmployeeID] = t.[EmployeeID] WHERE s.[EmployeeID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[TerritoryID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[EmployeeTerritories] AS s LEFT JOIN (SELECT DISTINCT [TerritoryID] FROM [dbo].[Territories]) AS t ON s.[TerritoryID] = t.[TerritoryID] WHERE s.[TerritoryID] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "Categories": "SELECT TOP (10) [CategoryID], [CategoryName], [Description], DATALENGTH([Picture]) AS [Picture (bytes)] FROM [dbo].[Categories]",
+  "CustomerCustomerDemo": "SELECT TOP (10) [CustomerID], [CustomerTypeID] FROM [dbo].[CustomerCustomerDemo]",
+  "CustomerDemographics": "SELECT TOP (10) [CustomerTypeID], [CustomerDesc] FROM [dbo].[CustomerDemographics]",
+  "Customers": "SELECT TOP (10) [CustomerID], [CompanyName], [ContactName], [ContactTitle], [Address], [City], [Region], [PostalCode], [Country], [Phone], [Fax] FROM [dbo].[Customers]",
+  "EmployeeTerritories": "SELECT TOP (10) [EmployeeID], [TerritoryID] FROM [dbo].[EmployeeTerritories]",
+  "Employees": "SELECT TOP (10) [EmployeeID], [LastName], [FirstName], [Title], [TitleOfCourtesy], [BirthDate], [HireDate], [Address], [City], [Region], [PostalCode], [Country], [HomePhone], [Extension], DATALENGTH([Photo]) AS [Photo (bytes)], [Notes], [ReportsTo], [PhotoPath] FROM [dbo].[Employees]",
+  "Order Details": "SELECT TOP (10) [OrderID], [ProductID], [UnitPrice], [Quantity], [Discount] FROM [dbo].[Order Details]",
+  "Orders": "SELECT TOP (10) [OrderID], [CustomerID], [EmployeeID], [OrderDate], [RequiredDate], [ShippedDate], [ShipVia], [Freight], [ShipName], [ShipAddress], [ShipCity], [ShipRegion], [ShipPostalCode], [ShipCountry] FROM [dbo].[Orders]",
+  "Products": "SELECT TOP (10) [ProductID], [ProductName], [SupplierID], [CategoryID], [QuantityPerUnit], [UnitPrice], [UnitsInStock], [UnitsOnOrder], [ReorderLevel], [Discontinued] FROM [dbo].[Products]",
+  "Region": "SELECT TOP (10) [RegionID], [RegionDescription] FROM [dbo].[Region]",
+  "Shippers": "SELECT TOP (10) [ShipperID], [CompanyName], [Phone] FROM [dbo].[Shippers]",
+  "Suppliers": "SELECT TOP (10) [SupplierID], [CompanyName], [ContactName], [ContactTitle], [Address], [City], [Region], [PostalCode], [Country], [Phone], [Fax], [HomePage] FROM [dbo].[Suppliers]",
+  "Territories": "SELECT TOP (10) [TerritoryID], [TerritoryDescription], [RegionID] FROM [dbo].[Territories]"
+ },
+ "semantic_model": {
+  "bytes": 35178,
+  "sha256": "28cb28bd7587f12cc00c69c31f1d38f0682e0107a45edcf9e33c5a7f4fe57c7e"
+ },
+ "silver": {
+  "bytes": 26385,
+  "sha256": "05dffefea3108189fdd22c5e50e0d4f08bd0a9486ce69e3a644a29b0e11319f6"
+ },
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_Order Details",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Order Details] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[ProductID] AS [ProductID],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    f.[Discount] AS [Discount],\n    d1.[OrderID] AS [Orders_OrderID],\n    d1.[CustomerID] AS [Orders_CustomerID],\n    d1.[EmployeeID] AS [Orders_EmployeeID],\n    d1.[OrderDate] AS [Orders_OrderDate],\n    d1.[RequiredDate] AS [Orders_RequiredDate],\n    d1.[ShippedDate] AS [Orders_ShippedDate],\n    d1.[ShipVia] AS [Orders_ShipVia],\n    d1.[Freight] AS [Orders_Freight],\n    d1.[ShipName] AS [Orders_ShipName],\n    d1.[ShipAddress] AS [Orders_ShipAddress],\n    d1.[ShipCity] AS [Orders_ShipCity],\n    d1.[ShipRegion] AS [Orders_ShipRegion],\n    d1.[ShipPostalCode] AS [Orders_ShipPostalCode],\n    d1.[ShipCountry] AS [Orders_ShipCountry],\n    d2.[ProductID] AS [Products_ProductID],\n    d2.[ProductName] AS [Products_ProductName],\n    d2.[SupplierID] AS [Products_SupplierID],\n    d2.[CategoryID] AS [Products_CategoryID],\n    d2.[QuantityPerUnit] AS [Products_QuantityPerUnit],\n    d2.[UnitPrice] AS [Products_UnitPrice],\n    d2.[UnitsInStock] AS [Products_UnitsInStock],\n    d2.[UnitsOnOrder] AS [Products_UnitsOnOrder],\n    d2.[ReorderLevel] AS [Products_ReorderLevel],\n    d2.[Discontinued] AS [Products_Discontinued],\n    d3.[CustomerID] AS [Customers_CustomerID],\n    d3.[CompanyName] AS [Customers_CompanyName],\n    d3.[ContactName] AS [Customers_ContactName],\n    d3.[ContactTitle] AS [Customers_ContactTitle],\n    d3.[Address] AS [Customers_Address],\n    d3.[City] AS [Customers_City],\n    d3.[Region] AS [Customers_Region],\n    d3.[PostalCode] AS [Customers_PostalCode],\n    d3.[Country] AS [Customers_Country],\n    d3.[Phone] AS [Customers_Phone],\n    d3.[Fax] AS [Customers_Fax],\n    d4.[EmployeeID] AS [Employees_EmployeeID],\n    d4.[LastName] AS [Employees_LastName],\n    d4.[FirstName] AS [Employees_FirstName],\n    d4.[Title] AS [Employees_Title],\n    d4.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d4.[BirthDate] AS [Employees_BirthDate],\n    d4.[HireDate] AS [Employees_HireDate],\n    d4.[Address] AS [Employees_Address],\n    d4.[City] AS [Employees_City],\n    d4.[Region] AS [Employees_Region],\n    d4.[PostalCode] AS [Employees_PostalCode],\n    d4.[Country] AS [Employees_Country],\n    d4.[HomePhone] AS [Employees_HomePhone],\n    d4.[Extension] AS [Employees_Extension],\n    d4.[Photo] AS [Employees_Photo],\n    d4.[Notes] AS [Employees_Notes],\n    d4.[ReportsTo] AS [Employees_ReportsTo],\n    d4.[PhotoPath] AS [Employees_PhotoPath],\n    d5.[CategoryID] AS [Categories_CategoryID],\n    d5.[CategoryName] AS [Categories_CategoryName],\n    d5.[Description] AS [Categories_Description],\n    d5.[Picture] AS [Categories_Picture],\n    d6.[SupplierID] AS [Suppliers_SupplierID],\n    d6.[CompanyName] AS [Suppliers_CompanyName],\n    d6.[ContactName] AS [Suppliers_ContactName],\n    d6.[ContactTitle] AS [Suppliers_ContactTitle],\n    d6.[Address] AS [Suppliers_Address],\n    d6.[City] AS [Suppliers_City],\n    d6.[Region] AS [Suppliers_Region],\n    d6.[PostalCode] AS [Suppliers_PostalCode],\n    d6.[Country] AS [Suppliers_Country],\n    d6.[Phone] AS [Suppliers_Phone],\n    d6.[Fax] AS [Suppliers_Fax],\n    d6.[HomePage] AS [Suppliers_HomePage]\nFROM [dbo].[Order Details] AS f\n    LEFT JOIN [dbo].[Orders] AS d1 ON f.[OrderID] = d1.[OrderID]\n    LEFT JOIN [dbo].[Products] AS d2 ON f.[ProductID] = d2.[ProductID]\n    LEFT JOIN [dbo].[Customers] AS d3 ON d1.[CustomerID] = d3.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d4 ON d1.[EmployeeID] = d4.[EmployeeID]\n    LEFT JOIN [dbo].[Categories] AS d5 ON d2.[CategoryID] = d5.[CategoryID]\n    LEFT JOIN [dbo].[Suppliers] AS d6 ON d2.[SupplierID] = d6.[SupplierID]",
+    "tables": [
+     "Order Details",
+     "Orders",
+     "Products",
+     "Customers",
+     "Employees",
+     "Categories",
+     "Suppliers"
+    ],
+    "why": "Order Details is a fact table (6 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_EmployeeTerritories",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_EmployeeTerritories] AS\nSELECT\n    f.[EmployeeID] AS [EmployeeID],\n    f.[TerritoryID] AS [TerritoryID],\n    d1.[EmployeeID] AS [Employees_EmployeeID],\n    d1.[LastName] AS [Employees_LastName],\n    d1.[FirstName] AS [Employees_FirstName],\n    d1.[Title] AS [Employees_Title],\n    d1.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d1.[BirthDate] AS [Employees_BirthDate],\n    d1.[HireDate] AS [Employees_HireDate],\n    d1.[Address] AS [Employees_Address],\n    d1.[City] AS [Employees_City],\n    d1.[Region] AS [Employees_Region],\n    d1.[PostalCode] AS [Employees_PostalCode],\n    d1.[Country] AS [Employees_Country],\n    d1.[HomePhone] AS [Employees_HomePhone],\n    d1.[Extension] AS [Employees_Extension],\n    d1.[Photo] AS [Employees_Photo],\n    d1.[Notes] AS [Employees_Notes],\n    d1.[ReportsTo] AS [Employees_ReportsTo],\n    d1.[PhotoPath] AS [Employees_PhotoPath],\n    d2.[TerritoryID] AS [Territories_TerritoryID],\n    d2.[TerritoryDescription] AS [Territories_TerritoryDescription],\n    d2.[RegionID] AS [Territories_RegionID],\n    d3.[RegionID] AS [Region_RegionID],\n    d3.[RegionDescription] AS [Region_RegionDescription]\nFROM [dbo].[EmployeeTerritories] AS f\n    LEFT JOIN [dbo].[Employees] AS d1 ON f.[EmployeeID] = d1.[EmployeeID]\n    LEFT JOIN [dbo].[Territories] AS d2 ON f.[TerritoryID] = d2.[TerritoryID]\n    LEFT JOIN [dbo].[Region] AS d3 ON d2.[RegionID] = d3.[RegionID]",
+    "tables": [
+     "EmployeeTerritories",
+     "Employees",
+     "Territories",
+     "Region"
+    ],
+    "why": "EmployeeTerritories is a fact table (3 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_Orders",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orders] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[CustomerID] AS [CustomerID],\n    f.[EmployeeID] AS [EmployeeID],\n    f.[OrderDate] AS [OrderDate],\n    f.[RequiredDate] AS [RequiredDate],\n    f.[ShippedDate] AS [ShippedDate],\n    f.[ShipVia] AS [ShipVia],\n    f.[Freight] AS [Freight],\n    f.[ShipName] AS [ShipName],\n    f.[ShipAddress] AS [ShipAddress],\n    f.[ShipCity] AS [ShipCity],\n    f.[ShipRegion] AS [ShipRegion],\n    f.[ShipPostalCode] AS [ShipPostalCode],\n    f.[ShipCountry] AS [ShipCountry],\n    d1.[CustomerID] AS [Customers_CustomerID],\n    d1.[CompanyName] AS [Customers_CompanyName],\n    d1.[ContactName] AS [Customers_ContactName],\n    d1.[ContactTitle] AS [Customers_ContactTitle],\n    d1.[Address] AS [Customers_Address],\n    d1.[City] AS [Customers_City],\n    d1.[Region] AS [Customers_Region],\n    d1.[PostalCode] AS [Customers_PostalCode],\n    d1.[Country] AS [Customers_Country],\n    d1.[Phone] AS [Customers_Phone],\n    d1.[Fax] AS [Customers_Fax],\n    d2.[EmployeeID] AS [Employees_EmployeeID],\n    d2.[LastName] AS [Employees_LastName],\n    d2.[FirstName] AS [Employees_FirstName],\n    d2.[Title] AS [Employees_Title],\n    d2.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d2.[BirthDate] AS [Employees_BirthDate],\n    d2.[HireDate] AS [Employees_HireDate],\n    d2.[Address] AS [Employees_Address],\n    d2.[City] AS [Employees_City],\n    d2.[Region] AS [Employees_Region],\n    d2.[PostalCode] AS [Employees_PostalCode],\n    d2.[Country] AS [Employees_Country],\n    d2.[HomePhone] AS [Employees_HomePhone],\n    d2.[Extension] AS [Employees_Extension],\n    d2.[Photo] AS [Employees_Photo],\n    d2.[Notes] AS [Employees_Notes],\n    d2.[ReportsTo] AS [Employees_ReportsTo],\n    d2.[PhotoPath] AS [Employees_PhotoPath]\nFROM [dbo].[Orders] AS f\n    LEFT JOIN [dbo].[Customers] AS d1 ON f.[CustomerID] = d1.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d2 ON f.[EmployeeID] = d2.[EmployeeID]",
+    "tables": [
+     "Orders",
+     "Customers",
+     "Employees"
+    ],
+    "why": "Orders is a header table: Order Details holds its lines; one row per Orders row, with its 2 dimension(s) joined in"
+   }
+  ]
+ }
+}

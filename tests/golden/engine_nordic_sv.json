@@ -1,0 +1,845 @@
+{
+ "analyze": {
+  "active_relationships": [
+   {
+    "certainty": 0.6,
+    "columns": [
+     "OrderNr"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Fakturor",
+    "target": "Ordrar",
+    "target_columns": [
+     "OrderNr"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "ArtikelNr"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Orderrader",
+    "target": "Artiklar",
+    "target_columns": [
+     "ArtikelNr"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "OrderNr"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Orderrader",
+    "target": "Ordrar",
+    "target_columns": [
+     "OrderNr"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "LeverantörID"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Artiklar",
+    "target": "Leverantörer",
+    "target_columns": [
+     "LeverantörID"
+    ],
+    "verified": false
+   },
+   {
+    "certainty": 0.6,
+    "columns": [
+     "KundNr"
+    ],
+    "cost": 1.6667,
+    "rule": "R2",
+    "source": "Ordrar",
+    "target": "Kunder",
+    "target_columns": [
+     "KundNr"
+    ],
+    "verified": false
+   }
+  ],
+  "ambiguity": {
+   "cycles": [
+    {
+     "closed_by": "Fakturor.Kund_ID -> Kunder (R4)",
+     "tables": [
+      "Fakturor",
+      "Ordrar",
+      "Kunder"
+     ]
+    }
+   ],
+   "note": "every relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive",
+   "pairs_with_multiple_paths": [
+    [
+     "Fakturor",
+     "Kunder"
+    ],
+    [
+     "Fakturor",
+     "Ordrar"
+    ],
+    [
+     "Kunder",
+     "Ordrar"
+    ]
+   ]
+  },
+  "areas": [
+   {
+    "central_table": "Kunder",
+    "name": "Kunder area",
+    "tables": [
+     "Fakturor",
+     "Kunder",
+     "Ordrar"
+    ]
+   },
+   {
+    "central_table": "Leverantörer",
+    "name": "Leverantörer area",
+    "tables": [
+     "Artiklar",
+     "Leverantörer",
+     "Orderrader"
+    ]
+   }
+  ],
+  "centrality": {
+   "betweenness": {
+    "Artiklar": 0.4,
+    "Fakturor": 0.0,
+    "Kunder": 0.0,
+    "Leverantörer": 0.0,
+    "Orderrader": 0.6,
+    "Ordrar": 0.6
+   },
+   "degree": {
+    "Artiklar": {
+     "in": 1,
+     "out": 1
+    },
+    "Fakturor": {
+     "in": 0,
+     "out": 2
+    },
+    "Kunder": {
+     "in": 2,
+     "out": 0
+    },
+    "Leverantörer": {
+     "in": 1,
+     "out": 0
+    },
+    "Orderrader": {
+     "in": 0,
+     "out": 2
+    },
+    "Ordrar": {
+     "in": 2,
+     "out": 1
+    }
+   },
+   "pagerank": {
+    "Artiklar": 0.1359,
+    "Fakturor": 0.0954,
+    "Kunder": 0.2859,
+    "Leverantörer": 0.2109,
+    "Orderrader": 0.0954,
+    "Ordrar": 0.1765
+   },
+   "top": [
+    {
+     "betweenness": 0.0,
+     "in": 2,
+     "out": 0,
+     "pagerank": 0.2859,
+     "role": "dimension",
+     "table": "Kunder"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 1,
+     "out": 0,
+     "pagerank": 0.2109,
+     "role": "dimension",
+     "table": "Leverantörer"
+    },
+    {
+     "betweenness": 0.6,
+     "in": 2,
+     "out": 1,
+     "pagerank": 0.1765,
+     "role": "fact",
+     "table": "Ordrar"
+    },
+    {
+     "betweenness": 0.4,
+     "in": 1,
+     "out": 1,
+     "pagerank": 0.1359,
+     "role": "fact",
+     "table": "Artiklar"
+    },
+    {
+     "betweenness": 0.6,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0954,
+     "role": "fact",
+     "table": "Orderrader"
+    },
+    {
+     "betweenness": 0.0,
+     "in": 0,
+     "out": 2,
+     "pagerank": 0.0954,
+     "role": "fact",
+     "table": "Fakturor"
+    }
+   ]
+  },
+  "inactive_relationships": [
+   {
+    "certainty": 0.5,
+    "columns": [
+     "Kund_ID"
+    ],
+    "cost": 2.0,
+    "rule": "R4",
+    "source": "Fakturor",
+    "target": "Kunder",
+    "target_columns": [
+     "KundNr"
+    ],
+    "verified": false,
+    "why": "it would close a cycle with Fakturor - Ordrar - Kunder; the active path has certainty 0.6, this link 0.5"
+   }
+  ],
+  "roles": {
+   "Artiklar": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.4, measure share 0.5"
+   },
+   "Fakturor": {
+    "role": "fact",
+    "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.0, measure share 1.0"
+   },
+   "Kunder": {
+    "role": "dimension",
+    "why": "2 reference(s) in, 0 out, few measures (0.0); out 0, in 2, betweenness 0.0, measure share 0.0"
+   },
+   "Leverantörer": {
+    "role": "dimension",
+    "why": "1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0"
+   },
+   "Orderrader": {
+    "role": "fact",
+    "why": "nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.6, measure share 1.0"
+   },
+   "Ordrar": {
+    "role": "fact",
+    "why": "pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 2, betweenness 0.6, measure share 0.5"
+   }
+  },
+  "summary": "6 tables, 6 relationships; roles: 4 fact, 2 dimension; 5 relationships can be active at once, 1 would be inactive; 1 cycle(s)",
+  "weights": {
+   "R0": 1.0,
+   "R1": 0.8,
+   "R2": 0.6,
+   "R3": 0.5,
+   "R4": 0.5,
+   "confirmed": 1.0,
+   "verified": 0.9
+  }
+ },
+ "candidates": [],
+ "composite_key_suggestions": [],
+ "dbt": "version: 2\n\n# Generated by Krusgraph from the source's metadata; keys and relationships are inferred where the\n# source declares none (the rule is in the comment on each test). Fill in descriptions by hand.\n\nsources:\n  - name: src\n    schema: dbo\n    tables:\n      - name: Kunder\n        columns:\n          - name: KundNr\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Namn\n            description: \"\"  # nvarchar\n          - name: Land\n            description: \"\"  # nvarchar\n      - name: \"Leverantörer\"\n        columns:\n          - name: \"LeverantörID\"\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: Namn\n            description: \"\"  # nvarchar\n          - name: Ort\n            description: \"\"  # nvarchar\n      - name: Artiklar\n        columns:\n          - name: ArtikelNr\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: \"Benämning\"\n            description: \"\"  # nvarchar\n          - name: \"LeverantörID\"\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Leverantörer')\n                    field: \"LeverantörID\"\n          - name: Pris\n            description: \"\"  # decimal\n      - name: Ordrar\n        columns:\n          - name: OrderNr\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: KundNr\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Kunder')\n                    field: KundNr\n          - name: Orderdatum\n            description: \"\"  # date\n          - name: Status\n            description: \"\"  # nvarchar\n      - name: Orderrader\n        # composite key OrderNr+Radnr (rule K5): no built-in dbt test for a combination;\n        # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [OrderNr, Radnr]\n        columns:\n          - name: OrderNr\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Ordrar')\n                    field: OrderNr\n          - name: Radnr\n            description: \"\"  # int\n            data_tests:\n              - not_null  # key, rule K5\n          - name: ArtikelNr\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Artiklar')\n                    field: ArtikelNr\n          - name: Antal\n            description: \"\"  # int\n      - name: Fakturor\n        columns:\n          - name: FakturaNr\n            description: \"\"  # int\n            data_tests:\n              - unique  # key, rule K2\n              - not_null  # key, rule K2\n          - name: OrderNr\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R2\n                  arguments:\n                    to: source('src', 'Ordrar')\n                    field: OrderNr\n          - name: Kund_ID\n            description: \"\"  # int\n            data_tests:\n              - relationships:  # rule R4\n                  arguments:\n                    to: source('src', 'Kunder')\n                    field: KundNr\n          - name: Belopp\n            description: \"\"  # decimal\n          - name: \"Förfallodatum\"\n            description: \"\"  # date\n",
+ "dictionary": "# Data dictionary: src / dbo\n\nGenerated by Krusgraph from the source's metadata (table and column names and types). Keys and relationships are inferred where the source declares none; every one names its rule. Descriptions are left blank on purpose — fill them in with the business meaning.\n\n## Summary\n\n- 6 tables, 6 with keys, 6 relationships\n- Tables without a key: none\n- Ambiguous columns (not applied): 0\n\n## Tables\n\n### Kunder\n\nKey: KundNr (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| KundNr | int | yes |  |  |\n| Namn | nvarchar |  |  |  |\n| Land | nvarchar |  |  |  |\n\n### Leverantörer\n\nKey: LeverantörID (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| LeverantörID | int | yes |  |  |\n| Namn | nvarchar |  |  |  |\n| Ort | nvarchar |  |  |  |\n\n### Artiklar\n\nKey: ArtikelNr (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| ArtikelNr | int | yes |  |  |\n| Benämning | nvarchar |  |  |  |\n| LeverantörID | int |  | Leverantörer.LeverantörID (R2) |  |\n| Pris | decimal |  |  |  |\n\n### Ordrar\n\nKey: OrderNr (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderNr | int | yes |  |  |\n| KundNr | int |  | Kunder.KundNr (R2) |  |\n| Orderdatum | date |  |  |  |\n| Status | nvarchar |  |  |  |\n\n### Orderrader\n\nKey: OrderNr+Radnr (rule K5)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| OrderNr | int | yes | Ordrar.OrderNr (R2) |  |\n| Radnr | int | yes |  |  |\n| ArtikelNr | int |  | Artiklar.ArtikelNr (R2) |  |\n| Antal | int |  |  |  |\n\n### Fakturor\n\nKey: FakturaNr (rule K2)\n\n| Column | Type | Key | Refers to | Description |\n| --- | --- | --- | --- | --- |\n| FakturaNr | int | yes |  |  |\n| OrderNr | int |  | Ordrar.OrderNr (R2) |  |\n| Kund_ID | int |  | Kunder.KundNr (R4) |  |\n| Belopp | decimal |  |  |  |\n| Förfallodatum | date |  |  |  |\n\n## Keys\n\n| Table | Columns | Rule | Meaning |\n| --- | --- | --- | --- |\n| Kunder | KundNr | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Leverantörer | LeverantörID | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Artiklar | ArtikelNr | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Ordrar | OrderNr | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| Orderrader | OrderNr+Radnr | K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| Fakturor | FakturaNr | K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n\n## Relationships\n\n| From | Columns | To | Columns | Rule | Field on from / on to |\n| --- | --- | --- | --- | --- | --- |\n| Artiklar | LeverantörID | Leverantörer | LeverantörID | R2 | leverant_rer / artiklar |\n| Ordrar | KundNr | Kunder | KundNr | R2 | kunder / ordrar |\n| Orderrader | OrderNr | Ordrar | OrderNr | R2 | order / orderrader_as_order |\n| Orderrader | ArtikelNr | Artiklar | ArtikelNr | R2 | artiklar / orderrader |\n| Fakturor | OrderNr | Ordrar | OrderNr | R2 | order / fakturor_as_order |\n| Fakturor | Kund_ID | Kunder | KundNr | R4 | kunder / fakturor |\n\n## Tables without a key\n\nNone.\n\n## Ambiguous columns\n\nNone.\n\n## Roles, subject areas and ambiguity\n\n6 tables, 6 relationships; roles: 4 fact, 2 dimension; 5 relationships can be active at once, 1 would be inactive; 1 cycle(s)\n\n| Table | Role | Why |\n| --- | --- | --- |\n| Kunder | dimension | 2 reference(s) in, 0 out, few measures (0.0); out 0, in 2, betweenness 0.0, measure share 0.0 |\n| Leverantörer | dimension | 1 reference(s) in, 0 out, few measures (0.0); out 0, in 1, betweenness 0.0, measure share 0.0 |\n| Artiklar | fact | pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 1, betweenness 0.4, measure share 0.5 |\n| Ordrar | fact | pointed at by a fact table, 1 reference(s) out, measures 0.5 (a header table); out 1, in 2, betweenness 0.6, measure share 0.5 |\n| Orderrader | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.6, measure share 1.0 |\n| Fakturor | fact | nothing points at it, 2 reference(s) out, measures 1.0; out 2, in 0, betweenness 0.0, measure share 1.0 |\n\nSubject areas (label propagation on the relationship graph, named after the most central table):\n\n- Kunder area: Fakturor, Kunder, Ordrar\n- Leverantörer area: Artiklar, Leverantörer, Orderrader\n\nevery relationship beyond a spanning forest closes a cycle; any two tables on a cycle can be reached two ways, so a semantic model must leave one link on each cycle inactive.\n- cycle through Fakturor - Ordrar - Kunder, closed by Fakturor.Kund_ID -> Kunder (R4)\n\nRelationships a semantic model would have to leave inactive (lower certainty on a cycle):\n\n- Fakturor.Kund_ID -> Kunder (R4, certainty 0.5): it would close a cycle with Fakturor - Ordrar - Kunder; the active path has certainty 0.6, this link 0.5\n\n## Diagram\n\n```mermaid\nerDiagram\n  Kunder {\n    KundNr int PK\n    Namn nvarchar\n    Land nvarchar\n  }\n  Leverant_rer {\n    Leverant_rID int PK\n    Namn nvarchar\n    Ort nvarchar\n  }\n  Artiklar {\n    ArtikelNr int PK\n    Ben_mning nvarchar\n    Leverant_rID int\n    Pris decimal\n  }\n  Ordrar {\n    OrderNr int PK\n    KundNr int\n    Orderdatum date\n    Status nvarchar\n  }\n  Orderrader {\n    OrderNr int PK\n    Radnr int PK\n    ArtikelNr int\n    Antal int\n  }\n  Fakturor {\n    FakturaNr int PK\n    OrderNr int\n    Kund_ID int\n    Belopp decimal\n    F_rfallodatum date\n  }\n  Leverant_rer ||--o{ Artiklar : \"LeverantörID R2\"\n  Kunder ||--o{ Ordrar : \"KundNr R2\"\n  Ordrar ||--o{ Orderrader : \"OrderNr R2\"\n  Artiklar ||--o{ Orderrader : \"ArtikelNr R2\"\n  Ordrar ||--o{ Fakturor : \"OrderNr R2\"\n  Kunder ||--o{ Fakturor : \"Kund_ID R4\"\n```\n\n## Rules\n\n| Rule | Meaning |\n| --- | --- |\n| K0 | declared primary key |\n| K1 | `keys` override from the caller |\n| K2 | a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms` |\n| K3 | nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it |\n| K4 | junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column) |\n| K5 | line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…) |\n| R0 | declared foreign key |\n| R1 | column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key |\n| R2 | column has exactly the same name as B's single key column, and that name is not just `id` |\n| R3 | all of B's composite key columns appear in A |\n| R4 | weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`) |\n| confirmed | given by the caller in `confirmed=[...]`, applied as-is, before inference |\n",
+ "gold": {
+  "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
+ },
+ "graphql": {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+  "datasources": [
+   {
+    "objects": [
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "KundNr": "KundNr",
+       "Land": "Land",
+       "Namn": "Namn"
+      },
+      "graphqlType": "Kunder",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "ordrar",
+        "sourceFields": [
+         "KundNr"
+        ],
+        "targetFields": [
+         "KundNr"
+        ],
+        "targetObject": "dbo.Ordrar"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "fakturor",
+        "sourceFields": [
+         "KundNr"
+        ],
+        "targetFields": [
+         "Kund_ID"
+        ],
+        "targetObject": "dbo.Fakturor"
+       }
+      ],
+      "sourceObject": "dbo.Kunder",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "LeverantörID": "Leverant_rID",
+       "Namn": "Namn",
+       "Ort": "Ort"
+      },
+      "graphqlType": "Leverant_rer",
+      "relationships": [
+       {
+        "cardinality": "OneToMany",
+        "field": "artiklar",
+        "sourceFields": [
+         "LeverantörID"
+        ],
+        "targetFields": [
+         "LeverantörID"
+        ],
+        "targetObject": "dbo.Artiklar"
+       }
+      ],
+      "sourceObject": "dbo.Leverantörer",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "ArtikelNr": "ArtikelNr",
+       "Benämning": "Ben_mning",
+       "LeverantörID": "Leverant_rID",
+       "Pris": "Pris"
+      },
+      "graphqlType": "Artiklar",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "leverant_rer",
+        "sourceFields": [
+         "LeverantörID"
+        ],
+        "targetFields": [
+         "LeverantörID"
+        ],
+        "targetObject": "dbo.Leverantörer"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "orderrader",
+        "sourceFields": [
+         "ArtikelNr"
+        ],
+        "targetFields": [
+         "ArtikelNr"
+        ],
+        "targetObject": "dbo.Orderrader"
+       }
+      ],
+      "sourceObject": "dbo.Artiklar",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "KundNr": "KundNr",
+       "OrderNr": "OrderNr",
+       "Orderdatum": "Orderdatum",
+       "Status": "Status"
+      },
+      "graphqlType": "Ordrar",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "kunder",
+        "sourceFields": [
+         "KundNr"
+        ],
+        "targetFields": [
+         "KundNr"
+        ],
+        "targetObject": "dbo.Kunder"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "orderrader_as_order",
+        "sourceFields": [
+         "OrderNr"
+        ],
+        "targetFields": [
+         "OrderNr"
+        ],
+        "targetObject": "dbo.Orderrader"
+       },
+       {
+        "cardinality": "OneToMany",
+        "field": "fakturor_as_order",
+        "sourceFields": [
+         "OrderNr"
+        ],
+        "targetFields": [
+         "OrderNr"
+        ],
+        "targetObject": "dbo.Fakturor"
+       }
+      ],
+      "sourceObject": "dbo.Ordrar",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Antal": "Antal",
+       "ArtikelNr": "ArtikelNr",
+       "OrderNr": "OrderNr",
+       "Radnr": "Radnr"
+      },
+      "graphqlType": "Orderrader",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "order",
+        "sourceFields": [
+         "OrderNr"
+        ],
+        "targetFields": [
+         "OrderNr"
+        ],
+        "targetObject": "dbo.Ordrar"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "artiklar",
+        "sourceFields": [
+         "ArtikelNr"
+        ],
+        "targetFields": [
+         "ArtikelNr"
+        ],
+        "targetObject": "dbo.Artiklar"
+       }
+      ],
+      "sourceObject": "dbo.Orderrader",
+      "sourceObjectType": "Table"
+     },
+     {
+      "actions": {
+       "Create": "Disabled",
+       "Delete": "Disabled",
+       "Query": "Enabled",
+       "Query_by_pk": "Enabled",
+       "Update": "Disabled"
+      },
+      "fieldMappings": {
+       "Belopp": "Belopp",
+       "FakturaNr": "FakturaNr",
+       "Förfallodatum": "F_rfallodatum",
+       "Kund_ID": "Kund_ID",
+       "OrderNr": "OrderNr"
+      },
+      "graphqlType": "Fakturor",
+      "relationships": [
+       {
+        "cardinality": "ManyToOne",
+        "field": "order",
+        "sourceFields": [
+         "OrderNr"
+        ],
+        "targetFields": [
+         "OrderNr"
+        ],
+        "targetObject": "dbo.Ordrar"
+       },
+       {
+        "cardinality": "ManyToOne",
+        "field": "kunder",
+        "sourceFields": [
+         "Kund_ID"
+        ],
+        "targetFields": [
+         "KundNr"
+        ],
+        "targetObject": "dbo.Kunder"
+       }
+      ],
+      "sourceObject": "dbo.Fakturor",
+      "sourceObjectType": "Table"
+     }
+    ],
+    "sourceItemId": "ep-1",
+    "sourceType": "SqlAnalyticsEndpoint",
+    "sourceWorkspaceId": "ws-1"
+   }
+  ]
+ },
+ "join_paths": {
+  "bytes": 24140,
+  "sha256": "ee5f6ce71aa968db0c1ea48a628604ad59ab529401bb28c695d5cc77bf1a13c1"
+ },
+ "key_sql": {
+  "Artiklar": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [ArtikelNr] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [ArtikelNr] FROM [dbo].[Artiklar] WHERE [ArtikelNr] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Artiklar]",
+  "Fakturor": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [FakturaNr] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [FakturaNr] FROM [dbo].[Fakturor] WHERE [FakturaNr] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Fakturor]",
+  "Kunder": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [KundNr] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [KundNr] FROM [dbo].[Kunder] WHERE [KundNr] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Kunder]",
+  "Leverantörer": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [LeverantörID] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [LeverantörID] FROM [dbo].[Leverantörer] WHERE [LeverantörID] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Leverantörer]",
+  "Orderrader": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderNr] IS NULL OR [Radnr] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderNr], [Radnr] FROM [dbo].[Orderrader] WHERE [OrderNr] IS NOT NULL AND [Radnr] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Orderrader]",
+  "Ordrar": "SELECT COUNT_BIG(*) AS n, SUM(CASE WHEN [OrderNr] IS NULL THEN 1 ELSE 0 END) AS nulls, (SELECT COUNT_BIG(*) FROM (SELECT DISTINCT [OrderNr] FROM [dbo].[Ordrar] WHERE [OrderNr] IS NOT NULL) AS d) AS distinct_keys FROM [dbo].[Ordrar]"
+ },
+ "ontology_ttl": "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n@prefix owl: <http://www.w3.org/2002/07/owl#> .\n@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n@prefix : <urn:krusgraph:ontology:onto#> .\n\n<urn:krusgraph:ontology:onto> a owl:Ontology ;\n    rdfs:label \"onto\" ;\n    rdfs:comment \"Generated by Krusgraph from inferred keys and relationships; every description names the rule (K0-K5, R0-R4).\" .\n\n:Kunder a owl:Class ;\n    rdfs:label \"Kunder\" ;\n    skos:altLabel \"Kunder\" ;\n    rdfs:comment \"Table dbo.Kunder; key KundNr (K2).\" .\n\n:Kunder__KundNr a owl:DatatypeProperty ;\n    rdfs:label \"KundNr\" ;\n    rdfs:domain :Kunder ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column KundNr (int); key.\" .\n\n:Kunder__Namn a owl:DatatypeProperty ;\n    rdfs:label \"Namn\" ;\n    rdfs:domain :Kunder ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Namn (nvarchar).\" .\n\n:Kunder__Land a owl:DatatypeProperty ;\n    rdfs:label \"Land\" ;\n    rdfs:domain :Kunder ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Land (nvarchar).\" .\n\n:LeverantRer a owl:Class ;\n    rdfs:label \"LeverantRer\" ;\n    skos:altLabel \"Leverantörer\" ;\n    rdfs:comment \"Table dbo.Leverantörer; key LeverantörID (K2).\" .\n\n:LeverantRer__Leverant_rID a owl:DatatypeProperty ;\n    rdfs:label \"LeverantörID\" ;\n    rdfs:domain :LeverantRer ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column LeverantörID (int); key.\" .\n\n:LeverantRer__Namn a owl:DatatypeProperty ;\n    rdfs:label \"Namn\" ;\n    rdfs:domain :LeverantRer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Namn (nvarchar).\" .\n\n:LeverantRer__Ort a owl:DatatypeProperty ;\n    rdfs:label \"Ort\" ;\n    rdfs:domain :LeverantRer ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Ort (nvarchar).\" .\n\n:Artiklar a owl:Class ;\n    rdfs:label \"Artiklar\" ;\n    skos:altLabel \"Artiklar\" ;\n    rdfs:comment \"Table dbo.Artiklar; key ArtikelNr (K2).\" .\n\n:Artiklar__ArtikelNr a owl:DatatypeProperty ;\n    rdfs:label \"ArtikelNr\" ;\n    rdfs:domain :Artiklar ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ArtikelNr (int); key.\" .\n\n:Artiklar__Ben_mning a owl:DatatypeProperty ;\n    rdfs:label \"Benämning\" ;\n    rdfs:domain :Artiklar ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Benämning (nvarchar).\" .\n\n:Artiklar__Leverant_rID a owl:DatatypeProperty ;\n    rdfs:label \"LeverantörID\" ;\n    rdfs:domain :Artiklar ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column LeverantörID (int).\" .\n\n:Artiklar__Pris a owl:DatatypeProperty ;\n    rdfs:label \"Pris\" ;\n    rdfs:domain :Artiklar ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column Pris (decimal).\" .\n\n:Ordrar a owl:Class ;\n    rdfs:label \"Ordrar\" ;\n    skos:altLabel \"Ordrar\" ;\n    rdfs:comment \"Table dbo.Ordrar; key OrderNr (K2).\" .\n\n:Ordrar__OrderNr a owl:DatatypeProperty ;\n    rdfs:label \"OrderNr\" ;\n    rdfs:domain :Ordrar ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column OrderNr (int); key.\" .\n\n:Ordrar__KundNr a owl:DatatypeProperty ;\n    rdfs:label \"KundNr\" ;\n    rdfs:domain :Ordrar ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column KundNr (int).\" .\n\n:Ordrar__Orderdatum a owl:DatatypeProperty ;\n    rdfs:label \"Orderdatum\" ;\n    rdfs:domain :Ordrar ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column Orderdatum (date).\" .\n\n:Ordrar__Status a owl:DatatypeProperty ;\n    rdfs:label \"Status\" ;\n    rdfs:domain :Ordrar ;\n    rdfs:range xsd:string ;\n    rdfs:comment \"Column Status (nvarchar).\" .\n\n:Orderrader a owl:Class ;\n    rdfs:label \"Orderrader\" ;\n    skos:altLabel \"Orderrader\" ;\n    rdfs:comment \"Table dbo.Orderrader; key OrderNr+Radnr (K5).\" .\n\n:Orderrader__OrderNr a owl:DatatypeProperty ;\n    rdfs:label \"OrderNr\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column OrderNr (int); key.\" .\n\n:Orderrader__Radnr a owl:DatatypeProperty ;\n    rdfs:label \"Radnr\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Radnr (int); key.\" .\n\n:Orderrader__ArtikelNr a owl:DatatypeProperty ;\n    rdfs:label \"ArtikelNr\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column ArtikelNr (int).\" .\n\n:Orderrader__Antal a owl:DatatypeProperty ;\n    rdfs:label \"Antal\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Antal (int).\" .\n\n:Fakturor a owl:Class ;\n    rdfs:label \"Fakturor\" ;\n    skos:altLabel \"Fakturor\" ;\n    rdfs:comment \"Table dbo.Fakturor; key FakturaNr (K2).\" .\n\n:Fakturor__FakturaNr a owl:DatatypeProperty ;\n    rdfs:label \"FakturaNr\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column FakturaNr (int); key.\" .\n\n:Fakturor__OrderNr a owl:DatatypeProperty ;\n    rdfs:label \"OrderNr\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column OrderNr (int).\" .\n\n:Fakturor__Kund_ID a owl:DatatypeProperty ;\n    rdfs:label \"Kund_ID\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range xsd:integer ;\n    rdfs:comment \"Column Kund_ID (int).\" .\n\n:Fakturor__Belopp a owl:DatatypeProperty ;\n    rdfs:label \"Belopp\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range xsd:double ;\n    rdfs:comment \"Column Belopp (decimal).\" .\n\n:Fakturor__F_rfallodatum a owl:DatatypeProperty ;\n    rdfs:label \"Förfallodatum\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range xsd:dateTime ;\n    rdfs:comment \"Column Förfallodatum (date).\" .\n\n:ArtiklarHasLeverantRer a owl:ObjectProperty ;\n    rdfs:label \"ArtiklarHasLeverantRer\" ;\n    rdfs:domain :Artiklar ;\n    rdfs:range :LeverantRer ;\n    rdfs:comment \"Artiklar.LeverantörID -> Leverantörer.LeverantörID by rule R2.\" .\n\n:OrdrarHasKunder a owl:ObjectProperty ;\n    rdfs:label \"OrdrarHasKunder\" ;\n    rdfs:domain :Ordrar ;\n    rdfs:range :Kunder ;\n    rdfs:comment \"Ordrar.KundNr -> Kunder.KundNr by rule R2.\" .\n\n:OrderraderHasOrdrar a owl:ObjectProperty ;\n    rdfs:label \"OrderraderHasOrdrar\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range :Ordrar ;\n    rdfs:comment \"Orderrader.OrderNr -> Ordrar.OrderNr by rule R2.\" .\n\n:OrderraderHasArtiklar a owl:ObjectProperty ;\n    rdfs:label \"OrderraderHasArtiklar\" ;\n    rdfs:domain :Orderrader ;\n    rdfs:range :Artiklar ;\n    rdfs:comment \"Orderrader.ArtikelNr -> Artiklar.ArtikelNr by rule R2.\" .\n\n:FakturorHasOrdrar a owl:ObjectProperty ;\n    rdfs:label \"FakturorHasOrdrar\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range :Ordrar ;\n    rdfs:comment \"Fakturor.OrderNr -> Ordrar.OrderNr by rule R2.\" .\n\n:FakturorHasKunder a owl:ObjectProperty ;\n    rdfs:label \"FakturorHasKunder\" ;\n    rdfs:domain :Fakturor ;\n    rdfs:range :Kunder ;\n    rdfs:comment \"Fakturor.Kund_ID -> Kunder.KundNr by rule R4.\" .\n",
+ "plan": {
+  "ambiguous": [],
+  "keyless": [],
+  "keys": {
+   "Artiklar": [
+    [
+     "ArtikelNr"
+    ],
+    "K2"
+   ],
+   "Fakturor": [
+    [
+     "FakturaNr"
+    ],
+    "K2"
+   ],
+   "Kunder": [
+    [
+     "KundNr"
+    ],
+    "K2"
+   ],
+   "Leverantörer": [
+    [
+     "LeverantörID"
+    ],
+    "K2"
+   ],
+   "Orderrader": [
+    [
+     "OrderNr",
+     "Radnr"
+    ],
+    "K5"
+   ],
+   "Ordrar": [
+    [
+     "OrderNr"
+    ],
+    "K2"
+   ]
+  },
+  "mermaid": "erDiagram\n  Kunder {\n    KundNr int PK\n    Namn nvarchar\n    Land nvarchar\n  }\n  Leverant_rer {\n    Leverant_rID int PK\n    Namn nvarchar\n    Ort nvarchar\n  }\n  Artiklar {\n    ArtikelNr int PK\n    Ben_mning nvarchar\n    Leverant_rID int\n    Pris decimal\n  }\n  Ordrar {\n    OrderNr int PK\n    KundNr int\n    Orderdatum date\n    Status nvarchar\n  }\n  Orderrader {\n    OrderNr int PK\n    Radnr int PK\n    ArtikelNr int\n    Antal int\n  }\n  Fakturor {\n    FakturaNr int PK\n    OrderNr int\n    Kund_ID int\n    Belopp decimal\n    F_rfallodatum date\n  }\n  Leverant_rer ||--o{ Artiklar : \"LeverantörID R2\"\n  Kunder ||--o{ Ordrar : \"KundNr R2\"\n  Ordrar ||--o{ Orderrader : \"OrderNr R2\"\n  Artiklar ||--o{ Orderrader : \"ArtikelNr R2\"\n  Ordrar ||--o{ Fakturor : \"OrderNr R2\"\n  Kunder ||--o{ Fakturor : \"Kund_ID R4\"",
+  "relationships": [
+   {
+    "field_name": "leverant_rer",
+    "note": "",
+    "reverse_name": "artiklar",
+    "rule": "R2",
+    "source": "Artiklar",
+    "source_cols": [
+     "LeverantörID"
+    ],
+    "target": "Leverantörer",
+    "target_cols": [
+     "LeverantörID"
+    ]
+   },
+   {
+    "field_name": "kunder",
+    "note": "",
+    "reverse_name": "ordrar",
+    "rule": "R2",
+    "source": "Ordrar",
+    "source_cols": [
+     "KundNr"
+    ],
+    "target": "Kunder",
+    "target_cols": [
+     "KundNr"
+    ]
+   },
+   {
+    "field_name": "order",
+    "note": "",
+    "reverse_name": "orderrader_as_order",
+    "rule": "R2",
+    "source": "Orderrader",
+    "source_cols": [
+     "OrderNr"
+    ],
+    "target": "Ordrar",
+    "target_cols": [
+     "OrderNr"
+    ]
+   },
+   {
+    "field_name": "artiklar",
+    "note": "",
+    "reverse_name": "orderrader",
+    "rule": "R2",
+    "source": "Orderrader",
+    "source_cols": [
+     "ArtikelNr"
+    ],
+    "target": "Artiklar",
+    "target_cols": [
+     "ArtikelNr"
+    ]
+   },
+   {
+    "field_name": "order",
+    "note": "",
+    "reverse_name": "fakturor_as_order",
+    "rule": "R2",
+    "source": "Fakturor",
+    "source_cols": [
+     "OrderNr"
+    ],
+    "target": "Ordrar",
+    "target_cols": [
+     "OrderNr"
+    ]
+   },
+   {
+    "field_name": "kunder",
+    "note": "through the synonym table: kund -> customer, kunder -> customer",
+    "reverse_name": "fakturor",
+    "rule": "R4",
+    "source": "Fakturor",
+    "source_cols": [
+     "Kund_ID"
+    ],
+    "target": "Kunder",
+    "target_cols": [
+     "KundNr"
+    ]
+   }
+  ],
+  "summary": "6 tables, 6 with keys, 6 relationships\n6 name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms",
+  "synonyms": [
+   {
+    "column": "KundNr",
+    "rule": "K2",
+    "table": "Kunder",
+    "via": "kunder -> customer, kund -> customer"
+   },
+   {
+    "column": "LeverantörID",
+    "rule": "K2",
+    "table": "Leverantörer",
+    "via": "leverantorer -> supplier, leverantor -> supplier"
+   },
+   {
+    "column": "ArtikelNr",
+    "rule": "K2",
+    "table": "Artiklar",
+    "via": "artiklar -> product, artikel -> product"
+   },
+   {
+    "column": "OrderNr",
+    "rule": "K2",
+    "table": "Ordrar",
+    "via": "ordrar -> order"
+   },
+   {
+    "column": "FakturaNr",
+    "rule": "K2",
+    "table": "Fakturor",
+    "via": "fakturor -> invoice, faktura -> invoice"
+   },
+   {
+    "column": "Kund_ID",
+    "rule": "R4",
+    "table": "Fakturor",
+    "target": "Kunder",
+    "via": "kund -> customer, kunder -> customer"
+   }
+  ]
+ },
+ "rayfin": {
+  "rayfin/connectors/data/Artiklar.ts": "// rayfin/connectors/<connector>/Artiklar.ts — generated by fabric-backend from dbo.Artiklar\nimport { decimal, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { LeverantRer } from './LeverantRer.js';\nimport { Orderrader } from './Orderrader.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key ArtikelNr by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Artiklar extends Source({ schema: 'dbo', table: 'Artiklar', primaryKey: ['artikelNr'] }) {\n  @int({ column: 'ArtikelNr' }) artikelNr!: number;\n  @text({ column: 'Benämning' }) benMning!: string;\n  @int({ column: 'LeverantörID' }) leverantrID!: number;\n  @decimal({ column: 'Pris' }) pris!: number;\n\n  @one(() => LeverantRer, { sourceFields: ['leverantrID'], targetFields: ['leverantrID'] }) leverantRer?: LeverantRer;    // LeverantörID -> Leverantörer [R2]\n  @many(() => Orderrader, { sourceFields: ['artikelNr'], targetFields: ['artikelNr'] }) orderrader?: Orderrader[];    // Orderrader.ArtikelNr [R2]\n}\n",
+  "rayfin/connectors/data/Fakturor.ts": "// rayfin/connectors/<connector>/Fakturor.ts — generated by fabric-backend from dbo.Fakturor\nimport { date, decimal, entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Kunder } from './Kunder.js';\nimport { Ordrar } from './Ordrar.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key FakturaNr by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Fakturor extends Source({ schema: 'dbo', table: 'Fakturor', primaryKey: ['fakturaNr'] }) {\n  @int({ column: 'FakturaNr' }) fakturaNr!: number;\n  @int({ column: 'OrderNr' }) orderNr!: number;\n  @int({ column: 'Kund_ID' }) kundId!: number;\n  @decimal({ column: 'Belopp' }) belopp!: number;\n  @date({ column: 'Förfallodatum' }) fRfallodatum!: Date;\n\n  @one(() => Ordrar, { sourceFields: ['orderNr'], targetFields: ['orderNr'] }) order?: Ordrar;    // OrderNr -> Ordrar [R2]\n  @one(() => Kunder, { sourceFields: ['kundId'], targetFields: ['kundNr'] }) kunder?: Kunder;    // Kund_ID -> Kunder [R4]\n}\n",
+  "rayfin/connectors/data/Kunder.ts": "// rayfin/connectors/<connector>/Kunder.ts — generated by fabric-backend from dbo.Kunder\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Fakturor } from './Fakturor.js';\nimport { Ordrar } from './Ordrar.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key KundNr by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Kunder extends Source({ schema: 'dbo', table: 'Kunder', primaryKey: ['kundNr'] }) {\n  @int({ column: 'KundNr' }) kundNr!: number;\n  @text({ column: 'Namn' }) namn!: string;\n  @text({ column: 'Land' }) land!: string;\n\n  @many(() => Ordrar, { sourceFields: ['kundNr'], targetFields: ['kundNr'] }) ordrar?: Ordrar[];    // Ordrar.KundNr [R2]\n  @many(() => Fakturor, { sourceFields: ['kundNr'], targetFields: ['kundId'] }) fakturor?: Fakturor[];    // Fakturor.Kund_ID [R4]\n}\n",
+  "rayfin/connectors/data/LeverantRer.ts": "// rayfin/connectors/<connector>/LeverantRer.ts — generated by fabric-backend from dbo.Leverantörer\nimport { entity, int, many, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Artiklar } from './Artiklar.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key LeverantörID by rule K2  (by name — remove primaryKey if that is wrong)\nexport class LeverantRer extends Source({ schema: 'dbo', table: 'Leverantörer', primaryKey: ['leverantrID'] }) {\n  @int({ column: 'LeverantörID' }) leverantrID!: number;\n  @text({ column: 'Namn' }) namn!: string;\n  @text({ column: 'Ort' }) ort!: string;\n\n  @many(() => Artiklar, { sourceFields: ['leverantrID'], targetFields: ['leverantrID'] }) artiklar?: Artiklar[];    // Artiklar.LeverantörID [R2]\n}\n",
+  "rayfin/connectors/data/Orderrader.ts": "// rayfin/connectors/<connector>/Orderrader.ts — generated by fabric-backend from dbo.Orderrader\nimport { entity, int, one, role } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Artiklar } from './Artiklar.js';\nimport { Ordrar } from './Ordrar.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderNr+Radnr by rule K5\nexport class Orderrader extends Source({ schema: 'dbo', table: 'Orderrader', primaryKey: ['orderNr', 'radnr'] }) {\n  @int({ column: 'OrderNr' }) orderNr!: number;\n  @int({ column: 'Radnr' }) radnr!: number;\n  @int({ column: 'ArtikelNr' }) artikelNr!: number;\n  @int({ column: 'Antal' }) antal!: number;\n\n  @one(() => Ordrar, { sourceFields: ['orderNr'], targetFields: ['orderNr'] }) order?: Ordrar;    // OrderNr -> Ordrar [R2]\n  @one(() => Artiklar, { sourceFields: ['artikelNr'], targetFields: ['artikelNr'] }) artiklar?: Artiklar;    // ArtikelNr -> Artiklar [R2]\n}\n",
+  "rayfin/connectors/data/Ordrar.ts": "// rayfin/connectors/<connector>/Ordrar.ts — generated by fabric-backend from dbo.Ordrar\nimport { date, entity, int, many, one, role, text } from '@microsoft/rayfin-core';\nimport { Source } from '@microsoft/rayfin-connectors';\nimport { Fakturor } from './Fakturor.js';\nimport { Kunder } from './Kunder.js';\nimport { Orderrader } from './Orderrader.js';\n\n@role('authenticated', ['read'])\n@entity()\n// key OrderNr by rule K2  (by name — remove primaryKey if that is wrong)\nexport class Ordrar extends Source({ schema: 'dbo', table: 'Ordrar', primaryKey: ['orderNr'] }) {\n  @int({ column: 'OrderNr' }) orderNr!: number;\n  @int({ column: 'KundNr' }) kundNr!: number;\n  @date({ column: 'Orderdatum' }) orderdatum!: Date;\n  @text({ column: 'Status' }) status!: string;\n\n  @one(() => Kunder, { sourceFields: ['kundNr'], targetFields: ['kundNr'] }) kunder?: Kunder;    // KundNr -> Kunder [R2]\n  @many(() => Orderrader, { sourceFields: ['orderNr'], targetFields: ['orderNr'] }) orderraderAsOrder?: Orderrader[];    // Orderrader.OrderNr [R2]\n  @many(() => Fakturor, { sourceFields: ['orderNr'], targetFields: ['orderNr'] }) fakturorAsOrder?: Fakturor[];    // Fakturor.OrderNr [R2]\n}\n",
+  "rayfin/connectors/data/README.generated.md": "# data — generated by fabric-backend\n\n6 entities, 6 relationships, connector type `fabric-sqlanalytics`.\n\nBefore `npx rayfin up`:\n\n1. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name data --operations read`\n   (registers the connector in rayfin.yml and prints the npm install to run); then drop these files in.\n2. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey` where it is wrong.\n3. `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with\n   `relationships=False` and keep this file's list as documentation.\n\nEntities: Kunder, LeverantRer, Artiklar, Ordrar, Orderrader, Fakturor\n",
+  "rayfin/connectors/data/schema.ts": "// rayfin/connectors/data/schema.ts — generated by fabric-backend\nimport type { GraphQLBackedConnector } from '@microsoft/rayfin-connector-fabric-graphql';\nimport type { ConnectorConfig } from '@microsoft/rayfin-connectors';\nimport { Kunder } from './Kunder.js';\nimport { LeverantRer } from './LeverantRer.js';\nimport { Artiklar } from './Artiklar.js';\nimport { Ordrar } from './Ordrar.js';\nimport { Orderrader } from './Orderrader.js';\nimport { Fakturor } from './Fakturor.js';\n\nexport { Kunder } from './Kunder.js';\nexport { LeverantRer } from './LeverantRer.js';\nexport { Artiklar } from './Artiklar.js';\nexport { Ordrar } from './Ordrar.js';\nexport { Orderrader } from './Orderrader.js';\nexport { Fakturor } from './Fakturor.js';\n\nexport const connectorConfig = {\n  connector: 'fabric-sqlanalytics',\n  operations: ['read'],\n  entities: { Kunder, LeverantRer, Artiklar, Ordrar, Orderrader, Fakturor },\n} as const satisfies ConnectorConfig;\n\nexport type DataSchema = GraphQLBackedConnector<\n  { Kunder: typeof Kunder, LeverantRer: typeof LeverantRer, Artiklar: typeof Artiklar, Ordrar: typeof Ordrar, Orderrader: typeof Orderrader, Fakturor: typeof Fakturor },\n  typeof connectorConfig\n>;\n"
+ },
+ "relationship_sql": [
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[LeverantörID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Artiklar] AS s LEFT JOIN (SELECT DISTINCT [LeverantörID] FROM [dbo].[Leverantörer]) AS t ON s.[LeverantörID] = t.[LeverantörID] WHERE s.[LeverantörID] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[KundNr] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Ordrar] AS s LEFT JOIN (SELECT DISTINCT [KundNr] FROM [dbo].[Kunder]) AS t ON s.[KundNr] = t.[KundNr] WHERE s.[KundNr] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[OrderNr] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Orderrader] AS s LEFT JOIN (SELECT DISTINCT [OrderNr] FROM [dbo].[Ordrar]) AS t ON s.[OrderNr] = t.[OrderNr] WHERE s.[OrderNr] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[ArtikelNr] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Orderrader] AS s LEFT JOIN (SELECT DISTINCT [ArtikelNr] FROM [dbo].[Artiklar]) AS t ON s.[ArtikelNr] = t.[ArtikelNr] WHERE s.[ArtikelNr] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[OrderNr] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Fakturor] AS s LEFT JOIN (SELECT DISTINCT [OrderNr] FROM [dbo].[Ordrar]) AS t ON s.[OrderNr] = t.[OrderNr] WHERE s.[OrderNr] IS NOT NULL",
+  "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[KundNr] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Fakturor] AS s LEFT JOIN (SELECT DISTINCT [KundNr] FROM [dbo].[Kunder]) AS t ON s.[Kund_ID] = t.[KundNr] WHERE s.[Kund_ID] IS NOT NULL"
+ ],
+ "sample_sql": {
+  "Artiklar": "SELECT TOP (10) [ArtikelNr], [Benämning], [LeverantörID], [Pris] FROM [dbo].[Artiklar]",
+  "Fakturor": "SELECT TOP (10) [FakturaNr], [OrderNr], [Kund_ID], [Belopp], [Förfallodatum] FROM [dbo].[Fakturor]",
+  "Kunder": "SELECT TOP (10) [KundNr], [Namn], [Land] FROM [dbo].[Kunder]",
+  "Leverantörer": "SELECT TOP (10) [LeverantörID], [Namn], [Ort] FROM [dbo].[Leverantörer]",
+  "Orderrader": "SELECT TOP (10) [OrderNr], [Radnr], [ArtikelNr], [Antal] FROM [dbo].[Orderrader]",
+  "Ordrar": "SELECT TOP (10) [OrderNr], [KundNr], [Orderdatum], [Status] FROM [dbo].[Ordrar]"
+ },
+ "semantic_model": {
+  "bytes": 22305,
+  "sha256": "b2c945507784a258bb64ba50bc438cd4902408e15c9c4e4cacacc698e90ad1e6"
+ },
+ "silver": "# Fabric notebook source\n\n# METADATA ********************\n\n# META {\n# META   \"kernel_info\": {\n# META     \"name\": \"synapse_pyspark\"\n# META   },\n# META   \"dependencies\": {\n# META     \"lakehouse\": {\n# META       \"default_lakehouse\": \"lh-1\",\n# META       \"default_lakehouse_name\": \"src\",\n# META       \"default_lakehouse_workspace_id\": \"ws-1\"\n# META     }\n# META   }\n# META }\n\n# MARKDOWN ********************\n\n# # Silver tables for src.dbo\n#\n# Generated by Krusgraph from the plan: clean copies of 6 table(s) in tables prefixed `silver_`, de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in `krusgraph_quarantine` with the reason. The source tables are only read. Run it again at any time: every silver table is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.\n\n# PARAMETERS CELL ********************\n\nSILVER_SCHEMA = \"silver\"   # where the silver tables go; never the source schema\nTABLE_FORMAT = \"delta\"     # lakehouse tables are Delta; leave as it is\nMASK_PERSONAL_DATA = True   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\nfrom datetime import datetime, timezone\nfrom pyspark.sql import Window\nfrom pyspark.sql import functions as F\n\nSOURCE_SCHEMA = None\nSCHEMAS_ENABLED = False\n# Written into every silver table as the property krusgraph.silver: a table carrying another value (or none) belongs to\n# someone else, and this notebook never overwrites it.\nOWNER = \"lh-1/dbo\"\n# Every table of the source schema: none of them is ever a write target.\nSOURCE_TABLES = [\"Artiklar\", \"Fakturor\", \"Kunder\", \"Leverant\\u00f6rer\", \"Orderrader\", \"Ordrar\"]\n# The silver tables this notebook writes, plus the quarantine table.\nWRITES = [\"Kunder\", \"Leverant\\u00f6rer\", \"Artiklar\", \"Ordrar\", \"Fakturor\", \"Orderrader\", \"krusgraph_quarantine\"]\n# Columns whose name looks like personal data (Krusgraph's rules P1-P6, by name): masked in the quarantine's row_json while\n# MASK_PERSONAL_DATA is True. The silver tables themselves keep every column.\nPERSONAL_COLUMNS = {\"Kunder\": [\"Namn\"]}\nRUN_AT = datetime.now(timezone.utc).replace(microsecond=0)\n\n\ndef q(*parts):\n    \"\"\"A table name with every part quoted, for names with spaces or other characters.\"\"\"\n    return \".\".join(\"`\" + str(p).replace(\"`\", \"``\") + \"`\" for p in parts if p)\n\n\ndef source(table):\n    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)\n\n\ndef target(table):\n    # The silver tables live in a schema of their own (on a lakehouse without schemas: a prefix), never on a source table.\n    return q(SILVER_SCHEMA, table) if SCHEMAS_ENABLED else q(f\"{SILVER_SCHEMA}_{table}\")\n\n\ndef col(name):\n    return F.col(\"`\" + name.replace(\"`\", \"``\") + \"`\")\n\n\ndef is_ours_or_absent(name):\n    \"\"\"A target may be overwritten only if this notebook wrote it before (table property krusgraph.silver = OWNER).\"\"\"\n    if not spark.catalog.tableExists(name):\n        return True\n    props = {r[0]: r[1] for r in spark.sql(f\"SHOW TBLPROPERTIES {name}\").collect()}\n    return props.get(\"krusgraph.silver\") == OWNER\n\n\n# Guard before anything is written: no target is a source table, and no target is someone else's table.\n_sources = {source(t).lower() for t in SOURCE_TABLES}\nfor _t in WRITES:\n    if target(_t).lower() in _sources:\n        raise ValueError(f\"{target(_t)} is a source table; choose another SILVER_SCHEMA. Nothing was written.\")\n    if not is_ours_or_absent(target(_t)):\n        raise ValueError(f\"{target(_t)} exists and was not written by this notebook (for {OWNER}); nothing was written. \"\n                         \"Choose another SILVER_SCHEMA.\")\nif SCHEMAS_ENABLED:\n    spark.sql(f\"CREATE SCHEMA IF NOT EXISTS {q(SILVER_SCHEMA)}\")\n\nquarantined = []      # (rows, source table, rule, reason), written together at the end\nsilver = {}           # table -> its silver DataFrame, read back after writing\nread_counts = {}\n\n\ndef to_quarantine(rows, table, rule, reason):\n    masked = set(PERSONAL_COLUMNS.get(table, [])) if MASK_PERSONAL_DATA else set()\n    fields = [F.when(col(c).isNull(), F.lit(None).cast(\"string\")).otherwise(F.lit(\"***\")).alias(c) if c in masked else col(c)\n              for c in rows.columns]\n    quarantined.append(rows.select(F.lit(table).alias(\"source_table\"), F.lit(rule).alias(\"rule\"), F.lit(reason).alias(\"reason\"),\n                                   F.to_json(F.struct(*fields)).alias(\"row_json\")))\n\n\ndef drop_null_keys(df, key, table, rule):\n    missing = None\n    for c in key:\n        missing = col(c).isNull() if missing is None else (missing | col(c).isNull())\n    to_quarantine(df.filter(missing), table, rule, f\"the key ({', '.join(key)}) is NULL\")\n    return df.filter(~missing)\n\n\ndef keep_latest(df, key, order_column, table, rule):\n    content = F.sha2(F.to_json(F.struct(*[col(c) for c in df.columns])), 256)\n    order = ([col(order_column).desc_nulls_last()] if order_column else []) + [content.desc()]\n    ranked = df.withColumn(\"_krusgraph_rank\", F.row_number().over(Window.partitionBy(*[col(c) for c in key]).orderBy(*order)))\n    reason = (f\"another row has the same key ({', '.join(key)}); the row with the latest {order_column} was kept\" if order_column\n              else f\"another row has the same key ({', '.join(key)}); one row per key was kept (no ordering column: pass order_by)\")\n    to_quarantine(ranked.filter(F.col(\"_krusgraph_rank\") > 1).drop(\"_krusgraph_rank\"), table, rule, reason)\n    return ranked.filter(F.col(\"_krusgraph_rank\") == 1).drop(\"_krusgraph_rank\")\n\n\ndef check_reference(df, columns, parent_df, parent_columns, table, rule, reason):\n    \"\"\"Rows whose reference (every column set) finds no row in the parent go to quarantine; a NULL reference stays.\"\"\"\n    parent_keys = parent_df.select(*[col(c).alias(f\"_krusgraph_p{i}\") for i, c in enumerate(parent_columns)]).distinct()\n    has_ref, on = None, None\n    for i, c in enumerate(columns):\n        has_ref = col(c).isNotNull() if has_ref is None else (has_ref & col(c).isNotNull())\n        match = col(c) == F.col(f\"_krusgraph_p{i}\")\n        on = match if on is None else (on & match)\n    with_ref = df.filter(has_ref)\n    to_quarantine(with_ref.join(parent_keys, on, \"left_anti\"), table, rule, reason)\n    return df.filter(~has_ref).unionByName(with_ref.join(parent_keys, on, \"left_semi\"))\n\n\ndef write_silver(df, table):\n    name = target(table)\n    if not is_ours_or_absent(name):\n        raise ValueError(f\"{name} exists and was not written by this notebook; it was left as it is.\")\n    df.write.format(TABLE_FORMAT).mode(\"overwrite\").option(\"overwriteSchema\", \"true\").saveAsTable(name)\n    spark.sql(f\"ALTER TABLE {name} SET TBLPROPERTIES ('krusgraph.silver' = '{OWNER.replace(chr(39), chr(39) * 2)}')\")\n    return spark.read.table(name)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Kunder -> silver_Kunder ----\n# Key KundNr (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Kunder\"))\nread_counts[\"Kunder\"] = df.count()\ndf = drop_null_keys(df, [\"KundNr\"], \"Kunder\", \"K2\")\ndf = keep_latest(df, [\"KundNr\"], None, \"Kunder\", \"K2\")\nsilver[\"Kunder\"] = write_silver(df, \"Kunder\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Leverantörer -> silver_Leverantörer ----\n# Key LeverantörID (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Leverant\\u00f6rer\"))\nread_counts[\"Leverant\\u00f6rer\"] = df.count()\ndf = drop_null_keys(df, [\"Leverant\\u00f6rID\"], \"Leverant\\u00f6rer\", \"K2\")\ndf = keep_latest(df, [\"Leverant\\u00f6rID\"], None, \"Leverant\\u00f6rer\", \"K2\")\nsilver[\"Leverant\\u00f6rer\"] = write_silver(df, \"Leverant\\u00f6rer\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Artiklar -> silver_Artiklar ----\n# Key ArtikelNr (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Artiklar\"))\nread_counts[\"Artiklar\"] = df.count()\ndf = drop_null_keys(df, [\"ArtikelNr\"], \"Artiklar\", \"K2\")\ndf = keep_latest(df, [\"ArtikelNr\"], None, \"Artiklar\", \"K2\")\n# Reference Artiklar.LeverantörID = Leverantörer.LeverantörID (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Leverantörer, so rows whose Leverantörer was quarantined follow it there.\ndf = check_reference(df, [\"Leverant\\u00f6rID\"], silver[\"Leverant\\u00f6rer\"], [\"Leverant\\u00f6rID\"], \"Artiklar\", \"R2\", \"Leverant\\u00f6rID has no row in Leverant\\u00f6rer (Artiklar.Leverant\\u00f6rID = Leverant\\u00f6rer.Leverant\\u00f6rID)\")\nsilver[\"Artiklar\"] = write_silver(df, \"Artiklar\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Ordrar -> silver_Ordrar ----\n# Key OrderNr (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Ordrar\"))\nread_counts[\"Ordrar\"] = df.count()\ndf = drop_null_keys(df, [\"OrderNr\"], \"Ordrar\", \"K2\")\ndf = keep_latest(df, [\"OrderNr\"], None, \"Ordrar\", \"K2\")\n# Reference Ordrar.KundNr = Kunder.KundNr (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Kunder, so rows whose Kunder was quarantined follow it there.\ndf = check_reference(df, [\"KundNr\"], silver[\"Kunder\"], [\"KundNr\"], \"Ordrar\", \"R2\", \"KundNr has no row in Kunder (Ordrar.KundNr = Kunder.KundNr)\")\nsilver[\"Ordrar\"] = write_silver(df, \"Ordrar\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Fakturor -> silver_Fakturor ----\n# Key FakturaNr (rule K2: a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Fakturor\"))\nread_counts[\"Fakturor\"] = df.count()\ndf = drop_null_keys(df, [\"FakturaNr\"], \"Fakturor\", \"K2\")\ndf = keep_latest(df, [\"FakturaNr\"], None, \"Fakturor\", \"K2\")\n# Reference Fakturor.OrderNr = Ordrar.OrderNr (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Ordrar, so rows whose Ordrar was quarantined follow it there.\ndf = check_reference(df, [\"OrderNr\"], silver[\"Ordrar\"], [\"OrderNr\"], \"Fakturor\", \"R2\", \"OrderNr has no row in Ordrar (Fakturor.OrderNr = Ordrar.OrderNr)\")\n# Reference Fakturor.Kund_ID = Kunder.KundNr (rule R4: weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); through the synonym table: kund -> customer, kunder -> customer).\n# Checked against the silver Kunder, so rows whose Kunder was quarantined follow it there.\ndf = check_reference(df, [\"Kund_ID\"], silver[\"Kunder\"], [\"KundNr\"], \"Fakturor\", \"R4\", \"Kund_ID has no row in Kunder (Fakturor.Kund_ID = Kunder.KundNr)\")\nsilver[\"Fakturor\"] = write_silver(df, \"Fakturor\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- Orderrader -> silver_Orderrader ----\n# Key OrderNr + Radnr (rule K5: line: no column names a key).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"Orderrader\"))\nread_counts[\"Orderrader\"] = df.count()\ndf = drop_null_keys(df, [\"OrderNr\", \"Radnr\"], \"Orderrader\", \"K5\")\ndf = keep_latest(df, [\"OrderNr\", \"Radnr\"], None, \"Orderrader\", \"K5\")\n# Reference Orderrader.OrderNr = Ordrar.OrderNr (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Ordrar, so rows whose Ordrar was quarantined follow it there.\ndf = check_reference(df, [\"OrderNr\"], silver[\"Ordrar\"], [\"OrderNr\"], \"Orderrader\", \"R2\", \"OrderNr has no row in Ordrar (Orderrader.OrderNr = Ordrar.OrderNr)\")\n# Reference Orderrader.ArtikelNr = Artiklar.ArtikelNr (rule R2: column has exactly the same name as B's single key column, and that name is not just `id`).\n# Checked against the silver Artiklar, so rows whose Artiklar was quarantined follow it there.\ndf = check_reference(df, [\"ArtikelNr\"], silver[\"Artiklar\"], [\"ArtikelNr\"], \"Orderrader\", \"R2\", \"ArtikelNr has no row in Artiklar (Orderrader.ArtikelNr = Artiklar.ArtikelNr)\")\nsilver[\"Orderrader\"] = write_silver(df, \"Orderrader\")\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n\n# CELL ********************\n\n# ---- quarantine and summary ----\n# Every row left out above is in the quarantine table with its source table, the rule and the reason. The table is\n# rewritten on every run, so it always shows the latest run.\nq_rows = spark.createDataFrame([], \"source_table string, rule string, reason string, row_json string\")\nfor part in quarantined:\n    q_rows = q_rows.unionByName(part)\nq_rows = q_rows.withColumn(\"checked_at\", F.lit(RUN_AT))\nwrite_silver(q_rows, \"krusgraph_quarantine\")\nsummary = {t: {\"read\": read_counts[t], \"silver\": silver[t].count()} for t in silver}\nfor r in spark.read.table(target(\"krusgraph_quarantine\")).groupBy(\"source_table\", \"rule\", \"reason\").count().collect():\n    summary[r[\"source_table\"]].setdefault(\"quarantined\", []).append({\"rule\": r[\"rule\"], \"reason\": r[\"reason\"], \"rows\": r[\"count\"]})\nfor t, s in summary.items():\n    print(t, s)\n\n# METADATA ********************\n\n# META {\n# META   \"language\": \"python\",\n# META   \"language_group\": \"synapse_pyspark\"\n# META }\n",
+ "views": {
+  "schema": "krusgraph",
+  "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
+  "views": [
+   {
+    "name": "vw_Orderrader",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orderrader] AS\nSELECT\n    f.[OrderNr] AS [OrderNr],\n    f.[Radnr] AS [Radnr],\n    f.[ArtikelNr] AS [ArtikelNr],\n    f.[Antal] AS [Antal],\n    d1.[ArtikelNr] AS [Artiklar_ArtikelNr],\n    d1.[Benämning] AS [Artiklar_Benämning],\n    d1.[LeverantörID] AS [Artiklar_LeverantörID],\n    d1.[Pris] AS [Artiklar_Pris],\n    d2.[OrderNr] AS [Ordrar_OrderNr],\n    d2.[KundNr] AS [Ordrar_KundNr],\n    d2.[Orderdatum] AS [Ordrar_Orderdatum],\n    d2.[Status] AS [Ordrar_Status],\n    d3.[LeverantörID] AS [Leverantörer_LeverantörID],\n    d3.[Namn] AS [Leverantörer_Namn],\n    d3.[Ort] AS [Leverantörer_Ort],\n    d4.[KundNr] AS [Kunder_KundNr],\n    d4.[Namn] AS [Kunder_Namn],\n    d4.[Land] AS [Kunder_Land]\nFROM [dbo].[Orderrader] AS f\n    LEFT JOIN [dbo].[Artiklar] AS d1 ON f.[ArtikelNr] = d1.[ArtikelNr]\n    LEFT JOIN [dbo].[Ordrar] AS d2 ON f.[OrderNr] = d2.[OrderNr]\n    LEFT JOIN [dbo].[Leverantörer] AS d3 ON d1.[LeverantörID] = d3.[LeverantörID]\n    LEFT JOIN [dbo].[Kunder] AS d4 ON d2.[KundNr] = d4.[KundNr]",
+    "tables": [
+     "Orderrader",
+     "Artiklar",
+     "Ordrar",
+     "Leverantörer",
+     "Kunder"
+    ],
+    "why": "Orderrader is a fact table (4 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_Fakturor",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Fakturor] AS\nSELECT\n    f.[FakturaNr] AS [FakturaNr],\n    f.[OrderNr] AS [OrderNr],\n    f.[Kund_ID] AS [Kund_ID],\n    f.[Belopp] AS [Belopp],\n    f.[Förfallodatum] AS [Förfallodatum],\n    d1.[KundNr] AS [Kunder_KundNr],\n    d1.[Namn] AS [Kunder_Namn],\n    d1.[Land] AS [Kunder_Land],\n    d2.[OrderNr] AS [Ordrar_OrderNr],\n    d2.[KundNr] AS [Ordrar_KundNr],\n    d2.[Orderdatum] AS [Ordrar_Orderdatum],\n    d2.[Status] AS [Ordrar_Status]\nFROM [dbo].[Fakturor] AS f\n    LEFT JOIN [dbo].[Kunder] AS d1 ON f.[Kund_ID] = d1.[KundNr]\n    LEFT JOIN [dbo].[Ordrar] AS d2 ON f.[OrderNr] = d2.[OrderNr]",
+    "tables": [
+     "Fakturor",
+     "Kunder",
+     "Ordrar"
+    ],
+    "why": "Fakturor is a fact table (2 dimensions joined in through the plan's relationships)"
+   },
+   {
+    "name": "vw_Ordrar",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Ordrar] AS\nSELECT\n    f.[OrderNr] AS [OrderNr],\n    f.[KundNr] AS [KundNr],\n    f.[Orderdatum] AS [Orderdatum],\n    f.[Status] AS [Status],\n    d1.[KundNr] AS [Kunder_KundNr],\n    d1.[Namn] AS [Kunder_Namn],\n    d1.[Land] AS [Kunder_Land]\nFROM [dbo].[Ordrar] AS f\n    LEFT JOIN [dbo].[Kunder] AS d1 ON f.[KundNr] = d1.[KundNr]",
+    "tables": [
+     "Ordrar",
+     "Kunder"
+    ],
+    "why": "Ordrar is a header table: Orderrader holds its lines; one row per Ordrar row, with its 1 dimension(s) joined in"
+   },
+   {
+    "name": "vw_Artiklar_leverant_rer",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Artiklar_leverant_rer] AS\nSELECT\n    s.[ArtikelNr] AS [ArtikelNr],\n    s.[Benämning] AS [Benämning],\n    s.[LeverantörID] AS [LeverantörID],\n    s.[Pris] AS [Pris],\n    t.[LeverantörID] AS [Leverantörer_LeverantörID],\n    t.[Namn] AS [Leverantörer_Namn],\n    t.[Ort] AS [Leverantörer_Ort]\nFROM [dbo].[Artiklar] AS s\n    LEFT JOIN [dbo].[Leverantörer] AS t ON s.[LeverantörID] = t.[LeverantörID]",
+    "tables": [
+     "Artiklar",
+     "Leverantörer"
+    ],
+    "why": "Artiklar.LeverantörID -> Leverantörer (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Ordrar_kunder",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Ordrar_kunder] AS\nSELECT\n    s.[OrderNr] AS [OrderNr],\n    s.[KundNr] AS [KundNr],\n    s.[Orderdatum] AS [Orderdatum],\n    s.[Status] AS [Status],\n    t.[KundNr] AS [Kunder_KundNr],\n    t.[Namn] AS [Kunder_Namn],\n    t.[Land] AS [Kunder_Land]\nFROM [dbo].[Ordrar] AS s\n    LEFT JOIN [dbo].[Kunder] AS t ON s.[KundNr] = t.[KundNr]",
+    "tables": [
+     "Ordrar",
+     "Kunder"
+    ],
+    "why": "Ordrar.KundNr -> Kunder (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Orderrader_order",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orderrader_order] AS\nSELECT\n    s.[OrderNr] AS [OrderNr],\n    s.[Radnr] AS [Radnr],\n    s.[ArtikelNr] AS [ArtikelNr],\n    s.[Antal] AS [Antal],\n    t.[OrderNr] AS [Ordrar_OrderNr],\n    t.[KundNr] AS [Ordrar_KundNr],\n    t.[Orderdatum] AS [Ordrar_Orderdatum],\n    t.[Status] AS [Ordrar_Status]\nFROM [dbo].[Orderrader] AS s\n    LEFT JOIN [dbo].[Ordrar] AS t ON s.[OrderNr] = t.[OrderNr]",
+    "tables": [
+     "Orderrader",
+     "Ordrar"
+    ],
+    "why": "Orderrader.OrderNr -> Ordrar (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Orderrader_artiklar",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orderrader_artiklar] AS\nSELECT\n    s.[OrderNr] AS [OrderNr],\n    s.[Radnr] AS [Radnr],\n    s.[ArtikelNr] AS [ArtikelNr],\n    s.[Antal] AS [Antal],\n    t.[ArtikelNr] AS [Artiklar_ArtikelNr],\n    t.[Benämning] AS [Artiklar_Benämning],\n    t.[LeverantörID] AS [Artiklar_LeverantörID],\n    t.[Pris] AS [Artiklar_Pris]\nFROM [dbo].[Orderrader] AS s\n    LEFT JOIN [dbo].[Artiklar] AS t ON s.[ArtikelNr] = t.[ArtikelNr]",
+    "tables": [
+     "Orderrader",
+     "Artiklar"
+    ],
+    "why": "Orderrader.ArtikelNr -> Artiklar (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Fakturor_order",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Fakturor_order] AS\nSELECT\n    s.[FakturaNr] AS [FakturaNr],\n    s.[OrderNr] AS [OrderNr],\n    s.[Kund_ID] AS [Kund_ID],\n    s.[Belopp] AS [Belopp],\n    s.[Förfallodatum] AS [Förfallodatum],\n    t.[OrderNr] AS [Ordrar_OrderNr],\n    t.[KundNr] AS [Ordrar_KundNr],\n    t.[Orderdatum] AS [Ordrar_Orderdatum],\n    t.[Status] AS [Ordrar_Status]\nFROM [dbo].[Fakturor] AS s\n    LEFT JOIN [dbo].[Ordrar] AS t ON s.[OrderNr] = t.[OrderNr]",
+    "tables": [
+     "Fakturor",
+     "Ordrar"
+    ],
+    "why": "Fakturor.OrderNr -> Ordrar (R2): the column has the target key's name, not the target's name"
+   },
+   {
+    "name": "vw_Fakturor_kunder",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Fakturor_kunder] AS\nSELECT\n    s.[FakturaNr] AS [FakturaNr],\n    s.[OrderNr] AS [OrderNr],\n    s.[Kund_ID] AS [Kund_ID],\n    s.[Belopp] AS [Belopp],\n    s.[Förfallodatum] AS [Förfallodatum],\n    t.[KundNr] AS [Kunder_KundNr],\n    t.[Namn] AS [Kunder_Namn],\n    t.[Land] AS [Kunder_Land]\nFROM [dbo].[Fakturor] AS s\n    LEFT JOIN [dbo].[Kunder] AS t ON s.[Kund_ID] = t.[KundNr]",
+    "tables": [
+     "Fakturor",
+     "Kunder"
+    ],
+    "why": "Fakturor.Kund_ID -> Kunder (R4): the column abbreviates or role-prefixes the target"
+   }
+  ]
+ }
+}

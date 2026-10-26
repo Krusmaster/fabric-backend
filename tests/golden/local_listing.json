@@ -1,0 +1,1342 @@
+{
+ "analyze_schema": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The plan as a graph, metadata only: table roles with the numbers behind them, the most central tables,\nsubject areas, cycles and multi-path pairs, and which relationships can be active at once. `tables` narrows\nthe answer to names or patterns; `detail` is \"auto\" (full up to 60 tables, then a summary), \"full\" or \"summary\".",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "detail": {
+     "default": "auto",
+     "title": "Detail",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "analyze_schemaArguments",
+   "type": "object"
+  },
+  "name": "analyze_schema",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "analyze_schemaOutput",
+   "type": "object"
+  },
+  "title": "Analyze the schema as a graph"
+ },
+ "answer_query_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "A question in Swedish or English about the given tables as T-SQL over the safest join path of the plan, each\nstep with the rule behind its relationship, plus what was read from the question and what was assumed. Columns that\nlook like personal data by name are left out (the key stands in) unless show_personal_data=true. Runs nothing; the\nGraphQL form needs an API in Fabric and is in the remote server.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "question": {
+     "title": "Question",
+     "type": "string"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    },
+    "tables": {
+     "items": {
+      "type": "string"
+     },
+     "title": "Tables",
+     "type": "array"
+    }
+   },
+   "required": [
+    "question",
+    "tables"
+   ],
+   "title": "answer_query_draftArguments",
+   "type": "object"
+  },
+  "name": "answer_query_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "answer_query_draftOutput",
+   "type": "object"
+  },
+  "title": "Suggest a T-SQL query for a question (runs nothing)"
+ },
+ "create_backend": {
+  "annotations": {
+   "destructive_hint": true,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": false
+  },
+  "description": "Create (or update in place) a Fabric API for GraphQL item over the source's tables with the\ninferred relationships. Returns the endpoint URL and the portal steps that remain.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "dry_run": {
+     "default": false,
+     "title": "Dry Run",
+     "type": "boolean"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "name": {
+     "title": "Name",
+     "type": "string"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "source": {
+     "title": "Source",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    },
+    "workspace": {
+     "title": "Workspace",
+     "type": "string"
+    },
+    "writable": {
+     "default": false,
+     "title": "Writable",
+     "type": "boolean"
+    }
+   },
+   "required": [
+    "workspace",
+    "source",
+    "name"
+   ],
+   "title": "create_backendArguments",
+   "type": "object"
+  },
+  "name": "create_backend",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "create_backendOutput",
+   "type": "object"
+  },
+  "title": "Create or update the GraphQL API"
+ },
+ "create_views": {
+  "annotations": {
+   "destructive_hint": true,
+   "idempotent_hint": true,
+   "open_world_hint": true,
+   "read_only_hint": false
+  },
+  "description": "CREATE OR ALTER VIEW in a schema of its own (created if missing) over the connection in FABRIC_ODBC: a wide\nview per fact table with its dimensions, one per header table (orders, whose lines a fact table holds) with its\ndimensions, one per hard-to-read relationship. Never DROP, nothing outside that schema. dry_run=true (default)\nreturns the SQL.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "dry_run": {
+     "default": true,
+     "title": "Dry Run",
+     "type": "boolean"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "views_schema": {
+     "default": "krusgraph",
+     "title": "Views Schema",
+     "type": "string"
+    }
+   },
+   "title": "create_viewsArguments",
+   "type": "object"
+  },
+  "name": "create_views",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "create_viewsOutput",
+   "type": "object"
+  },
+  "title": "Create wide views (dry run by default)"
+ },
+ "data_dictionary": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Hand-over documentation in Markdown: tables, columns and types, keys and relationships with rules, roles and\nsubject areas, an empty Description column; validate=true adds the counts from validate_plan.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "max_items": {
+     "default": 60,
+     "title": "Max Items",
+     "type": "integer"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "validate": {
+     "default": false,
+     "title": "Validate",
+     "type": "boolean"
+    }
+   },
+   "title": "data_dictionaryArguments",
+   "type": "object"
+  },
+  "name": "data_dictionary",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "data_dictionaryOutput",
+   "type": "object"
+  },
+  "title": "Data dictionary (Markdown)"
+ },
+ "dbt_schema": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "A dbt sources file: unique and not_null on key columns, relationships on single-column relationships, in the\nsyntax of the dbt documentation (arguments_block=false for dbt before 1.10.5).",
+  "input_schema": {
+   "properties": {
+    "arguments_block": {
+     "default": true,
+     "title": "Arguments Block",
+     "type": "boolean"
+    },
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "source_name": {
+     "anyOf": [
+      {
+       "type": "string"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Source Name"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "dbt_schemaArguments",
+   "type": "object"
+  },
+  "name": "dbt_schema",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "dbt_schemaOutput",
+   "type": "object"
+  },
+  "title": "dbt sources file"
+ },
+ "join_path": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "How two tables connect through the plan: the shortest chain of relationships with the rule per hop and a ready\nT-SQL SELECT … JOIN …, the safest chain by certainty, or which relationship is missing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "end": {
+     "title": "End",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "start": {
+     "title": "Start",
+     "type": "string"
+    }
+   },
+   "required": [
+    "start",
+    "end"
+   ],
+   "title": "join_pathArguments",
+   "type": "object"
+  },
+  "name": "join_path",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "join_pathOutput",
+   "type": "object"
+  },
+  "title": "How two tables connect"
+ },
+ "list_tables": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Tables and columns (with types) in the source behind FABRIC_ODBC. `tables` narrows the answer to names or\npatterns ([\"sales_*\"]); `detail` is \"auto\" (full up to 60 tables, then the column count per table), \"full\" or \"summary\".",
+  "input_schema": {
+   "properties": {
+    "detail": {
+     "default": "auto",
+     "title": "Detail",
+     "type": "string"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "list_tablesArguments",
+   "type": "object"
+  },
+  "name": "list_tables",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "list_tablesOutput",
+   "type": "object"
+  },
+  "title": "List tables"
+ },
+ "ontology_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: summary, binding\nchecklist and a Turtle file for the portal's Import ontology. The full item definition needs the Fabric item ids;\nuse the remote server or `fabric_backend.ontology_files` for that.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "name": {
+     "default": "ontology",
+     "title": "Name",
+     "type": "string"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "ontology_draftArguments",
+   "type": "object"
+  },
+  "name": "ontology_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "ontology_draftOutput",
+   "type": "object"
+  },
+  "title": "Draft a Fabric IQ ontology (nothing created)"
+ },
+ "plan_backend": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Infer keys and relationships without deploying. Returns summary, keys and relationships with the rule that\nproduced each, ambiguous columns to confirm, names read through the synonym table, suggested composite keys and a\nMermaid ER diagram. `tables` narrows the answer to names or patterns; `detail` is \"auto\" (full up to 60 tables,\nthen one line per key and relationship), \"full\" or \"summary\".",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "detail": {
+     "default": "auto",
+     "title": "Detail",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "plan_backendArguments",
+   "type": "object"
+  },
+  "name": "plan_backend",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "plan_backendOutput",
+   "type": "object"
+  },
+  "title": "Plan keys and relationships"
+ },
+ "rayfin_connector": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Generate Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with\ninferred keys and @one/@many relationships. Returns {path: content}; write them under your app.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "connector": {
+     "default": "data",
+     "title": "Connector",
+     "type": "string"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "relationships": {
+     "default": true,
+     "title": "Relationships",
+     "type": "boolean"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "source_type": {
+     "default": "SqlAnalyticsEndpoint",
+     "title": "Source Type",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "rayfin_connectorArguments",
+   "type": "object"
+  },
+  "name": "rayfin_connector",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "rayfin_connectorOutput",
+   "type": "object"
+  },
+  "title": "Rayfin connector entities"
+ },
+ "sample_rows": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The first n rows (at most 20) of one table, to check what a column means. Binary columns come back as their\nsize in bytes; SQL Server's hierarchyid, geography, geometry and sql_variant as text. Columns whose name looks like\npersonal data come back masked with the rule; show_personal_data=true returns them as they are.",
+  "input_schema": {
+   "properties": {
+    "n": {
+     "default": 10,
+     "title": "N",
+     "type": "integer"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "show_personal_data": {
+     "default": false,
+     "title": "Show Personal Data",
+     "type": "boolean"
+    },
+    "table": {
+     "title": "Table",
+     "type": "string"
+    }
+   },
+   "required": [
+    "table"
+   ],
+   "title": "sample_rowsArguments",
+   "type": "object"
+  },
+  "name": "sample_rows",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "sample_rowsOutput",
+   "type": "object"
+  },
+  "title": "Sample rows of one table"
+ },
+ "semantic_model_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The plan as a Power BI semantic model in TMDL: Direct Lake tables on the SQL endpoint in FABRIC_ODBC, one active\nrelationship path per table pair (the rest inactive with the reason), README.generated.md with the decisions.\nReturns {path: content}; creates nothing.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "name": {
+     "default": "semantic_model",
+     "title": "Name",
+     "type": "string"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "semantic_model_draftArguments",
+   "type": "object"
+  },
+  "name": "semantic_model_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "semantic_model_draftOutput",
+   "type": "object"
+  },
+  "title": "Draft a Power BI semantic model (TMDL, nothing created)"
+ },
+ "silver_notebook_draft": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key (the\nlatest row by `order_by` {table: column} wins), every relationship checked with the rows whose reference is\nmissing in krusgraph_quarantine, Delta tables written only in `silver_schema`, each step commented with its rule.\nReturns the steps and the notebook source (notebook-content.py); creates nothing. FABRIC_SOURCE_KIND must be\nLakehouse.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "order_by": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Order By"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    },
+    "silver_schema": {
+     "default": "silver",
+     "title": "Silver Schema",
+     "type": "string"
+    },
+    "tables": {
+     "anyOf": [
+      {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Tables"
+    }
+   },
+   "title": "silver_notebook_draftArguments",
+   "type": "object"
+  },
+  "name": "silver_notebook_draft",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "silver_notebook_draftOutput",
+   "type": "object"
+  },
+  "title": "Draft a PySpark notebook that builds silver tables (nothing created)"
+ },
+ "suggest_relationships": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Columns that could point at another table's key but are in no relationship, ranked by name, type and\ntriangular closure, the best `check` counted against the data (inclusion share). Suggestions only.",
+  "input_schema": {
+   "properties": {
+    "check": {
+     "default": 15,
+     "title": "Check",
+     "type": "integer"
+    },
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    }
+   },
+   "title": "suggest_relationshipsArguments",
+   "type": "object"
+  },
+  "name": "suggest_relationships",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "suggest_relationshipsOutput",
+   "type": "object"
+  },
+  "title": "Suggest missing relationships"
+ },
+ "validate_plan": {
+  "annotations": {
+   "destructive_hint": false,
+   "open_world_hint": true,
+   "read_only_hint": true
+  },
+  "description": "Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every\nreference find its target (orphan count). One counting query per key and relationship, read-only.",
+  "input_schema": {
+   "properties": {
+    "confirmed": {
+     "anyOf": [
+      {
+       "items": {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       "type": "array"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Confirmed"
+    },
+    "keys": {
+     "anyOf": [
+      {
+       "additionalProperties": {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       "type": "object"
+      },
+      {
+       "type": "null"
+      }
+     ],
+     "default": null,
+     "title": "Keys"
+    },
+    "max_items": {
+     "default": 60,
+     "title": "Max Items",
+     "type": "integer"
+    },
+    "schema": {
+     "default": "dbo",
+     "title": "Schema",
+     "type": "string"
+    }
+   },
+   "title": "validate_planArguments",
+   "type": "object"
+  },
+  "name": "validate_plan",
+  "output_schema": {
+   "properties": {
+    "result": {
+     "title": "Result",
+     "type": "string"
+    }
+   },
+   "required": [
+    "result"
+   ],
+   "title": "validate_planOutput",
+   "type": "object"
+  },
+  "title": "Check the plan against the rows"
+ }
+}

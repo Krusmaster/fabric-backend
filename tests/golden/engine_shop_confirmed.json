@@ -1,0 +1,148 @@
+{
+ "ambiguous": [],
+ "keyless": [
+  "audit_log"
+ ],
+ "keys": {
+  "addresses": [
+   [
+    "address_id"
+   ],
+   "K2"
+  ],
+  "categories": [
+   [
+    "id"
+   ],
+   "K2"
+  ],
+  "customers": [
+   [
+    "customer_id"
+   ],
+   "K2"
+  ],
+  "order_items": [
+   [
+    "order_id",
+    "line_no"
+   ],
+   "K1"
+  ],
+  "orders": [
+   [
+    "order_id"
+   ],
+   "K2"
+  ],
+  "products": [
+   [
+    "product_id"
+   ],
+   "K2"
+  ]
+ },
+ "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  addresses ||--o{ orders : \"ship_to_id confirmed\"\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+ "relationships": [
+  {
+   "field_name": "ship_to",
+   "note": "",
+   "reverse_name": "orders_as_ship_to",
+   "rule": "confirmed",
+   "source": "orders",
+   "source_cols": [
+    "ship_to_id"
+   ],
+   "target": "addresses",
+   "target_cols": [
+    "address_id"
+   ]
+  },
+  {
+   "field_name": "category",
+   "note": "",
+   "reverse_name": "products",
+   "rule": "R1",
+   "source": "products",
+   "source_cols": [
+    "category_id"
+   ],
+   "target": "categories",
+   "target_cols": [
+    "id"
+   ]
+  },
+  {
+   "field_name": "customer",
+   "note": "",
+   "reverse_name": "addresses",
+   "rule": "R1",
+   "source": "addresses",
+   "source_cols": [
+    "customer_id"
+   ],
+   "target": "customers",
+   "target_cols": [
+    "customer_id"
+   ]
+  },
+  {
+   "field_name": "customer",
+   "note": "",
+   "reverse_name": "orders",
+   "rule": "R1",
+   "source": "orders",
+   "source_cols": [
+    "customer_id"
+   ],
+   "target": "customers",
+   "target_cols": [
+    "customer_id"
+   ]
+  },
+  {
+   "field_name": "order",
+   "note": "",
+   "reverse_name": "order_items",
+   "rule": "R1",
+   "source": "order_items",
+   "source_cols": [
+    "order_id"
+   ],
+   "target": "orders",
+   "target_cols": [
+    "order_id"
+   ]
+  },
+  {
+   "field_name": "product",
+   "note": "",
+   "reverse_name": "order_items",
+   "rule": "R1",
+   "source": "order_items",
+   "source_cols": [
+    "product_id"
+   ],
+   "target": "products",
+   "target_cols": [
+    "product_id"
+   ]
+  },
+  {
+   "field_name": "customer",
+   "note": "",
+   "reverse_name": "audit_log",
+   "rule": "R1",
+   "source": "audit_log",
+   "source_cols": [
+    "customer_id"
+   ],
+   "target": "customers",
+   "target_cols": [
+    "customer_id"
+   ]
+  }
+ ],
+ "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+ "synonyms": []
+}
