@@ -182,7 +182,7 @@ def test_create_views_tool_dry_run_then_applies_through_the_statement_runner(sho
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO))
     assert out["dry_run"] is True and ran == [] and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders_ship_to"]
-    assert out["schema_sql"].startswith("IF NOT EXISTS") and "not been created on a live endpoint yet" in out["note"]
+    assert out["schema_sql"].startswith("IF NOT EXISTS") and "ran for real on a live lakehouse" in out["note"]
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO, dry_run=False))
     assert out["result"] == {"status": "Succeeded", "views": 2, "schema": "krusgraph"}
     assert [a["status"] for a in out["applied"]] == ["ok", "ok", "ok"] and ran[0].startswith("IF NOT EXISTS") and len(ran) == 3

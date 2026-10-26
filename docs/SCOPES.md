@@ -27,6 +27,9 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `Item.Read.All` | yes |
 | all `*_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `plan_drift` | metadata reads only | what the app has | yes |
 
+Observed live on 26 October 2026 against the demo workspace: `create_views` with `dry_run=false` created its schema and view;
+`create_semantic_model` and `create_data_agent` with `dry_run=false` got HTTP 403 and answered `kind: consent`.
+
 Until the permission is added and consented, those tools work in `dry_run=true` (the default) and answer
 `kind: consent` with the permission's name when asked to create.
 

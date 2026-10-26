@@ -5,8 +5,8 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
-- Live run of the consultant, graph and dry-run tools against the demo workspace (26 October 2026, read-only and dry
-  runs, nothing created); the tool answers, the docs page and the README say what has run live and what has not.
+- Live run of the consultant, graph and creating tools against the demo workspace (26 October 2026): read-only tools and
+  dry runs, then `create_views` for real (schema and one view) and the two other creates answering `consent`; the tool answers, the docs page and the README say what has run live and what has not.
   Site texts updated to the current rules (K0–K5, R0–R4) and the twenty-two tools.
 
 ## 0.6.0 — 2026-10-26

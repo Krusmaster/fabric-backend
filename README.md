@@ -95,7 +95,7 @@ same plan into the week's deliverables, all unit-tested and run against the demo
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked; the dry runs answered from the demo workspace on 26 October 2026, the creates themselves have not been run. The delegated permissions they need, against what the app has today, and
+mocked. On 26 October 2026 `create_views` ran for real on the demo lakehouse (schema and view created and read back); the two others answered `consent` (HTTP 403) because the app lacks the permission. The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
@@ -302,8 +302,11 @@ relationships; `join_path` gave the four-hop chain customers → categories with
 `orders.ship_to_id` against the data and only `addresses.address_id` held for every value; `plan_drift` on `shop_api`
 reported the `ship_to_id → addresses` relationship the API carries and the plan does not infer, with the `confirmed`
 entry to keep it; `describe_backend`, `app_starter` and `create_data_agent` (dry run) read and drafted from the live
-items. Not yet run: the creates with `dry_run=false` (semantic model, views, data agent) and the local stdio server
-against a real ODBC connection.
+items. Then with `dry_run=false`: `create_views` created schema `krusgraph` and `vw_order_items` on the lakehouse's SQL
+analytics endpoint, and `list_tables` / `sample_rows` on that schema read the view back (16 columns, joined rows);
+`create_semantic_model` and `create_data_agent` got HTTP 403 from Fabric and answered `kind: consent` naming the
+permission to add, as [docs/SCOPES.md](docs/SCOPES.md) predicts. Not yet run: those two creates once the permissions
+are granted, and the local stdio server against a real ODBC connection.
 
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and
