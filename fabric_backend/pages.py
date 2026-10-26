@@ -29,7 +29,8 @@ HERE = Path(__file__).resolve().parent
 STATIC_DIR = HERE / "static"
 
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
-                ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8", ".json": "application/json"}
+                ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8", ".json": "application/json",
+                ".ico": "image/x-icon"}
 
 PAGES = {
     # path: (template, title, description, nav key)
@@ -234,6 +235,8 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta name="theme-color" content="#1F1B19" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/static/favicon.png" type="image/png" sizes="64x64">
+<link rel="icon" href="/static/icon-512.png" type="image/png" sizes="512x512">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/static/fonts/fredoka-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/nunito-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/site.css?v={v['ASSET_V']}">

@@ -67,7 +67,8 @@ def server_card() -> dict:
         "websiteUrl": site_url() + "/",
         "repository": {"url": GITHUB, "source": "github"},
         "icons": [{"src": site_url() + "/static/favicon.png", "mimeType": "image/png", "sizes": ["64x64"]},
-                  {"src": site_url() + "/static/favicon.svg", "mimeType": "image/svg+xml", "sizes": ["any"]}],
+                  {"src": site_url() + "/static/favicon.svg", "mimeType": "image/svg+xml", "sizes": ["any"]},
+                  {"src": site_url() + "/static/icon-512.png", "mimeType": "image/png", "sizes": ["512x512"]}],
         "remotes": [remote],
     }
 

@@ -427,3 +427,14 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "validate_plan" in home and "Tested end to end against a live Fabric workspace with synthetic data, 25 October 2026" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
+
+
+def test_the_site_icon_is_served_at_the_root_where_directories_look():
+    from starlette.testclient import TestClient
+    from fabric_backend import server
+    c = TestClient(server.build_app())
+    ico = c.get("/favicon.ico")
+    assert ico.status_code == 200 and ico.headers["content-type"] == "image/x-icon" and ico.content[:4] == b"\x00\x00\x01\x00"
+    touch = c.get("/apple-touch-icon.png")
+    assert touch.status_code == 200 and touch.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert c.get("/static/icon-512.png").status_code == 200

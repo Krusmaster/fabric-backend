@@ -1147,6 +1147,14 @@ def build_app(host: str = "0.0.0.0"):
         return FileResponse(str(p), media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache})
     app.router.routes.append(Route("/static/{path:path}", static))
 
+    def root_icon(name: str, media_type: str):
+        """Directories and browsers look for the icon at the site root (Claude's directory shows the server's favicon)."""
+        async def handler(_request):
+            return FileResponse(str(static_file(name)), media_type=media_type, headers={"Cache-Control": "public, max-age=86400"})
+        return handler
+    app.router.routes.append(Route("/favicon.ico", root_icon("favicon.ico", "image/x-icon"), methods=["GET", "HEAD"]))
+    app.router.routes.append(Route("/apple-touch-icon.png", root_icon("apple-touch-icon.png", "image/png"), methods=["GET", "HEAD"]))
+
     async def robots(_request):
         return PlainTextResponse(discovery.robots_txt(), headers={"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/robots.txt", robots))
