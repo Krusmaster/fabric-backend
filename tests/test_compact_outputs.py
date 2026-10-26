@@ -153,3 +153,16 @@ def test_document_tools_are_bounded_on_three_hundred_tables(remote):
     assert len(sm) <= server.MAX_RESULT_CHARS
     part = json.loads(server.semantic_model_draft("ws", "big", name="m", schema="dbo", tables=["sales_*"]))
     assert all(k.split("/")[-1].startswith(("sales_", "model", "database", "relationships", "expressions", "README")) or not k.startswith("definition/tables/") for k in part["parts"])
+
+
+def test_bounded_never_cuts_identifier_lists_and_keeps_its_contract():
+    body = {"keys": {"t": {"columns": ["a", "b", "c"], "rule": "K1"}},
+            "relationships": [{"source": "t", "source_cols": ["a", "b"], "target": "u", "target_cols": ["a", "b"]} for _ in range(200)]}
+    out = json.loads(compact.bounded(body, 1500))
+    assert out["keys"]["t"]["columns"] == ["a", "b", "c"] and out["relationships"][0]["source_cols"] == ["a", "b"] and "truncated" in out
+    assert len(compact.bounded([1, 2, 3] * 5000, 1000)) <= 1000 and json.loads(compact.bounded([1, 2, 3] * 5000, 1000))["items"]
+    assert len(compact.bounded({"a": "x" * 5000, "b": list(range(3000))}, 300)) <= 300
+    assert len(compact.bounded_text({"markdown": "line\n" * 2000, "x": 1}, "markdown", 1500)) <= 1500
+    s = seed.schema("shop")
+    s.tables["sales[2024]"] = Table("sales[2024]", [Column("id", "int")], schema="shop")
+    assert compact.match_tables(s, ["sales[2024]"]) == {"sales[2024]"}

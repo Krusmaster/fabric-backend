@@ -21,6 +21,7 @@ import datetime as _dt
 import json
 import re
 import sqlite3
+import threading
 import time
 import zipfile
 from dataclasses import dataclass, field
@@ -114,9 +115,9 @@ def _table_name(stem: str, used: set[str]) -> str:
     if name[0].isdigit():
         name = "t_" + name
     base, i = name, 2
-    while name in used:
+    while name.lower() in used:                                     # SQLite compares table names without case
         name, i = f"{base}_{i}", i + 1
-    used.add(name)
+    used.add(name.lower())
     return name
 
 
@@ -128,7 +129,7 @@ def _guess_type(values: list) -> str:
     if all(isinstance(v, bool) for v in vals):
         return "int"
     if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
-        return "int" if all(float(v).is_integer() for v in vals) else "real"
+        return "int" if all(float(v).is_integer() and abs(v) < 2 ** 63 for v in vals) else "real"
     s = [str(v).strip() for v in vals]
     if all(_INT_RE.match(x) for x in s):
         return "int"
@@ -188,7 +189,7 @@ def read_xlsx(path: Path) -> list[tuple[str, list[str], list[list]]]:
         date_styles: set[int] = set()
         if "xl/styles.xml" in names:
             st = ET.fromstring(z.read("xl/styles.xml"))
-            custom = {int(nf.get("numFmtId")): nf.get("formatCode", "") for nf in st.iter(f"{{{_NS['m']}}}numFmt")}
+            custom = {int(nf.get("numFmtId")): nf.get("formatCode", "") for nf in st.iter(f"{{{_NS['m']}}}numFmt") if nf.get("numFmtId", "").isdigit()}
             xfs = st.find("m:cellXfs", _NS)
             for i, xf in enumerate(xfs.findall("m:xf", _NS) if xfs is not None else []):
                 fid = int(xf.get("numFmtId", "0"))
@@ -202,35 +203,46 @@ def read_xlsx(path: Path) -> list[tuple[str, list[str], list[list]]]:
         wb = ET.fromstring(z.read("xl/workbook.xml"))
         for sheet in wb.find("m:sheets", _NS).findall("m:sheet", _NS):
             target = rels.get(sheet.get(f"{{{_NS['r']}}}id"), "")
-            part = target if target.startswith("xl/") else "xl/" + target.lstrip("/")
+            target = target.lstrip("/")
+            part = target if target.startswith("xl/") else "xl/" + target             # relative or absolute targets both occur
             if part not in names:
                 continue
             grid: dict[int, dict[int, object]] = {}
-            for c in ET.fromstring(z.read(part)).iter(f"{{{_NS['m']}}}c"):
-                ref = c.get("r", "A1")
-                col = 0
-                for ch in re.match(r"[A-Z]+", ref).group(0):
-                    col = col * 26 + ord(ch) - 64
-                row = int(re.search(r"\d+", ref).group(0))
-                t, v = c.get("t"), c.find("m:v", _NS)
-                if t == "s" and v is not None:
-                    val = shared[int(v.text)] if int(v.text) < len(shared) else ""
-                elif t == "inlineStr":
-                    val = "".join(x.text or "" for x in c.iter(f"{{{_NS['m']}}}t"))
-                elif t == "b" and v is not None:
-                    val = v.text == "1"
-                elif v is None or v.text is None:
-                    val = ""
-                elif t == "str" or t == "e":
-                    val = v.text
-                else:
-                    num = float(v.text)
-                    if int(c.get("s", "0")) in date_styles and 0 < num < 2958466:
-                        d = _dt.datetime(1899, 12, 30) + _dt.timedelta(days=num)
-                        val = d.date().isoformat() if num == int(num) else d.replace(microsecond=0).isoformat(sep=" ")
+            row_no = 0
+            for row_el in ET.fromstring(z.read(part)).iter(f"{{{_NS['m']}}}row"):
+                row_no = int(row_el.get("r")) if str(row_el.get("r", "")).isdigit() else row_no + 1
+                col_no = 0
+                for c in row_el.findall("m:c", _NS):
+                    ref = c.get("r")                                       # optional: without it the cell follows the previous one
+                    m_ref = re.match(r"([A-Z]+)(\d+)$", ref or "")
+                    if m_ref:
+                        col_no = 0
+                        for ch in m_ref.group(1):
+                            col_no = col_no * 26 + ord(ch) - 64
+                        row = int(m_ref.group(2))
                     else:
-                        val = int(num) if num.is_integer() else num
-                grid.setdefault(row, {})[col] = val
+                        col_no += 1
+                        row = row_no
+                    col = col_no
+                    t, v = c.get("t"), c.find("m:v", _NS)
+                    if t == "s" and v is not None:
+                        val = shared[int(v.text)] if int(v.text) < len(shared) else ""
+                    elif t == "inlineStr":
+                        val = "".join(x.text or "" for x in c.iter(f"{{{_NS['m']}}}t"))
+                    elif t == "b" and v is not None:
+                        val = v.text == "1"
+                    elif v is None or v.text is None:
+                        val = ""
+                    elif t in ("str", "e", "d"):                          # formula string, error, ISO date cell
+                        val = v.text
+                    else:
+                        num = float(v.text)
+                        if int(c.get("s", "0")) in date_styles and 0 < num < 2958466:
+                            d = _dt.datetime(1899, 12, 30) + _dt.timedelta(days=num)
+                            val = d.date().isoformat() if num == int(num) else d.replace(microsecond=0).isoformat(sep=" ")
+                        else:
+                            val = int(num) if num.is_integer() and abs(num) < 2 ** 63 else num
+                    grid.setdefault(row, {})[col] = val
             if not grid:
                 continue
             width = max(max(r) for r in grid.values())
@@ -271,12 +283,19 @@ def folder_source(folder: str | Path, schema_name: str = "data") -> Source:
             cols = []
             for i, h in enumerate(header):
                 h = _column_name(h, i)
-                base = h if h.lower() not in seen else f"{h}_{len(seen)}"
+                base, k = h, 2
+                while base.lower() in seen:
+                    base, k = f"{h}_{k}", k + 1
                 seen.add(base.lower()); cols.append(base)
             types = [_guess_type([r[i] for r in data]) for i in range(len(cols))]
-            con.execute(f"CREATE TABLE [{schema_name}].[{name}] (" + ", ".join(f"[{c.replace(']', ']]')}] {t.upper()}" for c, t in zip(cols, types)) + ")")
-            con.executemany(f"INSERT INTO [{schema_name}].[{name}] VALUES ({','.join('?' * len(cols))})",
-                            [tuple(_coerce(v, t) for v, t in zip(r, types)) for r in data])
+            try:
+                con.execute(f"CREATE TABLE [{schema_name}].[{name}] (" + ", ".join(f"[{c}] {t.upper()}" for c, t in zip(cols, types)) + ")")
+                con.executemany(f"INSERT INTO [{schema_name}].[{name}] VALUES ({','.join('?' * len(cols))})",
+                                [tuple(_coerce(v, t) for v, t in zip(r, types)) for r in data])
+            except Exception as e:                                 # noqa: BLE001 - one table that SQLite refuses never stops the demo
+                con.execute(f"DROP TABLE IF EXISTS [{schema_name}].[{name}]")
+                notes.append(f"{p.name}{' / ' + sheet if sheet else ''}: could not be loaded ({type(e).__name__}: {e})")
+                continue
             for i, (c, t) in enumerate(zip(cols, types)):
                 rows_out.append({"table_schema": schema_name, "table_name": name, "column_name": c, "data_type": t, "ordinal_position": i + 1})
             loaded += 1
@@ -497,16 +516,20 @@ class Session:
         self.step_entered: dict[int, float] = {1: self.started}
         self.current_step = 1
         self._cache: dict | None = None
+        self._validation: dict | None = None                      # the last health check, reused by the exports
+        self._lock = threading.RLock()                             # one request at a time: the sqlite connection and the cache are shared
 
     # -- decisions ---------------------------------------------------------------------------------------------------
     def connect(self, kind: str, value: str = "", schema_name: str = "") -> None:
-        src = open_source(kind, value, schema_name)
-        if self.source and self.source.close:
+        src = open_source(str(kind or "sample"), str(value or ""), str(schema_name or ""))
+        old = self.source
+        self.source, self.confirmed, self.keys, self.skipped, self._cache = src, [], {}, [], None
+        self._validation = None
+        if old and old.close:
             try:
-                self.source.close()
+                old.close()                                        # after the swap, so a request in flight sees the new source
             except Exception:                                      # noqa: BLE001
                 pass
-        self.source, self.confirmed, self.keys, self.skipped, self._cache = src, [], {}, [], None
         self.enter_step(2)
 
     def enter_step(self, n: int) -> None:
@@ -524,6 +547,8 @@ class Session:
         nxt = f.get("next", {})
         if "confirmed" in nxt:
             c = nxt["confirmed"]
+            if finding_id.startswith("amb:"):                      # one target per column: accepting a candidate drops the others
+                self.confirmed = [x for x in self.confirmed if not (x["source"] == c["source"] and x["source_cols"] == c["source_cols"])]
             if not any(x["source"] == c["source"] and x["source_cols"] == c["source_cols"] and x["target"] == c["target"] for x in self.confirmed):
                 self.confirmed.append(c)
         elif "keys" in nxt:
@@ -578,7 +603,10 @@ class Session:
                         "next": {"sql": f"SELECT s.* FROM {evidence.qi(schema)}.{evidence.qi(r['source'])} AS s LEFT JOIN {evidence.qi(schema)}.{evidence.qi(r['target'])} AS t ON " + " AND ".join(f"s.{evidence.qi(a)} = t.{evidence.qi(b)}" for a, b in zip(r['columns'], r['target_columns'])) + f" WHERE t.{evidence.qi(r['target_columns'][0])} IS NULL AND s.{evidence.qi(r['columns'][0])} IS NOT NULL"},
                         "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",
                         "evidence": evidence.relationship_sql(schema, r["source"], r["columns"], r["target"], r["target_columns"])})
+        decided_cols = {(c["source"], tuple(x.lower() for x in c["source_cols"])) for c in self.confirmed}
         for a in p.ambiguous:
+            if (a["table"], (a["column"].lower(),)) in decided_cols:   # already linked by a decision here: the question is answered
+                continue
             for cand in a["candidates"]:
                 target = p.schema[cand]
                 tkey = p.keys.get(cand, ([], ""))[0]
@@ -707,20 +735,21 @@ class Session:
         except PlanInputError as e:                                # a key accepted earlier no longer fits: drop the decisions, say so
             self.keys, self.confirmed = {}, []
             p = self.plan()
-            src.notes.append(f"decisions dropped: {e}")
+            _note(src, f"decisions dropped: {e}")
         analysis = graphs.analyze(p)
         validation = suggestions = None
         if src.has_data:
             try:
                 validation = evidence.validate(p, src.execute)
             except Exception as e:                                 # noqa: BLE001 - the map still shows without counts
-                src.notes.append(f"health check could not run: {type(e).__name__}: {e}")
+                _note(src, f"health check could not run: {type(e).__name__}: {e}")
             try:
                 suggestions = graphs.suggest(p, src.execute, check=15)
             except Exception as e:                                 # noqa: BLE001
-                src.notes.append(f"suggestions could not be checked: {type(e).__name__}: {e}")
+                _note(src, f"suggestions could not be checked: {type(e).__name__}: {e}")
         else:
             suggestions = graphs.suggest(p, None)
+        self._validation = validation
         findings = self.findings(p, validation, suggestions)
         qs = [run_question(q, src.execute) for q in questions(p, analysis, src.dialect, execute=src.execute)]
         open_findings = [f for f in findings if not f["accepted"] and not f["skipped"]]
@@ -740,6 +769,10 @@ class Session:
     # -- HTTP --------------------------------------------------------------------------------------------------------
     def handle(self, method: str, path: str, body: bytes = b"") -> tuple[int, str, bytes]:
         """(status, content type, body). The whole surface of the demo server; tests call it directly."""
+        with self._lock:
+            return self._handle(method, path, body)
+
+    def _handle(self, method: str, path: str, body: bytes = b"") -> tuple[int, str, bytes]:
         from .pages import STATIC_DIR, STATIC_TYPES
         u = urlsplit(path)
         route = u.path
@@ -757,9 +790,7 @@ class Session:
                 if self.source is None:
                     return 409, "text/plain; charset=utf-8", b"connect a source first"
                 st = self.state()
-                p = self.plan()
-                validation = evidence.validate(p, self.source.execute) if self.source.has_data else None
-                exp = self.exports(p, validation, st["questions"])
+                exp = self.exports(self.plan(), self._validation, st["questions"])   # the health check already run, or None when it failed
                 name = route[len("/export/"):]
                 if name not in exp:
                     return 404, "text/plain; charset=utf-8", b"no such export"
@@ -789,6 +820,11 @@ class Session:
             return 400, "application/json; charset=utf-8", json.dumps({"error": str(e), "kind": "bad_input"}).encode("utf-8")
         except Exception as e:                                     # noqa: BLE001 - an ODBC failure gives a message, never a traceback page
             return 500, "application/json; charset=utf-8", json.dumps({"error": f"{type(e).__name__}: {e}", "kind": "failed"}).encode("utf-8")
+
+
+def _note(src: Source, text: str) -> None:
+    if text not in src.notes:
+        src.notes.append(text)
 
 
 def lovable_prompt(p: Plan, qs: list[dict], src: Source) -> str:

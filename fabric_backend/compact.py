@@ -20,6 +20,7 @@ from .schema import Schema
 
 COMPACT_ABOVE = 60
 DETAILS = ("auto", "full", "summary")
+KEEP_WHOLE = ("columns", "source_cols", "target_cols", "target_columns", "key", "confirmed", "keys")   # identifier lists: cutting them changes the meaning
 
 
 def pick_detail(detail: str | None, n_tables: int) -> str:
@@ -41,7 +42,7 @@ def match_tables(schema: Schema, patterns: list[str] | None) -> set[str] | None:
     out: set[str] = set()
     for pat in patterns:
         p = str(pat).lower()
-        hits = [n for n in names if fnmatchcase(n.lower(), p)]
+        hits = [n for n in names if fnmatchcase(n.lower(), p) or n.lower() == p]      # an exact name wins even with [ ] * ? in it
         if not hits:
             raise PlanInputError(f"tables: nothing matches {pat!r}; the schema has {len(names)} tables such as {', '.join(names[:5])}")
         out.update(hits)
@@ -160,17 +161,17 @@ def bounded_text(body: dict, key: str, limit: int, hint: str = NARROW_HINT) -> s
     if len(text) <= limit:
         return text
     doc = str(body.get(key, ""))
-    room = max(2000, limit - (len(text) - len(json.dumps(doc))) - 400)
+    room = max(50, limit - (len(text) - len(json.dumps(doc))) - 400)
     out = dict(body)
     while True:                                                      # JSON escaping makes the text longer than the characters it holds
         cut = doc[:room]
-        cut = cut[: cut.rfind("\n") + 1] if "\n" in cut else cut
+        cut = cut[: cut.rfind("\n") + 1] if "\n" in cut and cut.rfind("\n") > room // 2 else cut
         out[key] = cut
         out["truncated"] = f"{key} cut after {len(cut)} of {len(doc)} characters: the whole document was too large for one answer. " + hint
         text = json.dumps(out, indent=2, default=str)
-        if len(text) <= limit or room <= 2000:
+        if len(text) <= limit or room <= 50:
             return text
-        room = int(room * 0.9)
+        room = int(room * 0.8)
 
 
 def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with first:/after.", drop: tuple[str, ...] = ()) -> str:
@@ -201,13 +202,15 @@ def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with fir
         if isinstance(node, list):
             return [cut(x, keep) for x in node[:keep]]
         if isinstance(node, dict):
-            return {k: cut(v, keep) for k, v in node.items()}
+            return {k: (v if k in KEEP_WHOLE else cut(v, keep)) for k, v in node.items()}
         return node
 
+    if not isinstance(body, dict):
+        body = {"items": body}
     keep = longest(body)
     while keep > 1:
         keep //= 2
-        slim = cut(body, keep) if isinstance(body, dict) else body
+        slim = cut(body, keep)
         slim = dict(slim, truncated=f"{omitted}the full result was too large for one answer; every list was cut to its first {keep} items. " + hint)
         text = json.dumps(slim, indent=2, default=str)
         if len(text) <= limit:
@@ -219,6 +222,6 @@ def bounded(body, limit: int, hint: str = "Ask for fewer fields or page with fir
             text = bounded_text(body, longest, limit, hint)
             if len(text) <= limit:
                 return text
-    preview = json.dumps(body, default=str)[:max(200, limit // 2 - 400)]
+    preview = json.dumps(body, default=str)[:max(20, limit // 2 - 400)]
     return json.dumps({"truncated": "The result was too large for one answer even with one item per list; this is the start of it. "
                                     "Ask for fewer fields.", "preview": preview}, indent=2)

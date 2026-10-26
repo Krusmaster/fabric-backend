@@ -249,3 +249,57 @@ def test_the_cli_command_exists_with_the_four_sources_and_no_host_flag(capsys):
 def test_sqlite_translation_of_the_engine_sql():
     assert demo_app.sqlite_sql("SELECT TOP (5) [a] FROM [s].[t]") == "SELECT [a] FROM [s].[t]\nLIMIT 5"
     assert demo_app.sqlite_sql("SELECT COUNT_BIG(*) AS n FROM [s].[t]") == "SELECT COUNT(*) AS n FROM [s].[t]"
+
+
+def test_review_findings_on_the_xlsx_reader_and_the_folder_loader(tmp_path):
+    """From the 26 October review: absolute sheet targets, cells without a reference, ISO date cells, a numFmt without an
+    id, two files that differ only in case, repeated headers, and a number outside int64 never stop the demo."""
+    import zipfile
+    ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+    with zipfile.ZipFile(tmp_path / "odd.xlsx", "w") as z:
+        z.writestr("xl/workbook.xml", f'<?xml version="1.0"?><workbook {ns}><sheets><sheet name="S" sheetId="1" r:id="rId1"/></sheets></workbook>')
+        z.writestr("xl/_rels/workbook.xml.rels", '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                   '<Relationship Id="rId1" Type="x" Target="/xl/worksheets/sheet1.xml"/></Relationships>')        # absolute target
+        z.writestr("xl/styles.xml", '<?xml version="1.0"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts><numFmt formatCode="x"/></numFmts><cellXfs count="1"><xf numFmtId="0"/></cellXfs></styleSheet>')
+        z.writestr("xl/worksheets/sheet1.xml", '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+                   '<row r="1"><c t="inlineStr"><is><t>id</t></is></c><c t="inlineStr"><is><t>when</t></is></c><c t="inlineStr"><is><t>big</t></is></c></row>'
+                   '<row r="2"><c><v>1</v></c><c t="d"><v>2024-01-05T00:00:00</v></c><c><v>1e20</v></c></row>'
+                   '<row r="3"><c><v>2</v></c><c t="d"><v>2024-02-05T00:00:00</v></c><c><v>3</v></c></row>'
+                   '</sheetData></worksheet>')                                                                      # no r= on the cells
+    (tmp_path / "Orders.csv").write_text("x_2,x,x,x\n1,2,3,4\n", encoding="utf-8")
+    (tmp_path / "orders.csv").write_text("OrderId,Amount\n1,5\n", encoding="utf-8")
+    src = demo_app.folder_source(tmp_path)
+    st = demo_app.Session(src).state()
+    tables = {t["name"]: [c["name"] for c in t["columns"]] for t in st["plan"]["tables"]}
+    assert tables["odd"] == ["id", "when", "big"] and set(tables) == {"odd", "Orders", "orders_2"}
+    assert tables["Orders"] == ["x_2", "x", "x_3", "x_4"]
+    rows = src.execute("SELECT * FROM [data].[odd] ORDER BY id")
+    assert rows[0]["when"] == "2024-01-05T00:00:00" and rows[0]["big"] == 1e20 and rows[1]["id"] == 2
+    src.close()
+
+
+def test_review_findings_on_decisions_exports_and_notes(shop, monkeypatch):
+    from fabric_backend import evidence, seed
+    from fabric_backend.schema import Column, Table
+    # an ambiguous column takes one target: accepting a candidate closes the other one
+    s = seed.schema("shop")
+    s.tables["producers"] = Table("producers", [Column("producer_id", "int"), Column("name", "string")], schema="shop")
+    s.tables["lines"] = Table("lines", [Column("line_id", "int"), Column("prod_id", "int")], schema="shop")
+    src = demo_app.sample_source(); src.schema = s
+    sess = demo_app.Session(src)
+    amb = sorted(f["id"] for f in sess.state()["health"]["findings"] if f["id"].startswith("amb:lines.prod_id"))
+    assert amb == ["amb:lines.prod_id>producers", "amb:lines.prod_id>products"]
+    sess.accept("amb:lines.prod_id>products")
+    st = sess.state()
+    assert [c["target"] for c in sess.confirmed] == ["products"]
+    assert not any(f["id"] == "amb:lines.prod_id>producers" and not f["accepted"] and not f["skipped"] for f in st["health"]["findings"])
+    # exports work when the health check fails, and the note appears once
+    def boom(plan, execute, max_items=60):
+        raise OSError("odbc gone")
+    monkeypatch.setattr(evidence, "validate", boom)
+    shop.reset(); shop.accept("sug:orders.ship_to_id>addresses"); shop.reset()
+    st = shop.state()
+    assert st["health"]["checked"] is False and st["source"]["notes"].count("health check could not run: OSError: odbc gone") == 1
+    for name in ("plan.json", "er.mmd", "dictionary.md"):
+        assert shop.handle("GET", f"/export/{name}")[0] == 200, name
+    assert shop.handle("POST", "/api/connect", b'{"kind": 5}')[0] == 400
