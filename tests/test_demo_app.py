@@ -192,6 +192,30 @@ def test_a_folder_of_csv_and_excel_files_becomes_tables_with_keys_relationships_
     src.close()
 
 
+def test_odd_file_and_column_names_and_bad_files_do_not_stop_the_demo(tmp_path):
+    (tmp_path / "2024 sales.csv").write_text('Order "Nr";Kund]Nr;Belopp;--\n1;7;"1,5";x\n2;7;2;y\n', encoding="utf-8")
+    (tmp_path / "header only.csv").write_text("a;b\n", encoding="utf-8")
+    (tmp_path / "bad.xlsx").write_bytes(b"not a zip")
+    src = demo_app.folder_source(tmp_path)
+    s = demo_app.Session(src)
+    st = s.state()
+    tables = {t["name"]: [c["name"] for c in t["columns"]] for t in st["plan"]["tables"]}
+    assert tables["t_2024_sales"] == ["Order _Nr_", "Kund_Nr", "Belopp", "--"] and tables["header_only"] == ["a", "b"]
+    assert any(n.startswith("bad.xlsx: could not be read") for n in st["source"]["notes"])
+    assert st["health"]["checked"] and all("error" not in q for q in st["questions"])      # bracket quoting works on every name
+    assert src.execute("SELECT [Kund_Nr] FROM [data].[t_2024_sales]")[0]["Kund_Nr"] == 7
+    src.close()
+
+
+def test_decisions_before_a_source_are_refused_not_crashed():
+    s = demo_app.Session()
+    for route in ("/api/accept", "/api/skip", "/api/reset"):
+        status, _, body = s.handle("POST", route, b'{"id": "x"}')
+        assert status == 409 and json.loads(body)["kind"] == "bad_input"
+    assert s.handle("POST", "/api/connect", b"{bad")[0] == 400 and s.handle("POST", "/api/step", b'[1]')[0] == 400
+    assert s.handle("POST", "/api/step", b'{"step": "x"}')[0] == 400
+
+
 def test_a_columns_list_gives_the_map_only(tmp_path):
     from tests.test_cli import write_columns
     path = write_columns(tmp_path / "columns.csv")

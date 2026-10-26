@@ -99,6 +99,16 @@ def sample_source() -> Source:
                   ["Synthetic rows from fabric_backend.seed: invented shop names, no customer data."], con.close)
 
 
+_IDENT_BAD = re.compile(r"[\[\]\x00-\x1f\"'`]")
+
+
+def _column_name(header: str, i: int) -> str:
+    """A column name SQLite and the engine's bracket quoting both accept: brackets, quotes and control characters
+    become underscores (SQLite does not take the T-SQL `]]` escape inside [...])."""
+    name = _IDENT_BAD.sub("_", str(header)).strip() or f"column_{i + 1}"
+    return name
+
+
 def _table_name(stem: str, used: set[str]) -> str:
     name = _SAFE_NAME.sub("_", stem.strip()).strip("_") or "table"
     if name[0].isdigit():
@@ -259,7 +269,8 @@ def folder_source(folder: str | Path, schema_name: str = "data") -> Source:
             name = _table_name(p.stem if len(sheets) == 1 else f"{p.stem}_{sheet}", used)
             seen: set[str] = set()
             cols = []
-            for h in header:
+            for i, h in enumerate(header):
+                h = _column_name(h, i)
                 base = h if h.lower() not in seen else f"{h}_{len(seen)}"
                 seen.add(base.lower()); cols.append(base)
             types = [_guess_type([r[i] for r in data]) for i in range(len(cols))]
@@ -756,6 +767,10 @@ class Session:
                 return 200, ct, text.encode("utf-8")
             if method == "POST":
                 data = json.loads(body.decode("utf-8") or "{}") if body else {}
+                if not isinstance(data, dict):
+                    return 400, "application/json; charset=utf-8", json.dumps({"error": "the body must be a JSON object", "kind": "bad_input"}).encode("utf-8")
+                if route in ("/api/accept", "/api/skip", "/api/reset") and self.source is None:
+                    return 409, "application/json; charset=utf-8", json.dumps({"error": "connect a source first", "kind": "bad_input"}).encode("utf-8")
                 if route == "/api/connect":
                     self.connect(data.get("kind", "sample"), data.get("value", ""), data.get("schema", ""))
                 elif route == "/api/step":
@@ -770,7 +785,7 @@ class Session:
                     return 404, "text/plain; charset=utf-8", b"not found"
                 return 200, "application/json; charset=utf-8", json.dumps(self.state(), default=str).encode("utf-8")
             return 404, "text/plain; charset=utf-8", b"not found"
-        except (FileNotFoundError, ValueError, KeyError, PlanInputError, RuntimeError) as e:
+        except (FileNotFoundError, ValueError, KeyError, TypeError, PlanInputError, RuntimeError) as e:
             return 400, "application/json; charset=utf-8", json.dumps({"error": str(e), "kind": "bad_input"}).encode("utf-8")
         except Exception as e:                                     # noqa: BLE001 - an ODBC failure gives a message, never a traceback page
             return 500, "application/json; charset=utf-8", json.dumps({"error": f"{type(e).__name__}: {e}", "kind": "failed"}).encode("utf-8")
