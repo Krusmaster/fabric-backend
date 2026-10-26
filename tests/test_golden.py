@@ -346,9 +346,10 @@ def _no_clock(v):
     return v
 
 
-def test_cli_offline_outputs_are_unchanged(tmp_path, capsys):
+def test_cli_offline_outputs_are_unchanged(tmp_path, capsys, monkeypatch):
     from fabric_backend import cli
     cols = Path(__file__).parent.parent / "examples" / "columns.csv"
+    monkeypatch.chdir(tmp_path)                                  # dictionary and dbt write their file into the working directory
     out = {}
     for args in (["plan", str(cols)], ["join-path", str(cols), "customers", "categories"], ["dictionary", str(cols)],
                  ["dbt", str(cols)], ["analyze", str(cols)], ["views", str(cols)]):
@@ -357,4 +358,5 @@ def test_cli_offline_outputs_are_unchanged(tmp_path, capsys):
         except SystemExit as e:
             code = e.code
         out[" ".join(args[:1] + args[2:])] = {"exit": code, "stdout": capsys.readouterr().out}
+    out["files"] = {f.name: f.read_text(encoding="utf-8") for f in sorted(tmp_path.iterdir()) if f.is_file()}
     check("cli", out)
