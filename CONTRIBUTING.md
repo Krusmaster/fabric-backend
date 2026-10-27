@@ -38,7 +38,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
-| Deployment | `deploy/`, `Dockerfile` | open |
+| Deployment | `deploy/`, `Dockerfile` | session n14 (deploy --from-azure: the configuration read from the running app; CI caches in `.github/workflows/`) |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
