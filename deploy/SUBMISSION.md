@@ -36,6 +36,13 @@ regardless. After the listing: turn security defaults back on or disable the rev
 | `https://claude.ai/api/mcp/auth_callback` | Web | yes |
 | `http://localhost`, `http://127.0.0.1` (Claude Code loopback) | Public client / native | not yet |
 
+## Other catalogs
+
+| Catalog | Entry | Status |
+| --- | --- | --- |
+| Official MCP Registry | `com.krusgraph/krusgraph` | published; verified 26 October 2026 (`docs/PUBLISHING.md`) |
+| Glama | https://glama.ai/mcp/connectors/com.krusgraph/krusgraph | listed (seen 27 October 2026); ownership is confirmed with `/.well-known/glama.json`, served only on krusgraph.com, after the next `--update` |
+
 ## Portal answers (as submitted)
 
 **1 Connection** — `https://krusgraph.com/mcp`, one URL for every user.

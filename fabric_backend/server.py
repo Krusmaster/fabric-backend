@@ -1834,6 +1834,7 @@ def build_app(host: str = "0.0.0.0"):
     """The ASGI app: the MCP endpoint at /mcp, plus — in Entra mode — the protected resource metadata and a
     401 challenge in front of /mcp for any request without a valid token (Claude starts sign-in on the 401)."""
     import json as _json
+    from starlette.exceptions import HTTPException
     from starlette.responses import JSONResponse, PlainTextResponse, Response
     from starlette.routing import Route
 
@@ -1947,6 +1948,14 @@ def build_app(host: str = "0.0.0.0"):
         app.router.routes.append(Route(path, handler, methods=["GET", "HEAD", "OPTIONS"]))
     card_route("/mcp/server-card", discovery.server_card, discovery.SERVER_CARD_TYPE)
     card_route("/.well-known/ai-catalog.json", discovery.ai_catalog, discovery.AI_CATALOG_TYPE)
+
+    async def glama(_request):
+        """Glama's ownership file: public, outside the sign-in in front of /mcp, and only on krusgraph.com (discovery.py)."""
+        body = discovery.glama_json()
+        if body is None:
+            raise HTTPException(status_code=404)
+        return Response(body, media_type="application/json")
+    app.router.routes.append(Route("/.well-known/glama.json", glama, methods=["GET", "HEAD"]))
 
     async def plan_json(request):
         return compressed(request, demo_plan_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})

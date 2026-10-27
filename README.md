@@ -452,8 +452,10 @@ review page for the three figures. Screenshots used for the visual review are in
 
 For search engines and agents (`fabric_backend/discovery.py`, all public): `/sitemap.xml`, `/robots.txt`, `/llms.txt`
 with Markdown versions of the pages (`/docs.md`, `/start.md`, `/privacy.md`, `/lovable.md`), an MCP Server Card at
-`/mcp/server-card` and an AI Catalog at `/.well-known/ai-catalog.json`. The auth guard covers exactly `/mcp`.
-`server.json` is the MCP Registry entry; publishing it is described in `docs/PUBLISHING.md` (not done).
+`/mcp/server-card`, an AI Catalog at `/.well-known/ai-catalog.json`, and `/.well-known/glama.json`, the file with which
+the maintainer confirms the Glama listing (served only when `MCP_PUBLIC_URL` is on krusgraph.com, a 404 anywhere else).
+The auth guard covers exactly `/mcp`. `server.json` is the MCP Registry entry; publishing it is described in
+`docs/PUBLISHING.md` (published as `com.krusgraph/krusgraph`, verified 26 October 2026).
 
 ## Works on
 

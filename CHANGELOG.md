@@ -5,6 +5,10 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Finding 8 of 27 October 2026: the Glama catalog lists Krusgraph and asks the owner to confirm it with a file.
+  `GET /.well-known/glama.json` serves the maintainer's claim (`$schema` and `claim`, a token made to be public) as
+  `application/json`, without sign-in and outside the 401 in front of `/mcp`, only when the public host from
+  `MCP_PUBLIC_URL` is krusgraph.com; any other host, or none, gets a 404, so a self-hosted copy claims nothing.
 - Finding 7 of the live test of 27 October 2026, after a live `create_backend` the maintainer approved: an update of
   `shop_api` with the ship-to relationship confirmed stopped with `would_remove`, because the plan named the reverse
   field `orders_as_ship_to` where the API has `orders`, and `keep_with_confirmed` was empty. `create_backend` and

@@ -158,5 +158,19 @@ It reads table and column names, infers keys and relationships from names (decla
 """
 
 
+# Glama (glama.ai/mcp/connectors/com.krusgraph/krusgraph) lists the server and asks its owner to confirm the listing with
+# this file at the domain. The claim is the maintainer's and is made to be public; it is served only when the public host
+# (MCP_PUBLIC_URL) is krusgraph.com, so a self-hosted copy never claims the listing of someone else's domain.
+GLAMA_HOST = "krusgraph.com"
+GLAMA_CLAIM = {"$schema": "https://glama.ai/mcp/schemas/connector.json", "claim": "glama_claim_nlxchmx_fb4bANK8J8zGgfTdUrOH6Wq1"}
+
+
+def glama_json() -> bytes | None:
+    """The body of /.well-known/glama.json, or None (a 404) when the public host is not GLAMA_HOST or MCP_PUBLIC_URL is unset."""
+    from urllib.parse import urlsplit
+    host = (urlsplit(os.environ.get("MCP_PUBLIC_URL", "").strip()).hostname or "").lower()
+    return json.dumps(GLAMA_CLAIM).encode("utf-8") if host == GLAMA_HOST else None
+
+
 def card_json(doc: dict) -> bytes:
     return (json.dumps(doc, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
