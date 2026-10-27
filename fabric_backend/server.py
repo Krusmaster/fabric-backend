@@ -847,8 +847,8 @@ def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict
     """Hand-over documentation for the source: every table with columns and types, keys and relationships with their
     rules, keyless tables, ambiguous columns and the ER diagram, with an empty Description column to fill in. With
     validate=true the counts from validate_plan (key uniqueness, orphans) are included. `tables` takes names or
-    patterns (["sales_*"]) for one part of a large schema at a time; an answer over 60 000 characters is cut on a line
-    and says so. Returns Markdown."""
+    patterns (["sales_*"]) for one part of a large schema at a time, with the roles and subject areas of the whole
+    schema; an answer over 60 000 characters is cut on a line and says so. Returns Markdown."""
     if validate:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
@@ -860,8 +860,7 @@ def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict
         p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
         checked = None
     keep = _compact.match_tables(p.schema, tables)
-    shown = _compact.sub_plan(p, keep)
-    md = _dictionary.data_dictionary(shown, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"))
+    md = _dictionary.data_dictionary(p, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"), tables=keep)
     return _compact.bounded_text({"path": f"docs/{source}-{schema}-data-dictionary.md", "markdown": md, "summary": p.summary()}, "markdown", MAX_RESULT_CHARS)
 
 

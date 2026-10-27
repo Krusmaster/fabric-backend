@@ -85,6 +85,34 @@ def test_tables_patterns_narrow_the_answer_but_the_plan_sees_the_whole_schema(re
     assert bad["kind"] == "bad_input"
 
 
+def test_roles_and_areas_are_the_whole_plans_when_tables_narrow_the_answer(remote):
+    """The live test of 27 October 2026: data_dictionary with tables=["orders"] called orders "isolated – no
+    relationships in or out" in the same answer that listed two of its relationships. Roles, areas and the summary
+    come from the whole plan; `tables` only chooses what is shown, in every tool that takes it."""
+    from fabric_backend import graphs
+    from fabric_backend.infer import plan
+    remote(seed.schema("shop"))
+    whole = graphs.analyze(plan(seed.schema("shop")))
+    for table in ("orders", "order_items", "customers", "audit_log"):
+        role = whole["roles"][table]["role"]
+        area = next(g for g in whole["areas"] if table in g["tables"])
+        md = json.loads(server.data_dictionary("ws", "shop_lh", schema="shop", tables=[table]))["markdown"]
+        assert f"| {table} | {role} | {whole['roles'][table]['why']} |" in md and "isolated" not in md, table
+        assert f"- {area['name']}: {', '.join(area['tables'])}" in md, table
+        assert "- 7 tables, 6 with keys, 6 relationships" in md and f"- Shown: {table} (1 of 7 tables)" in md, table
+        assert whole["summary"] in md, table
+        an = json.loads(server.analyze_schema("ws", "shop_lh", schema="shop", tables=[table]))
+        assert an["roles"][table]["role"] == role and an["areas"] == [area], table
+        sm = json.loads(server.semantic_model_draft("ws", "shop_lh", schema="shop", tables=[table]))
+        assert f"| `{table}` | {role} |" in sm["parts"]["README.generated.md"], table
+    md = json.loads(server.data_dictionary("ws", "shop_lh", schema="shop", tables=["orders"]))["markdown"]
+    rels = md[md.index("## Relationships"):md.index("## Tables without a key")]
+    assert "| order_items | order_id | orders |" in rels and "| orders | customer_id | customers |" in rels
+    assert "| products |" not in rels                                                  # what is shown stays narrowed
+    full = json.loads(server.data_dictionary("ws", "shop_lh", schema="shop"))["markdown"]
+    assert "- Shown:" not in full and "| orders | fact |" in full
+
+
 def test_three_hundred_tables_answer_in_summary_form_and_stay_small(remote):
     s = synth(300)
     remote(s)
