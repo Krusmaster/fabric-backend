@@ -483,6 +483,30 @@ def test_the_consent_form_needs_its_csrf_cookie_and_works_once(env):
         assert approve(c, page).status_code == 409                                 # the same approval, cookie and all, twice
 
 
+def test_the_approval_form_works_with_the_origin_a_browser_actually_sends(env):
+    """Live test of 27 October 2026: Glama's approval page showed, and Allow was refused with "The approval did not come
+    from this server's own page": the page said Referrer-Policy: no-referrer, so the browser sent Origin: null on the
+    form's POST. The page now says same-origin; Origin: null still counts only with Sec-Fetch-Site: same-origin."""
+    glama_cb = "https://glama.ai/api/app/mcp/oauth/callback"
+    with client(env=env) as c:
+        page = c.get("/oauth/authorize", params=authorize_params(GLAMA, glama_cb, pkce()[1]))
+        assert page.headers["referrer-policy"] == "same-origin"
+
+        def post(headers):
+            fresh = c.get("/oauth/authorize", params=authorize_params(GLAMA, glama_cb, pkce()[1])).text
+            return c.post("/oauth/consent", data={"request": hidden(fresh, "request"), "csrf": hidden(fresh, "csrf"),
+                                                  "decision": "allow"}, headers=headers)
+        for refused in ({"Origin": "null", "Sec-Fetch-Site": "cross-site"}, {"Origin": "null", "Sec-Fetch-Site": "same-site"},
+                        {"Origin": "null"}, {"Origin": "https://evil.example", "Sec-Fetch-Site": "same-origin"},
+                        {"Origin": BASE, "Sec-Fetch-Site": "cross-site"}):
+            r = post(refused)
+            assert r.status_code == 403 and "location" not in r.headers, refused
+        for accepted in ({"Origin": "null", "Sec-Fetch-Site": "same-origin"}, {"Origin": BASE, "Sec-Fetch-Site": "same-origin"}):
+            r = post(accepted)
+            assert r.status_code == 303 and r.headers["location"].startswith("https://login.microsoftonline.com/"), accepted
+            assert r.headers["referrer-policy"] == "no-referrer"                  # the way to Entra still carries no referrer
+
+
 def test_deny_goes_back_to_the_client_with_access_denied(env):
     with client(env=env) as c:
         page = c.get("/oauth/authorize", params=authorize_params(VSCODE, "https://vscode.dev/redirect", pkce()[1])).text

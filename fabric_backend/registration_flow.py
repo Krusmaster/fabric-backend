@@ -122,7 +122,9 @@ class Layer:
 <body class="oauth"><main class="wrap">{body}</main></body></html>"""
         resp = HTMLResponse(doc, status_code=status, headers={
             "Cache-Control": "no-store", "Pragma": "no-cache", "Content-Security-Policy": csp, "X-Frame-Options": "DENY",
-            "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex"})
+            # same-origin, not no-referrer: with no-referrer a browser sends `Origin: null` on the approval form's POST
+            # (Fetch, "serialize a request origin"), and the real origin is what consent() checks; nothing leaves the site
+            "Referrer-Policy": "same-origin", "X-Robots-Tag": "noindex"})
         for name, value, age in cookies:
             resp.set_cookie(name, value, max_age=age, path="/", secure=True, httponly=True, samesite="lax")
         for name in delete:
@@ -297,8 +299,13 @@ signed in). {memory}</p>
         """POST /oauth/consent: the user's answer on the consent page."""
         if self._limited(ip=client_ip(request)):
             return self._error_page("Too many sign-in attempts from this network. Wait a minute and try again.", 429)
-        origin = request.headers.get("origin")
-        if (origin and origin != reg.origin(self.cfg)) or request.headers.get("sec-fetch-site", "same-origin") not in ("same-origin", "none"):
+        origin, site = request.headers.get("origin"), request.headers.get("sec-fetch-site")
+        if site is not None and site not in ("same-origin", "none"):
+            return self._error_page("The approval did not come from this server's own page.", 403)
+        if origin == "null":                                 # an opaque origin: only with the browser's own same-origin
+            if site != "same-origin":
+                return self._error_page("The approval did not come from this server's own page.", 403)
+        elif origin and origin != reg.origin(self.cfg):
             return self._error_page("The approval did not come from this server's own page.", 403)
         csrf = form.get("csrf") or ""
         csrf_cookie = CSRF_COOKIE + reg.sha256_hex(csrf)[:16]
