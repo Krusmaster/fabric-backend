@@ -49,7 +49,10 @@ def shortest_paths(plan: Plan, start: str, end: str, limit: int = 5) -> list[lis
     return out
 
 
-def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: int = 100, dialect: Dialect = TSQL) -> str:
+def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: int = 100, dialect: Dialect = TSQL,
+            leave_out: set[tuple[str, str]] | None = None) -> str:
+    """SELECT … JOIN … along `path`: the start's key and the end's columns, without the (table, column) pairs in
+    `leave_out` (the end's key stands in when nothing else is left)."""
     schema = plan.schema.schema
     qi = dialect.quote
     alias = {start: "t0"}
@@ -66,7 +69,9 @@ def sql_for(plan: Plan, start: str, path: list[tuple[Relationship, bool]], top: 
     end = tables[-1]
     start_key = plan.keys.get(start, ([plan.schema[start].column_names[0]], ""))[0]
     select = [f"t0.{qi(c)} AS {qi(f'{start}_{c}')}" for c in start_key]
-    select += [f"{alias[end]}.{qi(c)}" for c in plan.schema[end].column_names]
+    leave_out = leave_out or set()
+    end_cols = [c for c in plan.schema[end].column_names if (end, c) not in leave_out] or plan.keys.get(end, ([], ""))[0]
+    select += [f"{alias[end]}.{qi(c)}" for c in end_cols]
     return dialect.select(", ".join(select), f"\nFROM {dialect.table(schema, start)} AS t0\n" + "\n".join(joins), top)
 
 

@@ -528,7 +528,7 @@
     "read_only_hint": false,
     "title": "Create or update a Fabric data agent from the plan (dry run by default)"
    },
-   "description": "A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its\ninstructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL\npairs, then published. Created through the public staging REST API; re-running updates the same agent, data\nsource and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls\nto review. Needs the delegated permission Item.ReadWrite.All (or DataAgent.ReadWrite.All for the staging calls).",
+   "description": "A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its\ninstructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL\npairs, then published. Created through the public staging REST API; re-running updates the same agent, data\nsource and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls\nto review. Columns that look like personal data by name are left out of the instructions and the examples (the\nkey stands in) unless show_personal_data=true. Needs the delegated permission Item.ReadWrite.All (or\nDataAgent.ReadWrite.All for the staging calls).",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -583,6 +583,11 @@
       "default": "dbo",
       "title": "Schema",
       "type": "string"
+     },
+     "show_personal_data": {
+      "default": false,
+      "title": "Show Personal Data",
+      "type": "boolean"
      },
      "source": {
       "title": "Source",

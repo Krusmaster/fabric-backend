@@ -336,6 +336,47 @@ def test_create_data_agent_creates_configures_and_publishes_then_updates_in_plac
     assert not any(c[0] == "post" and c[1].endswith("/dataAgents") for c in f.calls)
 
 
+def test_the_data_agents_examples_and_instructions_follow_the_privacy_rules(shop):
+    """The live test of 27 October 2026: the dry run's examples grouped on customers.name (P1), for example "Which
+    customers have the most rows in addresses?" with t.[name]. As in answer_query_draft, the key stands in (or the
+    column is left out) unless show_personal_data=true."""
+    out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop"))
+    agent = out["agent"]
+    shot = next(f for f in agent["fewshots"] if f["question"] == "Which customers have the most rows in addresses?")
+    assert "t.[name]" not in shot["query"] and "t.[customer_id], COUNT_BIG(*)" in shot["query"] and "GROUP BY t.[customer_id]" in shot["query"]
+    personal = {("customers", "name"), ("addresses", "city")}
+    for f in agent["fewshots"]:
+        for t, c in personal:
+            alias = re.findall(rf"\[shop\]\.\[{t}\] AS (\w+)", f["query"])
+            assert not any(f"{a}.[{c}]" in f["query"] for a in alias), (f["question"], t, c)
+    assert "- shop.customers: columns customer_id, country; key customer_id" in agent["instructions"]
+    assert "- shop.addresses: columns address_id, customer_id; key address_id" in agent["instructions"]
+    assert "customers.name (P1: a person's name)" in agent["instructions"] and "addresses.city (P5: an address)" in agent["instructions"]
+    assert out["personal_data"]["left_out"] == ["addresses.city (P5: an address)", "customers.name (P1: a person's name)"]
+    assert "show_personal_data=true" in out["personal_data"]["notice"]
+    categories = next(f for f in agent["fewshots"] if f["question"] == "Which categories have the most rows in products?")
+    assert "t.[name]" in categories["query"]                                          # a category's name is not a person's
+    shown = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop", show_personal_data=True))
+    shot = next(f for f in shown["agent"]["fewshots"] if f["question"] == "Which customers have the most rows in addresses?")
+    assert "t.[name]" in shot["query"] and "columns customer_id, name, country" in shown["agent"]["instructions"]
+    assert "personal_data" not in shown or "left_out" not in shown["personal_data"]
+    con = sqlite_with_seed()                                                           # still runnable
+    for f in agent["fewshots"]:
+        sql = re.sub(r"\[shop\]\.", "", f["query"]).replace("COUNT_BIG(", "COUNT(")
+        sql = re.sub(r"SELECT TOP \((\d+)\) (.*)", lambda m: f"SELECT {m.group(2)} LIMIT {m.group(1)}", sql, flags=re.S)
+        assert con.execute(sql).fetchall() is not None, f["question"]
+
+
+def test_a_join_that_ends_at_a_table_of_people_leaves_their_personal_columns_out():
+    from fabric_backend.paths import shortest_paths, sql_for
+    p = plan(seed.schema("shop"))
+    path = shortest_paths(p, "orders", "customers", limit=1)[0]
+    assert "t1.[name]" in sql_for(p, "orders", path)
+    sql = sql_for(p, "orders", path, leave_out={("customers", "name")})
+    assert "t1.[name]" not in sql and "t1.[customer_id], t1.[country]" in sql
+    assert sql_for(p, "orders", path, leave_out={("customers", c) for c in ("customer_id", "name", "country")}).count("t1.[customer_id]") == 2
+
+
 def test_create_data_agent_403_is_consent_404_is_not_found_and_a_strange_tree_is_reported(shop, fake):
     fake(fail={"/staging/settings": Resp(403, {"errorCode": "InsufficientScopes", "message": "scope"})})
     out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop", dry_run=False))

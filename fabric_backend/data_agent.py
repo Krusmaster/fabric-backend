@@ -15,9 +15,14 @@ Scopes per swagger: Item.ReadWrite.All for create/update; the staging routes als
 The create-with-definition variant exists (CreateDataAgent.json shows parts under Files/Config/…) but its part
 format is documented only in an article this environment could not fetch, so this module uses the staging API,
 whose bodies the specification defines in full. Nothing here deletes anything.
+
+Columns the privacy rules flag by name (privacy.py: a person's name, an e-mail address, ...) are left out of the
+instructions' column lists and of the examples' SELECT and GROUP BY, the key standing in, as in answer_query_draft;
+the instructions name them so the agent leaves them out too. show_personal_data=true keeps them.
 """
 from __future__ import annotations
 
+from . import privacy
 from .evidence import qi
 from .infer import Plan, RULES
 from .paths import shortest_paths, sql_for
@@ -25,13 +30,20 @@ from .paths import shortest_paths, sql_for
 MAX_FEWSHOTS = 10
 
 
-def instructions(plan: Plan, source_name: str, schema: str) -> str:
+def personal(plan: Plan, show: bool = False) -> dict[tuple[str, str], dict]:
+    """{(table, column): finding} for the columns the privacy rules flag, or none when the caller asked to see them."""
+    return {} if show else privacy.personal_columns(plan.schema)
+
+
+def instructions(plan: Plan, source_name: str, schema: str, personal_data: dict | None = None) -> str:
+    personal_data = personal_data or {}
     lines = [f"You answer questions about the {source_name} data (schema {schema}) with T-SQL on its SQL analytics endpoint. "
              "Use only the tables, keys and relationships below; they were inferred from the names and checked where noted, "
              "and every one carries the rule that produced it.", "", "Tables and keys:"]
     for t in plan.schema:
         key, rule = plan.keys.get(t.name, ([], "K3"))
-        lines.append(f"- {schema}.{t.name}: columns {', '.join(t.column_names)}; key {'+'.join(key) if key else 'none'} (rule {rule})")
+        cols = [c for c in t.column_names if (t.name, c) not in personal_data or c in key]
+        lines.append(f"- {schema}.{t.name}: columns {', '.join(cols)}; key {'+'.join(key) if key else 'none'} (rule {rule})")
     lines += ["", "Relationships (join conditions):"]
     for r in plan.relationships:
         on = " AND ".join(f"{r.source}.{a} = {r.target}.{b}" for a, b in zip(r.source_cols, r.target_cols))
@@ -41,14 +53,20 @@ def instructions(plan: Plan, source_name: str, schema: str) -> str:
     if plan.ambiguous:
         lines.append("\nColumns that could point at two tables and must not be joined without asking: "
                      + "; ".join(f"{a['table']}.{a['column']} ({' or '.join(a['candidates'])})" for a in plan.ambiguous))
+    if personal_data:
+        lines.append("\nColumns that look like personal data by name, left out of the lists above: "
+                     + "; ".join(f"{f['table']}.{f['column']} ({f['rule']}: {f['what']})" for f in privacy.findings(personal_data))
+                     + ". Do not select, group by or show them; group by the table's key instead.")
     lines += ["", "Rules: " + "; ".join(f"{k} = {v.split(' (')[0]}" for k, v in RULES.items() if k != "confirmed"),
               "", "Always quote identifiers with square brackets, qualify tables with the schema, and prefer the relationships above over guessing joins."]
     return "\n".join(lines)
 
 
-def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS) -> list[dict]:
+def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS, personal_data: dict | None = None) -> list[dict]:
     """5–10 question/T-SQL pairs: a count per fact-like table, a 'per dimension' count per relationship, and one
-    multi-hop join from paths.join_path. Deterministic order."""
+    multi-hop join from paths.join_path. Deterministic order. A label column in `personal_data` gives way to the
+    target's key, and the join's columns leave those columns out."""
+    personal_data = personal_data or {}
     out: list[dict] = []
     in_deg = {r.target for r in plan.relationships}
     facts = [t.name for t in plan.schema if t.name not in in_deg and any(r.source == t.name for r in plan.relationships)]
@@ -58,6 +76,8 @@ def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS) -> list[dict]:
         if len(r.source_cols) != 1:
             continue
         label = next((c for c in plan.schema[r.target].column_names if c.lower() in ("name", "title", "label", "description")), r.target_cols[0])
+        if (r.target, label) in personal_data:
+            label = r.target_cols[0]                                   # the key stands in, as in answer_query_draft
         out.append({"question": f"Which {r.target} have the most rows in {r.source}?",
                     "query": (f"SELECT TOP (10) t.{qi(label)}, COUNT_BIG(*) AS {qi(r.source + '_count')} FROM {qi(schema)}.{qi(r.source)} AS s "
                               f"JOIN {qi(schema)}.{qi(r.target)} AS t ON s.{qi(r.source_cols[0])} = t.{qi(r.target_cols[0])} "
@@ -74,12 +94,14 @@ def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS) -> list[dict]:
     if best and best[0] >= 2:
         via = [(r.target if fwd else r.source) for r, fwd in best[3]][:-1]       # the tables between start and end
         through = f" through {', '.join(via[:-1])} and {via[-1]}" if len(via) > 1 else (f" through {via[0]}" if via else "")
-        out.append({"question": f"Show {best[1]} joined to {best[2]}{through}.", "query": sql_for(plan, best[1], best[3], top=100)})
+        out.append({"question": f"Show {best[1]} joined to {best[2]}{through}.",
+                    "query": sql_for(plan, best[1], best[3], top=100, leave_out=set(personal_data))})
     return out[:limit]
 
 
-def draft(plan: Plan, info: dict, name: str, schema: str) -> dict:
+def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bool = False) -> dict:
     """What create_data_agent would create: settings, data source, selected tables, few-shots and the REST calls."""
+    flagged = personal(plan, show_personal_data)
     kind = info.get("item_kind") or "Lakehouse"
     if kind == "Lakehouse":
         datasource = {"type": "LakehouseTables", "lakehouseReference": {"referenceType": "ById", "itemId": info.get("item_id"), "workspaceId": info.get("workspace_id")}}
@@ -89,9 +111,10 @@ def draft(plan: Plan, info: dict, name: str, schema: str) -> dict:
         f"{r.source}.{'+'.join(r.source_cols)} joins {r.target}.{'+'.join(r.target_cols)}." for r in plan.relationships))
     ws = info.get("workspace_id")
     return {
-        "name": name, "instructions": instructions(plan, info.get("item_name") or "source", schema),
+        "name": name, "instructions": instructions(plan, info.get("item_name") or "source", schema, flagged),
         "datasource": datasource, "datasource_instructions": ds_instructions,
-        "tables_to_select": [t.name for t in plan.schema], "fewshots": fewshots(plan, schema),
+        "tables_to_select": [t.name for t in plan.schema], "fewshots": fewshots(plan, schema, personal_data=flagged),
+        "personal_left_out": privacy.findings(flagged),
         "rest": [f"POST /v1/workspaces/{ws}/dataAgents (or reuse the item named {name!r})",
                  f"PATCH /v1/workspaces/{ws}/dataAgents/{{id}}/staging/settings",
                  f"POST /v1/workspaces/{ws}/dataAgents/{{id}}/staging/datasources (once; reused if it exists)",

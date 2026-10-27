@@ -1022,19 +1022,31 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
 def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                      confirmed: list[dict] | None = None, publish: bool = True, dry_run: bool = True, ctx: Context = None) -> str:
+                      confirmed: list[dict] | None = None, publish: bool = True, show_personal_data: bool = False,
+                      dry_run: bool = True, ctx: Context = None) -> str:
     """A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its
     instructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL
     pairs, then published. Created through the public staging REST API; re-running updates the same agent, data
     source and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls
-    to review. Needs the delegated permission Item.ReadWrite.All (or DataAgent.ReadWrite.All for the staging calls)."""
+    to review. Columns that look like personal data by name are left out of the instructions and the examples (the
+    key stands in) unless show_personal_data=true. Needs the delegated permission Item.ReadWrite.All (or
+    DataAgent.ReadWrite.All for the staging calls)."""
+    from . import privacy as _privacy
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
-    spec = _data_agent.draft(p, info, name, schema)
+    spec = _data_agent.draft(p, info, name, schema, show_personal_data)
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
            "note": "Unit-tested with the REST calls mocked; not yet run against a live workspace. Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
+    flagged = spec["personal_left_out"] or ([] if not show_personal_data else _privacy.findings(_privacy.personal_columns(p.schema)))
+    if spec["personal_left_out"]:
+        out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in flagged],
+                                "notice": "left out of the instructions and the examples by name (privacy rules); the key stands in. "
+                                          f"{_privacy.PARAMETER}=true includes them."}
+    elif flagged:
+        out["personal_data"] = {"included": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in flagged],
+                                "notice": _privacy.notice(flagged, shown=True)}
     if dry_run:
         return json.dumps(out, indent=2)
     headers = _headers(ctx)
