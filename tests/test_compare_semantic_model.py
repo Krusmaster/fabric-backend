@@ -178,7 +178,8 @@ def test_tool_reads_the_definition_and_compares(shop):
     assert asked == [("semanticModels", "sm-1", "TMDL")]
     assert out["model"]["read_with"] == "Fabric getDefinition (TMDL)" and out["model"]["delegated_scope"].startswith("SemanticModel.ReadWrite.All")
     assert "INFO functions" in out["model"]["spec"] and len(out["missing_in_model"]) == 1 and len(out["contradicted"]) == 1
-    assert "not yet run against a live model" in out["note"]
+    from fabric_backend import tool_status
+    assert tool_status.answer_note("compare_semantic_model") in out["note"] and "only as far as the model lookup" in out["note"]
 
 
 def test_tool_403_is_consent_with_the_scope_and_the_tmdl_way_round(shop):

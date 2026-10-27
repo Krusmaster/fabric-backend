@@ -53,6 +53,7 @@ FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 SQL_SCOPE = "https://database.windows.net/.default"
 
 from .discovery import package_version as _package_version  # noqa: E402
+from . import tool_status as _tool_status  # noqa: E402
 
 mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -99,7 +100,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
     "hand-over document with everything above. review_plan keeps the plan, the decisions about it and the checks as a file "
     "for the user's own repository; passed back as previous it applies the decisions again and marks checks on changed "
-    "tables stale."))
+    "tables stale. " + _tool_status.instructions_sentence()))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -643,7 +644,7 @@ def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo",
                               "Check the data bindings per entity (the definition binds Direct Lake-style to the source item).",
                               "Fabric IQ's ontology agent and data agents can then use the ontology as context."],
            "note": ("Ontology (preview): the definition follows the generation-2 layout of the specification's example (model, database, namespaces, "
-                    "entities, tables, relationships), checked against recorded definitions. The dry run and the create have not yet run against a live workspace.")}
+                    "entities, tables, relationships), checked against recorded definitions. " + _tool_status.answer_note("create_ontology"))}
     if dry_run:
         out["parts"] = parts
         text = json.dumps(out, indent=2)
@@ -682,8 +683,8 @@ def semantic_model_draft(workspace: str, source: str, name: str = "semantic_mode
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
     out = _semantic_model.draft(p, info, name, tables)
-    out["note"] = ("Unit-tested against Microsoft's published TMDL samples; drafted from a live lakehouse on 26 October 2026, "
-                   "not yet created as an item. Open the "
+    out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
+                   + " An item from it is not yet created live (create_semantic_model). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
                    "lists what to check first.")
     text = json.dumps(out, indent=2)
@@ -784,8 +785,8 @@ def compare_semantic_model(workspace: str, source: str, model: str = "", schema:
     out = {"summary": out.pop("summary"), "model": meta, **out}
     if validation is not None:
         out["validate_plan"] = validation["summary"]
-    out["note"] = ("Unit-tested against a model fixture over the shop schema and Microsoft's sample PBIP model; not yet run against a live model. "
-                   "The comparison reads names and metadata only, no rows from the model.")
+    out["note"] = ("Unit-tested against a model fixture over the shop schema and Microsoft's sample PBIP model. "
+                   + _tool_status.answer_note("compare_semantic_model") + " The comparison reads names and metadata only, no rows from the model.")
     return _bounded(out, MAX_RESULT_CHARS)
 
 
@@ -965,8 +966,8 @@ def create_semantic_model(workspace: str, source: str, name: str, schema: str = 
            "after_creation": ["Refresh the model once (framing) so its Direct Lake tables are processed; until then queries fall back or fail.",
                               "If the portal asks for credentials on the SQL analytics endpoint connection, set them under the model's settings (OAuth2 with your account).",
                               "Open the model in the portal or Power BI Desktop and check the relationships README.generated.md lists as inactive."],
-           "note": "Unit-tested against Microsoft's sample definitions; not yet run against a live workspace. Without the permission the "
-                   "create answers kind=consent naming it, see docs/SCOPES.md."}
+           "note": "Unit-tested against Microsoft's sample definitions. " + _tool_status.answer_note("create_semantic_model")
+                   + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
     if dry_run:
         out["parts"] = draft["parts"]
         out["rest"]["body_preview"] = {"displayName": body["displayName"], "definition": {"format": "TMDL", "parts": "<base64 parts, see parts>"}}
@@ -997,8 +998,8 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
         stmts = _views.statements(p, views_schema)
         out = {"summary": p.summary(), "schema": views_schema, "dry_run": dry_run, "schema_sql": stmts["schema_sql"], "views": stmts["views"],
                "note": "Views are allowed on a lakehouse SQL analytics endpoint, a warehouse and the endpoints of mirrored and SQL "
-                       "database items (read-only data, writable T-SQL objects). Unit-tested on SQLite and against the shop schema; "
-                       "the dry run answered from a live lakehouse on 26 October 2026; creating has not run against a live endpoint yet."}
+                       "database items (read-only data, writable T-SQL objects). Unit-tested on SQLite and against the shop schema. "
+                       + _tool_status.answer_note("create_views")}
         if dry_run or not stmts["views"]:
             if not stmts["views"]:
                 out["note"] = "No fact table (two or more references out, none in) and no hard-to-read relationship in the plan: nothing to create. " + out["note"]
@@ -1035,7 +1036,7 @@ def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo
     spec = _data_agent.draft(p, info, name, schema, show_personal_data)
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
-           "note": "Unit-tested with the REST calls mocked; not yet run against a live workspace. Without the permission the create "
+           "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
     flagged = spec["personal_left_out"] or ([] if not show_personal_data else _privacy.findings(_privacy.personal_columns(p.schema)))
@@ -1084,7 +1085,7 @@ def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed,
     return p, info, spec, None
 
 
-def _silver_answer(p, info, spec, name: str) -> dict:
+def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft") -> dict:
     from . import silver as _silver_mod
     text = _silver_mod.notebook_source(spec)
     target = f"schema {spec['silver_schema']}" if spec["source"]["schemas_enabled"] else f"tables prefixed {spec['silver_schema']}_"
@@ -1099,8 +1100,8 @@ def _silver_answer(p, info, spec, name: str) -> dict:
                    f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason.",
                    "Run it again whenever the source changes: every silver table is rewritten from the source."],
            "note": ("Unit-tested: the steps run in Python on the shop seed with duplicates and broken references added, and the generated "
-                    "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026); not yet "
-                    "run in a Fabric workspace.")}
+                    "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026); the notebook "
+                    "has not run in a Fabric workspace. " + _tool_status.answer_note(tool))}
     if len(json.dumps(out)) > MAX_RESULT_CHARS:
         out["notebook"].pop("content")
         out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; pass tables=[...] for a few at a "
@@ -1143,7 +1144,7 @@ def create_silver_notebook(workspace: str, source: str, name: str, schema: str =
     p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
     if refusal:
         return refusal
-    out = _silver_answer(p, info, spec, name)
+    out = _silver_answer(p, info, spec, name, "create_silver_notebook")
     out["dry_run"] = dry_run
     out["rest"] = {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks",
                    "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks/{{id}}/updateDefinition",
@@ -1183,7 +1184,7 @@ def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed
     return p, info, spec, None
 
 
-def _gold_answer(p, info, spec, name: str) -> dict:
+def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> dict:
     from . import gold as _gold_mod, privacy as _privacy
     text = _gold_mod.notebook_source(spec)
     statements = _gold_mod.statements(spec)
@@ -1201,7 +1202,7 @@ def _gold_answer(p, info, spec, name: str) -> dict:
                       "schedules and the PySpark authoring API are preview and not used."),
            "note": ("Unit-tested: the SQL of every view runs as a SELECT with its rules on SQLite and on a local PySpark 4.0.1 over the silver "
                     "tables of the shop seed (open-source Spark has no CREATE MATERIALIZED LAKE VIEW, so the CREATE itself is checked against "
-                    "the documented syntax); not yet run in a Fabric workspace.")}
+                    "the documented syntax); the views have not been created in a Fabric workspace. " + _tool_status.answer_note(tool))}
     pd = spec["personal_data"]
     if pd["omitted"] or pd["kept_for_joins"] or pd["shown"] and pd["flagged"]:
         notice = _privacy.notice(pd["flagged"], pd["shown"]) if pd["shown"] else (
@@ -1249,7 +1250,7 @@ def create_gold_views(workspace: str, source: str, name: str, schema: str = "dbo
     p, info, spec, refusal = _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx)
     if refusal:
         return refusal
-    out = _gold_answer(p, info, spec, name)
+    out = _gold_answer(p, info, spec, name, "create_gold_views")
     out["dry_run"] = dry_run
     out["rest"] = {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks",
                    "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/notebooks/{{id}}/updateDefinition",
@@ -1295,7 +1296,7 @@ def _step_failed(out: dict, step: str, result: dict, scope: str, where: str) -> 
     return json.dumps(out, indent=2, default=str)
 
 
-def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_ref: str | None) -> dict:
+def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_ref: str | None, tool: str = "drift_monitor_draft") -> dict:
     from . import monitor as _monitor, notebook as _notebook
     label = f"{src['item_name']}.{src['schema']}"
     text = _notebook.fabric_source(_monitor.notebook_cells(src, library_ref),
@@ -1314,8 +1315,8 @@ def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_re
                                  "Open the Notebook activity once and check its Connection: if Fabric asks for one, choose your account or the "
                                  "workspace identity; the run reads the workspace's items with that identity.",
                                  "Run the pipeline once by hand: the first run saves the baseline plan and reports 'first run'."],
-            "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema; not yet run in a "
-                     "Fabric workspace. " + _monitor.library_note(library_ref))}
+            "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema; the notebook "
+                     "has not run in a Fabric workspace. " + _tool_status.answer_note(tool) + " " + _monitor.library_note(library_ref))}
 
 
 @mcp.tool(title="Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)", annotations=RO)
@@ -1356,7 +1357,7 @@ def create_drift_monitor(workspace: str, source: str, name: str, schema: str = "
     p, src, refusal = _monitor_inputs(workspace, source, schema, ctx)
     if refusal:
         return refusal
-    out = _monitor_answer(p, src, name, at, time_zone, library_ref)
+    out = _monitor_answer(p, src, name, at, time_zone, library_ref, "create_drift_monitor")
     ws = src["workspace_id"]
     out["dry_run"] = dry_run
     out["rest"] = [{"step": "notebook", "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/notebooks", "or_update": ".../notebooks/{id}/updateDefinition",
@@ -1504,7 +1505,7 @@ def export_item_definitions(workspace: str, source: str, schema: str = "dbo", it
     out = {"summary": p.summary().splitlines()[0] + f"; {len(entries)} item(s) as files in Fabric's Git format, nothing created",
            "items": entries, "skipped": skipped, "how": _gx.HOW, "notes": notes, "files": files, "sources": _gx.SOURCES,
            "note": "Unit-tested: the files are the parts the creating tools send to the REST APIs, in the Git layout; not yet synced into a "
-                   "live workspace."}
+                   "workspace through Fabric's Git integration. " + _tool_status.answer_note("export_item_definitions")}
     text = json.dumps(out, indent=2)
     if len(text) > MAX_RESULT_CHARS:
         out["omitted"] = []

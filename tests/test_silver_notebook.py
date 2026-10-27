@@ -217,7 +217,8 @@ def test_draft_returns_the_steps_and_the_notebook_and_creates_nothing(shop, monk
     assert "error" not in out and out["notebook"]["content"].startswith("# Fabric notebook source")
     assert [s["table"] for s in out["steps"]][-1] == "order_items" and "krusgraph_quarantine" in out["summary"]
     assert next(s for s in out["steps"] if s["table"] == "orders")["deduplicate_on"]["latest_by"] == "order_date"
-    assert "not yet run in a Fabric workspace" in out["note"]
+    from fabric_backend import tool_status
+    assert "has not run in a Fabric workspace" in out["note"] and tool_status.answer_note("silver_notebook_draft") in out["note"]
     bad = json.loads(server.silver_notebook_draft("Sales", "shop_lh", schema="shop", silver_schema="shop"))
     assert bad["kind"] == "bad_input" and "source schema" in bad["error"]
 

@@ -281,7 +281,8 @@ def test_draft_returns_the_views_and_the_notebook_and_creates_nothing(shop, monk
     assert [v["name"] for v in out["views"]] == ["gold.audit_log", "gold.order_items", "gold.orders"]
     assert out["notebook"]["content"].startswith("# Fabric notebook source") and "generally available" in out["status"]
     assert out["refresh"]["run_now_scope"] == "Lakehouse.Execute.All or Item.Execute.All" and "customers.name (P1)" in out["personal_data"]["notice"]
-    assert "not yet run in a Fabric workspace" in out["note"]
+    from fabric_backend import tool_status
+    assert "have not been created in a Fabric workspace" in out["note"] and tool_status.answer_note("gold_views_draft") in out["note"]
     bad = json.loads(server.gold_views_draft("Sales", "shop_lh", schema="shop", gold_schema="silver"))
     assert bad["kind"] == "bad_input"
 

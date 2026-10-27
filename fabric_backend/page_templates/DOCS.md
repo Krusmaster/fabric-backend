@@ -179,7 +179,9 @@ What each method does for you, in plain terms:
 
 Unit-tested on the synthetic shop schema and the public benchmark schemas; `analyze_schema` and `suggest_relationships`
 were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
-every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates.
+every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates. On
+27 October 2026, after the ranking was fixed, `addresses.address_id` came first before the data check (3.94 against
+1.5 or less) and held for every value after it (inclusion 1.0).
 
 ## Build from a plan
 
@@ -267,10 +269,11 @@ that ran live is listed as tested, and its *What it changes* column says it crea
 
 - **Tested end to end** — run from Claude as a custom connector, through Microsoft sign-in, against a Fabric workspace
   with synthetic data (an F2 capacity, the lakehouse `demo_lh` with the shop schema from `fabric_backend/seed.py`) on
-  {{LIVE_RUN_DATE}}, in {{LIVE_RUN_STEPS}} steps without any creating call: {{LIVE_RUN_LIST}}. Not run
-  that day: `list_tables` as a tool of its own, `create_backend`, `create_semantic_model`, `create_data_agent`,
-  `ontology_draft`, `create_ontology`, `rayfin_connector` and the tools added since. Changes made after that run are
-  covered by unit tests.
+  {{LIVE_RUN_DATE}}, through the hosted server's build {{LIVE_RUN_BUILD}}, read-only, as drafts or as dry runs, without
+  any creating call: {{LIVE_RUN_LIST}}. A draft that ran so is marked *(a draft; creates nothing)*, a creating tool
+  whose dry run ran *tested end to end as a dry run*; creating keeps its own status. Not run that day, not even as a
+  dry run: {{NOT_RUN_LIST}}. The first such run was on {{FIRST_RUN_DATE}} ({{FIRST_RUN_STEPS}} steps). Changes made
+  after the run are covered by unit tests.
 - **Experimental** — on the hosted server and unit-tested, not yet run against a live workspace.
 - **Draft only** — returns a draft or files and creates nothing in Fabric.
 - **Available when enabled by the operator** — needs a permission the hosted app does not ask for today. The dry run

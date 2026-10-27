@@ -56,6 +56,7 @@ PAGES = {
 
 def _vars() -> dict[str, str]:
     from urllib.parse import quote
+    from . import tool_status as ts
     url = os.environ.get("MCP_PUBLIC_URL", "https://example.com/mcp")
     domain = url.split("/")[2]
     product = os.environ.get("PRODUCT_NAME", "fabric-backend")
@@ -77,6 +78,9 @@ def _vars() -> dict[str, str]:
         "LOGS_NOT_KEPT": "" if _days(os.environ.get("KRUSGRAPH_LOG_RETENTION_DAYS", "")) else "1",
         "USAGE_ORG": "1" if os.environ.get("KRUSGRAPH_USAGE_SALT", "").strip() else "",
         "RATE_LIMITS": "" if os.environ.get("KRUSGRAPH_RATE_LIMITS", "1").strip().lower() in {"0", "off", "false", "no"} else "1",
+        # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
+        "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY,
+        **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
     }
 
 
@@ -392,8 +396,9 @@ def _tool_statuses(md: str) -> str:
     md = re.sub(r"^\| `(\w+)` \| \{\{status\}\} \| \{\{changes\}\} \| ", row, md, flags=re.M)
     if seen != set(ts.STATUS):                                                # every tool once, no tool without a status
         raise ValueError(f"tool table and tool_status differ: {sorted(seen ^ set(ts.STATUS))}")
-    return (md.replace("{{LIVE_RUN_DATE}}", ts.LIVE_RUN_DATE).replace("{{LIVE_RUN_STEPS}}", str(ts.LIVE_RUN_STEPS))
-              .replace("{{LIVE_RUN_LIST}}", ts.live_run_list()))
+    return (md.replace("{{LIVE_RUN_BUILD}}", ts.LIVE_RUN_BUILD).replace("{{LIVE_RUN_LIST}}", ts.live_run_list())
+              .replace("{{NOT_RUN_LIST}}", ts.not_run_list()).replace("{{FIRST_RUN_DATE}}", ts.FIRST_RUN_DATE)
+              .replace("{{FIRST_RUN_STEPS}}", str(ts.FIRST_RUN_STEPS)))
 
 
 def docs_md() -> str:

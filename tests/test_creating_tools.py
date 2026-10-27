@@ -194,7 +194,8 @@ def test_create_views_tool_dry_run_then_applies_through_the_statement_runner(sho
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO))
     assert out["dry_run"] is True and ran == [] and [v["name"] for v in out["views"]] == ["vw_order_items", "vw_orders", "vw_orders_ship_to"]
-    assert out["schema_sql"].startswith("IF NOT EXISTS") and "the dry run answered from a live lakehouse" in out["note"] and "creating has not run" in out["note"]
+    from fabric_backend import tool_status
+    assert out["schema_sql"].startswith("IF NOT EXISTS") and tool_status.answer_note("create_views") in out["note"] and "creating has not run" in out["note"]
     out = json.loads(server.create_views(*shop, schema="shop", confirmed=SHIP_TO, dry_run=False))
     assert out["result"] == {"status": "Succeeded", "views": 3, "schema": "krusgraph"}
     assert [a["status"] for a in out["applied"]] == ["ok", "ok", "ok", "ok"] and ran[0].startswith("IF NOT EXISTS") and len(ran) == 4
@@ -404,7 +405,8 @@ def test_app_starter_uses_the_api_definition_names():
     assert "client secret" in prompt and "```graphql" in prompt
     assert s["connection"]["endpoint"].endswith("/graphql") and "api.fabric.microsoft.com/.default" in s["connection"]["auth"]
     assert any("Introspection" in c for c in s["checklist"]) and any("Run Queries and Mutations" in c for c in s["checklist"])
-    assert "run against a live API for GraphQL item" in s["note"]
+    from fabric_backend import tool_status
+    assert tool_status.answer_note("app_starter") in s["note"] and "as a draft; it creates nothing" in s["note"]
 
 
 def test_app_starter_tool_reads_the_definition(shop, monkeypatch):
@@ -458,4 +460,4 @@ def test_app_starter_backend_keeps_every_secret_out_of_the_browser():
     assert "GraphQLApi.Execute.All" in per_user["source"] and "x-fabric-token" in per_user["source"] and "unverified" in per_user
     assert "docs.lovable.dev/integrations/microsoft-fabric" in s["backend"]["lovable_connector"]
     assert any("Service principals can use Fabric APIs" in c for c in s["checklist"]) and any("app_readiness" in c for c in s["checklist"])
-    assert "unit-tested only" in s["note"]
+    assert "unit-tested" in s["note"] and "26 October" not in s["note"]

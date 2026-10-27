@@ -17,14 +17,16 @@ keeps the truth about it:
 
 The parsers are pure: the server fetches and passes the bodies; the tests pass recorded ones. `workspace_edges()` and
 the three `rest_*` readers at the end fetch them with a Fabric token; the server's lineage and plan_drift and the
-nightly drift monitor notebook (monitor.py) use them, so the logic lives here once. Unit-tested, not yet run against a
-live workspace.
+nightly drift monitor notebook (monitor.py) use them, so the logic lives here once. How far the lineage tool has run
+against a live workspace is in tool_status.py, and its answer's note says so.
 """
 from __future__ import annotations
 
 import json
 import re
 import time
+
+from .tool_status import answer_note
 
 VIEW_USAGE_SQL = "SELECT VIEW_SCHEMA, VIEW_NAME, TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE"
 VIEW_USAGE_SQL_SYS = ("SELECT s.name AS VIEW_SCHEMA, v.name AS VIEW_NAME, d.referenced_schema_name AS TABLE_SCHEMA, "
@@ -154,7 +156,7 @@ def graph(source: dict, schema: str, tables: list[str], edges: list[dict], skipp
             "nodes": nodes, "edges": [{"from": f"table:{e['table']}", "to": f"{e['kind']}:{e['object']}", "via": e["via"], "certain": e["certain"]} for e in edges],
             "used_by": used_by, "unused_tables": unused, "skipped": skipped or [], "summary": summary,
             "note": ("Edges come from each object's own definition (GraphQL API, semantic model, view) or, for a data agent, from its "
-                     "definition text; `certain: false` marks a match by name only. Unit-tested, not yet run against a live workspace.")}
+                     "definition text; `certain: false` marks a match by name only. Unit-tested. " + answer_note("lineage"))}
 
 
 def impact(lineage: dict, table: str) -> dict:

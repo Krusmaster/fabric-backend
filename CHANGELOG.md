@@ -5,6 +5,19 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n15, the live test of 27 October 2026 (Claude through the hosted build `src-df29c45febaec4b0`, main 5adace8,
+  against demo / demo_lh / shop; 30 tools read-only, as drafts or as dry runs, no creating call). Status words from
+  `tool_status.py`: the tools that ran are **Tested end to end**, the drafts **Tested end to end (a draft; creates
+  nothing)**, `create_views`, `create_semantic_model` and `create_data_agent` *tested end to end as a dry run* with
+  creating as before; `create_backend` stays Experimental. The notes in the tools' answers now come from
+  `tool_status.answer_note()`, so they follow the status instead of saying "not yet run against a live workspace";
+  the docs' test status, `llms.txt`, the use cases, the home page's test line and the server's instructions render
+  from the same fields. Fixes for what the run found, each reproduced in a test first: `lineage` reads a definition
+  once more when Fabric's first answer could change and keeps Fabric's message in a skipped item (`error`, `reason`,
+  `hint`); `create_data_agent`'s instructions and examples follow the privacy rules (the key in place of
+  `customers.name`; `show_personal_data`); `data_dictionary` with `tables` takes roles and subject areas from the whole
+  plan; the drift monitor's notebook installs the tag of the server's version (`v0.6.0`) by default, `main` only when
+  asked (the tag is made with each release, docs/PUBLISHING.md).
 - Round n13, the Databricks adapter (Draft only: unit-tested with Databricks mocked at its REST API, not yet run against
   a workspace; local stdio server only, `KRUSGRAPH_PLATFORM=databricks`; docs/DATABRICKS.md). Reads a Unity Catalog
   schema through `information_schema`: informational PRIMARY KEY / FOREIGN KEY constraints become K0 / R0 as on a Fabric

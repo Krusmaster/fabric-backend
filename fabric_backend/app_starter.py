@@ -12,6 +12,8 @@ delegated scope https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All 
 """
 from __future__ import annotations
 
+from .tool_status import answer_note
+
 FUNCTION_NAME = "fabric-graphql"
 SECRETS = ("ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "FABRIC_GRAPHQL_ENDPOINT")
 DELEGATED_SCOPE = "https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All"
@@ -209,5 +211,4 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
         "app_readiness lists what is still missing on the API side",
     ]
     return {"lovable_prompt": prompt, "connection": connection, "queries": qs, "checklist": checklist, "backend": back,
-            "note": "Generated from the API's definition; unit-tested and run against a live API for GraphQL item on 26 October 2026 "
-                    "(the backend part added after that run is unit-tested only)."}
+            "note": "Generated from the API's definition; unit-tested. " + answer_note("app_starter")}

@@ -13,7 +13,7 @@ import html
 import re
 from functools import lru_cache
 
-from .tool_status import task_status
+from .tool_status import phrase, task_status
 
 FOOTNOTE = "The schemas are illustrative examples, not customer projects."
 
@@ -476,13 +476,14 @@ TASKS = [
      "example": ("professional-services", "consultant hours that are not invoiced yet")},
 ]
 
-OUTPUTS = [   # (what, for what, status in the docs' words; "planned" draws the chip dashed)
+OUTPUTS = [   # (what, for what, status in the docs' words, from tool_status; "planned" draws the chip dashed)
     ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude",
-     "creating it: experimental; querying an existing one: tested end to end"),
-    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", "tested end to end as a dry run; creating them: experimental"),
-    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", "draft only"),
-    ("Semantic model", "a Power BI model in TMDL from the same keys", "draft; the item when enabled by the operator"),
-    ("Data agent", "a Fabric data agent with the plan as instructions", "when enabled by the operator"),
+     f"creating it: {phrase('create_backend')}; querying an existing one: {phrase('query_graphql')}"),
+    ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", phrase("create_views")),
+    ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", phrase("ontology_draft")),
+    ("Semantic model", "a Power BI model in TMDL from the same keys",
+     f"the draft: {phrase('semantic_model_draft')}; the item: {phrase('create_semantic_model')}"),
+    ("Data agent", "a Fabric data agent with the plan as instructions", phrase("create_data_agent")),
 ]
 
 

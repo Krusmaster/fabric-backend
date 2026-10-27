@@ -478,7 +478,8 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "Cold start" in docs and "min_replicas" in docs and "26 October 2026" in docs
     assert "never a cold start" not in docs and "well under a second" not in docs
     home = client.get("/").text
-    assert "Check the plan against the data" in home and "Tested end to end on 26 October 2026" in home
+    from fabric_backend import tool_status as ts
+    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in home and "nothing was created" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
     assert "Thirty-five tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
@@ -526,17 +527,23 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
         assert status.startswith(STATUS_WORDS), (tool, status)
     for tool in ("create_semantic_model", "create_data_agent", "create_ontology", "create_silver_notebook", "create_drift_monitor"):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
-    for tool in ("lineage", "app_readiness"):
-        assert tools[tool].startswith("Experimental"), tool
-    assert "## Test status" in md and "26 October 2026" in md and "in 14 steps without any creating call" in md
+    assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
+    assert "without\n  any creating call" in md
+    assert "The first such run was on 26 October 2026 (14 steps)" in md
     assert "22 tools" not in md and "for real" not in md
-    for tool in ("create_backend", "list_tables"):
-        assert tools[tool].startswith("Experimental"), tool                              # not among the 14 steps of 26 October
-    assert tools["create_views"].startswith("Tested end to end (dry run)") and tools["ontology_draft"] == "Draft only"
+    assert tools["create_backend"].startswith("Experimental")                             # not run on 27 October either
+    assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
+    for tool in ("create_semantic_model", "create_data_agent"):
+        assert tools[tool] == "Available when enabled by the operator; tested end to end as a dry run", tool
+    for tool in ("ontology_draft", "semantic_model_draft", "data_dictionary", "dbt_schema", "app_starter", "answer_query_draft",
+                 "rayfin_connector", "export_item_definitions"):
+        assert tools[tool] == "Tested end to end (a draft; creates nothing)", tool
     tested = {t for t, s in tools.items() if s.startswith("Tested end to end")}
-    assert tested == {"list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
-                      "analyze_schema", "join_path", "describe_backend", "query_graphql", "data_dictionary", "dbt_schema",
-                      "create_views", "plan_drift", "app_starter"} | ({"semantic_model_draft"} & tested)
+    assert tested == {"list_workspaces", "list_sources", "list_tables", "sample_rows", "plan_backend", "validate_plan",
+                      "suggest_relationships", "analyze_schema", "join_path", "describe_backend", "query_graphql",
+                      "answer_query_draft", "app_readiness", "app_starter", "plan_drift", "lineage", "review_plan", "dbt_schema",
+                      "data_dictionary", "semantic_model_draft", "ontology_draft", "rayfin_connector", "silver_notebook_draft",
+                      "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_views"}   # the run of 27 October
     assert "`create_backend` does not run it for you" in md                               # validation is a step you ask for
 
 
@@ -619,7 +626,7 @@ _CREATE_CLAIMS = [
     # "tested end to end" said of the GraphQL API or the SQL views as things created, without "dry run" or "querying"
     re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|\n\n|\|)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
     # create_backend or create_views with the status word and no dry run
-    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*\(dry run\))"),
+    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run))"),
     # create_backend said to have created something, or to have run live
     re.compile(r"\bcreate_backend`?\s+(?:created|ran live|was run live)\b|\bLive on 25 October; `create_backend", re.I),
     # create_views said to have created its schema or a view for real
@@ -646,6 +653,7 @@ def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client)
                 "| `create_views` | Tested end to end (a schema and one wide view created for real); the header views are unit-tested |"):
         assert _create_claims(old), old
     for ok in ("| `create_views` | Tested end to end (dry run); creating and the header views are unit-tested |",
+               "| `create_views` | Tested end to end as a dry run; creating them: Experimental |",
                "- **GraphQL API**: an API for GraphQL item (creating it: experimental; querying an existing one: tested end to end)",
                "- **SQL views**: wide T-SQL views (tested end to end as a dry run; creating them: experimental)"):
         assert not _create_claims(ok), ok
@@ -753,9 +761,43 @@ def test_one_status_source_covers_exactly_the_hosted_tools(client):
         assert s.available in (ts.HOSTED, ts.OPERATOR) and s.kind in (ts.READS, ts.DRAFT, ts.CREATES) and s.changes and s.tested
         assert f"| `{name}` | {ts.label(name)} | {s.changes} | " in md, name
         if s.kind == ts.CREATES and s.live:
-            assert s.dry_run_only and "(dry run)" in ts.label(name), name
+            assert s.dry_run_only and "tested end to end as a dry run" in ts.label(name).lower(), name
         if s.kind != ts.CREATES:
             assert s.changes.startswith("nothing"), name
     assert set(ts.LIVE_RUN) <= hosted and len(set(ts.LIVE_RUN)) == len(ts.LIVE_RUN)
     llms = client.get("/llms.txt").text
     assert all(f"`{t}`" in llms for t in ts.LIVE_RUN) and f"{len(ts.LIVE_RUN)} tools were run" in llms
+
+
+def test_the_notes_in_the_tools_answers_follow_tool_status(monkeypatch):
+    """The live test of 27 October 2026: lineage, app_readiness and others still answered "not yet run against a live
+    workspace" after they had run live. Each tool's note about how far it has run now comes from
+    tool_status.answer_note, so it changes with the status. Every hosted tool is called as the golden tests call it."""
+    import sys
+    import requests
+    import golden_support as gs
+    from test_golden import HOSTED_CALLS
+    from fabric_backend import server, tool_status as ts
+    fake = gs.FakeFabric()
+    for verb in ("get", "post", "patch"):
+        monkeypatch.setattr(requests, verb, getattr(fake, verb))
+    monkeypatch.setitem(sys.modules, "pyodbc", gs.fake_pyodbc())
+    monkeypatch.setattr(server.auth, "fabric", lambda ctx: "fabric-token")
+    monkeypatch.setattr(server.auth, "sql", lambda ctx: "sql-token")
+    monkeypatch.setattr(server, "limiter", None)
+    carried = set()
+    for name, kwargs in HOSTED_CALLS:
+        try:
+            out = json.loads(getattr(server, name)(**kwargs))
+        except ValueError:
+            continue
+        note = out.get("note") if isinstance(out, dict) else None
+        if not isinstance(note, str):
+            continue
+        if ts.STATUS[name].live:
+            assert "not yet run against a live" not in note.lower() and "26 october 2026, not yet" not in note.lower(), (name, note)
+        if ts.answer_note(name) in note:
+            carried.add(name)
+    assert {"lineage", "app_readiness", "app_starter", "semantic_model_draft", "compare_semantic_model", "create_semantic_model",
+            "create_views", "create_data_agent", "create_ontology", "silver_notebook_draft", "gold_views_draft",
+            "drift_monitor_draft", "export_item_definitions"} <= carried, sorted(carried)

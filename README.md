@@ -89,14 +89,14 @@ Streamable HTTP at `/mcp`, thirty-five tools, every one with a `title` and a `re
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
 `rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. Five more read-only tools turn the
-same plan into the week's deliverables, all unit-tested and run against the demo workspace (synthetic shop data) on 26 October 2026:
+same plan into the week's deliverables, all unit-tested and run against the demo workspace (synthetic shop data) on 26 and 27 October 2026:
 
 - `semantic_model_draft` — a Power BI semantic model in TMDL: Direct Lake tables on the SQL analytics endpoint,
   relationships with one active path per table pair, suggested measures with their reasons (the row count of each fact
   table, sums only where `summarizeBy` sums; never an id, code or year) and, when fact tables have date columns, a
   calendar marked as the date table; a `README.generated.md` with the decisions to check
   (`fabric_backend/semantic_model.py` cites the Microsoft sample definitions it follows). The measures and the calendar
-  were added after 26 October and are unit-tested only.
+  were added after 26 October and came back from the live run of 27 October (`summarizeBy: none` on `ship_to_id`).
 - `join_path` — the shortest chain of relationships between two tables, rule per hop, ready T-SQL; or which
   relationship is missing.
 - `data_dictionary` — hand-over documentation in Markdown with an empty Description column; `validate=true` adds counts.
@@ -105,28 +105,29 @@ same plan into the week's deliverables, all unit-tested and run against the demo
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked. On 26 October 2026 `create_views` ran as a dry run against the demo lakehouse; creating with it, and the other two, are unit-tested only. The delegated permissions they need, against what the app has today, and
+mocked. On 27 October 2026 all three ran as dry runs against the demo lakehouse; creating with any of them is unit-tested only. The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
   `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (not granted today).
 - `create_views` — `CREATE OR ALTER VIEW` in a schema of its own (`krusgraph`) on the SQL analytics endpoint or
   warehouse: a wide view per fact table, one per header table (`vw_orders`: each order with its customer and, once
-  `orders.ship_to_id` is confirmed, its ship-to address; unit-tested, not yet created live) and one per hard-to-read
+  `orders.ship_to_id` is confirmed, its ship-to address; in the dry run of 27 October, not yet created live) and one per hard-to-read
   relationship; needs no new scope, only the SQL right to create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
   backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
   app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
-  per-user alternative (Supabase Auth with Entra, the user's own token forwarded). The backend part is unit-tested.
+  per-user alternative (Supabase Auth with Entra, the user's own token forwarded). Drafted live on 27 October; the
+  edge function itself has not been deployed.
 - `app_readiness` (read-only) — what an app still needs on an existing API: keyless types, unlinked types, write access
   from the definition, introspection from one probe query, and "unknown" with the click path for what Fabric's API
-  cannot read (permissions, the tenant setting). Unit-tested. The whole Lovable chain, step by step with owners and
+  cannot read (permissions, the tenant setting). Unit-tested and run live on 27 October. The whole Lovable chain, step by step with owners and
   blockers, is in [docs/LOVABLE-END-TO-END.md](docs/LOVABLE-END-TO-END.md).
 
 From understanding to building ([docs/NOTEBOOKS.md](docs/NOTEBOOKS.md); unit-tested, the generated notebooks also ran
-on a local PySpark, none of it yet in Fabric):
+on a local PySpark; the drafts and `answer_query_draft` ran live on 27 October, no notebook has run in Fabric yet):
 
 - `silver_notebook_draft` / `create_silver_notebook` — a PySpark notebook for a lakehouse that writes silver tables in a
   schema of their own: de-duplicated on each key (latest row by `order_by` wins), every reference checked with the rows
@@ -144,7 +145,8 @@ on a local PySpark, none of it yet in Fabric):
   SQL ran on SQLite and a local PySpark 4.0.1 (open-source Spark has no materialized lake views, so the CREATE itself is
   checked against the documented syntax); not yet in Fabric.
 
-Existing models, Git and personal data (round n12, unit-tested, not yet run live):
+Existing models, Git and personal data (round n12, unit-tested; on 27 October `export_item_definitions` ran live as a
+draft and `compare_semantic_model` only as far as the model lookup, the demo workspace having no model):
 
 - `compare_semantic_model` (read-only) — an existing Power BI semantic model against the plan: relationships the model
   lacks, ones a rule or the data contradicts, other cardinality, both-way filters, active against inactive, links the
@@ -166,7 +168,7 @@ works out how the tables relate and builds from that plan: https://krusgraph.com
 Krusgraph is not affiliated with Microsoft.
 
 Two read-only tools look at the plan as a graph (`fabric_backend/graphs.py`, pure Python, deterministic; unit-tested and
-run against the demo workspace (synthetic shop data) on 26 October 2026):
+run against the demo workspace (synthetic shop data) on 26 and 27 October 2026):
 
 - `analyze_schema` — table roles (fact, dimension, bridge, isolated) with the numbers behind them, the ten most central
   tables (degree, betweenness, PageRank), subject areas, cycles and table pairs with more than one path, and which
@@ -177,7 +179,7 @@ run against the demo workspace (synthetic shop data) on 26 October 2026):
   models (their TMDL), views on the SQL endpoint (`INFORMATION_SCHEMA.VIEW_TABLE_USAGE`), data agents (named in their
   definition, marked as not certain); the objects per table, the tables used by nothing, and with `table` what a change
   reaches. `plan_drift` names the same objects for the tables and columns a re-run would drop (`impact`). Unit-tested
-  with Fabric mocked, not yet run against a live workspace. A plan covers one schema of one source item; tables a
+  with Fabric mocked and run live on 27 October (where it skipped `shop_api`, fixed since and unit-tested). A plan covers one schema of one source item; tables a
   lakehouse holds as shortcuts are part of it. A graph over several sources is a design note only:
   [docs/MULTI-SOURCE.md](docs/MULTI-SOURCE.md).
 
@@ -366,14 +368,15 @@ either, open an issue.
 ## Status
 
 Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
-(Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned):
-https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 26 October run below and covers only the
-tools that ran in it; `create_backend` is marked Experimental, because it is not among them. `docs/LIVE-TEST.md` is the
-checklist for the next run.
+(Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned), all rendered from
+`fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 27 October
+run below and covers only the tools that ran in it, a draft as "(a draft; creates nothing)" and a dry run as "tested
+end to end as a dry run"; `create_backend` is marked Experimental, because it is not among them. `docs/LIVE-TEST.md`
+is the checklist for the next run.
 
 **25 October 2026, evening: the hosted connector's first connection.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
-data from `fabric_backend/seed.py`). What counts as tested end to end is the protocol of 26 October below.
+data from `fabric_backend/seed.py`). What counts as tested end to end is the protocol of 27 October below.
 `create_backend` has not been run live: it is Experimental. The API `shop_api` is in the workspace, and querying it
 with `describe_backend` and `query_graphql` is tested end to end. Work since that evening (the ontology draft,
 Snowflake database items, mirrored catalogs) is covered by the test suite with Fabric mocked and has not had a live
@@ -390,7 +393,27 @@ the SQL of one wide view, nothing created), `plan_drift` (on `shop_api`: the `sh
 API carries and the plan does not infer, with the `confirmed` entry to keep it) and `app_starter`. Not run that day:
 `list_tables` as a tool of its own, `create_backend`, `create_semantic_model`, `create_data_agent`, `ontology_draft`,
 `create_ontology`, `rayfin_connector`, the tools added since, and the local stdio server against a real ODBC
-connection. Three things that run found are fixed since and unit-tested only (the rows in `docs/LIVE-TEST.md`).
+connection. Three things that run found were fixed the same day; all three passed in the run of 27 October.
+
+**27 October 2026: 30 tools against the same workspace, no creating call.** From Claude on the maintainer's laptop
+through the hosted connector (build `src-df29c45febaec4b0`, main 5adace8), read-only, as drafts or as dry runs.
+Passed, reading: `list_workspaces`, `list_sources`, `list_tables`, `sample_rows` (`customers.name` masked by rule P1),
+`plan_backend` (7 tables, 6 keys, 6 relationships), `validate_plan` (6 of 6 keys, 6 of 6 relationships without
+orphans), `suggest_relationships` (`orders.ship_to_id → addresses` first already before the data check, 3.94 against
+1.5 or less; inclusion 1.0), `analyze_schema`, `join_path`, `describe_backend`, `query_graphql` (a query and a
+question in Swedish; the counts add up to 60), `answer_query_draft`, `app_readiness`, `app_starter`, `plan_drift`,
+`lineage`, `review_plan` (with `validate=true` and one decision) and `compare_semantic_model` (only as far as
+`not_found`: there is no model in the workspace). Passed as drafts: `dbt_schema`, `data_dictionary`,
+`semantic_model_draft` (measures, `Calendar`, `summarizeBy: none` on `ship_to_id`), `ontology_draft`,
+`rayfin_connector`, `silver_notebook_draft`, `gold_views_draft`, `drift_monitor_draft` and `export_item_definitions`.
+Passed as dry runs: `create_views` (`vw_order_items`, `vw_orders`, `vw_orders_address`), `create_semantic_model` and
+`create_data_agent`. Not run: `create_backend`, and no creating tool without its dry run. Four things the run found
+are fixed since and unit-tested only (the rows in `docs/LIVE-TEST.md`): `lineage` skipped `shop_api` (it now reads a
+definition once more and keeps Fabric's message), `create_data_agent`'s examples grouped on `customers.name` (the
+privacy rules now apply), `data_dictionary` with `tables` called `orders` isolated (roles now come from the whole
+plan), and `drift_monitor_draft` installed the library from `main` (now the server's version tag). The demo lakehouse
+also holds the view `krusgraph.vw_order_items`, so `create_views` has created a view at some point, but no protocol of
+that run exists: creating with it stays Experimental.
 
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and

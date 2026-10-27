@@ -7,6 +7,8 @@ check says "unknown" and names the portal path, instead of guessing.
 """
 from __future__ import annotations
 
+from .tool_status import answer_note
+
 INTROSPECTION_QUERY = "{ __schema { queryType { name } } }"
 
 
@@ -65,4 +67,4 @@ def assess(description: dict, probe: dict, endpoint: str, api: str) -> dict:
     verdict = (f"{len(ok)} check(s) pass; " + (f"{len(missing)} need a step ({', '.join(missing)}); " if missing else "")
                + f"{len(unknown)} cannot be read through the API ({', '.join(unknown)}): confirm in the portal")
     return {"api": api, "endpoint": endpoint, "checks": checks, "missing": missing, "unknown": unknown, "verdict": verdict,
-            "note": "Computed from the API's definition and one introspection query; unit-tested, not yet run against a live workspace."}
+            "note": "Computed from the API's definition and one introspection query; unit-tested. " + answer_note("app_readiness")}
