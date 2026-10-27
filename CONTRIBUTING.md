@@ -38,7 +38,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | session n15 (fixes from the 27 October live test, status words from tool_status.py) |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n15 (fixes from the 27 October live test, status words from tool_status.py) |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | session n15 (fixes from the 27 October live test, status words from tool_status.py) |
-| Deployment | `deploy/`, `Dockerfile` | session n14 (deploy --from-azure: the configuration read from the running app; CI caches in `.github/workflows/`) |
+| Deployment | `deploy/`, `Dockerfile` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | session n15 (fixes from the 27 October live test, status words from tool_status.py) |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
