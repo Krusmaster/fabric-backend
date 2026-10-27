@@ -5,7 +5,7 @@ Microsoft Fabric connector. The API in your workspace is what connects the two w
 
 | Step | Where | Done by |
 | --- | --- | --- |
-| 1. Prepare the API | Claude, with {{PRODUCT}} | {{PRODUCT}}, when you ask. Creating the API is **experimental**: it has not been run against a live workspace yet ([test status](/docs#test-status)) |
+| 1. Prepare the API | Claude, with {{PRODUCT}} | {{PRODUCT}}, when you ask. {{CREATE_API_STATUS}} ([test status](/docs#test-status)) |
 | 2. Finish the Fabric settings | the Fabric portal | you or a workspace admin, by hand: introspection and the app's permission |
 | 3. Connect | Lovable | you, by hand, in Lovable's Microsoft Fabric connector |
 
@@ -18,7 +18,7 @@ Lovable.
    for a plan first, for example *"Plan a backend over the shop lakehouse"*. A plan creates nothing. Review the keys
    and relationships and the rule behind each, and ask Claude to check the plan against the data. Then say *"Create
    it as shop_api"*. {{PRODUCT}} creates one API for GraphQL item with nested relationships, or updates it if the
-   name exists. Creating is experimental; reading and querying an existing API are tested end to end.
+   name exists. {{CREATE_API_STATUS}}; reading and querying an existing API are tested end to end.
 2. **Turn on introspection in Fabric (manual).** Fabric creates the item with introspection off, and Lovable's connection test
    needs it. A workspace admin turns it on in the item's API settings. Fabric has no API for this yet, so
    {{PRODUCT}} cannot do it for you.

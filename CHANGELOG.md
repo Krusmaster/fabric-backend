@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Finding 7 of the live test of 27 October 2026, after a live `create_backend` the maintainer approved: an update of
+  `shop_api` with the ship-to relationship confirmed stopped with `would_remove`, because the plan named the reverse
+  field `orders_as_ship_to` where the API has `orders`, and `keep_with_confirmed` was empty. `create_backend` and
+  `plan_drift` now keep an existing API's field names for the same relationship (the same columns in the same
+  direction) unless `confirmed` names them otherwise (`names_kept_from_api` says which), and every `keep_with_confirmed`
+  entry carries `field_name` and `reverse_name`. `/docs` and the README document both names in `confirmed`.
+  `create_backend` is **Tested end to end (27 October 2026: update in place of shop_api with confirmed)**; creating a
+  new API has not run live, and the pages that offer it say both (`tool_status.create_api_status()`).
 - Round n15, the live test of 27 October 2026 (Claude through the hosted build `src-df29c45febaec4b0`, main 5adace8,
   against demo / demo_lh / shop; 30 tools read-only, as drafts or as dry runs, no creating call). Status words from
   `tool_status.py`: the tools that ran are **Tested end to end**, the drafts **Tested end to end (a draft; creates

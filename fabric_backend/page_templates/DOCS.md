@@ -78,7 +78,7 @@ A plan is a proposal, so read it before anything is built.
 
 1. **Review the plan.** Each key and relationship carries the rule that made it; ambiguous columns and tables without a key are listed. Correct a key with `keys` and add a relationship the rules did not make with `confirmed`.
 2. **Check it against the data.** `validate_plan` counts duplicate and NULL key values and references with no matching row. `create_backend` does not run it for you, so ask for it. A check that passes shows the data agrees with the plan today; it does not show that the plan means the right thing.
-3. **Create the API.** `create_backend` creates the API for GraphQL item, or updates the one with that name. It has no dry run: run `plan_drift` first to see what an update would change. If an update would remove relationships the existing API has, nothing is written and the answer lists them with the `confirmed` entries that keep them; `allow_removals=true` drops them on purpose.
+3. **Create the API.** `create_backend` creates the API for GraphQL item, or updates the one with that name. It has no dry run: run `plan_drift` first to see what an update would change. An update keeps the field names the existing API has for the same relationships. If it would still remove relationships the API has, nothing is written and the answer lists them with the `confirmed` entries that keep them (both field names included); `allow_removals=true` drops them on purpose.
 4. **Query it.** `describe_backend` gives the field names; `query_graphql` runs read-only queries and refuses mutations. Two portal steps stay manual (see below).
 5. **Keep the review.** `review_plan` writes the plan, your decisions with their reasons and the check results as one
    file for your own repository. Pass it back later as `previous`: the corrections apply again and what changed since
@@ -269,8 +269,8 @@ that ran live is listed as tested, and its *What it changes* column says it crea
 
 - **Tested end to end** — run from Claude as a custom connector, through Microsoft sign-in, against a Fabric workspace
   with synthetic data (an F2 capacity, the lakehouse `demo_lh` with the shop schema from `fabric_backend/seed.py`) on
-  {{LIVE_RUN_DATE}}, through the hosted server's build {{LIVE_RUN_BUILD}}, read-only, as drafts or as dry runs, without
-  any creating call: {{LIVE_RUN_LIST}}. A draft that ran so is marked *(a draft; creates nothing)*, a creating tool
+  {{LIVE_RUN_DATE}}, through the hosted server's build {{LIVE_RUN_BUILD}}, read-only, as drafts or as dry runs, and
+  then, with the maintainer's approval, one creating call that updated an existing API in place: {{LIVE_RUN_LIST}}. A draft that ran so is marked *(a draft; creates nothing)*, a creating tool
   whose dry run ran *tested end to end as a dry run*; creating keeps its own status. Not run that day, not even as a
   dry run: {{NOT_RUN_LIST}}. The first such run was on {{FIRST_RUN_DATE}} ({{FIRST_RUN_STEPS}} steps). Changes made
   after the run are covered by unit tests.
@@ -286,7 +286,11 @@ that ran live is listed as tested, and its *What it changes* column says it crea
 All tools take the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key
 (`{"order_items": ["order_id", "line_no"]}`), `confirmed` adds relationships the rules did not make
 (`[{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]`),
-`tables` limits what is built.
+`tables` limits what is built. A `confirmed` entry can also name the relationship's two GraphQL fields: `field_name`
+on the source (`"address"`: `orders.address`) and `reverse_name` on the target (`"orders"`: `addresses.orders`); without
+them the rules name the fields (`ship_to` and `orders_as_ship_to` here). When an API of that name exists, `create_backend`
+and `plan_drift` keep the field names it already has for the same relationship (the same columns in the same direction)
+unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries carry both names.
 
 | Tool | Status | What it changes | Does | Arguments |
 | --- | --- | --- | --- | --- |
@@ -296,7 +300,7 @@ All tools take the workspace by id or display name. `schema` defaults to `dbo`; 
 | `plan_backend` | {{status}} | {{changes}} | inferred keys and relationships, each with its rule, ambiguous columns, keyless tables, suggested composite keys, the names read through the synonym table (`synonyms`), a Mermaid ER diagram; `tables` narrows the answer to names or patterns while the plan is still made from the whole schema, `detail` is `auto` (full up to 60 tables, then one line per key and relationship without field names or diagram), `full` or `summary`, `mermaid=false` leaves the diagram out; every answer stays under 60 000 characters and says when it was cut | `workspace`, `source`, `schema`, `keys`, `confirmed`, `tables`, `detail` |
 | `validate_plan` | {{status}} | {{changes}} | checks the plan against the rows: is each key unique and free of NULLs, does every reference find its target (orphan count); one small counting query per key and relationship; returns counts and a verdict, no row values | `workspace`, `source`, `schema`, `keys`, `confirmed`, `max_items` |
 | `sample_rows` | {{status}} | {{changes}} | the first n rows (at most 20) of one table, long text shortened, to check what a column means; columns that look like personal data come back as `***` with the rule, and the source's sensitivity label is named | `workspace`, `source`, `table`, `schema`, `n`, `show_personal_data` |
-| `create_backend` | {{status}} | {{changes}} | creates the API for GraphQL item with nested relationships, or updates the item of that name in place; refuses an update that would drop relationships the API has unless `allow_removals=true`; returns the endpoint and the two portal steps; no dry run, and it does not run `validate_plan` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables`, `allow_removals` |
+| `create_backend` | {{status}} | {{changes}} | creates the API for GraphQL item with nested relationships, or updates the item of that name in place, keeping the field names it has for the same relationships; refuses an update that would drop relationships the API has unless `allow_removals=true`, and names the `confirmed` entries (with `field_name` and `reverse_name`) that keep them; returns the endpoint and the two portal steps; no dry run, and it does not run `validate_plan` | `workspace`, `source`, `name`, `schema`, `writable`, `keys`, `confirmed`, `tables`, `allow_removals` |
 | `describe_backend` | {{status}} | {{changes}} | types, fields and relationships of an existing API for GraphQL item, in the names a query uses, read from its definition (no introspection needed) | `workspace`, `api` |
 | `query_graphql` | {{status}} | {{changes}} | runs a read-only GraphQL query against an API (name or id); mutations are refused; with `question`, `tables` and `source` instead of `query` it builds the query `answer_query_draft` suggests, runs it, and shows it beside the result | `workspace`, `api`, `query`, `variables`, `question`, `tables`, `source`, `schema` |
 | `rayfin_connector` | {{status}} | {{changes}} | Rayfin (Fabric Apps) connector entity classes and `schema.ts` | `workspace`, `source`, `connector`, `schema`, `keys`, `confirmed`, `tables`, `relationships` |

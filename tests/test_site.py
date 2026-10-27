@@ -479,7 +479,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "never a cold start" not in docs and "well under a second" not in docs
     home = client.get("/").text
     from fabric_backend import tool_status as ts
-    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in home and "nothing was created" in home
+    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in home and "no new item was created" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
     assert "Thirty-five tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
@@ -528,10 +528,10 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     for tool in ("create_semantic_model", "create_data_agent", "create_ontology", "create_silver_notebook", "create_drift_monitor"):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
     assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
-    assert "without\n  any creating call" in md
+    assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md
     assert "22 tools" not in md and "for real" not in md
-    assert tools["create_backend"].startswith("Experimental")                             # not run on 27 October either
+    assert tools["create_backend"] == "Tested end to end (27 October 2026: update in place of shop_api with confirmed)"
     assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
     for tool in ("create_semantic_model", "create_data_agent"):
         assert tools[tool] == "Available when enabled by the operator; tested end to end as a dry run", tool
@@ -543,7 +543,8 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
                       "suggest_relationships", "analyze_schema", "join_path", "describe_backend", "query_graphql",
                       "answer_query_draft", "app_readiness", "app_starter", "plan_drift", "lineage", "review_plan", "dbt_schema",
                       "data_dictionary", "semantic_model_draft", "ontology_draft", "rayfin_connector", "silver_notebook_draft",
-                      "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_views"}   # the run of 27 October
+                      "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_views",
+                      "create_backend"}   # the run of 27 October, create_backend as an update in place
     assert "`create_backend` does not run it for you" in md                               # validation is a step you ask for
 
 
@@ -624,9 +625,9 @@ def test_privacy_and_docs_say_exactly_what_is_read_about_personal_data_and_label
 
 _CREATE_CLAIMS = [
     # "tested end to end" said of the GraphQL API or the SQL views as things created, without "dry run" or "querying"
-    re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|\n\n|\|)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
+    re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|in place|\n\n|\|)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
     # create_backend or create_views with the status word and no dry run
-    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run))"),
+    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run|\(27 October 2026: update in place))"),
     # create_backend said to have created something, or to have run live
     re.compile(r"\bcreate_backend`?\s+(?:created|ran live|was run live)\b|\bLive on 25 October; `create_backend", re.I),
     # create_views said to have created its schema or a view for real
@@ -639,8 +640,9 @@ def _create_claims(text: str) -> list[str]:
 
 
 def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client):
-    """Decisions 1 and 11 of 26 October 2026: create_backend has not been run live (Experimental; querying an existing API
-    with describe_backend and query_graphql is tested end to end), and create_views ran as a dry run only."""
+    """Decisions 1 and 11 of 26 October 2026: create_backend had not been run live, and create_views ran as a dry run
+    only. Since 27 October create_backend's update in place of shop_api is tested end to end; creating a new API is not,
+    and is never called so."""
     import pathlib
     from fabric_backend import server, use_cases
     from fabric_backend.discovery import PUBLIC_PAGES
@@ -666,7 +668,7 @@ def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client)
     found = {p: _create_claims(t) for p, t in texts.items() if _create_claims(t)}
     assert not found, found
     status = {name: tag for name, _what, tag in use_cases.OUTPUTS}
-    assert status["GraphQL API"].startswith("creating it: experimental") and "querying an existing one: tested end to end" in status["GraphQL API"]
+    assert status["GraphQL API"].startswith("creating a new API is experimental") and "querying an existing one: tested end to end" in status["GraphQL API"]
     assert status["SQL views"].startswith("tested end to end as a dry run")
 
 
@@ -760,8 +762,9 @@ def test_one_status_source_covers_exactly_the_hosted_tools(client):
     for name, s in ts.STATUS.items():
         assert s.available in (ts.HOSTED, ts.OPERATOR) and s.kind in (ts.READS, ts.DRAFT, ts.CREATES) and s.changes and s.tested
         assert f"| `{name}` | {ts.label(name)} | {s.changes} | " in md, name
-        if s.kind == ts.CREATES and s.live:
-            assert s.dry_run_only and "tested end to end as a dry run" in ts.label(name).lower(), name
+        if s.kind == ts.CREATES and s.live:                                       # a dry run, or what the one live call did
+            assert (s.dry_run_only and "tested end to end as a dry run" in ts.label(name).lower()
+                    or name in ts.LIVE_RUN_PARTLY and "update in place" in ts.label(name)), name
         if s.kind != ts.CREATES:
             assert s.changes.startswith("nothing"), name
     assert set(ts.LIVE_RUN) <= hosted and len(set(ts.LIVE_RUN)) == len(ts.LIVE_RUN)

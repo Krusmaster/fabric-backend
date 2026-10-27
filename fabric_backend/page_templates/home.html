@@ -39,7 +39,7 @@
   <ol class="steps">
     <li><span class="step-n coral">1</span><h3>Explore your tables</h3><p>Choose a lakehouse in Claude. {{PRODUCT}} reads the schema and suggests keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
     <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span></li>
-    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">Experimental</span> API creation is experimental. <a href="/docs#test-status">See current test status</a>.</p></li>
+    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">Experimental</span> {{CREATE_API_STATUS}}. <a href="/docs#test-status">See current test status</a>.</p></li>
   </ol>
   <p class="muted tiny" style="margin:14px 6px 0">Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
 </section>
@@ -48,7 +48,7 @@
   <h2 id="build-on-h">Build on the relationships you’ve reviewed.</h2>
   <ul class="build-rows">
     <li><h3>Document the schema</h3><p>A data dictionary in Markdown or dbt tests from the plan, with the checks you ran. <a href="/docs#what-you-can-ask">What you can ask</a>.</p></li>
-    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. Creating the API is experimental. <a href="/lovable">Use it with Lovable</a>.</p></li>
+    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. {{CREATE_API_STATUS}}. <a href="/lovable">Use it with Lovable</a>.</p></li>
     <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. Drafts only: creating the items needs a permission the operator enables. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
   </ul>
 </section>

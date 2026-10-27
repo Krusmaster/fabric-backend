@@ -251,7 +251,11 @@ A column that could point at two tables (`user_id` with both `users` and `user` 
 reported under `plan.ambiguous` and not applied. A column no rule matches (`ship_to_id` in the demo schema) is
 simply left unlinked; `confirmed=[...]` is how you add it. Two columns pointing at the same table get fields
 named by column (`airport_by_origin_airport_id`). Anything the rules miss goes in `confirmed=[...]`
-and is applied first.
+and is applied first. An entry can name the two GraphQL fields too: `field_name` on the source and `reverse_name` on
+the target (`{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"],
+"field_name": "address", "reverse_name": "orders"}` gives `orders.address` and `addresses.orders`); without them the
+rules name the fields. Updating an existing API, `create_backend` keeps the names it already has for the same
+relationship (the same columns in the same direction) unless the entry names them otherwise.
 
 Dry run without deploying:
 
@@ -371,13 +375,14 @@ Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool on
 (Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned), all rendered from
 `fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 27 October
 run below and covers only the tools that ran in it, a draft as "(a draft; creates nothing)" and a dry run as "tested
-end to end as a dry run"; `create_backend` is marked Experimental, because it is not among them. `docs/LIVE-TEST.md`
+end to end as a dry run"; `create_backend` is tested end to end as an update in place of `shop_api`, and creating a
+new API with it has not run live. `docs/LIVE-TEST.md`
 is the checklist for the next run.
 
 **25 October 2026, evening: the hosted connector's first connection.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
 data from `fabric_backend/seed.py`). What counts as tested end to end is the protocol of 27 October below.
-`create_backend` has not been run live: it is Experimental. The API `shop_api` is in the workspace, and querying it
+`create_backend` had not been run live then; on 27 October it updated `shop_api` in place. The API `shop_api` is in the workspace, and querying it
 with `describe_backend` and `query_graphql` is tested end to end. Work since that evening (the ontology draft,
 Snowflake database items, mirrored catalogs) is covered by the test suite with Fabric mocked and has not had a live
 run of its own yet.
@@ -395,7 +400,7 @@ API carries and the plan does not infer, with the `confirmed` entry to keep it) 
 `create_ontology`, `rayfin_connector`, the tools added since, and the local stdio server against a real ODBC
 connection. Three things that run found were fixed the same day; all three passed in the run of 27 October.
 
-**27 October 2026: 30 tools against the same workspace, no creating call.** From Claude on the maintainer's laptop
+**27 October 2026: 30 tools against the same workspace, then one update in place.** From Claude on the maintainer's laptop
 through the hosted connector (build `src-df29c45febaec4b0`, main 5adace8), read-only, as drafts or as dry runs.
 Passed, reading: `list_workspaces`, `list_sources`, `list_tables`, `sample_rows` (`customers.name` masked by rule P1),
 `plan_backend` (7 tables, 6 keys, 6 relationships), `validate_plan` (6 of 6 keys, 6 of 6 relationships without
@@ -407,11 +412,17 @@ question in Swedish; the counts add up to 60), `answer_query_draft`, `app_readin
 `semantic_model_draft` (measures, `Calendar`, `summarizeBy: none` on `ship_to_id`), `ontology_draft`,
 `rayfin_connector`, `silver_notebook_draft`, `gold_views_draft`, `drift_monitor_draft` and `export_item_definitions`.
 Passed as dry runs: `create_views` (`vw_order_items`, `vw_orders`, `vw_orders_address`), `create_semantic_model` and
-`create_data_agent`. Not run: `create_backend`, and no creating tool without its dry run. Four things the run found
+`create_data_agent`. Later that day, with the maintainer's approval, one creating call: `create_backend` updated
+`shop_api` in place with `orders.ship_to_id → addresses.address_id` confirmed (`Succeeded`, `updated`; the API's
+fields unchanged, `addresses.orders` answers). It first stopped with `would_remove`, because the plan named the reverse
+field `orders_as_ship_to` where the API has `orders`; it went through with `reverse_name: "orders"` in `confirmed`. No
+other creating tool ran without its dry run. Five things the run found
 are fixed since and unit-tested only (the rows in `docs/LIVE-TEST.md`): `lineage` skipped `shop_api` (it now reads a
 definition once more and keeps Fabric's message), `create_data_agent`'s examples grouped on `customers.name` (the
 privacy rules now apply), `data_dictionary` with `tables` called `orders` isolated (roles now come from the whole
-plan), and `drift_monitor_draft` installed the library from `main` (now the server's version tag). The demo lakehouse
+plan), `drift_monitor_draft` installed the library from `main` (now the server's version tag), and `create_backend`
+counted a relationship the API has under another field name as removed (it now keeps the API's names, and
+`keep_with_confirmed` carries `field_name` and `reverse_name`). The demo lakehouse
 also holds the view `krusgraph.vw_order_items`, so `create_views` has created a view at some point, but no protocol of
 that run exists: creating with it stays Experimental.
 

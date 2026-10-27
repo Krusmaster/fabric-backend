@@ -5,7 +5,8 @@ For the maintainer, after `bash deploy/krusgraph.sh --update`, against the demo 
 signed in. The workspace id is not written here; the protocol of a run stays outside the repository. Fill in the
 **Result** (✓, or what came instead) and the **Date**; a row is passed when the answer says what **Expected** says.
 "27 Oct" marks the rows that passed on 27 October 2026 (from Claude through the hosted build `src-df29c45febaec4b0`,
-main 5adace8: 30 tools read-only, as drafts or as dry runs, no creating call); "26 Oct" the 14 steps of the day before.
+main 5adace8: 30 tools read-only, as drafts or as dry runs, then one creating call, `create_backend` updating `shop_api`
+in place, with the maintainer's approval); "26 Oct" the 14 steps of the day before.
 The status words follow from this file through `fabric_backend/tool_status.py` (section 5).
 
 ## 0. The service answers
@@ -27,7 +28,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 4 | `plan_backend` | *"Plan a backend over demo_lh, schema shop."* | 7 tables, 6 with keys, 6 relationships (all R1); `audit_log` without a key; `order_items` keyed `order_id + line_no` (K5) | 26, 27 Oct | | |
 | 5 | `sample_rows` | *"Show me five rows of customers in demo_lh, schema shop."* | 5 rows; `name` shows `***` with a `personal_data` notice (rule P1) and the parameter `show_personal_data`; the lakehouse's sensitivity label id if it has one | 26 Oct (before masking), 27 Oct (masked) | | |
 | 6 | `validate_plan` | *"Check the plan against the data."* | 6 of 6 keys unique, 6 of 6 relationships hold without orphans | 26, 27 Oct | | |
-| 7 | `create_backend` | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `mode: updated`, the endpoint; nothing dropped (see section 3) | — | | |
+| 7 | `create_backend` | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `mode: updated`, the endpoint; nothing dropped (see section 3) | 27 Oct (`Succeeded`, `updated`, after `would_remove`; see sections 2 and 3) | | |
 | 8 | `describe_backend` | *"What can I query in shop_api?"* | the types of the seven tables with fields and relationship names | 26, 27 Oct | | |
 | 9 | `query_graphql` | *"Using shop_api, list five orders with their customer."* | 5 orders, each with its customer object; a mutation asked for is refused | 26, 27 Oct | | |
 | 10 | `query_graphql` with `question` | *"Using shop_api, how many orders per customer? Run it."* | the suggested query beside the result, grouped by `customer_id` | 27 Oct (in Swedish; the counts add up to 60) | | |
@@ -62,7 +63,8 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 
 ## 2. Fixed after the 27 October run, unit-tested only
 
-The 27 October run found these; each is fixed and covered by unit tests, and none has run live since. The three
+The 27 October run found these; each is fixed and covered by unit tests, and none has run live since (the
+`create_backend` row: the live update went through with `reverse_name`, the fix is that it is no longer needed). The three
 fixes after the 26 October run (`summarizeBy: none` on `ship_to_id` in 77c9cbc, the ranking of `suggest_relationships`
 in 7791941, the three views of `create_views` in 961f8b6) passed on 27 October.
 
@@ -71,6 +73,7 @@ in 7791941, the three views of `create_views` in 961f8b6) passed on 27 October.
 | `lineage` skipped `shop_api` with `reason: fabric_error` while `describe_backend` read the same definition | 2be055c | *"What builds on the tables in demo_lh, schema shop?"* | `shop_api` on the seven tables; if a read still fails, the skipped entry carries Fabric's `error` and a `hint` (it is read twice first) | | |
 | `create_data_agent`'s examples grouped on `customers.name` (P1) | 470fc98 | *"Draft a data agent over demo_lh, schema shop. Dry run."* | the examples group customers by `customer_id`; `personal_data.left_out` names `customers.name` and `addresses.city` | | |
 | `data_dictionary` with `tables=["orders"]` called `orders` isolated next to two of its relationships | 4b05704 | *"Write the data dictionary for orders in demo_lh, schema shop."* | `orders` a fact table, the subject area with all seven tables, the whole schema's counts and a line saying what is shown | | |
+| `create_backend shop_api` with the ship-to relationship confirmed (`field_name: "address"`) stopped with `would_remove`: the plan named the reverse field `orders_as_ship_to`, the API has `orders`, and `keep_with_confirmed` was empty | 2aeb238 | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `Succeeded`, `updated`, with `names_kept_from_api` naming `addresses.orders`; the API's fields unchanged; `plan_drift` first says no drift | | |
 | `drift_monitor_draft` installed the library from `main` by default | cfee096 | *"Draft a nightly drift monitor for demo_lh, schema shop."* | the `%pip` cell installs `@v<version>`; the tag must exist on GitHub (docs/PUBLISHING.md) | | |
 
 Seen, not changed: `demo_lh` already holds the view `krusgraph.vw_order_items`, so `create_views` has created a view
@@ -79,15 +82,21 @@ is run and written down.
 
 ## 3. Before the next `create_backend shop_api`
 
-`plan_drift` on `shop_api` showed that the API carries `orders.ship_to_id → addresses.address_id` and the plan does not
-infer it. The next `create_backend` with the name `shop_api` must pass it, or the relationship is dropped (the tool then
-stops with `kind: would_remove` and nothing is written):
+`shop_api` carries `orders.ship_to_id → addresses.address_id`, which the plan does not infer, as the fields
+`orders.address` and `addresses.orders`. The next `create_backend` with the name `shop_api` must pass the relationship,
+or it is dropped (the tool then stops with `kind: would_remove`, nothing is written, and `keep_with_confirmed` gives the
+entry with both names). Since the fix of finding 7 the entry needs no field names: an update keeps the names the API
+has for the same relationship, and the answer lists them under `names_kept_from_api`.
 
 ```json
 "confirmed": [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]
 ```
 
 In Claude: *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* (row 7).
+On 27 October, before that fix, the update stopped at `would_remove` until the entry also carried
+`"field_name": "address", "reverse_name": "orders"`; with those it answered `Succeeded`, `updated`. Pass `field_name` or
+`reverse_name` only to rename a field on purpose; a rename removes the field an app queries today, so the update then
+stops at `would_remove` until `allow_removals=true`.
 
 ## 4. Clients
 

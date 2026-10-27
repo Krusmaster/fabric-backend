@@ -13,7 +13,7 @@ import html
 import re
 from functools import lru_cache
 
-from .tool_status import phrase, task_status
+from .tool_status import create_api_status, phrase, task_status
 
 FOOTNOTE = "The schemas are illustrative examples, not customer projects."
 
@@ -478,7 +478,7 @@ TASKS = [
 
 OUTPUTS = [   # (what, for what, status in the docs' words, from tool_status; "planned" draws the chip dashed)
     ("GraphQL API", "an API for GraphQL item in your workspace, for an app or for questions in Claude",
-     f"creating it: {phrase('create_backend')}; querying an existing one: {phrase('query_graphql')}"),
+     f"{create_api_status()[0].lower() + create_api_status()[1:]}; querying an existing one: {phrase('query_graphql')}"),
     ("SQL views", "wide T-SQL views over the plan's joins on the SQL analytics endpoint", phrase("create_views")),
     ("Fabric IQ ontology draft", "entity types, keys and relationships (preview)", phrase("ontology_draft")),
     ("Semantic model", "a Power BI model in TMDL from the same keys",

@@ -49,6 +49,7 @@ and set it back to "open" when you are done.
 When you state that something works, say where and when it was verified: unit tests, a local server, or the live
 service against a Fabric workspace with synthetic data. The hosted connector's first connection (Claude → Entra →
 Fabric) was on 25 October 2026; what counts as tested end to end is the run of 27 October 2026 (30 tools, read-only,
-as drafts or as dry runs, no creating call; the first such run was on 26 October). Each tool's status is in
+as drafts or as dry runs, then one creating call the maintainer approved: create_backend updated shop_api in place; the
+first such run was on 26 October). Each tool's status is in
 `fabric_backend/tool_status.py`, and the site, the docs and the tools' own notes render from it. `docs/LIVE-TEST.md` is
 the checklist for the next run.

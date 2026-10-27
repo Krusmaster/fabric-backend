@@ -18,7 +18,8 @@ READS, DRAFT, CREATES = "reads", "draft", "creates"
 
 # The run that counts as tested end to end: from Claude through the hosted connector and Microsoft sign-in, against
 # the demo workspace (a Fabric workspace with synthetic data: demo / demo_lh / shop), read-only, as drafts or as dry
-# runs, without any creating call (docs, Test status; the checklist is docs/LIVE-TEST.md).
+# runs, and then, with the maintainer's approval, one creating call: create_backend updated shop_api in place (docs,
+# Test status; the checklist is docs/LIVE-TEST.md).
 LIVE_RUN_DATE = "27 October 2026"
 LIVE_RUN_BUILD = "src-df29c45febaec4b0 (main 5adace8)"
 # the tools of that run: read, then drafted, then the dry runs
@@ -27,17 +28,18 @@ LIVE_RUN = ("list_workspaces", "list_sources", "list_tables", "sample_rows", "pl
             "app_readiness", "app_starter", "plan_drift", "lineage", "review_plan", "compare_semantic_model",
             "dbt_schema", "data_dictionary", "semantic_model_draft", "ontology_draft", "rayfin_connector", "silver_notebook_draft",
             "gold_views_draft", "drift_monitor_draft", "export_item_definitions",
-            "create_views", "create_semantic_model", "create_data_agent")
+            "create_views", "create_semantic_model", "create_data_agent", "create_backend")
 # a tool that ran only part of the way, with how far
-LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace has no model"}
+LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace has no model",
+                   "create_backend": "as an update in place of shop_api with confirmed; no new item was created"}
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
              "analyze_schema", "join_path", "describe_backend", "query_graphql", "semantic_model_draft", "data_dictionary",
              "dbt_schema", "create_views", "plan_drift", "app_starter")
 # What a sentence about the run says it covered (the home page's test line).
-LIVE_RUN_SUMMARY = ("from Claude to a Fabric workspace with synthetic data: sign-in, plan, check, query, the drafts and three dry "
-                    "runs; nothing was created")
+LIVE_RUN_SUMMARY = ("from Claude to a Fabric workspace with synthetic data: sign-in, plan, check, query, the drafts, three dry "
+                    "runs and an update in place of an existing API; no new item was created")
 
 
 @dataclass(frozen=True)
@@ -65,7 +67,8 @@ _RAW = {
     "plan_backend": (HOSTED, READS, _NO, "unit tests"),
     "validate_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "sample_rows": (HOSTED, READS, _NO, "unit tests; the masking live since 27 October 2026"),
-    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; not run live"),
+    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only", False,
+                       " (27 October 2026: update in place of shop_api with confirmed)"),
     "describe_backend": (HOSTED, READS, _NO, "unit tests"),
     "query_graphql": (HOSTED, READS, _NO, "unit tests; with `question` live since 27 October 2026"),
     "rayfin_connector": (HOSTED, DRAFT, _NO, "unit tests"),
@@ -172,11 +175,19 @@ def answer_note(name: str) -> str:
 def instructions_sentence() -> str:
     """The test status in the server's instructions."""
     creating = [t for t in STATUS if STATUS[t].kind == CREATES]
-    dry = [t for t in creating if STATUS[t].live]
-    partly = "; ".join(f"{t} only {why.split(',')[0]}" for t, why in LIVE_RUN_PARTLY.items())
+    dry = [t for t in creating if STATUS[t].live and STATUS[t].dry_run_only]
+    partly = "; ".join(f"{t} only {why.split(',')[0].split(';')[0]}" for t, why in LIVE_RUN_PARTLY.items())
     return (f"Test status: on {LIVE_RUN_DATE} every tool but {not_run_list().replace('`', '')} ran from Claude against a Fabric workspace "
             f"with synthetic data, read-only or as a draft, and {_listed(dry)} as dry runs" + (f" ({partly})" if partly else "")
-            + "; nothing was created, so creating is unit-tested only (status per tool: /docs#test-status).")
+            + "; no new item was created, so creating a new one is unit-tested only (status per tool: /docs#test-status).")
+
+
+def create_api_status() -> str:
+    """create_backend in a sentence for the pages that offer creating the API: what ran live and what did not."""
+    s = STATUS["create_backend"]
+    if s.live and "create_backend" in LIVE_RUN_PARTLY:
+        return f"Creating a new API is experimental; updating one in place was tested end to end on {LIVE_RUN_DATE}"
+    return "Creating the API is " + phrase("create_backend")
 
 
 def task_status(tools: list[str]) -> str:

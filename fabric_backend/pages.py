@@ -79,7 +79,7 @@ def _vars() -> dict[str, str]:
         "USAGE_ORG": "1" if os.environ.get("KRUSGRAPH_USAGE_SALT", "").strip() else "",
         "RATE_LIMITS": "" if os.environ.get("KRUSGRAPH_RATE_LIMITS", "1").strip().lower() in {"0", "off", "false", "no"} else "1",
         # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
-        "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY,
+        "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(),
         **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
     }
 
