@@ -1546,6 +1546,7 @@
    "keep_with_confirmed": [
     {
      "field_name": "ship_to",
+     "reverse_name": "orders_as_ship_to",
      "source": "orders",
      "source_cols": [
       "ship_to_id"
@@ -1562,6 +1563,18 @@
      "columns": [
       "address_id"
      ],
+     "confirmed": {
+      "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "addresses",
+      "target_cols": [
+       "address_id"
+      ]
+     },
      "field": "orders_as_ship_to",
      "table": "shop.addresses",
      "target": "shop.orders",
@@ -1573,6 +1586,7 @@
      ],
      "confirmed": {
       "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
       "source": "orders",
       "source_cols": [
        "ship_to_id"
@@ -1679,6 +1693,7 @@
    "keep_with_confirmed": [
     {
      "field_name": "ship_to",
+     "reverse_name": "orders_as_ship_to",
      "source": "orders",
      "source_cols": [
       "ship_to_id"
@@ -1695,6 +1710,18 @@
      "columns": [
       "address_id"
      ],
+     "confirmed": {
+      "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "addresses",
+      "target_cols": [
+       "address_id"
+      ]
+     },
      "field": "orders_as_ship_to",
      "table": "shop.addresses",
      "target": "shop.orders",
@@ -1706,6 +1733,7 @@
      ],
      "confirmed": {
       "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
       "source": "orders",
       "source_cols": [
        "ship_to_id"
@@ -3392,6 +3420,7 @@
    "keep_with_confirmed": [
     {
      "field_name": "ship_to",
+     "reverse_name": "orders_as_ship_to",
      "source": "orders",
      "source_cols": [
       "ship_to_id"
@@ -3402,6 +3431,7 @@
      ]
     }
    ],
+   "names_kept_from_api": [],
    "new_columns": [],
    "new_relationships": [],
    "new_tables": [],
@@ -3410,6 +3440,18 @@
      "columns": [
       "address_id"
      ],
+     "confirmed": {
+      "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
+      "source": "orders",
+      "source_cols": [
+       "ship_to_id"
+      ],
+      "target": "addresses",
+      "target_cols": [
+       "address_id"
+      ]
+     },
      "field": "orders_as_ship_to",
      "table": "shop.addresses",
      "target": "shop.orders",
@@ -3421,6 +3463,7 @@
      ],
      "confirmed": {
       "field_name": "ship_to",
+      "reverse_name": "orders_as_ship_to",
       "source": "orders",
       "source_cols": [
        "ship_to_id"

@@ -496,18 +496,24 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
                    keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                    tables: list[str] | None = None, allow_removals: bool = False, ctx: Context = None) -> str:
     """Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update
-    the item of that name in place. Creates one item; never deletes an item. When an API of that name exists and
-    the update would drop relationships it has (often ones confirmed earlier), nothing is written: the answer lists
-    them with ready `confirmed` entries; pass those to keep them, or allow_removals=true to drop them on purpose.
+    the item of that name in place. Creates one item; never deletes an item. When an API of that name exists, the
+    field names it has for the same relationships (the same columns in the same direction) are kept unless `confirmed`
+    names them otherwise; when the update would still drop relationships it has (often ones confirmed earlier),
+    nothing is written: the answer lists them with ready `confirmed` entries (field_name and reverse_name included);
+    pass those to keep them, or allow_removals=true to drop them on purpose.
     Returns the endpoint URL and the portal steps that remain (introspection, service principal permission)."""
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     source_id, source_type = source_for(workspace, item, headers)
+    found = _existing_api(workspace, name, headers)
+    kept: list[dict] = []
+    if found:                                    # the API's field names for the same relationships stay (finding 7, 27 October)
+        p, kept = _drift.keep_api_names(p, found[1], confirmed)
     if not allow_removals:
-        lost = _relationships_lost(workspace, name, p, source_id, source_type, writable, tables, headers)
+        lost = _relationships_lost(found, name, p, source_id, source_type, writable, tables, confirmed)
         if lost:
-            keep = [u["confirmed"] for u in lost if "confirmed" in u]
+            keep = _drift.keep_entries(lost)
             return json.dumps({
                 "error": f"updating {name!r} would remove {len(lost)} relationship(s) the API has today; nothing was written.",
                 "kind": "would_remove", "relationships_lost": lost, "keep_with_confirmed": keep,
@@ -517,6 +523,8 @@ def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", 
     result = deploy(env, workspace, token_provider=lambda: auth.fabric(ctx))
     out = {"summary": p.summary(), "source": {"id": source_id, "type": source_type}, "result": result,
            "skipped_relationships": env.get("skipped_relationships", [])}
+    if kept:
+        out["names_kept_from_api"] = kept
     if result.get("status") == "Succeeded":
         out["card"] = connection_card(workspace, result["id"], name)
     elif result.get("status") == "Failed" and result.get("http"):          # Fabric refused the create/update: say why
@@ -541,14 +549,13 @@ def _existing_api(workspace: str, name: str, headers: dict) -> tuple[str, dict] 
         return None
 
 
-def _relationships_lost(workspace, name, p, source_id, source_type, writable, tables, headers) -> list[dict]:
-    """Relationships an existing API of this name has that the update would drop. A new name, or an API whose
-    definition cannot be read, gives [] so that creating still works as before."""
-    found = _existing_api(workspace, name, headers)
+def _relationships_lost(found, name, p, source_id, source_type, writable, tables, confirmed) -> list[dict]:
+    """Relationships the existing API of this name (`found`, from _existing_api) has that the update would drop. A new
+    name, or an API whose definition cannot be read, gives [] so that creating still works as before."""
     if not found:
         return []
     workspace_id, existing = found
-    d = _drift.compare(p, existing, name, workspace_id, source_id, source_type, writable=writable, tables=tables)
+    d = _drift.compare(p, existing, name, workspace_id, source_id, source_type, writable=writable, tables=tables, confirmed=confirmed)
     return d.get("relationships_unsupported", [])
 
 
@@ -901,7 +908,7 @@ def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys:
                            "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
     existing = _graphql_definition(workspace_id, api_id, headers)
     source_id, source_type = source_for(workspace_id, item, headers)
-    out = _drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables)
+    out = _drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables, confirmed=confirmed)
     touched = sorted({str(x["table"]).split(".")[-1] for x in out.get("tables_gone", []) + out.get("removed_columns", [])})
     if touched:
         edges, skipped = _lineage_edges(workspace_id, item, schema, set(touched) | {t.name for t in p.schema}, headers, execute=None)

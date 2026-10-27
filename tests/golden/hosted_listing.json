@@ -416,7 +416,7 @@
     "read_only_hint": false,
     "title": "Create or update the GraphQL API"
    },
-   "description": "Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update\nthe item of that name in place. Creates one item; never deletes an item. When an API of that name exists and\nthe update would drop relationships it has (often ones confirmed earlier), nothing is written: the answer lists\nthem with ready `confirmed` entries; pass those to keep them, or allow_removals=true to drop them on purpose.\nReturns the endpoint URL and the portal steps that remain (introspection, service principal permission).",
+   "description": "Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update\nthe item of that name in place. Creates one item; never deletes an item. When an API of that name exists, the\nfield names it has for the same relationships (the same columns in the same direction) are kept unless `confirmed`\nnames them otherwise; when the update would still drop relationships it has (often ones confirmed earlier),\nnothing is written: the answer lists them with ready `confirmed` entries (field_name and reverse_name included);\npass those to keep them, or allow_removals=true to drop them on purpose.\nReturns the endpoint URL and the portal steps that remain (introspection, service principal permission).",
    "input_schema": {
     "properties": {
      "allow_removals": {

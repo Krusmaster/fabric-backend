@@ -118,7 +118,7 @@ def test_create_backend_will_not_silently_drop_a_relationship_the_api_has(shop, 
     out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
     assert out["kind"] == "would_remove" and not deployed and "allow_removals" in out["hint"]
     assert {r["field"] for r in out["relationships_lost"]} == {"ship_to", "orders_as_ship_to"}
-    assert out["keep_with_confirmed"] == [{**ship_to, "field_name": "ship_to"}]
+    assert out["keep_with_confirmed"] == [{**ship_to, "field_name": "ship_to", "reverse_name": "orders_as_ship_to"}]   # both of the API's names
 
     kept = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", confirmed=out["keep_with_confirmed"]))
     assert kept["result"]["status"] == "Succeeded" and len(deployed) == 1
