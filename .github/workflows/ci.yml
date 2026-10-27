@@ -3,6 +3,7 @@ on: { push: { branches: [main] }, pull_request: {} }
 jobs:
   test:
     runs-on: ubuntu-latest
+    env: { PLAYWRIGHT_VERSION: "1.49.1" }
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -11,7 +12,16 @@ jobs:
         with: { node-version: "22" }
       - run: pip install -c deploy/constraints.txt -e ".[server,test]"     # the image's exact versions; a bad pin fails here, not in az acr build
       # The browser checks (tests/test_browser.py) run when Playwright's Chromium is present; they are skipped otherwise.
-      - run: npm install --no-save playwright@1.49.1 && npx playwright install --with-deps chromium
+      # The browsers are cached per Playwright version, and apt (--with-deps) runs only when Chromium does not start
+      # without it: the runner image already carries the libraries Chrome needs, and the Ubuntu mirror was the slow part
+      # of this job (25.9 MB in 9 minutes on 26 October 2026, while the browsers downloaded in 6 seconds).
+      - run: npm install --no-save "playwright@$PLAYWRIGHT_VERSION"
+      - id: browsers
+        uses: actions/cache@v5
+        with: { path: ~/.cache/ms-playwright, key: "playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}" }
+      - if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
+      - run: node -e "require('playwright').chromium.launch().then(b => b.close())" || npx playwright install-deps chromium
       - run: pytest -q
   notebooks:
     # The generated Fabric notebooks (silver tables, drift monitor) run on a local Spark against the shop seed:
