@@ -15,15 +15,39 @@ New to a Fabric lakehouse? Start by understanding how its tables fit together: c
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
    It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
 2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
-   `{{MCP_URL}}`. Sign in with your Microsoft work account. The hosted service supports Claude, and that is the client
+   `{{MCP_URL}}`. Sign in with your Microsoft work account. {{#IF CLIENT_REGISTRATION}}VS Code, Cursor and other MCP clients
+   that sign in on their own use `{{CONNECT_URL}}` instead ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and that is the client
    it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
-   app yet, so they can't sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet).
+   app yet, so they can't sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet).{{/IF}}
 3. **In Fabric:** you need access to the workspace you want to use, and a Fabric capacity (a trial is fine).
 
 Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start). The server is
 published in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
 Prefer your own machine and a SQL Server? The same engine runs locally over ODBC: [/local](/local).
+{{#IF CLIENT_REGISTRATION}}
+### Other MCP clients
 
+VS Code, Cursor and other MCP clients that register themselves sign in at `{{CONNECT_URL}}`, not at the address for
+Claude. {{PRODUCT}} identifies the client by the metadata document it publishes (or, for a client without one, a strict
+registration), shows its own approval page with the client's name, its domain and where the answer goes, and only then
+sends you to Microsoft. Every call still runs with your own Fabric permissions, and nothing changes for Claude.
+{{CONNECT_TESTED}}.
+
+- **VS Code** (GitHub Copilot agent mode): in `.vscode/mcp.json` or *MCP: Open User Configuration*,
+  `{"servers": {"{{PRODUCT_LOWER}}": {"type": "http", "url": "{{CONNECT_URL}}"}}}`, then *MCP: List Servers* → Start.
+  Because the answer goes to a program on your computer, the approval page comes back at each new sign-in.
+- **Cursor:** in `~/.cursor/mcp.json`, `{"mcpServers": {"{{PRODUCT_LOWER}}": {"url": "{{CONNECT_URL}}"}}}`, then sign in
+  from Cursor's MCP settings. If the sign-in stops on the redirect address (some Cursor builds register a `cursor://`
+  address, which {{PRODUCT}} does not accept: only https and local addresses), register Cursor once with its local
+  address, `curl -s {{CONNECT_URL_OAUTH}}/register -H 'Content-Type: application/json' -d '{"client_name": "Cursor", "redirect_uris": ["http://localhost:8787/callback"]}'`,
+  and give Cursor the `client_id` from the answer as `"auth": {"CLIENT_ID": "…"}` next to the `url`.
+- **Glama:** add `{{CONNECT_URL}}` in Glama's MCP connector; it identifies itself with its metadata document.
+- **Claude Code:** `claude mcp add --transport http {{PRODUCT_LOWER}} {{CONNECT_URL}}` (not tried yet).
+
+The approval page and Microsoft's sign-in open in your own browser. A web filter on a company network can stop them
+(the browser then says the site "uses an unsupported protocol"); sign in from another network, or ask IT to allow
+{{DOMAIN}}.
+{{/IF}}
 ### What you can ask
 
 One example per tool, in the order a first session usually goes (list, plan, look at rows if needed, check, create, describe, query):

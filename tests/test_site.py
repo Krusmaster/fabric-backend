@@ -583,10 +583,14 @@ def test_use_cases_mark_outputs_with_the_docs_status(client):
     assert "The schemas are illustrative examples, not customer projects." in first
 
 
-def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(client):
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(client, monkeypatch, registration):
     """The text review of 26 October: no "every tool" (most tools are not live-tested), no "Nothing stored" (tokens,
-    usage records and logs exist), and Cursor only ever named as a client that cannot sign in to the hosted service."""
+    usage records and logs exist). Cursor is named as working only where the hosted service signs it in: with client
+    registration off, only as a client that cannot sign in; with it on (live test of 27 October 2026), in a sentence
+    that sends it to /mcp/connect, gives the date it was tested, says what Krusgraph does not accept, or in the hub."""
     from fabric_backend.discovery import PUBLIC_PAGES
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     paths = PUBLIC_PAGES + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md",
                             "/llms.txt", "/llms-full.txt", "/mcp/server-card"]
     for path in paths:
@@ -596,8 +600,13 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
         for banned in ("every tool", "nothing stored", "stores nothing", "never data"):
             assert banned not in low, (path, banned)
         for sentence in re.split(r"(?<=[.;!?])\s+", plain):
-            if "cursor" in sentence.lower():
+            if "cursor" not in sentence.lower():
+                continue
+            if not registration:
                 assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)
+            else:
+                assert re.search(r"can(?:no|’|')t|not registered|not supported|mcp/connect|27 October 2026|does not accept|"
+                                 r"Where you build|Claude, VS Code and Cursor|Anysphere|/oauth", sentence), (path, sentence)
 
 
 
@@ -923,31 +932,98 @@ def test_old_links_into_the_demo_on_the_start_page_go_on_to_demo(client):
     assert 'id="demo"' in home and 'id="guide"' in home
 
 
-def test_home_shows_what_krusgraph_connects_in_names_only_with_the_disclaimer(client):
-    """Gustav's addition to round n17: right under the hero, Microsoft Fabric, Power BI and Fabric IQ on one side and
-    Claude and Lovable on the other, as text names on tiles joined by a line as in the graph, with no third-party logos
-    or icons. The only client named is Claude, the one MCP client tested against the hosted service (no VS Code, no
-    Cursor); Lovable is shown on the far side of the GraphQL API, not as an MCP client. The text for screen readers says
-    the same, and the disclaimer is word for word."""
+def _hub(client):
     html = client.get("/").text
     after_hero = html.split('<section class="hero">', 1)[1].split("</section>", 1)[1].lstrip()
     assert after_hero.startswith('<section class="wrap connects" aria-label="What Krusgraph connects">')
     row = after_hero.split("</section>", 1)[0]
-    visual = re.search(r'<div class="connect-row" aria-hidden="true">(.*?)</div>', row, re.S).group(1)
-    sides = re.findall(r'<ul class="c-side">(.*?)</ul>', visual, re.S)
-    assert [re.findall(r"<b>(.*?)</b>", s) for s in sides] == [["Microsoft Fabric", "Power BI", "Fabric IQ"], ["Claude", "Lovable"]]
-    assert '<span class="c-hub">krusgraph</span>' in visual
-    tags = dict(re.findall(r"<b>(.*?)</b><span>(.*?)</span>", visual))
-    assert tags["Claude"] == "MCP" and "GraphQL API" in tags["Lovable"] and "MCP" not in tags["Lovable"]
-    assert "draft" in tags["Power BI"] and "draft" in tags["Fabric IQ"]                    # drafts, as their tools' status says
+    visual = re.search(r'<div class="hub" aria-hidden="true">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)
+    groups = {re.search(r'<p class="hub-h">(.*?)</p>', g).group(1): re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
+              for g in re.findall(r'<div class="hub-group[^"]*">(.*?)</ul></div>', visual, re.S)}
+    said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
+    return row, visual, groups, said
+
+
+def _tag(rest):
+    m = re.search(r'<span class="hub-tag[^"]*">(.*?)</span>', rest)
+    return m.group(1) if m else None
+
+
+def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses_from_tool_status(client):
+    """Gustav's brief of 27 October 2026: under the hero a hub, "Your data in Fabric" and "What Krusgraph builds in
+    Fabric" on the left, Krusgraph in the middle ("one plan, the rule behind every relationship"), "Where you build" on
+    the right, joined by lines as in the graph; text names only, no third-party logos; the disclaimer word for word. A
+    built part says "creates" only when tool_status records it created live on the hosted service (the GraphQL API),
+    "draft" otherwise; the warehouse and the SQL database, not yet read live, are marked experimental. With client
+    registration off, the only MCP client named is Claude."""
+    from fabric_backend import tool_status as ts
+    row, visual, groups, said = _hub(client)
+    assert list(groups) == ["Your data in Fabric", "What Krusgraph builds in Fabric", "Where you build"]
+    assert [n for n, _ in groups["Your data in Fabric"]] == ["Lakehouse", "Warehouse", "SQL database"]
+    assert {n: _tag(r) for n, r in groups["Your data in Fabric"]} == {"Lakehouse": None, "Warehouse": "experimental",
+                                                                       "SQL database": "experimental"}
+    built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
+    assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
+    assert built == {"GraphQL API": "creates", "Power BI semantic model": "draft", "Fabric IQ ontology": "draft", "views": "draft",
+                     "data agent": "draft", "silver notebooks": "draft"}                  # the live test of 27 October 2026
+    assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
+                                         ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]
+    assert '<span class="c-hub">krusgraph</span>' in visual and "one plan, the rule behind every relationship" in visual
+    assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
     assert not re.search(r"<(img|svg|picture|object|image)\b", row) and "logo" not in row.lower() and "data-mascot" not in row
     plain = re.sub(r"<[^>]+>", " ", row)
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
-    said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
-    for name in ("Microsoft Fabric", "Power BI", "Fabric IQ", "Claude", "Lovable"):
-        assert name in said, name
-    assert "through MCP" in said and "the one MCP client the hosted service is tested with" in said
-    assert "Lovable, which uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself" in said
+    for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
+                 "one plan, with the rule behind every relationship", "it creates the GraphQL API",
+                 "Power BI semantic model, Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
+                 "Claude connects to Krusgraph through MCP",
+                 "Lovable uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
+        assert part in said, part
     assert ('<p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, '
             'Anthropic or Lovable.</p>') in row
+
+
+def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in(client, monkeypatch):
+    """Cursor (and VS Code) only once the hosted service supports their sign-in: with client registration on, as
+    recorded in tool_status.CLIENTS_TESTED (27 October 2026); Anysphere joins the disclaimer with Cursor."""
+    from fabric_backend import tool_status as ts
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
+    row, visual, groups, said = _hub(client)
+    assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Cursor", "Lovable"]
+    assert "Claude, VS Code and Cursor connect to Krusgraph through MCP" in said
+    assert "Not affiliated with or endorsed by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
+    monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
+    row, visual, groups, said = _hub(client)
+    assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Lovable"] and "Cursor" not in row
+    assert "Anysphere" not in row
+
+
+def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkeypatch):
+    from fabric_backend import tool_status as ts
+    live = ts.ToolStatus(*ts._RAW["create_views"][:4], dry_run_only=False, name="create_views")
+    monkeypatch.setitem(ts.STATUS, "create_views", live)
+    monkeypatch.setattr(ts, "SOURCES", (("Lakehouse", True), ("Warehouse", True), ("SQL database", False)))
+    row, visual, groups, said = _hub(client)
+    assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
+    assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
+    assert "it creates the GraphQL API and views" in said and "Warehouse (tested end to end)" in said
+
+
+def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
+    start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
+    for text in (start, docs, llms):
+        assert "/mcp/connect" not in text
+    assert "that is the client it has been tested with" in start
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
+    start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
+    assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
+    assert "Tested on 27 October 2026 with VS Code, Cursor and Glama" in start
+    assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
+    for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
+        assert client_ in docs, client_
+    assert "(not tried yet)" in docs and "unsupported protocol" in docs
+    assert "streamable HTTP at `https://krusgraph.test/mcp/connect`" in llms and "docs.md#other-mcp-clients" in llms
+    assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
+    home = client.get("/").text
+    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home

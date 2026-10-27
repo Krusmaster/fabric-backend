@@ -797,21 +797,54 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .demo-entry{padding-top:12px;padding-bottom:8px}
 @media (max-width:719px){.demo-entry .card,.demo-next .card{padding:18px 20px;gap:14px}}
 
-/* the start page's row of what the product connects: text names on small tiles joined by one line, as in the graph */
+/* the start page's hub (brief of 27 October 2026): your data and what is built in Fabric on the left, the product in the
+   middle, where you build on the right, joined by lines as in the graph (2.2px, round ends, a dot where a line meets a
+   card); stacked on a phone with the product in the middle. Text names only. */
 .connects{padding-top:12px;padding-bottom:8px}
-.connect-row{position:relative;display:flex;align-items:center;justify-content:center;gap:10px 18px;width:fit-content;max-width:100%;margin:0 auto}
-.connect-row::before{content:"";position:absolute;left:24px;right:24px;top:50%;border-top:2.2px solid var(--line-strong)}
-.c-side{position:relative;list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 10px}
-.c-chip{display:flex;flex-direction:column;align-items:center;text-align:center;background:linear-gradient(var(--cs),var(--cs)) left top/100% 3px no-repeat,var(--card);border:1.5px solid var(--line);border-radius:12px;padding:7px 12px 6px;line-height:1.2}
-.c-chip b{font-family:var(--font-head);font-weight:600;font-size:15.5px}
-.c-chip span{font-size:12.5px;color:var(--muted)}
+.hub{--gap:44px;position:relative;display:grid;grid-template-columns:minmax(0,1fr) var(--gap) 210px var(--gap) minmax(0,1fr);
+  grid-template-rows:auto auto;row-gap:14px;align-items:stretch;max-width:1000px;margin:0 auto}
+.hub-src{grid-column:1;grid-row:1}.hub-build{grid-column:1;grid-row:2}
+.hub-link-src{grid-column:2;grid-row:1}.hub-link-build{grid-column:2;grid-row:2}
+.hub-mid{grid-column:3;grid-row:1/3;align-self:center}
+.hub-where{grid-column:5;grid-row:1/3;align-self:center}
+.hub-group{position:relative;z-index:1;background:linear-gradient(var(--cs),var(--cs)) left top/100% 3px no-repeat,var(--card);
+  border:1.5px solid var(--line);border-radius:12px;padding:9px 14px 10px}
+.hub-h{margin:0 0 6px;font-family:var(--font-head);font-weight:600;font-size:15.5px;line-height:1.25}
+.hub-group ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.hub-group li{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;font-size:14.5px;line-height:1.3}
+.hub-group li b{font-weight:700}
+.hub-via{font-size:12.5px;color:var(--muted)}
+.hub-tag{font:700 11.5px/1.5 var(--mono);padding:0 7px;border-radius:999px;border:1.5px solid var(--line-strong);color:var(--muted);white-space:nowrap}
+.hub-tag.hub-creates{background:var(--sage-soft);border-color:var(--sage-d);color:var(--sage-ink)}
+/* the lines: from each card on the left to a shared line, from there into the product, and on to the right */
+.hub-link{position:relative}
+.hub-link::before,.hub-link::after,.hub-node::before,.hub-node::after{content:"";position:absolute;border:0 solid var(--line-strong)}
+.hub-link::before{left:0;right:50%;top:50%;margin-top:-1.1px;border-top-width:2.2px}
+.hub-link-src::after{left:50%;margin-left:-1.1px;top:50%;bottom:-15px;border-left-width:2.2px}
+.hub-link-build::after{left:50%;margin-left:-1.1px;top:0;bottom:50%;border-left-width:2.2px}
+.hub-src::after,.hub-build::after{content:"";position:absolute;right:-6px;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;
+  background:var(--cd);border:1.5px solid var(--card)}
+.hub-mid{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2}
+.hub-node{position:relative;display:flex;justify-content:center;width:100%}
+.hub-node::before{left:calc(-1 * var(--gap) / 2);right:50%;top:50%;margin-top:-1.1px;border-top-width:2.2px;z-index:-1}
+.hub-node::after{left:50%;right:calc(-1 * var(--gap));top:50%;margin-top:-1.1px;border-top-width:2.2px;z-index:-1}
+.hub-end{position:absolute;right:calc(-1 * var(--gap) - 6px);top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;
+  background:var(--mustard-d);border:1.5px solid var(--card)}
+.hub-mid .c-hub{z-index:1}
+.hub-sub{font-size:12.5px;line-height:1.35;color:var(--muted);text-align:center;max-width:190px}
+.connects-note{text-align:center;margin:14px auto 0;max-width:none}
+/* the existing hub pill, with a dot at each side where the lines meet it */
 .c-hub{position:relative;font-family:var(--font-head);font-weight:600;font-size:16px;background:var(--coral-soft);color:var(--ink);border:1.5px solid var(--coral-d);border-radius:999px;padding:6px 14px}
 .c-hub::before,.c-hub::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--coral-d);border:1.5px solid var(--card)}
 .c-hub::before{left:-6px}.c-hub::after{right:-6px}
-.connects-note{text-align:center;margin:12px auto 0;max-width:none}
-@media (max-width:719px){
-  .connect-row{flex-direction:column;gap:12px}
-  .connect-row::before{left:50%;right:auto;top:16px;bottom:16px;margin-left:-1px;border-top:0;border-left:2.2px solid var(--line-strong)}
+@media (max-width:859px){
+  /* one column, the product in the middle: data, what is built, the product, where you build; one line down the middle */
+  .hub{grid-template-columns:minmax(0,1fr);grid-template-rows:none;row-gap:22px;max-width:420px}
+  .hub-src,.hub-build,.hub-mid,.hub-where{grid-column:1;grid-row:auto;align-self:stretch}
+  .hub::before{content:"";position:absolute;left:50%;margin-left:-1.1px;top:16px;bottom:16px;border-left:2.2px solid var(--line-strong)}
+  .hub-link,.hub-node::before,.hub-node::after,.hub-end{display:none}
+  .hub-src::after,.hub-build::after{right:auto;left:50%;top:auto;bottom:-6px;margin:0 0 0 -4.5px}
+  .hub-sub{background:var(--bg);padding:2px 8px;border-radius:8px;position:relative}
   .c-hub::before,.c-hub::after{left:50%;right:auto;margin:0 0 0 -4.5px}
   .c-hub::before{top:-6px}.c-hub::after{top:auto;bottom:-6px}
 }

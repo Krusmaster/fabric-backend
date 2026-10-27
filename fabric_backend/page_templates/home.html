@@ -12,22 +12,7 @@
   </div>
 </section>
 
-<section class="wrap connects" aria-label="What {{PRODUCT}} connects">
-  <p class="visually-hidden">On one side, Microsoft Fabric, where your tables are, and the Power BI semantic models and Fabric IQ ontologies {{PRODUCT}} drafts from them. On the other, Claude, connected to {{PRODUCT}} through MCP and the one MCP client the hosted service is tested with, and Lovable, which uses the GraphQL API {{PRODUCT}} creates in Fabric rather than {{PRODUCT}} itself.</p>
-  <div class="connect-row" aria-hidden="true">
-    <ul class="c-side">
-      <li class="c-chip c-coral"><b>Microsoft Fabric</b><span>your tables</span></li>
-      <li class="c-chip c-sage"><b>Power BI</b><span>model drafts</span></li>
-      <li class="c-chip c-lav"><b>Fabric IQ</b><span>ontology drafts</span></li>
-    </ul>
-    <span class="c-hub">{{PRODUCT_LOWER}}</span>
-    <ul class="c-side">
-      <li class="c-chip c-mustard"><b>Claude</b><span>MCP</span></li>
-      <li class="c-chip c-mustard"><b>Lovable</b><span>via the GraphQL API</span></li>
-    </ul>
-  </div>
-  <p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, Anthropic or Lovable.</p>
-</section>
+{{HOME_HUB}}
 
 <section class="wrap demo-entry" id="demo" aria-labelledby="guide">
   <div class="card">
@@ -59,7 +44,7 @@
   <h2 id="data-h">What {{PRODUCT}} reads</h2>
   <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
   <ul class="trust">
-    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects Claude to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
+    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
     <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
     <li><span class="t-i lav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M15 7l5 5-5 5"/></svg></span><div><h3>Open source</h3><p>Read the code, inspect the inference rules or host {{PRODUCT}} yourself. The source is available under the MIT licence on <a href="{{GITHUB}}" rel="noopener">GitHub</a>.</p></div></li>
   </ul>

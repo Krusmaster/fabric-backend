@@ -83,6 +83,9 @@ def _vars() -> dict[str, str]:
         "RATE_LIMITS": "" if os.environ.get("KRUSGRAPH_RATE_LIMITS", "1").strip().lower() in {"0", "off", "false", "no"} else "1",
         # client registration for MCP clients other than Claude (registration.py) keeps a few sign-in records; the page says which
         "CLIENT_REGISTRATION": "1" if _registration_on() else "", "NO_CLIENT_REGISTRATION": "" if _registration_on() else "1",
+        # the MCP clients the site names as working with the hosted service, and the address for those that register
+        "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
+        "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
         "REGISTRATION_WHERE": ("the server's memory (lost when it restarts)"
                                if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip().lower() == "memory"
                                else "an Azure Table Storage table of ours in the service's Azure region"),
@@ -95,6 +98,67 @@ def _vars() -> dict[str, str]:
 def _registration_on() -> bool:
     from .registration import enabled
     return enabled()
+
+
+def _listed(names: list[str]) -> str:
+    return ", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else "".join(names)
+
+
+def _clients_sentence() -> str:
+    """"Claude", or "Claude, VS Code and Cursor" once client registration is on (tool_status.clients_working)."""
+    from .tool_status import clients_working
+    return _listed(clients_working(_registration_on()))
+
+
+def _connect_tested() -> str:
+    """"Tested on 27 October 2026 with VS Code, Cursor and Glama": the clients recorded as signed in at /mcp/connect."""
+    from .tool_status import clients_tested_at
+    seen = clients_tested_at("/mcp/connect")
+    dates = list(dict.fromkeys(date for _, date in seen))
+    return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])}" if seen else "Not tried with a client yet"
+
+
+def hub_html() -> str:
+    """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
+    builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
+    Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "draft"
+    for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
+    in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
+    the visual is hidden from screen readers, which get the same as one paragraph."""
+    from . import tool_status as ts
+    v = _vars()
+    p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
+    clients = ts.clients_working(_registration_on())
+
+    def tag(word: str) -> str:
+        return f'<span class="hub-tag hub-{word.split()[0]}">{word}</span>'
+    sources = "".join(f"<li><b>{n}</b>{'' if tested else tag('experimental')}</li>" for n, tested in ts.SOURCES)
+    builds = "".join(f"<li><b>{n}</b>{tag(ts.build_word(tool))}</li>" for n, tool in ts.BUILDS)
+    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span></li>' for c in clients)
+    where += '<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span></li>'
+
+    created = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "creates"]
+    drafted = [n for n, tool in ts.BUILDS if ts.build_word(tool) != "creates"]
+    said = (f"Your data in Fabric: " + _listed([f"{n} ({ts.source_word(t)})" for n, t in ts.SOURCES]) + ". "
+            f"In the middle, {p}: one plan, with the rule behind every relationship. "
+            f"What {p} builds in Fabric from that plan: " + "; ".join(
+                ([f"it creates the {_listed(created)}"] if created else [])
+                + ([f"{_listed(drafted)} {'is a draft' if len(drafted) == 1 else 'are drafts'} so far"] if drafted else [])) + ". "
+            f"Where you build: {_listed(clients)} {'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
+            f"Lovable uses the GraphQL API {p} creates in Fabric rather than {p} itself.")
+    makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
+    return f"""<section class="wrap connects" aria-label="What {p} connects">
+  <p class="visually-hidden">{said}</p>
+  <div class="hub" aria-hidden="true">
+    <div class="hub-group hub-src c-coral"><p class="hub-h">Your data in Fabric</p><ul>{sources}</ul></div>
+    <span class="hub-link hub-link-src"></span>
+    <div class="hub-group hub-build c-sage"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
+    <span class="hub-link hub-link-build"></span>
+    <div class="hub-mid"><span class="hub-node"><span class="c-hub">{low}</span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
+    <div class="hub-group hub-where c-mustard"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
+  </div>
+  <p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by {_listed(makers).replace(" and ", " or ")}.</p>
+</section>"""
 
 
 def _days(value: str) -> str:
@@ -366,7 +430,7 @@ def _home_vars() -> dict[str, str]:
     details = home_details()
     safe = json.dumps(details, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
     return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list(),
-            "HOME_GUIDE": home_guide()}
+            "HOME_GUIDE": home_guide(), "HOME_HUB": hub_html()}
 
 
 def render(path: str) -> str:
@@ -416,7 +480,8 @@ def _tool_statuses(md: str) -> str:
 
 
 def docs_md() -> str:
-    return _fill(_tool_statuses(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table())), escape=False)
+    md = _conditional(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table()), _vars())
+    return _fill(_tool_statuses(md), escape=False)
 
 
 def lovable_md() -> str:

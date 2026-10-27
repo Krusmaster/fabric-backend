@@ -4,8 +4,8 @@ level and latest verification").
 
 `label()` turns the fields into the site's status words (Tested end to end, Experimental, Draft only, Available when
 enabled by the operator, Planned); the docs' tool table, its test status list, llms.txt, the use-case tasks, the
-home page's test line, the server's instructions and the notes in the tools' own answers (`answer_note()`) render
-from here. "Draft only" says what a tool changes (nothing), "Tested end to end" how far it has been run: a draft that
+home page's test line, the start page's hub (`SOURCES`, `BUILDS`, `build_word()`, `clients_working()`), the server's
+instructions and the notes in the tools' own answers (`answer_note()`) render from here. "Draft only" says what a tool changes (nothing), "Tested end to end" how far it has been run: a draft that
 ran live is "Tested end to end (a draft; creates nothing)", and a creating tool whose dry run ran live says "tested end
 to end as a dry run" while creating keeps its status.
 """
@@ -195,3 +195,47 @@ def task_status(tools: list[str]) -> str:
     if all(STATUS[t].live and not STATUS[t].dry_run_only and not STATUS[t].note.startswith(";") for t in tools):
         return f"tested end to end on {LIVE_RUN_DATE}"
     return "; ".join(f"`{t}`: {phrase(t)}" for t in tools)
+
+
+# ------------------------------------------------------------------ the start page's hub --------------------------------
+# Gustav's brief of 27 October 2026: what Krusgraph reads in Fabric, what it builds there from one plan, and where people
+# build, each part with its status from the fields above, so the hub follows when another part is tested live.
+
+# Sources, by whether one has been read end to end on the hosted service (the docs' Sources section says the same).
+SOURCES = (("Lakehouse", True), ("Warehouse", False), ("SQL database", False))
+
+# What is built in Fabric, by the creating tool that builds it.
+BUILDS = (("GraphQL API", "create_backend"), ("Power BI semantic model", "create_semantic_model"),
+          ("Fabric IQ ontology", "create_ontology"), ("views", "create_views"), ("data agent", "create_data_agent"),
+          ("silver notebooks", "create_silver_notebook"))
+
+# MCP clients that have signed in to the hosted service and run tools, where and when: Claude with the connector at /mcp,
+# the others through client registration at /mcp/connect (fabric_backend/registration.py), in the maintainer's live test
+# with the test account. A client is named as working only while it is here and, for /mcp/connect, while client
+# registration is switched on (clients_working()).
+CLIENTS_TESTED = {"Claude": ("/mcp", "26 October 2026"), "VS Code": ("/mcp/connect", "27 October 2026"),
+                  "Cursor": ("/mcp/connect", "27 October 2026"), "Glama": ("/mcp/connect", "27 October 2026")}
+WHERE_YOU_BUILD = ("Claude", "VS Code", "Cursor")       # the MCP clients the hub names, in this order; Lovable comes last
+
+
+def source_word(tested: bool) -> str:
+    return "tested end to end" if tested else "experimental"
+
+
+def build_word(tool: str) -> str:
+    """"creates" only for what has been created or updated live on the hosted service; "draft" for the rest, whose
+    tools ran live only as drafts or dry runs, or not yet."""
+    s = STATUS[tool]
+    return "creates" if s.kind == CREATES and s.live and not s.dry_run_only else "draft"
+
+
+def clients_tested_at(path: str) -> list[tuple[str, str]]:
+    """(client, date) for the clients recorded at one address, the hub's clients first, in its order, then the others."""
+    rank = {c: i for i, c in enumerate(WHERE_YOU_BUILD)}
+    names = sorted((c for c, (where, _) in CLIENTS_TESTED.items() if where == path), key=lambda c: (rank.get(c, len(rank)), c))
+    return [(c, CLIENTS_TESTED[c][1]) for c in names]
+
+
+def clients_working(registration_on: bool) -> list[str]:
+    """The MCP clients the site names as working with the hosted service, in WHERE_YOU_BUILD order."""
+    return [c for c in WHERE_YOU_BUILD if c in CLIENTS_TESTED and (CLIENTS_TESTED[c][0] == "/mcp" or registration_on)]

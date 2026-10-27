@@ -141,16 +141,19 @@ def test_the_guided_example_steps_decides_resets_and_agrees_with_the_graph(repor
     assert f["guidePreviewFits375"] == [True]                               # the delivery-address column is visible without scrolling
 
 
-def test_home_entry_old_anchors_and_the_row_of_what_krusgraph_connects(report):
+def test_home_entry_old_anchors_and_the_hub_under_the_hero(report):
     """Round n17: the start page's way in to the guided demo takes at most half the screen of a small phone (375 x 667)
-    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the same anchor on /demo; the row of what
-    Krusgraph connects keeps every tile on the screen, none on top of another and no name cut off, at every width, with
-    its text version in the page for screen readers."""
+    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the same anchor on /demo. The hub (brief of
+    27 October 2026) keeps its three cards and the product on the screen, none on top of another and no name cut off,
+    with its text version for screen readers: side by side with the lines at 1280 and 1440 px, stacked with the product
+    in the middle at 768 and 375 px. (This server runs without client registration: Claude and Lovable on the right.)"""
     f = report["facts"]
     assert f["homeEntry@375x667"] <= 0.5 and f["homeEntry@1280x800"] <= 0.5
     for h in ("#guide", "#demo", "#guide-h3"):
         assert f[f"oldAnchor{h}"] == "/demo" + h, h
-    for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        c = f[f"connects@{v}"]
-        assert c["tiles"] == 6 and c["outside"] == 0 and c["overlaps"] == 0 and c["cut"] == 0, (v, c)
-        assert c["srText"] > 200, v
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        c = f[f"hub@{v}"]
+        assert c["cards"] == 4 and c["items"] == 11 and c["outside"] == 0 and c["overlaps"] == 0 and c["cut"] == 0, (v, c)
+        assert c["srText"] > 300, v
+        wide = v.startswith(("1440", "1280"))
+        assert c["sideBySide"] is wide and c["stacked"] is not wide and c["lines"] == (2 if wide else 0), (v, c)

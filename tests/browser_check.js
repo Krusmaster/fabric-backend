@@ -15,7 +15,7 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
     page.on('request', r => { if (!r.url().startsWith(base)) errors.push(`${label}: external request ${r.url()}`); });
   };
   // the brief of 26 October 2026 asks for 375, 768 and 1440; dark mode at the widest
-  for (const [vname, width, scheme] of [['1440-light', 1440, 'light'], ['1440-dark', 1440, 'dark'], ['768-light', 768, 'light'], ['375-light', 375, 'light']]) {
+  for (const [vname, width, scheme] of [['1440-light', 1440, 'light'], ['1440-dark', 1440, 'dark'], ['1280-light', 1280, 'light'], ['768-light', 768, 'light'], ['375-light', 375, 'light']]) {
     const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme });
     for (const path of pages) {
       const page = await ctx.newPage(); const label = `${path}@${vname}`; watch(page, label);
@@ -33,22 +33,30 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
       }
       if (path === '/') {
         facts[`homeCtas@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.hero .ctas a')].map(a => a.getAttribute('href')));
-        // the row of what the product connects: every tile and the hub inside the screen, none on top of another, and
-        // the text version for screen readers in the page (visually hidden, not display:none)
-        facts[`connects@${vname}`] = await page.evaluate(() => {
-          const els = [...document.querySelectorAll('.connect-row .c-chip, .connect-row .c-hub')], rs = els.map(e => e.getBoundingClientRect());
+        // the hub under the hero: every card and the product inside the screen, none on top of another, no name cut
+        // off, the text version for screen readers in the page (visually hidden, not display:none), and the layout:
+        // three columns side by side on a wide screen, stacked with the product in the middle on a narrow one
+        facts[`hub@${vname}`] = await page.evaluate(() => {
+          const q = s => document.querySelector(s), box = e => e.getBoundingClientRect();
+          const cards = [...document.querySelectorAll('.hub .hub-group, .hub .c-hub')], rs = cards.map(box);
           const outside = rs.filter(r => r.left < 0 || r.right > window.innerWidth).length;
           let overlaps = 0;
           for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
             const a = rs[i], b = rs[j];
             if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps++;
           }
-          const sr = document.querySelector('.connects .visually-hidden');
-          const cut = els.filter(e => {                                                     // no name runs out of its tile
-            const t = e.getBoundingClientRect(), rg = document.createRange(); rg.selectNodeContents(e); const r = rg.getBoundingClientRect();
-            return r.left < t.left - 0.5 || r.right > t.right + 0.5 || r.top < t.top - 0.5 || r.bottom > t.bottom + 0.5;
+          const items = [...document.querySelectorAll('.hub .hub-group li')];
+          const cut = items.filter(li => {                                     // no name or tag runs out of its card
+            const g = box(li.closest('.hub-group')), rg = document.createRange(); rg.selectNodeContents(li); const r = rg.getBoundingClientRect();
+            return r.left < g.left - 0.5 || r.right > g.right + 0.5;
           }).length;
-          return { tiles: els.length, outside, overlaps, cut, srText: sr && getComputedStyle(sr).display !== 'none' ? sr.textContent.length : 0 };
+          const [src, build, mid, where] = ['.hub-src', '.hub-build', '.hub-mid', '.hub-where'].map(s => box(q(s)));
+          const sideBySide = src.right <= mid.left && mid.right <= where.left && build.right <= mid.left;
+          const stacked = src.bottom <= build.top && build.bottom <= mid.top && mid.bottom <= where.top;
+          const sr = q('.connects .visually-hidden');
+          return { cards: cards.length, items: items.length, outside, overlaps, cut, sideBySide, stacked,
+                   lines: [...document.querySelectorAll('.hub .hub-link')].filter(e => getComputedStyle(e).display !== 'none').length,
+                   srText: sr && getComputedStyle(sr).display !== 'none' ? sr.textContent.length : 0 };
         });
       }
       await page.close();
