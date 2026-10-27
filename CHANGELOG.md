@@ -5,6 +5,8 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+## 0.7.0 — 2026-10-27
+
 - Home page, round 1 of the brief of 27 October 2026: a shorter lede and a guided example in four steps that follows
   one order to its delivery address. The suggestion for `orders.ship_to_id` is now the engine's own
   (`suggest_relationships` on the synthetic sample, `demo.demo_suggestions()`), with its data check (all 60 orders have

@@ -78,7 +78,7 @@ A notebook and a pipeline. Every night the pipeline runs the notebook, which:
    webhook stops the run before the save, so the next night reports the same changes again.
 
 The logic is the library's (`fabric_backend.monitor`, `lineage`, `drift`), installed in the notebook with
-`%pip install "fabric-backend @ git+https://github.com/Krusmaster/fabric-backend@v<version>"` (`v0.6.0` today): by
+`%pip install "fabric-backend @ git+https://github.com/Krusmaster/fabric-backend@v<version>"` (`v0.7.0` today): by
 default the tag of the server's own version, so every night runs the code that drafted the notebook and saved its first plan, and nothing
 pushed later changes what the monitor does until you choose it. `library_ref` names another tag or a commit, or
 `main` to follow the main branch (which moves with every push). The tag is made with each release

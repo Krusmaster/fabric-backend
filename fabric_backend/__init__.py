@@ -11,7 +11,7 @@ from .ontology import ontology_files, ontology_parts, ontology_ttl
 __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definition", "decode",
            "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from",
            "rayfin_files", "write_rayfin", "ontology_files", "ontology_parts", "ontology_ttl"]
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 
 def plan_from(spark=None, execute=None, schema: str = "dbo", database: str | None = None,
