@@ -3,9 +3,10 @@
 **Tables in Microsoft Fabric → an explainable graph and a GraphQL API for apps and agents — and the Rayfin
 connector for Fabric Apps. One plan, both outputs, one call.**
 
-Hosted as **[Krusgraph](https://krusgraph.com)** (`https://krusgraph.com/mcp`, for Claude, sign-in with your Microsoft
-work account, every call with your own Fabric permissions; Claude Code and Cursor cannot sign in to the hosted service
-yet because their local redirect is not registered on the Entra app). The [guided demo](https://krusgraph.com/demo)
+Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
+`https://krusgraph.com/mcp/connect` for VS Code, Cursor and other MCP clients that register themselves (signed in and
+used on 27 October 2026 from VS Code, Cursor and Glama); sign-in with your Microsoft work account, every call with
+your own Fabric permissions. The [guided demo](https://krusgraph.com/demo)
 and the [demo graph](https://krusgraph.com/explore) run the same engine on a synthetic schema and need no account. This
 repository is the whole thing: engine, MCP server, website and deployment. Krusgraph is independent and not affiliated
 with Microsoft; "Microsoft Fabric" is used descriptively.
@@ -74,11 +75,14 @@ of CSV / Excel files; script in [docs/DEMO-20-MIN.md](docs/DEMO-20-MIN.md). Add 
 is documented.
 The agent can then say *"give me a GraphQL API over orders, customers and products"* and get an endpoint back.
 
-## Remote server (Krusgraph: for Claude today, other MCP clients once their sign-in redirects are registered)
+## Remote server (Krusgraph: Claude, VS Code, Cursor and other MCP clients)
 
 The hosted instance is `https://krusgraph.com/mcp`. Add it in Claude under Settings → Connectors → Add custom
 connector and sign in with your Microsoft work account; your Entra admin consents once
-(https://krusgraph.com/start has the steps, https://krusgraph.com/docs the details). To run your own:
+(https://krusgraph.com/start has the steps, https://krusgraph.com/docs the details). VS Code, Cursor and other MCP
+clients that register themselves use `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
+the client, then the Microsoft sign-in (https://krusgraph.com/docs#other-mcp-clients; tested on 27 October 2026 with
+VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). To run your own:
 
 ```
 docker build -t fabric-backend-server . && docker run -p 8000:8000 \

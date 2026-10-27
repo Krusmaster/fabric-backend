@@ -1,12 +1,12 @@
 # Sign-in for MCP clients other than Claude: client registration
 
-Status: built behind a flag that is **off by default** (`KRUSGRAPH_CLIENT_REGISTRATION`; code in
+Status: switched on at krusgraph.com on 27 October 2026 (`KRUSGRAPH_CLIENT_REGISTRATION`; code in
 `fabric_backend/registration.py`, `registration_flow.py`, `registration_store.py`; tests in
-`tests/test_client_registration.py`, 27 October 2026). Unit-tested against a mocked Entra; not deployed, not tried with a
-real client. Until the maintainer has tried it, the site keeps saying that the hosted service is supported with Claude.
-Turning it on and trying it: `docs/OPERATIONS.md`, section 6. This replaces the earlier registration facade
-(`KRUSGRAPH_DCR`, removed in the same change), which handed every client the Entra app's client id without a consent
-of its own and, when switched on, changed the metadata Claude reads.
+`tests/test_client_registration.py`). In the maintainer's live test that day, Glama (with its client ID metadata
+document), VS Code and Cursor signed in at `https://krusgraph.com/mcp/connect` and worked; Claude Code and ChatGPT
+have not been tried. The flag stays off by default for anyone else who runs the server. This replaces the earlier
+registration facade (`KRUSGRAPH_DCR`, removed in the same change), which handed every client the Entra app's client id
+without a consent of its own and, when switched on, changed the metadata Claude reads.
 
 ## The problem
 
@@ -67,10 +67,10 @@ the rest is marked.
 | Claude Code (2.1.311) | CIMD (since 2.1.81) → DCR → `--client-id` | `https://claude.ai/oauth/claude-code-client-metadata` | `http://localhost/callback`, `http://127.0.0.1/callback`, any port | confirmed: the document, fetched live; code.claude.com/docs/en/mcp |
 | Claude (claude.ai, Desktop) | Anthropic-held client → CIMD → DCR | `https://claude.ai/oauth/mcp-oauth-client-metadata` | `https://claude.ai/api/mcp/auth_callback` | confirmed: the document, fetched live. Krusgraph's connector keeps the Anthropic-held credentials at `/mcp` |
 | Cursor (3.14) | DCR, or a static `auth.CLIENT_ID` in `mcp.json`; CIMD "still on our radar" | — | desktop docs: `http://localhost:8787/callback`; DCR still registers `cursor://anysphere.cursor-mcp/oauth/callback` (users' reports); cloud agents `https://www.cursor.com/agents/mcp/oauth/callback` | cursor.com/docs/mcp through search excerpts only (cursor.com not reachable from the build environment); better-auth #10946, alpacahq/agentic #6 |
-| Glama | DCR (users' reports) | — | `https://glama.ai/api/app/mcp/oauth/callback`; inspector `https://glama.ai/mcp/inspector/oauth/callback` | third-party only: koala73/worldmonitor PR #9281, Usehourly #327 |
+| Glama | CIMD, seen live on 27 October 2026 (users had reported DCR) | `https://glama.ai/api/app/mcp/oauth/client-metadata.json` | `https://glama.ai/api/app/mcp/oauth/callback`; inspector `https://glama.ai/mcp/inspector/oauth/callback` | the authorization request Glama sent to krusgraph.com, 27 October 2026; earlier reports: koala73/worldmonitor PR #9281, Usehourly #327 |
 | ChatGPT | CIMD preferred | `https://chatgpt.com/oauth/client.json` (or per callback) | `https://chatgpt.com/connector_platform_oauth_redirect` | developers.openai.com/plugins/build/auth through a search excerpt |
 
-So: CIMD covers VS Code, Claude Code and ChatGPT; Cursor and Glama need DCR. Cursor's desktop DCR asks for a
+So: CIMD covers VS Code, Claude Code, ChatGPT and Glama; Cursor needs DCR. Cursor's desktop DCR asks for a
 private-use `cursor://` address, which the rules for this layer do not allow (only https and loopback); see Cursor in
 `docs/OPERATIONS.md` section 6 for the static client id that works within the rules.
 
@@ -213,4 +213,24 @@ character, and the approval buttons armed after a second.
 - **Fetching documents from Azure.** A client's host may refuse requests from cloud addresses (claude-code #84263
   reports Cloudflare 403s for claude.ai's documents from some cloud egress); then that client cannot sign in here.
 - **Table Storage outage**: these clients cannot sign in while it lasts; Claude is unaffected.
-- **Not yet run against a real client or Entra.** The tests mock Entra's endpoints and the documents.
+- **Company web filters.** The approval page and Microsoft's sign-in open in the user's own browser; a filter on a
+  company network can stop them (seen on 27 October 2026 as `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` on a company laptop
+  while the server answered normally). Claude is not affected, because it reaches the server from Anthropic's side.
+
+## Live test, 27 October 2026
+
+The maintainer switched the layer on at krusgraph.com (`deploy/krusgraph.sh --client-registration`) and signed in
+from Glama, VS Code and Cursor with the test account. On the way:
+
+1. **The approval form was refused** ("The approval did not come from this server's own page"): the page said
+   `Referrer-Policy: no-referrer`, so the browser sent `Origin: null` on the form's POST. The page now says
+   `same-origin`, and `Origin: null` counts only with `Sec-Fetch-Site: same-origin` (295b436, with a test).
+2. **The sign-in table refused every write** ("The sign-in service is briefly unavailable"): the expiry went as a
+   JSON number typed Edm.Int64, which the Table service takes only as a string, and requests had no `x-ms-date`. Both
+   fixed, and a store error now names the service's own error code (15bd7fd, with a test that enforces the rules).
+3. **The identity had no role on the table.** The role assignment in the printed steps needs Owner or User Access
+   Administrator; the maintainer's everyday account is Contributor, so it failed (unseen behind `--output none`) and
+   the subscription's Owner assigned "Storage Table Data Contributor" on the table.
+4. **A company laptop's web filter** stopped the approval page; from a private computer it worked.
+
+After that, Glama's connection test turned "Healthy" (17:59), and VS Code and Cursor worked.

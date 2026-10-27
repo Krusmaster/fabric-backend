@@ -115,7 +115,8 @@ two minutes before it expires. The server stores nothing on disk and never write
    and Entra's refresh tokens encrypted for up to 90 days in Azure Table Storage, under one key of its own
    (`KRUSGRAPH_REGISTRATION_KEY`). The access token a client gets is Entra's, so the server cannot tell which client
    holds it or revoke one before it expires; loopback addresses can be claimed by any local program (the page warns).
-   The full list of remaining risks is in `docs/CLIENT-REGISTRATION.md`. Unit-tested only.
+   The full list of remaining risks is in `docs/CLIENT-REGISTRATION.md`. On at krusgraph.com since 27 October 2026
+   (Glama, VS Code and Cursor signed in that day); off by default elsewhere.
 10. **HSTS** is `max-age=31536000` without `includeSubDomains`/`preload`; the apex serves the site and the MCP
    endpoint, and nothing else is under the domain. Adding preload is a DNS/ownership decision, not a code one.
 11. **The alerts and Log Analytics are not set up yet.** `docs/OPERATIONS.md` has the commands; until they are run,

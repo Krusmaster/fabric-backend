@@ -297,15 +297,25 @@ Section 6 is the other route: the clients sign in at `https://krusgraph.com/mcp/
 sign-in in front of Entra, with no client id to configure (except Cursor) and one redirect address on the Entra app
 instead of one per client.
 
-## 6. Client registration: VS Code, Cursor, Glama and other MCP clients (built, off by default)
+## 6. Client registration: VS Code, Cursor, Glama and other MCP clients (on at krusgraph.com since 27 October 2026)
 
 What it is: `docs/CLIENT-REGISTRATION.md`. In short, with `KRUSGRAPH_CLIENT_REGISTRATION=1` the clients that register
 themselves use **`https://krusgraph.com/mcp/connect`**, whose metadata names Krusgraph's authorization server
 `https://krusgraph.com/oauth`. It accepts Client ID Metadata Documents (VS Code, Claude Code, ChatGPT) and, with
 `KRUSGRAPH_CLIENT_REGISTRATION_DCR=1`, strict dynamic registration (Cursor, Glama), shows Krusgraph's own approval page
 per client, then sends the user to Microsoft. Claude keeps `https://krusgraph.com/mcp` and signs in exactly as today
-whether the flag is on or off. Unit-tested (27 October 2026); nothing here has run against Azure, Entra or a real
-client yet.
+whether the flag is on or off. Switched on at krusgraph.com on 27 October 2026; Glama, VS Code and Cursor signed in
+and worked that day (`docs/LIVE-TEST.md` section 4).
+
+What the first run taught, for the next time these steps are run:
+- **A new Cloud Shell has nothing**: clone the repository, `az account set --subscription <the one where the app runs>`
+  (`--from-azure` names it when another one is selected), then `bash deploy/krusgraph.sh --from-azure` before
+  `--client-registration`; the printed steps set `APP_ID` and the rest, so run them from the top.
+- **Step 2's role assignment needs Owner or User Access Administrator** on the subscription, the resource group or the
+  storage account. Contributor cannot assign roles, and the printed line hides the error (`--output none`); run it
+  without that, and check with `az role assignment list --assignee <the identity's principal id> --all -o table`.
+- **A company network's web filter can stop the approval page** in the browser (`ERR_SSL_VERSION_OR_CIPHER_MISMATCH`)
+  while `curl -sv https://krusgraph.com/health` answers normally; sign in from another network.
 
 **Turning it on.** The deploy helper prints the commands; it runs nothing and calls nothing:
 

@@ -5,6 +5,22 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- The start page's row under the hero is a hub (the brief of 27 October 2026): "Your data in Fabric" (Lakehouse,
+  Warehouse, SQL database) and "What Krusgraph builds in Fabric" (GraphQL API, Power BI semantic model, Fabric IQ
+  ontology, views, data agent, silver notebooks) on the left, Krusgraph in the middle ("one plan, the rule behind every
+  relationship"), "Where you build" on the right, joined by lines as in the graph and stacked with Krusgraph in the
+  middle on a phone. Every status comes from `tool_status.py` (`SOURCES`, `BUILDS`, `build_word()`): "creates" only for
+  what has been created live on the hosted service (the GraphQL API), "draft" for the rest; the warehouse and the SQL
+  database are marked experimental. Text names only, a text version for screen readers, and the "Independent
+  product…" line, which names Anysphere when Cursor is shown. Checked in a browser at 375, 768, 1280 and 1440 px.
+- Client registration is on at krusgraph.com since 27 October 2026, and the maintainer's live test that day signed in
+  from Glama (client ID metadata document), VS Code and Cursor at `/mcp/connect`. With client registration on, the
+  site names them: the hub lists Claude, VS Code and Cursor via MCP (`tool_status.CLIENTS_TESTED`,
+  `clients_working()`), `/start`, `/docs` (a new section, *Other MCP clients*) and `llms.txt` send them to
+  `/mcp/connect` with the date of the test, and the home page says Krusgraph connects Claude, VS Code and Cursor. With
+  it off, the pages say what they said before. The run's findings are in `docs/CLIENT-REGISTRATION.md` and
+  `docs/LIVE-TEST.md`; the README, `docs/OPERATIONS.md` and `docs/SECURITY.md` follow.
+
 - Round n17: the guided demo ("Where should each order be delivered?") moved from the start page to a page of its own,
   `/demo`, unchanged in what it does: the four steps, the graph with its mascots, the details, the relationship list
   and the "Demo · synthetic data" pill, with its own title, description, canonical link and sitemap row, and links on to

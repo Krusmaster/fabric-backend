@@ -115,11 +115,18 @@ Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash
 | Client | How | Expected | Result | Date |
 | --- | --- | --- | --- | --- |
 | Claude (connector) | sign in and ask *"Which Fabric workspaces can I see?"* after switching on | exactly as before: Microsoft sign-in, no Krusgraph page, `demo` | | |
-| VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | | |
-| Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | | |
-| Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | | |
+| VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | works (the maintainer) | 27 October 2026 |
+| Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | works (the maintainer) | 27 October 2026 |
+| Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | works: Glama identified itself with its client ID metadata document; its connection test "Healthy" at 17:59 | 27 October 2026 |
 | Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
 | Deny | choose Deny on the page once | the client reports access denied | | |
+
+What the run of 27 October 2026 found on the way, each fixed or written down: the approval form was refused with
+`Origin: null` because the page said `Referrer-Policy: no-referrer` (fixed, 295b436); the sign-in table refused every
+write (the expiry as an Edm.Int64 number, no `x-ms-date`; fixed, 15bd7fd); the container app's identity had no role on
+the table because the maintainer's account is Contributor, which cannot assign roles (assigned by the subscription's
+Owner); and a company laptop's web filter stopped the sign-in page in the browser (`ERR_SSL_VERSION_OR_CIPHER_MISMATCH`)
+while the server answered normally (a private computer worked).
 
 ## 5. From the filled-in checklist to the status words
 
