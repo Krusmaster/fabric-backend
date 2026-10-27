@@ -2,6 +2,34 @@
 
 Det här paketet använder din befintliga appregistrering och de sex godkända API-behörigheterna. Startsidan, `/explore`, `/start`, `/support`, `/partners`, `/docs`, `/privacy` och `/mcp` körs tillsammans i en Azure Container App. Allt som behövs finns i GitHub-repot; inget zip-paket behövs.
 
+## Uppdatera från ett tillfälligt Cloud Shell (utan lagring)
+
+Ett Cloud Shell utan lagring har ingen `deploy/krusgraph.json`, och dess standardprenumeration är inte den som Krusgraph körs i. Öppna Cloud Shell (Bash) i Krusgraphs katalog och klistra in hela blocket:
+
+```bash
+git clone https://github.com/Krusmaster/fabric-backend && cd fabric-backend &&
+bash deploy/krusgraph.sh --from-azure --update &&
+curl -s https://krusgraph.com/health
+```
+
+`--from-azure` läser konfigurationen ur container-appen som redan kör (den med `krusgraph` i namnet), visar den och sparar den som `deploy/krusgraph.json` om filen saknas; en befintlig fil skrivs aldrig över utan `--overwrite-config`. Sedan bygger `--update` en ny bild av koden och byter appen till den. Med `--from-azure` ändras bara bilden och dess byggmärke `KRUSGRAPH_BUILD`: övriga miljövariabler och `min_replicas` lämnas som appen har dem, och ingen hemlighet läses, skrivs eller visas. Sista raden ska svara `{"status":"ok"}`.
+
+**Om skriptet säger att prenumerationen är fel.** Ligger appen i en annan prenumeration än den Cloud Shell valt, letar skriptet i dina andra prenumerationer, stannar utan att ändra något och skriver ut kommandot som behövs:
+
+```text
+STOPP: Hittade inte någon container-app med krusgraph i namnet i den valda prenumerationen … Den finns här:
+  krusgraph i rg-krusgraph, prenumerationen … (<prenumerations-id>). Byt till den med:
+  az account set --subscription <prenumerations-id>
+```
+
+Kör `az account set`-raden precis som den står, och sedan (du står redan i `fabric-backend`):
+
+```bash
+bash deploy/krusgraph.sh --from-azure --update && curl -s https://krusgraph.com/health
+```
+
+Heter appen något utan `krusgraph`, eller finns det flera: lägg till `--app <namn> --resource-group <grupp>`. `--from-azure` utan `--update` sparar bara konfigurationen. Enhetstestat mot ett fejkat `az` (`tests/test_deploy_from_azure.py`) den 27 oktober 2026; ännu inte kört mot Azure.
+
 ## Första gången: hämta koden och lägg in din konfiguration
 
 1. Öppna Azure Cloud Shell i rätt katalog (Krusgraphs Entra-katalog) och välj Bash.
@@ -59,7 +87,7 @@ När koden har ändrats (ny version hämtad med `git pull`, eller en annan branc
 ```bash
 cd fabric-backend
 git pull                              # eller: git checkout <branch>
-cp ~/krusgraph.json deploy/           # om Cloud Shell har tömts
+cp ~/krusgraph.json deploy/           # om Cloud Shell har tömts (eller --from-azure, avsnittet överst)
 bash deploy/krusgraph.sh --check && bash deploy/krusgraph.sh --update
 ```
 

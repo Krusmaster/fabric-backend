@@ -1,7 +1,7 @@
 # Operations: limits, Key Vault, usage statistics, health and alerts
 
 Everything here is run by the maintainer in Azure Cloud Shell (Bash), from a checkout of this repository with
-`deploy/krusgraph.json` in place. Nothing in this file has been run against Azure yet: the server code is
+`deploy/krusgraph.json` in place (or built from the running app with `--from-azure`, section 0). Nothing in this file has been run against Azure yet: the server code is
 unit-tested, and the `az` parameters below were checked against the source of azure-cli (commit 003e032) and the
 application-insights extension (commit 40c323a) on 26 October 2026, not against a live subscription. Run the steps
 in order; each one can be run again.
@@ -22,6 +22,25 @@ git pull
 bash deploy/krusgraph.sh --update
 curl -s https://$DOMAIN/health                       # {"status":"ok"}
 ```
+
+From a temporary Cloud Shell (no storage, so no `deploy/krusgraph.json`, and a default subscription that is not the
+one Krusgraph runs in), paste this block instead:
+
+```bash
+git clone https://github.com/Krusmaster/fabric-backend && cd fabric-backend &&
+bash deploy/krusgraph.sh --from-azure --update &&
+curl -s https://krusgraph.com/health
+```
+
+`--from-azure` reads the configuration from the container app that already runs (the one with `krusgraph` in its
+name), shows it and saves it as `deploy/krusgraph.json` when that file is missing (an existing one is replaced only
+with `--overwrite-config`). With it, `--update` changes the image and `KRUSGRAPH_BUILD` and nothing else: the other
+environment variables and `min_replicas` stay as the app has them, and no secret is read, written or shown. If the app
+is in another subscription, the script searches the others, stops without changing anything and prints
+`az account set --subscription <id>`: run that line as printed, then, still in `fabric-backend`,
+`bash deploy/krusgraph.sh --from-azure --update && curl -s https://krusgraph.com/health`. An app without `krusgraph`
+in its name is given with `--app <name> --resource-group <group>`. Unit-tested against a faked `az`
+(`tests/test_deploy_from_azure.py`), not yet run against Azure.
 
 ## 1. Fair-use limits (on by default)
 

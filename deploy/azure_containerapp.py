@@ -21,6 +21,14 @@ two commands. Nothing is deleted.
 
 --client-redirects prints the az commands that add Claude Code's, VS Code's and Cursor's redirect addresses to the app as
 a public client, and how to try each client (docs/OPERATIONS.md, section 5). It runs nothing and calls nothing.
+
+--from-azure builds that configuration from the container app that already runs, for a Cloud Shell without storage
+where deploy/krusgraph.json is missing: the tenant and subscription from `az account show`, the app whose name contains
+"krusgraph" (or --app / --resource-group), and the rest from the app's plain environment variables, scale, registry,
+environment, identity, custom domains and resource group. It shows the result and writes deploy/krusgraph.json only
+when the file is missing (--overwrite-config replaces one). No secret is read, written or shown. With --update the
+image and its build tag are all that change: not min_replicas, not another environment variable. When the app is not
+in the selected subscription, the others are searched and the run stops with the `az account set` command to use.
 """
 from __future__ import annotations
 
@@ -35,6 +43,7 @@ import sys
 import tempfile
 import time
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 import uuid
 
@@ -57,10 +66,10 @@ class Azure:
         self.config = config
         self.secret = ""
 
-    def run(self, *args, missing_ok=False, raw=False):
+    def run(self, *args, missing_ok=False, raw=False, subscription=None):
         command = ["az", *args, "--only-show-errors", "--output", "none" if raw else "json"]
         if args[0] not in {"ad", "account", "extension"}:
-            command += ["--subscription", self.config["subscription_id"]]
+            command += ["--subscription", subscription or self.config["subscription_id"]]
         result = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if result.returncode:
             detail = (result.stderr or result.stdout).strip()
@@ -410,9 +419,11 @@ def build_image(az, config, registry, tag):
     return f"{registry['loginServer']}/krusgraph@{image['digest']}"
 
 
-def update(az, config):
+def update(az, config, keep_settings=False):
     """New image from this checkout → the existing container app. Nothing else: no Entra, no secrets, no domains,
-    no certificates, and the client secret is never requested (the app keeps its secret reference)."""
+    no certificates, and the client secret is never requested (the app keeps its secret reference).
+    With keep_settings (--from-azure: the configuration was read from this app) the image and KRUSGRAPH_BUILD are all
+    that change; min_replicas and the other environment variables are not sent, so they stay as the app has them."""
     rg = config["resource_group"]
     existing = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
     if not existing:
@@ -428,9 +439,11 @@ def update(az, config):
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
     # --set-env-vars adds and replaces only these; the Key Vault settings --key-vault made stay as they are
     env_args = [f"{key}={value}" for key, value in plain_env(config, tag).items()]     # KEY= sets an empty value; the server treats it as unset
+    scale = ["--min-replicas", str(min_replicas(config))]
+    if keep_settings:
+        env_args, scale = [f"KRUSGRAPH_BUILD={tag}"], []
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
-           "--revision-suffix", "r" + uuid.uuid4().hex[:12], "--min-replicas", str(min_replicas(config)),
-           "--set-env-vars", *env_args, raw=True)
+           "--revision-suffix", "r" + uuid.uuid4().hex[:12], *scale, "--set-env-vars", *env_args, raw=True)
     report(az, config, first_run=False, build=tag)
 
 
@@ -576,6 +589,122 @@ def client_redirects(config) -> str:
     return "\n".join(lines) + "\n"
 
 
+CONTAINER_APPS = "Microsoft.App/containerApps"
+REQUIRED_APP_ENV = ("ENTRA_CLIENT_ID", "MCP_PUBLIC_URL", "PRODUCT_NAME", "CONTACT_EMAIL")
+
+
+def _last(resource_id):
+    return (resource_id or "").rstrip("/").split("/")[-1]
+
+
+def _group_of(resource_id):
+    parts = (resource_id or "").split("/")
+    lowered = [p.lower() for p in parts]
+    return parts[lowered.index("resourcegroups") + 1] if "resourcegroups" in lowered[:-1] else ""
+
+
+def find_app(az, account, app=None, resource_group=None):
+    """--from-azure: the container app to read, in the selected subscription: the one named --app, or the one whose
+    name contains "krusgraph". Not there: the user's other subscriptions are listed one by one, and the run stops with
+    the `az account set` command to use. The subscription is never changed here."""
+    def matches(resource):
+        name = resource.get("name", "").lower()
+        if (app and name != app.lower()) or (not app and "krusgraph" not in name):
+            return False
+        return not resource_group or resource.get("resourceGroup", "").lower() == resource_group.lower()
+
+    here = [r for r in az.run("resource", "list", "--resource-type", CONTAINER_APPS) or [] if matches(r)]
+    if len(here) == 1:
+        return here[0]
+    if here:
+        raise DeploymentError("Flera container-appar passar: " + ", ".join(f"{r['name']} ({r['resourceGroup']})" for r in here)
+                              + ". Ange vilken med --app och --resource-group.")
+    elsewhere = []
+    for sub in az.run("account", "list") or []:
+        if sub.get("id", "").lower() == account["id"].lower():
+            continue
+        try:
+            found = az.run("resource", "list", "--resource-type", CONTAINER_APPS, subscription=sub["id"]) or []
+        except DeploymentError:          # a subscription this account may not list is not where the app runs
+            continue
+        elsewhere += [(sub, r) for r in found if matches(r)]
+    wanted = f"container-appen {app}" if app else "någon container-app med krusgraph i namnet"
+    if not elsewhere:
+        raise DeploymentError(f"Hittade inte {wanted} i någon av dina prenumerationer. Heter den något annat: ange --app och --resource-group.")
+    lines = [f"Hittade inte {wanted} i den valda prenumerationen {account.get('name', '')} ({account['id']}). Den finns här:"]
+    for sub, r in elsewhere:
+        lines += [f"  {r['name']} i {r['resourceGroup']}, prenumerationen {sub.get('name', '')} ({sub['id']}). Byt till den med:",
+                  f"  az account set --subscription {sub['id']}"]
+    lines.append("Kör sedan samma kommando igen. Skriptet byter inte prenumeration själv.")
+    raise DeploymentError("\n".join(lines))
+
+
+def config_from_azure(az, app=None, resource_group=None):
+    """--from-azure: the fields of deploy/krusgraph.json, read from the container app that already runs. Only names, ids
+    and plain environment variables are read: `az containerapp show` lists the secrets' names, never their values, and a
+    variable that refers to a secret is skipped."""
+    account = az.run("account", "show")
+    az.config = {"subscription_id": account["id"]}
+    found = find_app(az, account, app, resource_group)
+    rg = found["resourceGroup"]
+    live = az.run("containerapp", "show", "--name", found["name"], "--resource-group", rg)
+    name = live.get("name") or found["name"]
+    props = live.get("properties") or {}
+    configuration, template = props.get("configuration") or {}, props.get("template") or {}
+    containers = template.get("containers") or [{}]
+    container = next((c for c in containers if c.get("name") == name), containers[0])
+    env = {e["name"]: e.get("value") or "" for e in container.get("env") or [] if not e.get("secretRef")}
+    missing = [key for key in REQUIRED_APP_ENV if not env.get(key)]
+    if missing:
+        raise DeploymentError(f"Container-appen {name} saknar {', '.join(missing)}, så konfigurationen kan inte läsas ur den. "
+                              "Utgå från deploy/krusgraph.example.json.")
+    image_host = (container.get("image") or "").split("/")[0]
+    registries = configuration.get("registries") or [{}]
+    registry = next((r for r in registries if r.get("server") == image_host), registries[0])
+    identities = list((live.get("identity") or {}).get("userAssignedIdentities") or {})
+    identity = next((i for i in identities if i.lower() == (registry.get("identity") or "").lower()), identities[0] if identities else "")
+    environment = props.get("environmentId") or props.get("managedEnvironmentId") or ""
+    if not (registry.get("server") and identity and environment):
+        raise DeploymentError(f"Container-appen {name} saknar bildregister, användartilldelad identitet eller miljö; den är inte gjord av denna driftsättning.")
+    for what, resource_id in (("Container Apps-miljön", environment), ("Identiteten", identity)):
+        if _group_of(resource_id).lower() != rg.lower():
+            raise DeploymentError(f"{what} {_last(resource_id)} ligger i en annan resursgrupp än appen; denna driftsättning förutsätter en enda.")
+    domain = urlparse(env["MCP_PUBLIC_URL"]).hostname or ""
+    domains = {d.get("name", "").lower() for d in (configuration.get("ingress") or {}).get("customDomains") or []}
+    vault = urlparse(env.get("ENTRA_CLIENT_SECRET_KEYVAULT_URI", "")).hostname or ""
+    days = env.get("KRUSGRAPH_LOG_RETENTION_DAYS", "").strip()
+    return {
+        "tenant_id": account["tenantId"], "subscription_id": account["id"], "client_id": env["ENTRA_CLIENT_ID"],
+        "domain": domain, "location": az.run("group", "show", "--name", rg)["location"], "resource_group": rg,
+        "environment": _last(environment), "app": name, "registry": registry["server"].split(".")[0],
+        "identity": _last(identity), "product_name": env["PRODUCT_NAME"], "contact_email": env["CONTACT_EMAIL"],
+        "company_orgnr": env.get("COMPANY_ORGNR", ""), "include_www": "www." + domain.lower() in domains,
+        "min_replicas": int((template.get("scale") or {}).get("minReplicas") or 0),
+        "ontology_write": env.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in {"1", "true", "yes"},
+        "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0,
+    }
+
+
+def save_config(path, config, overwrite=False):
+    """deploy/krusgraph.json from --from-azure: written when it is missing, or with --overwrite-config. An existing file
+    is left byte for byte as it is, and the fields where it differs from the app are named."""
+    print(f"\nKonfiguration läst ur container-appen {config['app']} ({config['resource_group']}):")
+    print(json.dumps(config, indent=2, ensure_ascii=False), flush=True)
+    if path.exists() and not overwrite:
+        try:
+            old = json.loads(path.read_text(encoding="utf-8"))
+        except ValueError:
+            old = {}
+        differs = [key for key in config if old.get(key) != config[key]]
+        print(f"{path} finns redan och skrevs inte över"
+              + (f"; den skiljer sig från appen i {', '.join(differs)}." if differs else "; den stämmer med appen.")
+              + " Denna körning använder appens värden; --overwrite-config ersätter filen.", flush=True)
+        return False
+    path.write_text(json.dumps(config, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Sparade {path} (ignoreras av git).", flush=True)
+    return True
+
+
 def show_plan(config):
     print(f"\nKrusgraph i {config['location']}: {config['resource_group']}")
     print("Container Apps Consumption, 0–2 instanser, 0,25 CPU och 0,5 GiB per instans.")
@@ -596,8 +725,22 @@ def main():
     mode.add_argument("--key-vault", action="store_true", help="Flytta klienthemligheten till Azure Key Vault (valfritt; tar inte bort något)")
     mode.add_argument("--client-redirects", action="store_true",
                       help="Skriv ut az-kommandona som lägger till Claude Code, VS Code och Cursor som klienter (kör inget, inga Azure-anrop)")
+    parser.add_argument("--from-azure", action="store_true",
+                        help="Bygg konfigurationen ur den container-app som redan kör, när deploy/krusgraph.json saknas; "
+                             "ensam sparar den filen, med --update (eller --check, --status) körs det steget sedan med den")
+    parser.add_argument("--app", help="Med --from-azure: container-appens namn (annars den vars namn innehåller krusgraph)")
+    parser.add_argument("--resource-group", help="Med --from-azure: appens resursgrupp")
+    parser.add_argument("--overwrite-config", action="store_true", help="Med --from-azure: ersätt en befintlig deploy/krusgraph.json")
     args = parser.parse_args()
-    config = json.loads(args.config.read_text(encoding="utf-8"))
+    if args.from_azure and (args.plan or args.client_redirects):
+        parser.error("--from-azure läser Azure; --plan och --client-redirects gör inga Azure-anrop.")
+    if not args.from_azure and (args.app or args.resource_group or args.overwrite_config):
+        parser.error("--app, --resource-group och --overwrite-config hör till --from-azure.")
+    if not args.from_azure and not args.config.exists():
+        print(f"STOPP: {args.config} saknas. Kör med --from-azure för att bygga den ur den körande appen "
+              "(bash deploy/krusgraph.sh --from-azure --update), eller utgå från deploy/krusgraph.example.json.", file=sys.stderr)
+        sys.exit(1)
+    config = {} if args.from_azure else json.loads(args.config.read_text(encoding="utf-8"))
     if args.plan:
         show_plan(config)
         return
@@ -606,6 +749,12 @@ def main():
         return
     az = Azure(config)
     try:
+        if args.from_azure:
+            config = config_from_azure(az, args.app, args.resource_group)
+            save_config(args.config, config, args.overwrite_config)
+            az.config = config
+            if not (args.check or args.status or args.bind_domain or args.update or args.key_vault):
+                return
         az.check_context()
         if args.check:
             check_entra(az, config)
@@ -614,7 +763,7 @@ def main():
         elif args.bind_domain:
             bind_domains(az, config)
         elif args.update:
-            update(az, config)
+            update(az, config, keep_settings=args.from_azure)
         elif args.key_vault:
             move_secret_to_key_vault(az, config)
         else:
