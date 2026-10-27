@@ -87,12 +87,12 @@ def test_home_demo_and_the_mobile_list(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
         assert f[f"homeList@{v}"] == f["edgeCount"], v                 # every relationship is in the list at every width
-        assert f[f"homeCtas@{v}"][:2] == ["/explore", "/start"], v
+        assert f[f"homeCtas@{v}"][:2] == ["#guide", "/start"], v
     assert f["homeDefault"] == "orders.customer_id>customers"
     for part in ("Suggestion", "Why", "Data check", "Your review", "Technical details"):
         assert part in f["homePanelDefault"], part
     assert f["homeDetailsClosed"] is True
-    assert "Not checked" in f["homeDecisionPanel"] and f["homeUrlAfterListClick"] == "/"
+    assert "All 60 orders in this sample" in f["homeDecisionPanel"] and f["homeUrlAfterListClick"] == "/"
     assert "Accepted in this demo" in f["homeAfterAccept"] and f["homeFocusAfterAccept"] == "accept"
     assert "accepted" in f["homeEdgeAccepted"]
     assert "Accepted in this demo" in f["homeAfterKeyboard"]
@@ -122,3 +122,19 @@ def test_sales_example_journey_at_phone_width(report):
     assert f["salesWideOutsideScroll"] == []
     assert "Reopened" in f["salesReopened"] and f["salesReopenedTotal"] == f["salesFilteredTotal"]
     assert "linked to Commuter Light Set" in f["salesSavedList"] and f["salesChoiceKept"] is True
+
+
+
+def test_the_guided_example_steps_decides_resets_and_agrees_with_the_graph(report):
+    """Home page round 1: one step at a time with the script, Next and Back by keyboard, the decision in step 3 drawn on
+    the graph's line too, the result card for that decision, and Start over returning to step 1 with nothing accepted;
+    at 375 px the guide fits the screen."""
+    f = report["facts"]
+    assert f["guideVisiblePanes"] == ["1"] and f["guideStatus"].startswith("Step 1 of 4")
+    assert f["guideAfterNext"] == ["2"] and f["guideAfterKeyboardNext"] == ["3"] and f["guideAfterBack"] == ["2"]
+    assert f["guideAcceptPressed"] == "true" and "accepted" in f["guideEdgeClass"]
+    assert f["guideCardShown"] == "accepted" and "You accepted, in this demo" in f["guideCardText"]
+    assert f["guideAfterReset"] == ["1"] and "accepted" not in f["guideEdgeAfterReset"] and f["guideCardAfterReset"] == "open"
+    assert f["guideFromGraph"] == "accepted"                                  # accepting on the graph's panel shows the same card
+    assert f["guideOverflow375"] == [] and f["guideStepTargets375"] >= 44
+    assert f["guidePreviewFits375"] == [True]                               # the delivery-address column is visible without scrolling

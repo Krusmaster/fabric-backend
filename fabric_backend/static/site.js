@@ -99,8 +99,8 @@
   Graph.prototype.edgeId = function (r) { return r.source + '.' + r.source_cols.join('+') + '>' + r.target; };
   Graph.prototype.edgeLabel = function (e) {
     var r = e.rel, from = r.source + '.' + r.source_cols.join(', '), to = r.target + '.' + r.target_cols.join(', ');
-    if (e.kind === 'suggested') return this.accepted[e.id] ? 'Accepted in this demo, not checked: ' + from + ' to ' + to
-                                                            : 'Needs review: ' + from + ' to ' + to + ', not linked by the engine.';
+    if (e.kind === 'suggested') return this.accepted[e.id] ? 'Accepted in this demo: ' + from + ' to ' + to + (r.check ? '. ' + r.check : ', not checked.')
+                                                            : 'Needs your decision: ' + from + ' to ' + to + ', suggested by suggest_relationships, not linked by a naming rule.';
     return from + ' points at ' + to + ', rule ' + r.rule + ', many ' + r.source + ' to one ' + r.target;
   };
   Graph.prototype.makeEdge = function (e) {
@@ -370,11 +370,11 @@
     });
   }
   function suggestions(data) {
-    // Dashed wires: the demo hints that plan.json carries for columns the engine left unlinked. They are labelled as
-    // hints, not inference; accepting one is the page-local equivalent of passing confirmed=[...] to the tools.
+    // Dashed wires: what suggest_relationships proposes, on the demo's rows, for a column no naming rule links, with its data
+    // check (plan.json carries both). Accepting one decides what the column means, as confirmed=[...] does in the tools.
     return (data.suggestions || []).map(function (s) {
       var u = (data.unlinked || []).filter(function (x) { return x.table === s.table && x.column === s.column; })[0];
-      return { source: s.table, source_cols: [s.column], target: s.target, target_cols: s.target_cols, rule: 'suggested', note: u ? u.note : '', why: s.why, origin: s.source };
+      return { source: s.table, source_cols: [s.column], target: s.target, target_cols: s.target_cols, rule: 'suggested', note: u ? u.note : '', why: s.why, origin: s.source, check: s.evidence ? s.check : '' };
     });
   }
 
@@ -396,6 +396,41 @@
     return lead;
   }
   function tableIcon(name, i) { return '<span class="t-ico c-' + colorOf(name, i) + '">' + ICON_TABLE + '</span>'; }
+
+  /* ------------------------------------------------------------------ home: the guided example (all four steps without JS) */
+  // One order, its customer and its delivery address (demo.home_guide): one step at a time, the decision in step 3 shown
+  // on the result card and on the graph's line, and Start over back to step 1 with nothing accepted.
+  var guide = document.getElementById('guide'), guideApi = null;
+  if (guide) {
+    document.documentElement.classList.add('js');
+    var gSteps = guide.querySelectorAll('.guide-step'), gPanes = guide.querySelectorAll('.guide-pane');
+    var gStatus = guide.querySelector('.guide-status'), gBack = guide.querySelector('[data-guide=back]'), gNext = guide.querySelector('[data-guide=next]');
+    var gStep = 1, gAccepted = false, gListeners = [];
+    var gShow = function (n) {
+      gStep = Math.max(1, Math.min(gPanes.length, n));
+      gSteps.forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-step') === String(gStep) ? 'true' : 'false'); });
+      gPanes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== String(gStep); });
+      gBack.setAttribute('aria-disabled', gStep === 1 ? 'true' : 'false');          // not disabled: the focus stays on the button
+      gNext.setAttribute('aria-disabled', gStep === gPanes.length ? 'true' : 'false');
+      var b = guide.querySelector('.guide-step[data-step="' + gStep + '"]');
+      gStatus.textContent = 'Step ' + gStep + ' of ' + gPanes.length + ': ' + (b ? b.textContent.replace(/^\d+/, '').trim() : '');
+    };
+    var gDecide = function (on, quiet) {
+      gAccepted = !!on;
+      guide.querySelectorAll('[data-guide-decide]').forEach(function (b) { b.setAttribute('aria-pressed', (b.getAttribute('data-guide-decide') === 'accept') === gAccepted ? 'true' : 'false'); });
+      guide.querySelectorAll('.result-card').forEach(function (c) { c.hidden = c.getAttribute('data-variant') !== (gAccepted ? 'accepted' : 'open'); });
+      if (!quiet) gListeners.forEach(function (f) { f(gAccepted); });
+    };
+    gSteps.forEach(function (b) { b.addEventListener('click', function () { gShow(parseInt(b.getAttribute('data-step'), 10)); }); });
+    gNext.addEventListener('click', function () { if (gNext.getAttribute('aria-disabled') !== 'true') gShow(gStep + 1); });
+    gBack.addEventListener('click', function () { if (gBack.getAttribute('aria-disabled') !== 'true') gShow(gStep - 1); });
+    guide.querySelector('[data-guide=reset]').addEventListener('click', function () { gDecide(false); gShow(1); });
+    guide.querySelectorAll('[data-guide-decide]').forEach(function (b) {
+      b.addEventListener('click', function () { gDecide(b.getAttribute('data-guide-decide') === 'accept'); });
+    });
+    gShow(1);
+    guideApi = { edge: guide.getAttribute('data-edge'), decide: gDecide, onDecide: function (f) { gListeners.push(f); } };
+  }
 
   /* ------------------------------------------------------------------ home */
   // One example selected from the start: orders.customer_id -> customers. The panel's text comes from the server
@@ -422,6 +457,7 @@
         b.addEventListener('click', function () {
           var ed = edgeById(id); if (!ed) return;
           g.setAccepted(ed, b.getAttribute('data-decide') === 'accept'); show(id);
+          if (guideApi && id === guideApi.edge) guideApi.decide(g.accepted[id], true);      // the guide's card follows the graph
           var again = panel.querySelector('[data-decide="' + b.getAttribute('data-decide') + '"]'); if (again) again.focus();
         });
       });
@@ -434,6 +470,10 @@
       var a = ev.target.closest('a[data-edge]'); if (!a) return;
       var e = edgeById(a.getAttribute('data-edge')); if (!e) return;
       ev.preventDefault(); g.select({ type: 'edge', edge: e, el: e.el });
+    });
+    if (guideApi) guideApi.onDecide(function (on) {                         // and the graph's line follows the guide
+      var ed = edgeById(guideApi.edge); if (!ed) return;
+      g.setAccepted(ed, on); if (current === guideApi.edge) show(current);
     });
     var first = edgeById(DEFAULT);
     if (first) g.select({ type: 'edge', edge: first, el: first.el });      // selected for the reader, without moving focus or scroll
@@ -513,11 +553,12 @@
         panel.innerHTML = '<h2>Does this column refer to ' + article(tgt) + ' ' + esc(tgt) + '?</h2><div class="why-cols"><div>' +
           '<p class="why-head"><span class="why-rule ' + (acc ? 'acc' : 'sug') + '">' + (acc ? 'Accepted in this demo' : 'Needs review') + '</span></p>' +
           '<p class="why-path"><code>' + esc(r.source + '.' + r.source_cols[0]) + ' → ' + esc(r.target + '.' + r.target_cols[0]) + '</code></p>' +
-          '<p>The engine left <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code> unlinked because no naming rule matched. This line is a <strong>' + esc(r.origin || 'demo hint') + '</strong>: ' + esc(r.why || '') + '. You can accept the example relationship or leave it unlinked.</p>' +
+          '<p>No naming rule linked <code>' + esc(r.source + '.' + r.source_cols[0]) + '</code>. <strong>' + esc(r.origin || 'suggest_relationships') + '</strong> suggests this line: ' + esc(r.why || '') + '.</p>' +
+          '<p><strong>Data check:</strong> ' + esc(r.check || 'not checked.') + ' A check counts values; what the column means is your decision.</p>' +
           fields(r) + '</div><div>' +
-          '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Accept this example relationship, or leave it unlinked.</strong><br>Your choice only affects this demo.' +
+          '<div class="note sage"><span data-mascot="thinker" data-pose="' + (acc ? 'rest' : 'think') + '" data-label="The thinker"></span><div><strong>Accept the suggested relationship, or leave it unlinked.</strong><br>Your choice only affects this demo.' +
           '<div class="choice"><button type="button" class="btn sage small" id="acc" aria-pressed="' + (acc ? 'true' : 'false') + '">Accept in this demo</button><button type="button" class="btn ghost small" id="skip">Leave unlinked</button></div></div></div>' +
-          '<p class="status">' + (acc ? 'Accepted in this demo: drawn as a solid line. Accepting does not check the data; with the real tools you pass it as a <code>confirmed</code> entry.' : 'Left unlinked: the line stays dashed.') + ' This only changes the demo on this page. It does not update Fabric.</p></div></div>';
+          '<p class="status">' + (acc ? 'Accepted in this demo: drawn as a solid line. Accepting decides what the column means; the data check above is separate. With the real tools you pass it as a <code>confirmed</code> entry.' : 'Left unlinked: the line stays dashed.') + ' This only changes the demo on this page. It does not update Fabric.</p></div></div>';
         line.innerHTML = (acc ? 'Accepted in this demo' : 'Needs review') + ': <code>' + esc(r.source + '.' + r.source_cols[0] + ' → ' + r.target + '.' + r.target_cols[0]) + '</code> · <a href="#why">review it below</a>';
         M.mount(panel);
         panel.querySelector('#acc').addEventListener('click', function () { g.setAccepted(sel.edge, true); render(sel); panel.querySelector('#acc').focus(); });

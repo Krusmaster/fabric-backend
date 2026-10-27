@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Home page, round 1 of the brief of 27 October 2026: a shorter lede and a guided example in four steps that follows
+  one order to its delivery address. The suggestion for `orders.ship_to_id` is now the engine's own
+  (`suggest_relationships` on the synthetic sample, `demo.demo_suggestions()`), with its data check (all 60 orders have
+  a `ship_to_id` in addresses, 15 different addresses) and the next candidate that does not hold (customers, 35 of 60).
+  The visitor's review is a separate step from the check: accepting decides what the column means in the demo only,
+  never "checked", and the graph below follows the same decision. The last step is a result card (what was reviewed,
+  what the data shows, the decision, what is still open, next tools with their status) with a summary to copy. Every
+  step is in the HTML, so the page reads without JavaScript. The headline and the mascots are unchanged.
 - Finding 8 of 27 October 2026: the Glama catalog lists Krusgraph and asks the owner to confirm it with a file.
   `GET /.well-known/glama.json` serves the maintainer's claim (`$schema` and `claim`, a token made to be public) as
   `application/json`, without sign-in and outside the 401 in front of `/mcp`, only when the public host from

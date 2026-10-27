@@ -86,6 +86,46 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   await hp.focus('.hero .ctas a');
   facts.ctaFocusOutline = await hp.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
   await hc.close();
+  // the guided example on the home page (round 1 of 27 October 2026): steps, keyboard, the decision on the graph, reset
+  const gc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
+  const gp = await gc.newPage(); watch(gp, '/ guide');
+  await gp.goto(base + '/', { waitUntil: 'networkidle' });
+  const visible = () => gp.evaluate(() => [...document.querySelectorAll('.guide-pane')].filter(p => !p.hidden).map(p => p.dataset.pane));
+  const card = () => gp.evaluate(() => [...document.querySelectorAll('.result-card')].filter(c => !c.hidden).map(c => c.dataset.variant)[0]);
+  const shipTo = '.g-edge[data-id="orders.ship_to_id>addresses"]';
+  facts.guideVisiblePanes = await visible();
+  facts.guideStatus = await gp.textContent('.guide-status');
+  await gp.click('[data-guide=next]');
+  facts.guideAfterNext = await visible();
+  await gp.focus('[data-guide=next]'); await gp.keyboard.press('Enter');
+  facts.guideAfterKeyboardNext = await visible();
+  await gp.click('[data-guide=back]');
+  facts.guideAfterBack = await visible();
+  await gp.click('[data-guide=next]');
+  await gp.click('[data-guide-decide=accept]');
+  facts.guideAcceptPressed = await gp.getAttribute('[data-guide-decide=accept]', 'aria-pressed');
+  facts.guideEdgeClass = await gp.getAttribute(shipTo, 'class');
+  await gp.click('[data-guide=next]');
+  facts.guideCardShown = await card();
+  facts.guideCardText = await gp.textContent('.result-card[data-variant=accepted]');
+  await gp.click('[data-guide=reset]');
+  facts.guideAfterReset = await visible();
+  facts.guideEdgeAfterReset = await gp.getAttribute(shipTo, 'class');
+  facts.guideCardAfterReset = await card();
+  await gp.click('.rel-list a[data-edge="orders.ship_to_id>addresses"]'); await gp.click('#home-why [data-decide="accept"]');
+  facts.guideFromGraph = await card();
+  await gc.close();
+  const g3 = await browser.newContext({ viewport: { width: 375, height: 900 } });
+  const g3p = await g3.newPage(); watch(g3p, '/ guide@375');
+  await g3p.goto(base + '/', { waitUntil: 'networkidle' });
+  facts.guideOverflow375 = await g3p.evaluate(() => [...document.querySelectorAll('#guide *')].filter(e => {
+    const r = e.getBoundingClientRect(); return r.width > 0 && r.right > window.innerWidth + 1 && !e.closest('.table-wrap');
+  }).map(e => e.tagName + '.' + e.className).slice(0, 5));
+  facts.guidePreviewFits375 = await g3p.evaluate(() => [...document.querySelectorAll('#guide .order-preview .table-wrap')]
+    .filter(w => w.getBoundingClientRect().width > 0).map(w => w.scrollWidth <= w.clientWidth + 1));
+  facts.guideStepTargets375 = await g3p.evaluate(() => Math.min(...[...document.querySelectorAll('.guide-step, .guide-nav .btn, [data-guide-decide]')]
+    .filter(b => b.getBoundingClientRect().height > 0).map(b => b.getBoundingClientRect().height)));
+  await g3.close();
   // /docs: the groups and the 'on this page' list; /use-cases: an industry's details open by keyboard
   const dc = await browser.newContext({ viewport: { width: 375, height: 900 } });
   const dp = await dc.newPage(); watch(dp, '/use-cases details');

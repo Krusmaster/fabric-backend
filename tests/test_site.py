@@ -63,8 +63,8 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     h1 = re.search(r"<h1>(.*?)</h1>", html).group(1)
     assert "Fabric tables" in h1 and "MCP" not in h1 and "GraphQL" not in h1
     first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
-    assert "keys and relationships" in first and "MCP" not in first and "GraphQL" not in first
-    assert 'href="/explore">Explore the demo<' in html and 'href="/start">Connect to Claude<' in html
+    assert "relationships" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
+    assert 'href="#guide">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
     assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
@@ -217,8 +217,14 @@ def test_demo_plan_is_the_real_engine_output(client):
     keys = {t["name"]: (t["key"], t["key_rule"]) for t in d["tables"]}
     assert keys["order_items"] == (["order_id", "line_no"], "K1") and keys["audit_log"] == ([], "K3")
     assert d["rules"] == infer.RULES
-    assert d["suggestions"] == [{"table": "orders", "column": "ship_to_id", "target": "addresses", "target_cols": ["address_id"],
-                                 "source": "demo hint, not inferred", "why": "the synthetic seed stores address ids in this column"}]
+    # the one suggestion is the engine's: suggest_relationships on the synthetic rows, with its data check (home page round 1)
+    [sug] = d["suggestions"]
+    assert (sug["table"], sug["column"], sug["target"], sug["target_cols"]) == ("orders", "ship_to_id", "addresses", ["address_id"])
+    assert sug["source"] == "suggest_relationships" and sug["score"] == 3.94
+    assert "ship-to" in sug["why"] and "orders -> customers <- addresses" in sug["why"]
+    assert sug["evidence"]["inclusion"] == 1.0 and sug["evidence"]["rows_with_value"] == 60 and sug["evidence"]["distinct_values"] == 15
+    assert sug["check"] == "All 60 orders in this sample have a ship_to_id that exists in addresses (15 different addresses)."
+    assert sug["runner_up"] == {"target": "customers", "matched": 35, "rows_with_value": 60}
     # no real-looking data: the synthetic seed only
     text = json.dumps(d)
     assert "shop" in text and "@" not in text
@@ -720,10 +726,15 @@ def test_home_data_check_is_computed_from_the_demo_validation(monkeypatch):
     unchecked["relationships"] = [r for r in unchecked["relationships"] if not (r["source"] == "orders" and r["target"] == "customers")]
     monkeypatch.setattr(demo, "demo_validation", lambda: unchecked)
     assert "not checked" in data_check(demo.home_details(), demo.HOME_DEFAULT).lower()
-    # the decision example is never presented as checked, and its accepted variant says it is the demo's choice
+    # the suggestion's data check is the engine's count; accepting its meaning never changes what the check says
+    monkeypatch.setattr(demo, "demo_validation", lambda: real)
     d = demo.home_details()
-    assert "not checked" in data_check(d, "orders.ship_to_id>addresses").lower()
-    assert "Accepted in this demo" in d["orders.ship_to_id>addresses|accepted"]
+    sid = "orders.ship_to_id>addresses"
+    assert data_check(d, sid) == data_check(d, sid + "|accepted") == "All 60 orders in this sample have a ship_to_id that exists in addresses (15 different addresses)."
+    assert "Accepted in this demo" in d[sid + "|accepted"] and "separate" in d[sid + "|accepted"]
+    sug = demo.demo_suggestions()
+    monkeypatch.setattr(demo, "demo_suggestions", lambda: [dict(sug[0], evidence=None, check="")])
+    assert "not checked" in data_check(demo.home_details(), sid).lower()
 
 
 def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):
@@ -804,3 +815,55 @@ def test_the_notes_in_the_tools_answers_follow_tool_status(monkeypatch):
     assert {"lineage", "app_readiness", "app_starter", "semantic_model_draft", "compare_semantic_model", "create_semantic_model",
             "create_views", "create_data_agent", "create_ontology", "silver_notebook_draft", "gold_views_draft",
             "drift_monitor_draft", "export_item_definitions"} <= carried, sorted(carried)
+
+
+
+# ------------------------------------------------------------------ home page round 1: the guided ship-to example ------
+
+def test_the_guided_example_follows_one_order_to_its_delivery_address(client):
+    """The home page brief of 27 October 2026, round 1: one example all the way (customer, order, delivery address), the
+    engine's suggestion with its data check, the visitor's review apart from the check, and a result card. Every pane
+    is in the HTML, so the page reads without JavaScript; the script shows one step at a time."""
+    from fabric_backend import demo
+    html = client.get("/").text
+    guide = re.search(r'<div class="guide" id="guide".*?<!-- /guide -->', html, re.S).group(0)
+    assert "Where should each order be delivered?" in html
+    steps = re.findall(r'<button type="button" class="guide-step"[^>]*data-step="(\d)"[^>]*>(.*?)</button>', guide, re.S)
+    assert [n for n, _ in steps] == ["1", "2", "3", "4"]
+    panes = re.findall(r'<section class="guide-pane" data-pane="(\d)"[^>]*>', guide)
+    assert panes == ["1", "2", "3", "4"] and not re.search(r'class="guide-pane"[^>]*\shidden', guide)
+    order = demo.demo_preview()[0]
+    p1 = re.search(r'data-pane="1".*?</section>', guide, re.S).group(0)
+    assert "Illustrative preview" in p1 and "synthetic" in p1 and "Delivery address not confirmed" in p1
+    assert f">{order['order_id']}<" in p1 and f">{order['customer_id']}<" in p1 and f">{order['ship_to_id']}<" in p1
+    p2 = re.search(r'data-pane="2".*?</section>', guide, re.S).group(0)
+    assert "suggest_relationships" in p2 and "All 60 orders in this sample have a ship_to_id that exists in addresses" in p2
+    assert "35 of 60" in p2                                                            # the next candidate, customers, does not hold
+    assert "does not say what the column means" in p2
+    why = re.search(r"<dt>Why</dt><dd>(.*?)</dd>", p2, re.S).group(1)
+    assert why[:1].isupper() and why.endswith(".")                                  # a sentence of its own
+    p3 = re.search(r'data-pane="3".*?</section>', guide, re.S).group(0)
+    assert 'data-guide-decide="accept"' in p3 and 'data-guide-decide="open"' in p3 and "Nothing changes in Fabric" in p3
+    p4 = re.search(r'data-pane="4".*?</section>', guide, re.S).group(0)
+    for variant in ("accepted", "open"):
+        card = re.search(rf'<div class="result-card" data-variant="{variant}".*?</div><!-- /card -->', p4, re.S).group(0)
+        for head in ("You reviewed", "The data shows", "Still open", "Next"):
+            assert head in card, (variant, head)
+        assert "Demo with synthetic data" in card and 'data-copy="#guide-summary-' + variant + '"' in card
+        rows = len(re.findall(r"<dt>", card))
+        words = {3: "three", 4: "four", 5: "five", 6: "six"}
+        assert not re.search(r"in (three|four|five|six) lines", card) or f"in {words[rows]} lines" in card, (variant, rows)
+    opened = re.search(r'data-variant="open".*?<!-- /card -->', p4, re.S).group(0)
+    assert "Delivery address not confirmed" in opened
+    assert 'href="/docs#test-status"' in p4 and "create_backend" in p4                  # the app path carries its status
+    assert '<button type="button" class="btn ghost small" data-guide="reset"' in guide
+
+
+def test_accepting_in_the_guide_is_never_shown_as_a_check():
+    """Proposal, review and check stay three things: the accepted card names the check as what the data shows and the
+    meaning as the visitor's decision; neither card calls the meaning checked."""
+    from fabric_backend import pages
+    html = pages.render("/")
+    accepted = re.search(r'data-variant="accepted".*?<!-- /card -->', html, re.S).group(0)
+    assert "You accepted, in this demo" in accepted and "checked the meaning" not in accepted
+    assert "The check counts values" in accepted

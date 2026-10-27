@@ -16,7 +16,7 @@ no build step, no bundler and no external resource at runtime. This note is for 
 | `fabric_backend/static/mascots.js` | the three figures as inline SVG (`Mascots.svg`), the off switch, gaze, the follower, the builder sequence |
 | `fabric_backend/static/fonts/` | Fredoka and Nunito, variable, subset to Latin, SIL OFL (licence files beside them) |
 | `fabric_backend/static/favicon.svg|png`, `og.svg|png` | icon and Open Graph image; the PNGs are rendered from the SVGs with Playwright |
-| `fabric_backend/demo.py` | `demo_plan()`: the real `plan()` on `seed.schema()`, served as `/demo/plan.json`; its `suggestions` list is the one hand-written demo hint (for the unlinked `orders.ship_to_id`) and is labelled "demo hint, not inferred" wherever it is shown |
+| `fabric_backend/demo.py` | `demo_plan()`: the real `plan()` on `seed.schema()`, served as `/demo/plan.json`; its `suggestions` list is what `suggest_relationships` answers on the synthetic rows for the column no naming rule links (`orders.ship_to_id` → `addresses`, with its data check and the next candidate), not hand-written. `home_guide()`: the start page's guided example in four steps (the question, the suggestion with its check, the visitor's review, the result card), server-rendered so it reads without JavaScript; accepting decides the meaning and never turns into a check |
 | `tests/test_site.py`, `tests/test_site_extras.py` | every route, headers, honesty rules, the plan JSON, discovery documents |
 | `server.json`, `docs/PUBLISHING.md` | the MCP Registry entry and how to publish it (not published) |
 | `tests/test_browser.py` + `tests/browser_check.js` | Playwright checks; skipped when Node + Playwright + Chromium are missing |

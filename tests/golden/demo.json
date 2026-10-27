@@ -110,14 +110,40 @@
   },
   "suggestions": [
    {
+    "check": "All 60 orders in this sample have a ship_to_id that exists in addresses (15 different addresses).",
+    "closure_via": "orders -> customers <- addresses",
     "column": "ship_to_id",
-    "source": "demo hint, not inferred",
+    "confirmed": {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    },
+    "evidence": {
+     "distinct_values": 15,
+     "inclusion": 1.0,
+     "matched": 60,
+     "rows_with_value": 60,
+     "verdict": "every value exists in the target key"
+    },
+    "name_basis": "role word",
+    "runner_up": {
+     "matched": 35,
+     "rows_with_value": 60,
+     "target": "customers"
+    },
+    "score": 3.94,
+    "source": "suggest_relationships",
     "table": "orders",
     "target": "addresses",
     "target_cols": [
      "address_id"
     ],
-    "why": "the synthetic seed stores address ids in this column"
+    "why": "orders.ship_to_id (int) is in no relationship and matches the type of addresses.address_id; an address role (ship-to, bill-to, mail-to) (0.6); closes a triangle orders -> customers <- addresses (certainty 0.64)"
    }
   ],
   "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",

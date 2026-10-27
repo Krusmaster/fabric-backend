@@ -749,3 +749,39 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .sp-real-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
 @media (max-width:860px){.sp-real-grid{grid-template-columns:1fr}}
 .sp-real h3{font-size:18px;margin:0 0 6px}
+
+/* the home page's guided example (demo.home_guide): every step without JS, one at a time with it */
+.guide{margin:14px 6px 22px;background:var(--card-2);border:1px solid var(--line);border-radius:16px;padding:14px 16px 16px}
+.guide-steps{list-style:none;margin:0 0 12px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+@media (max-width:719px){.guide-steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.guide-step{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;text-align:left;background:transparent;border:1.5px solid transparent;border-radius:14px;padding:6px 10px;font:inherit;font-weight:700;color:inherit;cursor:pointer}
+.guide-step .step-n{margin:0;width:30px;height:30px;font-size:15px;flex:none}
+.guide-step[aria-pressed=true]{background:var(--card);border-color:var(--line)}
+.js .guide-step:hover{border-color:var(--line-strong)}
+.guide-pane{display:grid;gap:10px;min-width:0;padding:0}
+.guide-pane h3{margin:4px 0 0}
+.guide-pane p{margin:0;max-width:70ch}
+.guide-pane+.guide-pane{margin-top:22px;padding-top:18px;border-top:1px dashed var(--line)}
+.js .guide-pane[hidden]{display:none}
+.js .guide-pane+.guide-pane{margin-top:0;padding-top:0;border-top:0}
+.guide-nav{display:none}
+.js .guide-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:16px}
+.guide-nav .btn,.guide .choice .btn{min-height:44px}
+.guide-nav [aria-disabled=true]{opacity:.5;cursor:default}
+.guide-status{margin:0 0 0 auto}
+.guide .choice{display:flex;flex-wrap:wrap;gap:8px}
+.guide .btn[aria-pressed=true]{outline:2px solid var(--sage-d);outline-offset:2px}
+.guide .tech{background:var(--card);border-radius:10px;padding:8px 12px}
+.guide .tech p{margin:6px 0 0;font-size:14.5px;color:var(--muted)}
+.unconfirmed{display:inline-block;white-space:nowrap;font-size:13px;font-weight:700;border-radius:999px;padding:1px 10px;background:var(--coral-soft);color:var(--coral-ink)}
+.order-preview{margin:4px 0 0;min-width:0}
+.order-preview figcaption{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;color:var(--muted)}
+.order-preview table.check{min-width:0}
+@media (max-width:480px){.order-preview .col-customer{display:none}.order-preview table.check th,.order-preview table.check td{padding:6px 8px}}
+.result-card{display:grid;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.result-card[hidden]{display:none}
+.result-card .detail-head{margin:0}
+.result-card>.btn{justify-self:start}
+.next-list{margin:0;padding-left:18px}
+.guide-summary{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;background:var(--card-2);border-radius:10px;padding:10px 12px;margin:0}
+.explore-h{margin:10px 6px 0}

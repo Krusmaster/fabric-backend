@@ -349,10 +349,11 @@ def _home_vars() -> dict[str, str]:
     """The start page's example: the detail of the default relationship, server-rendered so it reads without JavaScript,
     every detail as JSON for the page's script, and the relationships as links (demo.home_details)."""
     import json
-    from .demo import HOME_DEFAULT, home_details, home_relationship_list
+    from .demo import HOME_DEFAULT, home_details, home_guide, home_relationship_list
     details = home_details()
     safe = json.dumps(details, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
-    return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list()}
+    return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list(),
+            "HOME_GUIDE": home_guide()}
 
 
 def render(path: str) -> str:

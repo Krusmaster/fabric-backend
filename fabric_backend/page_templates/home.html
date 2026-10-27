@@ -3,9 +3,9 @@
   <div class="wrap hero-copy">
     <p class="eyebrow">For teams working in Microsoft Fabric</p>
     <h1>Understand how your Fabric tables fit together.</h1>
-    <p class="lede">{{PRODUCT}} suggests keys and relationships, explains each suggestion, and lets you check it against your data. Use it in Claude to explore a lakehouse and work out what needs a closer look.</p>
+    <p class="lede">See how your Fabric tables connect: the keys and relationships {{PRODUCT}} suggests, why, and what your data says, before a report or an app depends on them.</p>
     <div class="ctas">
-      <a class="btn primary" href="/explore">Explore the demo</a>
+      <a class="btn primary" href="#guide">Try the guided demo</a>
       <a class="btn secondary" href="/start">Connect to Claude</a>
     </div>
     <p class="sources-line">The demo uses sample data. No account needed.</p>
@@ -15,10 +15,13 @@
 <section class="wrap wide home-demo" id="demo" aria-labelledby="demo-h">
   <div class="graph-panel hero-panel">
     <div class="panel-head">
-      <h2 id="demo-h">Which customer does this order belong to?</h2>
+      <h2 id="demo-h">Where should each order be delivered?</h2>
       <span class="pill demo">Demo · synthetic data</span>
     </div>
-    <p class="demo-intro">Follow the link from orders to customers. See why it was suggested and what the checks found in the sample data.</p>
+    <p class="demo-intro">One order, its customer and its delivery address, in four steps: the question, what the engine suggests and the data shows, your decision, and what you can explain afterwards.</p>
+    {{HOME_GUIDE}}
+    <h3 class="explore-h">The whole sample</h3>
+    <p class="demo-intro">Every table and relationship of the example. Select one to see why it was suggested and what the data check found.</p>
     <div id="home-graph" class="graph"></div>
     <p class="legend"><span><i></i> suggested relationship</span><span><b class="mono">1 — many</b> cardinality</span><span><i class="sug"></i> needs your decision</span><span><i class="box"></i> no key: query only</span></p>
     <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
@@ -27,7 +30,7 @@
       <nav class="rel-list" aria-labelledby="rel-list-h">
         <h3 id="rel-list-h">Relationships in this sample</h3>
         <ul>{{HOME_REL_LIST}}</ul>
-        <p class="muted tiny">Next: <code>orders.ship_to_id</code> names no table, so the engine left it unlinked. That one is your decision. <a href="/explore">Open the full demo</a>.</p>
+        <p class="muted tiny"><code>orders.ship_to_id</code> names no table, so no naming rule links it; <code>suggest_relationships</code> proposes <code>addresses</code>, and what it means is your decision (the guided example above). <a href="/explore">Open the full demo</a>.</p>
       </nav>
     </div>
   </div>
