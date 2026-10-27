@@ -1,12 +1,13 @@
 # {{PRODUCT}} docs
 
 Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
-data and build from the plan. Start with the connection guide, or use the [demo](/explore) without an account. The tool
-reference explains what each tool reads, returns or changes, and how far it has been tested.
+data and build from the plan. Start with the connection guide, or try the [guided demo](/demo) and the
+[demo graph](/explore) without an account. The tool reference explains what each tool reads, returns or changes, and
+how far it has been tested.
 
 ## Get started
 
-New to a Fabric lakehouse? Start by understanding how its tables fit together: connect the hosted server to Claude, then ask a first question. The [demo](/explore) needs no account.
+New to a Fabric lakehouse? Start by understanding how its tables fit together: connect the hosted server to Claude, then ask a first question. The [guided demo](/demo) follows one order to its delivery address in four steps, and the [demo graph](/explore) shows every table and relationship of the same sample; neither needs an account.
 
 ### Connect
 
@@ -181,7 +182,8 @@ Unit-tested on the synthetic shop schema and the public benchmark schemas; `anal
 were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
 every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates. On
 27 October 2026, after the ranking was fixed, `addresses.address_id` came first before the data check (3.94 against
-1.5 or less) and held for every value after it (inclusion 1.0).
+1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/demo) walks through this column on the
+synthetic sample: the suggestion, its data check and the decision that stays yours.
 
 ## Build from a plan
 

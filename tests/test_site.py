@@ -49,7 +49,7 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
 
 def test_nav_and_pages_are_linked(client):
     html = client.get("/").text
-    for href in ("/docs", "/support", "/partners", "/explore", "/start", "/privacy", "https://github.com/Krusmaster/fabric-backend"):
+    for href in ("/docs", "/support", "/partners", "/demo", "/explore", "/start", "/privacy", "https://github.com/Krusmaster/fabric-backend"):
         assert f'href="{href}"' in html, href
     assert "Microsoft Fabric, connected." in html
     assert 'href="/mascots"' not in html                                                 # review page is unlinked
@@ -64,7 +64,7 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     assert "Fabric tables" in h1 and "MCP" not in h1 and "GraphQL" not in h1
     first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
     assert "relationships" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
-    assert 'href="#guide">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
+    assert 'href="/demo">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
     assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
@@ -273,15 +273,16 @@ def test_explore_table_list_names_keys_in_words_with_the_rule_as_tooltip(client)
 def test_home_hero_and_trust_row(client):
     html = client.get("/").text
     assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
-    assert 'class="hero-figure"' not in html and 'id="home-graph"' in html               # mascots live on the graph's wires
+    assert 'class="hero-figure"' not in html and 'id="home-graph"' not in html           # the graph and its mascots are on /demo
     assert 'class="trust"' in html and "What Krusgraph reads" in html and 'href="/privacy"' in html
     assert "Your data never leaves Fabric" not in html
-    assert "Demo · synthetic data" in html
+    demo = client.get("/demo").text
+    assert "Demo · synthetic data" in demo and 'id="home-graph"' in demo
 
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
+PUBLIC = ["/", "/demo", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -341,7 +342,7 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
         assert f"`{tool}`" in t
     assert "https://krusgraph.test/mcp" in t and "Microsoft Entra work account" in t and "introspection" in t
     links = re.findall(r"\]\((https://krusgraph\.test/[^)]+)\)", t)
-    for md in ("/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/demo/plan.json", "/mcp/server-card"):
+    for md in ("/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/demo", "/demo/plan.json", "/mcp/server-card"):
         assert "https://krusgraph.test" + md in links, md
 
 
@@ -825,7 +826,7 @@ def test_the_guided_example_follows_one_order_to_its_delivery_address(client):
     engine's suggestion with its data check, the visitor's review apart from the check, and a result card. Every pane
     is in the HTML, so the page reads without JavaScript; the script shows one step at a time."""
     from fabric_backend import demo
-    html = client.get("/").text
+    html = client.get("/demo").text
     guide = re.search(r'<div class="guide" id="guide".*?<!-- /guide -->', html, re.S).group(0)
     assert "Where should each order be delivered?" in html
     steps = re.findall(r'<button type="button" class="guide-step"[^>]*data-step="(\d)"[^>]*>(.*?)</button>', guide, re.S)
@@ -863,7 +864,90 @@ def test_accepting_in_the_guide_is_never_shown_as_a_check():
     """Proposal, review and check stay three things: the accepted card names the check as what the data shows and the
     meaning as the visitor's decision; neither card calls the meaning checked."""
     from fabric_backend import pages
-    html = pages.render("/")
+    html = pages.render("/demo")
     accepted = re.search(r'data-variant="accepted".*?<!-- /card -->', html, re.S).group(0)
     assert "You accepted, in this demo" in accepted and "checked the meaning" not in accepted
     assert "The check counts values" in accepted
+
+
+# ------------------------------------------------------------------ round n17: the guided demo on a page of its own ----
+
+def test_the_guided_demo_has_a_page_of_its_own_and_home_a_short_way_in(client):
+    """Round n17: the guided demo took 38 % of the start page at 1280 px. It is on /demo now, whole (the steps, the graph
+    with its mascots, the details, the relationship list, the status pill), with its own title, description, canonical
+    link and sitemap row, and links on to /explore and /start. The start page keeps a heading, one sentence and the
+    button; the hero's button goes to /demo too."""
+    home = client.get("/").text
+    entry = re.search(r'<section class="wrap demo-entry" id="demo".*?</section>', home, re.S).group(0)
+    assert '<h2 id="guide">Where should each order be delivered?</h2>' in entry
+    sentences = re.findall(r"<p>(.*?)</p>", entry, re.S)
+    assert len(sentences) == 1 and len(re.findall(r"[.!?](?=\s|$)", sentences[0])) == 1
+    assert re.findall(r'<a [^>]*href="([^"]+)"[^>]*>([^<]+)</a>', entry) == [("/demo", "Try the guided demo")]
+    for gone in ('class="guide"', 'id="home-graph"', 'class="rel-list"', 'id="home-details"', 'class="result-card"'):
+        assert gone not in home, gone
+    hero = re.search(r'<section class="hero">.*?</section>', home, re.S).group(0)
+    assert re.findall(r'<a class="btn [^"]*" href="([^"]+)"', hero) == ["/demo", "/start"]
+
+    demo = client.get("/demo").text
+    assert "<title>Guided demo: where should each order be delivered? — Krusgraph</title>" in demo
+    assert re.search(r'<meta name="description" content="Follow one order to its delivery address[^"]{60,}"', demo)
+    assert '<link rel="canonical" href="https://krusgraph.test/demo">' in demo
+    assert "<loc>https://krusgraph.test/demo</loc>" in client.get("/sitemap.xml").text
+    assert '<a href="/" aria-current=page>Product</a>' in demo                          # under Product, like /explore
+    assert demo.count("<h1") == 1 and '<h1 id="demo-h">Where should each order be delivered?</h1>' in demo
+    assert '<span class="pill demo">Demo · synthetic data</span>' in demo and 'data-page="demo"' in demo
+    for part in ('<div class="guide" id="guide"', 'id="home-graph"', 'id="home-why"', 'class="rel-list"', 'id="home-details"',
+                 'data-variant="open"', 'data-variant="accepted"'):
+        assert part in demo, part
+    main = demo.split("<main", 1)[1].split("</main>", 1)[0]
+    assert 'href="/explore"' in main and 'href="/start"' in main
+    js = client.get("/static/site.js").text
+    assert "document.querySelector('[data-page=demo]')" in js and "{ kind: 'onto'" in js      # the graph's mascots came along
+    assert "[guided demo](/demo)" in client.get("/docs.md").text
+    assert "](https://krusgraph.test/demo)" in client.get("/llms.txt").text
+
+
+def test_old_links_into_the_demo_on_the_start_page_go_on_to_demo(client):
+    """The old button pointed at /#guide, and people may have kept that address or another of the demo's ids. On the
+    start page site.js sends each of them to the same anchor on /demo, where every one still exists; without
+    JavaScript #demo and #guide land on the start page's way in, which links to /demo."""
+    js = client.get("/static/site.js").text
+    m = re.search(r"\[data-page=home\]'\) && /\^#\((.*?)\)\$/\.test\(location\.hash\)", js)
+    ids = m.group(1).replace("guide-h[1-4]", "guide-h1|guide-h2|guide-h3|guide-h4").split("|")
+    assert {"demo", "guide", "guide-h1", "home-graph"} <= set(ids)
+    assert "location.replace('/demo' + location.hash)" in js
+    demo = client.get("/demo").text
+    for i in ids:
+        assert f'id="{i}"' in demo, i
+    home = client.get("/").text
+    assert 'id="demo"' in home and 'id="guide"' in home
+
+
+def test_home_shows_what_krusgraph_connects_in_names_only_with_the_disclaimer(client):
+    """Gustav's addition to round n17: right under the hero, Microsoft Fabric, Power BI and Fabric IQ on one side and
+    Claude and Lovable on the other, as text names on tiles joined by a line as in the graph, with no third-party logos
+    or icons. The only client named is Claude, the one MCP client tested against the hosted service (no VS Code, no
+    Cursor); Lovable is shown on the far side of the GraphQL API, not as an MCP client. The text for screen readers says
+    the same, and the disclaimer is word for word."""
+    html = client.get("/").text
+    after_hero = html.split('<section class="hero">', 1)[1].split("</section>", 1)[1].lstrip()
+    assert after_hero.startswith('<section class="wrap connects" aria-label="What Krusgraph connects">')
+    row = after_hero.split("</section>", 1)[0]
+    visual = re.search(r'<div class="connect-row" aria-hidden="true">(.*?)</div>', row, re.S).group(1)
+    sides = re.findall(r'<ul class="c-side">(.*?)</ul>', visual, re.S)
+    assert [re.findall(r"<b>(.*?)</b>", s) for s in sides] == [["Microsoft Fabric", "Power BI", "Fabric IQ"], ["Claude", "Lovable"]]
+    assert '<span class="c-hub">krusgraph</span>' in visual
+    tags = dict(re.findall(r"<b>(.*?)</b><span>(.*?)</span>", visual))
+    assert tags["Claude"] == "MCP" and "GraphQL API" in tags["Lovable"] and "MCP" not in tags["Lovable"]
+    assert "draft" in tags["Power BI"] and "draft" in tags["Fabric IQ"]                    # drafts, as their tools' status says
+    assert not re.search(r"<(img|svg|picture|object|image)\b", row) and "logo" not in row.lower() and "data-mascot" not in row
+    plain = re.sub(r"<[^>]+>", " ", row)
+    for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
+        assert other not in plain, other
+    said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
+    for name in ("Microsoft Fabric", "Power BI", "Fabric IQ", "Claude", "Lovable"):
+        assert name in said, name
+    assert "through MCP" in said and "the one MCP client the hosted service is tested with" in said
+    assert "Lovable, which uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself" in said
+    assert ('<p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, '
+            'Anthropic or Lovable.</p>') in row

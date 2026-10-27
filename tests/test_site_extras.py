@@ -24,7 +24,7 @@ def test_browser_404_is_styled_and_noindex(client):
 
 
 def test_pages_carry_a_strict_csp_but_mcp_does_not(client):
-    for path in ("/", "/explore", "/docs", "/privacy", "/mascots"):
+    for path in ("/", "/demo", "/explore", "/docs", "/privacy", "/mascots"):
         h = client.get(path).headers
         assert h["content-security-policy"].startswith("default-src 'self'; script-src 'self';"), path
         assert h["x-content-type-options"] == "nosniff" and h["referrer-policy"] == "strict-origin-when-cross-origin"
@@ -66,7 +66,7 @@ def test_non_browser_404_stays_plain(client):
 def test_sitemap_and_robots(client):
     r = client.get("/sitemap.xml")
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
-    for p in ("/", "/explore", "/start", "/support", "/partners", "/partners/workspace", "/docs", "/privacy"):
+    for p in ("/", "/demo", "/explore", "/start", "/support", "/partners", "/partners/workspace", "/docs", "/privacy"):
         assert f"<loc>https://krusgraph.test{p}</loc>" in r.text
     assert "/mascots" not in r.text
     robots = client.get("/robots.txt").text
@@ -85,7 +85,7 @@ def test_explore_has_the_plan_as_text(client):
 
 def test_heading_order_starts_at_h2_after_the_h1(client):
     import re
-    for path in ("/start", "/partners"):
+    for path in ("/start", "/partners", "/", "/demo"):
         html = client.get(path).text
         levels = [int(m) for m in re.findall(r"<h([1-3])[ >]", html.split("<main", 1)[1].split("</main>")[0])]
         for a, b in zip(levels, levels[1:]):

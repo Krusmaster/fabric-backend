@@ -81,18 +81,19 @@ def test_mascot_toggle_and_builder(report):
     assert f["motionClassUnderReducedMotion"] is False
 
 
-def test_home_demo_and_the_mobile_list(report):
-    """The home demo from the website brief of 26 October 2026: orders.customer_id preselected with its explanation,
-    ship_to_id as the decision by mouse and keyboard, the list as the graph's alternative at 375, 768 and 1440."""
+def test_demo_graph_and_the_mobile_list(report):
+    """The demo graph from the website brief of 26 October 2026, on /demo since round n17: orders.customer_id preselected
+    with its explanation, ship_to_id as the decision by mouse and keyboard, the list as the graph's alternative at 375,
+    768 and 1440."""
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        assert f[f"homeList@{v}"] == f["edgeCount"], v                 # every relationship is in the list at every width
-        assert f[f"homeCtas@{v}"][:2] == ["#guide", "/start"], v
+        assert f[f"demoList@{v}"] == f["edgeCount"], v                 # every relationship is in the list at every width
+        assert f[f"homeCtas@{v}"][:2] == ["/demo", "/start"], v
     assert f["homeDefault"] == "orders.customer_id>customers"
     for part in ("Suggestion", "Why", "Data check", "Your review", "Technical details"):
         assert part in f["homePanelDefault"], part
     assert f["homeDetailsClosed"] is True
-    assert "All 60 orders in this sample" in f["homeDecisionPanel"] and f["homeUrlAfterListClick"] == "/"
+    assert "All 60 orders in this sample" in f["homeDecisionPanel"] and f["homeUrlAfterListClick"] == "/demo"
     assert "Accepted in this demo" in f["homeAfterAccept"] and f["homeFocusAfterAccept"] == "accept"
     assert "accepted" in f["homeEdgeAccepted"]
     assert "Accepted in this demo" in f["homeAfterKeyboard"]
@@ -126,7 +127,7 @@ def test_sales_example_journey_at_phone_width(report):
 
 
 def test_the_guided_example_steps_decides_resets_and_agrees_with_the_graph(report):
-    """Home page round 1: one step at a time with the script, Next and Back by keyboard, the decision in step 3 drawn on
+    """Home page round 1, on /demo since round n17: one step at a time with the script, Next and Back by keyboard, the decision in step 3 drawn on
     the graph's line too, the result card for that decision, and Start over returning to step 1 with nothing accepted;
     at 375 px the guide fits the screen."""
     f = report["facts"]
@@ -138,3 +139,18 @@ def test_the_guided_example_steps_decides_resets_and_agrees_with_the_graph(repor
     assert f["guideFromGraph"] == "accepted"                                  # accepting on the graph's panel shows the same card
     assert f["guideOverflow375"] == [] and f["guideStepTargets375"] >= 44
     assert f["guidePreviewFits375"] == [True]                               # the delivery-address column is visible without scrolling
+
+
+def test_home_entry_old_anchors_and_the_row_of_what_krusgraph_connects(report):
+    """Round n17: the start page's way in to the guided demo takes at most half the screen of a small phone (375 x 667)
+    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the same anchor on /demo; the row of what
+    Krusgraph connects keeps every tile on the screen, none on top of another and no name cut off, at every width, with
+    its text version in the page for screen readers."""
+    f = report["facts"]
+    assert f["homeEntry@375x667"] <= 0.5 and f["homeEntry@1280x800"] <= 0.5
+    for h in ("#guide", "#demo", "#guide-h3"):
+        assert f[f"oldAnchor{h}"] == "/demo" + h, h
+    for v in ("1440-light", "1440-dark", "768-light", "375-light"):
+        c = f[f"connects@{v}"]
+        assert c["tiles"] == 6 and c["outside"] == 0 and c["overlaps"] == 0 and c["cut"] == 0, (v, c)
+        assert c["srText"] > 200, v

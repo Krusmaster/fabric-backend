@@ -24,7 +24,7 @@ AI_CATALOG_TYPE = "application/ai-catalog+json"
 DESCRIPTION = "Turn Microsoft Fabric tables into an explainable graph and a GraphQL API."   # ≤ 100 characters
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
+PUBLIC_PAGES = ["/", "/demo", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
 
 
 def package_version() -> str:
@@ -147,6 +147,8 @@ It reads table and column names, infers keys and relationships from names (decla
 
 ## Demo
 
+- [Guided demo]({o}/demo): one order followed to its delivery address in four steps, on the synthetic shop schema: what the engine suggests (`suggest_relationships` for `orders.ship_to_id`), what the data check shows, the visitor's decision and a summary of the result; nothing is changed in Fabric
+- [Demo graph]({o}/explore): every table and relationship of the same schema, with the rule behind each one and the checks on its rows
 - [Demo plan]({o}/demo/plan.json): the real planning engine's output on a synthetic shop schema (JSON, with a Mermaid ER diagram)
 - [Demo validation]({o}/demo/validation.json): what validate_plan answers for that plan, computed on the synthetic rows
 

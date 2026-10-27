@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const base = process.argv[2];
 const exe = process.argv[3];
-const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases'];
+const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases'];
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const errors = [], facts = {};
@@ -24,13 +24,32 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
       if (sw > width) errors.push(`${label}: horizontal overflow ${sw} > ${width}`);
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
       if (!fonts.every(Boolean)) errors.push(`${label}: self-hosted fonts not loaded`);
-      if (path === '/') {
+      if (path === '/demo') {
         // the relationship list is the graph's alternative on a phone: visible, and every row reachable
-        facts[`homeList@${vname}`] = await page.evaluate(() => {
+        facts[`demoList@${vname}`] = await page.evaluate(() => {
           const l = document.querySelector('.rel-list'); const r = l && l.getBoundingClientRect();
           return !!r && r.width > 0 && r.height > 0 && getComputedStyle(l).visibility !== 'hidden' && l.querySelectorAll('a[data-edge]').length;
         });
+      }
+      if (path === '/') {
         facts[`homeCtas@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.hero .ctas a')].map(a => a.getAttribute('href')));
+        // the row of what the product connects: every tile and the hub inside the screen, none on top of another, and
+        // the text version for screen readers in the page (visually hidden, not display:none)
+        facts[`connects@${vname}`] = await page.evaluate(() => {
+          const els = [...document.querySelectorAll('.connect-row .c-chip, .connect-row .c-hub')], rs = els.map(e => e.getBoundingClientRect());
+          const outside = rs.filter(r => r.left < 0 || r.right > window.innerWidth).length;
+          let overlaps = 0;
+          for (let i = 0; i < rs.length; i++) for (let j = i + 1; j < rs.length; j++) {
+            const a = rs[i], b = rs[j];
+            if (a.left < b.right - 1 && b.left < a.right - 1 && a.top < b.bottom - 1 && b.top < a.bottom - 1) overlaps++;
+          }
+          const sr = document.querySelector('.connects .visually-hidden');
+          const cut = els.filter(e => {                                                     // no name runs out of its tile
+            const t = e.getBoundingClientRect(), rg = document.createRange(); rg.selectNodeContents(e); const r = rg.getBoundingClientRect();
+            return r.left < t.left - 0.5 || r.right > t.right + 0.5 || r.top < t.top - 0.5 || r.bottom > t.bottom + 0.5;
+          }).length;
+          return { tiles: els.length, outside, overlaps, cut, srText: sr && getComputedStyle(sr).display !== 'none' ? sr.textContent.length : 0 };
+        });
       }
       await page.close();
     }
@@ -62,10 +81,11 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   await page.click('[data-mascot-toggle]');
   facts.mascotsAfterToggleBack = await page.evaluate(() => document.documentElement.getAttribute('data-mascots'));
   await ctx.close();
-  // the home demo: one relationship selected from the start, a decision by mouse and by keyboard, reduced motion
+  // the guided demo's graph on /demo: one relationship selected from the start, a decision by mouse and by keyboard,
+  // reduced motion
   const hc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
-  const hp = await hc.newPage(); watch(hp, '/ interactions');
-  await hp.goto(base + '/', { waitUntil: 'networkidle' });
+  const hp = await hc.newPage(); watch(hp, '/demo interactions');
+  await hp.goto(base + '/demo', { waitUntil: 'networkidle' });
   facts.homeDefault = await hp.evaluate(() => { const a = document.querySelector('.rel-list a[aria-current="true"]'); return a ? a.getAttribute('data-edge') : null; });
   facts.homePanelDefault = await hp.textContent('#home-why');
   facts.homeDetailsClosed = await hp.evaluate(() => [...document.querySelectorAll('#home-why details')].every(d => !d.open));
@@ -82,14 +102,15 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   await hp.focus('.rel-list a[data-edge="order_items.order_id>orders"]'); await hp.keyboard.press('Enter');
   facts.homeKeyboardSelected = await hp.evaluate(() => { const a = document.querySelector('.rel-list a[aria-current="true"]'); return a ? a.getAttribute('data-edge') : null; });
   facts.homeMotionClass = await hp.evaluate(() => document.documentElement.classList.contains('motion'));
-  // a visible focus ring on the list rows and the CTAs
+  // a visible focus ring on the start page's CTAs
+  await hp.goto(base + '/', { waitUntil: 'networkidle' });
   await hp.focus('.hero .ctas a');
   facts.ctaFocusOutline = await hp.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
   await hc.close();
-  // the guided example on the home page (round 1 of 27 October 2026): steps, keyboard, the decision on the graph, reset
+  // the guided example on /demo (round 1 of 27 October 2026): steps, keyboard, the decision on the graph, reset
   const gc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
-  const gp = await gc.newPage(); watch(gp, '/ guide');
-  await gp.goto(base + '/', { waitUntil: 'networkidle' });
+  const gp = await gc.newPage(); watch(gp, '/demo guide');
+  await gp.goto(base + '/demo', { waitUntil: 'networkidle' });
   const visible = () => gp.evaluate(() => [...document.querySelectorAll('.guide-pane')].filter(p => !p.hidden).map(p => p.dataset.pane));
   const card = () => gp.evaluate(() => [...document.querySelectorAll('.result-card')].filter(c => !c.hidden).map(c => c.dataset.variant)[0]);
   const shipTo = '.g-edge[data-id="orders.ship_to_id>addresses"]';
@@ -116,8 +137,8 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   facts.guideFromGraph = await card();
   await gc.close();
   const g3 = await browser.newContext({ viewport: { width: 375, height: 900 } });
-  const g3p = await g3.newPage(); watch(g3p, '/ guide@375');
-  await g3p.goto(base + '/', { waitUntil: 'networkidle' });
+  const g3p = await g3.newPage(); watch(g3p, '/demo guide@375');
+  await g3p.goto(base + '/demo', { waitUntil: 'networkidle' });
   facts.guideOverflow375 = await g3p.evaluate(() => [...document.querySelectorAll('#guide *')].filter(e => {
     const r = e.getBoundingClientRect(); return r.width > 0 && r.right > window.innerWidth + 1 && !e.closest('.table-wrap');
   }).map(e => e.tagName + '.' + e.className).slice(0, 5));
@@ -126,6 +147,25 @@ const pages = ['/', '/explore', '/start', '/support', '/partners', '/partners/wo
   facts.guideStepTargets375 = await g3p.evaluate(() => Math.min(...[...document.querySelectorAll('.guide-step, .guide-nav .btn, [data-guide-decide]')]
     .filter(b => b.getBoundingClientRect().height > 0).map(b => b.getBoundingClientRect().height)));
   await g3.close();
+  // round n17: the start page's way in to /demo is at most half a screen on a small phone and a laptop, and the demo's
+  // old anchors on the start page go on to the same anchor on /demo
+  for (const [w, h] of [[375, 667], [1280, 800]]) {
+    const ec = await browser.newContext({ viewport: { width: w, height: h } });
+    const ep = await ec.newPage(); watch(ep, `/ entry@${w}x${h}`);
+    await ep.goto(base + '/', { waitUntil: 'networkidle' });
+    facts[`homeEntry@${w}x${h}`] = await ep.evaluate(() => document.getElementById('demo').getBoundingClientRect().height / window.innerHeight);
+    await ec.close();
+  }
+  const ac = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  for (const hash of ['#guide', '#demo', '#guide-h3']) {
+    const ap = await ac.newPage(); watch(ap, `/${hash}`);
+    await ap.goto(base + '/' + hash);
+    await ap.waitForURL(u => new URL(u).pathname === '/demo', { timeout: 5000 }).catch(() => {});
+    await ap.waitForLoadState('networkidle');
+    facts[`oldAnchor${hash}`] = await ap.evaluate(() => location.pathname + location.hash + (document.querySelector(location.hash) ? '' : ' (no target)'));
+    await ap.close();
+  }
+  await ac.close();
   // /docs: the groups and the 'on this page' list; /use-cases: an industry's details open by keyboard
   const dc = await browser.newContext({ viewport: { width: 375, height: 900 } });
   const dp = await dc.newPage(); watch(dp, '/use-cases details');

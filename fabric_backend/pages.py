@@ -1,6 +1,7 @@
 """The public site — served by the MCP server itself, so one domain is enough.
 
     /                  start page           /explore            graph explorer (client-side demo, synthetic schema)
+    /demo              the guided demo: one order followed to its delivery address (demo.home_guide)
     /start             get started          /support            support
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
@@ -37,6 +38,8 @@ PAGES = {
     # path: (template, title, description, nav key)
     "/": ("home.html", "{{PRODUCT}} | Understand your Microsoft Fabric tables",
           "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
+    "/demo": ("demo.html", "Guided demo: where should each order be delivered? — {{PRODUCT}}",
+              "Follow one order to its delivery address on a synthetic shop schema: what the engine suggests, what the data shows, your decision and what you can explain afterwards. No account needed.", "product"),
     "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
                  "A demo on a synthetic shop schema: select a table to inspect its key, or a line to see why two tables were linked.", "product"),
     "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
@@ -296,7 +299,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/explore">Demo</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
+      <a href="/demo">Guided demo</a><a href="/explore">Demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -356,7 +359,7 @@ def _demo_vars() -> dict[str, str]:
 
 
 def _home_vars() -> dict[str, str]:
-    """The start page's example: the detail of the default relationship, server-rendered so it reads without JavaScript,
+    """The guided demo's example (/demo): the detail of the default relationship, server-rendered so it reads without JavaScript,
     every detail as JSON for the page's script, and the relationships as links (demo.home_details)."""
     import json
     from .demo import HOME_DEFAULT, home_details, home_guide, home_relationship_list

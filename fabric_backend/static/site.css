@@ -759,7 +759,7 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .guide-step[aria-pressed=true]{background:var(--card);border-color:var(--line)}
 .js .guide-step:hover{border-color:var(--line-strong)}
 .guide-pane{display:grid;gap:10px;min-width:0;padding:0}
-.guide-pane h3{margin:4px 0 0}
+.guide-pane h2{font-size:22px;line-height:1.2;margin:4px 0 0}
 .guide-pane p{margin:0;max-width:70ch}
 .guide-pane+.guide-pane{margin-top:22px;padding-top:18px;border-top:1px dashed var(--line)}
 .js .guide-pane[hidden]{display:none}
@@ -784,4 +784,34 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .result-card>.btn{justify-self:start}
 .next-list{margin:0;padding-left:18px}
 .guide-summary{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;background:var(--card-2);border-radius:10px;padding:10px 12px;margin:0}
-.explore-h{margin:10px 6px 0}
+.explore-h{font-size:22px;line-height:1.2;margin:10px 6px 0}
+
+/* round n17: the guided demo on a page of its own (/demo); the start page keeps a short way in to it */
+.page-demo .home-demo{padding-top:20px}
+.page-demo .home-demo .hero-panel{margin-top:0}
+.graph-panel .panel-head h1{margin:0;font-size:clamp(28px,3.4vw,38px);line-height:1.1;max-width:none}
+.demo-next{padding-top:0}
+.demo-next .card,.demo-entry .card{display:flex;flex-wrap:wrap;gap:16px 28px;align-items:center;justify-content:space-between}
+.demo-next h2,.demo-entry h2{font-size:28px;margin:0 0 6px}
+.demo-next p,.demo-entry p{margin:0;max-width:60ch;color:var(--muted)}
+.demo-entry{padding-top:12px;padding-bottom:8px}
+@media (max-width:719px){.demo-entry .card,.demo-next .card{padding:18px 20px;gap:14px}}
+
+/* the start page's row of what the product connects: text names on small tiles joined by one line, as in the graph */
+.connects{padding-top:12px;padding-bottom:8px}
+.connect-row{position:relative;display:flex;align-items:center;justify-content:center;gap:10px 18px;width:fit-content;max-width:100%;margin:0 auto}
+.connect-row::before{content:"";position:absolute;left:24px;right:24px;top:50%;border-top:2.2px solid var(--line-strong)}
+.c-side{position:relative;list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;justify-content:center;gap:8px 10px}
+.c-chip{display:flex;flex-direction:column;align-items:center;text-align:center;background:linear-gradient(var(--cs),var(--cs)) left top/100% 3px no-repeat,var(--card);border:1.5px solid var(--line);border-radius:12px;padding:7px 12px 6px;line-height:1.2}
+.c-chip b{font-family:var(--font-head);font-weight:600;font-size:15.5px}
+.c-chip span{font-size:12.5px;color:var(--muted)}
+.c-hub{position:relative;font-family:var(--font-head);font-weight:600;font-size:16px;background:var(--coral-soft);color:var(--ink);border:1.5px solid var(--coral-d);border-radius:999px;padding:6px 14px}
+.c-hub::before,.c-hub::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--coral-d);border:1.5px solid var(--card)}
+.c-hub::before{left:-6px}.c-hub::after{right:-6px}
+.connects-note{text-align:center;margin:12px auto 0;max-width:none}
+@media (max-width:719px){
+  .connect-row{flex-direction:column;gap:12px}
+  .connect-row::before{left:50%;right:auto;top:16px;bottom:16px;margin-left:-1px;border-top:0;border-left:2.2px solid var(--line-strong)}
+  .c-hub::before,.c-hub::after{left:50%;right:auto;margin:0 0 0 -4.5px}
+  .c-hub::before{top:-6px}.c-hub::after{top:auto;bottom:-6px}
+}

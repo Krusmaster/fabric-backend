@@ -5,36 +5,35 @@
     <h1>Understand how your Fabric tables fit together.</h1>
     <p class="lede">See how your Fabric tables connect: the keys and relationships {{PRODUCT}} suggests, why, and what your data says, before a report or an app depends on them.</p>
     <div class="ctas">
-      <a class="btn primary" href="#guide">Try the guided demo</a>
+      <a class="btn primary" href="/demo">Try the guided demo</a>
       <a class="btn secondary" href="/start">Connect to Claude</a>
     </div>
     <p class="sources-line">The demo uses sample data. No account needed.</p>
   </div>
 </section>
 
-<section class="wrap wide home-demo" id="demo" aria-labelledby="demo-h">
-  <div class="graph-panel hero-panel">
-    <div class="panel-head">
-      <h2 id="demo-h">Where should each order be delivered?</h2>
-      <span class="pill demo">Demo · synthetic data</span>
-    </div>
-    <p class="demo-intro">One order, its customer and its delivery address, in four steps: the question, what the engine suggests and the data shows, your decision, and what you can explain afterwards.</p>
-    {{HOME_GUIDE}}
-    <h3 class="explore-h">The whole sample</h3>
-    <p class="demo-intro">Every table and relationship of the example. Select one to see why it was suggested and what the data check found.</p>
-    <div id="home-graph" class="graph"></div>
-    <p class="legend"><span><i></i> suggested relationship</span><span><b class="mono">1 — many</b> cardinality</span><span><i class="sug"></i> needs your decision</span><span><i class="box"></i> no key: query only</span></p>
-    <p class="muted tiny" style="margin:4px 6px 0" data-plan-error hidden>The demo plan could not be loaded. The graph needs JavaScript and <a href="/demo/plan.json">/demo/plan.json</a>.</p>
-    <div class="demo-grid">
-      <div class="home-detail" id="home-why" aria-live="polite">{{HOME_DETAIL}}</div>
-      <nav class="rel-list" aria-labelledby="rel-list-h">
-        <h3 id="rel-list-h">Relationships in this sample</h3>
-        <ul>{{HOME_REL_LIST}}</ul>
-        <p class="muted tiny"><code>orders.ship_to_id</code> names no table, so no naming rule links it; <code>suggest_relationships</code> proposes <code>addresses</code>, and what it means is your decision (the guided example above). <a href="/explore">Open the full demo</a>.</p>
-      </nav>
-    </div>
+<section class="wrap connects" aria-label="What {{PRODUCT}} connects">
+  <p class="visually-hidden">On one side, Microsoft Fabric, where your tables are, and the Power BI semantic models and Fabric IQ ontologies {{PRODUCT}} drafts from them. On the other, Claude, connected to {{PRODUCT}} through MCP and the one MCP client the hosted service is tested with, and Lovable, which uses the GraphQL API {{PRODUCT}} creates in Fabric rather than {{PRODUCT}} itself.</p>
+  <div class="connect-row" aria-hidden="true">
+    <ul class="c-side">
+      <li class="c-chip c-coral"><b>Microsoft Fabric</b><span>your tables</span></li>
+      <li class="c-chip c-sage"><b>Power BI</b><span>model drafts</span></li>
+      <li class="c-chip c-lav"><b>Fabric IQ</b><span>ontology drafts</span></li>
+    </ul>
+    <span class="c-hub">{{PRODUCT_LOWER}}</span>
+    <ul class="c-side">
+      <li class="c-chip c-mustard"><b>Claude</b><span>MCP</span></li>
+      <li class="c-chip c-mustard"><b>Lovable</b><span>via the GraphQL API</span></li>
+    </ul>
   </div>
-  <script type="application/json" id="home-details">{{HOME_DETAILS_JSON}}</script>
+  <p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, Anthropic or Lovable.</p>
+</section>
+
+<section class="wrap demo-entry" id="demo" aria-labelledby="guide">
+  <div class="card">
+    <div><h2 id="guide">Where should each order be delivered?</h2><p>Follow one order to its delivery address in four steps: what the engine suggests, what the data shows, your decision, and what you can explain afterwards.</p></div>
+    <a class="btn primary" href="/demo">Try the guided demo</a>
+  </div>
 </section>
 
 <section class="wrap" id="how">

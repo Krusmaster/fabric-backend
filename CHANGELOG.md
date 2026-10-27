@@ -5,6 +5,20 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n17: the guided demo ("Where should each order be delivered?") moved from the start page to a page of its own,
+  `/demo`, unchanged in what it does: the four steps, the graph with its mascots, the details, the relationship list
+  and the "Demo · synthetic data" pill, with its own title, description, canonical link and sitemap row, and links on to
+  `/explore` and `/start`. The start page keeps a short way in (the heading, one sentence, "Try the guided demo"), and
+  the hero's button goes to `/demo`; at 1280 px the start page is 3,132 px tall instead of 4,582. Old links into the
+  demo on the start page (`/#guide`, `/#demo`, a step's or the graph's id) go on to the same anchor on `/demo`. The
+  step headings are `h2` now, under the page's `h1`. `/demo` is not in the menu: it made the open menu at 375 px longer
+  and wrapped the header at 768 px; the footer, `/docs`, `llms.txt` and the README link it.
+- Under the start page's hero, a row of what Krusgraph connects: Microsoft Fabric (your tables), Power BI (model drafts)
+  and Fabric IQ (ontology drafts) on one side, Claude (MCP) and Lovable (via the GraphQL API) on the other, as text
+  names on tiles joined by a line, with no third-party logos or icons, a text version for screen readers and the line
+  "Independent product. Not affiliated with or endorsed by Microsoft, Anthropic or Lovable." Claude is the only client
+  named: the one MCP client tested against the hosted service; Lovable uses the API Krusgraph creates, not Krusgraph.
+
 - Round n16: sign-in for MCP clients other than Claude, behind `KRUSGRAPH_CLIENT_REGISTRATION` (off by default;
   `docs/CLIENT-REGISTRATION.md`, turning it on in `docs/OPERATIONS.md` section 6). The clients use
   `https://<domain>/mcp/connect`, whose metadata names Krusgraph's own authorization server at `/oauth` in front of the

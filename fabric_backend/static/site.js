@@ -3,6 +3,15 @@
   'use strict';
   var M = window.Mascots;
 
+  /* ------------------------------------------------------------------ the guided demo's old anchors on the start page */
+  // The guided demo moved from the start page to /demo (round n17). Links into it there (#guide from the old "Try the
+  // guided demo" button, #demo, a step's heading, the graph) go on to the same anchor on /demo. Without JavaScript, #demo
+  // and #guide land on the start page's way in to the demo, which links to /demo.
+  if (document.querySelector('[data-page=home]') && /^#(demo|demo-h|guide|guide-h[1-4]|home-graph|home-why|rel-list-h)$/.test(location.hash)) {
+    location.replace('/demo' + location.hash);
+    return;
+  }
+
   /* ------------------------------------------------------------------ nav */
   var toggle = document.querySelector('.nav-toggle'), nav = document.getElementById('site-nav');
   if (toggle && nav) {
@@ -397,10 +406,10 @@
   }
   function tableIcon(name, i) { return '<span class="t-ico c-' + colorOf(name, i) + '">' + ICON_TABLE + '</span>'; }
 
-  /* ------------------------------------------------------------------ home: the guided example (all four steps without JS) */
+  /* ------------------------------------------------------------------ /demo: the guided example (all four steps without JS) */
   // One order, its customer and its delivery address (demo.home_guide): one step at a time, the decision in step 3 shown
   // on the result card and on the graph's line, and Start over back to step 1 with nothing accepted.
-  var guide = document.getElementById('guide'), guideApi = null;
+  var guide = document.querySelector('[data-page=demo] #guide'), guideApi = null;
   if (guide) {
     document.documentElement.classList.add('js');
     var gSteps = guide.querySelectorAll('.guide-step'), gPanes = guide.querySelectorAll('.guide-pane');
@@ -432,11 +441,11 @@
     guideApi = { edge: guide.getAttribute('data-edge'), decide: gDecide, onDecide: function (f) { gListeners.push(f); } };
   }
 
-  /* ------------------------------------------------------------------ home */
+  /* ------------------------------------------------------------------ /demo: the whole sample */
   // One example selected from the start: orders.customer_id -> customers. The panel's text comes from the server
   // (demo.home_details), built from the same plan and checks the graph draws; this script only picks which one to show.
-  var home = document.querySelector('[data-page=home]');
-  if (home) loadPlan(function (data) {
+  var demoPage = document.querySelector('[data-page=demo]');
+  if (demoPage) loadPlan(function (data) {
     var g = new Graph(document.getElementById('home-graph'), data, {
       label: 'Data graph of the demo shop schema', suggest: suggestions(data),
       // the mascots stand in the empty corner under the top row, clear of the cards and the rule chips people click
@@ -444,7 +453,7 @@
                 { kind: 'thinker', edge: 'order_items.product_id>products', near: 'products', pose: 'rest', idle: 'nod' },
                 { kind: 'builder', edge: 'products.category_id>categories', near: 'categories', pose: 'look', idle: 'bounce' }]
     });
-    var panel = document.getElementById('home-why'), list = home.querySelector('.rel-list'), details = {};
+    var panel = document.getElementById('home-why'), list = demoPage.querySelector('.rel-list'), details = {};
     try { details = JSON.parse(document.getElementById('home-details').textContent); } catch (err) { details = {}; }
     var DEFAULT = 'orders.customer_id>customers', current = DEFAULT;
     function edgeById(id) { return g.edges.filter(function (x) { return x.id === id; })[0]; }

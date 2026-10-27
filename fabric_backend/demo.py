@@ -1,11 +1,12 @@
 """The site's illustrative demo: the real `plan()` run on the synthetic shop schema from `seed.py`, as JSON.
 
-Nothing here is hand-written schema data. `/explore`, the start page graph and the partner workspace read this
-JSON, so what the pages show is what the engine says — including the keyless `audit_log` and the `ship_to_id`
-column that no naming rule links. For that column the pages show what `suggest_relationships` answers on the same
-synthetic rows: its best candidate with the reasons and the count of matching values (home page round 1, 27 October
-2026; before it the column carried a hand-written demo hint). Accepting it on a page is the page-local equivalent of
-the tools' `confirmed=[...]`, and it decides what the column means; the count is the separate data check.
+Nothing here is hand-written schema data. `/explore`, the guided demo's graph on `/demo` and the partner workspace
+read this JSON, so what the pages show is what the engine says — including the keyless `audit_log` and the
+`ship_to_id` column that no naming rule links. For that column the pages show what `suggest_relationships` answers
+on the same synthetic rows: its best candidate with the reasons and the count of matching values (home page round 1,
+27 October 2026; before it the column carried a hand-written demo hint). Accepting it on a page is the page-local
+equivalent of the tools' `confirmed=[...]`, and it decides what the column means; the count is the separate data
+check.
 """
 from __future__ import annotations
 
@@ -151,8 +152,8 @@ def demo_plan_json() -> str:
     return json.dumps(demo_plan(), indent=1)
 
 
-# ------------------------------------------------------------------ the start page's example -----------------------
-# What the start page shows when a relationship or a table is selected: the suggestion, a short reason, the data check
+# ------------------------------------------------------------------ the guided demo's example (/demo) --------------
+# What /demo shows when a relationship or a table is selected: the suggestion, a short reason, the data check
 # and the question a person still has to answer, with the rule in full behind a disclosure. Every number comes from
 # demo_plan() and demo_validation(), the same data the graph draws, so the text and the picture cannot disagree.
 
@@ -316,11 +317,12 @@ def home_relationship_list() -> str:
     return "".join(items)
 
 
-# ------------------------------------------------------------------ the start page's guided example ------------------
-# The home page brief of 27 October 2026, round 1: one example all the way (an order, its customer, its delivery address),
-# in four steps. The suggestion and its count are suggest_relationships' on the synthetic rows (demo_suggestions); the
-# visitor's review is a separate act and never turns into a check. Every pane is server-rendered, so the page reads
-# without JavaScript; site.js shows one step at a time and draws the decision on the graph as well.
+# ------------------------------------------------------------------ the guided example (/demo) -----------------------
+# The home page brief of 27 October 2026, round 1, on a page of its own since round n17: one example all the way (an
+# order, its customer, its delivery address), in four steps. The suggestion and its count are suggest_relationships' on
+# the synthetic rows (demo_suggestions); the visitor's review is a separate act and never turns into a check. Every pane
+# is server-rendered, so the page reads without JavaScript; site.js shows one step at a time and draws the decision on
+# the graph as well. The pane headings are h2: they follow the page's h1.
 
 GUIDE_STEPS = ("The question", "The suggestion", "Your review", "The result")
 
@@ -359,11 +361,11 @@ def home_guide() -> str:
     steps = "".join(f'<li><button type="button" class="guide-step" data-step="{i}" aria-pressed="{"true" if i == 1 else "false"}">'
                     f'<span class="step-n {c}">{i}</span><span>{e(t)}</span></button></li>'
                     for i, (t, c) in enumerate(zip(GUIDE_STEPS, ("coral", "lav", "sage", "mustard")), 1))
-    pane1 = (f'<section class="guide-pane" data-pane="1" aria-labelledby="guide-h1"><h3 id="guide-h1">An order view needs each order’s delivery address</h3>'
+    pane1 = (f'<section class="guide-pane" data-pane="1" aria-labelledby="guide-h1"><h2 id="guide-h1">An order view needs each order’s delivery address</h2>'
              f'<p>Order {first["order_id"]} has customer {first["customer_id"]} and a <code>{e(col)}</code> of {first["ship_to_id"]}. The customer is '
              f'clear: <code>customer_id</code> is named after the customers table, so the plan links it. <code>{e(col)}</code> names no table, '
              f'so no naming rule links it, and the delivery address is not confirmed.</p>{_preview_table(orders, False)}</section>')
-    pane2 = (f'<section class="guide-pane" data-pane="2" aria-labelledby="guide-h2"><h3 id="guide-h2">The engine suggests a table and counts the values</h3>'
+    pane2 = (f'<section class="guide-pane" data-pane="2" aria-labelledby="guide-h2"><h2 id="guide-h2">The engine suggests a table and counts the values</h2>'
              f'<dl class="detail-list"><div><dt>Suggestion</dt><dd><code>{e(rel)}</code>, from <code>suggest_relationships</code></dd></div>'
              f'<div><dt>Why</dt><dd>{e(why[:1].upper() + why[1:])}.</dd></div>'
              f'<div><dt>Data check</dt><dd>{e(check)}{e(other)}</dd></div>'
@@ -372,7 +374,7 @@ def home_guide() -> str:
              f'<details class="tech"><summary>Technical details</summary><p><code>suggest_relationships</code> ranks the columns no rule '
              f'links by name, type and triangles in the graph (score {sug["score"]}), then counts how many of their values exist in the '
              f'target key, on the synthetic rows of this demo. In the tools: <code>{e(confirmed)}</code> as a <code>confirmed</code> entry.</p></details></section>')
-    pane3 = (f'<section class="guide-pane" data-pane="3" aria-labelledby="guide-h3"><h3 id="guide-h3">Does <code>{e(col)}</code> mean the address each order is delivered to?</h3>'
+    pane3 = (f'<section class="guide-pane" data-pane="3" aria-labelledby="guide-h3"><h2 id="guide-h3">Does <code>{e(col)}</code> mean the address each order is delivered to?</h2>'
              f'<p>This is your decision, not the engine’s. Your answer applies to this demo only. Nothing changes in Fabric.</p>'
              f'<div class="choice"><button type="button" class="btn sage small" data-guide-decide="accept" aria-pressed="false">Yes, it is the delivery address</button>'
              f'<button type="button" class="btn ghost small" data-guide-decide="open" aria-pressed="true">Leave it open</button></div>'
@@ -403,7 +405,7 @@ def home_guide() -> str:
                 f'<pre class="guide-summary" id="guide-summary-{variant}">{e(summary)}</pre>'
                 f'<button type="button" class="btn ghost small" data-copy="#guide-summary-{variant}">Copy the summary</button>'
                 f'</div><!-- /card -->')
-    pane4 = (f'<section class="guide-pane" data-pane="4" aria-labelledby="guide-h4"><h3 id="guide-h4">What you can explain now</h3>'
+    pane4 = (f'<section class="guide-pane" data-pane="4" aria-labelledby="guide-h4"><h2 id="guide-h4">What you can explain now</h2>'
              f'{card("open")}{card("accepted")}</section>')
     nav = ('<div class="guide-nav"><button type="button" class="btn ghost small" data-guide="back">Back</button>'
            '<button type="button" class="btn primary small" data-guide="next">Next</button>'
