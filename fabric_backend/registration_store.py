@@ -18,9 +18,11 @@ once" holds across them because a take is a read followed by a delete that names
 Table Storage lets succeed only once.
 
 Table Storage with the container app's managed identity (role "Storage Table Data Contributor" on the table), REST
-only, no Azure SDK: Microsoft Entra authorization for tables, x-ms-version 2019-02-02, bearer token for
-https://storage.azure.com. One entity per record: PartitionKey = the kind, RowKey = the record's key (base64url or hex,
-so no character Table Storage forbids), `data` = the record as JSON, `exp` = its expiry (Unix seconds, 0 = none).
+only, no Azure SDK: Microsoft Entra authorization for tables, x-ms-version 2019-02-02 with x-ms-date and the OData 3.0
+headers, bearer token for https://storage.azure.com. One entity per record: PartitionKey = the kind, RowKey = the
+record's key (base64url or hex, so no character Table Storage forbids), `data` = the record as JSON, `exp` = its expiry
+(Unix seconds, 0 = none) as an Edm.Int64, which the Table service's JSON format writes as a string ("1761580800")
+and its filters as a number with an L suffix (exp lt 1761580800L).
 """
 from __future__ import annotations
 
@@ -171,7 +173,8 @@ class TableStore:
         r = self._request("GET", endpoint, {"X-IDENTITY-HEADER": header}, params=params)
         body = r.json() if getattr(r, "status_code", 0) == 200 else {}
         if not (body or {}).get("access_token"):
-            raise StoreError(f"the managed identity endpoint answered HTTP {getattr(r, 'status_code', '?')}")
+            raise StoreError(f"the managed identity endpoint answered HTTP {getattr(r, 'status_code', '?')}"
+                             " (is AZURE_CLIENT_ID the client id of the app's identity?)")
         try:
             exp = float(body.get("expires_on") or 0) or self.clock() + 3000
         except (TypeError, ValueError):
@@ -181,8 +184,10 @@ class TableStore:
         return body["access_token"]
 
     def _headers(self, **extra) -> dict:
+        from email.utils import formatdate
         return {"Authorization": f"Bearer {self._bearer()}", "x-ms-version": "2019-02-02",
-                "Accept": "application/json;odata=nometadata", **extra}
+                "x-ms-date": formatdate(self.clock(), usegmt=True), "DataServiceVersion": "3.0;NetFx",
+                "MaxDataServiceVersion": "3.0;NetFx", "Accept": "application/json;odata=nometadata", **extra}
 
     def _url(self, kind: str, key: str) -> str:
         return f"{self.base}(PartitionKey='{kind}',RowKey='{quote(key, safe='')}')"
@@ -200,10 +205,24 @@ class TableStore:
     def _body(self, kind: str, key: str, data: dict, ttl: int | None) -> bytes:
         exp = int(self.clock() + ttl) if ttl else 0
         return json.dumps({"PartitionKey": kind, "RowKey": key, "data": json.dumps(data, separators=(",", ":")),
-                           "exp": exp, "exp@odata.type": "Edm.Int64"}).encode()
+                           "exp": str(exp), "exp@odata.type": "Edm.Int64"}).encode()       # Int64 travels as a string
 
     def _fail(self, what: str, r) -> StoreError:
-        return StoreError(f"the registration table answered HTTP {getattr(r, 'status_code', '?')} to {what}")
+        """The status and the Table service's own error code (AuthorizationPermissionMismatch, TableNotFound,
+        InvalidInput, ...), so the console line says which setting is wrong. Never the request or a token."""
+        code = ""
+        try:
+            error = (r.json() or {}).get("odata.error") or {}
+            code = str(error.get("code") or "")
+            message = error.get("message")
+            text = message.get("value") if isinstance(message, dict) else message
+            if text:
+                code += ": " + str(text).splitlines()[0][:120]
+        except Exception:  # noqa: BLE001 — an error body that is not JSON: the status is still there
+            code = ""
+        code = code or str((getattr(r, "headers", {}) or {}).get("x-ms-error-code") or "")
+        return StoreError(f"the registration table answered HTTP {getattr(r, 'status_code', '?')} to {what}"
+                          + (f" ({code})" if code else ""))
 
     # -- the five operations ---------------------------------------------------------------------------------
     def put(self, kind: str, key: str, data: dict, ttl: int | None = None) -> None:
@@ -285,7 +304,7 @@ class TableStore:
     def _purge(self, now: float) -> None:
         try:
             for kind in KINDS:
-                flt = f"PartitionKey eq '{kind}' and exp gt 0 and exp lt {int(now)}"
+                flt = f"PartitionKey eq '{kind}' and exp gt 0L and exp lt {int(now)}L"
                 r = self._request("GET", f"{self.base}()", self._headers(Accept="application/json;odata=minimalmetadata"),
                                   params={"$filter": flt, "$select": "PartitionKey,RowKey,exp", "$top": str(PURGE_BATCH)})
                 if r.status_code != 200:

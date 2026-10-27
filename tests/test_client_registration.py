@@ -827,13 +827,20 @@ def test_memory_store_takes_once_and_expires():
 
 
 class FakeTable:
-    """Azure Table Storage's entity endpoints as the store uses them, with ETags and If-Match."""
+    """Azure Table Storage's entity endpoints as the store uses them, with ETags and If-Match, and the service's rules
+    that the live test of 27 October 2026 ran into: an authorized request carries x-ms-date, an Edm.Int64 value is a
+    JSON string ("Payload format for Table service operations"), and an Int64 literal in a filter ends in L."""
 
     def __init__(self):
-        self.rows, self.n, self.calls = {}, 0, []
+        self.rows, self.n, self.calls, self.answers = {}, 0, [], []
 
     def __call__(self, method, url, headers=None, data=None, params=None):
         self.calls.append((method, url, dict(headers or {})))
+        answer = self._answer(method, url, headers, data, params)
+        self.answers.append((method, url, params, answer.status_code))
+        return answer
+
+    def _answer(self, method, url, headers, data, params):
         assert headers["Authorization"] == "Bearer t" and headers["x-ms-version"] == "2019-02-02"
         m = re.search(r"\(PartitionKey='(\w+)',RowKey='([^']+)'\)$", url)
         key = (m.group(1), m.group(2)) if m else None
@@ -841,6 +848,18 @@ class FakeTable:
         def resp(status, body=None, etag=None):
             return type("R", (), {"status_code": status, "json": lambda self: body or {},
                                   "headers": {"ETag": etag} if etag else {}})()
+
+        def invalid(text):
+            return resp(400, {"odata.error": {"code": "InvalidInput", "message": {"lang": "en-US", "value": text}}})
+        if not headers.get("x-ms-date"):
+            return resp(403, {"odata.error": {"code": "AuthenticationFailed", "message": {"value": "x-ms-date is missing"}}})
+        if data is not None:
+            entity = json.loads(data)
+            for name, value in entity.items():
+                if entity.get(name + "@odata.type") == "Edm.Int64" and not (isinstance(value, str) and value.isdigit()):
+                    return invalid(f"The value for property {name} is not a valid Edm.Int64")
+        if params and "$filter" in params and re.search(r"\bexp (gt|lt) \d+(?!L)\b", params["$filter"]):
+            return invalid("Int64 literals need the L suffix")
         if method == "POST":
             e = json.loads(data)
             k = (e["PartitionKey"], e["RowKey"])
@@ -890,6 +909,30 @@ def test_table_store_takes_once_with_if_match_and_needs_a_table_url():
                 "https://acct.table.core.windows.net/a/b", "https://acct.table.core.windows.net/"):
         with pytest.raises(ValueError):
             registration_store.TableStore(bad)
+
+
+def test_table_store_writes_what_the_table_service_accepts():
+    """Live test of 27 October 2026: every sign-in stopped with "The sign-in service is briefly unavailable", because
+    the store wrote the expiry as a JSON number typed Edm.Int64 and sent no x-ms-date. Both as the service wants them
+    now; the purge filters with Int64 literals; and an error names the service's own code."""
+    t = FakeTable()
+    s = registration_store.TableStore("https://acct.table.core.windows.net/krusgraphoauth", http=t, token=lambda: "t")
+    s.put("txn", "abc", {"x": 1}, ttl=600)
+    assert s.add("used", "u1", {}, ttl=600) and s.get("txn", "abc")[0] == {"x": 1}
+    stored = t.rows[("txn", "abc")][0]
+    assert isinstance(stored["exp"], str) and stored["exp"].isdigit() and stored["exp@odata.type"] == "Edm.Int64"
+    assert all(h.get("x-ms-date") for _, _, h in t.calls)
+    s._purge(time.time())                                                          # the filter the service accepts
+    listing = [(params["$filter"], status) for m, u, params, status in t.answers if m == "GET" and u.endswith("()")]
+    assert len(listing) == len(registration_store.KINDS) and all(status == 200 and " exp lt " in f and f.endswith("L")
+                                                                   for f, status in listing)
+    body = s._body("txn", "x", {}, 60).decode()
+    assert '"exp": "' in body
+    old = json.dumps({"PartitionKey": "txn", "RowKey": "y", "data": "{}", "exp": 123, "exp@odata.type": "Edm.Int64"}).encode()
+    r = t("PUT", s._url("txn", "y"), s._headers(), old)
+    assert r.status_code == 400                                                    # what the previous version sent
+    with pytest.raises(registration_store.StoreError, match=r"HTTP 400 to a write \(InvalidInput: "):
+        raise s._fail("a write", r)
 
 
 def test_a_store_outage_fails_the_sign_in_and_grants_nothing(env, monkeypatch):
