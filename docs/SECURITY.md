@@ -108,10 +108,14 @@ two minutes before it expires. The server stores nothing on disk and never write
    issued token were ever rejected as immature, a leeway of a few seconds is the fix (`jwt.decode(..., leeway=…)`).
 8. **`KRUSGRAPH_DEBUG_ERRORS`** adds the exception class name to tool errors. It is off by default and should stay
    off in production; it never adds messages or tokens.
-9. **Dynamic client registration facade** (`KRUSGRAPH_DCR=1`, off by default). It hands the one Entra app's public
-   client id to any client whose redirect URIs are all on `KRUSGRAPH_DCR_REDIRECTS`; PKCE and Entra's exact redirect
-   matching are the controls, and loopback entries match any port. Keep the list short and review it; the design and
-   the open points (resource indicator, issuer) are in `docs/AUTH-DCR.md`. Unit-tested only.
+9. **Client registration for MCP clients other than Claude** (`KRUSGRAPH_CLIENT_REGISTRATION=1`, off by default).
+   Krusgraph runs a small authorization server at `/oauth` in front of the one Entra app for clients that sign in at
+   `/mcp/connect`; every client shares that Entra app, so Krusgraph's own consent page per client (name, domain,
+   redirect address) is the control against the confused deputy. It holds Entra's tokens encrypted for 60 seconds
+   and Entra's refresh tokens encrypted for up to 90 days in Azure Table Storage, under one key of its own
+   (`KRUSGRAPH_REGISTRATION_KEY`). The access token a client gets is Entra's, so the server cannot tell which client
+   holds it or revoke one before it expires; loopback addresses can be claimed by any local program (the page warns).
+   The full list of remaining risks is in `docs/CLIENT-REGISTRATION.md`. Unit-tested only.
 10. **HSTS** is `max-age=31536000` without `includeSubDomains`/`preload`; the apex serves the site and the MCP
    endpoint, and nothing else is under the domain. Adding preload is a DNS/ownership decision, not a code one.
 11. **The alerts and Log Analytics are not set up yet.** `docs/OPERATIONS.md` has the commands; until they are run,

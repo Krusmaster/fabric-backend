@@ -5,6 +5,21 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Unreleased
 
+- Round n16: sign-in for MCP clients other than Claude, behind `KRUSGRAPH_CLIENT_REGISTRATION` (off by default;
+  `docs/CLIENT-REGISTRATION.md`, turning it on in `docs/OPERATIONS.md` section 6). The clients use
+  `https://<domain>/mcp/connect`, whose metadata names Krusgraph's own authorization server at `/oauth` in front of the
+  one Entra app: Client ID Metadata Documents (VS Code, Claude Code, ChatGPT), strict dynamic registration with its own
+  flag (Cursor, Glama), redirect addresses https or loopback only, Krusgraph's consent page per client before Entra
+  (remembered per user and client for https addresses, shown every time for a program on the user's computer), no
+  redirect to a client before it is approved, PKCE S256, single-use state and codes, rotating refresh tokens of its
+  own, `iss` in every answer, and the same token validation as `/mcp`. An independent security review found eight
+  problems before release, all fixed with tests (the list is in `docs/CLIENT-REGISTRATION.md`). Records in Azure Table Storage (`registration_store.py`).
+  Claude's `/mcp`, its metadata and its 401 are the same in both modes (tests lock them). `/privacy` describes the
+  records when the flag is on. `deploy/krusgraph.sh --client-registration` prints the commands (one web redirect
+  address on the Entra app, the table, the key, the settings) and runs nothing. The earlier facade (`KRUSGRAPH_DCR`,
+  `fabric_backend/dcr.py`, `docs/AUTH-DCR.md`) is removed: it handed out the Entra app's client id without a consent of
+  its own and changed Claude's metadata when switched on. Unit-tested against a mocked Entra; not deployed.
+
 ## 0.7.0 — 2026-10-27
 
 - Home page, round 1 of the brief of 27 October 2026: a shorter lede and a guided example in four steps that follows

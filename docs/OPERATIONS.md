@@ -1,4 +1,4 @@
-# Operations: limits, Key Vault, usage statistics, health and alerts
+# Operations: limits, Key Vault, usage statistics, health, alerts and client sign-in
 
 Everything here is run by the maintainer in Azure Cloud Shell (Bash), from a checkout of this repository with
 `deploy/krusgraph.json` in place (or built from the running app with `--from-azure`, section 0). Nothing in this file has been run against Azure yet: the server code is
@@ -293,6 +293,89 @@ Things to watch, written down rather than guessed:
 
 When a client works, its row in `docs/LIVE-TEST.md` gets the date, and the site's "supports Claude" lines can name it.
 
+Section 6 is the other route: the clients sign in at `https://krusgraph.com/mcp/connect` through Krusgraph's own
+sign-in in front of Entra, with no client id to configure (except Cursor) and one redirect address on the Entra app
+instead of one per client.
+
+## 6. Client registration: VS Code, Cursor, Glama and other MCP clients (built, off by default)
+
+What it is: `docs/CLIENT-REGISTRATION.md`. In short, with `KRUSGRAPH_CLIENT_REGISTRATION=1` the clients that register
+themselves use **`https://krusgraph.com/mcp/connect`**, whose metadata names Krusgraph's authorization server
+`https://krusgraph.com/oauth`. It accepts Client ID Metadata Documents (VS Code, Claude Code, ChatGPT) and, with
+`KRUSGRAPH_CLIENT_REGISTRATION_DCR=1`, strict dynamic registration (Cursor, Glama), shows Krusgraph's own approval page
+per client, then sends the user to Microsoft. Claude keeps `https://krusgraph.com/mcp` and signs in exactly as today
+whether the flag is on or off. Unit-tested (27 October 2026); nothing here has run against Azure, Entra or a real
+client yet.
+
+**Turning it on.** The deploy helper prints the commands; it runs nothing and calls nothing:
+
+```bash
+bash deploy/krusgraph.sh --client-registration
+```
+
+The steps it prints, for the app in `deploy/krusgraph.json`:
+
+1. **Entra, one redirect address.** `https://krusgraph.com/oauth/callback` is added to the app's *Web* redirect
+   addresses, next to Claude's `https://claude.ai/api/mcp/auth_callback`. `az ad app update --web-redirect-uris`
+   replaces the whole list, so the commands read the current list first and merge; if the read fails, nothing changes.
+   Nothing else on the app changes: no scopes, no permissions, no public-client addresses, no new secret. The server
+   redeems Entra's code with the secret it already holds for the on-behalf-of exchange.
+2. **Storage.** A storage account (Standard_LRS, no shared keys, no public access) with one table, `krusgraphoauth`,
+   and "Storage Table Data Contributor" on that table for the container app's identity. Cost: per use, öre a month at
+   the expected volume (`docs/CLIENT-REGISTRATION.md`, "What is stored, and what it costs").
+3. **The server's key.** 32 random bytes from `openssl rand -base64 32`, straight into Key Vault when `key_vault` is in
+   `deploy/krusgraph.json` (the identity already reads that vault), otherwise into a container app secret. The value is
+   never shown. A full run of the deploy script (not `--update`) drops a container app secret; the layer then stays off
+   until steps 3 and 4 run again. Key Vault avoids that.
+4. **Switch on.** `KRUSGRAPH_CLIENT_REGISTRATION=1`, `KRUSGRAPH_CLIENT_REGISTRATION_DCR=1`,
+   `KRUSGRAPH_REGISTRATION_STORE=https://<account>.table.core.windows.net/krusgraphoauth`, the key setting and
+   `AZURE_CLIENT_ID` (the identity's client id, for the managed identity token). `--update` keeps these; a full run keeps
+   the plain ones. A setting that is missing or wrong leaves the layer off and writes one line to the console
+   (`client registration is switched on but not configured, so it stays off: ...`); Claude is not affected.
+5. **Check.** `https://krusgraph.com/.well-known/oauth-authorization-server/oauth` answers with
+   `"issuer": "https://krusgraph.com/oauth"`; `https://krusgraph.com/.well-known/oauth-protected-resource` is unchanged
+   (Entra only); `curl -si https://krusgraph.com/mcp/connect` answers `401` with a `WWW-Authenticate` that points at
+   `/.well-known/oauth-protected-resource/mcp/connect`. Then sign in to Claude once as usual: nothing differs.
+
+**Trying it with the test account** (synthetic data in `demo`; fill in `docs/LIVE-TEST.md` section 4):
+
+1. **VS Code** (GitHub Copilot agent mode). In `.vscode/mcp.json` or *MCP: Open User Configuration*:
+   `{"servers": {"krusgraph": {"type": "http", "url": "https://krusgraph.com/mcp/connect"}}}`, with **no**
+   `oauth.clientId`. *MCP: List Servers* → krusgraph → *Start*. Expected: the browser opens
+   `https://krusgraph.com/oauth/authorize`, the page names "Visual Studio Code", the domain `vscode.dev` and a program
+   on this computer (`127.0.0.1`, port 33418 or another); *Allow and sign in with Microsoft*; sign in with the test
+   account; back in VS Code, agent mode: *"Which Fabric workspaces can I see?"* → `demo`. Because the answer goes to a
+   program on this computer, the page comes back at every new sign-in (not at each refresh); with vscode.dev in the
+   browser (`https://vscode.dev/redirect`) the approval is remembered.
+2. **Cursor.** Cursor's automatic registration asks for `cursor://anysphere.cursor-mcp/oauth/callback`, which this
+   layer refuses (only https and loopback addresses). Register Cursor once with its desktop loopback address and give
+   Cursor the client id:
+
+   ```bash
+   curl -s https://krusgraph.com/oauth/register -H 'Content-Type: application/json' \
+     -d '{"client_name": "Cursor", "redirect_uris": ["http://localhost:8787/callback"], "token_endpoint_auth_method": "none",
+          "grant_types": ["authorization_code", "refresh_token"], "response_types": ["code"]}'
+   ```
+
+   then in `~/.cursor/mcp.json`:
+   `{"mcpServers": {"krusgraph": {"url": "https://krusgraph.com/mcp/connect", "auth": {"CLIENT_ID": "<client_id from the answer>"}}}}`.
+   Sign in from Cursor's MCP settings. Expected: the page says the name is not verified and shows
+   `http://localhost:8787/callback`. If Cursor sends another redirect address, the page refuses it and names it; note it
+   in `docs/LIVE-TEST.md`. The client id is not secret and can be reused on every computer.
+3. **Glama.** Add `https://krusgraph.com/mcp/connect` in Glama's MCP connector (or its inspector). Glama is reported to
+   register itself; expected: the page says the name is not verified and shows `glama.ai` as where the answer goes.
+4. **Claude Code** (optional, CIMD): `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect`,
+   then `/mcp` in a session; the page names "Claude Code" from `claude.ai`.
+5. **Deny** once on the page: the client should report that access was denied, and nothing is stored.
+
+What to look at when something fails: the console lines `krusgraph.client_registration.*` (what happened and to which
+client host; never a token, an IP address or a user id), the error page's text (it names the refused address or the
+reason), and Entra's sign-in log in the tenant.
+
+**Switching it off:** `az containerapp update -n "$APP" -g "$RG" --set-env-vars KRUSGRAPH_CLIENT_REGISTRATION=0`.
+`/mcp/connect` and `/oauth/*` disappear; Claude is unaffected. Removing the redirect address from Entra and the
+storage account is optional and can wait.
+
 ## What the server reads from the environment (summary)
 
 | Variable | Default | Meaning |
@@ -306,3 +389,9 @@ When a client works, its row in `docs/LIVE-TEST.md` gets the date, and the site'
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset | tells `/privacy` that console logs are kept that many days |
 | `KRUSGRAPH_ACCESS_LOG` | on | `0` drops uvicorn's per-request line with the client IP |
 | `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/PRICING-NOTES.md` |
+| `KRUSGRAPH_CLIENT_REGISTRATION` | `0` | sign-in at `/mcp/connect` for MCP clients other than Claude (section 6) |
+| `KRUSGRAPH_CLIENT_REGISTRATION_DCR` | `0` | also dynamic client registration at `/oauth/register` |
+| `KRUSGRAPH_REGISTRATION_STORE` | unset | `memory` (one replica) or `https://<account>.table.core.windows.net/<table>` |
+| `KRUSGRAPH_REGISTRATION_KEY`, `KRUSGRAPH_REGISTRATION_KEY_KEYVAULT_URI` | unset | the layer's key (32 random bytes, base64), or where Key Vault has it |
+| `KRUSGRAPH_REGISTRATION_CLIENT_DOMAINS` | unset (any) | hosts allowed as CIMD client ids |
+| `KRUSGRAPH_REGISTRATION_RATE_IP`, `_RATE_CLIENT`, `_RATE_REGISTER` | `60/minute,600/hour`, `300/minute,6000/hour`, `10/hour` | the sign-in limits |

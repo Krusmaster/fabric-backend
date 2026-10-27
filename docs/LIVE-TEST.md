@@ -109,6 +109,18 @@ Prepared, not switched on: `bash deploy/krusgraph.sh --client-redirects` prints 
 | VS Code (GitHub Copilot agent mode) | `mcp.json` with `"oauth": {"clientId": "<APP_ID>"}`; *MCP: List Servers* → Start; ask the same in agent mode | the same | | |
 | Cursor | `~/.cursor/mcp.json` with `"auth": {"CLIENT_ID": "<APP_ID>"}`; sign in from the MCP settings; note the `redirect_uri` in the address that opens | the same, and a `redirect_uri` that is registered | | |
 
+Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash deploy/krusgraph.sh
+--client-registration`), all at `https://krusgraph.com/mcp/connect` with the test account:
+
+| Client | How | Expected | Result | Date |
+| --- | --- | --- | --- | --- |
+| Claude (connector) | sign in and ask *"Which Fabric workspaces can I see?"* after switching on | exactly as before: Microsoft sign-in, no Krusgraph page, `demo` | | |
+| VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | | |
+| Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | | |
+| Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | | |
+| Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
+| Deny | choose Deny on the page once | the client reports access denied | | |
+
 ## 5. From the filled-in checklist to the status words
 
 1. A tool whose rows in section 1 all passed is **Tested end to end**; a draft **Tested end to end (a draft; creates

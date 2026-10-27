@@ -12,7 +12,7 @@ in full is marked **unconfirmed**.
 
 | # | Step | Who | Automated? | Blocks? | Notes |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Lovable connects to the Krusgraph MCP server (so the builder's chat can plan and create) | builder, Lovable, Krusgraph | manual add, then automatic | **yes, today**: Entra has no dynamic client registration, Lovable's OAuth path cannot register (see `docs/AUTH-DCR.md`) | Fix: `KRUSGRAPH_DCR=1` (this change, unit-tested). Alternatives: do the planning in Claude (works today), or Lovable's bearer-token option with a token minted by the user (unconfirmed) |
+| 1 | Lovable connects to the Krusgraph MCP server (so the builder's chat can plan and create) | builder, Lovable, Krusgraph | manual add, then automatic | **yes, today**: Entra has no dynamic client registration, Lovable's OAuth path cannot register (see `docs/CLIENT-REGISTRATION.md`) | Fix: `KRUSGRAPH_CLIENT_REGISTRATION=1` with dynamic registration, at `https://krusgraph.com/mcp/connect` (unit-tested, off by default). Alternatives: do the planning in Claude (works today), or Lovable's bearer-token option with a token minted by the user (unconfirmed) |
 | 2 | Find the source and plan: `list_workspaces`, `list_sources`, `plan_backend`, `sample_rows`, `validate_plan`, `suggest_relationships` | Krusgraph | automatic | no | Run live on 25 and 26 October against `demo` / `demo_lh` / `shop` |
 | 3 | Create the API for GraphQL item: `create_backend` (`plan_drift` first on an existing one) | Krusgraph | automatic | no | Updating an existing API in place is tested end to end (27 October 2026, `shop_api` with `confirmed`); creating a new one has not run live (Experimental); querying an existing API with `describe_backend` and `query_graphql` is tested end to end; it keeps an existing API's field names and refuses to drop relationships it has (`allow_removals`) |
 | 4 | Turn on introspection on the item | Fabric workspace admin | **manual** | blocks only tools that read the schema | "By default, introspection is disabled ... This setting can only be toggled by workspace admins" (api-graphql-introspection-schema-export.md). No REST route for it in microsoft/fabric-rest-api-specs (read 26 October). `app_readiness` probes it and gives the click path |
@@ -37,8 +37,9 @@ prompted to authorize"; bearer token or API key "is for servers without OAuth"; 
 personal to you, and they are never part of your published app" (docs.lovable.dev/integrations/custom-mcp, search
 excerpt). Whether Lovable's OAuth client registers dynamically or accepts a typed client id is not in the excerpt:
 unconfirmed. With Entra as the authorization server there is no registration endpoint, so an automatic registration
-fails. `KRUSGRAPH_DCR=1` adds one (`docs/AUTH-DCR.md`); the callback URI Lovable shows must be registered on the
-Entra app by the maintainer first.
+fails. `KRUSGRAPH_CLIENT_REGISTRATION=1` with `KRUSGRAPH_CLIENT_REGISTRATION_DCR=1` adds one at
+`https://krusgraph.com/mcp/connect` (`docs/CLIENT-REGISTRATION.md`); Lovable's https callback then needs nothing on the
+Entra app, as long as it is an https address (unverified for Lovable).
 
 Until that is deployed and verified, the builder plans and creates in Claude (works today) and switches to Lovable
 at step 10, or uses the bearer-token option with a token minted by the user for the Krusgraph app (unconfirmed).
@@ -119,8 +120,8 @@ Two ways:
 - `app_starter`: the edge function, the frontend helper, the secrets list and command, the per-user alternative,
   a checklist that now starts with the app's own Entra registration and the tenant setting. Unit-tested; the parts
   that existed before ran live on 26 October.
-- `KRUSGRAPH_DCR`: the registration facade for agents outside Claude (`docs/AUTH-DCR.md`). Unit-tested, off by
-  default.
+- `KRUSGRAPH_CLIENT_REGISTRATION`: sign-in for MCP clients other than Claude at `/mcp/connect`
+  (`docs/CLIENT-REGISTRATION.md`). Unit-tested, off by default.
 
 ## Live test script (for the maintainer, against `demo` / `demo_lh` / `shop_api`)
 
@@ -148,8 +149,8 @@ Nothing below has been run yet. Expected answers come from the unit tests and th
    permission Power BI Service -> GraphQLApi.Execute.All to shop-app; grant your own user Run Queries and Mutations
    on shop_api; sign in to the app with Microsoft; expected: `session.provider_token` is set and the query through
    `x-fabric-token` answers. If it answers 401, decode the token's `aud`: that settles the unverified scope point.
-7. Agent sign-in (`docs/AUTH-DCR.md`, after deploying with `KRUSGRAPH_DCR=1`): Cursor and Lovable's custom MCP
-   against `https://krusgraph.com/mcp`.
+7. Agent sign-in (`docs/OPERATIONS.md` section 6, after switching on client registration): Cursor and Lovable's
+   custom MCP against `https://krusgraph.com/mcp/connect`.
 
 ## Sources
 

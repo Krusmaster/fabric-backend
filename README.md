@@ -210,11 +210,13 @@ Fabric and SQL tokens — every call runs with that user's own Fabric permission
 Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
 `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata, the counts from the checks, requested sample rows
 and query results pass through the server in memory only; there is no database. Each tool call leaves an anonymous
-usage record, and `/privacy` says which technical logs the deployment keeps. Agents outside Claude (Lovable's custom MCP connector, Cursor) need to
-register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_DCR=1` with `KRUSGRAPH_DCR_REDIRECTS` turns on a
-registration facade that answers the Entra app's public client id for allowed redirect URIs and publishes RFC 8414
-metadata pointing at Entra's endpoints, storing nothing ([docs/AUTH-DCR.md](docs/AUTH-DCR.md); off by default,
-unit-tested, not yet tried with a real agent). The same process serves the website (`/`, `/explore`, `/start`,
+usage record, and `/privacy` says which technical logs the deployment keeps. MCP clients other than Claude (VS Code, Cursor, Glama)
+register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_CLIENT_REGISTRATION=1` serves them at
+`/mcp/connect` through Krusgraph's own authorization server at `/oauth` in front of Entra: Client ID Metadata Documents,
+optional strict dynamic registration, a consent page of Krusgraph's own per client, PKCE S256, and the same token
+validation as `/mcp`, with a few short-lived sign-in records in Azure Table Storage; Claude's sign-in at `/mcp` is
+unchanged either way ([docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md); off by default, unit-tested, not yet
+tried with a real client). The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed): fair-use limits per user and per
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
