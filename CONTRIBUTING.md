@@ -36,7 +36,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n16 (finding from the live test of client registration: the sign-in table refuses every write) |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
 | Deployment | `deploy/`, `Dockerfile` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
