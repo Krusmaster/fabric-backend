@@ -78,10 +78,20 @@ def _vars() -> dict[str, str]:
         "LOGS_NOT_KEPT": "" if _days(os.environ.get("KRUSGRAPH_LOG_RETENTION_DAYS", "")) else "1",
         "USAGE_ORG": "1" if os.environ.get("KRUSGRAPH_USAGE_SALT", "").strip() else "",
         "RATE_LIMITS": "" if os.environ.get("KRUSGRAPH_RATE_LIMITS", "1").strip().lower() in {"0", "off", "false", "no"} else "1",
+        # client registration for MCP clients other than Claude (registration.py) keeps a few sign-in records; the page says which
+        "CLIENT_REGISTRATION": "1" if _registration_on() else "", "NO_CLIENT_REGISTRATION": "" if _registration_on() else "1",
+        "REGISTRATION_WHERE": ("the server's memory (lost when it restarts)"
+                               if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip().lower() == "memory"
+                               else "an Azure Table Storage table of ours in the service's Azure region"),
         # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
         "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(),
         **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
     }
+
+
+def _registration_on() -> bool:
+    from .registration import enabled
+    return enabled()
 
 
 def _days(value: str) -> str:

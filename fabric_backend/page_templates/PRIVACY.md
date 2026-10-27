@@ -46,7 +46,9 @@ What the service reads from Fabric depends on the tool you ask for:
   DevOps or any other Git provider.
 
 All of this passes through the service's memory on its way to your MCP client, in the response to your request, and
-is then discarded. The service has no database, no cache on disk and no file storage of its own. It counts how its
+is then discarded. {{#IF NO_CLIENT_REGISTRATION}}The service has no database, no cache on disk and no file storage of its own.{{/IF}}{{#IF CLIENT_REGISTRATION}}Apart from the few sign-in records described under
+*Sign-in from MCP clients other than Claude* below, the service has no database, no cache on disk and no file storage
+of its own, and none of what Fabric returns is ever stored.{{/IF}} It counts how its
 tools are used, anonymously: which tool, how the call ended and how long it took (see *Usage statistics* below), never
 what you asked or what came back.
 
@@ -54,7 +56,12 @@ what you asked or what came back.
 
 Your access tokens are validated and exchanged in memory. They are never written to disk, never logged, and are
 dropped shortly before they expire.
-
+{{#IF CLIENT_REGISTRATION}}
+When you sign in from an MCP client other than Claude, the service obtains the Microsoft tokens for that sign-in
+itself and hands the access token to your client. Until your client collects them (at most 60 seconds) they are kept
+encrypted; Microsoft's refresh token stays encrypted with the service for as long as your client keeps renewing its
+access, at most 90 days, and is never given to the client. Details below.
+{{/IF}}
 ## What we process
 
 | Data | Why | Kept |
@@ -62,7 +69,11 @@ dropped shortly before they expire.
 | Your access tokens | to call Fabric and SQL as you | in memory only, until shortly before they expire; never written to disk or logs |
 | Workspace, item, table and column names, and item definitions | to build the plan, the draft or the definition you asked for | only for the duration of the request |
 | Counts from the checks, sample rows and query results you request | returned to your MCP client | not stored |
-{{#IF RATE_LIMITS}}| Your user id and organisation id from the sign-in (`oid`, `tid`), as salted hashes | fair-use limits: how many calls per user and per organisation in the last minute and hour | in memory only, until about an hour after your last call; never written anywhere |
+{{#IF CLIENT_REGISTRATION}}| Sign-in records for MCP clients other than Claude: a sign-in in progress (the client's address, its redirect address and its request); the Microsoft tokens of a finished sign-in, encrypted; Microsoft's refresh token, encrypted, with a hash of the refresh token your client holds | signing in from VS Code, Cursor and other MCP clients through {{DOMAIN}}/mcp/connect | in {{REGISTRATION_WHERE}}: 10 minutes, 60 seconds, and at most 90 days, each deleted once used |
+| Your approval of an MCP client that receives the answer at a web address: a keyed hash of your user and organisation ids (not the ids themselves), the client's address, name and redirect address, and the date | not asking you again at every sign-in | the same place, 180 days |
+| A cookie in your browser on {{DOMAIN}} with the same keyed hash, signed; and two short-lived cookies that protect the approval form and the sign-in | recognising your earlier approval; stopping forged approvals | 180 days, and 10 minutes, in your browser |
+| The IP address of a sign-in request, as a salted hash | limits on sign-in attempts per network | in memory only, about an hour; never written anywhere |
+{{/IF}}{{#IF RATE_LIMITS}}| Your user id and organisation id from the sign-in (`oid`, `tid`), as salted hashes | fair-use limits: how many calls per user and per organisation in the last minute and hour | in memory only, until about an hour after your last call; never written anywhere |
 {{/IF}}| A usage record per tool call: the tool's name, the outcome (`ok` or the error kind), the duration, and for the creating tools whether it was a dry run{{#IF USAGE_ORG}}; plus a salted hash of your organisation's tenant id, so organisations can be counted{{/IF}} | counting use, errors and response times per tool | {{#IF LOGS_KEPT_DAYS}}in our Log Analytics workspace for {{LOGS_KEPT_DAYS}} days; totals in memory until the server restarts{{/IF}}{{#IF LOGS_NOT_KEPT}}not stored: the console stream only; totals in memory until the server restarts{{/IF}} |
 {{#IF LOGS_NOT_KEPT}}| Technical console log: time, method, path, HTTP status and the connection's IP address — no headers, no tokens, no query text | operating and securing the service | not forwarded or stored by us; see *Technical logs* below |
 {{/IF}}{{#IF LOGS_KEPT_DAYS}}| Technical console log: the usage records above, server errors and the platform's start/stop messages — no IP addresses, headers, tokens or query text | operating and securing the service | in our Log Analytics workspace for {{LOGS_KEPT_DAYS}} days; see *Technical logs* below |
@@ -94,7 +105,22 @@ The per-request access line with IP addresses is turned off, so no IP address is
 the workspace.{{/IF}} We do not claim "zero logs": Microsoft retains platform-level metrics and diagnostics for Azure
 resources under Microsoft's own terms, and Microsoft Entra ID records sign-ins in your organization's own tenant.
 
-## Third parties: Microsoft and your MCP client
+{{#IF CLIENT_REGISTRATION}}## Sign-in from MCP clients other than Claude
+
+Claude signs in directly with Microsoft. Other MCP clients (VS Code, Cursor, Glama and others) sign in through the
+service's own sign-in at {{DOMAIN}}/oauth, in front of Microsoft. Before you are sent to Microsoft, {{PRODUCT}} shows a page
+naming the client, its domain and where the answer goes, and asks you to approve it. For a client that receives the
+answer at a web address, the approval is remembered for that client and that address for 180 days; for a program on
+your own computer you are asked every time. To identify a client, the service fetches the client's published
+metadata document from the client's own domain (for example vscode.dev); that request carries nothing about you.
+
+What is stored, and for how long, is in the table above: no names, no e-mail addresses, no IP addresses and no
+tokens in clear. The records live in {{REGISTRATION_WHERE}}, which only the service can read.
+The cookies are strictly necessary for the sign-in and are not used for anything else. To withdraw an approval or
+end a client's sign-in, write to {{CONTACT}}; your organisation's administrator can also revoke the app in Microsoft
+Entra ID, which ends every renewal.
+
+{{/IF}}## Third parties: Microsoft and your MCP client
 
 The service runs on Microsoft Azure in the EU (Sweden Central). It calls Microsoft Fabric, Microsoft Entra ID and Azure
 SQL on your behalf; Microsoft handles that under its own terms. Your MCP client receives the responses: when you use
@@ -104,7 +130,8 @@ resources: fonts, scripts and images are served from {{DOMAIN}}, and there is no
 ## Contact and requests
 
 **Your rights.** Under the GDPR you can ask what we hold about you and have it deleted; in practice we hold nothing
-about you beyond the console log described above, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
+about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and, when you sign in from an MCP client other than Claude, the
+sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: 2026-10-26.
+**Changes.** We date every change to this page. Last updated: 2026-10-27.

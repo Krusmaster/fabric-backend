@@ -415,3 +415,46 @@ def test_client_redirects_only_prints_the_commands(monkeypatch, capsys, tmp_path
     assert "--web-redirect-uris" in out and not any("az ad app update" in line and "--web-redirect-uris" in line for line in out.splitlines())
     assert "claude mcp add --transport http --client-id" in out and '"oauth": {"clientId"' in out and '"CLIENT_ID"' in out
     assert "--is-fallback-public-client" not in out and "client-secret" not in out
+
+
+def test_client_registration_only_prints_the_commands(monkeypatch, capsys, tmp_path):
+    """--client-registration (round n16): one web redirect address merged into Entra's list, the table, the key, the
+    settings; printed and never run, and nothing on the app's scopes or public-client list."""
+    monkeypatch.setattr(d.subprocess, "run", lambda *a, **k: pytest.fail("--client-registration runs nothing"))
+    monkeypatch.setattr(d, "urlopen", lambda *a, **k: pytest.fail("--client-registration calls nothing"))
+    cfg = tmp_path / "krusgraph.json"
+    for vault in ("", "kv-krusgraph"):
+        cfg.write_text(json.dumps(dict(CONFIG, client_id="00000000-aaaa-bbbb-cccc-000000000001", key_vault=vault)), encoding="utf-8")
+        monkeypatch.setattr(d.sys, "argv", ["azure_containerapp.py", "--config", str(cfg), "--client-registration"])
+        d.main()
+        out = capsys.readouterr().out
+        assert f'NEW="https://{CONFIG["domain"]}/oauth/callback"' in out
+        assert 'az ad app update --id "$APP_ID" --web-redirect-uris "${ALL[@]}"' in out
+        assert 'if CUR=$(az ad app show --id "$APP_ID" --query "web.redirectUris[]" -o tsv)' in out and "inget ändrades" in out
+        assert not any("az ad app update" in line and ("--public-client-redirect-uris" in line or "--identifier-uris" in line
+                                                        or "permission" in line) for line in out.splitlines())
+        assert "az ad app permission" not in out and "oauth2PermissionScopes" not in out
+        assert '"Storage Table Data Contributor"' in out and "/tableServices/default/tables/$TABLE" in out
+        assert "--allow-shared-key-access false" in out and "openssl rand -base64 32" in out
+        assert "KRUSGRAPH_CLIENT_REGISTRATION=1" in out and "KRUSGRAPH_CLIENT_REGISTRATION=0" in out
+        if vault:
+            assert "az keyvault secret set --vault-name \"kv-krusgraph\" --name krusgraph-registration-key" in out
+            assert "KRUSGRAPH_REGISTRATION_KEY_KEYVAULT_URI=https://kv-krusgraph.vault.azure.net/secrets/krusgraph-registration-key" in out
+        else:
+            assert "--secrets registration-key=" in out and "KRUSGRAPH_REGISTRATION_KEY=secretref:registration-key" in out
+    name = d.registration_storage_account(CONFIG)
+    assert 3 <= len(name) <= 24 and name.isalnum() and name == name.lower()
+    assert d.registration_storage_account(dict(CONFIG, registration_storage_account="StMine01")) == "stmine01"
+
+
+def test_a_full_run_keeps_the_registration_settings_but_not_a_secret_reference():
+    existing = {"properties": {"configuration": {"ingress": {}}, "template": {"containers": [{"env": [
+        {"name": "KRUSGRAPH_CLIENT_REGISTRATION", "value": "1"},
+        {"name": "KRUSGRAPH_REGISTRATION_STORE", "value": "https://st.table.core.windows.net/krusgraphoauth"},
+        {"name": "KRUSGRAPH_REGISTRATION_KEY", "secretRef": "registration-key"},
+        {"name": "SOMETHING_ELSE", "value": "x"}]}]}}}
+    manifest = d.make_manifest(CONFIG, "env-id", "identity-id", "registry.azurecr.io", "image@sha256:abc", "test-secret", existing)
+    env = {e["name"]: e for e in manifest["properties"]["template"]["containers"][0]["env"]}
+    assert env["KRUSGRAPH_CLIENT_REGISTRATION"]["value"] == "1" and "KRUSGRAPH_REGISTRATION_STORE" in env
+    assert "KRUSGRAPH_REGISTRATION_KEY" not in env and "SOMETHING_ELSE" not in env      # a dangling secretRef would fail the revision
+    assert [s["name"] for s in manifest["properties"]["configuration"]["secrets"]] == ["entra-secret"]

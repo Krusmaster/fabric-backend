@@ -22,6 +22,11 @@ two commands. Nothing is deleted.
 --client-redirects prints the az commands that add Claude Code's, VS Code's and Cursor's redirect addresses to the app as
 a public client, and how to try each client (docs/OPERATIONS.md, section 5). It runs nothing and calls nothing.
 
+--client-registration prints the commands that switch on client registration for VS Code, Cursor, Glama and other MCP
+clients (fabric_backend/registration.py): the one web redirect address the server's /oauth needs on the Entra app, a
+storage account with one table, the server's key, the environment variables, and how to check and to switch it off. It
+runs nothing and calls nothing (docs/OPERATIONS.md, section 6).
+
 --from-azure builds that configuration from the container app that already runs, for a Cloud Shell without storage
 where deploy/krusgraph.json is missing: the tenant and subscription from `az account show`, the app whose name contains
 "krusgraph" (or --app / --resource-group), and the rest from the app's plain environment variables, scale, registry,
@@ -151,6 +156,12 @@ def key_vault_uri(config):
 
 
 KEY_VAULT_ENV = ("ENTRA_CLIENT_SECRET_KEYVAULT_URI", "AZURE_CLIENT_ID")
+# Client registration (--client-registration) is switched on by hand in the app; a full run keeps these plain settings.
+# KRUSGRAPH_REGISTRATION_KEY as a container app secret is not kept (the manifest replaces the secrets): the layer then
+# stays off, says so on stderr, and Claude's sign-in is unaffected.
+REGISTRATION_ENV = ("KRUSGRAPH_CLIENT_REGISTRATION", "KRUSGRAPH_CLIENT_REGISTRATION_DCR", "KRUSGRAPH_REGISTRATION_STORE",
+                    "KRUSGRAPH_REGISTRATION_KEY_KEYVAULT_URI", "KRUSGRAPH_REGISTRATION_CLIENT_DOMAINS",
+                    "KRUSGRAPH_REGISTRATION_RATE_IP", "KRUSGRAPH_REGISTRATION_RATE_CLIENT", "KRUSGRAPH_REGISTRATION_RATE_REGISTER")
 
 
 def plain_env(config, build=None):
@@ -183,9 +194,9 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
                 ingress[name] = old_ingress[name]
     env = [{"name": key, "value": value} for key, value in plain_env(config, build).items()]
     env.append({"name": "ENTRA_CLIENT_SECRET", "secretRef": "entra-secret"})
-    if existing:                              # keep the Key Vault settings --key-vault made; the manifest replaces the whole list
+    if existing:                              # keep the Key Vault and registration settings; the manifest replaces the whole list
         old_env = ((existing.get("properties") or {}).get("template") or {}).get("containers", [{}])[0].get("env") or []
-        env += [e for e in old_env if e.get("name") in KEY_VAULT_ENV and e.get("value")]
+        env += [e for e in old_env if e.get("name") in KEY_VAULT_ENV + REGISTRATION_ENV and e.get("value")]
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
         "identity": {"type": "UserAssigned", "userAssignedIdentities": {identity_id: {}}},
@@ -589,6 +600,89 @@ def client_redirects(config) -> str:
     return "\n".join(lines) + "\n"
 
 
+REGISTRATION_TABLE = "krusgraphoauth"
+REGISTRATION_KEY_SECRET = "krusgraph-registration-key"
+
+
+def registration_storage_account(config) -> str:
+    """registration_storage_account from the config, else st + the app's name + 6 hex of the subscription and group
+    (storage account names are global, 3 to 24 lower-case letters and digits)."""
+    name = (config.get("registration_storage_account") or "").strip().lower()
+    if name:
+        return name
+    stem = "".join(c for c in config["app"].lower() if c.isalnum())[:14]
+    return "st" + stem + hashlib.sha256(f"{config['subscription_id']}/{config['resource_group']}".encode()).hexdigest()[:6]
+
+
+def client_registration(config) -> str:
+    """The commands that switch on client registration (fabric_backend/registration.py) for the app in the config.
+    Printed only: nothing is run, nothing is read from Azure. Entra: one web redirect address is added, merged into the
+    list that holds claude.ai's; scopes, publicClient and everything else on the app are left alone."""
+    domain, vault = config["domain"], (config.get("key_vault") or "").strip()
+    callback = f"https://{domain}/oauth/callback"
+    if vault:
+        key_lines = [
+            f'az keyvault secret set --vault-name "{vault}" --name {REGISTRATION_KEY_SECRET} --value "$(openssl rand -base64 32)" --output none',
+            f'KEYENV="KRUSGRAPH_REGISTRATION_KEY_KEYVAULT_URI=https://{vault}.vault.azure.net/secrets/{REGISTRATION_KEY_SECRET}"',
+            "#    (appens identitet har redan rollen Key Vault Secrets User på valvet sedan --key-vault)",
+        ]
+    else:
+        key_lines = [
+            'az containerapp secret set -n "$APP" -g "$RG" --secrets registration-key="$(openssl rand -base64 32)" --output none',
+            'KEYENV="KRUSGRAPH_REGISTRATION_KEY=secretref:registration-key"',
+            "#    (en full körning av skriptet, inte --update, tar bort den hemligheten; lagret stängs då av tills steg 3-4 körs igen.",
+            "#    Med key_vault i deploy/krusgraph.json läggs nyckeln i valvet i stället och följer med.)",
+        ]
+    lines = [
+        "# Kör själv i Cloud Shell (bash). Inget av detta körs av skriptet. Claudes inloggning ändras inte av något steg.",
+        f'APP_ID="{config["client_id"]}"; RG="{config["resource_group"]}"; APP="{config["app"]}"; LOC="{config["location"]}"',
+        f'IDENTITY="{config["identity"]}"; ST="{registration_storage_account(config)}"; TABLE="{REGISTRATION_TABLE}"',
+        "",
+        "# 1. Entra: serverns egen svarsadress under Web, där claude.ai:s adress redan ligger. --web-redirect-uris ersätter",
+        "#    hela listan, så den befintliga läses först och slås ihop; går läsningen fel ändras ingenting. Rör inte scopes",
+        "#    eller --public-client-redirect-uris.",
+        'az ad app show --id "$APP_ID" --query "{web:web.redirectUris, publicClient:publicClient.redirectUris}"',
+        f'NEW="{callback}"',
+        'if CUR=$(az ad app show --id "$APP_ID" --query "web.redirectUris[]" -o tsv); then',
+        '  mapfile -t ALL < <({ printf \'%s\\n\' "$CUR"; printf \'%s\\n\' "$NEW"; } | grep -v \'^$\' | sort -u)',
+        '  az ad app update --id "$APP_ID" --web-redirect-uris "${ALL[@]}"',
+        "else",
+        '  echo "Kunde inte läsa appens lista; inget ändrades."',
+        "fi",
+        'az ad app show --id "$APP_ID" --query "web.redirectUris"     # claude.ai:s adress ska stå kvar, och den nya',
+        "",
+        "# 2. Lagring: ett lagringskonto (Standard_LRS, inga delade nycklar, ingen publik åtkomst) med en tabell, och rätten",
+        "#    för appens identitet att läsa och skriva just den tabellen. Kostnad: per användning, öre i månaden vid väntad volym.",
+        'az storage account create -n "$ST" -g "$RG" -l "$LOC" --sku Standard_LRS --kind StorageV2 --min-tls-version TLS1_2 \\',
+        '  --allow-blob-public-access false --allow-shared-key-access false --tags managed-by=krusgraph-deploy --output none',
+        'STID=$(az storage account show -n "$ST" -g "$RG" --query id -o tsv)',
+        'az rest --method put --url "https://management.azure.com$STID/tableServices/default/tables/$TABLE?api-version=2023-05-01" --body "{}" --output none',
+        'PRINCIPAL=$(az identity show -n "$IDENTITY" -g "$RG" --query principalId -o tsv)',
+        'az role assignment create --assignee-object-id "$PRINCIPAL" --assignee-principal-type ServicePrincipal \\',
+        '  --role "Storage Table Data Contributor" --scope "$STID/tableServices/default/tables/$TABLE" --output none',
+        "",
+        "# 3. Serverns nyckel: 32 slumpade byte som bara servern känner. Värdet visas aldrig.",
+        *key_lines,
+        "",
+        "# 4. Slå på (en ny revision). En ofullständig inställning lämnar lagret avstängt och säger varför i loggen.",
+        'CLIENT=$(az identity show -n "$IDENTITY" -g "$RG" --query clientId -o tsv)',
+        'az containerapp update -n "$APP" -g "$RG" --set-env-vars KRUSGRAPH_CLIENT_REGISTRATION=1 KRUSGRAPH_CLIENT_REGISTRATION_DCR=1 \\',
+        '  "KRUSGRAPH_REGISTRATION_STORE=https://$ST.table.core.windows.net/$TABLE" "$KEYENV" "AZURE_CLIENT_ID=$CLIENT" --output none',
+        "",
+        "# 5. Kontrollera.",
+        f"curl -s https://{domain}/.well-known/oauth-authorization-server/oauth      # issuer https://{domain}/oauth",
+        f"curl -s https://{domain}/.well-known/oauth-protected-resource             # oförändrad: Entra, som i dag (Claude)",
+        f"curl -si https://{domain}/mcp/connect | grep -i www-authenticate          # .../oauth-protected-resource/mcp/connect",
+        "",
+        "# 6. Prova med testkontot (docs/OPERATIONS.md, avsnitt 6). Adressen för alla klienter utom Claude:",
+        f"#    https://{domain}/mcp/connect",
+        "",
+        "# Stänga av igen (Claude påverkas inte):",
+        'az containerapp update -n "$APP" -g "$RG" --set-env-vars KRUSGRAPH_CLIENT_REGISTRATION=0 --output none',
+    ]
+    return "\n".join(lines) + "\n"
+
+
 CONTAINER_APPS = "Microsoft.App/containerApps"
 REQUIRED_APP_ENV = ("ENTRA_CLIENT_ID", "MCP_PUBLIC_URL", "PRODUCT_NAME", "CONTACT_EMAIL")
 
@@ -725,6 +819,8 @@ def main():
     mode.add_argument("--key-vault", action="store_true", help="Flytta klienthemligheten till Azure Key Vault (valfritt; tar inte bort något)")
     mode.add_argument("--client-redirects", action="store_true",
                       help="Skriv ut az-kommandona som lägger till Claude Code, VS Code och Cursor som klienter (kör inget, inga Azure-anrop)")
+    mode.add_argument("--client-registration", action="store_true",
+                      help="Skriv ut kommandona som slår på klientregistrering för VS Code, Cursor och Glama (kör inget, inga Azure-anrop)")
     parser.add_argument("--from-azure", action="store_true",
                         help="Bygg konfigurationen ur den container-app som redan kör, när deploy/krusgraph.json saknas; "
                              "ensam sparar den filen, med --update (eller --check, --status) körs det steget sedan med den")
@@ -732,8 +828,8 @@ def main():
     parser.add_argument("--resource-group", help="Med --from-azure: appens resursgrupp")
     parser.add_argument("--overwrite-config", action="store_true", help="Med --from-azure: ersätt en befintlig deploy/krusgraph.json")
     args = parser.parse_args()
-    if args.from_azure and (args.plan or args.client_redirects):
-        parser.error("--from-azure läser Azure; --plan och --client-redirects gör inga Azure-anrop.")
+    if args.from_azure and (args.plan or args.client_redirects or args.client_registration):
+        parser.error("--from-azure läser Azure; --plan, --client-redirects och --client-registration gör inga Azure-anrop.")
     if not args.from_azure and (args.app or args.resource_group or args.overwrite_config):
         parser.error("--app, --resource-group och --overwrite-config hör till --from-azure.")
     if not args.from_azure and not args.config.exists():
@@ -746,6 +842,9 @@ def main():
         return
     if args.client_redirects:
         print(client_redirects(config), end="")
+        return
+    if args.client_registration:
+        print(client_registration(config), end="")
         return
     az = Azure(config)
     try:

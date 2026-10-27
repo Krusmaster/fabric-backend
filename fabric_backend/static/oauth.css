@@ -1,0 +1,8 @@
+/* The approval page of the client registration layer (fabric_backend/registration_flow.py). No inline styles: the
+   page's Content-Security-Policy allows style sheets from this site only. */
+.oauth main.wrap { max-width: 44rem; padding: 3rem 1rem; }
+.oauth .ctas { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1.5rem 0; }
+/* The buttons take clicks only after a moment, so a double-click started on another page (a window swapped in under
+   the pointer) cannot land on Allow. */
+.oauth .ctas button { animation: oauth-arm 1s step-end both; }
+@keyframes oauth-arm { from { pointer-events: none; opacity: .55; } to { pointer-events: auto; opacity: 1; } }

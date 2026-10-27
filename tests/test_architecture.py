@@ -22,7 +22,8 @@ ENGINE = ("schema", "infer", "evidence", "paths", "graphs", "drift", "dictionary
 # No engine module imports these, at the top or inside a function.
 IO_LIBRARIES = {"requests", "pyodbc", "sqlite3", "subprocess", "socket", "http", "urllib.request", "notebookutils",
                 "databricks", "uvicorn", "mcp"}
-NOT_ENGINE = {"deploy", "server", "mcp_server", "cli", "demo_app", "demo", "pages", "platforms", "entra", "keyvault", "dcr",
+NOT_ENGINE = {"deploy", "server", "mcp_server", "cli", "demo_app", "demo", "pages", "platforms", "entra", "keyvault", "registration",
+              "registration_flow", "registration_store",
               "lineage", "data_agent", "monitor", "limits", "usage", "entitlements", "discovery", "use_cases", "app_starter",
               "readiness", "git_export", "sales_demo"}
 

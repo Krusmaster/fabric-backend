@@ -2021,36 +2021,36 @@ def build_app(host: str = "0.0.0.0"):
         return _with_security_headers(app)
 
     from .entra import protected_resource_metadata, challenge, TokenError
-    from . import dcr as _dcr
 
     async def prm(_request):
-        meta = protected_resource_metadata(cfg)
-        if _dcr.enabled():                                        # agents that register themselves find the facade first
-            meta["authorization_servers"] = [_dcr.origin(cfg)] + meta["authorization_servers"]
-        return JSONResponse(meta)
+        return JSONResponse(protected_resource_metadata(cfg))
     app.router.routes.append(Route("/.well-known/oauth-protected-resource", prm))
     app.router.routes.append(Route("/.well-known/oauth-protected-resource/mcp", prm))
 
-    if _dcr.enabled():                                            # KRUSGRAPH_DCR=1: see fabric_backend/dcr.py and docs/AUTH-DCR.md
-        async def asm(_request):
-            return JSONResponse(_dcr.authorization_server_metadata(cfg))
-
-        async def register(request):
-            raw = await request.body()
-            if len(raw) > _dcr.MAX_BODY:
-                return JSONResponse({"error": "invalid_client_metadata", "error_description": "request too large"}, status_code=413)
-            try:
-                body = _json.loads(raw) if raw else {}
-            except ValueError:
-                body = None
-            status, out = _dcr.register(cfg, body)
-            return JSONResponse(out, status_code=status, headers={"Cache-Control": "no-store"})
-        app.router.routes.append(Route("/.well-known/oauth-authorization-server", asm))
-        app.router.routes.append(Route("/oauth/register", register, methods=["POST"]))
+    # KRUSGRAPH_CLIENT_REGISTRATION=1: VS Code, Cursor and other MCP clients sign in at /mcp/connect through this
+    # server's /oauth (fabric_backend/registration.py). Off, nothing below changes; on, /mcp and its metadata stay as they are.
+    from . import registration as _reg, registration_flow as _registration
+    layer = _registration.install(cfg, auth.validator)
+    if layer is not None:
+        app.router.routes.extend(layer.routes())
 
     inner = app
 
     async def guarded(scope, receive, send):
+        if layer is not None and scope["type"] == "http" and scope["path"].rstrip("/") == _reg.CONNECT_PATH:
+            headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+            a = headers.get("authorization", "")
+            token = a[7:].strip() if a.lower().startswith("bearer ") else ""
+            err = "invalid_request"
+            if token:
+                try:
+                    auth.validator.validate(token)                       # the same check as /mcp: audience, issuer, scope
+                    return await inner({**scope, "path": "/mcp", "raw_path": b"/mcp"}, receive, send)
+                except TokenError:
+                    err = "invalid_token"
+            resp = Response(_json.dumps({"error": err}), status_code=401, media_type="application/json",
+                            headers={"WWW-Authenticate": _reg.challenge(cfg, err if err == "invalid_token" else None)})
+            return await resp(scope, receive, send)
         if scope["type"] == "http" and scope["path"].rstrip("/") == "/mcp":
             headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
             a = headers.get("authorization", "")
