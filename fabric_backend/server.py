@@ -1295,7 +1295,7 @@ def _step_failed(out: dict, step: str, result: dict, scope: str, where: str) -> 
     return json.dumps(out, indent=2, default=str)
 
 
-def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_ref: str) -> dict:
+def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_ref: str | None) -> dict:
     from . import monitor as _monitor, notebook as _notebook
     label = f"{src['item_name']}.{src['schema']}"
     text = _notebook.fabric_source(_monitor.notebook_cells(src, library_ref),
@@ -1315,19 +1315,20 @@ def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_re
                                  "workspace identity; the run reads the workspace's items with that identity.",
                                  "Run the pipeline once by hand: the first run saves the baseline plan and reports 'first run'."],
             "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema; not yet run in a "
-                     "Fabric workspace. The notebook installs this library from GitHub (%pip, allowed in pipeline runs by "
-                     "_inlineInstallationEnabled); pass library_ref to pin a commit.")}
+                     "Fabric workspace. " + _monitor.library_note(library_ref))}
 
 
 @mcp.tool(title="Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)", annotations=RO)
 @safe
 def drift_monitor_draft(workspace: str, source: str, schema: str = "dbo", name: str = "", at: str = "02:00",
-                        time_zone: str = "W. Europe Standard Time", library_ref: str = "main", ctx: Context = None) -> str:
+                        time_zone: str = "W. Europe Standard Time", library_ref: str | None = None, ctx: Context = None) -> str:
     """A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one
     saved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the
     lakehouse (krusgraph.plans), and send a short summary ("column X in table Y disappeared; these APIs and views use
     it") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone
-    id). Returns the notebook, the pipeline definition and the schedule; creates nothing."""
+    id). `library_ref` is the tag, branch or commit the notebook installs the library from: by default the tag of this
+    server's version, "main" for the main branch. Returns the notebook, the pipeline definition and the schedule;
+    creates nothing."""
     _check_at(at)
     p, src, refusal = _monitor_inputs(workspace, source, schema, ctx)
     if refusal:
@@ -1339,14 +1340,15 @@ def drift_monitor_draft(workspace: str, source: str, schema: str = "dbo", name: 
 @mcp.tool(title="Create or update the nightly drift monitor in Fabric (dry run by default)", annotations=WRITE)
 @safe
 def create_drift_monitor(workspace: str, source: str, name: str, schema: str = "dbo", at: str = "02:00",
-                         time_zone: str = "W. Europe Standard Time", library_ref: str = "main", schedule: bool = True,
+                         time_zone: str = "W. Europe Standard Time", library_ref: str | None = None, schedule: bool = True,
                          dry_run: bool = True, ctx: Context = None) -> str:
     """Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in
     place, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret
     is written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the
     default) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and
     DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or
-    Item.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json)."""
+    Item.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json).
+    `library_ref` as in drift_monitor_draft: by default the tag of this server's version."""
     import requests as _requests
     from . import monitor as _monitor, notebook as _notebook
     from .deploy import create_item_with_definition
@@ -1483,7 +1485,7 @@ def export_item_definitions(workspace: str, source: str, schema: str = "dbo", it
             src.update(source_id=source_id, source_type=source_type)
             label = f"{info['item_name']}.{schema}"
             nb = names[tool]
-            add(tool, "Notebook", _notebook.envelope(nb, _notebook.fabric_source(_monitor.notebook_cells(src, "main"), _notebook.notebook_metadata(
+            add(tool, "Notebook", _notebook.envelope(nb, _notebook.fabric_source(_monitor.notebook_cells(src), _notebook.notebook_metadata(
                 info["workspace_id"], info["item_id"], info["item_name"])), f"Krusgraph drift monitor for {label}"), "the drift monitor's notebook")
             add(tool, "DataPipeline", _notebook.pipeline_envelope(f"{nb}_nightly", _monitor.pipeline_content(
                 "<the notebook's id after the Git update>", info["workspace_id"], label), f"Krusgraph drift monitor for {label}"),

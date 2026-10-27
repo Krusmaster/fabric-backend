@@ -138,12 +138,14 @@ def test_validation_and_suggestions_on_the_shop_rows():
 # ------------------------------------------------------------------ the hosted server ------------------------------
 
 RECORDED_ON = (2026, 10, 26)         # the day the golden answers were made; the drift monitor's schedule starts the next day
+RECORDED_REF = "v0.6.0"              # the version tag the drift monitor's notebook installed when they were made
 
 
 @pytest.fixture
 def fabric(monkeypatch):
     """The hosted server against the workspace in golden_support: Fabric REST and the SQL endpoint, nothing else mocked
-    but the two tokens the Auth object hands out, and the date the drift monitor's schedule counts from."""
+    but the two tokens the Auth object hands out, the date the drift monitor's schedule counts from, and the version tag
+    its notebook installs."""
     import datetime
     import requests
     from fabric_backend import monitor, server
@@ -153,6 +155,7 @@ def fabric(monkeypatch):
         def today(cls):
             return cls(*RECORDED_ON)
     monkeypatch.setattr(monitor, "date", RecordedDay)
+    monkeypatch.setattr(monitor, "DEFAULT_REF", RECORDED_REF)        # a release's version bump leaves the answers as they are
     fake = gs.FakeFabric()
     for verb in ("get", "post", "patch"):
         monkeypatch.setattr(requests, verb, getattr(fake, verb))

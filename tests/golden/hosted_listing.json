@@ -630,7 +630,7 @@
     "read_only_hint": false,
     "title": "Create or update the nightly drift monitor in Fabric (dry run by default)"
    },
-   "description": "Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in\nplace, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret\nis written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the\ndefault) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or\nItem.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json).",
+   "description": "Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in\nplace, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret\nis written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the\ndefault) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or\nItem.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json).\n`library_ref` as in drift_monitor_draft: by default the tag of this server's version.",
    "input_schema": {
     "properties": {
      "at": {
@@ -644,9 +644,16 @@
       "type": "boolean"
      },
      "library_ref": {
-      "default": "main",
-      "title": "Library Ref",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Library Ref"
      },
      "name": {
       "title": "Name",
@@ -1528,7 +1535,7 @@
     "read_only_hint": true,
     "title": "Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)"
    },
-   "description": "A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one\nsaved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the\nlakehouse (krusgraph.plans), and send a short summary (\"column X in table Y disappeared; these APIs and views use\nit\") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone\nid). Returns the notebook, the pipeline definition and the schedule; creates nothing.",
+   "description": "A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one\nsaved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the\nlakehouse (krusgraph.plans), and send a short summary (\"column X in table Y disappeared; these APIs and views use\nit\") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone\nid). `library_ref` is the tag, branch or commit the notebook installs the library from: by default the tag of this\nserver's version, \"main\" for the main branch. Returns the notebook, the pipeline definition and the schedule;\ncreates nothing.",
    "input_schema": {
     "properties": {
      "at": {
@@ -1537,9 +1544,16 @@
       "type": "string"
      },
      "library_ref": {
-      "default": "main",
-      "title": "Library Ref",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "title": "Library Ref"
      },
      "name": {
       "default": "",

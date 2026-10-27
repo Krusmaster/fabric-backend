@@ -321,3 +321,23 @@ def test_library_ref_is_a_plain_ref_and_the_pipeline_does_not_retry():
             monitor.notebook_cells(SRC, bad)
     assert monitor.notebook_cells(SRC, "v0.6.0")[1][1].endswith('@v0.6.0" --quiet')
     assert monitor.pipeline_content("nb", WS, "x")["properties"]["activities"][0]["policy"]["retry"] == 0
+
+
+def test_the_notebook_installs_the_servers_own_version_unless_main_is_asked_for(lakehouse, monkeypatch):
+    """The live test of 27 October 2026: drift_monitor_draft had library_ref=main as its default, so the nightly
+    notebook installed whatever was on main the night it ran. The default is the tag of the server's own version;
+    main stays an explicit choice."""
+    from fabric_backend import __version__
+    tag = f"v{__version__}"
+    out = json.loads(server.drift_monitor_draft("Sales", "shop_lh", schema="shop"))
+    assert f'fabric-backend@{tag}" --quiet' in out["notebook"]["content"] and "@main" not in out["notebook"]["content"]
+    assert tag in out["note"] and "library_ref" in out["note"] and "main" in out["note"]
+    main = json.loads(server.drift_monitor_draft("Sales", "shop_lh", schema="shop", library_ref="main"))
+    assert 'fabric-backend@main" --quiet' in main["notebook"]["content"] and "moves with every push" in main["note"]
+    assert monitor.notebook_cells(SRC)[1][1].endswith(f'@{tag}" --quiet')
+    dry = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="drift_shop", schema="shop"))
+    assert f'fabric-backend@{tag}" --quiet' in dry["notebook"]["content"]
+    monkeypatch.setattr(requests, "post", lambda *a, **k: pytest.fail("an export posts nothing"))
+    files = json.loads(server.export_item_definitions("Sales", "shop_lh", schema="shop", items=["create_drift_monitor"]))["files"]
+    notebook = next(v for k, v in files.items() if k.endswith("notebook-content.py"))
+    assert f'fabric-backend@{tag}" --quiet' in notebook and "@main" not in notebook

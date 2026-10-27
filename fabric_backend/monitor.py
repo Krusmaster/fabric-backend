@@ -27,11 +27,17 @@ from __future__ import annotations
 import json
 from datetime import date, timedelta
 
+from . import __version__ as _version
 from .drift import plan_snapshot as _plan_snapshot, snapshot_diff as _snapshot_diff
 
 PLANS = ("krusgraph", "plans")                     # schema, table on a lakehouse with schemas
 PLANS_FLAT = "krusgraph_plans"                     # the table on a lakehouse without schemas (left out of the snapshot)
 LIBRARY = "git+https://github.com/Krusmaster/fabric-backend@{ref}"
+# What a drafted notebook installs unless library_ref says otherwise: the tag of the release this server is (v and the
+# package version). A tag names one state of the library, the one that drafted the notebook and saved its first plan,
+# so a nightly run does not change behaviour because something was pushed that day; `main` moves with every push and
+# stays an explicit choice. Each release is tagged (docs/PUBLISHING.md); without the tag the notebook's %pip fails.
+DEFAULT_REF = f"v{_version}"
 
 
 # ------------------------------------------------------------------ the plan as data ------------------------------
@@ -225,8 +231,10 @@ def _py(value) -> str:
 _REF = __import__("re").compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$")
 
 
-def notebook_cells(source: dict, library_ref: str = "main") -> list[tuple[str, str]]:
-    """source: workspace_id, item_id, item_name, schema, schemas_enabled, source_id (SQL endpoint), source_type."""
+def notebook_cells(source: dict, library_ref: str | None = None) -> list[tuple[str, str]]:
+    """source: workspace_id, item_id, item_name, schema, schemas_enabled, source_id (SQL endpoint), source_type.
+    library_ref None is DEFAULT_REF."""
+    library_ref = DEFAULT_REF if library_ref is None else library_ref
     if not _REF.match(library_ref or ""):
         from .infer import PlanInputError
         raise PlanInputError("library_ref: a branch, tag or commit of github.com/Krusmaster/fabric-backend (letters, digits, . _ / -)")
@@ -311,3 +319,15 @@ def schedule_body(at: str = "02:00", time_zone: str = "W. Europe Standard Time",
     end = start + timedelta(days=3650)
     return {"enabled": True, "configuration": {"type": "Daily", "startDateTime": f"{start.isoformat()}T00:00:00",
                                                "endDateTime": f"{end.isoformat()}T23:59:00", "localTimeZoneId": time_zone, "times": [at]}}
+
+
+def library_note(library_ref: str | None = None) -> str:
+    """One sentence on what the notebook installs, for the drafting tools' answers."""
+    library_ref = DEFAULT_REF if library_ref is None else library_ref
+    where = "This library is installed from GitHub with %pip (allowed in pipeline runs by _inlineInstallationEnabled)"
+    if library_ref == DEFAULT_REF:
+        return (f"{where} at the tag {library_ref}, this server's version, so every night runs the code that drafted the notebook; "
+                "the install fails if that tag is not on GitHub. library_ref=\"main\" follows main instead, or names another tag or a commit.")
+    if library_ref == "main":
+        return f"{where} from main, which moves with every push: each night installs what was pushed last. The default is the tag {DEFAULT_REF}."
+    return f"{where} at {library_ref}. The default is the tag {DEFAULT_REF}, this server's version."

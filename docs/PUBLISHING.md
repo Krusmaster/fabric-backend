@@ -73,7 +73,9 @@ curl "https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph
 ## For each release
 
 Bump `version` in both `pyproject.toml` and `server.json`, deploy, then repeat step 5 (log in again with step 4 if
-the session has expired). The site also serves the same identity as an MCP Server Card at
+the session has expired). Tag the released commit `v<version>` (`git tag v0.6.0 && git push origin v0.6.0`): the drift
+monitor's notebook installs the library at the tag of the server's version by default (`library_ref`,
+[NOTEBOOKS.md](NOTEBOOKS.md)), and fails at its `%pip` cell when the tag is missing. The site also serves the same identity as an MCP Server Card at
 `https://krusgraph.com/mcp/server-card`, listed in `https://krusgraph.com/.well-known/ai-catalog.json`.
 
 ## The Claude plugin bundle (not yet submitted)

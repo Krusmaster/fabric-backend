@@ -78,8 +78,12 @@ A notebook and a pipeline. Every night the pipeline runs the notebook, which:
    webhook stops the run before the save, so the next night reports the same changes again.
 
 The logic is the library's (`fabric_backend.monitor`, `lineage`, `drift`), installed in the notebook with
-`%pip install "fabric-backend @ git+https://github.com/Krusmaster/fabric-backend@main"` (`library_ref` pins a commit
-instead of `main`); the pipeline passes `_inlineInstallationEnabled = true`, which a pipeline run needs for `%pip`.
+`%pip install "fabric-backend @ git+https://github.com/Krusmaster/fabric-backend@v<version>"` (`v0.6.0` today): by
+default the tag of the server's own version, so every night runs the code that drafted the notebook and saved its first plan, and nothing
+pushed later changes what the monitor does until you choose it. `library_ref` names another tag or a commit, or
+`main` to follow the main branch (which moves with every push). The tag is made with each release
+([PUBLISHING.md](PUBLISHING.md)); without it the `%pip` cell fails and the run stops there. The pipeline passes
+`_inlineInstallationEnabled = true`, which a pipeline run needs for `%pip`.
 
 **No secret in the code.** The webhook address is a pipeline parameter with an empty default; you set it in Fabric
 (pipeline, Parameters, `webhook_url`). The Notebook activity has `secureInput` on, so the pipeline's run history does not
