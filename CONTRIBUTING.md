@@ -36,9 +36,9 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | session n15 (home page round 1: shorter opening, guided ship-to demo with the engine's suggestion, the data check and a result card) |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
-| Deployment | `deploy/`, `Dockerfile` | open |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | session n16 (client registration for VS Code, Cursor and other MCP clients, off by default) |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | session n16 (client registration for VS Code, Cursor and other MCP clients, off by default) |
+| Deployment | `deploy/`, `Dockerfile` | session n16 (client registration for VS Code, Cursor and other MCP clients, off by default) |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | session n15 (home page round 1: shorter opening, guided ship-to demo with the engine's suggestion, the data check and a result card) |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
