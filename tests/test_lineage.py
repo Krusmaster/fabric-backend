@@ -137,3 +137,94 @@ def test_an_api_over_a_lakehouse_is_found_by_its_sql_endpoint_id():
     edges, _ = lineage.workspace_edges(WS, SOURCE, "shop", TABLES, {}, None, items=lambda ws, h: items,
                                        graphql_definition=lambda ws, api_id, h: bodies[api_id])
     assert edges == []                                                     # without the endpoint id, as before
+
+
+# ------------------------------------------------------------------ the 27 October live test, finding 1 ------------
+# lineage skipped shop_api with reason fabric_error while describe_backend read the same API's definition. Both go
+# through server._graphql_definition; here Fabric is the golden tests' double at `requests` (golden_support), so the
+# whole way from the tool to the wire is the one the hosted server takes.
+
+import golden_support as gs  # noqa: E402
+
+
+class _DefinitionOnce(gs.FakeFabric):
+    """Fabric with shop_api's getDefinition answered as a long-running operation that ends Failed for the first
+    `failures` calls, then as usual. The error body is made up for the test; the live run's message was not kept."""
+
+    def __init__(self, failures: int = 1, status: int = 202):
+        super().__init__()
+        self.failures, self.status, self.headers_seen = failures, status, []
+
+    def _route(self, method, url, body=None):
+        if "/operations/op-1" in url:
+            self.calls.append((method, url.split("api.fabric.microsoft.com", 1)[1]))
+            return gs.Response(200, {"status": "Failed", "error": {"errorCode": "SyntheticFailure", "message": "made up for this test"}})
+        if method == "POST" and url.endswith(f"/items/{gs.API}/getDefinition") and self.failures:
+            self.failures -= 1
+            self.calls.append((method, url.split("api.fabric.microsoft.com", 1)[1]))
+            if self.status == 202:
+                return gs.Response(202, None, {"x-ms-operation-id": "op-1", "Location": f"{gs.FABRIC}/v1/operations/op-1", "Retry-After": "20"})
+            return gs.Response(self.status, {"errorCode": "SyntheticFailure", "message": "made up for this test"})
+        return super()._route(method, url, body)
+
+    def post(self, url, headers=None, json=None, data=None, timeout=None, **kw):
+        if url.endswith("/getDefinition"):
+            self.headers_seen.append((url, dict(headers or {})))
+        return super().post(url, headers=headers, json=json, data=data, timeout=timeout, **kw)
+
+
+def _hosted(monkeypatch, fake):
+    import sys
+    import requests
+    for verb in ("get", "post", "patch"):
+        monkeypatch.setattr(requests, verb, getattr(fake, verb))
+    monkeypatch.setitem(sys.modules, "pyodbc", gs.fake_pyodbc())
+    monkeypatch.setattr(server.auth, "fabric", lambda ctx: "fabric-token")
+    monkeypatch.setattr(server.auth, "sql", lambda ctx: "sql-token")
+    monkeypatch.setattr(server, "limiter", None)
+    monkeypatch.setattr("time.sleep", lambda s: None)                    # the operation's polls and the pause before a second read
+    return fake
+
+
+SRC_LIVE = {"workspace": "demo", "source": "demo_lh", "schema": "shop"}
+
+
+def test_lineage_and_describe_backend_read_an_apis_definition_with_the_same_request(monkeypatch):
+    fake = _hosted(monkeypatch, _DefinitionOnce(failures=0))
+    assert len(json.loads(server.describe_backend("demo", "shop_api"))["types"]) == 7
+    described = [c for c in fake.calls if c[1].endswith("/getDefinition")]
+    seen = list(fake.headers_seen)
+    fake.calls.clear(), fake.headers_seen.clear()
+    out = json.loads(server.lineage(**SRC_LIVE))
+    read = [c for c in fake.calls if c[1].endswith(f"/items/{gs.API}/getDefinition")]
+    assert read == described and [h for h in fake.headers_seen if gs.API in h[0]] == seen      # same route, same headers
+    assert out["skipped"] == [] and {u["object"] for u in out["used_by"]["orders"]} >= {"shop_api"}
+
+
+def test_lineage_reads_an_api_again_when_fabrics_first_answer_was_no_definition(monkeypatch):
+    """The live symptom: one read of shop_api's definition failed in lineage, the same read worked in describe_backend.
+    A long-running read that ends Failed is read once more, the way the next tool's call read it."""
+    fake = _hosted(monkeypatch, _DefinitionOnce(failures=1))
+    out = json.loads(server.lineage(**SRC_LIVE))
+    assert out["skipped"] == [], out["skipped"]
+    assert all(any(u["object"] == "shop_api" for u in out["used_by"][t]) for t in TABLES)
+    assert len([c for c in fake.calls if c[1].endswith(f"/items/{gs.API}/getDefinition")]) == 2
+    assert len(json.loads(server.describe_backend("demo", "shop_api"))["types"]) == 7
+
+
+def test_an_api_that_cannot_be_read_twice_is_skipped_with_fabrics_message_and_the_next_step(monkeypatch):
+    fake = _hosted(monkeypatch, _DefinitionOnce(failures=2))
+    out = json.loads(server.lineage(**SRC_LIVE))
+    skip = next(s for s in out["skipped"] if s["item"] == "shop_api")
+    assert skip["kind"] == "GraphQLApi" and skip["reason"] == "fabric_error"
+    assert "SyntheticFailure" in skip["error"] and "made up for this test" in skip["error"] and skip["hint"]
+    assert "Bearer" not in json.dumps(out) and "fabric-token" not in json.dumps(out)
+    assert len([c for c in fake.calls if c[1].endswith(f"/items/{gs.API}/getDefinition")]) == 2
+
+
+def test_an_answer_that_will_not_change_is_not_asked_again(monkeypatch):
+    fake = _hosted(monkeypatch, _DefinitionOnce(failures=1, status=403))
+    out = json.loads(server.lineage(**SRC_LIVE))
+    skip = next(s for s in out["skipped"] if s["item"] == "shop_api")
+    assert skip["reason"] == "no_access" and "403" in skip["error"] and skip["hint"].startswith("The signed-in account cannot open it")
+    assert len([c for c in fake.calls if c[1].endswith(f"/items/{gs.API}/getDefinition")]) == 1

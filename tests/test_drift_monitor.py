@@ -308,7 +308,9 @@ def test_a_webhook_failure_never_shows_the_address_and_a_listing_failure_is_repo
         raise requests.HTTPError("403", response=Resp(403, {"errorCode": "Forbidden"}))
     edges, skipped = lineage.workspace_edges(WS, {"id": "lh-1"}, "shop", {"orders"}, {}, [{"VIEW_SCHEMA": "k", "VIEW_NAME": "v",
                                              "TABLE_SCHEMA": "shop", "TABLE_NAME": "orders"}], items=refused)
-    assert [e["object"] for e in edges] == ["k.v"] and skipped == [{"item": "the workspace's items", "kind": "Workspace", "reason": "no_access"}]
+    assert [e["object"] for e in edges] == ["k.v"] and [{k: s[k] for k in ("item", "kind", "reason")} for s in skipped] == [
+        {"item": "the workspace's items", "kind": "Workspace", "reason": "no_access"}]
+    assert skipped[0]["error"] == "The signed-in account has no access to the workspace's items (HTTP 403)." and skipped[0]["hint"]
     assert monitor.graphql_definitions(WS, {}, items=refused) == {}
 
 

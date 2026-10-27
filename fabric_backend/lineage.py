@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 
 VIEW_USAGE_SQL = "SELECT VIEW_SCHEMA, VIEW_NAME, TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.VIEW_TABLE_USAGE"
 VIEW_USAGE_SQL_SYS = ("SELECT s.name AS VIEW_SCHEMA, v.name AS VIEW_NAME, d.referenced_schema_name AS TABLE_SCHEMA, "
@@ -226,7 +227,10 @@ def _definition_response(url: str, headers: dict):
         op = r.headers.get("x-ms-operation-id") or r.headers.get("Location", "").rstrip("/").split("/")[-1]
         result = wait_operation(op, headers, poll_seconds=2, max_polls=30)
         if result.get("status") != "Succeeded":
-            raise RuntimeError(f"reading the definition did not finish: {result.get('status')}")
+            err = result.get("error") if isinstance(result.get("error"), dict) else {}
+            why = ": ".join(str(x) for x in (err.get("errorCode"), err.get("message")) if x)
+            why = why or (f"HTTP {result['http']} while waiting for it" if result.get("http") else "")
+            raise RuntimeError(f"reading the definition did not finish: {result.get('status')}" + (f" ({why})" if why else ""))
         r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
         status = getattr(r, "status_code", 200)
     if status >= 400:
@@ -253,11 +257,37 @@ def rest_graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
     return json.loads(base64.b64decode(part["payload"]))
 
 
+# What a second read cannot change: the sign-in, the permission, whether the item exists, the server's own set-up.
+_FINAL = {"sign_in", "consent", "mfa", "no_access", "not_found", "server_config", "unsupported", "bad_input"}
+RETRY_PAUSE = 2          # seconds before the one second read
+
+
+def _read(fn, where: str):
+    """fn(), and once more after a short pause when Fabric's first answer was not what was asked for and could be the
+    next time (a long-running read that ended Failed or timed out, throttling, a server error). On 27 October 2026 one
+    such read of an API's definition failed in lineage while describe_backend read the same definition a moment later."""
+    from .errors import explain
+    try:
+        return fn()
+    except Exception as e:  # noqa: BLE001 — classified, then raised again or read once more
+        if explain(e, where).get("kind") in _FINAL:
+            raise
+    time.sleep(RETRY_PAUSE)
+    return fn()
+
+
+def skipped_item(item: str, kind: str, exc: BaseException, where: str) -> dict:
+    """An item that could not be read: its name and type, and Fabric's answer as error, reason (the error kind) and hint."""
+    from .errors import explain
+    a = explain(exc, where)
+    return {"item": item, "kind": kind, "reason": a.get("kind", "unexpected"), "error": a.get("error", ""), "hint": a.get("hint", "")}
+
+
 def workspace_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, view_rows=None, *,
                     items=None, graphql_definition=None, definition_parts=None) -> tuple[list[dict], list[dict]]:
     """Edges table -> object over every item in the workspace that can be read, plus the items that could not.
-    `view_rows` are INFORMATION_SCHEMA.VIEW_TABLE_USAGE rows when the caller could read them (None: views not read)."""
-    from .errors import explain
+    `view_rows` are INFORMATION_SCHEMA.VIEW_TABLE_USAGE rows when the caller could read them (None: views not read).
+    Each definition is read with the same reader describe_backend uses (the server passes its own); see _read."""
     items = items or rest_items
     graphql_definition = graphql_definition or rest_graphql_definition
     definition_parts = definition_parts or rest_definition_parts
@@ -267,21 +297,25 @@ def workspace_edges(workspace_id: str, item: dict, schema: str, tables: set[str]
     edges: list[dict] = []
     skipped: list[dict] = []
     try:
-        listed = items(workspace_id, headers)
+        listed = _read(lambda: items(workspace_id, headers), "the workspace's items")
     except Exception as e:  # noqa: BLE001 — the workspace's items cannot be listed: say so, keep the views
         listed = []
-        skipped.append({"item": "the workspace's items", "kind": "Workspace", "reason": explain(e, "listing the workspace's items").get("kind", "unexpected")})
+        skipped.append(skipped_item("the workspace's items", "Workspace", e, "the workspace's items"))
     for it in listed:
         kind, meta = it.get("type"), {"id": it.get("id"), "displayName": it.get("displayName")}
+        where = f"the definition of {it.get('displayName')!r}"
         try:
             if kind == "GraphQLApi":
-                edges += from_graphql_definition(graphql_definition(workspace_id, it["id"], headers), meta, api_sources, schema, tables)
+                body = _read(lambda: graphql_definition(workspace_id, it["id"], headers), where)
+                edges += from_graphql_definition(body, meta, api_sources, schema, tables)
             elif kind == "SemanticModel":
-                edges += from_tmdl_parts(definition_parts(workspace_id, "semanticModels", it["id"], headers, fmt="TMDL"), meta, databases, schema, tables)
+                parts = _read(lambda: definition_parts(workspace_id, "semanticModels", it["id"], headers, fmt="TMDL"), where)
+                edges += from_tmdl_parts(parts, meta, databases, schema, tables)
             elif kind == "DataAgent":
-                edges += from_data_agent_parts(definition_parts(workspace_id, "dataAgents", it["id"], headers), meta, source_id, schema, tables)
+                parts = _read(lambda: definition_parts(workspace_id, "dataAgents", it["id"], headers), where)
+                edges += from_data_agent_parts(parts, meta, source_id, schema, tables)
         except Exception as e:  # noqa: BLE001 — one unreadable item must not hide the rest
-            skipped.append({"item": it.get("displayName"), "kind": kind, "reason": explain(e, f"reading {it.get('displayName')!r}").get("kind", "unexpected")})
+            skipped.append(skipped_item(it.get("displayName"), kind, e, where))
     if view_rows is not None:
         edges += from_view_rows(view_rows, item, schema, tables)
     return edges, skipped

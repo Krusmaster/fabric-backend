@@ -1560,7 +1560,6 @@ def _item_definition_parts(workspace: str, route: str, item_id: str, headers: di
 def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, execute=None) -> tuple[list[dict], list[dict]]:
     """Edges table -> object over every item in the workspace that can be read, plus the items that could not
     (lineage.workspace_edges, with this module's readers so the tests can stand in for Fabric)."""
-    from .errors import explain
     rows, view_skip = None, []
     if execute is not None:
         try:
@@ -1570,7 +1569,7 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
                 rows = list(execute(_lineage.VIEW_USAGE_SQL_SYS))
             except Exception as e:  # noqa: BLE001
                 rows = []
-                view_skip.append({"item": "views on the SQL endpoint", "kind": "View", "reason": explain(e, "reading view dependencies").get("kind", "unexpected")})
+                view_skip.append(_lineage.skipped_item("views on the SQL endpoint", "View", e, "reading view dependencies"))
     edges, skipped = _lineage.workspace_edges(workspace_id, item, schema, tables, headers, rows, items=_workspace_items,
                                               graphql_definition=_graphql_definition, definition_parts=_item_definition_parts)
     return edges, skipped + view_skip
