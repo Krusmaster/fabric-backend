@@ -2375,7 +2375,7 @@
     "Fabric IQ's ontology agent and data agents can then use the ontology as context."
    ],
    "dry_run": true,
-   "note": "Ontology (preview): the definition follows the generation-2 layout of the specification's example (model, database, namespaces, entities, tables, relationships), checked against recorded definitions. On 28 October 2026 it ran live with dry_run=false and Fabric answered HTTP 403 FeatureNotAvailable: the ontology (preview) is turned off in that tenant's settings, so nothing was created. Its dry run ran live without errors.",
+   "note": "Ontology (preview): the definition follows the generation-2 layout of the specification's example (model, database, namespaces, entities, tables, relationships), checked against recorded definitions. On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic data (7 entity types, 5 with a key; 7 relationship types); the item has not been reviewed in Fabric. Before that, with the ontology (preview) turned off in the tenant's settings, Fabric answered HTTP 403 FeatureNotAvailable.",
    "parts": {
     ".platform": "{\n  \"$schema\": \"https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json\",\n  \"metadata\": {\n    \"type\": \"Ontology\",\n    \"displayName\": \"shop_onto\"\n  },\n  \"config\": {\n    \"version\": \"2.0\",\n    \"logicalId\": \"00000000-0000-0000-0000-000000000000\"\n  }\n}\n",
     "database.tmdl": "database shop_onto\n\tcompatibilityLevel: 1000000\n",

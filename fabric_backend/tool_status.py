@@ -42,9 +42,10 @@ LATER_LIVE = {
     "create_drift_monitor": "On 28 October 2026 it created drift_shop and drift_shop_nightly live with schedule=false against a "
                             "Fabric workspace with synthetic data; neither has been run in Fabric, and the schedule needs "
                             "DataPipeline.Execute.All.",
-    "create_ontology": "On 28 October 2026 it ran live with dry_run=false and Fabric answered HTTP 403 FeatureNotAvailable: "
-                       "the ontology (preview) is turned off in that tenant's settings, so nothing was created. Its dry run "
-                       "ran live without errors.",
+    "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
+                       "data (7 entity types, 5 with a key; 7 relationship types); the item has not been reviewed in Fabric. "
+                       "Before that, with the ontology (preview) turned off in the tenant's settings, Fabric answered HTTP 403 "
+                       "FeatureNotAvailable.",
 }
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
@@ -98,9 +99,9 @@ _RAW = {
                      "unit tests; creating by unit tests only", True, "; creating them: Experimental"),
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
                           "unit tests; creating by unit tests only", True),
-    "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; the dry run live on 28 October 2026", False,
-                        "; run live on 28 October 2026 with dry_run=false and stopped by HTTP 403 FeatureNotAvailable "
-                        "(the ontology is turned off in that tenant's settings)"),
+    "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 28 October 2026", False,
+                        "; created live on 28 October 2026 (shop_ontology), not yet reviewed in Fabric; first stopped by HTTP 403 "
+                        "FeatureNotAvailable while the ontology was turned off in that tenant's settings"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
     "analyze_schema": (HOSTED, READS, _NO, "unit tests"),
