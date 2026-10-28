@@ -532,8 +532,11 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert len(tools) == 36, sorted(tools)
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
-    for tool in ("create_semantic_model", "create_data_agent", "create_ontology", "create_silver_notebook", "create_drift_monitor"):
+    for tool in ("create_semantic_model", "create_data_agent", "create_ontology"):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
+    for tool in ("create_silver_notebook", "create_gold_views", "create_drift_monitor"):      # created live on 28 October 2026 (n33)
+        assert tools[tool].startswith("Experimental; created live on 28 October 2026") and "not yet run in Fabric" in tools[tool], tool
+    assert "stopped by HTTP 403, cause unknown" in tools["create_ontology"]
     assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
     assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md

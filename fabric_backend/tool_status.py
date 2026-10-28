@@ -32,6 +32,19 @@ LIVE_RUN = ("list_workspaces", "list_sources", "list_tables", "sample_rows", "pl
 # a tool that ran only part of the way, with how far
 LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace has no model",
                    "create_backend": "as an update in place of shop_api with confirmed; no new item was created"}
+# Creating calls run live after that run, with dry_run=false against the same workspace (28 October 2026, after the
+# Entra app got Notebook.ReadWrite.All, DataPipeline.ReadWrite.All and Item.ReadWrite.All): what each one did.
+LATER_LIVE = {
+    "create_silver_notebook": "On 28 October 2026 it created the notebook silver_shop live against a Fabric workspace with "
+                              "synthetic data; the notebook has not been run in Fabric.",
+    "create_gold_views": "On 28 October 2026 it created the notebook gold_shop live against a Fabric workspace with synthetic "
+                         "data; the notebook has not been run in Fabric.",
+    "create_drift_monitor": "On 28 October 2026 it created drift_shop and drift_shop_nightly live with schedule=false against a "
+                            "Fabric workspace with synthetic data; neither has been run in Fabric, and the schedule needs "
+                            "DataPipeline.Execute.All.",
+    "create_ontology": "On 28 October 2026 it ran live with dry_run=false and Fabric answered HTTP 403; the cause is unknown "
+                       "(possibly the ontology preview turned off in the tenant's settings). Its dry run ran live without errors.",
+}
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
@@ -84,25 +97,30 @@ _RAW = {
                      "unit tests; creating by unit tests only", True, "; creating them: Experimental"),
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
                           "unit tests; creating by unit tests only", True),
-    "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests", False, "; unit-tested, not yet run live"),
+    "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; the dry run live on 28 October 2026", False,
+                        "; run live on 28 October 2026 with dry_run=false and stopped by HTTP 403, cause unknown"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
     "analyze_schema": (HOSTED, READS, _NO, "unit tests"),
     "lineage": (HOSTED, READS, _NO, "unit tests"),
     "silver_notebook_draft": (HOSTED, DRAFT, _NO, "unit tests and a local PySpark 4.0.1", False,
                               "; the notebook ran on a local PySpark 4.0.1, not yet in Fabric"),
-    "create_silver_notebook": (OPERATOR, CREATES, _ITEM, "unit tests", False, "; unit-tested"),
+    "create_silver_notebook": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026", False,
+                               "; created live on 28 October 2026 (silver_shop), not yet run in Fabric"),
     "drift_monitor_draft": (HOSTED, DRAFT, _NO, "unit tests; the notebook ran two nights on a local PySpark", False,
                             "; the notebook ran two nights on a local PySpark, not yet in Fabric"),
-    "create_drift_monitor": (OPERATOR, CREATES, "creates/updates two items and a schedule; never deletes", "unit tests", False,
-                             "; unit-tested"),
+    "create_drift_monitor": (HOSTED, CREATES, "creates/updates two items and a schedule; never deletes",
+                             "unit tests; created live with schedule=false on 28 October 2026", False,
+                             "; created live on 28 October 2026 with schedule=false (drift_shop, drift_shop_nightly), not yet run in "
+                             "Fabric; the schedule needs DataPipeline.Execute.All, which the app does not have"),
     "answer_query_draft": (HOSTED, DRAFT, _NO, "unit tests on the shop schema"),
     "suggest_relationships": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "compare_semantic_model": (OPERATOR, READS, _NO, "unit tests; live only as far as the model lookup", False,
                                "; with `tmdl`: Experimental; live on 27 October 2026 only as far as the model lookup (no model in the demo workspace)"),
     "gold_views_draft": (HOSTED, DRAFT, _NO, "unit tests; the SQL on SQLite and a local PySpark 4.0.1", False,
                          "; the SQL ran on SQLite and a local PySpark 4.0.1, not yet in Fabric"),
-    "create_gold_views": (OPERATOR, CREATES, "creates/updates one notebook; never deletes", "unit tests", False, "; unit-tested"),
+    "create_gold_views": (HOSTED, CREATES, "creates/updates one notebook; never deletes", "unit tests; created live on 28 October 2026",
+                          False, "; created live on 28 October 2026 (gold_shop), not yet run in Fabric"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests"),
     "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only",
                     False, "; reading a file back is unit-tested"),
@@ -162,6 +180,8 @@ def not_run_list() -> str:
 def answer_note(name: str) -> str:
     """One sentence for a tool's own answer: how far it has run against a live workspace, from the same fields."""
     s, where = STATUS[name], "against a Fabric workspace with synthetic data"
+    if name in LATER_LIVE:
+        return LATER_LIVE[name]
     if not s.live:
         return "Not yet run against a live workspace."
     if name in LIVE_RUN_PARTLY:

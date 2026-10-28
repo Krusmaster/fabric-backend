@@ -57,7 +57,8 @@ OWNER_TAG = {"managed-by": "krusgraph-deploy"}
 REQUIRED_SCOPES = {
     "00000003-0000-0000-c000-000000000000": {"User.Read"},
     "00000009-0000-0000-c000-000000000000": {
-        "Workspace.Read.All", "Item.Read.All", "GraphQLApi.ReadWrite.All", "GraphQLApi.Execute.All"},
+        "Workspace.Read.All", "Item.Read.All", "GraphQLApi.ReadWrite.All", "GraphQLApi.Execute.All",
+        "Notebook.ReadWrite.All", "DataPipeline.ReadWrite.All", "Item.ReadWrite.All"},
     "022907d3-0f1b-48f7-badc-1ba6abab6d66": {"user_impersonation"},
 }
 
@@ -128,7 +129,7 @@ def check_entra(az, config):
                 granted.update(grant.get("scope", "").split())
         if not scopes <= granted:
             raise DeploymentError(f"Administratörsmedgivande saknas för {sp['displayName']}: {', '.join(sorted(scopes - granted))}")
-    print("Katalog, prenumeration och de sex API-behörigheterna är kontrollerade.", flush=True)
+    print("Katalog, prenumeration och de nio API-behörigheterna är kontrollerade.", flush=True)
 
 
 def assert_owned(resource, name):
