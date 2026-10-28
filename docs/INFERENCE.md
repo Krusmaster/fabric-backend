@@ -172,7 +172,7 @@ what `create_backend` and `describe_backend` use); the Mermaid diagram by defaul
 it; `mermaid=false` and the summary form leave it out). The shop answers are already small; the gains are on large
 schemas, where a 1 MB answer is not an answer.
 
-## SAP tables: with and without the SAP pack (rounds n20–n29; measurement corrected in n24; unit test, synthetic schema)
+## SAP tables: with and without the SAP pack (rounds n20–n30; measurement corrected in n24; unit test, synthetic schema)
 
 The SAP pack ([SAP.md](SAP.md)) on a synthetic SAP schema generated in `tests/sap_support.py` from the pack itself:
 the order-to-cash, procure-to-pay, finance, pricing, business-partner and accounting-document tables with their key columns and a few
@@ -182,15 +182,15 @@ someone who knows SAP keys would pass them; and the pack.
 
 | Schema | Planned by | Keys right | Pack relationships found | Implied (shortcut) | Listed by the pack | Wrong | Wrong share |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ecc, upper names, 57 tables | names | 0 of 57 | 0 of 114 | 0 | 0 | 0 | – |
-| ecc, upper names, 57 tables | names+keys | 57 of 57 | 83 of 114 | 11 | 19 | 26 | 0.19 |
-| ecc, upper names, 57 tables | pack (self-check) | 57 of 57 | 114 of 114 | 0 | 0 | 0 | 0.00 |
-| ecc, prefix names, 57 tables | names | 0 of 57 | 0 of 114 | 0 | 0 | 0 | – |
-| ecc, prefix names, 57 tables | names+keys | 57 of 57 | 83 of 114 | 11 | 19 | 26 | 0.19 |
-| ecc, prefix names, 57 tables | pack (self-check) | 57 of 57 | 114 of 114 | 0 | 0 | 0 | 0.00 |
-| s4hana, lower names, 51 tables | names | 0 of 51 | 0 of 100 | 0 | 0 | 0 | – |
-| s4hana, lower names, 51 tables | names+keys | 51 of 51 | 61 of 100 | 6 | 10 | 14 | 0.15 |
-| s4hana, lower names, 51 tables | pack (self-check) | 51 of 51 | 100 of 100 | 0 | 0 | 0 | 0.00 |
+| ecc, upper names, 58 tables | names | 0 of 58 | 0 of 117 | 0 | 0 | 0 | – |
+| ecc, upper names, 58 tables | names+keys | 58 of 58 | 86 of 117 | 11 | 19 | 26 | 0.18 |
+| ecc, upper names, 58 tables | pack (self-check) | 58 of 58 | 117 of 117 | 0 | 0 | 0 | 0.00 |
+| ecc, prefix names, 58 tables | names | 0 of 58 | 0 of 117 | 0 | 0 | 0 | – |
+| ecc, prefix names, 58 tables | names+keys | 58 of 58 | 86 of 117 | 11 | 19 | 26 | 0.18 |
+| ecc, prefix names, 58 tables | pack (self-check) | 58 of 58 | 117 of 117 | 0 | 0 | 0 | 0.00 |
+| s4hana, lower names, 52 tables | names | 0 of 52 | 0 of 103 | 0 | 0 | 0 | – |
+| s4hana, lower names, 52 tables | names+keys | 52 of 52 | 64 of 103 | 6 | 10 | 14 | 0.15 |
+| s4hana, lower names, 52 tables | pack (self-check) | 52 of 52 | 103 of 103 | 0 | 0 | 0 | 0.00 |
 
 **The pack row is a self-check, not a precision figure.** The schema is generated from the pack and scored against
 the pack, so it shows only that the engine applies the pack as written. Whether the pack is right about SAP is not

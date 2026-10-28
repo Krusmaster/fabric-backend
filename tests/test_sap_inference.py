@@ -113,15 +113,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 57, 'listed': 0, 'rel_hits': 0, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.73, 'implied': 11, 'key_hits': 57, 'keys': 57, 'listed': 19, 'rel_hits': 83, 'relationships': 114, 'tables': 57, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 57, 'keys': 57, 'listed': 0, 'rel_hits': 114, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 57, 'listed': 0, 'rel_hits': 0, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.73, 'implied': 11, 'key_hits': 57, 'keys': 57, 'listed': 19, 'rel_hits': 83, 'relationships': 114, 'tables': 57, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 57, 'keys': 57, 'listed': 0, 'rel_hits': 114, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 51, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 51, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.61, 'implied': 6, 'key_hits': 51, 'keys': 51, 'listed': 10, 'rel_hits': 61, 'relationships': 100, 'tables': 51, 'wrong': 14, 'wrong_share': 0.15},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 51, 'keys': 51, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 51, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 58, 'listed': 0, 'rel_hits': 0, 'relationships': 117, 'tables': 58, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 58, 'keys': 58, 'listed': 19, 'rel_hits': 86, 'relationships': 117, 'tables': 58, 'wrong': 26, 'wrong_share': 0.18},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 58, 'keys': 58, 'listed': 0, 'rel_hits': 117, 'relationships': 117, 'tables': 58, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 58, 'listed': 0, 'rel_hits': 0, 'relationships': 117, 'tables': 58, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 58, 'keys': 58, 'listed': 19, 'rel_hits': 86, 'relationships': 117, 'tables': 58, 'wrong': 26, 'wrong_share': 0.18},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 58, 'keys': 58, 'listed': 0, 'rel_hits': 117, 'relationships': 117, 'tables': 58, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 52, 'listed': 0, 'rel_hits': 0, 'relationships': 103, 'tables': 52, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.62, 'implied': 6, 'key_hits': 52, 'keys': 52, 'listed': 10, 'rel_hits': 64, 'relationships': 103, 'tables': 52, 'wrong': 14, 'wrong_share': 0.15},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 52, 'keys': 52, 'listed': 0, 'rel_hits': 103, 'relationships': 103, 'tables': 52, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -391,3 +391,13 @@ def test_phone_and_e_mail_point_at_the_standard_address():
     ext = {r.source: r for r in p.extended if r.target == "ADRC"}
     assert ext["ADR2"].target_cols == ["CLIENT", "ADDRNUMBER", "DATE_FROM"] and ext["ADR6"].kind == "key"
     assert "COALESCE(LTRIM(RTRIM(t.[NATION])), '') = ''" in ext["ADR6"].join_sql()
+
+
+def test_contact_persons_are_linked_and_their_names_masked():
+    from fabric_backend import privacy
+    schema = sap_support.schema(["KNVK", "KNA1", "LFA1", "VBPA", "VBAK"])
+    rels = {(r.source, tuple(r.source_cols), r.target) for r in plan(schema).relationships}
+    assert {("KNVK", ("MANDT", "KUNNR"), "KNA1"), ("KNVK", ("MANDT", "LIFNR"), "LFA1"), ("VBPA", ("MANDT", "PARNR"), "KNVK")} <= rels
+    flagged = privacy.personal_columns(schema)
+    assert {flagged[("KNVK", c)]["rule"] for c in ("NAMEV", "NAME1")} == {"P1"} and flagged[("KNVK", "GBDAT")]["rule"] == "P6"
+    assert ("KNVK", "PAFKT") not in flagged and ("KNVK", "ABTNR") not in flagged     # function and department: not personal

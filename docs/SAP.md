@@ -15,7 +15,7 @@ SAP table and column names survive, with or without a prefix.
 
 | Module | Tables | Relationships |
 | --- | --- | --- |
-| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 48, of which 36 are applied (6 of them filtered on the document category in `VBFA`); 12 are listed: partner and status rows of several document kinds (`VBPA`, `VBUK`, `VBUP`) |
+| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA`; contact persons `KNVK` (round n30) | 51, of which 39 are applied (6 of them filtered on the document category in `VBFA`); 12 are listed: partner and status rows of several document kinds (`VBPA`, `VBUK`, `VBUP`) |
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, all applied; `EKBE` → `RBKP` filtered on invoice-receipt rows (`VGABE` = `2`, round n26) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer company-code data `KNB1` (round n27); customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 39, all applied; journal line → cost center and → profit center as joins valid on the posting date (kind `valid_on`, round n25); `KNB1` from journal lines, open items and the billing document's payer (round n27) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 7 are applied: condition lines and rates to their record, and (filtered, round n26) conditions → `EKKO` and → `T685`; conditions → `VBAK` and → `VBRK` are listed only |
@@ -89,7 +89,7 @@ only, the partner, status and document-flow rows of deliveries and invoices (`VB
   its personal columns (`personal`, by rule P1–P6), and the privacy rules use them for the tables the pack recognises:
   `sample_rows` masks them, drafted queries and gold views leave them out, `show_personal_data=true` shows them, as for
   any flagged column. Named so far: `KNA1`, `LFA1` (customers and suppliers can be people), `ADRC`, `ADR2`, `ADR6`,
-  `BUT000`. A name rule that already flags a column wins, and its reason is kept.
+  `BUT000`, and the contact persons `KNVK` (round n30: first and last name, telephone, birth date). A name rule that already flags a column wins, and its reason is kept.
 - **Several numbers and e-mail addresses per address.** `ADR2` and `ADR6` have a row per number (`CONSNUMBER`) and per
   contact person (`PERSNUMBER`); filter `FLGDEFAULT` for the standard one.
 - **Customer data per company code.** `KNB1` holds a row per customer and company code (reconciliation account,
@@ -231,7 +231,7 @@ Not built yet, in this order:
 3. ~~Pricing~~: built in round n23 (above). Left for later: the condition tables `Annn` (one per key combination,
    numbered per installation, so only the standard ones could be described), and a relationship kind on a unique
    column that is not the key (`KNUMV`), so the document links can be applied.
-4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27, the `ADRC` links applied in round n28, `ADR2` and `ADR6` with the pack's personal columns in round n29. Left for later: fax and other communication tables (`ADR3`, `ADR12`), and naming the personal columns of the remaining modules (contact persons `KNVK`).
+4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27, the `ADRC` links applied in round n28, `ADR2` and `ADR6` with the pack's personal columns in round n29. Left for later: fax and other communication tables (`ADR3`, `ADR12`), and naming the personal columns of the remaining modules.
 
 ## Contributing
 
