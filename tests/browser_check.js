@@ -29,7 +29,10 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
         facts[`build@${vname}`] = await page.evaluate(() => {
           document.querySelectorAll('#build details, #plan-text').forEach(d => { d.open = true; });
           const cards = [...document.querySelectorAll('#build .build-card')];
-          return { cards: cards.length, outside: cards.filter(c => { const r = c.getBoundingClientRect(); return r.left < 0 || r.right > window.innerWidth; }).length,
+          const steps = [...document.querySelectorAll('#build .path-steps li')];
+          const out = el => { const r = el.getBoundingClientRect(); return r.left < 0 || r.right > window.innerWidth; };
+          return { cards: cards.length, outside: cards.filter(out).length, steps: steps.length, stepsOutside: steps.filter(out).length,
+                   stepsInRow: new Set(steps.map(s => Math.round(s.getBoundingClientRect().top))).size,
                    scrollWidth: document.documentElement.scrollWidth };
         });
       }

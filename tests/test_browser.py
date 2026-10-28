@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from fabric_backend import pages
+
 ROOT = Path(__file__).resolve().parents[1]
 CHROMIUM = os.environ.get("PLAYWRIGHT_CHROMIUM") or ("/opt/pw-browsers/chromium" if Path("/opt/pw-browsers/chromium").exists() else "")
 
@@ -164,4 +166,6 @@ def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_mot
     for v in ("375-light", "1280-light"):
         b = f[f"build@{v}"]
         assert b["cards"] == 4 and b["outside"] == 0 and b["scrollWidth"] <= int(v.split("-")[0]), (v, b)
+        assert b["steps"] == len(pages.build_path()) and b["stepsOutside"] == 0, (v, b)     # the row of steps (n34)
+    assert f["build@1280-light"]["stepsInRow"] == 1 and f["build@375-light"]["stepsInRow"] == len(pages.build_path())
     assert f["buildMotion"] == 0
