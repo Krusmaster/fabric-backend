@@ -77,6 +77,7 @@ _RAW = {
     "join_path": (HOSTED, READS, _NO, "unit tests"),
     "data_dictionary": (HOSTED, DRAFT, _NO, "unit tests"),
     "dbt_schema": (HOSTED, DRAFT, _NO, "unit tests"),
+    "sap_pack_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic SAP schema; no SAP system)"),
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
     "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; creating by unit tests only", True),
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",

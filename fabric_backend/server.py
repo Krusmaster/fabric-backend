@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-five, from list_workspaces to review_plan; docs page
+Tools (all annotated for the Claude directory): thirty-six, from list_workspaces to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -38,7 +38,7 @@ from .errors import SchemaEmpty, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
-from . import lineage as _lineage, compact as _compact
+from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
 from .platforms import fabric as _fabric
@@ -60,7 +60,9 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows (create_backend does not run it, and has no dry run), then create_backend. Before query_graphql, describe_backend gives the exact field "
-    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4); "
+    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4, or \"SAP pack\" for SAP tables such as "
+    "VBAK/VBAP, whose keys with MANDT and order-to-cash relationships come from public sources; sap_pack_draft shows what the pack "
+    "recognises and what is missing); "
     "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
     "(a Power BI model in TMDL, Direct Lake) when a report is the goal; join_path when the user asks how two tables "
     "connect or wants the SQL for it; data_dictionary for hand-over documentation; dbt_schema when the team tests with dbt; "
@@ -889,6 +891,30 @@ def dbt_schema(workspace: str, source: str, schema: str = "dbo", source_name: st
     yml = _dbt.schema_yml(p, src, schema, database=item.get("sql_db") or item.get("displayName") or source,
                          tables=tables, arguments_block=arguments_block)
     return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Show which SAP tables and relationships the SAP pack recognises (nothing created)", annotations=RO)
+@safe
+def sap_pack_draft(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
+                   confirmed: list[dict] | None = None, variant: str | None = None, export: str = "none",
+                   ctx: Context = None) -> str:
+    """Which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1… with or without a prefix such
+    as sap_), their keys with MANDT, the order-to-cash relationships the pack applies with the public source of each,
+    the ones it lists but does not apply (VBFA is many-to-many), the pack tables and columns that are missing, and the
+    traps (client, header vs item amounts, currency per document, leading zeros, partner functions). Read-only.
+
+    Args:
+        workspace: workspace name or id.
+        source: lakehouse, warehouse or mirrored database name or id.
+        schema: the schema that holds the SAP tables, as the mirroring or pipeline named it.
+        keys: the same key overrides as plan_backend; they win over the pack.
+        confirmed: the same confirmed relationships as plan_backend; they win over the pack.
+        variant: "ecc" or "s4hana" to consider only that variant's tables; omitted, the tables present decide.
+        export: "none", or one export of the plan: "krusgraph" (keys/confirmed), "dab" (Data API builder config),
+            "extraction" (tables, keys and delta columns, with open-mirroring keyColumns) or "dbt" (sources with tests).
+    """
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    return _bounded(_sap_pack.draft(p, source_name=schema, export=export, variant=variant), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @mcp.tool(title="Compare today's plan with an existing GraphQL API", annotations=RO)

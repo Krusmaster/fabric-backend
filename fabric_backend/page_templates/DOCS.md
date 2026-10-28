@@ -209,6 +209,34 @@ every value present in `addresses.address_id` (15 distinct values) and well belo
 1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/demo) walks through this column on the
 synthetic sample: the suggestion, its data check and the decision that stays yours.
 
+### SAP on Fabric
+
+SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
+`VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
+declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
+`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA` and a few more, each with the public source it rests
+on, for ECC and S/4HANA. It does not depend on how the tables arrive: Fabric mirroring of SAP (through SAP
+Datasphere), Databricks, a pipeline of your own; names are recognised with or without a prefix (`VBAK`, `vbak`,
+`sap_vbak`). Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
+what is missing, and `validate_plan` checks it against the rows, because a pack is a sourced suggestion, not proof.
+
+A synthetic example (no data from any SAP system):
+
+```
+plan_backend(workspace="demo", source="sap_lh", schema="sap")
+  sap_vbap.mandt+vbeln          -> sap_vbak.mandt+vbeln          SAP pack   (item to its order)
+  sap_vbep.mandt+vbeln+posnr    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (schedule line to its item)
+  sap_lips.mandt+vgbel+vgpos    -> sap_vbap.mandt+vbeln+posnr    SAP pack   (delivery item to the order item)
+  sap_vbrk.mandt+kunrg          -> sap_kna1.mandt+kunnr          SAP pack   (payer, not the sold-to party)
+  sap_vbfa                      listed, not applied: many-to-many document flow
+validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
+```
+
+On the synthetic SAP schema of the tests, the name rules alone find none of the 27 relationships; with the pack all
+27 and no wrong ones ([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has
+not been run against an SAP system or a real installation. Contents, sources and how to contribute:
+[docs/SAP.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
+
 ## Build from a plan
 
 What you can build once the plan is reviewed. Each tool's status is in the [tool reference](#test-status).
@@ -344,6 +372,7 @@ unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries
 | `join_path` | {{status}} | {{changes}} | the shortest chain of relationships between two tables with the rule per hop and a ready T-SQL `SELECT … JOIN …`; equally short paths all listed; with no path, which relationship is missing as a `confirmed` entry | `workspace`, `source`, `start`, `end`, `schema`, `keys`, `confirmed` |
 | `data_dictionary` | {{status}} | {{changes}} | hand-over documentation in Markdown: tables, columns and types, keys and relationships with rules, keyless and ambiguous items, the ER diagram, an empty Description column; `validate=true` adds the counts from `validate_plan`; `tables` (names or patterns) documents one part of a large schema at a time, with the roles and subject areas of the whole schema, and an answer over 60 000 characters is cut on a line and says so | `workspace`, `source`, `schema`, `keys`, `confirmed`, `validate`, `max_items`, `tables` |
 | `dbt_schema` | {{status}} | {{changes}} | a dbt `schema.yml` with sources: `unique` and `not_null` on key columns, `relationships` on single-column relationships, in the syntax of the dbt documentation; composite keys noted as comments; `tables` takes names or patterns, an answer over 60 000 characters is cut and says so | `workspace`, `source`, `schema`, `source_name`, `keys`, `confirmed`, `tables`, `arguments_block` |
+| `sap_pack_draft` | {{status}} | {{changes}} | which tables the SAP pack recognises (with or without a prefix such as `sap_`), their keys with `MANDT`, the order-to-cash relationships it applies with the public source of each, what it lists but does not apply (`VBFA` is many-to-many), what is missing, and the traps; optionally one export: Krusgraph keys/confirmed, Data API builder config, an extraction list with open-mirroring `keyColumns`, or dbt sources. See [SAP on Fabric](#sap-on-fabric) | `workspace`, `source`, `schema`, `keys`, `confirmed`, `variant`, `export` |
 | `plan_drift` | {{status}} | {{changes}} | today's plan against an existing API for GraphQL item: new tables and columns, columns the API still maps that are gone, relationships the plan no longer supports, and whether `create_backend` with that name would change anything | `workspace`, `source`, `api`, `schema`, `keys`, `confirmed`, `tables`, `writable` |
 | `create_semantic_model` | {{status}} | {{changes}} | creates a Power BI semantic model item from the TMDL draft (Direct Lake on the SQL analytics endpoint) or updates the one of that name in place; `dry_run=true` (default) returns the parts and the REST call only; needs `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` |
 | `create_views` | {{status}} | {{changes}} | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per header table (`vw_orders`: each order with its customer and, once `orders.ship_to_id` is confirmed, its ship-to address), one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor) | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` |
