@@ -1060,7 +1060,7 @@ from fabric_backend.discovery import PUBLIC_PAGES  # noqa: E402
 CLAIM_PAGES = PUBLIC_PAGES + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md",
                         "/llms.txt", "/llms-full.txt", "/mcp/server-card"]
 SALES = ("ai-driven", "ai-powered", "zero-etl", "zero etl", "gold standard", "guldstandard", "saves costs", "save costs",
-         "cost savings", "sparar kostnader", "best-in-class", "revolutionary", "game-changing", "enterprise-grade")
+         "cost savings", "sparar kostnader", "best-in-class", "revolutionary", "game-changing", "enterprise-grade", "seamless", "effortless", "magic")
 WORDS = {w.lower() for w in ts.WORDS}
 
 

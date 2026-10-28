@@ -1,4 +1,4 @@
-"""/explore's "What you can build from this plan" (round n31): every card is engine output on the synthetic shop plan,
+"""/explore's "What you can build automatically from this plan" (round n31): every card is engine output on the synthetic shop plan,
 its status word comes from tool_status, and the page loads no script from elsewhere."""
 import re
 
@@ -102,3 +102,15 @@ def test_explore_loads_no_external_script():
     srcs = re.findall(r"<script[^>]*\bsrc=\"([^\"]+)\"", html)
     assert srcs and all(s.startswith("/") and not s.startswith("//") for s in srcs)
     assert "<svg" in _section(html) and not re.search(r"<script|<link|(src|href)=\"(https?:)?//", _section(html))
+
+
+def test_the_path_is_counted_from_the_tools_and_the_demo_budget():
+    from fabric_backend.demo_app import STEPS
+    path = pages.build_path()
+    assert all(t in tool_status.STATUS for s in path for t in s["tools"])
+    assert path[-1]["tools"] == tuple(t for _, t in tool_status.BUILDS)
+    html = _section(pages.render("/explore"))
+    assert html.count('<li><span class="path-n"') == len(path)
+    assert f"{sum(len(s['tools']) for s in path[:-1])} tool calls" in html and f"{len(path[-1]['tools'])} parts in all" in html
+    assert f"about {sum(s['minutes'] for s in STEPS)} minutes" in html and 'href="/local#the-20-minute-demo"' in html
+    assert "What you can build automatically from this plan" in html and "when you ask for it" in html

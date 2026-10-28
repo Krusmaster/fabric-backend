@@ -434,10 +434,10 @@ def _demo_vars() -> dict[str, str]:
              f'<h3>Relationships</h3><div class="table-wrap"><table class="check"><thead><tr><th>Reference (rule)</th><th>Rows with a value</th><th>Orphans</th><th>Verdict</th></tr></thead><tbody>{rrows}</tbody></table></div>'
              f'<h3>Composite keys the plan suggests before any override</h3><ul>{sugg}</ul>')
     return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text,
-            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"]), "DEMO_BUILD": build_html()}
+            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"]), "DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
 
 
-# The docs section each card of "What you can build from this plan" links to, by heading (slugged as _md_to_html does).
+# The docs section each card of "What you can build automatically from this plan" links to, by heading (slugged as _md_to_html does).
 BUILD_DOCS = {"join_path": "How {{PRODUCT}} uses graph theory", "semantic_model_draft": "One plan, five Fabric pieces",
               "rayfin_connector": "Tools", "app_starter": "Use with Lovable"}
 
@@ -469,6 +469,50 @@ def _card(tool: str, title: str, body: str) -> str:
     return (f'<article class="build-card" data-tool="{e(tool)}"><header><h3>{e(title)}</h3>'
             f'<p class="build-meta"><code>{e(tool)}</code> · <span class="build-status">{e(label(tool))}</span> · '
             f'<a href="{build_doc_anchor(tool)}">docs</a></p></header>{body}</article>')
+
+
+# The path from tables to Fabric items, as the hosted tools walk it (the server's instructions): each step with the tools
+# that do it and what you do yourself. Counted, not typed: the calls come from these tuples and tool_status.BUILDS.
+def build_path() -> list[dict]:
+    from .tool_status import BUILDS
+    creating = tuple(t for _, t in BUILDS)
+    return [
+        {"title": "Connect", "tools": ("list_workspaces", "list_sources"),
+         "you": "You sign in with Microsoft and pick a workspace and a lakehouse."},
+        {"title": "The plan is drawn up", "tools": ("plan_backend",),
+         "you": "You read the keys and relationships; nothing is created."},
+        {"title": "The plan is checked against the data", "tools": ("validate_plan",),
+         "you": "You approve the plan, or correct a key first."},
+        {"title": "The parts are created", "tools": creating,
+         "you": "You ask for each part. All but create_backend show what they would create first, and create when you say so."},
+    ]
+
+
+def build_path_html() -> str:
+    """The row of steps above the cards, with the counts from the path, the demo plan and the 20-minute demo's budget."""
+    from .demo import demo_plan
+    from .demo_app import STEPS
+    from .tool_status import label
+    e = html.escape
+    path = build_path()
+    before = sum(len(s["tools"]) for s in path[:-1])
+    parts = len(path[-1]["tools"])
+    d = demo_plan()
+    keyed = sum(1 for t in d["tables"] if t["key"])
+    items = "".join(
+        f'<li><span class="path-n" aria-hidden="true">{i}</span><h3>{e(s["title"])}</h3>'
+        f'<p class="path-tools">{", ".join(f"<code>{e(t)}</code>" for t in s["tools"])}</p><p>{e(s["you"])}</p></li>'
+        for i, s in enumerate(path, 1))
+    minutes = sum(s["minutes"] for s in STEPS)
+    budget = ", ".join(f'{s["title"].lower()} {s["minutes"]} min' for s in STEPS)
+    return (f'<ol class="path-steps" aria-label="From tables to Fabric items in {len(path)} steps">{items}</ol>'
+            f'<p class="path-facts">{len(path)} steps. {before} tool calls take you from your tables to a checked plan; '
+            f'then one call per part, {parts} parts in all. On the shop schema the plan has {len(d["tables"])} tables, '
+            f'{keyed} with keys and {len(d["relationships"])} relationships, without anyone writing code or configuration.</p>'
+            f'<p class="path-facts">You can be done with the plan in about {minutes} minutes: that is the budget of the '
+            f'<a href="/local#the-20-minute-demo">20-minute demo</a> ({e(budget)}), which ends with the plan checked against '
+            f'the rows and the exports in your hands. Creating the parts in Fabric comes after, in your workspace, when you ask for it.</p>'
+            f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(label(t))}" for t in path[-1]["tools"])}.</p>')
 
 
 def build_html() -> str:

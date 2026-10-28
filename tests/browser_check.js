@@ -25,7 +25,7 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
       if (!fonts.every(Boolean)) errors.push(`${label}: self-hosted fonts not loaded`);
       if (path === '/explore') {
-        // "What you can build from this plan": every disclosure open, still no horizontal scroll, each card inside the screen
+        // "What you can build automatically from this plan": every disclosure open, still no horizontal scroll, each card inside the screen
         facts[`build@${vname}`] = await page.evaluate(() => {
           document.querySelectorAll('#build details, #plan-text').forEach(d => { d.open = true; });
           const cards = [...document.querySelectorAll('#build .build-card')];

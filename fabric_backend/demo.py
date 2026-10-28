@@ -502,6 +502,6 @@ def _app_preview(p) -> dict:
 
 @lru_cache(maxsize=1)
 def build_cards() -> dict:
-    """The four cards of "What you can build from this plan", computed from the demo plan and the seed rows."""
+    """The four cards of "What you can build automatically from this plan", computed from the demo plan and the seed rows."""
     p = plan(schema("shop"), keys=DEMO_KEYS)
     return {"chart": _sum_chart(p, _demo_db()), "model": _model_preview(p), "rayfin": _rayfin_preview(p), "app": _app_preview(p)}

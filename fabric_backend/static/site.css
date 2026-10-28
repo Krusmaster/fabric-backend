@@ -848,7 +848,12 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
   .c-hub::before,.c-hub::after{left:50%;right:auto;margin:0 0 0 -4.5px}
   .c-hub::before{top:-6px}.c-hub::after{top:auto;bottom:-6px}
 }
-/* /explore: What you can build from this plan */
+/* /explore: What you can build automatically from this plan; the steps first, still (no motion) */
+.path-steps{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
+.path-steps li{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;background:var(--card)}
+.path-steps h3{margin:4px 0;font-size:16px}.path-steps p{margin:4px 0;font-size:14px;overflow-wrap:anywhere}
+.path-n{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--sage-d);color:var(--bg);font-weight:700;font-size:13px}
+.path-tools{font-size:13px}.path-facts{max-width:72ch}
 .build{padding-top:0}
 .build-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
 .build-card{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:var(--card)}
@@ -860,4 +865,4 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .bar-chart{width:100%;height:auto;display:block}.bar-chart .bar{fill:var(--sage-d)}
 .bar-chart text{font-size:13px;fill:currentColor}
 .rule-list div{display:flex;gap:10px}.rule-list dt{flex:0 0 3em}.rule-list dd{margin:0}
-@media (prefers-reduced-motion:reduce){.build-card,.build-card *{transition:none;animation:none}}
+@media (prefers-reduced-motion:reduce){.build-card,.build-card *,.path-steps,.path-steps *{transition:none;animation:none}}
