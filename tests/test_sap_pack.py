@@ -16,7 +16,7 @@ FILES = sorted((sap_pack.PACKS).glob("*/*.json"))
 
 
 def test_there_are_pack_files():
-    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document"}
+    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document", "procure_to_pay"}
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)
@@ -165,7 +165,7 @@ def test_a_missing_column_is_named_on_the_table_that_lacks_it():
 @pytest.mark.parametrize("export", sap_pack.EXPORTS)
 def test_draft_answers_with_every_export(export):
     out = sap_pack.draft(plan(sap_support.schema(style="prefix")), "sap", export=export)
-    assert out["summary"].startswith("21 SAP table(s) recognised") and out["status"].startswith("documented")
+    assert out["summary"].startswith(f"{len(sap_support.schema())} SAP table(s) recognised") and out["status"].startswith("documented")
     assert all(r["sources"] and r["in_plan"] == "SAP pack" for r in out["relationships"])
     assert ("export" in out) == (export != "none")
 

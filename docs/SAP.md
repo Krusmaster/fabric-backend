@@ -16,6 +16,7 @@ SAP table and column names survive, with or without a prefix.
 | Module | Tables | Relationships |
 | --- | --- | --- |
 | `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 31, of which 25 are applied and 6 listed but not applied (conditional, or many-to-many through `VBFA`) |
+| `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 22, of which 21 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 3: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -48,6 +49,13 @@ compatibility view in a given S/4HANA release (not asserted).
   finds nothing.
 - **`VBFA` is many-to-many.** An order item can have several deliveries, a delivery several orders. The pack lists the
   `VBFA` links but does not apply them as relationships; aggregate on one side first and filter `VBTYP_V`/`VBTYP_N`.
+- **The purchase order history multiplies order items.** `EKBE` has a row per goods receipt, invoice and reversal;
+  `EKPO.NETWR` over `EKBE` rows is reported by *the total that doubles*, and so is `RBKP.RMWWR` (the invoice's gross
+  amount on the header) over `RSEG` items.
+- **Two different `BELNR`.** `RBKP.BELNR` is the invoice number, `BKPF.BELNR` the accounting document number, from
+  different number ranges. `RBKP` also has `BUKRS` and `GJAHR`, so the name rules (R3, with keys given) link it to
+  `BKPF`; the pack does not, and names the real link (`BKPF.AWKEY`) in its traps. Invoice numbers are unique only
+  within `GJAHR`.
 - **Sold-to, ship-to and payer.** `VBAK.KUNNR`, `LIKP.KUNNR`, `VBRK.KUNRG` and the partner functions in `VBPA` can be
   three different customers.
 
@@ -86,6 +94,8 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | Source | Used for | Fetched when the pack was written |
 | --- | --- | --- |
 | SAP Help Portal, SAP ERP / S/4HANA Sales and Distribution (help.sap.com/docs/SAP_ERP) | tables, keys, relationships of order to cash | no: help.sap.com was outside the session's network policy; cited from public knowledge of the documentation, **to be re-checked** |
+| SAP Help Portal, Materials Management (purchasing, purchase order history, logistics invoice verification) | procure to pay | no, as above |
+| SAP Help Portal, S/4HANA business partner | `LFA1` behind the business partner in S/4HANA | no, as above |
 | SAP Help Portal, ABAP keyword documentation, client handling | `MANDT` as first key field | no, as above |
 | SAP Learning, *Identifying data model simplifications in SAP S/4HANA* (Sales) | `VBUK`/`VBUP` folded into the document tables; `VBFA` simplified | found in a web search on 28 October 2026; the page could not be fetched |
 | SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA` | no, as above |
@@ -108,8 +118,9 @@ could not be checked against public documentation in this session; its example `
 
 Not built yet, in this order:
 
-1. **Procure to pay**: `EKKO`, `EKPO`, `EKET`, `EKBE`, `LFA1`, `LFM1`, `RBKP`, `RSEG` (purchase orders, history,
-   supplier invoices).
+1. ~~Procure to pay~~: built in round n21 (above). Left for later: contracts and scheduling agreements as their own
+   relationships (`EKAB`), account assignment `EKKN`, and the goods-receipt documents (`MKPF`/`MSEG`, `MATDOC` in
+   S/4HANA), which belong to inventory.
 2. **Finance**: `SKA1`/`SKB1` (G/L accounts), `BSID`/`BSAD`/`BSIK`/`BSAK` in ECC and their S/4HANA replacement by
    `ACDOCA` plus compatibility views, `CSKS`, `CEPC`, `T001` currencies.
 3. **Pricing**: `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA) — a clear variant case.

@@ -58,15 +58,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 21, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 27, 'tables': 21},
-    'ecc/prefix/names+keys': {'coverage': 0.78, 'key_hits': 21, 'keys': 21, 'precision': 0.36, 'rel_hits': 21, 'rel_wrong': 38, 'relationships': 27, 'tables': 21},
-    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 21, 'keys': 21, 'precision': 1.0, 'rel_hits': 27, 'rel_wrong': 0, 'relationships': 27, 'tables': 21},
-    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 21, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 27, 'tables': 21},
-    'ecc/upper/names+keys': {'coverage': 0.78, 'key_hits': 21, 'keys': 21, 'precision': 0.36, 'rel_hits': 21, 'rel_wrong': 38, 'relationships': 27, 'tables': 21},
-    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 21, 'keys': 21, 'precision': 1.0, 'rel_hits': 27, 'rel_wrong': 0, 'relationships': 27, 'tables': 21},
-    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 19, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 27, 'tables': 19},
-    's4hana/lower/names+keys': {'coverage': 0.74, 'key_hits': 19, 'keys': 19, 'precision': 0.44, 'rel_hits': 20, 'rel_wrong': 25, 'relationships': 27, 'tables': 19},
-    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 19, 'keys': 19, 'precision': 1.0, 'rel_hits': 27, 'rel_wrong': 0, 'relationships': 27, 'tables': 19}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 33, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
+    'ecc/prefix/names+keys': {'coverage': 0.88, 'key_hits': 33, 'keys': 33, 'precision': 0.45, 'rel_hits': 42, 'rel_wrong': 51, 'relationships': 48, 'tables': 33},
+    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 33, 'keys': 33, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
+    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 33, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
+    'ecc/upper/names+keys': {'coverage': 0.88, 'key_hits': 33, 'keys': 33, 'precision': 0.45, 'rel_hits': 42, 'rel_wrong': 51, 'relationships': 48, 'tables': 33},
+    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 33, 'keys': 33, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
+    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 31, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 31},
+    's4hana/lower/names+keys': {'coverage': 0.85, 'key_hits': 31, 'keys': 31, 'precision': 0.53, 'rel_hits': 41, 'rel_wrong': 36, 'relationships': 48, 'tables': 31},
+    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 31, 'keys': 31, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 31}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -143,3 +143,15 @@ def test_validate_plan_checks_pack_relationships_against_rows():
     assert rel[("VBAP", "VBAK")]["rule"] == "SAP pack" and rel[("VBAP", "VBAK")]["orphans"] == 1   # 0000000002 has no header
     assert rel[("VBAK", "KNA1")]["orphans"] == 1                  # client 200's customer is not in client 100: MANDT matters
     assert all(k["verdict"].startswith("unique") for k in out["keys"])
+
+
+def test_procure_to_pay_amounts_and_the_two_belnr():
+    p = plan(sap_support.schema(["EKKO", "EKPO", "EKBE", "RBKP", "RSEG", "BKPF", "LFA1", "T001"]))
+    pairs = {(f["header"], f["line"], tuple(f["amount_columns"])) for f in amounts.header_amounts(p)}
+    assert ("EKPO", "EKBE", ("NETWR",)) in pairs                       # the order item once per history row
+    assert ("RBKP", "RSEG", ("RMWWR", "WMWST1")) in pairs              # the invoice's gross amount once per item
+    assert not [r for r in p.relationships if {r.source, r.target} == {"RBKP", "BKPF"}]   # two different BELNR
+    assert not [r for r in p.relationships if (r.source, r.target) == ("EKBE", "RBKP")]  # conditional: listed only
+    assert any((n["source"], n["target"]) == ("EKBE", "RBKP") for n in p.pack["not_applied"])
+    names = plan(sap_support.schema(["RBKP", "BKPF"]), keys={"RBKP": ["MANDT", "BELNR", "GJAHR"], "BKPF": ["MANDT", "BUKRS", "BELNR", "GJAHR"]}, packs=False)
+    assert any((r.source, r.target, r.rule) == ("RBKP", "BKPF", "R3") for r in names.relationships)   # what the name rules alone do

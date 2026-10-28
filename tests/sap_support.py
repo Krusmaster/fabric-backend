@@ -13,9 +13,13 @@ EXTRA = {
     "LIKP": ["LFART", "KUNNR", "KUNAG", "VKORG", "WADAT_IST"], "LIPS": ["MATNR", "VGBEL", "VGPOS"],
     "VBRK": ["FKART", "FKDAT", "KUNAG", "KUNRG", "VKORG", "BUKRS", "BELNR", "GJAHR", "FKSTO"],
     "VBRP": ["MATNR", "AUBEL", "AUPOS", "VGBEL", "VGPOS"], "VBFA": ["VBTYP_V", "RFMNG", "ERDAT"],
+    "LFA1": ["NAME1", "LAND1", "KTOKK"], "LFB1": ["AKONT", "ZTERM"], "LFM1": ["ZTERM"], "T024E": ["BUKRS"],
+    "T001W": ["NAME1"], "EBAN": ["MATNR", "WERKS", "BSART"], "EKKO": ["BSTYP", "BSART", "LIFNR", "BUKRS", "EKORG", "BEDAT"],
+    "EKPO": ["MATNR", "WERKS", "LOEKZ"], "EKET": ["EINDT"], "EKBE": ["SHKZG", "BUDAT"],
+    "RBKP": ["LIFNR", "BUKRS", "BLDAT"], "RSEG": ["EBELN", "EBELP", "MATNR"],
     "BKPF": ["BLART", "BUDAT"], "BSEG": ["SHKZG", "HKONT"], "ACDOCA": ["RACCT", "BUDAT"],
 }
-DECIMALS = {"NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
+DECIMALS = {"RMWWR", "WMWST1", "MENGE", "NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
 
 
 def columns(name: str) -> list[str]:
