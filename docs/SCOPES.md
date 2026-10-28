@@ -13,6 +13,9 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | | `Item.Read.All` | `list_sources`, item lookups |
 | | `GraphQLApi.ReadWrite.All` | `create_backend`; also reading a GraphQL API's definition (`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `answer_query_draft` with `api`): getDefinition takes `GraphQLApi.ReadWrite.All` or `Item.ReadWrite.All`, no read-only scope |
 | | `GraphQLApi.Execute.All` | `query_graphql` |
+| | `Notebook.ReadWrite.All` | `create_silver_notebook`, `create_gold_views`, the notebook of `create_drift_monitor` (added 28 October 2026) |
+| | `DataPipeline.ReadWrite.All` | the pipeline of `create_drift_monitor` (added 28 October 2026) |
+| | `Item.ReadWrite.All` | `create_ontology`, `create_data_agent`, `create_semantic_model`, reading semantic model definitions (added 28 October 2026) |
 | Azure SQL Database (`022907d3-0f1b-48f7-badc-1ba6abab6d66`) | `user_impersonation` | every tool that reads the SQL analytics endpoint (`list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, the drafts, `join_path`, `data_dictionary`, `dbt_schema`, `create_views`) |
 
 ## What each tool needs
@@ -20,27 +23,34 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | Tool | Fabric REST operation(s) | Delegated permission | Have it? |
 | --- | --- | --- | --- |
 | `create_backend` | `graphQLApis` create / `updateDefinition` | `GraphQLApi.ReadWrite.All` | yes |
-| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
+| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026) |
 | `create_views` | none — T-SQL on the SQL analytics endpoint / warehouse | Azure SQL `user_impersonation` (have), plus the SQL right to create objects: Contributor on the workspace, or `CREATE VIEW` / `ALTER SCHEMA` granted on the endpoint | yes (scope); rights are per workspace |
-| `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | **no** |
-| `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | **no** |
-| `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
-| `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | **no** |
+| `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | yes (since 28 October 2026) |
+| `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | yes (since 28 October 2026); the live create on 28 October 2026 still got HTTP 403, cause unknown |
+| `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (since 28 October 2026) |
+| `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | yes for the notebook and the pipeline (since 28 October 2026); **no** for the schedule: `DataPipeline.Execute.All` is not added, so use `schedule=false` |
 | `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`GraphQLApi.ReadWrite.All` for the definition, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `GraphQLApi.ReadWrite.All` (getDefinition has no read-only scope) | yes |
-| `lineage` | `semanticModels/{id}/getDefinition` for the semantic models it reads | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`; without it those models are listed under "could not be read" | **no** (for semantic models) |
-| `compare_semantic_model` | `semanticModels/{id}/getDefinition` (`Items_GetSemanticModelDefinition`, format TMDL); with `tmdl` given, none | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`, and read and write permission on the model; answers `kind: consent` with that scope without it | **no** (by name); yes with `tmdl` |
+| `lineage` | `semanticModels/{id}/getDefinition` for the semantic models it reads | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`; without it those models are listed under "could not be read" | yes (`Item.ReadWrite.All`, since 28 October 2026) |
+| `compare_semantic_model` | `semanticModels/{id}/getDefinition` (`Items_GetSemanticModelDefinition`, format TMDL); with `tmdl` given, none | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All`, and read and write permission on the model; answers `kind: consent` with that scope without it | yes (`Item.ReadWrite.All`, since 28 October 2026) |
 | `gold_views_draft` | metadata reads only | what the app has | yes |
-| `create_gold_views` (dry run by default) | `notebooks` create / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | **no** |
+| `create_gold_views` (dry run by default) | `notebooks` create / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (since 28 October 2026) |
 | `export_item_definitions` | metadata reads only (and the SQL endpoint id, as `create_backend`) | what the app has | yes |
 | `sample_rows`, `validate_plan` (the sensitivity label) | the label comes with the item `_resolve_source` already reads (`Item.sensitivityLabel`, id only) | what the app has | yes |
 | all `*_draft`, `join_path`, `data_dictionary`, `dbt_schema`, `plan_drift` | metadata reads only | what the app has | yes |
 
-Not yet observed live: on 26 October 2026 `create_views` ran against the demo workspace as a dry run only, and
-`create_semantic_model` and `create_data_agent` were not run. The `consent` answers above are unit-tested.
+On 28 October 2026 the Entra app got `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All`
+with an administrator's consent in Kruse Consulting's tenant. The same day, against the demo workspace (lakehouse
+`demo_lh`, schema `shop`), with `dry_run=false`: `create_silver_notebook` created `silver_shop`, `create_gold_views`
+created `gold_shop` and `create_drift_monitor` with `schedule=false` created `drift_shop` and `drift_shop_nightly`;
+the notebooks and the pipeline have not been run in Fabric. `create_ontology` got HTTP 403 and answered `kind: consent`
+although the token carried `Item.ReadWrite.All` after reconnecting; the cause is unknown, most likely the ontology
+(preview) turned off in the tenant's settings. Since round n33 such a refusal quotes Fabric's own `errorCode` and
+`message` and says `consent` only for `InsufficientScopes` (`fabric_backend/server.py` `_consent`).
+`create_semantic_model` and `create_data_agent` have not been run with `dry_run=false`.
 
-Until the permission is added and consented, those tools work in `dry_run=true` (the default) and answer
-`kind: consent` with the permission's name when asked to create.
+A deployment whose Entra app lacks a permission still works in `dry_run=true` (the default); asked to create, the tool
+answers `kind: consent` with the permission's name when Fabric says `InsufficientScopes`.
 
 `Item.ReadWrite.All` covers the semantic model, the data agent, the ontology, the notebooks and the pipeline at once;
 `SemanticModel.ReadWrite.All`, `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` are narrower and cover one item
@@ -119,8 +129,8 @@ carries the scope. `deploy/krusgraph.sh --check` compares the registration again
 
 ## Notes
 
-- The connector directory listing should mention any added write scope: the listing text today says the connector
-  writes only by creating or updating API for GraphQL items.
+- The connector directory listing names every item the connector can create and the permission behind it
+  (`deploy/SUBMISSION.md`, answer 3).
 - `create_views` needs no new Entra scope. Whether the signed-in user may create a schema and views on a given
   endpoint is a Fabric workspace/SQL permission; Contributor on the workspace is enough on a warehouse and on a
   lakehouse's SQL analytics endpoint.

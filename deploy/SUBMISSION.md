@@ -14,12 +14,23 @@ Anthropic says so. No password, secret or workspace id belongs here.
 | --- | --- | --- |
 | 1 | Product name + domain, Entra tenant for the AB with the domain verified, Azure subscription | done |
 | 2 | F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop` seeded from `fabric_backend.seed` | done; the capacity runs for the whole review window |
-| 3 | Entra app (multi-tenant, token v2, Application ID URI `https://krusgraph.com/mcp`, scope `user_impersonation`), admin consent in the demo tenant | done; `deploy/krusgraph.sh --check` verifies it |
+| 3 | Entra app (multi-tenant, token v2, Application ID URI `https://krusgraph.com/mcp`, scope `user_impersonation`), admin consent in the demo tenant; on Fabric also `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All`, `Item.ReadWrite.All` (28 Oct 2026) | done; `deploy/krusgraph.sh --check` verifies all nine permissions (`REQUIRED_SCOPES`) |
 | 4 | Hosting, custom domain, `min_replicas: 1` | done; `--update` after every change the portal should see |
-| 5 | Run as a custom connector in Claude against `demo` / `demo_lh` / `shop` | first run 26 Oct 2026 (14 steps, 16 tools, no creating call). The run that counts is 27 Oct 2026: 30 tools read-only, as drafts or as dry runs, then one creating call, `create_backend` updating `shop_api` in place (`fabric_backend/tool_status.py` `LIVE_RUN`, `docs/LIVE-TEST.md`). Not run live: `sap_pack_draft` (Draft only), and the operator-only `create_ontology`, `create_silver_notebook`, `create_gold_views`, `create_drift_monitor`; `compare_semantic_model` only as far as the model lookup |
+| 5 | Run as a custom connector in Claude against `demo` / `demo_lh` / `shop` | first run 26 Oct 2026 (14 steps, 16 tools, no creating call). The run that counts is 27 Oct 2026: 30 tools read-only, as drafts or as dry runs, then one creating call, `create_backend` updating `shop_api` in place (`fabric_backend/tool_status.py` `LIVE_RUN`, `docs/LIVE-TEST.md`). On 28 Oct 2026, after the app got `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All`: `sap_pack_draft`, `create_ontology`, `create_silver_notebook`, `create_gold_views` and `create_drift_monitor` ran as dry runs without errors, and with `dry_run=false` `create_silver_notebook` created `silver_shop`, `create_gold_views` `gold_shop` and `create_drift_monitor` (`schedule=false`) `drift_shop` and `drift_shop_nightly` (not run in Fabric); `create_ontology` with `dry_run=false` got HTTP 403, cause unknown. `compare_semantic_model` only as far as the model lookup |
 | 6 | Reviewer account in the AB's tenant: no admin role, Viewer on `demo` only, no MFA prompt | done 26 Oct 2026; see "Reviewer sign-in" |
 | 7 | Every tool has `annotations.title`, read-only/destructive hints, descriptions that describe and do not direct; every parameter has a description (n18, n26) | done (the portal's Tools step showed no suggestions for the earlier tool set; `tests/test_submission.py` checks titles and hints for every tool) |
 | 8 | Site icon at `/favicon.ico` (the directory shows the server's favicon) | done |
+
+## Left for Gustav (28 October 2026)
+
+1. Deploy (`--update`) so krusgraph.com serves round n33: the 403 answers with Fabric's `errorCode`, the new status lines.
+2. Run `deploy/krusgraph.sh --check`: it now expects the three Fabric permissions added on 28 October.
+3. `create_ontology`: in the Fabric admin portal, Tenant settings, check that the ontology item (preview) is enabled for
+   the tenant or a group the account is in; then run it again with `dry_run=false` and read the `fabric_error_code`.
+4. Run `silver_shop`, `gold_shop` and `drift_shop_nightly` once in Fabric, or say in the portal that they were created
+   but not run.
+5. Decide on `DataPipeline.Execute.All` for the drift monitor's schedule (an execute permission), or keep `schedule=false`.
+6. Update the portal's listing text (answer 3) and reviewer notes from this file, then submit.
 
 ## Reviewer sign-in (Entra free tier)
 
@@ -65,9 +76,21 @@ Development tools · author Kruse Consulting AB · docs https://krusgraph.com/do
 privacy https://krusgraph.com/privacy · icon: the site favicon.
 - One-liner: Turn Microsoft Fabric tables into an explainable graph and a GraphQL API — keys and relationships inferred, with the rule behind every link shown.
 - Description: what it reads, the rule behind every link, validate_plan and suggest_relationships against the data;
-  the GraphQL API and read-only queries; the drafts (TMDL, data dictionary, dbt, Fabric IQ, Rayfin) and the graph
-  analysis; dry runs for the other create tools; sign-in with the user's own account, nothing stored, MIT, not
-  affiliated with Microsoft.
+  the drafts (TMDL, data dictionary, dbt, Fabric IQ, Rayfin) and the graph analysis; read-only queries; and what it
+  can create in the user's workspace, each with the user's own delegated permission. Every creating tool except
+  `create_backend` answers with what it would create until called with `dry_run=false`; none deletes anything.
+  Sign-in with the user's own account, nothing stored, MIT, not affiliated with Microsoft.
+
+  | Created in Fabric | Tool | Delegated permission (Fabric) |
+  | --- | --- | --- |
+  | API for GraphQL | `create_backend` (no dry run) | `GraphQLApi.ReadWrite.All` |
+  | Views on the SQL endpoint | `create_views` | none beyond Azure SQL `user_impersonation`; Contributor on the workspace |
+  | Power BI semantic model | `create_semantic_model` | `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` |
+  | Fabric IQ ontology (preview) | `create_ontology` | `Item.ReadWrite.All` |
+  | Data agent | `create_data_agent` | `Item.ReadWrite.All` |
+  | Silver notebook | `create_silver_notebook` | `Notebook.ReadWrite.All` |
+  | Gold views notebook (materialized lake views) | `create_gold_views` | `Notebook.ReadWrite.All` |
+  | Drift monitor notebook and pipeline | `create_drift_monitor` | `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All`; its schedule also `DataPipeline.Execute.All`, which the hosted app does not ask for (`schedule=false`) |
 
 **4 Use cases** — (1) understand an unfamiliar lakehouse: plan, check against the data; (2) create a GraphQL API and
 answer questions through nested relationships; (3) draft a semantic model, data dictionary and dbt tests.
@@ -99,7 +122,7 @@ Source: https://claude.com/docs/connectors/building/submission ("Submit a connec
 | Remote, reachable over HTTPS | `https://krusgraph.com/mcp` |
 | "OAuth 2.0 for authenticated services"; Anthropic can hold the OAuth client | Entra ID, Anthropic-held client credentials (answer 6) |
 | "every tool includes a `title` and the applicable `readOnlyHint` or `destructiveHint`" | all 36; `tests/test_submission.py` |
-| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; not yet `sap_pack_draft` and the operator-only tools (step 5) — run them, or say so in the portal, before ticking it |
+| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; `sap_pack_draft` and the four other creating tools on 28 Oct 2026 (step 5); `create_ontology` stopped by HTTP 403 when creating — say so in the portal |
 | Documentation, privacy policy URL, support contact, icon | /docs, /privacy, hello@krusgraph.com, /favicon.ico |
 | Test account for reviewers, entered in the portal | step 6 |
 | Seven compliance acknowledgements | answer 9 |
