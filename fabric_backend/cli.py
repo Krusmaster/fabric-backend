@@ -157,6 +157,17 @@ def cmd_dbt(a) -> int:
     return 0
 
 
+def cmd_sap_verify(a) -> int:
+    """A saved validate_plan answer on SAP tables -> a proposal per pack relationship; --write records the verified ones."""
+    from . import sap_pack
+    report = sap_pack.verification(json.loads(Path(a.validation).read_text(encoding="utf-8")), a.where, a.when)
+    print(sap_pack.verification_markdown(report))
+    if a.write:
+        for line in sap_pack.write_verified(report):
+            print("verified:", line)
+    return 0
+
+
 def cmd_analyze(a) -> int:
     from .graphs import analyze
     p = plan(_source(a), _keys_arg(a.keys))
@@ -253,6 +264,12 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("dictionary"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--source-name"); s.add_argument("--out", default="dictionary.md"); s.set_defaults(fn=cmd_dictionary)
 
+    s = sub.add_parser("sap-verify", help="propose a status per SAP pack relationship from a saved validate_plan answer")
+    s.add_argument("validation", help="the JSON validate_plan answered, saved to a file")
+    s.add_argument("--where", required=True, help="what was checked, without naming a company: 'SAP S/4HANA sandbox, synthetic data'")
+    s.add_argument("--when", required=True, help="the date of the run, YYYY-MM-DD")
+    s.add_argument("--write", action="store_true", help="record the verified relationships in fabric_backend/packs/sap/*.json")
+    s.set_defaults(fn=cmd_sap_verify)
     s = sub.add_parser("dbt"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--source-name"); s.add_argument("--database"); s.add_argument("--legacy-arguments", action="store_true")
     s.add_argument("--out", default="schema.yml"); s.set_defaults(fn=cmd_dbt)

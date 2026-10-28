@@ -313,3 +313,111 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
             from . import dbt
             out["export"] = {"path": f"models/sources/{source_name}.yml", "yaml": dbt.schema_yml(plan, source_name, plan.schema.schema)}
     return out
+
+
+# ------------------------------------------------------------------ verification against real rows (round n31) ------
+
+def _pack_relationship(entry: dict, pack: dict) -> tuple[int, dict] | None:
+    """The pack relationship a validate_plan entry checked: same tables by pack name, same columns (the client may have
+    been dropped by the extract)."""
+    src, tgt = table_name(entry["source"]), table_name(entry["target"])
+    cols = {c.upper() for c in entry["columns"]}
+    for i, r in enumerate(pack["relationships"]):
+        if r["source"] != src or r["target"] != tgt:
+            continue
+        mine = set(r["source_cols"])
+        if cols <= mine and mine - cols <= set(CLIENT_COLUMNS):
+            return i, r
+    return None
+
+
+def verification(validation: dict, where: str, when: str, pack: str = "sap") -> dict:
+    """A proposal per pack relationship from a saved validate_plan answer: verified (it held for every row with a value,
+    and no row matched twice), review (orphans or rows that matched more than one target row: read its condition first),
+    no evidence (no row had a value), or not checked (a pack relationship between the tables checked that the answer
+    does not contain: listed only, or past max_items). Proposals only; write_verified records the verified ones.
+    `where` says what was checked, without names of a real company (for example "SAP S/4HANA sandbox, synthetic data");
+    `when` is the date of the run."""
+    p = load(pack)
+    rows, seen = [], set()
+    for e in validation.get("relationships", []):
+        if e.get("rule") != RULE:
+            continue
+        found = _pack_relationship(e, p)
+        if found is None:
+            continue
+        i, r = found
+        seen.add(i)
+        n, orphans, several = int(e.get("rows_with_value") or 0), int(e.get("orphans") or 0), int(e.get("several") or 0)
+        if n == 0:
+            proposal, why = "no evidence", "no row had a value in the reference columns"
+        elif orphans or several:
+            proposal = "review"
+            why = "; ".join(x for x in (f"{orphans} of {n} rows point at nothing" if orphans else "",
+                                        f"{several} rows match more than one target row" if several else "") if x)
+            if r.get("condition"):
+                why += f". The pack's condition: {r['condition']}"
+        else:
+            proposal, why = "verified", f"held for all {n} rows with a value"
+        rows.append({"module": r["module"], "index": i, "source": r["source"], "source_cols": r["source_cols"], "target": r["target"],
+                     "kind": r.get("kind", "key"), "proposal": proposal, "why": why,
+                     "evidence": {"rows_with_value": n, "orphans": orphans, "several": several}})
+    checked = {table_name(k["table"]) for k in validation.get("keys", [])}
+    for i, r in enumerate(p["relationships"]):
+        if i not in seen and r["source"] in checked and r["target"] in checked:
+            rows.append({"module": r["module"], "index": i, "source": r["source"], "source_cols": r["source_cols"], "target": r["target"],
+                         "kind": r.get("kind", "key"), "proposal": "not checked",
+                         "why": "listed only, not applied" if r.get("apply") is False else "not in the answer (raise max_items, or the columns were missing)"})
+    counts = {k: sum(1 for x in rows if x["proposal"] == k) for k in ("verified", "review", "no evidence", "not checked")}
+    return {"where": where, "when": when, "counts": counts, "relationships": rows,
+            "summary": ", ".join(f"{v} {k}" for k, v in counts.items()),
+            "note": "Proposals from counts, not proof of meaning: a relationship that held on one system can fail on another. "
+                    "Record only runs on systems you may describe, and describe them without naming a company."}
+
+
+def write_verified(report: dict, pack: str = "sap") -> list[str]:
+    """Add {where, when, rows_with_value} to the `verified` list of every relationship the report proposes as verified,
+    in the pack's own files (one line per relationship, as they are written). Returns what was changed."""
+    changed = []
+    p = load(pack)
+    by_module: dict[str, list[dict]] = {}
+    for x in report["relationships"]:
+        if x["proposal"] == "verified":
+            by_module.setdefault(x["module"], []).append(x)
+    for module, items in by_module.items():
+        path = PACKS / pack / f"{module}.json"
+        lines = path.read_text(encoding="utf-8").split("\n")
+        for x in items:
+            r = {k: v for k, v in p["relationships"][x["index"]].items() if k != "module"}
+            for n, line in enumerate(lines):
+                st = line.strip()
+                if not st.startswith("{") or '"source_cols"' not in st:
+                    continue
+                obj = json.loads(st.rstrip(","))
+                if (obj["source"], obj["source_cols"], obj["target"], obj["target_cols"]) != (r["source"], r["source_cols"], r["target"], r["target_cols"]):
+                    continue
+                entry = {"where": report["where"], "when": report["when"], "rows_with_value": x["evidence"]["rows_with_value"]}
+                if entry not in obj.get("verified", []):
+                    obj["verified"] = obj.get("verified", []) + [entry]
+                    srcs = obj.pop("sources")
+                    obj["sources"] = srcs                                       # sources stay last on the line
+                    indent = line[:len(line) - len(line.lstrip())]
+                    lines[n] = indent + json.dumps(obj, ensure_ascii=False) + ("," if st.endswith(",") else "")
+                    changed.append(f"{module}: {r['source']}.{'+'.join(r['source_cols'])} -> {r['target']}")
+                break
+        text = "\n".join(lines)
+        json.loads(text)
+        path.write_text(text, encoding="utf-8")
+    _load.cache_clear()
+    return changed
+
+
+def verification_markdown(report: dict) -> str:
+    out = [f"# SAP pack verification: {report['where']}, {report['when']}", "", report["summary"], "", report["note"], "",
+           "| Proposal | Relationship | Kind | Rows | Orphans | Several | Why |", "| --- | --- | --- | --- | --- | --- | --- |"]
+    order = {"review": 0, "verified": 1, "no evidence": 2, "not checked": 3}
+    for x in sorted(report["relationships"], key=lambda x: (order[x["proposal"]], x["module"], x["source"])):
+        ev = x.get("evidence", {})
+        out.append(f"| {x['proposal']} | {x['source']}.{'+'.join(x['source_cols'])} → {x['target']} | {x['kind']} | "
+                   f"{ev.get('rows_with_value', '')} | {ev.get('orphans', '')} | {ev.get('several', '')} | {x['why'].replace('|', '/')} |")
+    return "\n".join(out) + "\n"

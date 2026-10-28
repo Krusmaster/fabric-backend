@@ -383,6 +383,33 @@
                 }
               }
             }
+          },
+          "verified": {
+            "type": "array",
+            "description": "Runs of validate_plan in which the relationship held for every row with a value: where (described without naming a company) and when. Written by fabric-backend sap-verify --write.",
+            "items": {
+              "type": "object",
+              "required": [
+                "where",
+                "when",
+                "rows_with_value"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "where": {
+                  "type": "string",
+                  "minLength": 3
+                },
+                "when": {
+                  "type": "string",
+                  "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                },
+                "rows_with_value": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
           }
         }
       }
