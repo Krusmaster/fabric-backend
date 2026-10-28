@@ -21,8 +21,9 @@ def test_every_tool_once_every_word_a_status_word_and_the_clients_of_the_brief()
     clients = {c.name: (c.status, c.path) for c in ts.CLIENTS}
     assert clients == {"Claude": ("Tested end to end", "/mcp"), "VS Code": ("Experimental", "/mcp/connect"),
                        "Claude Code": ("Experimental", "/mcp/connect"), "Cursor": ("Experimental", "/mcp/connect"),
-                       "Lovable": ("Experimental", "")}
-    assert set(ts.CLIENTS_TESTED) == {"Claude"}                       # only a tested client is named as working
+                       "Glama": ("Experimental", "/mcp/connect"), "Lovable": ("Experimental", "")}
+    # working (signed in and ran tools) is named on the site; the status word stays Experimental for /mcp/connect
+    assert set(ts.CLIENTS_TESTED) == {"Claude", "VS Code", "Cursor", "Glama"}
     assert "%" not in md
 
 
@@ -34,7 +35,7 @@ def test_docs_docs_md_and_llms_full_carry_the_same_table(client, monkeypatch, re
     assert table in client.get("/llms-full.txt").text
     html = client.get("/docs").text
     assert "Overview: tools, functions and clients" in html and "plan_sql_server" in html and "Claude Code (client)" in html
-    assert ("a full sign-in is not yet confirmed" in table) == bool(registration)
+    assert ("cannot sign in to this server" in table) != bool(registration)
 
 
 def test_the_server_instructions_take_their_status_from_the_same_source():

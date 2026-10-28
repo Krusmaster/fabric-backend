@@ -38,6 +38,13 @@ Relationships (per column of a table A that is not A's own key):
       across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`). When two tables answer to the
       same name, the one whose key carries the column's suffix wins; otherwise the column is ambiguous.
 A column that could point at two tables is reported as ambiguous and not applied.
+
+SAP pack (before K2–K5 and R1–R4): when two or more tables are tables a knowledge pack describes (sap_pack.py,
+fabric_backend/packs/sap/), with or without a prefix (`VBAK`, `vbak`, `sap_vbak`), their keys and the relationships
+between them come from the pack, with the rule "SAP pack" and the public source on the relationship's note. Name
+rules add nothing between two such tables (`LIPS.VBELN` is a delivery, not an order). Declared keys (K0), the
+caller's keys (K1) and confirmed relationships still win. A schema without such tables gets exactly the plan it got
+before. The pack is a suggestion with a source; validate_plan checks it against the rows.
 """
 from __future__ import annotations
 
@@ -53,7 +60,7 @@ class Relationship:
     source_cols: list[str]
     target: str                      # the table being pointed at (the "one" side)
     target_cols: list[str]
-    rule: str                        # R0..R4, or "confirmed"
+    rule: str                        # R0..R4, "SAP pack", or "confirmed"
     field_name: str = ""             # GraphQL field on the source, e.g. "customer"
     reverse_name: str = ""           # GraphQL field on the target, e.g. "orders"
     note: str = ""                   # how the name was read when it was not literal: "through the synonym table: kund -> customer"
@@ -71,6 +78,7 @@ class Plan:
     ambiguous: list[dict] = field(default_factory=list)
     keyless: list[str] = field(default_factory=list)
     synonyms: list[dict] = field(default_factory=list)    # keys and relationships that rest on the synonym table (SYNONYMS)
+    pack: dict | None = None                               # what a knowledge pack recognised (sap_pack.py); None when none did
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -80,6 +88,9 @@ class Plan:
             lines.append(f"{len(self.ambiguous)} ambiguous columns not applied — see plan.ambiguous")
         if self.synonyms:
             lines.append(f"{len(self.synonyms)} name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms")
+        if self.pack:
+            lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
+                         f"public sources (rule \"{self.pack['rule']}\"), to be checked with validate_plan — see plan.pack")
         return "\n".join(lines)
 
     def mermaid(self) -> str:
@@ -157,6 +168,13 @@ SYNONYMS = {
 _PREFIX = re.compile(r"^([a-z]{1,4})_(?=.)")
 _LINE_LIKE = {"line", "lineno", "linenumber", "linenr", "linenum", "position", "pos", "seq", "sequence", "seqno",
               "itemno", "rowno", "rownumber", "rad", "radnr", "radnummer", "zeile", "zeilennr", "zeilennummer", "posnr", "positionsnr"}
+PACK_RULE = "SAP pack"
+# Not in RULES: the rule tables a plan renders (data dictionary, docs) list it only when a pack was used, so answers on
+# schemas without SAP tables stay as they were.
+PACK_RULES = {PACK_RULE: "keys and relationships of tables a knowledge pack describes (fabric_backend/packs/sap/: VBAK, VBAP, LIKP, "
+                         "VBRK…), recognised with or without a prefix; each relationship names its public source; name rules add "
+                         "nothing between two such tables"}
+_CLIENT = ("MANDT", "RCLNT")
 _HISTORY = re.compile(r"^(start|validfrom|effective)|from$")
 _MIN_ABBREVIATION = 4
 
@@ -318,7 +336,8 @@ def _role_targets(stem: list[str], tables: dict[str, set[str]]) -> list[str]:
     return hits
 
 
-def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None, notes: list[dict] | None = None) -> dict[str, tuple[list[str], str]]:
+def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None, notes: list[dict] | None = None,
+               pack_keys: dict[str, list[str]] | None = None) -> dict[str, tuple[list[str], str]]:
     keys = {k.lower(): v for k, v in (keys or {}).items()}
     out: dict[str, tuple[list[str], str]] = {}
     for t in schema:
@@ -326,6 +345,8 @@ def infer_keys(schema: Schema, keys: dict[str, list[str]] | None = None, notes: 
             out[t.name] = ([t.col(c) for c in keys[t.name.lower()]], "K1")
         elif t.keys:
             out[t.name] = (list(t.keys), "K0")
+        elif pack_keys and t.name in pack_keys:
+            out[t.name] = (list(pack_keys[t.name]), PACK_RULE)
         else:
             prefix = _table_prefix(t)
             bare = _bare(t, prefix)
@@ -366,7 +387,8 @@ def _synonym_words(*names: str) -> str:
 
 
 def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
-                        confirmed: list[dict] | None = None, notes: list[dict] | None = None) -> tuple[list[Relationship], list[dict]]:
+                        confirmed: list[dict] | None = None, notes: list[dict] | None = None,
+                        pack: list[dict] | None = None, pack_tables: set[str] | None = None) -> tuple[list[Relationship], list[dict]]:
     """confirmed: [{"source": "orders", "source_cols": ["customer_id"], "target": "customers",
     "target_cols": ["customer_id"]}] — applied as-is, before inference, and never contradicted."""
     rels: list[Relationship] = []
@@ -389,6 +411,13 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
                          "confirmed", field_name=c.get("field_name") or "", reverse_name=c.get("reverse_name") or ""))
         if src and len(scols) == 1:
             pinned.add((src.name, scols[0]))
+    pack_tables = pack_tables or set()
+    for r in pack or []:                                                  # SAP pack: after confirmed, before the name rules
+        rel = Relationship(r["source"], list(r["source_cols"]), r["target"], list(r["target_cols"]), PACK_RULE, note=r.get("note", ""))
+        if (r["source"], tuple(c.lower() for c in r["source_cols"])) in {(x.source, tuple(c.lower() for c in x.source_cols)) for x in rels if x.rule == "confirmed"}:
+            continue
+        add(rel)
+        pinned.update((r["source"], c) for c in r["source_cols"] if c.upper() not in _CLIENT)
 
     prefixes = {t.name: _table_prefix(t) for t in schema}
     bares = {t.name: _bare(t, prefixes[t.name]) for t in schema}
@@ -415,6 +444,7 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
         for cols, target, tcols in t.foreign_keys:                     # R0
             if target in schema and not (len(cols) == 1 and (t.name, cols[0]) in pinned):
                 add(Relationship(t.name, cols, target, tcols, "R0"))
+        in_pack = t.name in pack_tables
         for c in t.column_names:
             if (c.lower() in own_key and len(own_key) == 1) or (t.name, c) in pinned:  # confirmed: never inferred again or ambiguous
                 continue
@@ -448,6 +478,8 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
                     rule = "R4"
                     if targets and cstem != stem:
                         via = "synonym"
+            if in_pack:                                                   # between two pack tables the pack has said it all
+                targets = [b for b in targets if b not in pack_tables]
             if len(targets) > 1:                                         # two tables answer to the name: the one whose key carries
                 suf = _stem(_strip_prefix(c, prefixes[t.name]))[1]       # the column's suffix wins (customer_sk -> dim_customer, not customers)
                 narrowed = [b for b in targets if key_suffix.get(b) == suf]
@@ -465,7 +497,7 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
                         notes.append({"table": t.name, "column": c, "target": b, "rule": rule, "via": _synonym_words(c, b)})
                 add(r)
         for b, (bk, _) in keys.items():                                  # R3
-            if b == t.name or len(bk) < 2:
+            if b == t.name or len(bk) < 2 or (in_pack and b in pack_tables):
                 continue
             bbare = bares[b]
             wanted = [bbare.get(k, _norm(k)) for k in bk]
@@ -605,18 +637,43 @@ def check_tables(schema: Schema, tables: list[str] | None) -> None:
         raise PlanInputError("tables: the list is empty; omit it to take every table")
 
 
-def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None) -> Plan:
+def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | None, dict[str, list[str]], list[dict], set[str]]:
+    """What the knowledge packs recognise in the schema: (summary for plan.pack, keys, relationships, tables)."""
+    from . import sap_pack
+    m = sap_pack.match(schema)
+    if m is None:
+        return None, {}, [], set()
+    p = sap_pack.load(m.pack)
+    rels = []
+    for r in m.relationships:
+        why = "; ".join(x for x in (r.get("condition", ""), "source: " + "; ".join(p["sources"][i]["title"].split(":")[0] for i in r["sources"])) if x)
+        rels.append({**r, "note": f"{m.pack} pack ({r['module']}): {why}"})
+    summary = {"pack": m.pack, "rule": PACK_RULE, "tables": dict(m.tables), "status": "documented, not verified against data",
+               "not_applied": m.not_applied, "missing_tables": m.missing_tables, "missing_columns": m.missing_columns,
+               "client_dropped": m.client_dropped, "variant_hint": m.variant_hint,
+               "amounts": sap_pack.amounts(m),
+               "sources": sorted({i for r in m.relationships for i in r["sources"]} | {i for n in m.tables.values() for i in p["tables"][n]["sources"]}),
+               "traps": [{"id": t["id"], "title": t["title"]} for t in p["traps"]]}
+    return summary, m.keys, rels, set(m.tables)
+
+
+def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, packs: bool = True) -> Plan:
+    """packs=False plans by the name rules alone, as before the knowledge packs (for comparison)."""
     check_input(schema, keys, confirmed)
+    summary, pack_keys, pack_rels, pack_tables = _pack(schema, keys) if packs else (None, {}, [], set())
     notes: list[dict] = []
-    k = infer_keys(schema, keys, notes)
+    k = infer_keys(schema, keys, notes, pack_keys)
+    # a pack relationship whose target has another key now (K0/K1 given by the caller) is left to the name rules
+    pack_rels = [r for r in pack_rels if [c.lower() for c in k.get(r["target"], ([], ""))[0]] == [c.lower() for c in r["target_cols"]]
+                 or k.get(r["target"], ([], ""))[1] == PACK_RULE]
     rel_notes: list[dict] = []
-    rels, amb = infer_relationships(schema, k, confirmed, rel_notes)
+    rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
     extra = composite_keys(schema, k, rels)
     if extra:                                   # K4/K5 keys can be R3 targets: run the relationships once more
         k.update(extra)
         rel_notes = []
-        rels, amb = infer_relationships(schema, k, confirmed, rel_notes)
-    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes)
+        rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
+    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary)
 
 
 def _m(s: str) -> str:

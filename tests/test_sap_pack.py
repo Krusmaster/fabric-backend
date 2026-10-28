@@ -151,3 +151,43 @@ def test_extraction_list_takes_delta_columns_from_the_pack():
     assert vbak["delta_columns"] == ["erdat", "aedat"] and vbak["pack_table"] == "VBAK"
     for t in out["tables"]:
         assert t.get("open_mirroring_metadata") == ({"keyColumns": t["key"]} if t["key"] else None)
+
+
+def test_a_missing_column_is_named_on_the_table_that_lacks_it():
+    rows = [("s", "TVKO", c, "nvarchar", i) for i, c in enumerate(["MANDT", "VKORG"], 1)]
+    rows += [("s", "T001", c, "nvarchar", i) for i, c in enumerate(["MANDT", "BUKRS"], 1)]
+    m = sap_pack.match(Schema.from_information_schema(rows, schema="s"))
+    assert m.missing_columns == [{"table": "TVKO", "columns": ["BUKRS"], "relationship": "TVKO.MANDT+BUKRS -> T001"}]
+
+
+# ---------------------------------------------------------------- sap_pack_draft
+
+@pytest.mark.parametrize("export", sap_pack.EXPORTS)
+def test_draft_answers_with_every_export(export):
+    out = sap_pack.draft(plan(sap_support.schema(style="prefix")), "sap", export=export)
+    assert out["summary"].startswith("21 SAP table(s) recognised") and out["status"].startswith("documented")
+    assert all(r["sources"] and r["in_plan"] == "SAP pack" for r in out["relationships"])
+    assert ("export" in out) == (export != "none")
+
+
+def test_draft_without_sap_tables_says_so():
+    from fabric_backend import seed
+    assert sap_pack.draft(plan(seed.schema()))["summary"].startswith("no SAP tables recognised")
+
+
+def test_draft_refuses_an_unknown_export_or_variant():
+    from fabric_backend.infer import PlanInputError
+    with pytest.raises(PlanInputError):
+        sap_pack.draft(plan(sap_support.schema()), export="csv")
+    with pytest.raises(PlanInputError):
+        sap_pack.draft(plan(sap_support.schema()), variant="r3")
+
+
+def test_the_tool_is_read_only_and_answers(monkeypatch):
+    pytest.importorskip("mcp.server.mcpserver")
+    from fabric_backend import server
+    monkeypatch.setattr(server, "_plan", lambda *a, **k: (plan(sap_support.schema()), {}, {}))
+    out = json.loads(server.sap_pack_draft("ws", "sap_lh", schema="sap", variant="ecc", export="extraction"))
+    assert out["variant_hint"].startswith("ecc") and out["export"]["format"] == exports.EXTRACTION_FORMAT
+    bad = json.loads(server.sap_pack_draft("ws", "sap_lh", export="csv"))
+    assert {"error", "kind", "hint"} <= set(bad)

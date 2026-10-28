@@ -8,7 +8,7 @@ from fabric_backend.schema import Schema
 # a few non-key columns per table, so the name rules have something to read (dates, types, organisation fields)
 EXTRA = {
     "KNA1": ["NAME1", "LAND1", "ORT01", "KTOKD"], "KNVV": ["KDGRP", "WAERS"], "MARA": ["MTART", "MATKL", "MEINS"],
-    "MAKT": ["MAKTX"], "TVKO": ["WAERS"], "VBAK": ["AUART", "VBTYP", "KUNNR", "VKORG", "VTWEG", "SPART", "AUDAT"],
+    "MAKT": ["MAKTX"], "TVKO": ["WAERS", "BUKRS"], "VBAK": ["AUART", "VBTYP", "KUNNR", "VKORG", "VTWEG", "SPART", "AUDAT"],
     "VBAP": ["MATNR", "PSTYV", "ABGRU"], "VBEP": ["EDATU", "ETTYP"], "VBPA": ["PARVW", "KUNNR", "ADRNR"],
     "LIKP": ["LFART", "KUNNR", "KUNAG", "VKORG", "WADAT_IST"], "LIPS": ["MATNR", "VGBEL", "VGPOS"],
     "VBRK": ["FKART", "FKDAT", "KUNAG", "KUNRG", "VKORG", "BUKRS", "BELNR", "GJAHR", "FKSTO"],

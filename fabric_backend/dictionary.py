@@ -3,7 +3,7 @@ keyless tables, ambiguous columns, the ER diagram, and — when given — the co
 No business meaning is written; a blank Description column is left for the owner."""
 from __future__ import annotations
 
-from .infer import Plan, RULES
+from .infer import PACK_RULES, Plan, RULES
 
 
 def _cell(s) -> str:
@@ -53,7 +53,7 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
     out += ["## Keys", "", "| Table | Columns | Rule | Meaning |", "| --- | --- | --- | --- |"]
     for t in plan.schema:
         cols, rule = plan.keys.get(t.name, ([], "K3"))
-        out.append(f"| {_cell(t.name)} | {_cell('+'.join(cols)) or '—'} | {rule} | {_cell(RULES.get(rule, ''))} |")
+        out.append(f"| {_cell(t.name)} | {_cell('+'.join(cols)) or '—'} | {rule} | {_cell({**RULES, **PACK_RULES}.get(rule, ''))} |")
     out += ["", "## Relationships", ""]
     if plan.relationships:
         out += ["| From | Columns | To | Columns | Rule | Field on from / on to |", "| --- | --- | --- | --- | --- | --- |"]
@@ -86,8 +86,19 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
     if inactive:
         out += ["", "Relationships a semantic model would have to leave inactive (lower certainty on a cycle):", ""]
         out += [f"- {e['source']}.{'+'.join(e['columns'])} -> {e['target']} ({e['rule']}, certainty {e['certainty']}): {e['why']}" for e in inactive]
+    if plan.pack:                                                        # only with SAP tables: other answers are unchanged
+        from . import sap_pack
+        pk = sap_pack.load(plan.pack["pack"])
+        out += ["", f"## Known from the {plan.pack['pack']} pack", "",
+                f"{len(plan.pack['tables'])} table(s) recognised; their keys and relationships come from public documentation "
+                "(rule \"SAP pack\") and are documented, not verified: check them with validate_plan.", ""]
+        out += [f"- {t['title']}: {t['text']}" for t in pk["traps"]]
+        out += [f"- not applied: {n['source']} -> {n['target']}: {n['why']}" for n in plan.pack["not_applied"]]
+        out += ["", "Sources:", ""] + [f"- {pk['sources'][i]['title']} ({pk['sources'][i]['url']})" for i in plan.pack["sources"]]
     out += ["", "## Diagram", "", "```mermaid", plan.mermaid(), "```", "",
             "## Rules", "", "| Rule | Meaning |", "| --- | --- |"]
     out += [f"| {code} | {_cell(text)} |" for code, text in RULES.items()]
+    if plan.pack:
+        out += [f"| {code} | {_cell(text)} |" for code, text in PACK_RULES.items()]
     out.append("")
     return "\n".join(out)

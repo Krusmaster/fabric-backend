@@ -178,12 +178,14 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
             elif a in CLIENT_COLUMNS or b in CLIENT_COLUMNS:
                 continue                                                  # the client dropped on one side: dropped on both
             else:
-                lost.append(a if not ha else b)
+                lost.append((s, a) if not ha else (g, b))
         info = {k: r[k] for k in ("cardinality", "role", "condition", "sources", "module") if k in r}
         if lost:
-            missing_cols.append({"table": s if any(x not in cols[g] for x in lost) else g, "columns": lost,
-                                 "relationship": f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']}"})
-            not_applied.append({"source": s, "target": g, "pack_source_cols": r["source_cols"], "why": "columns missing: " + ", ".join(lost), **info})
+            for table in dict.fromkeys(x for x, _ in lost):
+                missing_cols.append({"table": table, "columns": [c for x, c in lost if x == table],
+                                     "relationship": f"{r['source']}.{'+'.join(r['source_cols'])} -> {r['target']}"})
+            not_applied.append({"source": s, "target": g, "pack_source_cols": r["source_cols"],
+                                "why": "columns missing: " + ", ".join(f"{x}.{c}" for x, c in lost), **info})
             continue
         rel = {"source": s, "source_cols": [a for a, _ in pairs], "target": g, "target_cols": [b for _, b in pairs], **info}
         if r.get("apply") is False:
@@ -205,12 +207,60 @@ def table_info(pack_table: str, pack: str = "sap") -> dict:
     return load(pack)["tables"][pack_table]
 
 
-def header_amounts(m: Match) -> list[tuple[str, str]]:
-    """(schema table, column) for every amount the pack puts on a header: what a join with the items repeats."""
+def amounts(m: Match) -> list[dict]:
+    """Every amount the pack knows on a matched table, with its level and currency column. An amount on a table that
+    others point at many-to-one (VBAK.NETWR for VBAP, VBAP.NETWR for VBEP) is repeated by a join with them."""
     p = load(m.pack)
-    out = []
-    for t, name in m.tables.items():
-        for a in p["tables"][name].get("amounts", []):
-            if a["level"] == "header":
-                out.append((t, a["column"]))
+    return [{"table": t, "column": a["column"], "level": a["level"], "currency": a["currency"]}
+            for t, name in m.tables.items() for a in p["tables"][name].get("amounts", [])]
+
+
+EXPORTS = ("none", "krusgraph", "dab", "extraction", "dbt")
+
+
+def draft(plan, source_name: str = "sap", export: str = "none", variant: str | None = None) -> dict:
+    """What the pack recognises in a plan's schema and what it lacks, read-only; optionally one export of the plan.
+    The answer behind the sap_pack_draft tool."""
+    from .infer import PlanInputError
+    if export not in EXPORTS:
+        raise PlanInputError(f"export: {export!r} is not one of {', '.join(EXPORTS)}")
+    p = load("sap")
+    if variant is not None and variant not in p["variants"]:
+        raise PlanInputError(f"variant: {variant!r} is not one of {', '.join(p['variants'])}")
+    m = match(plan.schema, "sap", variant)
+    if m is None:
+        near = [t.name for t in plan.schema if table_name(t.name) in p["tables"]]
+        return {"summary": "no SAP tables recognised (the pack needs two or more of its tables with their key columns); the plan "
+                           "is the name rules' alone" + (f". Names the pack knows but without their key columns: {', '.join(near)}" if near else ""),
+                "pack_tables": sorted(p["tables"]), "modules": p["modules"]}
+    srcs = lambda ids: [{"title": p["sources"][i]["title"], "url": p["sources"][i]["url"], "fetched": p["sources"][i]["fetched"]} for i in ids]
+    tables = [{"table": t, "pack_table": n, "level": p["tables"][n]["level"], "en": p["tables"][n]["en"], "de": p["tables"][n]["de"],
+               "key": m.keys[t], **({"note": p["tables"][n]["note"]} if p["tables"][n].get("note") else {}),
+               "sources": srcs(p["tables"][n]["sources"])} for t, n in m.tables.items()]
+    rels = [{"source": r["source"], "source_cols": r["source_cols"], "target": r["target"], "target_cols": r["target_cols"],
+             "cardinality": r["cardinality"], **({"role": r["role"]} if r.get("role") else {}),
+             **({"condition": r["condition"]} if r.get("condition") else {}), "sources": srcs(r["sources"])} for r in m.relationships]
+    in_plan = {(r.source, tuple(c.lower() for c in r.source_cols), r.target): r.rule for r in plan.relationships}
+    for r in rels:
+        r["in_plan"] = in_plan.get((r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]), "no (confirmed or keys override it)")
+    out = {"summary": f"{len(m.tables)} SAP table(s) recognised, {len(rels)} pack relationship(s) apply, {len(m.not_applied)} listed "
+                      f"but not applied, {len(m.missing_tables)} pack table(s) missing that would complete them",
+           "status": "documented in public sources, not verified against data: run validate_plan with the same keys/confirmed",
+           "variant_hint": m.variant_hint or "no table that only one variant has",
+           "tables": tables, "relationships": rels, "not_applied": m.not_applied, "missing_tables": m.missing_tables,
+           "missing_columns": m.missing_columns, "client_dropped": m.client_dropped,
+           "amounts": amounts(m),
+           "traps": [{"title": t["title"], "text": t["text"]} for t in p["traps"]],
+           "next": "validate_plan checks keys and relationships against the rows; validate_plan's amount_levels names the header amounts a join repeats."}
+    if export != "none":
+        from . import exports
+        if export == "krusgraph":
+            out["export"] = exports.krusgraph_plan(plan)
+        elif export == "dab":
+            out["export"] = {"path": "dab-config.json", "config": exports.dab_config(plan)}
+        elif export == "extraction":
+            out["export"] = exports.extraction_list(plan, m)
+        else:
+            from . import dbt
+            out["export"] = {"path": f"models/sources/{source_name}.yml", "yaml": dbt.schema_yml(plan, source_name, plan.schema.schema)}
     return out

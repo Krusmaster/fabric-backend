@@ -70,7 +70,9 @@ def header_amounts(plan: Plan) -> list[dict]:
         header = plan.schema[r.target]
         key = {c.lower() for c in plan.keys[r.target][0]}
         refs = {c.lower() for x in plan.relationships if x.source == r.target for c in x.source_cols}
-        cols = [c.name for c in header.columns if c.name.lower() not in key | refs and looks_like_amount(c.name, c.data_type)]
+        packed = {x["column"].lower() for x in (plan.pack or {}).get("amounts", []) if x["table"] == r.target}  # NETWR: the pack knows
+        cols = [c.name for c in header.columns if c.name.lower() not in key | refs
+                and (looks_like_amount(c.name, c.data_type) or c.name.lower() in packed)]
         if cols:
             out.append({"header": r.target, "line": r.source, "line_columns": list(r.source_cols),
                         "header_columns": list(r.target_cols), "rule": r.rule, "amount_columns": cols})
