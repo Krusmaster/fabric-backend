@@ -37,10 +37,13 @@ def key_sql(schema: str, table: str, cols: list[str], dialect: Dialect = TSQL) -
 
 
 def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
-                     dialect: Dialect = TSQL) -> str:
+                     dialect: Dialect = TSQL, blank_is_none: bool = False) -> str:
+    """blank_is_none: a blank reference ('' or spaces) counts as no value, as SAP writes "none" (the SAP pack's joins)."""
     q, count = dialect.quote, dialect.count
     on = " AND ".join(f"s.{q(a)} = t.{q(b)}" for a, b in zip(source_cols, target_cols))
     has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
+    if blank_is_none:
+        has_value += "".join(f" AND LTRIM(RTRIM(s.{q(a)})) <> ''" for a in source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT"))
     first = q(target_cols[0])
     tcs = ", ".join(q(c) for c in target_cols)
     # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted
@@ -152,7 +155,8 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
         if budget <= 0:
             break
         budget -= 1
-        row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect))[0]
+        row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
+                                       blank_is_none=r.rule == "SAP pack"))[0]
         with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
         verdict = relationship_verdict(with_value, orphans)
         if r.target in unique and not unique[r.target]:

@@ -20,6 +20,31 @@ says. As in [LIVE-TEST.md](LIVE-TEST.md), the protocol of a run stays outside th
   says so (`client_dropped`).
 - **A deployed build** from main at or after round n31 (`curl -s https://krusgraph.com/healthz`).
 
+## 0. A synthetic run first (round n32)
+
+Before a real system, run the whole chain on synthetic SAP-shaped tables in the demo workspace. That shows the tools
+work on SAP-shaped data in Fabric: the prefix `sap_`, the client column, the extended relationships, the masking.
+It does **not** show that the pack is right about SAP, because the rows are written from the pack;
+`sap-verify --write` refuses to record such a run.
+
+1. On your machine: `fabric-backend sap-demo --out sap_demo` writes 17 CSV files, `_types.json` and
+   `load_sap_demo.py` (every value made up: "Demo Customer 10", e-mail at `example.invalid`).
+2. In Fabric: upload the files to `demo_lh` under `Files/sap_demo`, open `load_sap_demo.py` as a notebook attached to
+   `demo_lh`, run it. It writes `sap_t001`, `sap_kna1`, `sap_vbak` … as Delta tables (replacing tables of those names).
+3. In Claude, against `demo_lh` and the schema the tables landed in (`dbo` unless the lakehouse has schemas):
+
+| # | Question in Claude | Expected (the same as `tests/test_sap_demo.py` finds in SQLite) | Result | Date |
+| --- | --- | --- | --- | --- |
+| 0.1 | *"Which SAP tables does the SAP pack recognise in demo_lh?"* (`sap_pack_draft`) | 17 tables, from `sap_t001` to `sap_adr6`; keys with `MANDT` (`CLIENT` for `ADRC`, `ADR6`) | | |
+| 0.2 | *"Check the plan of demo_lh against the data, max_items 200."* (`validate_plan`) | 17 of 17 keys unique, 32 of 34 relationships hold without orphans; `sap_vbap` → `sap_vbak` has 1 orphan (the planted item of order 0000000009) | | |
+| 0.3 | (same answer) `amount_levels` | `sap_vbak.NETWR` over `sap_vbap` rows, up to 3 lines per order | | |
+| 0.4 | (same answer) `sap_kna1` → `sap_adrc` | 3 rows with a value, 0 orphans, 0 matching twice (version I and the expired period are left out) | | |
+| 0.5 | *"Show five rows of sap_adr6."* (`sample_rows`) | `SMTP_ADDR` shown as `***`, the reason naming the SAP pack | | |
+| 0.6 | `fabric-backend sap-verify validation.json --where "synthetic SAP demo" --when YYYY-MM-DD` | 32 verified, 1 review (`VBAP` → `VBAK`), 1 no evidence (`VBFA` → `VBAK`), 6 not checked; with `--write` it refuses | | |
+
+The counts assume the schema holds only these 17 tables; other tables in it add their own keys and relationships to the answer. They can also differ from SQLite in one way: Spark reads an empty CSV field as `NULL`, SQLite keeps `''`. The
+checks treat both as no value, so the expected numbers are the same.
+
 ## 1. What the pack recognises
 
 | # | Tool | Question in Claude | Expected | Result | Date |

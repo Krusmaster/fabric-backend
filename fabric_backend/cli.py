@@ -168,6 +168,16 @@ def cmd_sap_verify(a) -> int:
     return 0
 
 
+def cmd_sap_demo(a) -> int:
+    """Synthetic SAP-shaped tables as CSV files and the notebook that loads them into a lakehouse (run it yourself)."""
+    from . import sap_demo
+    for path in sap_demo.write_csv(a.out, a.prefix):
+        print("wrote", path)
+    print("Upload the folder's files to the lakehouse under Files/sap_demo, open load_sap_demo.py as a notebook attached "
+          "to that lakehouse, and run it. Every value is made up; see docs/LIVE-TEST-SAP.md, part 0.")
+    return 0
+
+
 def cmd_analyze(a) -> int:
     from .graphs import analyze
     p = plan(_source(a), _keys_arg(a.keys))
@@ -270,6 +280,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--when", required=True, help="the date of the run, YYYY-MM-DD")
     s.add_argument("--write", action="store_true", help="record the verified relationships in fabric_backend/packs/sap/*.json")
     s.set_defaults(fn=cmd_sap_verify)
+    s = sub.add_parser("sap-demo", help="write synthetic SAP-shaped tables as CSV files and a notebook to load them into Fabric")
+    s.add_argument("--out", default="sap_demo", help="the folder to write to")
+    s.add_argument("--prefix", default="sap_", help="table name prefix in the lakehouse (sap_vbak)")
+    s.set_defaults(fn=cmd_sap_demo)
     s = sub.add_parser("dbt"); s.add_argument("columns"); s.add_argument("--keys"); s.add_argument("--schema", default="dbo")
     s.add_argument("--source-name"); s.add_argument("--database"); s.add_argument("--legacy-arguments", action="store_true")
     s.add_argument("--out", default="schema.yml"); s.set_defaults(fn=cmd_dbt)

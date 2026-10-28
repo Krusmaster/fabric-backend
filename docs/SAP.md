@@ -207,7 +207,7 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | Krusmaster/sap-ontology README | the header/item pairs `VBAK` → `VBAP` → `VBEP` and their join keys | yes; used only where it agrees with SAP's documentation |
 
 Every claim in the files names its sources (`sources` per table, relationship and trap; `fetched` per source).
-**Verified against data: nothing yet.** The way to change that is [LIVE-TEST-SAP.md](LIVE-TEST-SAP.md) (round n31):
+**Verified against data: nothing yet.** The way to change that is [LIVE-TEST-SAP.md](LIVE-TEST-SAP.md) (round n31; part 0 runs the chain on synthetic SAP-shaped tables from `fabric-backend sap-demo` first, round n32, which shows the tools work but proves nothing about the pack):
 run `validate_plan` on SAP tables you may describe, save the answer, and `fabric-backend sap-verify` proposes a status
 per pack relationship (verified, review, no evidence, not checked); `--write` records each verified one in the pack
 file as `verified: [{where, when, rows_with_value}]`, with `where` describing the system without naming a company. All content is `status: documented`. It has been tested on a synthetic SAP

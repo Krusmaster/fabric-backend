@@ -378,6 +378,10 @@ def verification(validation: dict, where: str, when: str, pack: str = "sap") -> 
 def write_verified(report: dict, pack: str = "sap") -> list[str]:
     """Add {where, when, rows_with_value} to the `verified` list of every relationship the report proposes as verified,
     in the pack's own files (one line per relationship, as they are written). Returns what was changed."""
+    from .sap_demo import DEMO_WHERE
+    if DEMO_WHERE in report["where"].lower() or "synthetic" in report["where"].lower():
+        raise ValueError("a run on synthetic rows proves nothing about the pack (the rows are written from it); "
+                         "record only runs on a real SAP system you may describe")
     changed = []
     p = load(pack)
     by_module: dict[str, list[dict]] = {}

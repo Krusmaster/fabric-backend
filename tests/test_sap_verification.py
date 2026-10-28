@@ -61,11 +61,12 @@ def test_write_verified_records_where_and_when_in_a_copy(answer, tmp_path, monke
     monkeypatch.setattr(sap_pack, "PACKS", tmp_path / "packs")
     sap_pack._load.cache_clear()
     try:
-        report = sap_pack.verification(answer, "synthetic SQLite rows", "2026-10-28")
+        # the writer itself, on a copy of the files; a real entry describes a real system (synthetic ones are refused)
+        report = sap_pack.verification(answer, "test system (unit test)", "2026-10-28")
         changed = sap_pack.write_verified(report)
         assert sorted(changed) == ["order_to_cash: VBAK.MANDT+KUNNR -> KNA1", "order_to_cash: VBAP.MANDT+MATNR -> MARA"]
         r = next(r for r in sap_pack.load()["relationships"] if (r["source"], r["target"]) == ("VBAK", "KNA1"))
-        assert r["verified"] == [{"where": "synthetic SQLite rows", "when": "2026-10-28", "rows_with_value": 2}]
+        assert r["verified"] == [{"where": "test system (unit test)", "when": "2026-10-28", "rows_with_value": 2}]
         assert sap_pack.write_verified(report) == []                       # the same run twice is recorded once
         assert sap_pack.problems(sap_pack.load()) == []
         jsonschema = pytest.importorskip("jsonschema")
@@ -81,3 +82,8 @@ def test_the_command_prints_the_report(answer, tmp_path, capsys):
     path.write_text(json.dumps(answer), encoding="utf-8")
     assert cli.main(["sap-verify", str(path), "--where", "synthetic SQLite rows", "--when", "2026-10-28"]) == 0
     assert "| verified | VBAK.MANDT+KUNNR → KNA1 |" in capsys.readouterr().out
+
+
+def test_synthetic_runs_are_refused(answer):
+    with pytest.raises(ValueError, match="proves nothing"):
+        sap_pack.write_verified(sap_pack.verification(answer, "synthetic SQLite rows", "2026-10-28"))
