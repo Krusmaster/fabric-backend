@@ -43,7 +43,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 19 | `create_views` | *"Which views would create_views make in demo_lh, schema shop? Dry run."* | `vw_order_items`, `vw_orders`; with `ship_to_id` confirmed also a view named after the relationship's field (`vw_orders_ship_to` with the entry of section 3; 27 October showed `vw_orders_address`, the field name Claude passed) | 26, 27 Oct (dry run) | | |
 | 20 | `create_views` (create) | *"Create those views."* (only if a test schema `krusgraph` on `demo_lh` is wanted) | schema `krusgraph` and the views created; `list_tables` with schema `krusgraph` lists them | — | | |
 | 21 | `create_data_agent` | *"Draft a data agent over demo_lh, schema shop. Dry run."* | instructions, the source with the plan's tables, 10 example questions with T-SQL; no example selects or groups by `customers.name` (`customer_id` instead) and `personal_data.left_out` names it, unless `show_personal_data=true`; asked to create: `kind: consent` | 27 Oct (dry run; see section 2) | | |
-| 22 | `create_ontology` | *"Create the ontology shop_ontology. Dry run first."* | dry run: the parts and the call; create: `kind: consent` naming `Item.ReadWrite.All` | — | | |
+| 22 | `create_ontology` | *"Create the ontology shop_ontology. Dry run first."* | dry run: the parts and the call; create: `kind: feature_disabled` quoting `FeatureNotAvailable` while the ontology is off in the tenant (section 6), otherwise the item | 28 Oct (dry run; create: section 6) | | |
 | 23 | `app_starter` | *"Give me the starter pack for an app on shop_api."* | a Lovable prompt, five queries, the Supabase edge function | 26 Oct (prompt and queries), 27 Oct | | |
 | 24 | `app_readiness` | *"What does shop_api still need before an app can use it?"* | introspection on or off (one probe), the types without a key, permissions reported as unknown with the portal path | 27 Oct | | |
 | 25 | `analyze_schema` | *"Read demo_lh, schema shop, as a graph."* | 3 fact tables (orders, order_items, audit_log), 4 dimensions, 6 relationships active at once, no cycles | 26, 27 Oct | | |
@@ -147,6 +147,18 @@ while the server answered normally (a private computer worked).
 6. A client in section 4 that worked: name it where the site says the hosted service supports Claude (/docs *Connect*,
    /start, `llms.txt`), with the date.
 7. `python -m pytest -q`, push, and `bash deploy/krusgraph.sh --update`.
+
+## 6. Test history behind the status words
+
+What the site and the docs now give only as a status word, with the run behind it.
+
+- **`create_ontology`, 28 October 2026.** Run live against the demo workspace with `dry_run=false`, after the Entra app
+  got `Item.ReadWrite.All`. The dry run ran without errors. The create was stopped by HTTP 403: first read as
+  `kind: consent`, then, once round n33 quoted Fabric's own answer, as `errorCode` `FeatureNotAvailable`. The cause is
+  known: the ontology (preview) is turned off in that tenant's settings, so nothing was created. The site says "draft;
+  deployment not yet verified" next to the offer; the tool table in the docs gives the long form from
+  `fabric_backend/tool_status.py`. To run row 22 again, a Fabric administrator enables the ontology item in the admin
+  portal's tenant settings first (`deploy/SUBMISSION.md`).
 
 ## Databricks
 

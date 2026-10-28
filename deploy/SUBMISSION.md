@@ -25,8 +25,9 @@ Anthropic says so. No password, secret or workspace id belongs here.
 
 1. Deploy (`--update`) so krusgraph.com serves round n33: the 403 answers with Fabric's `errorCode`, the new status lines.
 2. Run `deploy/krusgraph.sh --check`: it now expects the three Fabric permissions added on 28 October.
-3. `create_ontology`: in the Fabric admin portal, Tenant settings, check that the ontology item (preview) is enabled for
-   the tenant or a group the account is in; then run it again with `dry_run=false` and read the `fabric_error_code`.
+3. `create_ontology`: in the Fabric admin portal, Tenant settings, enable the ontology item (preview) for
+   the tenant or a group the account is in: Fabric answered `FeatureNotAvailable` on 28 October 2026; then run it again
+   with `dry_run=false` and read the `fabric_error_code`.
 4. Run `silver_shop`, `gold_shop` and `drift_shop_nightly` once in Fabric, or say in the portal that they were created
    but not run.
 5. Decide on `DataPipeline.Execute.All` for the drift monitor's schedule (an execute permission), or keep `schedule=false`.
@@ -122,7 +123,7 @@ Source: https://claude.com/docs/connectors/building/submission ("Submit a connec
 | Remote, reachable over HTTPS | `https://krusgraph.com/mcp` |
 | "OAuth 2.0 for authenticated services"; Anthropic can hold the OAuth client | Entra ID, Anthropic-held client credentials (answer 6) |
 | "every tool includes a `title` and the applicable `readOnlyHint` or `destructiveHint`" | all 36; `tests/test_submission.py` |
-| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; `sap_pack_draft` and the four other creating tools on 28 Oct 2026 (step 5); `create_ontology` stopped by HTTP 403 when creating — say so in the portal |
+| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; `sap_pack_draft` and the four other creating tools on 28 Oct 2026 (step 5); `create_ontology` stopped by HTTP 403 `FeatureNotAvailable` when creating (the ontology is off in the tenant's settings) — say so in the portal |
 | Documentation, privacy policy URL, support contact, icon | /docs, /privacy, hello@krusgraph.com, /favicon.ico |
 | Test account for reviewers, entered in the portal | step 6 |
 | Seven compliance acknowledgements | answer 9 |
