@@ -54,6 +54,7 @@ SQL_SCOPE = "https://database.windows.net/.default"
 
 from .discovery import package_version as _package_version  # noqa: E402
 from . import tool_status as _tool_status  # noqa: E402
+from . import tool_params as _p  # noqa: E402
 
 mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -305,17 +306,18 @@ mcp.tool = _titled_tool(mcp.tool)
 @mcp.tool(title="List workspaces", annotations=RO)
 @safe
 def list_workspaces(ctx: Context = None) -> str:
-    """The Fabric workspaces the signed-in account can see, with id, name and capacity. The id or the name
-    identifies the workspace in every tool."""
+    """Lists the Fabric workspaces the signed-in account can see. Takes no arguments. Returns JSON {workspaces: [{id, name,
+    capacity}]}; the name or id is the `workspace` of the other tools. Read-only. Errors: {error, kind, hint}."""
     return json.dumps({"workspaces": _workspaces(_headers(ctx))}, indent=2)
 
 
 @mcp.tool(title="List data sources in a workspace", annotations=RO)
 @safe
-def list_sources(workspace: str, ctx: Context = None) -> str:
-    """Lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases (Snowflake, Azure SQL, Cosmos DB,
-    SAP, ...), mirrored Databricks catalogs and mirrored catalogs in a Fabric workspace (id or name), plus existing API
-    for GraphQL items. The display name or id identifies the `source`."""
+def list_sources(workspace: _p.Workspace, ctx: Context = None) -> str:
+    """Lists the data sources in one workspace (lakehouses, warehouses, SQL databases, mirrored databases and catalogs) and
+    its API for GraphQL items. Requires a workspace. Returns JSON {workspace, sources: [{name, id, type}],
+    graphql_apis: [{name, id}]}; a source's name is the `source`, an API's name the `api` of the other tools.
+    Read-only. Errors: {error, kind, hint}."""
     import requests
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
@@ -336,11 +338,11 @@ def list_sources(workspace: str, ctx: Context = None) -> str:
 
 @mcp.tool(title="List tables and columns", annotations=RO)
 @safe
-def list_tables(workspace: str, source: str, schema: str = "dbo", tables: list[str] | None = None, detail: str = "auto",
+def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                 ctx: Context = None) -> str:
-    """Tables and columns (with types) in one schema of a source. Read-only. `tables` narrows the answer to names or
-    patterns (["sales_*"]); `detail` is "auto" (full up to 60 tables, then a summary with the column count per table),
-    "full" or "summary"."""
+    """Lists the tables and their columns with types in one schema of a source. Requires workspace and source. Returns JSON
+    with columns and types per table, or a column count per table when the answer is a summary. Read-only. Errors:
+    {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, None, None, ctx)
     keep = _compact.match_tables(p.schema, tables)
     if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
@@ -350,16 +352,13 @@ def list_tables(workspace: str, source: str, schema: str = "dbo", tables: list[s
 
 @mcp.tool(title="Plan keys and relationships (nothing deployed)", annotations=RO)
 @safe
-def plan_backend(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                 confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto",
-                 mermaid: bool = True, ctx: Context = None) -> str:
-    """Infer keys and relationships for the source's tables. Returns the summary, each relationship with the rule
-    that produced it (K0–K5 / R0–R4), ambiguous columns to confirm, keyless tables, names read through the synonym
-    table, and a Mermaid ER diagram. Pass `keys` for composite keys ({"order_items": ["order_id","line_no"]}) and
-    `confirmed` for relationships the rules missed. `tables` narrows the answer to names or patterns (["sales_*"]);
-    the plan is still made from the whole schema. `detail` is "auto" (full up to 60 tables, then one line per key
-    and relationship without field names or diagram), "full" or "summary"; mermaid=false leaves the diagram out of a
-    full answer. Deploys nothing."""
+def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                 confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
+                 mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
+    """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
+    source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R4), ambiguous
+    columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Changes nothing in Fabric.
+    validate_plan checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
@@ -392,12 +391,12 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 
 @mcp.tool(title="Check the plan against the data", annotations=RO)
 @safe
-def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                  confirmed: list[dict] | None = None, max_items: int = 60, ctx: Context = None) -> str:
-    """Check the plan's keys and relationships against the rows, read-only: is each key unique and free of NULLs,
-    and does every reference find its target (orphan count)? Returns counts and a verdict per key and relationship.
-    It turns name-based suggestions into evidence. Takes the same keys/confirmed as
-    plan_backend; runs one small counting query per key and per relationship (max_items caps the total)."""
+def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                  confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, ctx: Context = None) -> str:
+    """Checks the plan against the rows: is each key unique and non-null, and how many references find no target (orphans).
+    Requires workspace and source; takes the same keys and confirmed as plan_backend. Returns JSON with counts and a
+    verdict per key and relationship (no row values). Read-only counting queries. create_backend does not run this
+    check. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
     try:
@@ -417,18 +416,13 @@ def validate_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[s
 
 @mcp.tool(title="Keep the reviewed plan as a file (nothing in Fabric changes)", annotations=RO)
 @safe
-def review_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                confirmed: list[dict] | None = None, decisions: list[dict] | None = None, previous: dict | str | None = None,
-                validate: bool = False, tables: list[str] | None = None, max_items: int = 60, ctx: Context = None) -> str:
-    """The plan with the decisions made about it and its checks, as one JSON file to keep in your own repository,
-    plus a short Markdown report and what needs attention first. Each key and relationship has a review status
-    (proposed, accepted, rejected or open, with a reason, set through `decisions`: [{"item": "rel:orders.ship_to_id>addresses",
-    "review": "accepted", "reason": "..."}]) and, separately, a check status (not_checked, passed, failed, stale).
-    Keys given in `keys` and relationships added in `confirmed` count as accepted. validate=true runs validate_plan's
-    counting queries and records the counts with the time. `previous` takes an earlier file from this tool: its
-    corrections are applied again, what changed in the schema is listed, and a check on a table that changed since
-    becomes stale instead of being kept. `tables` limits the file to some tables and the relationships that touch
-    them. The file holds names, types, rules, decisions and counts, never row values or credentials. Creates nothing."""
+def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                confirmed: _p.Confirmed = None, decisions: _p.Decisions = None, previous: _p.Previous = None,
+                validate: _p.Validate = False, tables: _p.TablesShown = None, max_items: _p.MaxItems = 60, ctx: Context = None) -> str:
+    """Builds a review file of the plan: each key and relationship with a review status (proposed, accepted, rejected,
+    open) and a check status (not_checked, passed, failed, stale), plus a short Markdown report. Requires workspace
+    and source. Returns JSON with the file, the report and what needs attention first, no row values. Changes
+    nothing in Fabric. Errors: {error, kind, hint}."""
     from datetime import datetime, timezone
     from . import review as _review
     prev = _review.read(previous) if previous else None
@@ -448,13 +442,11 @@ def review_plan(workspace: str, source: str, schema: str = "dbo", keys: dict[str
 
 @mcp.tool(title="Show a few rows of a table", annotations=RO)
 @safe
-def sample_rows(workspace: str, source: str, table: str, schema: str = "dbo", n: int = 10, show_personal_data: bool = False,
+def sample_rows(workspace: _p.Workspace, source: _p.Source, table: _p.SampleTable, schema: _p.Schema = "dbo", n: _p.SampleN = 10, show_personal_data: _p.ShowPersonalData = False,
                 ctx: Context = None) -> str:
-    """The first n rows (at most 20) of one table, read-only, so the meaning of columns can be checked before
-    deciding on keys or relationships. Long text values are shortened. Columns whose name looks like personal data
-    (names, e-mail, phone, national id, address, birth date; one rule per pattern) come back masked, with the rule
-    and a notice; show_personal_data=true returns them as they are. The source's sensitivity label is named when
-    Fabric returns one."""
+    """Returns the first rows of one table so that a column's meaning can be checked. Requires workspace, source and table.
+    Returns JSON {table, columns, rows, personal_data}; long text is shortened, and columns that look like personal
+    data are masked unless show_personal_data=true. Read-only. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
     try:
@@ -494,16 +486,16 @@ def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show
 @mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True,
                                                                                idempotent_hint=True, open_world_hint=True))
 @safe
-def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
-                   keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                   tables: list[str] | None = None, allow_removals: bool = False, ctx: Context = None) -> str:
-    """Create a Fabric API for GraphQL item over the source's tables with the inferred relationships — or update
-    the item of that name in place. Creates one item; never deletes an item. When an API of that name exists, the
-    field names it has for the same relationships (the same columns in the same direction) are kept unless `confirmed`
-    names them otherwise; when the update would still drop relationships it has (often ones confirmed earlier),
-    nothing is written: the answer lists them with ready `confirmed` entries (field_name and reverse_name included);
-    pass those to keep them, or allow_removals=true to drop them on purpose.
-    Returns the endpoint URL and the portal steps that remain (introspection, service principal permission)."""
+def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendName, schema: _p.Schema = "dbo", writable: _p.Writable = False,
+                   keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                   tables: _p.CreateBackendTables = None, allow_removals: _p.AllowRemovals = False, ctx: Context = None) -> str:
+    """Creates a Fabric API for GraphQL item over the source's tables with the plan's keys and relationships, or updates
+    the API of that name in place. Requires workspace, source and name. Returns JSON {summary, result, card
+    (endpoint, portal steps left), skipped_relationships}. Changes Fabric: an update replaces the API's definition;
+    tables outside `tables` or gone from the source leave it, field names of unchanged relationships are kept, and
+    no item is deleted. When an update would drop relationships the API has, nothing is written and the answer (kind
+    would_remove) lists them as confirmed entries. No dry run, and it does not run validate_plan; plan_backend
+    proposes, validate_plan checks, plan_drift previews an update. Errors: {error, kind, hint}."""
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
@@ -563,11 +555,12 @@ def _relationships_lost(found, name, p, source_id, source_type, writable, tables
 
 @mcp.tool(title="Generate Rayfin connector entities", annotations=RO)
 @safe
-def rayfin_connector(workspace: str, source: str, connector: str = "data", schema: str = "dbo",
-                     keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                     tables: list[str] | None = None, relationships: bool = True, ctx: Context = None) -> str:
-    """Rayfin (Fabric Apps) connector entity classes + schema.ts for the source's tables, with inferred keys and
-    @one/@many relationships (sourceFields/targetFields spelled out). Returns {path: content}; nothing is deployed."""
+def rayfin_connector(workspace: _p.Workspace, source: _p.Source, connector: _p.Connector = "data", schema: _p.Schema = "dbo",
+                     keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                     tables: _p.TablesOnly = None, relationships: _p.RayfinRelationships = True, ctx: Context = None) -> str:
+    """Generates Rayfin (Fabric Apps) connector entity files and schema.ts from the plan, with keys and @one/@many
+    relationships. Requires workspace and source. Returns JSON {path: file content}. Changes nothing in Fabric.
+    Errors: {error, kind, hint}."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     st = {"Lakehouse": "SqlAnalyticsEndpoint", **{k: "SqlAnalyticsEndpoint" for k in ENDPOINT_ITEM_ROUTES}, "Warehouse": "Warehouse",
@@ -594,12 +587,12 @@ def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
 
 @mcp.tool(title="Draft a Fabric IQ ontology from the plan (nothing deployed)", annotations=RO)
 @safe
-def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                   confirmed: list[dict] | None = None, tables: list[str] | None = None, ctx: Context = None) -> str:
-    """The inferred entity types, keys and relationships as a Fabric IQ ontology (preview) draft: a summary with the
-    rule behind every key and link, the binding checklist, a Turtle file the portal's Import ontology accepts, and the
-    generation-2 item definition (TMDL parts) ready for POST /ontologies or Git. Deploys nothing. `tables` keeps
-    it small; the definition is the same information as plan_backend, in Fabric IQ's shape."""
+def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyDraftName = "ontology", schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                   confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, ctx: Context = None) -> str:
+    """Drafts a Fabric IQ ontology (preview) from the plan: entity types with keys, relationship types and bindings.
+    Requires workspace and source. Returns JSON with a summary (the rule behind each key and link), the binding
+    checklist, a Turtle file for Import ontology and the item definition parts. Changes nothing; create_ontology
+    creates the item. Errors: {error, kind, hint}."""
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
@@ -630,15 +623,14 @@ def ontology_draft(workspace: str, source: str, name: str = "ontology", schema: 
 
 @mcp.tool(title="Create or update a Fabric IQ ontology from the plan (dry run by default)", annotations=WRITE)
 @safe
-def create_ontology(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                    confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
+def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.OntologyName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                    confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
                     ctx: Context = None) -> str:
-    """Create the Fabric IQ ontology (preview) item from the plan, or update the item of that name in place; never
-    deletes. dry_run=true (the default) returns the definition parts and the REST call without creating anything.
-    POST /workspaces/{id}/ontologies and .../updateDefinition need the delegated permission Item.ReadWrite.All and
-    Contributor on the workspace, and the workspace must be on a Fabric capacity (fabric-rest-api-specs,
-    ontology/swagger.json). Entity types with keys and properties, relationship types and the bindings come from the
-    same plan as the GraphQL API, the semantic model, the views and the data agent."""
+    """Creates a Fabric IQ ontology (preview) item from the plan, or updates the item of that name in place. Requires
+    workspace, source and name; the delegated permission Item.ReadWrite.All, Contributor on the workspace and a
+    Fabric capacity. Returns JSON with the definition parts and the REST call; with dry_run=false also the result,
+    or kind consent when the permission is missing. Changes Fabric only with dry_run=false: an update replaces the
+    item's definition, so entity types not in the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
@@ -679,15 +671,14 @@ def _api_id(workspace: str, api: str, headers: dict) -> str | None:
 
 @mcp.tool(title="Draft a Power BI semantic model (TMDL, nothing created)", annotations=RO)
 @safe
-def semantic_model_draft(workspace: str, source: str, name: str = "semantic_model", schema: str = "dbo",
-                         keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                         tables: list[str] | None = None, ctx: Context = None) -> str:
-    """The plan as a Power BI semantic model in TMDL: one table per source table in Direct Lake mode on the source's
-    SQL analytics endpoint, relationships with cardinality and filter direction (one active path per table pair, the
-    rest inactive with the reason), keyless tables without relationships into them. Returns {path: content} for the
-    definition/ folder plus README.generated.md listing every decision to check. `tables` takes names or patterns
-    (["sales_*"]); on a large schema the table files are left out of the answer and `tables` gets them a few at a
-    time. Creates nothing in Fabric."""
+def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ModelDraftName = "semantic_model", schema: _p.Schema = "dbo",
+                         keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+                         tables: _p.TablesShown = None, ctx: Context = None) -> str:
+    """Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):
+    relationships with cardinality and filter direction, one active path per table pair. Requires workspace and
+    source. Returns JSON {path: content} for the definition folder plus README.generated.md listing the decisions to
+    check. Changes nothing; create_semantic_model creates the item, compare_semantic_model checks an existing model.
+    Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
@@ -722,18 +713,14 @@ MODEL_READ_SPEC = ("fabric-rest-api-specs a96c37a semanticModel/swagger.json, It
 
 @mcp.tool(title="Compare an existing Power BI semantic model with the plan", annotations=RO)
 @safe
-def compare_semantic_model(workspace: str, source: str, model: str = "", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                           confirmed: list[dict] | None = None, check_data: bool = False, max_items: int = 60,
-                           tmdl: dict[str, str] | None = None, ctx: Context = None) -> str:
-    """An existing semantic model in the workspace (name or id) against the plan for the source it reads: the
-    relationships the model lacks, the ones a rule of the plan or the data contradicts (with that rule or count), other
-    cardinality, filters in both directions, active where the plan says inactive or the reverse, and links the plan does
-    not have (with a ready `confirmed` entry); also tables and columns that no longer match, columns summed that the
-    plan would not sum, and the suggested measures the model lacks. The model is read through Fabric's getDefinition
-    (TMDL), which needs SemanticModel.ReadWrite.All or Item.ReadWrite.All and write permission on the model; `tmdl`
-    ({path: text} of the model's definition files, as in a PBIP folder or Git) is read instead and needs no
-    permission. check_data=true counts the plan's keys and relationships and the model's extra links against the rows
-    (max_items caps the queries). Changes nothing."""
+def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p.CompareModel = "", schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                           confirmed: _p.Confirmed = None, check_data: _p.CheckData = False, max_items: _p.MaxItems = 60,
+                           tmdl: _p.Tmdl = None, ctx: Context = None) -> str:
+    """Compares an existing Power BI semantic model with the plan: missing, contradicted and extra relationships,
+    cardinality, filter direction, active or inactive, stale tables and columns, and suggested measures. Requires
+    workspace, source and model or tmdl; reading the model needs SemanticModel.ReadWrite.All or Item.ReadWrite.All,
+    tmdl needs no permission. Returns JSON with the differences and confirmed entries for extra links. Changes
+    nothing. Errors: {error, kind, hint}."""
     from . import model_compare as _mc
     if not model and not tmdl:
         return json.dumps({"error": "Name the semantic model (`model`, its name or id), or pass its definition files as `tmdl`.",
@@ -801,27 +788,25 @@ def compare_semantic_model(workspace: str, source: str, model: str = "", schema:
 
 @mcp.tool(title="Shortest join path between two tables", annotations=RO)
 @safe
-def join_path(workspace: str, source: str, start: str, end: str, schema: str = "dbo",
-              keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, ctx: Context = None) -> str:
-    """How two tables connect through the plan's relationships: the shortest chain of hops with the rule per step and
-    a ready T-SQL SELECT … JOIN … with quoted identifiers (equally short paths are all listed). When no path exists it
-    says so and suggests which relationship is missing, as a `confirmed` entry. Reads metadata only."""
+def join_path(workspace: _p.Workspace, source: _p.Source, start: _p.Start, end: _p.End, schema: _p.Schema = "dbo",
+              keys: _p.Keys = None, confirmed: _p.Confirmed = None, ctx: Context = None) -> str:
+    """Finds the shortest chain of relationships between two tables. Requires workspace, source, start and end. Returns
+    JSON with each hop and its rule, every equally short path and a T-SQL SELECT … JOIN; without a path, the missing
+    relationship as a confirmed entry. Metadata only; changes nothing. answer_query_draft drafts a query for a whole
+    question. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     return json.dumps(_paths.join_path(p, start, end), indent=2)
 
 
 @mcp.tool(title="Analyse the schema as a graph (roles, centrality, areas, ambiguity)", annotations=RO)
 @safe
-def analyze_schema(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                   confirmed: list[dict] | None = None, tables: list[str] | None = None, detail: str = "auto",
+def analyze_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                   confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                    ctx: Context = None) -> str:
-    """The plan as a graph, from metadata only (no data queries): each table's role (fact, dimension, bridge,
-    isolated) with the numbers behind it, the ten most central tables (in/out degree, betweenness, PageRank),
-    subject areas, cycles and table pairs with more than one path (where a Power BI model gets ambiguous filter
-    paths), and the relationships that can be active at once in a semantic model with the rest explained as inactive.
-    Useful on a lakehouse nobody has documented. `tables` narrows the answer to names or patterns; `detail` is
-    "auto" (full up to 60 tables, then tables grouped by role, the central tables, areas by size and counts), "full"
-    or "summary"."""
+    """Reads the plan as a graph: each table's role (fact, dimension, bridge, isolated), the most central tables, subject
+    areas, cycles, table pairs with more than one path, and which relationships can be active together. Requires
+    workspace and source. Returns JSON. Metadata only, no data queries; changes nothing. Errors: {error, kind,
+    hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     out = _graphs.analyze(p)
@@ -833,12 +818,12 @@ def analyze_schema(workspace: str, source: str, schema: str = "dbo", keys: dict[
 
 @mcp.tool(title="Suggest missing relationships, checked against the data", annotations=RO)
 @safe
-def suggest_relationships(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                          confirmed: list[dict] | None = None, check: int = 15, ctx: Context = None) -> str:
-    """Columns that could point at another table's key but are in no relationship, ranked by name similarity, type
-    and triangular closure, then the best `check` (default 15) counted against the data: the share of the column's
-    values that exist in the target key and how many distinct values it has. Suggestions only — nothing is applied;
-    each one carries a ready `confirmed` entry for plan_backend or create_backend. Read-only counting queries."""
+def suggest_relationships(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                          confirmed: _p.Confirmed = None, check: _p.Check = 15, ctx: Context = None) -> str:
+    """Finds columns that look like references to another table's key but are in no relationship, ranks them and counts the
+    best against the data (share of values found, distinct values). Requires workspace and source. Returns JSON
+    candidates, each with a confirmed entry for plan_backend or create_backend. Read-only counting queries; applies
+    nothing. Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = make_plan(s, keys, confirmed)
@@ -851,14 +836,12 @@ def suggest_relationships(workspace: str, source: str, schema: str = "dbo", keys
 
 @mcp.tool(title="Data dictionary in Markdown", annotations=RO)
 @safe
-def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                    confirmed: list[dict] | None = None, validate: bool = False, max_items: int = 60,
-                    tables: list[str] | None = None, ctx: Context = None) -> str:
-    """Hand-over documentation for the source: every table with columns and types, keys and relationships with their
-    rules, keyless tables, ambiguous columns and the ER diagram, with an empty Description column to fill in. With
-    validate=true the counts from validate_plan (key uniqueness, orphans) are included. `tables` takes names or
-    patterns (["sales_*"]) for one part of a large schema at a time, with the roles and subject areas of the whole
-    schema; an answer over 60 000 characters is cut on a line and says so. Returns Markdown."""
+def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                    confirmed: _p.Confirmed = None, validate: _p.Validate = False, max_items: _p.MaxItems = 60,
+                    tables: _p.TablesShown = None, ctx: Context = None) -> str:
+    """Writes hand-over documentation: tables, columns and types, keys and relationships with their rules, keyless tables,
+    ambiguous columns, the ER diagram and an empty Description column. Requires workspace and source. Returns
+    Markdown text, cut on a line above 60 000 characters. Changes nothing. Errors: {error, kind, hint}."""
     if validate:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
@@ -876,14 +859,12 @@ def data_dictionary(workspace: str, source: str, schema: str = "dbo", keys: dict
 
 @mcp.tool(title="dbt schema.yml with source tests", annotations=RO)
 @safe
-def dbt_schema(workspace: str, source: str, schema: str = "dbo", source_name: str | None = None,
-               keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-               tables: list[str] | None = None, arguments_block: bool = True, ctx: Context = None) -> str:
-    """A dbt sources file for the schema: `unique` and `not_null` on every inferred key column and `relationships`
-    on every single-column relationship, in the syntax the dbt documentation gives (test arguments under
-    `arguments:`; arguments_block=false writes them top-level for dbt before 1.10.5). Composite keys and
-    composite-column relationships are noted as comments. `tables` takes names or patterns (["sales_*"]); an
-    answer over 60 000 characters is cut on a line and says so. Returns the YAML text."""
+def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", source_name: _p.SourceName = None,
+               keys: _p.Keys = None, confirmed: _p.Confirmed = None,
+               tables: _p.TablesShown = None, arguments_block: _p.ArgumentsBlock = True, ctx: Context = None) -> str:
+    """Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,
+    composite ones as comments. Requires workspace and source. Returns YAML text, cut above 60 000 characters.
+    Changes nothing. Errors: {error, kind, hint}."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
@@ -895,36 +876,27 @@ def dbt_schema(workspace: str, source: str, schema: str = "dbo", source_name: st
 
 @mcp.tool(title="Show which SAP tables and relationships the SAP pack recognises (nothing created)", annotations=RO)
 @safe
-def sap_pack_draft(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                   confirmed: list[dict] | None = None, variant: str | None = None, export: str = "none",
+def sap_pack_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.SapSchema = "dbo", keys: _p.SapKeys = None,
+                   confirmed: _p.SapConfirmed = None, variant: _p.SapVariant = None, export: _p.SapExport = "none",
                    ctx: Context = None) -> str:
-    """Which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1… with or without a prefix such
-    as sap_), their keys with MANDT, the order-to-cash relationships the pack applies with the public source of each,
-    the ones it lists but does not apply (VBFA is many-to-many), the pack tables and columns that are missing, and the
-    traps (client, header vs item amounts, currency per document, leading zeros, partner functions). Read-only.
-
-    Args:
-        workspace: workspace name or id.
-        source: lakehouse, warehouse or mirrored database name or id.
-        schema: the schema that holds the SAP tables, as the mirroring or pipeline named it.
-        keys: the same key overrides as plan_backend; they win over the pack.
-        confirmed: the same confirmed relationships as plan_backend; they win over the pack.
-        variant: "ecc" or "s4hana" to consider only that variant's tables; omitted, the tables present decide.
-        export: "none", or one export of the plan: "krusgraph" (keys/confirmed), "dab" (Data API builder config),
-            "extraction" (tables, keys and delta columns, with open-mirroring keyColumns) or "dbt" (sources with tests).
-    """
+    """Shows which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1…, with or without a
+    prefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of
+    each, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header
+    vs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with
+    the chosen export when export is not "none". Read-only; changes nothing. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     return _bounded(_sap_pack.draft(p, source_name=schema, export=export, variant=variant), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
 @mcp.tool(title="Compare today's plan with an existing GraphQL API", annotations=RO)
 @safe
-def plan_drift(workspace: str, source: str, api: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-               confirmed: list[dict] | None = None, tables: list[str] | None = None, writable: bool = False,
+def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+               confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, writable: _p.DriftWritable = False,
                ctx: Context = None) -> str:
-    """Today's plan against the definition of an existing API for GraphQL item (name or id): new tables and
-    columns, columns the API still maps that the source no longer has, relationships the plan no longer supports,
-    and whether a create_backend with the same name would change anything. Changes nothing."""
+    """Compares today's plan with an existing API for GraphQL item: new tables and columns, mapped columns the source no
+    longer has, relationships the plan no longer supports, and whether create_backend with that name would change
+    anything. Requires workspace, source and api. Returns JSON. Changes nothing; lineage shows what else builds on
+    the tables. Errors: {error, kind, hint}."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     workspace_id = _workspace_id(workspace, headers)
@@ -980,14 +952,14 @@ def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:
 
 @mcp.tool(title="Create or update a Power BI semantic model (dry run by default)", annotations=WRITE)
 @safe
-def create_semantic_model(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                          confirmed: list[dict] | None = None, tables: list[str] | None = None, dry_run: bool = True,
+def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                          confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, dry_run: _p.DryRun = True,
                           ctx: Context = None) -> str:
-    """Create a Fabric SemanticModel item from the TMDL draft (Direct Lake on the source's SQL analytics endpoint), or
-    update the item of that name in place; never deletes. dry_run=true (the default) returns exactly what would be
-    sent — the parts and the REST call — without creating anything. Needs the delegated permission
-    SemanticModel.ReadWrite.All or Item.ReadWrite.All and Contributor on the workspace. After creation the model may
-    need a first refresh (framing) and, in the portal, a connection/credential for the endpoint."""
+    """Creates a Fabric semantic model item from semantic_model_draft's TMDL (Direct Lake), or updates the item of that
+    name in place. Requires workspace, source and name; SemanticModel.ReadWrite.All or Item.ReadWrite.All and
+    Contributor on the workspace. Returns JSON with the parts and the REST call; with dry_run=false also the result,
+    or kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,
+    relationships and measures added outside the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     draft = _semantic_model.draft(p, info, name, tables)
@@ -1016,15 +988,14 @@ def create_semantic_model(workspace: str, source: str, name: str, schema: str = 
 
 @mcp.tool(title="Create or alter T-SQL views in a schema of their own (dry run by default)", annotations=WRITE)
 @safe
-def create_views(workspace: str, source: str, schema: str = "dbo", views_schema: str = "krusgraph",
-                 keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, dry_run: bool = True,
+def create_views(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", views_schema: _p.ViewsSchema = "krusgraph",
+                 keys: _p.Keys = None, confirmed: _p.Confirmed = None, dry_run: _p.DryRun = True,
                  ctx: Context = None) -> str:
-    """Wide views over the plan in the source's SQL analytics endpoint or warehouse, only inside `views_schema`
-    (created if missing): one per fact table with its dimensions joined in, one per header table (vw_orders: the
-    orders with their customer and, once confirmed, the ship-to address), plus one per relationship that is hard to
-    read from the names. CREATE OR ALTER VIEW only — never DROP, never anything outside that schema; identifiers
-    come from the source's metadata. dry_run=true returns the SQL. Needs rights to create objects on the endpoint
-    (Contributor on the workspace is enough for a warehouse or a lakehouse's endpoint)."""
+    """Creates or alters wide T-SQL views over the plan on the source's SQL analytics endpoint or warehouse: one per fact
+    table with its dimensions, one per header table. Requires workspace and source; rights to create objects
+    (Contributor is enough). Returns JSON with the SQL; with dry_run=false also what ran. Changes Fabric only with
+    dry_run=false and only in views_schema: CREATE OR ALTER replaces views of the same name; nothing is dropped.
+    Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = make_plan(s, keys, confirmed)
@@ -1054,16 +1025,14 @@ def create_views(workspace: str, source: str, schema: str = "dbo", views_schema:
 
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
-def create_data_agent(workspace: str, source: str, name: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                      confirmed: list[dict] | None = None, publish: bool = True, show_personal_data: bool = False,
-                      dry_run: bool = True, ctx: Context = None) -> str:
-    """A Fabric data agent over the source: the plan (tables, keys, relationships with rules, join paths) as its
-    instructions, the source as its data source with the plan's tables selected, and 5–10 example question/T-SQL
-    pairs, then published. Created through the public staging REST API; re-running updates the same agent, data
-    source and examples in place and deletes nothing. dry_run=true returns the instructions, examples and REST calls
-    to review. Columns that look like personal data by name are left out of the instructions and the examples (the
-    key stands in) unless show_personal_data=true. Needs the delegated permission Item.ReadWrite.All (or
-    DataAgent.ReadWrite.All for the staging calls)."""
+def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                      confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
+                      dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+    """Creates a Fabric data agent over the source, with the plan as its instructions, the plan's tables selected and 5–10
+    example question/T-SQL pairs, or updates the agent of that name in place. Requires workspace, source and name;
+    Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON with the instructions, examples and REST calls; with
+    dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data
+    source and examples are replaced; nothing is deleted. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     spec = _data_agent.draft(p, info, name, schema, show_personal_data)
@@ -1144,17 +1113,14 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
 
 @mcp.tool(title="Draft a PySpark notebook that builds silver tables (nothing created)", annotations=RO)
 @safe
-def silver_notebook_draft(workspace: str, source: str, schema: str = "dbo", silver_schema: str = "silver",
-                          order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
-                          confirmed: list[dict] | None = None, tables: list[str] | None = None, show_personal_data: bool = False,
+def silver_notebook_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver",
+                          order_by: _p.OrderBy = None, keys: _p.Keys = None,
+                          confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
                           ctx: Context = None) -> str:
-    """A Fabric notebook (PySpark) that builds clean silver tables from a lakehouse's tables, generated from the plan:
-    per table it de-duplicates on the inferred or given key (the latest row by `order_by` {table: column} wins, else a
-    column named like updated_at), checks every relationship and puts rows whose reference is missing in the
-    quarantine table krusgraph_quarantine with the reason, and writes Delta tables in `silver_schema` only. Every step
-    is commented with the rule (K0–K5, R0–R4) behind it; re-running it rewrites the same tables. Rows kept in quarantine
-    have their personal-data columns (by name) masked unless show_personal_data=true. Returns the steps and the notebook
-    source; creates nothing."""
+    """Drafts a PySpark notebook that writes de-duplicated silver Delta tables from a lakehouse: one row per key, every
+    relationship checked, rows with a missing reference put in krusgraph_quarantine. Requires workspace and a
+    lakehouse source. Returns JSON with the steps (each with its rule) and the notebook source. Changes nothing;
+    create_silver_notebook creates the item. Errors: {error, kind, hint}."""
     p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
     if refusal:
         return refusal
@@ -1163,15 +1129,15 @@ def silver_notebook_draft(workspace: str, source: str, schema: str = "dbo", silv
 
 @mcp.tool(title="Create or update the silver-tables notebook in Fabric (dry run by default)", annotations=WRITE)
 @safe
-def create_silver_notebook(workspace: str, source: str, name: str, schema: str = "dbo", silver_schema: str = "silver",
-                           order_by: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
-                           confirmed: list[dict] | None = None, tables: list[str] | None = None, show_personal_data: bool = False,
-                           dry_run: bool = True, ctx: Context = None) -> str:
-    """Create a Fabric notebook item with the silver_notebook_draft notebook, attached to the source lakehouse, or update
-    the notebook of that name in place; never deletes, and creating it runs nothing (the notebook runs when someone
-    runs it in Fabric). dry_run=true (the default) returns the notebook and the REST call without creating anything.
-    POST /workspaces/{id}/notebooks and .../updateDefinition need the delegated permission Notebook.ReadWrite.All or
-    Item.ReadWrite.All and Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json)."""
+def create_silver_notebook(workspace: _p.Workspace, source: _p.Source, name: _p.SilverName, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver",
+                           order_by: _p.OrderBy = None, keys: _p.Keys = None,
+                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
+                           dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+    """Creates a Fabric notebook item with silver_notebook_draft's notebook, attached to the lakehouse, or updates the
+    notebook of that name in place. Requires workspace, a lakehouse source and name; Notebook.ReadWrite.All or
+    Item.ReadWrite.All and Contributor. Returns JSON with the notebook and the REST call; with dry_run=false also
+    the result, or kind consent. Changes Fabric only with dry_run=false: the notebook's content is replaced, no item
+    is deleted, and nothing runs; when run, it writes only in silver_schema. Errors: {error, kind, hint}."""
     from . import notebook as _notebook
     from .deploy import create_item_with_definition
     p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
@@ -1254,14 +1220,13 @@ def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> di
 
 @mcp.tool(title="Draft gold views as materialized lake views (nothing created)", annotations=RO)
 @safe
-def gold_views_draft(workspace: str, source: str, schema: str = "dbo", silver_schema: str = "silver", gold_schema: str = "gold",
-                     keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, tables: list[str] | None = None,
-                     show_personal_data: bool = False, ctx: Context = None) -> str:
-    """Materialized lake views in Spark SQL for a lakehouse with schemas, generated from the plan: one wide view per fact
-    table in `gold_schema`, over the silver tables create_silver_notebook writes, with its dimensions joined in over the
-    safest many-to-one paths, and CONSTRAINT ... CHECK ... ON MISMATCH DROP rules that mirror the plan's keys and
-    relationships, each commented with its rule. Columns that look like personal data by name are left out unless
-    show_personal_data=true. Returns the SQL per view and the notebook that creates them; creates nothing."""
+def gold_views_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver", gold_schema: _p.GoldSchema = "gold",
+                     keys: _p.Keys = None, confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None,
+                     show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
+    """Drafts materialized lake views (Spark SQL) over the silver tables: one wide view per fact table in gold_schema,
+    dimensions joined over many-to-one paths, the plan's keys and relationships as CHECK rules. Requires workspace
+    and a lakehouse with schemas. Returns JSON with the SQL per view and the notebook that creates them. Changes
+    nothing; create_gold_views creates the notebook. Errors: {error, kind, hint}."""
     p, info, spec, refusal = _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx)
     if refusal:
         return refusal
@@ -1270,14 +1235,14 @@ def gold_views_draft(workspace: str, source: str, schema: str = "dbo", silver_sc
 
 @mcp.tool(title="Create or update the gold-views notebook in Fabric (dry run by default)", annotations=WRITE)
 @safe
-def create_gold_views(workspace: str, source: str, name: str, schema: str = "dbo", silver_schema: str = "silver", gold_schema: str = "gold",
-                      keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, tables: list[str] | None = None,
-                      show_personal_data: bool = False, dry_run: bool = True, ctx: Context = None) -> str:
-    """Create a Fabric notebook item with the gold_views_draft notebook, attached to the lakehouse, or update the notebook
-    of that name in place; never deletes, and creating it runs nothing: the views are created when the notebook runs,
-    and it stops before writing over a source table, a silver table or any table it did not create. dry_run=true (the
-    default) returns the views, the notebook and the REST call. Needs Notebook.ReadWrite.All or Item.ReadWrite.All and
-    Contributor on the workspace (fabric-rest-api-specs, notebook/swagger.json)."""
+def create_gold_views(workspace: _p.Workspace, source: _p.Source, name: _p.GoldName, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver", gold_schema: _p.GoldSchema = "gold",
+                      keys: _p.Keys = None, confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None,
+                      show_personal_data: _p.ShowPersonalData = False, dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+    """Creates a Fabric notebook item with gold_views_draft's notebook, or updates the notebook of that name in place.
+    Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All or Item.ReadWrite.All and
+    Contributor. Returns JSON with the views, the notebook and the REST call; with dry_run=false also the result.
+    Changes Fabric only with dry_run=false: the notebook's content is replaced, no item is deleted, and nothing
+    runs; when run, it stops before writing over a table it did not create. Errors: {error, kind, hint}."""
     from . import notebook as _notebook, gold as _gold_mod
     from .deploy import create_item_with_definition
     p, info, spec, refusal = _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx)
@@ -1354,15 +1319,12 @@ def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_re
 
 @mcp.tool(title="Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)", annotations=RO)
 @safe
-def drift_monitor_draft(workspace: str, source: str, schema: str = "dbo", name: str = "", at: str = "02:00",
-                        time_zone: str = "W. Europe Standard Time", library_ref: str | None = None, ctx: Context = None) -> str:
-    """A ready Fabric notebook and pipeline that every night read the lakehouse's schema, compare the plan with the one
-    saved by the last run (plan_drift's and lineage's logic, used as a library), save the new plan in a table in the
-    lakehouse (krusgraph.plans), and send a short summary ("column X in table Y disappeared; these APIs and views use
-    it") to a webhook the user sets as a pipeline parameter in Fabric. `at` is hh:mm in `time_zone` (a Windows time zone
-    id). `library_ref` is the tag, branch or commit the notebook installs the library from: by default the tag of this
-    server's version, "main" for the main branch. Returns the notebook, the pipeline definition and the schedule;
-    creates nothing."""
+def drift_monitor_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", name: _p.MonitorDraftName = "", at: _p.At = "02:00",
+                        time_zone: _p.TimeZone = "W. Europe Standard Time", library_ref: _p.LibraryRef = None, ctx: Context = None) -> str:
+    """Drafts a nightly Fabric notebook and pipeline that read the lakehouse schema, compare the plan with the last one
+    saved in krusgraph.plans and post a summary to a webhook set as a pipeline parameter. Requires workspace and a
+    lakehouse source. Returns JSON with the notebook, the pipeline definition and the schedule. Changes nothing;
+    create_drift_monitor creates the items. Errors: {error, kind, hint}."""
     _check_at(at)
     p, src, refusal = _monitor_inputs(workspace, source, schema, ctx)
     if refusal:
@@ -1373,16 +1335,15 @@ def drift_monitor_draft(workspace: str, source: str, schema: str = "dbo", name: 
 
 @mcp.tool(title="Create or update the nightly drift monitor in Fabric (dry run by default)", annotations=WRITE)
 @safe
-def create_drift_monitor(workspace: str, source: str, name: str, schema: str = "dbo", at: str = "02:00",
-                         time_zone: str = "W. Europe Standard Time", library_ref: str | None = None, schedule: bool = True,
-                         dry_run: bool = True, ctx: Context = None) -> str:
-    """Create the drift_monitor_draft notebook and pipeline in the workspace, or update the items of those names in
-    place, and add the daily schedule to the pipeline unless one at the same time exists; never deletes, and no secret
-    is written anywhere (the webhook address is a pipeline parameter the user sets in Fabric). dry_run=true (the
-    default) returns the items and the REST calls without creating anything. Needs Notebook.ReadWrite.All and
-    DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and for the schedule DataPipeline.Execute.All (or
-    Item.Execute.All); Contributor on the workspace (fabric-rest-api-specs notebook/ and dataPipeline/swagger.json).
-    `library_ref` as in drift_monitor_draft: by default the tag of this server's version."""
+def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.MonitorName, schema: _p.Schema = "dbo", at: _p.At = "02:00",
+                         time_zone: _p.TimeZone = "W. Europe Standard Time", library_ref: _p.LibraryRef = None, schedule: _p.Schedule = True,
+                         dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+    """Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place, and adds a daily
+    schedule unless one at that time exists. Requires workspace, a lakehouse source and name; Notebook.ReadWrite.All
+    and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), DataPipeline.Execute.All for the schedule, and
+    Contributor. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes
+    Fabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is
+    deleted and no secret is written. Errors: {error, kind, hint}."""
     import requests as _requests
     from . import monitor as _monitor, notebook as _notebook
     from .deploy import create_item_with_definition
@@ -1449,18 +1410,15 @@ EXPORTABLE = ("create_backend", "create_semantic_model", "create_views", "create
 
 @mcp.tool(title="Export what the creating tools would create, in Fabric's Git format", annotations=RO)
 @safe
-def export_item_definitions(workspace: str, source: str, schema: str = "dbo", items: list[str] | None = None,
-                            names: dict[str, str] | None = None, keys: dict[str, list[str]] | None = None,
-                            confirmed: list[dict] | None = None, tables: list[str] | None = None, silver_schema: str = "silver",
-                            gold_schema: str = "gold", views_schema: str = "krusgraph", writable: bool = False,
-                            show_personal_data: bool = False, ctx: Context = None) -> str:
-    """The items create_backend, create_semantic_model, create_silver_notebook, create_drift_monitor and create_gold_views
-    would create, as files in Fabric's Git format: one folder per item named `<name>.<type>` with its `.platform` and
-    definition files (graphql-definition.json, definition.pbism and TMDL, notebook-content.py, pipeline-content.json),
-    plus create_views' T-SQL as a .sql file (Fabric's Git integration does not carry SQL analytics endpoint views) and a
-    README with the steps. For committing to the repository connected to the workspace, so that Fabric's Git
-    integration or a deployment pipeline makes the change. `items` picks tools from that list; `names` sets the display
-    name per tool. Calls no Git provider and creates nothing."""
+def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", items: _p.ExportItems = None,
+                            names: _p.ExportNames = None, keys: _p.Keys = None,
+                            confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.SilverSchema = "silver",
+                            gold_schema: _p.GoldSchema = "gold", views_schema: _p.ViewsSchema = "krusgraph", writable: _p.Writable = False,
+                            show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
+    """Exports what the creating tools (create_backend, create_semantic_model, create_views, create_silver_notebook,
+    create_drift_monitor, create_gold_views) would create, as files in Fabric's Git format: one <name>.<type> folder
+    per item, views as .sql, and a README. Requires workspace and source. Returns JSON with the files, the items and
+    what was skipped and why. Calls no Git provider; changes nothing in Fabric. Errors: {error, kind, hint}."""
     from . import git_export as _gx, notebook as _notebook, silver as _silver_mod, gold as _gold_mod, monitor as _monitor
     from .infer import PlanInputError
     wanted = list(dict.fromkeys(items or EXPORTABLE))
@@ -1553,10 +1511,11 @@ def export_item_definitions(workspace: str, source: str, schema: str = "dbo", it
 
 @mcp.tool(title="Starter pack for an app on a GraphQL API", annotations=RO)
 @safe
-def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
-    """Everything needed to start an app on a created API for GraphQL item, read from its definition: a Lovable
-    prompt describing the data model and the main views, a connection description, five GraphQL queries that walk
-    the relationships, and the manual portal steps (introspection, permissions). Generates text only."""
+def app_starter(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
+    """Generates a starter pack for an app on an API for GraphQL item: a Lovable prompt, connection details, five GraphQL
+    queries that follow the relationships, a Supabase edge function and the portal steps left. Requires workspace
+    and an API that create_backend has created. Returns JSON {lovable_prompt, connection, queries, checklist,
+    backend, note}. Changes nothing; app_readiness lists what the API lacks. Errors: {error, kind, hint}."""
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -1570,12 +1529,11 @@ def app_starter(workspace: str, api: str, ctx: Context = None) -> str:
 
 @mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
 @safe
-def app_readiness(workspace: str, api: str, ctx: Context = None) -> str:
-    """For an existing API for GraphQL item (name or id): what is in place and what is missing before an app can use it.
-    Reads the item's definition (types without a key, types in no relationship, write access) and sends one
-    introspection query to the endpoint to see whether introspection is on; permissions and the tenant setting for
-    service principals cannot be read through the Fabric API and are reported as unknown with the portal path.
-    Each item carries its next step."""
+def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
+    """Checks what an API for GraphQL item still needs before an app can use it: types without a key or relationship, write
+    access, introspection (one probe query), and permissions, reported as unknown with the portal path. Requires
+    workspace and an API that create_backend has created. Returns JSON {api, endpoint, checks, missing, unknown,
+    verdict}, each item with its next step. Changes nothing. Errors: {error, kind, hint}."""
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -1624,12 +1582,11 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
 
 @mcp.tool(title="Lineage: what builds on a source's tables", annotations=RO)
 @safe
-def lineage(workspace: str, source: str, schema: str = "dbo", table: str | None = None, ctx: Context = None) -> str:
-    """Which Fabric objects in the workspace build on the source's tables: GraphQL APIs (from their definition),
-    semantic models (from their TMDL definition), views on the SQL analytics endpoint (INFORMATION_SCHEMA.VIEW_TABLE_USAGE)
-    and data agents (named in their definition). Returns a graph (nodes: tables and objects; edges: used by), the
-    objects per table, the tables used by nothing, the items that could not be read, and with `table` the answer to
-    what a change to that table reaches. Read-only."""
+def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", table: _p.LineageTable = None, ctx: Context = None) -> str:
+    """Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the
+    SQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per
+    table, tables nothing uses, items that could not be read, and with table, what a change to it reaches.
+    Read-only. Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         headers = _headers(ctx)
@@ -1673,9 +1630,12 @@ def describe_definition(body: dict) -> dict:
 
 @mcp.tool(title="Describe a GraphQL API", annotations=RO)
 @safe
-def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
-    """Types, fields and relationships of an existing API for GraphQL item (name or id), in the names a query
-    uses — read from the item's definition, so it works without introspection; these are the names a GraphQL query uses."""
+def describe_backend(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
+    """Describes an API for GraphQL item in the names a query uses: types, list query fields, fields and relationships.
+    Requires workspace and an API that create_backend has created (list_sources lists them). Returns JSON {types:
+    [{type, query_field, source, fields, relationships, by_key, writable}], how_to_query}. Read from the item's
+    definition, so introspection can be off; changes nothing. query_graphql runs a query. Errors: {error, kind,
+    hint}."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     api_id = _api_id(workspace, api, headers)
@@ -1687,15 +1647,13 @@ def describe_backend(workspace: str, api: str, ctx: Context = None) -> str:
 
 @mcp.tool(title="Suggest a GraphQL or T-SQL query for a question (runs nothing)", annotations=RO)
 @safe
-def answer_query_draft(workspace: str, source: str, question: str, tables: list[str], schema: str = "dbo", api: str | None = None,
-                       keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, show_personal_data: bool = False,
+def answer_query_draft(workspace: _p.Workspace, source: _p.Source, question: _p.Question, tables: _p.QuestionTables, schema: _p.Schema = "dbo", api: _p.QuestionApi = None,
+                       keys: _p.Keys = None, confirmed: _p.Confirmed = None, show_personal_data: _p.ShowPersonalData = False,
                        ctx: Context = None) -> str:
-    """A query for a question in Swedish or English about the given tables: T-SQL over the safest join path of the plan
-    (each step with the rule behind its relationship), and with `api` (an API for GraphQL item over the source) the
-    GraphQL query in that API's field names, or why GraphQL cannot answer it (aggregations group only by a table's own
-    columns). Reads counts, sums, averages, "per"/"för varje" groupings, top N and "latest" from the question and
-    lists what it assumed. Columns that look like personal data by name are left out of the query (grouped by the key
-    instead) unless show_personal_data=true. Runs nothing; query_graphql with question= runs the GraphQL version."""
+    """Turns a question in Swedish or English about given tables into T-SQL over the plan's safest join path, and with api
+    into GraphQL in that API's field names, or says why GraphQL cannot answer it. Requires workspace, source,
+    question and tables. Returns JSON with the query, each join step with its rule, and what it assumed. Runs
+    nothing; query_graphql runs the GraphQL version. Errors: {error, kind, hint}."""
     from . import answers as _answers
     p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     description = None
@@ -1733,14 +1691,12 @@ def _check_query(query: str) -> str | None:
 
 @mcp.tool(title="Run a GraphQL query", annotations=RO)
 @safe
-def query_graphql(workspace: str, api: str, query: str = "", variables: dict | None = None, question: str | None = None,
-                  tables: list[str] | None = None, source: str | None = None, schema: str = "dbo", ctx: Context = None) -> str:
-    """Run a read-only GraphQL query against a Microsoft Fabric API for GraphQL item (name or id) in the workspace,
-    see https://learn.microsoft.com/fabric/data-engineering/api-graphql-overview. Query fields are named <type>s,
-    e.g. `{ customers(first: 5) { items { customer_id name } } }`; relationships nest; describe_backend lists the
-    exact names. Instead of `query`, pass `question` with `tables` and `source` (the lakehouse or warehouse the API
-    reads): the query answer_query_draft suggests is built and run, and the answer shows it. Mutations and
-    subscriptions are refused."""
+def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", variables: _p.Variables = None, question: _p.GraphqlQuestion = None,
+                  tables: _p.GraphqlTables = None, source: _p.GraphqlSource = None, schema: _p.Schema = "dbo", ctx: Context = None) -> str:
+    """Runs a read-only GraphQL query against an API for GraphQL item; given question instead of query, it builds the query
+    as answer_query_draft does and runs it. Requires workspace and api, plus query, or question with tables and
+    source. Returns JSON with the data, size-bounded, and for a question the query used. Mutations and subscriptions
+    are refused; changes nothing. describe_backend gives the field names. Errors: {error, kind, hint}."""
     import requests
     if not query and not question:
         return json.dumps({"error": "Give a GraphQL query, or a question with the tables it is about.", "kind": "bad_input",

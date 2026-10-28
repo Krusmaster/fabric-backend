@@ -54,7 +54,8 @@ def test_create_ontology_is_offered_with_a_dry_run_by_default_and_write_hints():
         create = tools["create_ontology"]
         assert create["annotations"]["readOnlyHint"] is False and create["annotations"]["destructiveHint"] is True
         assert create["inputSchema"]["properties"]["dry_run"]["default"] is True
-        assert "Item.ReadWrite.All" in create["description"] and "never" in create["description"]
+        text = " ".join(create["description"].split())
+        assert "Item.ReadWrite.All" in text and "no item is deleted" in text
 
 
 def test_create_ontology_dry_run_returns_the_parts_and_the_rest_call_and_creates_nothing(shop, monkeypatch):
