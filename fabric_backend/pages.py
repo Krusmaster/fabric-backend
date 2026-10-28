@@ -619,9 +619,14 @@ def check_download_bytes() -> int:
             + sum((STATIC_DIR / n).stat().st_size for n in ("check.js", "check-worker.js")))
 
 
+# measured with tests' Chromium and DevTools network throttling (40 ms latency) against a local server; see the n38 report
+CHECK_TIMES = ("about 13.5 s the first time on a 5 Mbit/s line, 5.5 s on 20 Mbit/s, and 2.5 s once the engine is in the "
+               "browser's cache")
+
+
 def check_vars() -> dict[str, str]:
     from .browser_check import engine_zip
-    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_ENGINE_V": hashlib.sha256(engine_zip()).hexdigest()[:10]}
+    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_TIMES": CHECK_TIMES, "CHECK_ENGINE_V": hashlib.sha256(engine_zip()).hexdigest()[:10]}
 
 
 def render(path: str) -> str:

@@ -1,54 +1,65 @@
-<div data-page="check">
-<section class="hero wrap" style="padding-bottom:12px">
-  <span class="kicker">Check your files · no account</span>
-  <h1>See how your tables connect, and what is wrong with them</h1>
-  <p class="lede">Drop a few CSV or Excel exports, or paste a list of columns. You get the map of the tables with their keys and relationships, and a short list of what is wrong or unclear.</p>
-  <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The page downloads the engine from {{DOMAIN}} once ({{CHECK_MB}} MB unpacked, about 7 MB over the network, kept in the browser's cache) and then runs it here. After that it sends nothing: its Content-Security-Policy only lets it load the engine's own files from {{DOMAIN}}.</p>
+<div data-page="check" class="check-page">
+<section class="check-start" aria-labelledby="check-h">
+  <div class="wrap check-start-inner">
+    <div class="check-figures" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span><span data-mascot="thinker" data-pose="look" data-label=""></span></div>
+    <h1 id="check-h">How do your tables connect, and what is wrong with them?</h1>
+    <p class="check-sub">Drop CSV or Excel exports, or paste a list of columns. Keys, relationships and problems, each with the rule behind it.</p>
+
+    <div class="check-box" id="check-drop">
+      <input type="file" id="check-files" class="visually-hidden" multiple accept=".csv,.xlsx,.txt,text/csv">
+      <label class="check-box-drop" for="check-files">
+        <span class="check-box-big">Drop files here</span>
+        <span class="muted">CSV or Excel (.xlsx), one table per file or sheet, header in the first row</span>
+        <span class="btn primary small check-file-btn">Choose files</span>
+      </label>
+      <div class="check-box-paste">
+        <label for="check-columns" class="check-paste-label">Or paste a list of columns</label>
+        <textarea id="check-columns" rows="3" spellcheck="false" placeholder="orders.order_id&#10;orders.customer_id&#10;customers.customer_id"></textarea>
+        <button type="button" class="btn secondary small" id="check-columns-run">Read the list</button>
+      </div>
+    </div>
+    <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The engine is downloaded once from {{DOMAIN}} ({{CHECK_MB}} MB unpacked, about 7 MB over the network) and runs here; the page's Content-Security-Policy lets it load nothing else and send nothing.</p>
+
+    <div class="check-examples" role="group" aria-labelledby="check-ex-h">
+      <p id="check-ex-h" class="check-ex-h">No files at hand? Try an example</p>
+      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: an order amount repeated on its lines</span><em>Synthetic data</em></button>
+      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices with two clients</span><em>Synthetic data</em></button>
+      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts in one system, customers in the other</span><em>Synthetic data</em></button>
+    </div>
+    <p class="check-status" id="check-status" role="status" aria-live="polite">The engine needs JavaScript and WebAssembly. Loading it starts when the page opens.</p>
+  </div>
 </section>
 
-<section class="wrap" style="padding-top:0" aria-labelledby="check-in-h">
-  <h2 class="visually-hidden" id="check-in-h">Your files</h2>
-  <div class="check-inputs">
-    <div class="card check-drop" id="check-drop">
-      <h3>CSV or Excel files</h3>
-      <p class="muted">One table per file, one per sheet in a workbook (.xlsx). The first row is the header. A few thousand rows per table are enough.</p>
-      <input type="file" id="check-files" class="visually-hidden" multiple accept=".csv,.xlsx,.txt,text/csv">
-      <label class="btn primary check-file-btn" for="check-files">Choose files</label>
-      <p class="muted tiny" style="margin:10px 0 0">Or drop the files on this box.</p>
+<section class="wrap check-run" id="check-run" aria-labelledby="check-run-h" hidden tabindex="-1">
+  <h2 id="check-run-h" class="visually-hidden">The engine's run</h2>
+  <div class="check-run-grid">
+    <div class="check-steps-col">
+      <h3>What the engine does</h3>
+      <ol class="check-steps" id="check-steps"></ol>
     </div>
-    <div class="card">
-      <h3><label for="check-columns">A list of columns</label></h3>
-      <p class="muted">No rows, only names: <code>table.column</code> per line, <code>table: col1, col2</code>, or a pasted table with the headers table and column. Gives the map; the checks need rows.</p>
-      <textarea id="check-columns" rows="5" spellcheck="false" placeholder="orders.order_id&#10;orders.customer_id&#10;customers.customer_id"></textarea>
-      <div class="ctas" style="margin-top:10px"><button type="button" class="btn secondary" id="check-columns-run">Read the list</button></div>
-    </div>
-    <div class="card soft">
-      <h3>No files at hand?</h3>
-      <p class="muted">Try the synthetic shop: seven invented tables with rows, no real company.</p>
-      <div class="ctas"><button type="button" class="btn secondary" id="check-sample">Try the shop example</button></div>
+    <div class="check-map-col">
+      <h3 id="check-map-h">The map</h3>
+      <div class="check-map" id="check-map" role="img" aria-labelledby="check-map-h check-map-summary"></div>
+      <p class="muted tiny" id="check-map-summary"></p>
+      <p class="legend check-legend"><span><i class="l-key"></i> table with a key</span><span><i class="l-nokey"></i> no key</span><span><i class="l-bad"></i> orphan rows</span><span><i class="l-sug"></i> suggested, your decision</span></p>
     </div>
   </div>
-  <p class="muted tiny">Measured on the shop example, from opening the page to the result (Chromium, 28 October 2026): about 14 s the first time on a 5 Mbit/s line, about 6 s on 20 Mbit/s, under 3 s once the engine is cached. With your own files, choosing them is most of the two minutes.</p>
-  <p class="check-status" id="check-status" role="status" aria-live="polite">The engine needs JavaScript and WebAssembly. Loading it starts when the page opens.</p>
 </section>
 
-<section class="wrap check-result" id="check-result" aria-labelledby="check-result-h" hidden tabindex="-1">
+<section class="wrap check-result" id="check-result" aria-labelledby="check-result-h" hidden>
   <h2 id="check-result-h">Result</h2>
   <div class="card check-verdict" id="check-verdict"></div>
-  <h3 id="check-map-h">The map</h3>
-  <p class="muted" id="check-map-summary"></p>
-  <div class="check-map" id="check-map" role="img" aria-labelledby="check-map-h check-map-summary"></div>
-  <div class="check-tables" id="check-tables"></div>
   <h3>What is wrong or unclear</h3>
-  <p class="muted tiny">Each item names the engine's own check and rule (K0–K5 for keys, R0–R4 for relationships). Nothing here is a guess: an unclear column is listed, not linked.</p>
+  <p class="muted tiny">Each item names the engine's own check and rule (K0–K5 for keys, R0–R4 for relationships). An unclear column is listed, never linked by guess.</p>
   <ol class="check-findings" id="check-findings"></ol>
   <details class="check-suggestions" id="check-suggestions-box" hidden><summary>Suggestions to decide on</summary><ol class="check-findings" id="check-suggestions"></ol></details>
-  <details class="check-notes"><summary>What was read</summary><ul id="check-notes"></ul></details>
+  <details class="check-notes"><summary>Tables, keys and what was read</summary><div class="check-tables" id="check-tables"></div><ul id="check-notes"></ul></details>
 </section>
 
 <section class="wrap demo-next" aria-labelledby="check-next-h">
   <div class="card">
-    <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/demo">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p></div>
+    <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/demo">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p>
+    <p class="muted tiny">Measured on “A total that doubles”, from opening the page to the result (Chromium, 28 October 2026): {{CHECK_TIMES}}. With your own files, choosing them is most of the two minutes.</p></div>
     <div class="ctas"><a class="btn primary" href="/demo">Guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help with a question</a></div>
   </div>
 </section>

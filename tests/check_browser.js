@@ -32,6 +32,37 @@ const { chromium } = require("playwright");
   await page.keyboard.press("Enter");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-result");
+  out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
+  // reduced motion: the steps column stays empty while the engine runs, then fills at once
+  out.steps_while_running = 0;
+  await page.click("#check-sap");
+  while (await page.evaluate(() => document.documentElement.dataset.check) === "running") {
+    out.steps_while_running = Math.max(out.steps_while_running, await page.evaluate(() => document.getElementById("check-run").hidden ? 0 : document.querySelectorAll("#check-steps li").length));
+    await page.waitForTimeout(20);
+  }
+  out.sap_text = await page.textContent("#check-result");
+  await page.click("#check-crm");
+  await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
+  await page.waitForTimeout(300);
+  out.crm_suggested_edges = await page.evaluate(() => document.querySelectorAll("#check-map .m-sug").length);
+  // WCAG AA: the example buttons' text against their soft backgrounds, light and dark
+  out.contrast = [];
+  for (const scheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: scheme });
+    out.contrast.push(...await page.evaluate(() => {
+      const rgb = (c) => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+      const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+      const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+      const out = [];
+      for (const b of document.querySelectorAll(".check-ex")) {
+        const bg = rgb(getComputedStyle(b).backgroundColor);
+        for (const t of b.querySelectorAll("strong, span")) out.push(ratio(rgb(getComputedStyle(t).color), bg));
+        const em = b.querySelector("em");
+        out.push(ratio(rgb(getComputedStyle(em).color), rgb(getComputedStyle(em).backgroundColor)));
+      }
+      return out.map((x) => Math.round(x * 100) / 100);
+    }));
+  }
   for (const w of [375, 1280]) {
     await page.setViewportSize({ width: w, height: 900 });
     out["overflow_" + w] = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
