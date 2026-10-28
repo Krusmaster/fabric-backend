@@ -157,3 +157,11 @@ def test_home_entry_old_anchors_and_the_hub_under_the_hero(report):
         assert c["srText"] > 300, v
         wide = v.startswith(("1440", "1280"))
         assert c["sideBySide"] is wide and c["stacked"] is not wide and c["lines"] == (2 if wide else 0), (v, c)
+
+
+def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_motion(report):
+    f = report["facts"]
+    for v in ("375-light", "1280-light"):
+        b = f[f"build@{v}"]
+        assert b["cards"] == 4 and b["outside"] == 0 and b["scrollWidth"] <= int(v.split("-")[0]), (v, b)
+    assert f["buildMotion"] == 0

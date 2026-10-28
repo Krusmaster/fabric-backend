@@ -408,15 +408,18 @@ def _demo_vars() -> dict[str, str]:
                 f'<span class="nm">{html.escape(t["name"])}</span><span class="rule" title="{tip}">{label}</span></button></li>')
     items = "".join(row(i, t) for i, t in enumerate(d["tables"]))
     rules = {k: re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(t)) for k, t in d["rules"].items()}
-    keys = "".join(f'<li><strong>{html.escape(t["name"])}</strong>: ' + (f'key <code>{html.escape(" + ".join(t["key"]))}</code> by rule <code>{t["key_rule"]}</code> ({rules[t["key_rule"]]})'
-                   if t["key"] else f'no key, rule <code>K3</code> ({rules["K3"]})') + f'; columns {html.escape(", ".join(c["name"] for c in t["columns"]))}</li>'
+    used = [t["key_rule"] if t["key"] else "K3" for t in d["tables"]] + [r["rule"] for r in d["relationships"]]
+    used = [k for k in d["rules"] if k in used]                              # each rule explained once, in the engine's order
+    legend = "".join(f'<div><dt><code>{k}</code></dt><dd>{rules[k]}</dd></div>' for k in used)
+    keys = "".join(f'<li><strong>{html.escape(t["name"])}</strong>: ' + (f'key <code>{html.escape(" + ".join(t["key"]))}</code>, <code>{t["key_rule"]}</code>'
+                   if t["key"] else 'no key, <code>K3</code>') + f'; columns {html.escape(", ".join(c["name"] for c in t["columns"]))}</li>'
                    for t in d["tables"])
-    rels = "".join(f'<li><code>{html.escape(r["source"] + "." + "+".join(r["source_cols"]))}</code> → <code>{html.escape(r["target"] + "." + "+".join(r["target_cols"]))}</code> '
-                   f'by rule <code>{r["rule"]}</code> ({rules[r["rule"]]}); GraphQL fields <code>{html.escape(r["field"])}</code> and <code>{html.escape(r["reverse"])}</code></li>'
+    rels = "".join(f'<li><code>{html.escape(r["source"] + "." + "+".join(r["source_cols"]))}</code> → <code>{html.escape(r["target"] + "." + "+".join(r["target_cols"]))}</code>, '
+                   f'<code>{r["rule"]}</code>; GraphQL fields <code>{html.escape(r["field"])}</code> and <code>{html.escape(r["reverse"])}</code></li>'
                    for r in d["relationships"])
     unlinked = "".join(f'<li><code>{html.escape(u["table"] + "." + u["column"])}</code>: {html.escape(u["note"])}</li>' for u in d["unlinked"]) or "<li>none</li>"
-    text = (f'<p class="mono">{"<br>".join(html.escape(line) for line in d["summary"].splitlines())}</p><h3>Tables and keys</h3><ul>{keys}</ul>'
-            f'<h3>Relationships</h3><ul>{rels}</ul><h3>Left unlinked</h3><ul>{unlinked}</ul>')
+    text = (f'<p class="mono">{"<br>".join(html.escape(line) for line in d["summary"].splitlines())}</p><h3>The rules used</h3><dl class="rule-list">{legend}</dl>'
+            f'<h3>Tables and keys</h3><ul>{keys}</ul><h3>Relationships</h3><ul>{rels}</ul><h3>Left unlinked</h3><ul>{unlinked}</ul>')
     from .demo import demo_validation
     v = demo_validation()
     e = html.escape
@@ -431,7 +434,83 @@ def _demo_vars() -> dict[str, str]:
              f'<h3>Relationships</h3><div class="table-wrap"><table class="check"><thead><tr><th>Reference (rule)</th><th>Rows with a value</th><th>Orphans</th><th>Verdict</th></tr></thead><tbody>{rrows}</tbody></table></div>'
              f'<h3>Composite keys the plan suggests before any override</h3><ul>{sugg}</ul>')
     return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text,
-            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"])}
+            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"]), "DEMO_BUILD": build_html()}
+
+
+# The docs section each card of "What you can build from this plan" links to, by heading (slugged as _md_to_html does).
+BUILD_DOCS = {"join_path": "How {{PRODUCT}} uses graph theory", "semantic_model_draft": "One plan, five Fabric pieces",
+              "rayfin_connector": "Tools", "app_starter": "Use with Lovable"}
+
+
+def build_doc_anchor(tool: str) -> str:
+    return "/docs#" + _slug(_fill(BUILD_DOCS[tool], escape=False))
+
+
+def _bar_chart(chart: dict) -> str:
+    """Horizontal bars as inline SVG, scaled to the largest value; the numbers are the query's."""
+    e = html.escape
+    bars = chart["bars"]
+    top = max((b["value"] or 0) for b in bars) or 1
+    row, label_w, width = 30, 110, 360
+    h = row * len(bars) + 8
+    out = []
+    for i, b in enumerate(bars):
+        y, w = 4 + i * row, max(2, round((width - label_w - 60) * (b["value"] or 0) / top))
+        out.append(f'<text x="{label_w - 8}" y="{y + 17}" text-anchor="end" class="bar-label">{e(str(b["label"]))}</text>'
+                   f'<rect x="{label_w}" y="{y + 4}" width="{w}" height="18" rx="3" class="bar"/>'
+                   f'<text x="{label_w + w + 6}" y="{y + 17}" class="bar-value">{b["value"]:g}</text>')
+    return (f'<svg class="bar-chart" viewBox="0 0 {width} {h}" role="img" aria-label="{e(chart["question"])}: '
+            + e("; ".join(f'{b["label"]} {b["value"]:g}' for b in bars)) + f'">{"".join(out)}</svg>')
+
+
+def _card(tool: str, title: str, body: str) -> str:
+    from .tool_status import label
+    e = html.escape
+    return (f'<article class="build-card" data-tool="{e(tool)}"><header><h3>{e(title)}</h3>'
+            f'<p class="build-meta"><code>{e(tool)}</code> · <span class="build-status">{e(label(tool))}</span> · '
+            f'<a href="{build_doc_anchor(tool)}">docs</a></p></header>{body}</article>')
+
+
+def build_html() -> str:
+    """The four cards of /explore's last section, from demo.build_cards()."""
+    from .demo import build_cards
+    e = html.escape
+    c = build_cards()
+    cards = []
+    ch = c["chart"]
+    if ch:
+        steps = "; ".join(f'{s["from"]} → {s["to"]} on {", ".join(s["on"])} ({s["rule"]}, {s["direction"]})' for s in ch["steps"])
+        cards.append(_card("join_path", "A chart along the safest join path",
+                           f'<figure class="build-chart">{_bar_chart(ch)}<figcaption>{e(ch["question"])}</figcaption></figure>'
+                           f'<p class="muted tiny">Path: {e(steps)}; {e(ch["why"])}. Measure <code>{e(ch["expression"])}</code> from '
+                           f'<code>semantic_model_draft</code>, summed over the synthetic seed rows.</p>'
+                           f'<details class="tech"><summary>SQL</summary><pre class="build-pre">{e(ch["sql"])}</pre></details>'))
+    m = c["model"]
+    rels = "".join(f'<li><code>{e(r["from"])}</code> → <code>{e(r["to"])}</code>: many-to-one, {e(r["filter"])}'
+                   + ("" if r["active"] else " (inactive)") + "</li>" for r in m["relationships"])
+    meas = "".join(f'<li><code>{e(x["table"])}</code> · {e(x["name"])}: <code>{e(x["expression"])}</code></li>' for x in m["measures"])
+    ad = m["amount_demo"]
+    amounts = (f'<p><strong>Header-level amounts:</strong> {e(m["amount_check"])}'
+               + (f' ({e(", ".join(f"{x['header']}.{c}" for x in m["header_amounts"] for c in x["amount_columns"]))})' if m["header_amounts"] else "")
+               + f'. {e(m["amount_rule"])} In the synthetic example <code>{e(ad["line"])}</code> → <code>{e(ad["header"])}</code>, '
+               f'<code>SUM({e(ad["header"])}.{e(ad["column"])})</code> over the joined lines gives {ad["before"]:g}; summed on '
+               f'<code>{e(ad["header"])}</code> it gives {ad["after"]:g}, and the lines add up to {ad["lines_total"]:g}.</p>')
+    cards.append(_card("semantic_model_draft", "A Power BI semantic model draft",
+                       f'<h4>Relationships</h4><ul class="build-list">{rels}</ul><h4>Suggested measures</h4><ul class="build-list">{meas}</ul>{amounts}'
+                       f'<p class="muted tiny">{len(m["files"])} TMDL files; keyless: {e(", ".join(m["keyless"]) or "none")}.</p>'))
+    r = c["rayfin"]
+    ents = "".join(f'<li><code>{e(x["class"])}</code> ← <code>{e(x["table"])}</code>'
+                   + (f', key <code>{e(", ".join(x["key"]))}</code>' if x["key"] else ", no key")
+                   + ("; " + ", ".join(f'@{e(l["kind"])} <code>{e(l["to"])}</code>' for l in x["links"]) if x["links"] else "") + "</li>"
+                   for x in r["entities"])
+    cards.append(_card("rayfin_connector", "Rayfin connector entities",
+                       f'<ul class="build-list">{ents}</ul><p class="muted tiny">{len(r["files"])} files, including <code>schema.ts</code>.</p>'))
+    a = c["app"]
+    cards.append(_card("app_starter", "An app starter prompt and a GraphQL query",
+                       f'<h4>{e(a["query"]["title"])}</h4><pre class="build-pre">{e(a["query"]["query"])}</pre>'
+                       f'<details class="tech"><summary>The prompt</summary><pre class="build-pre">{e(a["prompt"])}</pre></details>'
+                       f'<p class="muted tiny">One of {a["queries"]} queries <code>app_starter</code> writes. The endpoint has placeholders: the demo has no workspace.</p>'))
+    return "".join(cards)
 
 
 def _home_vars() -> dict[str, str]:

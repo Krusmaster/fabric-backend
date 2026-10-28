@@ -848,3 +848,16 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
   .c-hub::before,.c-hub::after{left:50%;right:auto;margin:0 0 0 -4.5px}
   .c-hub::before{top:-6px}.c-hub::after{top:auto;bottom:-6px}
 }
+/* /explore: What you can build from this plan */
+.build{padding-top:0}
+.build-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:18px}
+.build-card{min-width:0;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;background:var(--card)}
+.build-card h3{margin:0 0 4px;font-size:19px}.build-card h4{margin:12px 0 4px;font-size:15px}
+.build-meta{margin:0 0 10px;font-size:13px}.build-status{font-weight:600}
+.build-list{padding-left:18px;margin:4px 0}.build-list li{overflow-wrap:anywhere}
+.build-pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow-y:auto;font-size:12.5px}
+.build-chart{margin:0}.build-chart figcaption{font-size:14px;margin-top:6px}
+.bar-chart{width:100%;height:auto;display:block}.bar-chart .bar{fill:var(--sage-d)}
+.bar-chart text{font-size:13px;fill:currentColor}
+.rule-list div{display:flex;gap:10px}.rule-list dt{flex:0 0 3em}.rule-list dd{margin:0}
+@media (prefers-reduced-motion:reduce){.build-card,.build-card *{transition:none;animation:none}}

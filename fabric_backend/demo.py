@@ -413,3 +413,95 @@ def home_guide() -> str:
            '<p class="muted tiny guide-status" aria-live="polite"></p></div>')
     return (f'<div class="guide" id="guide" data-edge="{e(_edge_id("orders", [col], tgt))}"><ol class="guide-steps">{steps}</ol>'
             f'<div class="guide-panes">{pane1}{pane2}{pane3}{pane4}</div>{nav}</div><!-- /guide -->')
+
+
+# ------------------------------------------------------------------ what you can build (/explore) --------------------
+# The last section of /explore (round n31): four cards, each the output of an engine function run on the synthetic shop
+# plan when the page is built (join_path's safest path summed over the seed rows, semantic_model.draft and the
+# header-amount check, rayfin_files, app_starter.starter on the API definition the plan makes). The status of each card
+# is tool_status.label() of the tool it shows; nothing in a card is typed by hand.
+
+def _sum_chart(p, db) -> dict | None:
+    """A sum measure of semantic_model_draft, summed per name of the table furthest along join_path's safest path
+    whose every step is many-to-one (a sum over such a path counts each row once)."""
+    from . import semantic_model
+    from .demo_app import _label_column
+    from .paths import join_path
+    measures = semantic_model.draft(p, {"item_name": "shop"}, "shop_model")["summary"]["measures"]
+    m = next((x for x in measures if x["expression"].startswith("SUM(")), None)
+    if m is None:
+        return None
+    source, column = m["table"], m["expression"].split("[", 1)[1].rstrip("])")
+    validation = demo_validation()
+    best = None
+    for t in sorted(p.schema, key=lambda x: x.name):
+        label = _label_column(t)
+        if t.name == source or not label:
+            continue
+        safest = join_path(p, source, t.name, validation=validation).get("safest")
+        if safest and all(s["direction"] == "many-to-one" for s in safest["steps"]) and (best is None or safest["hops"] > best[0]["hops"]):
+            best = (safest, t.name, label)
+    if best is None:
+        return None
+    safest, target, label = best
+    h = safest["hops"]
+    sql = (f"SELECT t{h}.[{label}] AS label, SUM(t0.[{column}]) AS total" + safest["sql"][safest["sql"].index("\nFROM "):]
+           + f"\nGROUP BY t{h}.[{label}]\nORDER BY total DESC, label")
+    bars = [{"label": r["label"], "value": r["total"]} for r in db(sql)]
+    return {"tool": "join_path", "measure": m["name"], "expression": m["expression"], "source": source, "column": column,
+            "target": target, "label": label, "path": safest["tables"], "steps": safest["steps"], "why": safest["why"],
+            "question": f"{m['name']} ({source}.{column}) per {target}.{label}, along {' → '.join(safest['tables'])}",
+            "sql": sql, "bars": bars}
+
+
+def _model_preview(p) -> dict:
+    import re
+    from . import amounts, semantic_model
+    d = semantic_model.draft(p, {"item_name": "shop"}, "shop_model")
+    rels = []
+    for block in d["parts"]["definition/relationships.tmdl"].split("relationship ")[1:]:
+        f, t = re.search(r"fromColumn: (\S+)", block), re.search(r"toColumn: (\S+)", block)
+        both = "crossFilteringBehavior: bothDirections" in block
+        rels.append({"from": f.group(1), "to": t.group(1), "active": "isActive: false" not in block,
+                     "filter": "both directions" if both else f"{t.group(1).split('.')[0]} filters {f.group(1).split('.')[0]}"})
+    s = d["summary"]
+    demo = amounts.demo()
+    return {"tool": "semantic_model_draft", "relationships": rels, "measures": s["measures"], "inactive": s["inactive"],
+            "keyless": s["keyless"], "header_amounts": s["header_amounts"], "amount_check": amounts.check(p)["summary"],
+            "amount_rule": amounts.RULE, "amount_demo": {"header": demo["finding"]["header"], "line": demo["finding"]["line"],
+                                                       "column": demo["finding"]["amount_columns"][0], "before": demo["before"],
+                                                       "after": demo["after"], "lines_total": demo["lines_total"]},
+            "files": sorted(d["parts"])}
+
+
+def _rayfin_preview(p) -> dict:
+    import re
+    from .rayfin import rayfin_files
+    files = rayfin_files(p)
+    entities = []
+    for path, src in files.items():
+        m = re.search(r"export class (\w+) extends Source\(\{ schema: '([^']*)', table: '([^']*)'(?:, primaryKey: \[([^\]]*)\])?", src)
+        if not m:
+            continue
+        links = [{"kind": k, "to": to} for k, to in re.findall(r"@(one|many)\(\(\) => (\w+)", src)]
+        entities.append({"class": m.group(1), "table": m.group(3), "key": [x.strip(" '") for x in (m.group(4) or "").split(",") if x.strip()],
+                         "links": links, "file": path})
+    return {"tool": "rayfin_connector", "entities": entities, "files": list(files)}
+
+
+def _app_preview(p) -> dict:
+    from . import app_starter
+    from .deploy import endpoint_url
+    from .graphql import decode, definition
+    from .server import describe_definition
+    ws, api = "{workspace-id}", "{api-id}"                                     # placeholders: the demo has no workspace
+    desc = describe_definition(decode(definition(p, "shop_api", ws, "{endpoint-id}", "SqlAnalyticsEndpoint")))
+    s = app_starter.starter(desc, endpoint_url(ws, api), "shop_api", ws)
+    return {"tool": "app_starter", "prompt": s["lovable_prompt"], "query": s["queries"][0], "queries": len(s["queries"])}
+
+
+@lru_cache(maxsize=1)
+def build_cards() -> dict:
+    """The four cards of "What you can build from this plan", computed from the demo plan and the seed rows."""
+    p = plan(schema("shop"), keys=DEMO_KEYS)
+    return {"chart": _sum_chart(p, _demo_db()), "model": _model_preview(p), "rayfin": _rayfin_preview(p), "app": _app_preview(p)}

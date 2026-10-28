@@ -24,6 +24,15 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
       if (sw > width) errors.push(`${label}: horizontal overflow ${sw} > ${width}`);
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
       if (!fonts.every(Boolean)) errors.push(`${label}: self-hosted fonts not loaded`);
+      if (path === '/explore') {
+        // "What you can build from this plan": every disclosure open, still no horizontal scroll, each card inside the screen
+        facts[`build@${vname}`] = await page.evaluate(() => {
+          document.querySelectorAll('#build details, #plan-text').forEach(d => { d.open = true; });
+          const cards = [...document.querySelectorAll('#build .build-card')];
+          return { cards: cards.length, outside: cards.filter(c => { const r = c.getBoundingClientRect(); return r.left < 0 || r.right > window.innerWidth; }).length,
+                   scrollWidth: document.documentElement.scrollWidth };
+        });
+      }
       if (path === '/demo') {
         // the relationship list is the graph's alternative on a phone: visible, and every row reachable
         facts[`demoList@${vname}`] = await page.evaluate(() => {
@@ -110,6 +119,12 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
   await hp.focus('.rel-list a[data-edge="order_items.order_id>orders"]'); await hp.keyboard.press('Enter');
   facts.homeKeyboardSelected = await hp.evaluate(() => { const a = document.querySelector('.rel-list a[aria-current="true"]'); return a ? a.getAttribute('data-edge') : null; });
   facts.homeMotionClass = await hp.evaluate(() => document.documentElement.classList.contains('motion'));
+  // /explore's build cards with reduced motion: no transition or animation anywhere in the section
+  const bp = await hc.newPage(); watch(bp, '/explore reduced motion');
+  await bp.goto(base + '/explore', { waitUntil: 'networkidle' });
+  facts.buildMotion = await bp.evaluate(() => [...document.querySelectorAll('#build, #build *')].filter(el => {
+    const cs = getComputedStyle(el); return parseFloat(cs.transitionDuration) > 0 || (cs.animationName && cs.animationName !== 'none');
+  }).length);
   // a visible focus ring on the start page's CTAs
   await hp.goto(base + '/', { waitUntil: 'networkidle' });
   await hp.focus('.hero .ctas a');

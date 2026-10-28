@@ -77,8 +77,12 @@ def test_explore_has_the_plan_as_text(client):
     html = client.get("/explore").text
     assert "The plan as text" in html and 'id="plan-text"' in html
     assert "7 tables, 6 with keys, 6 relationships" in html
-    assert "<strong>audit_log</strong>: no key, rule <code>K3</code>" in html
-    assert "<code>orders.customer_id</code> → <code>customers.customer_id</code> by rule <code>R1</code>" in html
+    assert "<strong>audit_log</strong>: no key, <code>K3</code>" in html
+    assert "<code>orders.customer_id</code> → <code>customers.customer_id</code>, <code>R1</code>" in html
+    text = html.split('id="plan-text"', 1)[1].split("</details>", 1)[0]
+    from fabric_backend.infer import RULES
+    for code in ("K1", "K2", "K3", "R1"):                                 # each rule explained once, then only its code
+        assert text.count(RULES[code].replace("`", "")[:40]) <= 1 and f"<dt><code>{code}</code></dt>" in text
     assert "<code>orders.ship_to_id</code>: no rule matched" in html
     assert 'aria-label="Tables and legend"' in html and 'aria-label="Why these tables are linked"' in html
 
