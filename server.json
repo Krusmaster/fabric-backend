@@ -3,7 +3,7 @@
   "name": "com.krusgraph/krusgraph",
   "title": "Krusgraph",
   "description": "Turn Microsoft Fabric tables into an explainable graph and a GraphQL API.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "websiteUrl": "https://krusgraph.com/",
   "repository": {
     "url": "https://github.com/Krusmaster/fabric-backend",

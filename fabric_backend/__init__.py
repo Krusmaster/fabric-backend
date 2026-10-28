@@ -13,7 +13,7 @@ __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definit
            "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from",
            "rayfin_files", "write_rayfin", "ontology_files", "ontology_parts", "ontology_ttl",
            "plan_sql_server", "LocalPlan"]
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 
 def plan_from(spark=None, execute=None, schema: str = "dbo", database: str | None = None,

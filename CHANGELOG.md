@@ -3,7 +3,7 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
-## Unreleased
+## 0.8.0 — 2026-10-28
 
 - The start page's row under the hero is a hub (the brief of 27 October 2026): "Your data in Fabric" (Lakehouse,
   Warehouse, SQL database) and "What Krusgraph builds in Fabric" (GraphQL API, Power BI semantic model, Fabric IQ
