@@ -13,12 +13,14 @@ const { chromium } = require("playwright");
     if (!r.url().startsWith(base)) out.foreign.push(r.url());
   });
   const page = await ctx.newPage();
+  // waitForFunction evaluates a string in newer Playwright, which the page's CSP (no 'unsafe-eval') refuses: poll instead
+  const until = async (fn) => { for (let i = 0; i < 1200; i++) { if (await page.evaluate(fn)) return; await page.waitForTimeout(100); } throw new Error("timeout"); };
   page.on("pageerror", (e) => out.errors.push(e.message));
   await page.goto(base + "/check");
   await page.setInputFiles("#check-files", [
     { name: "customers.csv", mimeType: "text/csv", buffer: Buffer.from(`customer_id,name\n1,${MARK}\n2,b\n`) },
     { name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from("order_id,customer_id,amount\n1,1,10\n2,9,20\n") }]);
-  await page.waitForFunction(() => document.documentElement.dataset.check === "done", null, { timeout: 120000 });
+  await until(() => document.documentElement.dataset.check === "done");
   out.files_text = await page.textContent("#check-result");
   // the page itself cannot send anything: a fetch with the marker is refused by its CSP
   out.page_fetch = await page.evaluate(async (m) => { try { await fetch("/x?" + m, { method: "POST", body: m }); return "sent"; } catch (e) { return "blocked"; } }, MARK);
@@ -28,7 +30,7 @@ const { chromium } = require("playwright");
   for (let i = 0; i < 40; i++) { await page.keyboard.press("Tab"); if (await page.evaluate(() => document.activeElement.id) === "check-sample") break; }
   out.focused = await page.evaluate(() => document.activeElement.id);
   await page.keyboard.press("Enter");
-  await page.waitForFunction(() => document.documentElement.dataset.checkMs, null, { timeout: 120000 });
+  await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-result");
   for (const w of [375, 1280]) {
     await page.setViewportSize({ width: w, height: 900 });
