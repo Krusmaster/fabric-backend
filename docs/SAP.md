@@ -19,7 +19,7 @@ SAP table and column names survive, with or without a prefix.
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, all applied; `EKBE` → `RBKP` filtered on invoice-receipt rows (`VGABE` = `2`, round n26) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer company-code data `KNB1` (round n27); customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 39, all applied; journal line → cost center and → profit center as joins valid on the posting date (kind `valid_on`, round n25); `KNB1` from journal lines, open items and the billing document's payer (round n27) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 7 are applied: condition lines and rates to their record, and (filtered, round n26) conditions → `EKKO` and → `T685`; conditions → `VBAK` and → `VBRK` are listed only |
-| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK`; central addresses `ADRC` (round n27) | 13, of which 8 are applied; link table → `BUT000` on the partner's GUID (kind `unique`); the address links to `ADRC` are listed only (version and period in its key) |
+| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK`; central addresses `ADRC` (round n27) | 13, all applied; link table → `BUT000` on the partner's GUID (kind `unique`); the address links to `ADRC` valid today in the standard version (round n28) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -81,9 +81,9 @@ only, the partner, status and document-flow rows of deliveries and invoices (`VB
   write that GUID as binary, hex or dashed text. The business partner tables call the client column `CLIENT`.
 - **Addresses have versions and periods.** `ADRC`'s key is `CLIENT`, `ADDRNUMBER`, `DATE_FROM` and `NATION` (the
   standard version is blank). `KNA1`, `LFA1`, `T001`, `VBPA` and `BUT020` point at it with an address number; a join on
-  the number alone repeats a customer once per version and period. The pack lists these links and does not apply
-  them: neither "standard version" (a blank that may arrive as `''` or `' '`) nor "valid today" is a fixed value it
-  can filter on. A document can carry its own address (`VBPA.ADRNR`, such as a one-time ship-to address).
+  the number alone repeats a customer once per version and period. Since round n28 the pack applies these links as
+  joins valid on the date of the call in the standard version (below). A document can carry its own address
+  (`VBPA.ADRNR`, such as a one-time ship-to address); a blank `ADRNR` is no reference.
 - **Customer data per company code.** `KNB1` holds a row per customer and company code (reconciliation account,
   payment terms); journal lines and open items reach it on customer and company code together.
 - **Sold-to, ship-to and payer.** `VBAK.KUNNR`, `LIKP.KUNNR`, `VBRK.KUNRG` and the partner functions in `VBPA` can be
@@ -148,6 +148,22 @@ row says order or invoice), and the partner and status rows of several document 
 have no document category column of their own in the pack. A filter through another table (`VBPA` joined to `VBUK` for
 its category) would be a join path, not a relationship, and is not built.
 
+### The standard version, valid today (round n28)
+
+Two additions to the join kinds, made for `ADRC` and usable by any module:
+
+- **A blank filter**: `{"side": "target", "column": "NATION", "blank": true}` matches SAP's blank however the tool
+  wrote it: `NULL`, `''` or `' '` (`COALESCE(LTRIM(RTRIM(col)), '') = ''`).
+- **Valid today**: `valid_on` with `"on": "today"` instead of a source date. The date is the date of the call, as text
+  in SAP's `YYYYMMDD` form, so the same SQL runs on every dialect (T-SQL, Spark SQL, SQLite). A plan read later is
+  read for that day: `validate_plan` checks the addresses valid when it runs, and a report for another date needs that
+  date instead.
+
+So `KNA1.ADRNR` → `ADRC` is `CLIENT`+`ADDRNUMBER`, the row with `DATE_FROM ≤ today ≤ DATE_TO`, `NATION` blank. The
+key check accepts it because the join columns, one end of the period and the columns a filter fixes make up the key.
+In the checks of every extended relationship, a blank source column now counts as no reference (SAP writes "none" as a
+blank, not `NULL`), so `VBPA` rows without an own address are not counted as orphans.
+
 `sap_pack_draft` (read-only) shows what the pack recognises in a source, what it applies, what it lists but does not
 apply, which pack tables and columns are missing, and the traps; with `export=` it adds one export (below).
 
@@ -206,7 +222,7 @@ Not built yet, in this order:
 3. ~~Pricing~~: built in round n23 (above). Left for later: the condition tables `Annn` (one per key combination,
    numbered per installation, so only the standard ones could be described), and a relationship kind on a unique
    column that is not the key (`KNUMV`), so the document links can be applied.
-4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27. Left for later: a filter on the standard address version and the current period, so the `ADRC` links can be applied; the other address tables (`ADR2` phone, `ADR6` e-mail), which hold personal data and need the privacy rules of `sample_rows`.
+4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27, the `ADRC` links applied in round n28. Left for later: the other address tables (`ADR2` phone, `ADR6` e-mail), which hold personal data and need the privacy rules of `sample_rows`.
 
 ## Contributing
 

@@ -57,10 +57,12 @@ def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
     q, count = dialect.quote, dialect.count
     cond = [f"t.{q(b)} = s.{q(a)}" for a, b in zip(r.source_cols, r.target_cols)]
     has_value = [f"s.{q(a)} IS NOT NULL" for a in r.source_cols]
+    # SAP writes "no value" as a blank, not NULL: a blank source column is no reference (VBPA.ADRNR without an own address)
+    has_value += [f"COALESCE(LTRIM(RTRIM(s.{q(a)})), '') <> ''" for a in r.source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT")]
     if r.kind == "valid_on" and r.valid_on:
-        v = r.valid_on
-        cond.append(f"s.{q(v['source_date'])} BETWEEN t.{q(v['target_from'])} AND t.{q(v['target_to'])}")
-        has_value.append(f"s.{q(v['source_date'])} IS NOT NULL")
+        cond.append(r.period_sql("s", "t", q))
+        if r.valid_on.get("source_date"):
+            has_value.append(f"s.{q(r.valid_on['source_date'])} IS NOT NULL")
     cond += r.filter_sql("target", "t", q)
     has_value += r.filter_sql("source", "s", q)
     matches = f"(SELECT {count}(*) FROM {_t(schema, r.target, dialect)} AS t WHERE {' AND '.join(cond)})"

@@ -302,14 +302,17 @@
           "valid_on": {
             "type": "object",
             "required": [
-              "source_date",
               "target_from",
               "target_to"
             ],
             "additionalProperties": false,
+            "description": "The target row whose period holds a date: the source row's source_date, or with on: today the date of the call.",
             "properties": {
               "source_date": {
                 "$ref": "#/definitions/name"
+              },
+              "on": {
+                "const": "today"
               },
               "target_from": {
                 "$ref": "#/definitions/name"
@@ -327,8 +330,7 @@
               "type": "object",
               "required": [
                 "side",
-                "column",
-                "in"
+                "column"
               ],
               "additionalProperties": false,
               "properties": {
@@ -347,6 +349,10 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "blank": {
+                  "const": true,
+                  "description": "SAP's blank: NULL, '' or ' ', however the tool wrote it (ADRC.NATION, the standard version)."
                 }
               }
             }

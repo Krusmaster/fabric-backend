@@ -211,7 +211,7 @@ def test_kinds_are_checked():
     pack["relationships"].append({**csks, "valid_on": {**csks["valid_on"], "target_to": "DATAB"}})
     found = sap_pack.problems(pack)
     assert any("not a unique key BUT000 declares" in x for x in found)
-    assert any("DATAB are not CSKS's key" in x for x in found)
+    assert any("one end of the period and the fixed filters are not CSKS's key" in x for x in found)
 
 
 def test_dab_config_carries_a_unique_column_join_but_not_a_date_join():
@@ -219,3 +219,11 @@ def test_dab_config_carries_a_unique_column_join_but_not_a_date_join():
     rels = [r for e in cfg["entities"].values() for r in e.get("relationships", {}).values()]
     assert any(r["source.fields"] == ["CLIENT", "PARTNER_GUID"] and r["target.entity"] == "BUT000" for r in rels)
     assert not any("RCNTR" in r["source.fields"] for r in rels)
+
+
+def test_a_blank_filter_and_valid_today_complete_the_key():
+    pack = sap_pack.load()
+    adrc = next(r for r in pack["relationships"] if r["source"] == "KNA1" and r["target"] == "ADRC")
+    assert sap_pack.problems(pack) == []
+    pack["relationships"].append({**adrc, "where": []})                   # without NATION the key is not complete
+    assert any("are not ADRC's key" in x for x in sap_pack.problems(pack))

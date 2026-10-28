@@ -84,8 +84,10 @@ class ExtendedRelationship(Relationship):
       kind "valid_on": equality on the target's key without its validity column, plus a date of the source row that
                        falls in the target row's validity period (ACDOCA.RCNTR on BUDAT -> CSKS.KOSTL, DATAB..DATBI).
     valid_on = {"source_date": ..., "target_from": ..., "target_to": ...} for kind "valid_on".
+    valid_on may say {"on": "today", ...} instead of a source_date: the target row valid on the date of the call
+    (KNA1.ADRNR -> ADRC, DATE_FROM..DATE_TO).
     where: filters that say for which rows the join holds, on either side, as [{"side": "source"|"target", "column": ...,
-    "in": [values]}]: VBFA.VBELN -> LIKP where VBFA.VBTYP_N is a delivery, EKBE -> RBKP where EKBE.VGABE is '2'. Any kind
+    "in": [values]}], or {"blank": true} for SAP's blank (NULL, '' or ' ': ADRC.NATION, the standard version): VBFA.VBELN -> LIKP where VBFA.VBTYP_N is a delivery, EKBE -> RBKP where EKBE.VGABE is '2'. Any kind
     can carry them, a key join too; a filtered relationship always lives in plan.extended."""
     kind: str = "unique"
     valid_on: dict | None = None
@@ -96,17 +98,32 @@ class ExtendedRelationship(Relationship):
         """The where entries of one side as SQL conditions: s.[VBTYP_N] IN ('J', 'T')."""
         out = []
         for w in self.where:
-            if w["side"] == side:
+            if w["side"] != side:
+                continue
+            col = f"{alias}.{quote(w['column'])}"
+            if w.get("blank"):                                          # NULL, '' or ' ': however the tool wrote SAP's blank
+                out.append(f"COALESCE(LTRIM(RTRIM({col})), '') = ''")
+            else:
                 values = ", ".join("'" + str(v).replace("'", "''") + "'" for v in w["in"])
-                out.append(f"{alias}.{quote(w['column'])} IN ({values})")
+                out.append(f"{col} IN ({values})")
         return out
+
+    def period_sql(self, source_alias: str = "s", target_alias: str = "t", quote=lambda c: f"[{c}]", today: str | None = None) -> str:
+        """For kind valid_on: the date inside the target row's period. The date is the source row's (source_date), or
+        with on="today" the date of the call as text in SAP's YYYYMMDD form, the form SAP stores dates in."""
+        v = self.valid_on or {}
+        if v.get("on") == "today":
+            from datetime import date
+            when = "'" + (today or date.today().strftime("%Y%m%d")) + "'"
+        else:
+            when = f"{source_alias}.{quote(v['source_date'])}"
+        return f"{when} BETWEEN {target_alias}.{quote(v['target_from'])} AND {target_alias}.{quote(v['target_to'])}"
 
     def join_sql(self, source_alias: str = "s", target_alias: str = "t", quote=lambda c: f"[{c}]") -> str:
         """The ON clause of the join, in the target's terms."""
         on = [f"{source_alias}.{quote(a)} = {target_alias}.{quote(b)}" for a, b in zip(self.source_cols, self.target_cols)]
         if self.kind == "valid_on" and self.valid_on:
-            v = self.valid_on
-            on.append(f"{source_alias}.{quote(v['source_date'])} BETWEEN {target_alias}.{quote(v['target_from'])} AND {target_alias}.{quote(v['target_to'])}")
+            on.append(self.period_sql(source_alias, target_alias, quote))
         on += self.filter_sql("source", source_alias, quote) + self.filter_sql("target", target_alias, quote)
         return " AND ".join(on)
 

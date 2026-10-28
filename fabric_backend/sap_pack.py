@@ -92,19 +92,22 @@ def problems(pack: dict) -> list[str]:
                 out.append(f"{name}: the target columns are not a unique key {r['target']} declares (unique_keys)")
         elif kind == "valid_on":                                         # CSKS: the key without its valid-to column, plus a date
             v = r.get("valid_on") or {}
-            if not {"source_date", "target_from", "target_to"} <= set(v):
-                out.append(f"{name}: valid_on needs source_date, target_from and target_to")
-            elif sorted(list(r["target_cols"]) + [v["target_to"]]) != sorted(target["key"]):
-                out.append(f"{name}: the target columns and {v['target_to']} are not {r['target']}'s key")
+            # the key is the join columns, one end of the period (CSKS: DATBI, ADRC: DATE_FROM) and any target column a
+            # filter fixes to one value or to blank (ADRC.NATION)
+            fixed = [w["column"] for w in r.get("where", []) if w["side"] == "target" and (w.get("blank") or len(w.get("in", [])) == 1)]
+            if not {"target_from", "target_to"} <= set(v) or not (v.get("source_date") or v.get("on") == "today"):
+                out.append(f"{name}: valid_on needs target_from, target_to and a source_date or on: today")
+            elif not any(sorted(list(r["target_cols"]) + [end] + fixed) == sorted(target["key"]) for end in (v["target_to"], v["target_from"])):
+                out.append(f"{name}: the target columns, one end of the period and the fixed filters are not {r['target']}'s key")
         elif r["cardinality"] != "many-to-many" and r.get("apply") is not False:
             # a key join that is only listed may point elsewhere (a conditional link); an applied one never. A target-side
             # filter to one value completes the key: KONV.KAPPL+KSCHL -> T685 where T685.KVEWE = 'A'
-            fixed = [w["column"] for w in r.get("where", []) if w["side"] == "target" and len(w["in"]) == 1]
+            fixed = [w["column"] for w in r.get("where", []) if w["side"] == "target" and (w.get("blank") or len(w.get("in", [])) == 1)]
             if sorted(list(r["target_cols"]) + fixed) != sorted(target["key"]) or (not fixed and list(r["target_cols"]) != list(target["key"])):
                 out.append(f"{name}: the target columns are not {r['target']}'s key")
         for w in r.get("where", []):
-            if w.get("side") not in ("source", "target") or not w.get("in"):
-                out.append(f"{name}: a where entry needs side source or target and at least one value")
+            if w.get("side") not in ("source", "target") or not (w.get("in") or w.get("blank")):
+                out.append(f"{name}: a where entry needs side source or target and at least one value, or blank")
         for v in r.get("variants", []):
             if v not in pack["variants"]:
                 out.append(f"{name}: unknown variant {v!r}")
@@ -200,9 +203,16 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         valid = None
         if kind == "valid_on":                                            # the date and the period columns must be there too
             v = r["valid_on"]
-            sd, tf, tt = cols[s].get(v["source_date"]), cols[g].get(v["target_from"]), cols[g].get(v["target_to"])
-            lost += [(t_, c_) for t_, c_, have in ((s, v["source_date"], sd), (g, v["target_from"], tf), (g, v["target_to"], tt)) if not have]
-            valid = {"source_date": sd, "target_from": tf, "target_to": tt}
+            tf, tt = cols[g].get(v["target_from"]), cols[g].get(v["target_to"])
+            need = [(g, v["target_from"], tf), (g, v["target_to"], tt)]
+            valid = {"target_from": tf, "target_to": tt}
+            if v.get("on") == "today":
+                valid["on"] = "today"
+            else:
+                sd = cols[s].get(v["source_date"])
+                need.append((s, v["source_date"], sd))
+                valid["source_date"] = sd
+            lost += [(t_, c_) for t_, c_, have in need if not have]
         where = []
         for w in r.get("where", []):                                       # the filter columns must be there too
             table = s if w["side"] == "source" else g

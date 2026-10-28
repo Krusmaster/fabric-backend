@@ -113,15 +113,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 107, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 107, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 107, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 107, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 49, 'listed': 0, 'rel_hits': 0, 'relationships': 93, 'tables': 49, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.66, 'implied': 6, 'key_hits': 49, 'keys': 49, 'listed': 10, 'rel_hits': 61, 'relationships': 93, 'tables': 49, 'wrong': 14, 'wrong_share': 0.15},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 49, 'keys': 49, 'listed': 0, 'rel_hits': 93, 'relationships': 93, 'tables': 49, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 112, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 112, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 112, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 112, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 49, 'listed': 0, 'rel_hits': 0, 'relationships': 98, 'tables': 49, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.62, 'implied': 6, 'key_hits': 49, 'keys': 49, 'listed': 10, 'rel_hits': 61, 'relationships': 98, 'tables': 49, 'wrong': 14, 'wrong_share': 0.15},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 49, 'keys': 49, 'listed': 0, 'rel_hits': 98, 'relationships': 98, 'tables': 49, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -344,6 +344,30 @@ def test_customer_company_code_data_and_central_addresses():
     assert ("BSEG", ("MANDT", "KUNNR", "BUKRS"), "KNB1") in rels and ("VBRK", ("MANDT", "KUNRG", "BUKRS"), "KNB1") in rels
     assert ("KNB1", ("MANDT", "BUKRS", "AKONT"), "SKB1") in rels
     assert p.keys["ADRC"] == (["CLIENT", "ADDRNUMBER", "DATE_FROM", "NATION"], "SAP pack")
-    assert not [r for r in list(p.relationships) + p.extended if r.target == "ADRC"]   # version and period: listed only
-    listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
-    assert {("KNA1", "ADRC"), ("VBPA", "ADRC"), ("BUT020", "ADRC")} <= listed
+    assert not [r for r in p.relationships if r.target == "ADRC"]                       # never a plain key join...
+    adrc = {r.source: r for r in p.extended if r.target == "ADRC"}                     # ...but valid today, standard version (n28)
+    assert set(adrc) == {"KNA1", "VBPA", "BUT020", "T001"}
+    assert adrc["KNA1"].valid_on == {"target_from": "DATE_FROM", "target_to": "DATE_TO", "on": "today"}
+    assert adrc["KNA1"].where == [{"side": "target", "column": "NATION", "blank": True}]
+
+
+def test_validate_picks_the_standard_address_valid_today():
+    from fabric_backend import evidence
+    s, execute = _sqlite({
+        "KNA1": (["MANDT", "KUNNR", "ADRNR"], [("100", "0000000010", "A1"), ("100", "0000000011", "A2"), ("100", "0000000012", "A9")]),
+        "ADRC": (["CLIENT", "ADDRNUMBER", "DATE_FROM", "NATION", "DATE_TO"],
+                 [("100", "A1", "00010101", "", "99991231"),       # the standard version, valid for ever
+                  ("100", "A1", "00010101", "I", "99991231"),      # an international version of the same address: not counted
+                  ("100", "A2", "20200101", " ", "20201231"),      # expired
+                  ("100", "A2", "20210101", " ", "99991231")]),    # valid now; the blank written as ' '
+        "VBPA": (["MANDT", "VBELN", "POSNR", "PARVW", "KUNNR", "ADRNR"],
+                 [("100", "0000000001", "000000", "WE", "0000000010", ""),       # no own address: no reference
+                  ("100", "0000000001", "000000", "AG", "0000000010", "A1")]),
+        "VBAK": (["MANDT", "VBELN", "KUNNR"], [("100", "0000000001", "0000000010")]),
+    })
+    out = evidence.validate(plan(s), execute)
+    rel = {(r["source"], r["target"]): r for r in out["relationships"]}
+    kna1 = rel[("KNA1", "ADRC")]
+    assert (kna1["rows_with_value"], kna1["orphans"], kna1["several"]) == (3, 1, 0)    # A9 has no address; A1 and A2 one each
+    vbpa = rel[("VBPA", "ADRC")]
+    assert (vbpa["rows_with_value"], vbpa["orphans"]) == (1, 0)                       # the blank ADRNR is not counted
