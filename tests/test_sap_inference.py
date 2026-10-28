@@ -17,6 +17,8 @@ error of the name rules (round n24, after the first measurement counted all of t
 - listed: partly right. The pack lists that link but does not apply it (conditional, many-to-many, or on a unique
   column that is not the key: VBPA.VBELN -> VBAK holds for the partner rows of sales documents only), or the link is a
   shortcut over a path that uses such a listed link;
+- a pack join that holds only where a filter says (VBFA.VBELN -> LIKP for rows whose VBTYP_N is a delivery) and that
+  the name rules find without the filter counts as listed (partly right), not as found: unfiltered it joins every row;
 - wrong: neither. These are the real errors: a column that names another document (LIPS.VBELN, a delivery, read as
   an order; RBKP.BELNR, an invoice number, read as an accounting document).
 The numbers are asserted exactly; `python tests/test_sap_inference.py` prints the table docs/INFERENCE.md carries.
@@ -74,13 +76,17 @@ def score(variant: str, style: str, how: str) -> dict:
     if given:                                                               # in the key's own order
         given = {t: sorted(cols, key=lambda c: [k.upper() for k in keys[name[t]]].index(c.upper())) for t, cols in given.items()}
     p = plan(s, keys=given, packs=how == "pack")
-    inferred = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in list(p.relationships) + p.extended}
+    rels = list(p.relationships) + p.extended
+    inferred = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in rels}
+    with_filter = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in rels if getattr(r, "where", None)}
+    # a pack join that holds only where a filter says, found without that filter, is partly right, not found
+    unfiltered = (inferred & sap_support.filtered(variant)) - with_filter
     key_hits = sum(1 for t, (cols, _) in p.keys.items() if tuple(c.lower() for c in cols) == keys[name[t]])
-    hits = len(inferred & truth)
-    other = inferred - truth
-    implied = {r for r in other if _implied(r, truth) or r in sap_support.reversed_one_to_one(variant)}
+    hits = len((inferred & truth) - unfiltered)
+    other = (inferred - truth) | unfiltered
+    implied = {r for r in other - unfiltered if _implied(r, truth) or r in sap_support.reversed_one_to_one(variant)}
     # partly right: a link the pack lists (conditional), or a shortcut over a path that uses one
-    partly = {r for r in other - implied if any(r[0] == l[0] and r[2] == l[2] and set(r[1]) <= set(l[1]) for l in listed)
+    partly = unfiltered | {r for r in other - implied - unfiltered if any(r[0] == l[0] and r[2] == l[2] and set(r[1]) <= set(l[1]) for l in listed)
               or _implied(r, truth, listed)}
     wrong = other - implied - partly
     return {"tables": len(s), "keys": len(keys), "key_hits": key_hits, "relationships": len(truth), "rel_hits": hits,
@@ -107,15 +113,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.86, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 18, 'rel_hits': 78, 'relationships': 91, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 91, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.86, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 18, 'rel_hits': 78, 'relationships': 91, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 91, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 79, 'tables': 47, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.75, 'implied': 6, 'key_hits': 47, 'keys': 47, 'listed': 10, 'rel_hits': 59, 'relationships': 79, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 79, 'relationships': 79, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 19, 'rel_hits': 78, 'relationships': 100, 'tables': 53, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 19, 'rel_hits': 78, 'relationships': 100, 'tables': 53, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 88, 'tables': 47, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.67, 'implied': 6, 'key_hits': 47, 'keys': 47, 'listed': 10, 'rel_hits': 59, 'relationships': 88, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 88, 'relationships': 88, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -123,7 +129,7 @@ def test_pack_relationships_carry_rule_and_source():
     assert p.pack and p.pack["pack"] == "sap" and "SAP pack" in p.summary()
     r = next(r for r in p.relationships if (r.source, r.target) == ("VBAP", "VBAK"))
     assert r.rule == "SAP pack" and "SAP Help Portal" in r.note and r.source_cols == ["MANDT", "VBELN"]
-    assert any(n["source"] == "VBFA" for n in p.pack["not_applied"])
+    assert any(n["source"] == "VBPA" for n in p.pack["not_applied"])
 
 
 def test_caller_keys_and_confirmed_still_win():
@@ -201,8 +207,8 @@ def test_procure_to_pay_amounts_and_the_two_belnr():
     assert ("EKPO", "EKBE", ("NETWR",)) in pairs                       # the order item once per history row
     assert ("RBKP", "RSEG", ("RMWWR", "WMWST1")) in pairs              # the invoice's gross amount once per item
     assert not [r for r in p.relationships if {r.source, r.target} == {"RBKP", "BKPF"}]   # two different BELNR
-    assert not [r for r in p.relationships if (r.source, r.target) == ("EKBE", "RBKP")]  # conditional: listed only
-    assert any((n["source"], n["target"]) == ("EKBE", "RBKP") for n in p.pack["not_applied"])
+    assert not [r for r in p.relationships if (r.source, r.target) == ("EKBE", "RBKP")]  # not a plain key join...
+    assert [r.where for r in p.extended if (r.source, r.target) == ("EKBE", "RBKP")] == [[{"side": "source", "column": "VGABE", "in": ["2"]}]]
     names = plan(sap_support.schema(["RBKP", "BKPF"]), keys={"RBKP": ["MANDT", "BELNR", "GJAHR"], "BKPF": ["MANDT", "BUKRS", "BELNR", "GJAHR"]}, packs=False)
     assert any((r.source, r.target, r.rule) == ("RBKP", "BKPF", "R3") for r in names.relationships)   # what the name rules alone do
 
@@ -232,7 +238,10 @@ def test_pricing_conditions_are_found_through_knumv_not_applied(variant, conditi
     assert (conditions, "KONH") in rels and ("KONP", "KONH") in rels
     assert not [r for r in p.relationships if r.source == conditions and r.target in ("VBAK", "VBRK", "EKKO", "VBAP", "T685")]
     listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
-    assert {(conditions, "VBAK"), (conditions, "VBRK"), (conditions, "EKKO"), (conditions, "T685")} <= listed
+    assert {(conditions, "VBAK"), (conditions, "VBRK")} <= listed                  # both KAPPL 'V': no filter tells them apart
+    ext = {(r.source, r.target): r for r in p.extended}                            # filtered since n26
+    assert ext[(conditions, "EKKO")].kind == "unique" and ext[(conditions, "EKKO")].where == [{"side": "source", "column": "KAPPL", "in": ["M"]}]
+    assert "t.[KVEWE] IN ('A')" in ext[(conditions, "T685")].join_sql()
     assert p.keys[conditions] == (["MANDT", "KNUMV", "KPOSN", "STUNR", "ZAEHK"], "SAP pack")
 
 
@@ -299,7 +308,31 @@ def test_validate_checks_a_unique_column_join_and_a_join_valid_on_a_date():
     out = evidence.validate(plan(s), execute)
     rel = {(r["source"], r["target"]): r for r in out["relationships"]}
     cvi = rel[("CVI_CUST_LINK", "BUT000")]
-    assert cvi["kind"] == "unique" and cvi["orphans"] == 1 and cvi["target_unique"] is True
+    assert cvi["kind"] == "unique" and cvi["orphans"] == 1 and cvi["several"] == 0
     cs = rel[("ACDOCA", "CSKS")]
-    assert cs["kind"] == "valid_on" and (cs["rows_with_value"], cs["orphans"], cs["several_periods"]) == (3, 1, 1)
+    assert cs["kind"] == "valid_on" and (cs["rows_with_value"], cs["orphans"], cs["several"]) == (3, 1, 1)
     assert "more than one validity period" in cs["verdict"]
+
+
+def test_validate_counts_orphans_only_among_the_filtered_rows():
+    from fabric_backend import evidence
+    s, execute = _sqlite({
+        "VBFA": (["MANDT", "VBELV", "POSNV", "VBELN", "POSNN", "VBTYP_N", "VBTYP_V"],
+                 [("100", "0000000001", "000010", "0080000001", "000010", "J", "C"),     # order item -> delivery item
+                  ("100", "0000000001", "000010", "0090000001", "000010", "M", "C"),     # order item -> invoice item
+                  ("100", "0000000001", "000010", "0080000009", "000010", "J", "C")]),   # a delivery that is not there
+        "LIPS": (["MANDT", "VBELN", "POSNR"], [("100", "0080000001", "000010")]),
+        "VBAP": (["MANDT", "VBELN", "POSNR"], [("100", "0000000001", "000010")]),
+    })
+    out = evidence.validate(plan(s), execute)
+    lips = next(r for r in out["relationships"] if (r["source"], r["target"]) == ("VBFA", "LIPS"))
+    assert (lips["rows_with_value"], lips["orphans"]) == (2, 1)         # the invoice row is not a delivery row: not counted
+    assert lips["where"] == [{"side": "source", "column": "VBTYP_N", "in": ["J", "T"]}]
+    assert "s.[VBTYP_N] IN ('J', 'T')" in lips["join"]
+
+
+def test_dab_config_leaves_out_filtered_joins():
+    from fabric_backend import exports
+    cfg = exports.dab_config(plan(sap_support.schema(variant="s4hana")))
+    rels = [r for e in cfg["entities"].values() for r in e.get("relationships", {}).values()]
+    assert not any(r["source.fields"] == ["MANDT", "KNUMV"] and r["target.entity"] == "EKKO" for r in rels)

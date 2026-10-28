@@ -21,7 +21,7 @@ EXTRA = {
     "ACDOCA": ["RACCT", "BUDAT", "KUNNR", "LIFNR", "KOKRS", "RCNTR", "PRCTR"], "T001": ["KTOPL", "WAERS"],
     "BUT000": ["PARTNER_GUID", "TYPE", "BU_GROUP"], "BUT100": ["VALID_FROM"], "BUT020": ["ADDRESS_GUID"],
     "BUT050": ["RELTYP", "DATE_FROM"], "CVI_CUST_LINK": ["CUSTOMER"], "CVI_VEND_LINK": ["VENDOR"],
-    "KONV": ["KSCHL", "KBETR", "KINAK", "KSTAT"], "PRCD_ELEMENTS": ["KSCHL", "KBETR", "KINAK", "KSTAT"],
+    "KONV": ["KAPPL", "KSCHL", "KBETR", "KINAK", "KSTAT"], "PRCD_ELEMENTS": ["KAPPL", "KSCHL", "KBETR", "KINAK", "KSTAT"],
     "KONH": ["KSCHL", "DATAB", "DATBI"], "KONP": ["KSCHL", "KBETR", "KPEIN"],
     "SKA1": ["KTOKS"], "SKB1": ["WAERS"], "BSID": ["SHKZG", "BUDAT"], "BSAD": ["SHKZG", "AUGDT"], "BSIK": ["SHKZG"],
     "BSAK": ["SHKZG"], "CSKS": ["DATAB", "BUKRS"], "CEPC": ["DATAB"],
@@ -86,4 +86,14 @@ def reversed_one_to_one(variant: str = "ecc") -> set:
     names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
     return {(r["target"], tuple(c.lower() for c in r["target_cols"]), r["source"]) for r in pack["relationships"]
             if r.get("apply") is not False and r["cardinality"] == "one-to-one" and r["source"] in names and r["target"] in names
+            and (not r.get("variants") or variant in r["variants"])}
+
+
+def filtered(variant: str = "ecc") -> set:
+    """The pack's applied relationships that hold only where a filter says (VBFA -> LIPS for delivery rows): a join
+    without that filter is not the same relationship."""
+    pack = sap_pack.load()
+    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    return {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in pack["relationships"]
+            if r.get("where") and r.get("apply") is not False and r["source"] in names and r["target"] in names
             and (not r.get("variants") or variant in r["variants"])}

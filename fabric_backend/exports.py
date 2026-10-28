@@ -41,7 +41,8 @@ def krusgraph_plan(plan: Plan) -> dict:
                            "target_cols": list(r.target_cols), "rule": r.rule} for r in plan.relationships],
             # joins that are not key joins (a knowledge pack's): for the reader; confirmed= takes key joins only
             **({"extended": [{"source": r.source, "source_cols": list(r.source_cols), "target": r.target, "target_cols": list(r.target_cols),
-                              "kind": r.kind, "join": r.join_sql(), **({"valid_on": r.valid_on} if r.valid_on else {})}
+                              "kind": r.kind, "join": r.join_sql(), **({"valid_on": r.valid_on} if r.valid_on else {}),
+                              **({"where": r.where} if r.where else {})}
                              for r in plan.extended]} if plan.extended else {})}
 
 
@@ -89,8 +90,9 @@ def dab_config(plan: Plan, schema: str | None = None, database_type: str = "dwsq
         return n
 
     # a join on a unique column that is not the target's key (kind "unique") is written like any other: the format takes
-    # any source.fields/target.fields. A join valid on a date has no form in Data API builder and is left out.
-    for r in list(plan.relationships) + [r for r in plan.extended if r.kind == "unique"]:
+    # any source.fields/target.fields. A join valid on a date, and a filtered join, have no form in Data API builder and
+    # are left out rather than written as joins that hold for every row.
+    for r in list(plan.relationships) + [r for r in plan.extended if r.kind == "unique" and not r.where]:
         if r.source not in names or r.target not in names:
             continue
         s, g = names[r.source], names[r.target]

@@ -15,10 +15,10 @@ SAP table and column names survive, with or without a prefix.
 
 | Module | Tables | Relationships |
 | --- | --- | --- |
-| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 48, of which 30 are applied; 18 are listed but not applied: conditional (partners, status and document-flow rows that belong to orders, deliveries or invoices alike) or many-to-many through `VBFA` |
-| `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, of which 24 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
+| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 48, of which 36 are applied (6 of them filtered on the document category in `VBFA`); 12 are listed: partner and status rows of several document kinds (`VBPA`, `VBUK`, `VBUP`) |
+| `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, all applied; `EKBE` → `RBKP` filtered on invoice-receipt rows (`VGABE` = `2`, round n26) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 31, all applied; journal line → cost center and → profit center as joins valid on the posting date (kind `valid_on`, round n25) |
-| `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 3 are applied (condition lines and rates to their condition record); the links from conditions to `VBAK`, `VBRK`, `EKKO` (through `KNUMV`, not the document number) and to `T685` are listed only |
+| `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 7 are applied: condition lines and rates to their record, and (filtered, round n26) conditions → `EKKO` and → `T685`; conditions → `VBAK` and → `VBRK` are listed only |
 | `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK` | 8, all applied; link table → `BUT000` on the partner's GUID as a join on a unique column (kind `unique`, round n25) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
@@ -117,11 +117,29 @@ find no target; for `valid_on`, how many rows find no period that holds their da
 (overlapping periods, which would repeat the row in a join). Both are unit-tested on synthetic rows in SQLite. Dates in
 SAP are text in the form `YYYYMMDD`, which compares correctly as text as long as both sides have the same type.
 
-Still listed only, on purpose: `KONV`/`PRCD_ELEMENTS` → `VBAK`/`VBRK`/`EKKO` is now a `unique` join, but the
-conditions of all three document kinds share one table, so applied it would show orphans by design; partners, status
-and document-flow rows of several document kinds (`VBPA`, `VBUK`, `VBUP`, `VBFA`) for the same reason; and
-`EKBE` → `RBKP` (invoice rows only). A third kind, *filtered* (a join that holds where a column has a given value, such
-as `VBTYP_N`), would let those be applied; it is not built.
+### Filtered joins (round n26)
+
+Any of the kinds can carry a filter, `where`: the join holds for the rows whose column has one of the given values,
+on the source side or the target side. A filtered relationship lives in `plan.extended` like the other two kinds,
+since an API or model built as a plain join would apply it to every row. Applied with a filter now:
+
+| Relationship | Filter | Why |
+| --- | --- | --- |
+| `VBFA` → `VBAK`, `LIKP`, `VBRK` (header) and `LIPS`, `VBRP` (item), on the subsequent document | `VBFA.VBTYP_N` in the sales, delivery or billing categories | the document flow links any document to any other; the category says which table the number is in |
+| `VBFA` → `VBAP`, on the preceding document | `VBFA.VBTYP_V` in the sales categories | the same, for the preceding side |
+| `EKBE` → `RBKP` | `EKBE.VGABE` = `2` | only invoice-receipt rows carry a supplier invoice number |
+| `KONV`/`PRCD_ELEMENTS` → `EKKO` (kind `unique`, on `KNUMV`) | `KAPPL` = `M` | purchasing conditions; sales and billing share the table |
+| `KONV`/`PRCD_ELEMENTS` → `T685` on `KAPPL`+`KSCHL` | `T685.KVEWE` = `A` (target side) | the condition type's key also has the usage; pricing is `A` |
+
+The document category values (`C` order, `J` delivery, `M` invoice and so on) are as documented for ECC; that
+S/4HANA uses the same values is not verified, and the filters say so in their condition. `validate_plan` counts
+orphans only among the rows the filter selects, and rows that match more than one target row. The Data API builder
+export leaves filtered joins out: the format has no row filter on a relationship.
+
+Still listed only: `KONV`/`PRCD_ELEMENTS` → `VBAK` and → `VBRK` (both have application `V`; no column of the condition
+row says order or invoice), and the partner and status rows of several document kinds (`VBPA`, `VBUK`, `VBUP`), which
+have no document category column of their own in the pack. A filter through another table (`VBPA` joined to `VBUK` for
+its category) would be a join path, not a relationship, and is not built.
 
 `sap_pack_draft` (read-only) shows what the pack recognises in a source, what it applies, what it lists but does not
 apply, which pack tables and columns are missing, and the traps; with `export=` it adds one export (below).

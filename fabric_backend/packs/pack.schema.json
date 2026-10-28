@@ -318,6 +318,38 @@
                 "$ref": "#/definitions/name"
               }
             }
+          },
+          "where": {
+            "type": "array",
+            "minItems": 1,
+            "description": "For which rows the join holds: a column of the source or the target and the values it must have (VBFA.VBTYP_N in J, T for deliveries). A filtered relationship is applied as a join with these conditions.",
+            "items": {
+              "type": "object",
+              "required": [
+                "side",
+                "column",
+                "in"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "side": {
+                  "enum": [
+                    "source",
+                    "target"
+                  ]
+                },
+                "column": {
+                  "$ref": "#/definitions/name"
+                },
+                "in": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
           }
         }
       }

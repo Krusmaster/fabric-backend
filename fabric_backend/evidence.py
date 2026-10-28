@@ -49,19 +49,24 @@ def relationship_sql(schema: str, source: str, source_cols: list[str], target: s
             f"WHERE {has_value}")
 
 
-def valid_on_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str], valid_on: dict,
-                 dialect: Dialect = TSQL) -> str:
-    """A relationship valid on a date (ACDOCA.RCNTR on BUDAT -> CSKS.KOSTL, DATAB..DATBI): rows with a value, rows with
-    no target row whose period holds the date (orphans), and rows that more than one target row matches (overlapping
-    periods, which would multiply the row in a join)."""
+def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
+    """A relationship of plan.extended (a join on a unique non-key column, valid on a date, or filtered): the source rows
+    it applies to (a value in every join column and the date, and the source-side filter), the ones no target row
+    matches (orphans), and the ones more than one target row matches (overlapping periods, or a target that is not
+    unique), which a join would repeat. One correlated count per source row: fine for a check, not for a report."""
     q, count = dialect.quote, dialect.count
-    d, f, to = q(valid_on["source_date"]), q(valid_on["target_from"]), q(valid_on["target_to"])
-    on = " AND ".join([f"t.{q(b)} = s.{q(a)}" for a, b in zip(source_cols, target_cols)] + [f"s.{d} BETWEEN t.{f} AND t.{to}"])
-    has_value = " AND ".join([f"s.{q(a)} IS NOT NULL" for a in source_cols] + [f"s.{d} IS NOT NULL"])
-    matches = f"(SELECT {count}(*) FROM {_t(schema, target, dialect)} AS t WHERE {on})"
+    cond = [f"t.{q(b)} = s.{q(a)}" for a, b in zip(r.source_cols, r.target_cols)]
+    has_value = [f"s.{q(a)} IS NOT NULL" for a in r.source_cols]
+    if r.kind == "valid_on" and r.valid_on:
+        v = r.valid_on
+        cond.append(f"s.{q(v['source_date'])} BETWEEN t.{q(v['target_from'])} AND t.{q(v['target_to'])}")
+        has_value.append(f"s.{q(v['source_date'])} IS NOT NULL")
+    cond += r.filter_sql("target", "t", q)
+    has_value += r.filter_sql("source", "s", q)
+    matches = f"(SELECT {count}(*) FROM {_t(schema, r.target, dialect)} AS t WHERE {' AND '.join(cond)})"
     return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN {matches} = 0 THEN 1 ELSE 0 END) AS orphans, "
             f"SUM(CASE WHEN {matches} > 1 THEN 1 ELSE 0 END) AS several "
-            f"FROM {_t(schema, source, dialect)} AS s WHERE {has_value}")
+            f"FROM {_t(schema, r.source, dialect)} AS s WHERE {' AND '.join(has_value)}")
 
 
 def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL) -> str:
@@ -158,22 +163,17 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
         budget -= 1
         entry = {"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                  "rule": r.rule, "kind": r.kind, "join": r.join_sql(quote=dialect.quote)}
-        if r.kind == "valid_on":
-            row = execute(valid_on_sql(schema, r.source, r.source_cols, r.target, r.target_cols, r.valid_on, dialect))[0]
-            with_value, orphans, several = _int(row.get("with_value")), _int(row.get("orphans")), _int(row.get("several"))
-            verdict = relationship_verdict(with_value, orphans)
-            if several:
-                verdict += f"; but {several} row(s) fall in more than one validity period of {r.target}, so a join repeats them"
-            entry.update({"valid_on": r.valid_on, "rows_with_value": with_value, "orphans": orphans, "several_periods": several})
-        else:                                                          # kind unique: is the target column set unique, then orphans
-            krow = execute(key_sql(schema, r.target, r.target_cols, dialect))[0]
-            n, nulls, distinct = _int(krow.get("n")), _int(krow.get("nulls")), _int(krow.get("distinct_keys"))
-            row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect))[0]
-            with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
-            verdict = relationship_verdict(with_value, orphans)
-            if distinct != n - nulls:
-                verdict += f"; but {'+'.join(r.target_cols)} is not unique in {r.target}, so a row can match more than one"
-            entry.update({"rows_with_value": with_value, "orphans": orphans, "target_unique": distinct == n - nulls})
+        row = execute(extended_sql(schema, r, dialect))[0]
+        with_value, orphans, several = _int(row.get("with_value")), _int(row.get("orphans")), _int(row.get("several"))
+        verdict = relationship_verdict(with_value, orphans)
+        if several:
+            verdict += (f"; but {several} row(s) fall in more than one validity period of {r.target}, so a join repeats them"
+                        if r.kind == "valid_on" else f"; but {several} row(s) match more than one row of {r.target}, so a join repeats them")
+        entry.update({"rows_with_value": with_value, "orphans": orphans, "several": several})
+        if r.valid_on:
+            entry["valid_on"] = r.valid_on
+        if r.where:
+            entry["where"] = r.where
         entry["verdict"] = verdict
         rels.append(entry)
     checked = len(keys) + len(rels)

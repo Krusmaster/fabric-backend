@@ -73,8 +73,10 @@ def test_match_with_and_without_prefix(style):
     assert [c.upper() for c in m.keys[vbap]] == ["MANDT", "VBELN", "POSNR"]
     pairs = {(m.tables[r["source"]], m.tables[r["target"]]) for r in m.relationships}
     assert ("VBAP", "VBAK") in pairs and ("LIPS", "VBAP") in pairs and ("VBRP", "VBRK") in pairs
-    assert ("VBFA", "LIPS") not in pairs                                  # many-to-many and conditional: listed, not applied
-    assert any(r["source"] == next(t for t, n in m.tables.items() if n == "VBFA") for r in m.not_applied)
+    vbfa_lips = next(r for r in m.relationships if (m.tables[r["source"]], m.tables[r["target"]]) == ("VBFA", "LIPS"))
+    assert [w["column"].upper() for w in vbfa_lips["where"]] == ["VBTYP_N"]       # applied with a filter since n26
+    vbpa = next(t for t, n in m.tables.items() if n == "VBPA")
+    assert any(r["source"] == vbpa for r in m.not_applied)                        # VBPA has no document category: listed
 
 
 def test_a_dropped_client_column_is_dropped_on_both_sides_and_reported():

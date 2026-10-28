@@ -96,9 +96,15 @@ def problems(pack: dict) -> list[str]:
                 out.append(f"{name}: valid_on needs source_date, target_from and target_to")
             elif sorted(list(r["target_cols"]) + [v["target_to"]]) != sorted(target["key"]):
                 out.append(f"{name}: the target columns and {v['target_to']} are not {r['target']}'s key")
-        elif r["cardinality"] != "many-to-many" and r.get("apply") is not False and list(r["target_cols"]) != list(target["key"]):
-            # a key join that is only listed may point elsewhere (a conditional link); an applied one never
-            out.append(f"{name}: the target columns are not {r['target']}'s key")
+        elif r["cardinality"] != "many-to-many" and r.get("apply") is not False:
+            # a key join that is only listed may point elsewhere (a conditional link); an applied one never. A target-side
+            # filter to one value completes the key: KONV.KAPPL+KSCHL -> T685 where T685.KVEWE = 'A'
+            fixed = [w["column"] for w in r.get("where", []) if w["side"] == "target" and len(w["in"]) == 1]
+            if sorted(list(r["target_cols"]) + fixed) != sorted(target["key"]) or (not fixed and list(r["target_cols"]) != list(target["key"])):
+                out.append(f"{name}: the target columns are not {r['target']}'s key")
+        for w in r.get("where", []):
+            if w.get("side") not in ("source", "target") or not w.get("in"):
+                out.append(f"{name}: a where entry needs side source or target and at least one value")
         for v in r.get("variants", []):
             if v not in pack["variants"]:
                 out.append(f"{name}: unknown variant {v!r}")
@@ -197,10 +203,20 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
             sd, tf, tt = cols[s].get(v["source_date"]), cols[g].get(v["target_from"]), cols[g].get(v["target_to"])
             lost += [(t_, c_) for t_, c_, have in ((s, v["source_date"], sd), (g, v["target_from"], tf), (g, v["target_to"], tt)) if not have]
             valid = {"source_date": sd, "target_from": tf, "target_to": tt}
+        where = []
+        for w in r.get("where", []):                                       # the filter columns must be there too
+            table = s if w["side"] == "source" else g
+            have = cols[table].get(w["column"])
+            if have:
+                where.append({**w, "column": have})
+            else:
+                lost.append((table, w["column"]))
         info = {k: r[k] for k in ("cardinality", "role", "condition", "sources", "module") if k in r}
         info["kind"] = kind
         if valid:
             info["valid_on"] = valid
+        if where:
+            info["where"] = where
         if lost:
             for table in dict.fromkeys(x for x, _ in lost):
                 missing_cols.append({"table": table, "columns": [c for x, c in lost if x == table],
