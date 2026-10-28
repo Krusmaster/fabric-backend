@@ -509,9 +509,9 @@ def build_path_html() -> str:
             f'<p class="path-facts">{len(path)} steps. {before} tool calls take you from your tables to a checked plan; '
             f'then one call per part, {parts} parts in all. On the shop schema the plan has {len(d["tables"])} tables, '
             f'{keyed} with keys and {len(d["relationships"])} relationships, without anyone writing code or configuration.</p>'
-            f'<p class="path-facts">You can be done with the plan in about {minutes} minutes: that is the budget of the '
-            f'<a href="/local#the-20-minute-demo">20-minute demo</a> ({e(budget)}), which ends with the plan checked against '
-            f'the rows and the exports in your hands. Creating the parts in Fabric comes after, in your workspace, when you ask for it.</p>'
+            f'<p class="path-facts">From your tables to a checked plan in about {minutes} minutes; each part after that is one call '
+            f'when you ask for it. The {minutes} minutes are the budget of the <a href="/local#the-20-minute-demo">20-minute demo</a> '
+            f'({e(budget)}), which ends with the plan checked against the rows and the exports in your hands.</p>'
             f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(label(t))}" for t in path[-1]["tools"])}.</p>')
 
 

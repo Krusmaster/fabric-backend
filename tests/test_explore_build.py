@@ -112,5 +112,5 @@ def test_the_path_is_counted_from_the_tools_and_the_demo_budget():
     html = _section(pages.render("/explore"))
     assert html.count('<li><span class="path-n"') == len(path)
     assert f"{sum(len(s['tools']) for s in path[:-1])} tool calls" in html and f"{len(path[-1]['tools'])} parts in all" in html
-    assert f"about {sum(s['minutes'] for s in STEPS)} minutes" in html and 'href="/local#the-20-minute-demo"' in html
+    assert f"to a checked plan in about {sum(s['minutes'] for s in STEPS)} minutes; each part after that is one call" in html and 'href="/local#the-20-minute-demo"' in html
     assert "What you can build automatically from this plan" in html and "when you ask for it" in html
