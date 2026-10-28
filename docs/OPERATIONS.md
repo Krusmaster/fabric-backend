@@ -109,18 +109,36 @@ salted SHA-256 hash of the tenant id. Never user ids, names, IP addresses, works
 results (`fabric_backend/usage.py`; a test checks it). `/privacy` describes exactly this, and changes with the
 settings below.
 
-The Container Apps environment was created with `--logs-destination none`, so today these lines are only in the live
-console stream. To keep them in Log Analytics:
+The Container Apps environment was created with `--logs-destination none`, so until this is switched on these lines
+are only in the live console stream, and `/metrics` starts from zero at every restart. The site writes two more kinds
+of line, with nothing else in them: `{"event":"krusgraph.page_view","path":"/check"}` when `/`, `/check`, `/explore`,
+`/start` or `/partners` is served, and `{"event":"krusgraph.check","step":"loaded"}` / `"step":"done"` from `/check`
+(an image request carrying only the step; `/check` still sends no file, file name, table or column name).
 
-1. Tell the server first, so `/privacy` says the logs are kept and the per-request access line (which carries IP
-   addresses) is switched off before anything is kept. In `deploy/krusgraph.json` set `"log_retention_days": 30`, then:
+To keep all of them in Log Analytics (n39):
+
+1. In `deploy/krusgraph.json` set both keys, then run the update. The server is told first (so `/privacy` says the logs
+   are kept for 30 days and the per-request access line with IP addresses is switched off), then the script creates
+   the workspace in the same resource group and region if it is missing, sets its retention to `log_retention_days`
+   (30 to 730), and points the environment at it:
+
+   ```json
+   "log_retention_days": 30,
+   "log_analytics_workspace": "law-krusgraph"
+   ```
 
    ```bash
    bash deploy/krusgraph.sh --update
    curl -s https://$DOMAIN/privacy.md | grep -A2 "Logs"     # "... deleted after 30 days"
    ```
 
-2. Create the workspace and point the environment at it:
+   `bash deploy/krusgraph.sh --log-analytics` runs only the Log Analytics part. Every step is rerunnable: an existing
+   workspace is kept (its retention corrected if it differs), and the environment is changed only when it does not
+   already send to that workspace. Without `log_analytics_workspace` nothing about logs changes, and no run of the
+   script ever sets the destination back to `none`; switching it off is a manual `az containerapp env update
+   --logs-destination none`.
+
+2. What the script runs, for reference or to do it by hand:
 
    ```bash
    az monitor log-analytics workspace create -g $RG -n $LAW -l $LOC --retention-time 30 --tags managed-by=krusgraph-deploy
@@ -128,6 +146,25 @@ console stream. To keep them in Log Analytics:
    LAW_KEY=$(az monitor log-analytics workspace get-shared-keys -g $RG -n $LAW --query primarySharedKey -o tsv)
    az containerapp env update -n $ENV -g $RG --logs-destination log-analytics --logs-workspace-id $LAW_ID --logs-workspace-key $LAW_KEY
    ```
+
+   Source: Microsoft Learn, *Log storage and monitoring options in Azure Container Apps*
+   (<https://learn.microsoft.com/azure/container-apps/log-options>): the destination is set with `--logs-destination`
+   (`log-analytics`, `azure-monitor` or `none`) on the environment's create and update commands, with the workspace's
+   customer id and shared key for `log-analytics`. The page could not be opened from the session that wrote this (its
+   network did not reach learn.microsoft.com; the statement is from the page's search summary), so check
+   `az containerapp env update --help` once in Cloud Shell before the first run: it should list `--logs-destination`,
+   `--logs-workspace-id` and `--logs-workspace-key`.
+
+   Cost. Log Analytics (Analytics logs, pay-as-you-go) bills per GB ingested; the first 5 GB per billing account and
+   month are free, 31 days of retention are included, and queries are free. Source: Azure Monitor pricing
+   (<https://azure.microsoft.com/pricing/details/monitor/>); the list price there was about USD 2.30 per GB outside
+   the free 5 GB when this was written, but the page itself could not be opened from this session, so read the Sweden
+   Central price on that page. At the current volume the estimate is **0 kr a month**: there are no stored numbers
+   yet, so as an upper bound, one usage line is about 100 bytes and Container Apps adds some metadata per line, so even
+   10 000 tool calls and page views a day (far above today) are roughly 10–30 MB a day, under 1 GB a month, inside the
+   free 5 GB. The platform's system log (start and stop of replicas) adds a little more. With retention at 30 days
+   (≤ 31) there is no retention charge. Set a daily cap if you want a hard ceiling:
+   `az monitor log-analytics workspace update -g $RG -n $LAW --quota 0.5` (GB per day).
 
 3. Optional, to count organisations: a salt the server keeps as a container-app secret.
 
@@ -138,7 +175,9 @@ console stream. To keep them in Log Analytics:
 
    Keep the salt where it is: with it, a known tenant id can be hashed and compared; without it, the hashes say nothing.
 
-4. Read the numbers in the workspace (Logs, KQL):
+4. Read the numbers: `bash deploy/usage-report.sh` prints the last 7 and 30 days, and `docs/USAGE.md` has every query
+   (calls per day and tool, errors per kind, median and 95th percentile, organisations, consent / no_access /
+   rate_limited, page views, /check). One of them, in the workspace (Logs, KQL):
 
    ```kusto
    ContainerAppConsoleLogs_CL

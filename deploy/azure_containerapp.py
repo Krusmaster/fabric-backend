@@ -11,7 +11,15 @@ resource_group, environment, app, registry, identity, product_name, contact_emai
 company_orgnr (shown on the privacy page and in the footer when set; leave "" to hide the line), key_vault (the name of
 a Key Vault for the client secret, read only by --key-vault; leave "" to keep the secret in the container app) and
 log_retention_days (0 while console logs go nowhere; the number of days once they go to Log Analytics, which also
-turns off the access line with IP addresses; docs/OPERATIONS.md).
+turns off the access line with IP addresses; docs/OPERATIONS.md) and log_analytics_workspace (optional: the name of a
+Log Analytics workspace; "" or missing leaves the logs where they are).
+
+With log_analytics_workspace set, the full run, --update and --log-analytics keep the console logs (the usage, page-view
+and /check lines) in that workspace, in the same resource group and region: the workspace is created when it is
+missing (tagged like everything else), its retention set to log_retention_days (30 to 730; it must be set too, so
+/privacy says the logs are kept before any are), and the Container Apps environment is pointed at it with
+`az containerapp env update --logs-destination log-analytics --logs-workspace-id ... --logs-workspace-key ...`.
+Rerunnable. Nothing here ever sets the destination back to none: without the key, a run leaves the environment as it is.
 
 --key-vault moves the client secret into Azure Key Vault: it creates the vault (RBAC, tagged like everything else) if
 it does not exist, asks for the secret's value once (hidden), stores it there, gives the container app's identity
@@ -184,6 +192,46 @@ def plain_env(config, build=None):
         env["KRUSGRAPH_LOG_RETENTION_DAYS"] = str(days)
         env["KRUSGRAPH_ACCESS_LOG"] = "0"
     return env
+
+
+def connect_log_analytics(az, config):
+    """The environment's console logs → the Log Analytics workspace named in log_analytics_workspace. Creates the
+    workspace when missing, keeps its retention at log_retention_days, and changes the environment only when it does
+    not already send to this workspace. Never switches logs off. Returns the workspace's customerId, or None (no key)."""
+    name = (config.get("log_analytics_workspace") or "").strip()
+    if not name:
+        return None
+    days = int(config.get("log_retention_days") or 0)
+    if not 30 <= days <= 730:
+        raise DeploymentError("Sätt log_retention_days (30–730, förslag 30) i deploy/krusgraph.json tillsammans med "
+                              "log_analytics_workspace, så att /privacy säger hur länge loggarna sparas.")
+    rg = config["resource_group"]
+    tags = [f"{key}={value}" for key, value in OWNER_TAG.items()]
+    workspace = az.run("monitor", "log-analytics", "workspace", "show", "--resource-group", rg, "--workspace-name", name, missing_ok=True)
+    assert_owned(workspace, name)
+    if not workspace:
+        print(f"Skapar Log Analytics-arbetsytan {name} ({days} dagar)…", flush=True)
+        workspace = az.run("monitor", "log-analytics", "workspace", "create", "--resource-group", rg, "--workspace-name", name,
+                           "--location", config["location"], "--retention-time", str(days), "--tags", *tags)
+    elif int(workspace.get("retentionInDays") or 0) != days:
+        workspace = az.run("monitor", "log-analytics", "workspace", "update", "--resource-group", rg, "--workspace-name", name,
+                           "--retention-time", str(days))
+    customer_id = workspace["customerId"]
+    environment = az.run("containerapp", "env", "show", "--name", config["environment"], "--resource-group", rg)
+    logs = ((environment or {}).get("properties") or {}).get("appLogsConfiguration") or {}
+    if logs.get("destination") == "log-analytics" and (logs.get("logAnalyticsConfiguration") or {}).get("customerId") == customer_id:
+        print(f"Loggarna går redan till {name}.", flush=True)
+        return customer_id
+    keys = az.run("monitor", "log-analytics", "workspace", "get-shared-keys", "--resource-group", rg, "--workspace-name", name)
+    earlier, az.secret = az.secret, keys["primarySharedKey"]      # hidden in any error message
+    try:
+        print(f"Kopplar servermiljön till {name}…", flush=True)
+        az.run("containerapp", "env", "update", "--name", config["environment"], "--resource-group", rg,
+               "--logs-destination", "log-analytics", "--logs-workspace-id", customer_id,
+               "--logs-workspace-key", az.secret, raw=True)
+    finally:
+        az.secret = earlier
+    return customer_id
 
 
 def make_manifest(config, env_id, identity_id, login_server, image, secret, existing=None, build=None):
@@ -419,6 +467,7 @@ def deploy(az, config):
     manifest = make_manifest(config, environment["id"], identity["id"], registry["loginServer"], image_uri, secret, existing, tag)
     apply_manifest(az, config, manifest, bool(existing))
     manifest["properties"]["configuration"]["secrets"][0].pop("value")
+    connect_log_analytics(az, config)         # after the app, so /privacy already says the logs are kept
     report(az, config, build=tag)
 
 
@@ -456,6 +505,7 @@ def update(az, config, keep_settings=False):
         env_args, scale = [f"KRUSGRAPH_BUILD={tag}"], []
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], *scale, "--set-env-vars", *env_args, raw=True)
+    connect_log_analytics(az, config)         # only with log_analytics_workspace; never switches logs off
     report(az, config, first_run=False, build=tag)
 
 
@@ -776,7 +826,7 @@ def config_from_azure(az, app=None, resource_group=None):
         "company_orgnr": env.get("COMPANY_ORGNR", ""), "include_www": "www." + domain.lower() in domains,
         "min_replicas": int((template.get("scale") or {}).get("minReplicas") or 0),
         "ontology_write": env.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in {"1", "true", "yes"},
-        "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0,
+        "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0, "log_analytics_workspace": "",
     }
 
 
@@ -818,6 +868,8 @@ def main():
     mode.add_argument("--bind-domain", action="store_true", help="Anslut domänen efter att DNS-posterna har lagts in")
     mode.add_argument("--update", action="store_true", help="Bygg en ny bild av denna utcheckning och uppdatera den befintliga appen (rör inte Entra, hemligheter eller domäner)")
     mode.add_argument("--key-vault", action="store_true", help="Flytta klienthemligheten till Azure Key Vault (valfritt; tar inte bort något)")
+    mode.add_argument("--log-analytics", action="store_true",
+                      help="Spara konsolloggarna (användning, sidvisningar) i Log Analytics-arbetsytan i log_analytics_workspace (valfritt; stänger aldrig av)")
     mode.add_argument("--client-redirects", action="store_true",
                       help="Skriv ut az-kommandona som lägger till Claude Code, VS Code och Cursor som klienter (kör inget, inga Azure-anrop)")
     mode.add_argument("--client-registration", action="store_true",
@@ -866,6 +918,9 @@ def main():
             update(az, config, keep_settings=args.from_azure)
         elif args.key_vault:
             move_secret_to_key_vault(az, config)
+        elif args.log_analytics:
+            if not connect_log_analytics(az, config):
+                raise DeploymentError("Ange log_analytics_workspace (och log_retention_days) i deploy/krusgraph.json först.")
         else:
             deploy(az, config)
     except (DeploymentError, FileNotFoundError) as exc:

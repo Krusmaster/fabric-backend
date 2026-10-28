@@ -75,6 +75,7 @@ access, at most 90 days, and is never given to the client. Details below.
 | The IP address of a sign-in request, as a salted hash | limits on sign-in attempts per network | in memory only, about an hour; never written anywhere |
 {{/IF}}{{#IF RATE_LIMITS}}| Your user id and organisation id from the sign-in (`oid`, `tid`), as salted hashes | fair-use limits: how many calls per user and per organisation in the last minute and hour | in memory only, until about an hour after your last call; never written anywhere |
 {{/IF}}| A usage record per tool call: the tool's name, the outcome (`ok` or the error kind), the duration, and for the creating tools whether it was a dry run{{#IF USAGE_ORG}}; plus a salted hash of your organisation's tenant id, so organisations can be counted{{/IF}} | counting use, errors and response times per tool | {{#IF LOGS_KEPT_DAYS}}in our Log Analytics workspace for {{LOGS_KEPT_DAYS}} days; totals in memory until the server restarts{{/IF}}{{#IF LOGS_NOT_KEPT}}not stored: the console stream only; totals in memory until the server restarts{{/IF}} |
+| A page-view record when one of the pages `/`, `/check`, `/explore`, `/start` or `/partners` is served: the path and nothing else (no IP address, referrer, browser or query string); on `/check`, a record that the engine loaded and one that a check finished, without any file, file name, table or column name | counting visits to the site and how often /check is used | {{#IF LOGS_KEPT_DAYS}}in our Log Analytics workspace for {{LOGS_KEPT_DAYS}} days{{/IF}}{{#IF LOGS_NOT_KEPT}}not stored: the console stream only{{/IF}} |
 {{#IF LOGS_NOT_KEPT}}| Technical console log: time, method, path, HTTP status and the connection's IP address — no headers, no tokens, no query text | operating and securing the service | not forwarded or stored by us; see *Technical logs* below |
 {{/IF}}{{#IF LOGS_KEPT_DAYS}}| Technical console log: the usage records above, server errors and the platform's start/stop messages — no IP addresses, headers, tokens or query text | operating and securing the service | in our Log Analytics workspace for {{LOGS_KEPT_DAYS}} days; see *Technical logs* below |
 {{/IF}}
@@ -91,6 +92,11 @@ organisation's tenant id combined with a secret salt that stays on the server, w
 writing the tenant id down{{/IF}}. Nothing else: no user id, no name or e-mail, no IP address, no workspace, item, table or
 column names, no queries, no plans and no results. The record is one line on the server's console; the totals since the
 server started are kept in memory and, when the operator turns it on, readable at a protected `/metrics` address.
+
+The site writes one more kind of line: `path` when `/`, `/check`, `/explore`, `/start` or `/partners` is served, and on
+`/check` a `step` that is either `loaded` (the engine started in your browser) or `done` (a check finished). `/check`
+sends this as a request for an image whose address carries only that word; your files, their names and their tables and
+columns stay in your browser.{{#IF LOGS_KEPT_DAYS}} Like the usage records, these lines are deleted after {{LOGS_KEPT_DAYS}} days.{{/IF}}
 
 ## Technical logs
 
@@ -134,4 +140,4 @@ about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and,
 sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: 2026-10-27.
+**Changes.** We date every change to this page. Last updated: 2026-10-28.

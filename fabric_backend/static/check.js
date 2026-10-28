@@ -19,6 +19,9 @@
     const p = pending.get(d.id); if (p) { pending.delete(d.id); p(d); }
   };
   worker.onerror = () => say("The engine could not start in this browser. It needs WebAssembly and module workers (a current Chrome, Edge, Firefox or Safari).");
+  // Two counts for the operator, sent as an image request that carries only the step's name (never a file, a file
+  // name, a table or a column): "loaded" when the engine has started, "done" when a check has finished.
+  const ping = (step) => { try { new Image().src = "/check/event?e=" + step; } catch (_) { /* counting is optional */ } };
   const call = (msg) => new Promise((resolve) => { const id = ++seq; pending.set(id, resolve); worker.postMessage({ id, ...msg }); });
   function say(text) { status.textContent = text; }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
@@ -27,6 +30,7 @@
   say("Loading the engine in this browser…");
   const boot = call({ kind: "boot" }).then((r) => {
     booted = r.ok;
+    if (r.ok) ping("loaded");
     if (!busy) say(r.ok ? "The engine is ready. Nothing has been read yet." : "The engine could not start: " + r.error);
     return r;
   });
@@ -58,6 +62,7 @@
       if (!r.ok) { say("The engine stopped: " + r.error); return; }
       if (still) { run.hidden = false; events.forEach(show); }
       draw(r.result);
+      ping("done");
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
       say("Done: " + what + ", read in this browser in " + seconds(performance.now() - t0) + ". The result showed " + seconds(ms) + " after the page opened; nothing was uploaded.");

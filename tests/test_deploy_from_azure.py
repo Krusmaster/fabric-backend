@@ -29,7 +29,7 @@ EXPECTED = {
     "location": "swedencentral", "resource_group": "rg-krusgraph", "environment": "cae-krusgraph", "app": "krusgraph",
     "registry": "krusgraphtest", "identity": "krusgraph-pull", "product_name": "Krusgraph",
     "contact_email": "hello@krusgraph.com", "company_orgnr": "556000-0000", "include_www": True, "min_replicas": 1,
-    "ontology_write": True, "key_vault": "kv-krusgraph-test", "log_retention_days": 30,
+    "ontology_write": True, "key_vault": "kv-krusgraph-test", "log_retention_days": 30, "log_analytics_workspace": "",
 }
 
 

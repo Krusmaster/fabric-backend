@@ -16,5 +16,6 @@
   "min_replicas": 0,
   "ontology_write": false,
   "key_vault": "",
-  "log_retention_days": 0
+  "log_retention_days": 0,
+  "log_analytics_workspace": ""
 }

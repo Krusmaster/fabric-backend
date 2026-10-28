@@ -1929,6 +1929,7 @@ def build_app(host: str = "0.0.0.0"):
             headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
+            _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
             return compressed(request, fn().encode("utf-8"), "text/html; charset=utf-8", headers)
         app.router.routes.append(Route(path, handler))
 
@@ -2035,6 +2036,12 @@ def build_app(host: str = "0.0.0.0"):
         headers = {"Cache-Control": "public, max-age=31536000, immutable" if request.query_params.get("v") else PAGE_CACHE, **check_headers(request, worker=True)}
         return compressed(request, p.read_bytes(), STATIC_TYPES[".js"], headers)
     app.router.routes.append(Route("/check/worker.js", check_worker))
+
+    # /check's two events, loaded as an image (the page itself may fetch nothing): the step is the whole request
+    async def check_event(request):
+        _usage.check_event(request.query_params.get("e", ""))
+        return Response(status_code=204, headers={"Cache-Control": "no-store"})
+    app.router.routes.append(Route("/check/event", check_event))
 
     async def check_engine(request):
         from .browser_check import engine_zip
