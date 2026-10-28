@@ -33,13 +33,16 @@ const { chromium } = require("playwright");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-result");
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
-  // reduced motion: the steps column stays empty while the engine runs, then fills at once
-  out.steps_while_running = 0;
+  // reduced motion: no step is added while the run is still going (the result is hidden); they all come with it.
+  // A MutationObserver runs after the task that added the steps, so it sees whether the result was shown with them.
+  await page.evaluate(() => {
+    window.__stepsBeforeResult = 0;
+    new MutationObserver((ms) => { if (document.getElementById("check-result").hidden) window.__stepsBeforeResult += ms.reduce((n, m) => n + m.addedNodes.length, 0); })
+      .observe(document.getElementById("check-steps"), { childList: true });
+  });
   await page.click("#check-sap");
-  while (await page.evaluate(() => document.documentElement.dataset.check) === "running") {
-    out.steps_while_running = Math.max(out.steps_while_running, await page.evaluate(() => document.getElementById("check-run").hidden ? 0 : document.querySelectorAll("#check-steps li").length));
-    await page.waitForTimeout(20);
-  }
+  await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs && document.body.textContent.includes("SAP pack"));
+  out.steps_while_running = await page.evaluate(() => window.__stepsBeforeResult);
   out.sap_text = await page.textContent("#check-result");
   await page.click("#check-crm");
   await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
