@@ -16,9 +16,9 @@ Anthropic says so. No password, secret or workspace id belongs here.
 | 2 | F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop` seeded from `fabric_backend.seed` | done; the capacity runs for the whole review window |
 | 3 | Entra app (multi-tenant, token v2, Application ID URI `https://krusgraph.com/mcp`, scope `user_impersonation`), admin consent in the demo tenant | done; `deploy/krusgraph.sh --check` verifies it |
 | 4 | Hosting, custom domain, `min_replicas: 1` | done; `--update` after every change the portal should see |
-| 5 | Run as a custom connector in Claude against `demo` / `demo_lh` / `shop` (14 steps, no creating call): `list_workspaces`, `list_sources`, `sample_rows`, `plan_backend`, `validate_plan`, `suggest_relationships`, `analyze_schema`, `join_path`, `describe_backend`, `query_graphql`, `semantic_model_draft`, `data_dictionary`, `dbt_schema`, `create_views` (dry run only), `plan_drift`, `app_starter` | done 26 Oct 2026, all passed. Not run: `list_tables` as its own tool, `create_backend`, `create_semantic_model`, `create_data_agent`, `ontology_draft`, `create_ontology`, `rayfin_connector` and the tools added since (docs/LIVE-TEST.md) |
+| 5 | Run as a custom connector in Claude against `demo` / `demo_lh` / `shop` | first run 26 Oct 2026 (14 steps, 16 tools, no creating call). The run that counts is 27 Oct 2026: 30 tools read-only, as drafts or as dry runs, then one creating call, `create_backend` updating `shop_api` in place (`fabric_backend/tool_status.py` `LIVE_RUN`, `docs/LIVE-TEST.md`). Not run live: `sap_pack_draft` (Draft only), and the operator-only `create_ontology`, `create_silver_notebook`, `create_gold_views`, `create_drift_monitor`; `compare_semantic_model` only as far as the model lookup |
 | 6 | Reviewer account in the AB's tenant: no admin role, Viewer on `demo` only, no MFA prompt | done 26 Oct 2026; see "Reviewer sign-in" |
-| 7 | Every tool has `annotations.title`, read-only/destructive hints, descriptions that describe and do not direct | done (the portal's Tools step showed no suggestions) |
+| 7 | Every tool has `annotations.title`, read-only/destructive hints, descriptions that describe and do not direct; every parameter has a description (n18, n26) | done (the portal's Tools step showed no suggestions for the earlier tool set; `tests/test_submission.py` checks titles and hints for every tool) |
 | 8 | Site icon at `/favicon.ico` (the directory shows the server's favicon) | done |
 
 ## Reviewer sign-in (Entra free tier)
@@ -34,7 +34,14 @@ regardless. After the listing: turn security defaults back on or disable the rev
 | Redirect URI | Type | Registered |
 | --- | --- | --- |
 | `https://claude.ai/api/mcp/auth_callback` | Web | yes |
-| `http://localhost`, `http://127.0.0.1` (Claude Code loopback) | Public client / native | not yet |
+| `http://localhost`, `http://127.0.0.1` (Claude Code loopback) | Public client / native | not on the Entra app; clients other than Claude sign in at `/mcp/connect` instead (below) |
+
+## Two ways to sign in
+
+- `/mcp` — the URL in the portal. Claude signs in with Microsoft Entra ID using the client credentials Anthropic holds.
+- `/mcp/connect` — for VS Code, Cursor, Glama and other clients: Krusgraph's own authorization server with client
+  registration and a consent page, then Entra (`docs/CLIENT-REGISTRATION.md`; on at krusgraph.com since 27 October 2026).
+  Not part of the directory submission.
 
 ## Other catalogs
 
@@ -47,8 +54,11 @@ regardless. After the listing: turn security defaults back on or disable the rev
 
 **1 Connection** — `https://krusgraph.com/mcp`, one URL for every user.
 
-**2 Tools** — read live from the server: 22 tools, 18 read-only, 4 write (`create_backend`, `create_semantic_model`,
-`create_views`, `create_data_agent`: destructive, idempotent; the last three dry-run by default).
+**2 Tools** — read live from the server: 36 tools, 28 read-only, 8 write (`create_backend`, `create_views`,
+`create_semantic_model`, `create_data_agent`, `create_ontology`, `create_silver_notebook`, `create_gold_views`,
+`create_drift_monitor`: destructive, idempotent, never delete; all but `create_backend` dry-run by default). New since
+the earlier submission (22 tools, 18 read-only, 4 write) include `sap_pack_draft`. `tests/test_submission.py` keeps
+these numbers and names equal to `server.mcp.list_tools()`.
 
 **3 Listing** — Name *Krusgraph for Microsoft Fabric* · slug `krusgraph` (permanent) · categories Data & Analytics,
 Development tools · author Kruse Consulting AB · docs https://krusgraph.com/docs · support hello@krusgraph.com ·
@@ -79,3 +89,20 @@ expected answers, what the write tools do for a Viewer). Self-tested: yes.
 
 **9 Compliance** — seven acknowledgements, ticked by the maintainer; additional notes on the operator, OAuth/OBO, no
 storage, write tools never delete, synthetic review data.
+
+## Against Anthropic's requirements (read 28 October 2026)
+
+Source: https://claude.com/docs/connectors/building/submission ("Submit a connector to the directory").
+
+| Requirement as stated there | Krusgraph |
+| --- | --- |
+| Remote, reachable over HTTPS | `https://krusgraph.com/mcp` |
+| "OAuth 2.0 for authenticated services"; Anthropic can hold the OAuth client | Entra ID, Anthropic-held client credentials (answer 6) |
+| "every tool includes a `title` and the applicable `readOnlyHint` or `destructiveHint`" | all 36; `tests/test_submission.py` |
+| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; not yet `sap_pack_draft` and the operator-only tools (step 5) — run them, or say so in the portal, before ticking it |
+| Documentation, privacy policy URL, support contact, icon | /docs, /privacy, hello@krusgraph.com, /favicon.ico |
+| Test account for reviewers, entered in the portal | step 6 |
+| Seven compliance acknowledgements | answer 9 |
+| Not an MCP App, no `ui/open-link` | no screenshots or link allowlist needed |
+
+After submitting, a listing is by default a Community connector; escalations go to `mcp-review@anthropic.com` (same page).

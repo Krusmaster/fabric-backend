@@ -45,6 +45,9 @@ owner of an area is listed here. Change an area you do not own only when the mai
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
 
+Rounds are numbered nNN, and the number appears in the claim and release commits. Before a round claims, run
+`git log origin/main --oneline --grep "nNN claims"` and take the next number that has not been used.
+
 ## Verified, and how
 
 When you state that something works, say where and when it was verified: unit tests, a local server, or the live
