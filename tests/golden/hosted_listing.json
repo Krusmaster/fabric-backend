@@ -3097,7 +3097,7 @@
     "read_only_hint": true,
     "title": "Show which SAP tables and relationships the SAP pack recognises (nothing created)"
    },
-   "description": "Which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1… with or without a prefix such\nas sap_), their keys with MANDT, the order-to-cash relationships the pack applies with the public source of each,\nthe ones it lists but does not apply (VBFA is many-to-many), the pack tables and columns that are missing, and the\ntraps (client, header vs item amounts, currency per document, leading zeros, partner functions). Read-only.\n\nArgs:\n    workspace: workspace name or id.\n    source: lakehouse, warehouse or mirrored database name or id.\n    schema: the schema that holds the SAP tables, as the mirroring or pipeline named it.\n    keys: the same key overrides as plan_backend; they win over the pack.\n    confirmed: the same confirmed relationships as plan_backend; they win over the pack.\n    variant: \"ecc\" or \"s4hana\" to consider only that variant's tables; omitted, the tables present decide.\n    export: \"none\", or one export of the plan: \"krusgraph\" (keys/confirmed), \"dab\" (Data API builder config),\n        \"extraction\" (tables, keys and delta columns, with open-mirroring keyColumns) or \"dbt\" (sources with tests).",
+   "description": "Shows which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1…, with or without a\nprefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of\neach, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header\nvs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with\nthe chosen export when export is not \"none\". Read-only; changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -3114,10 +3114,12 @@
        }
       ],
       "default": null,
+      "description": "Confirmed relationships as in plan_backend; they win over the pack. Default none. Example: [{\"source\": \"vbap\", \"source_cols\": [\"mandt\", \"vbeln\"], \"target\": \"vbak\", \"target_cols\": [\"mandt\", \"vbeln\"]}].",
       "title": "Confirmed"
      },
      "export": {
       "default": "none",
+      "description": "\"none\" (default), or one export of the plan: \"krusgraph\" (keys/confirmed), \"dab\" (Data API builder config), \"extraction\" (tables, keys, delta columns) or \"dbt\". Example: \"dbt\".",
       "title": "Export",
       "type": "string"
      },
@@ -3137,14 +3139,17 @@
        }
       ],
       "default": null,
+      "description": "Key overrides as in plan_backend, {table: [columns]}; they win over the pack. Default none. Example: {\"vbap\": [\"mandt\", \"vbeln\", \"posnr\"]}.",
       "title": "Keys"
      },
      "schema": {
       "default": "dbo",
+      "description": "Schema with the SAP tables, as the mirroring or pipeline named it. Default \"dbo\". Example: \"sap\".",
       "title": "Schema",
       "type": "string"
      },
      "source": {
+      "description": "Lakehouse, warehouse or SQL database in the workspace, name or id (list_sources). Example: \"demo_lh\".",
       "title": "Source",
       "type": "string"
      },
@@ -3158,9 +3163,11 @@
        }
       ],
       "default": null,
+      "description": "\"ecc\" or \"s4hana\" to consider only that variant's tables. Default: the tables present decide. Example: \"s4hana\".",
       "title": "Variant"
      },
      "workspace": {
+      "description": "Fabric workspace, name or id (list_workspaces). Example: \"demo\".",
       "title": "Workspace",
       "type": "string"
      }

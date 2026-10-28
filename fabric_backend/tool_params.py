@@ -149,3 +149,15 @@ GraphqlTables = Annotated[list[str] | None, _d('With question: the tables it is 
                                                '["orders", "customers"].')]
 GraphqlSource = Annotated[str | None, _d('With question: the lakehouse or warehouse the API reads. Default: none. '
                                          'Example: "demo_lh".')]
+SapSchema = Annotated[str, _d('Schema with the SAP tables, as the mirroring or pipeline named it. Default "dbo". Example: '
+                              '"sap".')]
+SapKeys = Annotated[dict[str, list[str]] | None, _d(
+    'Key overrides as in plan_backend, {table: [columns]}; they win over the pack. Default none. Example: '
+    '{"vbap": ["mandt", "vbeln", "posnr"]}.')]
+SapConfirmed = Annotated[list[dict] | None, _d(
+    'Confirmed relationships as in plan_backend; they win over the pack. Default none. Example: [{"source": "vbap", '
+    '"source_cols": ["mandt", "vbeln"], "target": "vbak", "target_cols": ["mandt", "vbeln"]}].')]
+SapVariant = Annotated[str | None, _d('"ecc" or "s4hana" to consider only that variant\'s tables. Default: the tables '
+                                      'present decide. Example: "s4hana".')]
+SapExport = Annotated[str, _d('"none" (default), or one export of the plan: "krusgraph" (keys/confirmed), "dab" (Data '
+                              'API builder config), "extraction" (tables, keys, delta columns) or "dbt". Example: "dbt".')]

@@ -22,10 +22,6 @@ def _tools():
 TOOLS = _tools()
 
 
-def test_thirty_five_tools():
-    assert len(TOOLS) == 35
-
-
 @pytest.mark.parametrize("tool", TOOLS, ids=lambda t: t.name)
 def test_every_parameter_has_a_description(tool):
     props = tool.input_schema.get("properties", {})

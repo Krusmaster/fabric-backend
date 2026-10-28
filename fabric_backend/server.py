@@ -876,24 +876,14 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
 
 @mcp.tool(title="Show which SAP tables and relationships the SAP pack recognises (nothing created)", annotations=RO)
 @safe
-def sap_pack_draft(workspace: str, source: str, schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                   confirmed: list[dict] | None = None, variant: str | None = None, export: str = "none",
+def sap_pack_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.SapSchema = "dbo", keys: _p.SapKeys = None,
+                   confirmed: _p.SapConfirmed = None, variant: _p.SapVariant = None, export: _p.SapExport = "none",
                    ctx: Context = None) -> str:
-    """Which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1… with or without a prefix such
-    as sap_), their keys with MANDT, the order-to-cash relationships the pack applies with the public source of each,
-    the ones it lists but does not apply (VBFA is many-to-many), the pack tables and columns that are missing, and the
-    traps (client, header vs item amounts, currency per document, leading zeros, partner functions). Read-only.
-
-    Args:
-        workspace: workspace name or id.
-        source: lakehouse, warehouse or mirrored database name or id.
-        schema: the schema that holds the SAP tables, as the mirroring or pipeline named it.
-        keys: the same key overrides as plan_backend; they win over the pack.
-        confirmed: the same confirmed relationships as plan_backend; they win over the pack.
-        variant: "ecc" or "s4hana" to consider only that variant's tables; omitted, the tables present decide.
-        export: "none", or one export of the plan: "krusgraph" (keys/confirmed), "dab" (Data API builder config),
-            "extraction" (tables, keys and delta columns, with open-mirroring keyColumns) or "dbt" (sources with tests).
-    """
+    """Shows which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1…, with or without a
+    prefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of
+    each, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header
+    vs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with
+    the chosen export when export is not "none". Read-only; changes nothing. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     return _bounded(_sap_pack.draft(p, source_name=schema, export=export, variant=variant), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
