@@ -34,7 +34,7 @@ def test_files_are_read_with_the_demo_adapter_and_orphans_are_found():
 
 
 def test_xlsx_and_columns_list():
-    from openpyxl import Workbook
+    Workbook = pytest.importorskip("openpyxl").Workbook
     wb = Workbook(); ws = wb.active; ws.title = "products"; ws.append(["product_id", "name"]); ws.append([1, "x"])
     buf = io.BytesIO(); wb.save(buf)
     r = bc.analyze("files", [("products.xlsx", buf.getvalue())])
