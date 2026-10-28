@@ -148,6 +148,32 @@ knowledge about …* there, and confirm the link with the customer.
   whole tables; on a hundred tables that is a few hundred queries. Point it at one schema, or export the tables that
   matter.
 
+## The hosted path, timed
+
+Measured by the maintainer on 28 October 2026, 15:34:03–15:37:07 UTC, with the hosted connector krusgraph.com/mcp in
+Claude, workspace `demo`, lakehouse `demo_lh`, schema `shop` (7 synthetic tables). One tool call at a time; the times
+are tool plus agent, not a person's reading and approval time.
+
+| Step | Time | Result |
+| --- | --- | --- |
+| Connect (`list_workspaces`, `list_sources`) | 13 s | |
+| `plan_backend` | 10 s | 7 tables, 6 keys, 6 relationships |
+| `validate_plan` | 11 s | 6 of 6 keys unique, 7 of 7 relationships without orphan rows |
+| **Checked plan** | **34 s** | |
+| `create_backend` | 29 s | shop_api updated |
+| `create_semantic_model` | 28 s | shop_model created |
+| `create_views` | 16 s | 3 views in schema krusgraph |
+| `create_data_agent` | 46 s | shop_agent created and published, 10 example questions |
+| `create_silver_notebook` | 17 s | silver_shop updated |
+| `create_ontology` | 14 s | HTTP 403 FeatureNotAvailable: ontology is turned off in the tenant's settings |
+| **Total, first call to last answer** | **3 min 4 s** | |
+
+Not included: running the notebooks, refreshing the model, the portal steps for shop_api, and a person's reading and
+approvals. `create_gold_views` and `create_drift_monitor` created their objects earlier the same day but were not part
+of the timed run.
+
+So on a small schema the 20-minute budget has room even for the step into Fabric. A larger schema has not been timed.
+
 ## What the demo does not do, on purpose
 
 No account, no sign-in, no telemetry, no call to any service. It does not write to the source. It does not create
