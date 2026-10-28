@@ -47,6 +47,8 @@ class Source:
     dialect: str = "sqlite"                          # sqlite | tsql
     notes: list[str] = field(default_factory=list)
     close: object = None
+    unsupported: list[str] = field(default_factory=list)   # files or parts the demo cannot read yet, with what would work
+    empty: list[str] = field(default_factory=list)         # tables loaded without a row
 
     @property
     def has_data(self) -> bool:
@@ -237,12 +239,15 @@ def folder_source(folder: str | Path, schema_name: str = "data") -> Source:
     if not folder.is_dir():
         raise FileNotFoundError(f"{folder} is not a folder")
     files = sorted(p for p in folder.iterdir() if p.suffix.lower() in (".csv", ".xlsx") and not p.name.startswith("~$"))
+    other = sorted(p.name for p in folder.iterdir() if p.is_file() and p.suffix.lower() not in (".csv", ".xlsx")
+                   and not p.name.startswith(("~$", ".")))
     if not files:
-        raise FileNotFoundError(f"no .csv or .xlsx files in {folder}")
+        raise FileNotFoundError(f"no .csv or .xlsx files in {folder}" + (f" (found {', '.join(other[:5])}: {_ADVICE}" if other else ""))
     con = sqlite3.connect(":memory:", check_same_thread=False)
     con.execute(f"ATTACH DATABASE ':memory:' AS [{schema_name}]")
     used: set[str] = set()
-    rows_out, notes, loaded = [], [], 0
+    rows_out, notes, loaded, empty = [], [], 0, []
+    unsupported = [f"{n}: {_UNSUPPORTED.get(Path(n).suffix.lower(), _ADVICE)}" for n in other]
     for p in files:
         try:
             sheets = read_xlsx(p) if p.suffix.lower() == ".xlsx" else [("", *read_csv(p))]
@@ -274,22 +279,122 @@ def folder_source(folder: str | Path, schema_name: str = "data") -> Source:
             for i, (c, t) in enumerate(zip(cols, types)):
                 rows_out.append({"table_schema": schema_name, "table_name": name, "column_name": c, "data_type": t, "ordinal_position": i + 1})
             loaded += 1
+            if not data:
+                empty.append(name)
             notes.append(f"{p.name}{' / ' + sheet if sheet else ''} → {name}: {len(data)} rows, {len(cols)} columns")
     if not loaded:
         con.close()
         raise ValueError("no file in the folder could be read: " + "; ".join(notes))
+    unsupported += [n.split(" (")[0] + ": could not be read; save it again as .xlsx or as CSV (UTF-8)" for n in notes if "could not be" in n]
     return Source("folder", f"{loaded} table(s) from {folder}", Schema.from_information_schema(rows_out, schema=schema_name),
-                  _sqlite_execute(con), "sqlite", notes, con.close)
+                  _sqlite_execute(con), "sqlite", notes, con.close, unsupported, empty)
+
+
+_ADVICE = "save it as .xlsx or as CSV (UTF-8) to load it"
+_UNSUPPORTED = {".xls": "the old Excel format; open it in Excel and save as .xlsx", ".xlsb": "binary Excel; save as .xlsx",
+                ".accdb": "an Access database; export the tables to Excel or CSV", ".mdb": "an Access database; export the tables to Excel or CSV",
+                ".json": "JSON is not read yet; export the table as CSV", ".xml": "XML is not read yet; export the table as CSV",
+                ".pdf": "a PDF report has no table to read; ask for the export behind it", ".bak": "a database backup; restore it to a SQL Server and connect over ODBC",
+                ".sql": "a script is not run here; restore the database and connect over ODBC, or list its columns"}
+_TABLE_HEADERS = ("table_name", "tablename", "table", "tabell", "tabellnamn", "tabellnamnet", "object", "entity", "objekt", "register")
+_COLUMN_HEADERS = ("column_name", "columnname", "column", "kolumn", "kolumnnamn", "field", "fieldname", "field_name", "falt", "fält", "faltnamn", "fältnamn", "attribute")
+_TYPE_HEADERS = ("data_type", "datatype", "type", "typ", "datatyp", "field_type", "fieldtype")
+_SCHEMA_HEADERS = ("table_schema", "schema", "schemanamn")
+
+
+def _norm_header(h: str) -> str:
+    return re.sub(r"[\s.]+", "_", str(h).strip().lower().strip('"'))
+
+
+def parse_columns(text: str) -> list[tuple[str, str, str]]:
+    """(table, column, data type) from a columns list in any of the shapes a first meeting brings:
+    - a table with headers (INFORMATION_SCHEMA.COLUMNS, or Table/Column/Type, Tabell/Kolumn/Typ), comma, semicolon or tab;
+    - lines `table.column` or `table.column type`;
+    - lines `table: column, column, column`;
+    - a table name on a line of its own followed by its columns, one per line, indented or after a `-`.
+    A missing type is left empty (the plan then works from names alone)."""
+    lines = [ln.rstrip() for ln in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    lines = [ln for ln in lines if ln.strip() and not ln.strip().startswith("#")]
+    if not lines:
+        return []
+    first = lines[0]
+    delim = max(("\t", ";", ","), key=first.count)
+    if first.count(delim):
+        head = [_norm_header(h) for h in next(csv.reader([first], delimiter=delim))]
+        ti = next((i for i, h in enumerate(head) if h in _TABLE_HEADERS), None)
+        ci = next((i for i, h in enumerate(head) if h in _COLUMN_HEADERS), None)
+        if ti is not None and ci is not None:
+            yi = next((i for i, h in enumerate(head) if h in _TYPE_HEADERS), None)
+            out = []
+            for r in csv.reader(lines[1:], delimiter=delim):
+                if len(r) > max(ti, ci) and r[ti].strip() and r[ci].strip():
+                    out.append((r[ti].strip(), r[ci].strip(), r[yi].strip() if yi is not None and yi < len(r) else ""))
+            return out
+    out, current = [], None
+    for ln in lines:
+        stripped = ln.strip()
+        if ":" in stripped and not stripped.endswith(":"):
+            t, cols = stripped.split(":", 1)
+            out += [(t.strip(), c.strip(), "") for c in re.split(r"[,;\t]", cols) if c.strip()]
+            current = None
+            continue
+        parts = [x for x in re.split(r"[\t;,]|\s{2,}", stripped) if x.strip()]
+        if len(parts) >= 2 and not ln[:1].isspace() and not stripped.startswith(("-", "*")):
+            out.append((parts[0].strip(), parts[1].strip(), parts[2].strip() if len(parts) > 2 else ""))
+            continue
+        m = re.match(r"^([^\s.]+)\.([^\s]+)(?:\s+(.+))?$", stripped)
+        if m and not ln[:1].isspace():
+            out.append((m.group(1), m.group(2), (m.group(3) or "").strip()))
+            current = None
+            continue
+        if ln[:1].isspace() or stripped.startswith(("-", "*")):
+            if current:
+                bits = stripped.lstrip("-* ").split(None, 1)
+                if bits:
+                    out.append((current, bits[0].strip(","), bits[1].strip() if len(bits) > 1 else ""))
+            continue
+        current = stripped.rstrip(":")
+    return out
+
+
+def _columns_rows(found: list[tuple[str, str, str]], schema_name: str) -> list[dict]:
+    rows, pos = [], {}
+    for t, c, typ in found:
+        pos[t] = pos.get(t, 0) + 1
+        rows.append({"table_schema": schema_name, "table_name": t, "column_name": c,
+                     "data_type": (typ.split("(")[0].strip().lower() or "unknown"), "ordinal_position": pos[t]})
+    return rows
 
 
 def columns_source(path: str | Path, schema_name: str = "dbo") -> Source:
-    """A columns list (INFORMATION_SCHEMA.COLUMNS export): the plan and the map, no counts and no questions."""
-    with open(path, newline="", encoding="utf-8-sig") as f:
-        rows = list(csv.DictReader(f))
-    s = Schema.from_information_schema(rows, schema=schema_name)
-    if not len(s):
-        raise ValueError(f"no columns for schema {schema_name!r} in {path}")
-    return Source("columns", f"columns list {Path(path).name} (schema {schema_name})", s, None, "tsql",
+    """A columns list in a file: an INFORMATION_SCHEMA.COLUMNS export, or any shape parse_columns reads (.csv, .txt,
+    or the first sheet of an .xlsx). The plan and the map, no counts and no questions."""
+    path = Path(path)
+    if path.suffix.lower() == ".xlsx":
+        sheets = read_xlsx(path)
+        if not sheets:
+            raise ValueError(f"{path.name}: no sheet with rows")
+        _, header, data = sheets[0]
+        text = "\n".join("\t".join(str(x) for x in r) for r in [header] + data)
+    else:
+        text = path.read_text(encoding="utf-8-sig", errors="replace")
+    with_schema = list(csv.DictReader(text.splitlines()))
+    if with_schema and "table_schema" in {k.strip().lower() for k in with_schema[0] if k}:
+        s = Schema.from_information_schema([{k.strip().lower(): v for k, v in r.items() if k} for r in with_schema], schema=schema_name)
+        if len(s):
+            return Source("columns", f"columns list {path.name} (schema {schema_name})", s, None, "tsql",
+                          ["A columns list has no rows: the plan is from names alone; the health check and the questions need a connection."])
+    return pasted_source(text, schema_name, f"columns list {path.name}")
+
+
+def pasted_source(text: str, schema_name: str = "dbo", label: str = "pasted columns list") -> Source:
+    """A columns list pasted as text (from an e-mail, a document or a screenshot typed off): the plan from names only."""
+    found = parse_columns(text)
+    if not found:
+        raise ValueError("no columns found in the list: one line per column as `table.column`, `table<tab>column`, "
+                         "`table: col1, col2`, or a table with the headers table and column")
+    s = Schema.from_information_schema(_columns_rows(found, schema_name), schema=schema_name)
+    return Source("columns", f"{label} ({len(s)} tables)", s, None, "tsql",
                   ["A columns list has no rows: the plan is from names alone; the health check and the questions need a connection."])
 
 
@@ -324,9 +429,11 @@ def open_source(kind: str, value: str = "", schema_name: str = "") -> Source:
         return folder_source(value, schema_name or "data")
     if kind == "columns":
         return columns_source(value, schema_name or "dbo")
+    if kind == "paste":
+        return pasted_source(value, schema_name or "dbo")
     if kind == "odbc":
         return odbc_source(value, schema_name or "dbo")
-    raise ValueError(f"unknown source kind {kind!r}: sample, folder, odbc or columns")
+    raise ValueError(f"unknown source kind {kind!r}: sample, folder, odbc, columns or paste")
 
 
 # ------------------------------------------------------------------ an ODBC connection string ----------------------

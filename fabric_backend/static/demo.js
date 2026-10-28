@@ -138,47 +138,58 @@
     return '<div class="connect-form">' +
       '<p>Pick where the data is. A folder of CSV or Excel files is loaded into a local database in memory; a SQL Server is read with the sign-in in the connection string; a columns list gives the map only.</p>' +
       '<div class="src-kinds" role="group" aria-label="Kind of source">' +
-      ['sample|Try without your own data', 'folder|A folder of CSV / Excel files', 'odbc|SQL Server over ODBC', 'columns|A columns list (CSV)'].map(function (k) { var p = k.split('|'); return '<button type="button" class="btn ghost small" data-kind="' + p[0] + '" aria-pressed="' + (p[0] === 'sample' ? 'true' : 'false') + '">' + p[1] + '</button>'; }).join('') + '</div>' +
+      ['sample|Try without your own data', 'folder|A folder of CSV / Excel files', 'odbc|SQL Server over ODBC', 'columns|A columns list (file)', 'paste|Paste a columns list'].map(function (k) { var p = k.split('|'); return '<button type="button" class="btn ghost small" data-kind="' + p[0] + '" aria-pressed="' + (p[0] === 'sample' ? 'true' : 'false') + '">' + p[1] + '</button>'; }).join('') + '</div>' +
       '<label id="lbl-value" hidden><span id="lbl-value-text">Folder</span><input id="src-value" type="text" autocomplete="off" spellcheck="false" placeholder="C:\\data\\export"></label>' +
+      '<label id="lbl-paste" hidden><span>Columns, one per line</span><textarea id="src-paste" rows="8" spellcheck="false" placeholder="Kund.Kundnr\nKund.Namn\nOrder.Ordernr\nOrder.Kundnr\nOrder.Belopp"></textarea></label>' +
       '<label id="lbl-schema" hidden><span>Schema</span><input id="src-schema" type="text" value="dbo" autocomplete="off"></label>' +
       '<p class="muted tiny" id="src-help">The synthetic shop schema from the hosted demo: seven tables, invented names, one column the engine leaves unlinked on purpose.</p>' +
       '<div><button type="button" class="btn" id="btn-connect">Connect</button></div>' +
       '<div class="note sage"><span data-mascot="thinker" data-pose="look" data-label=""></span><div>If the customer only has Excel: export each sheet, or point the demo at the folder with the workbook. The first row is the header; a workbook with several sheets gives one table per sheet.</div></div>' +
-      '</div>';
+      '</div>' + verdictHtml();
+  }
+  function verdictHtml() {
+    var v = state.verdict;
+    if (!v) return '';
+    var h = v.headline;
+    return '<div class="verdict note ' + (h.state === 'enough' ? 'sage' : 'coral') + '" data-verdict="' + esc(h.state) + '"><div><h3 style="margin:0 0 4px">' + esc(h.title) + '</h3><p style="margin:0">' + esc(h.text) + '</p>' +
+      (v.items.length ? '<ul class="tiny" style="margin:6px 0 0;padding-left:18px">' + v.items.map(function (i) { return '<li><strong>' + esc(i.title) + '</strong> ' + esc(i.text) + '</li>'; }).join('') + '</ul>' : '') +
+      '</div></div>';
   }
   function bindConnect(body) {
     var kind = 'sample';
     var help = { sample: 'The synthetic shop schema from the hosted demo: seven tables, invented names, one column the engine leaves unlinked on purpose.',
       folder: 'Every .csv and .xlsx in the folder becomes a table (file name = table name). Loaded into SQLite in memory on this machine; gone when the demo stops.',
       odbc: 'For example Driver={ODBC Driver 18 for SQL Server};Server=sql01;Database=shopdb;Trusted_Connection=yes;TrustServerCertificate=yes \u2014 a read-only sign-in is enough. The string stays on this machine and is never shown on the page.',
-      columns: 'An INFORMATION_SCHEMA.COLUMNS export with table_schema, table_name, column_name, data_type, ordinal_position. Plan and map only; no counts.' };
+      columns: 'A file with the columns: an INFORMATION_SCHEMA.COLUMNS export, a sheet with Table and Column (Tabell and Kolumn), or lines like Kund.Kundnr. CSV, TXT or XLSX. Plan and map only; no counts.',
+      paste: 'Paste the columns as they came: Kund.Kundnr, Kund<tab>Kundnr, Kund: Kundnr, Namn, or a table name followed by its columns. Types are optional. Plan and map only; no counts.' };
     var labels = { folder: 'Folder', odbc: 'ODBC connection string', columns: 'Path to the CSV' };
     var ph = { folder: 'C:\\data\\export', odbc: 'Driver={ODBC Driver 18 for SQL Server};Server=...;Database=...;Trusted_Connection=yes', columns: 'C:\\data\\columns.csv' };
     body.querySelectorAll('[data-kind]').forEach(function (b) {
       b.addEventListener('click', function () {
         kind = b.getAttribute('data-kind');
         body.querySelectorAll('[data-kind]').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
-        $('lbl-value').hidden = kind === 'sample'; $('lbl-schema').hidden = kind === 'sample' || kind === 'folder';
+        $('lbl-value').hidden = kind === 'sample' || kind === 'paste'; $('lbl-paste').hidden = kind !== 'paste'; $('lbl-schema').hidden = kind === 'sample' || kind === 'folder';
         $('lbl-value-text').textContent = labels[kind] || ''; $('src-value').placeholder = ph[kind] || ''; $('src-value').type = kind === 'odbc' ? 'password' : 'text';
         $('src-help').textContent = help[kind];
       });
     });
     $('btn-connect').addEventListener('click', function () {
       $('btn-connect').disabled = true; $('btn-connect').textContent = 'Connecting\u2026';
-      post('/api/connect', { kind: kind, value: $('src-value') ? $('src-value').value : '', schema: $('src-schema') ? $('src-schema').value : '' })
+      post('/api/connect', { kind: kind, value: kind === 'paste' ? $('src-paste').value : ($('src-value') ? $('src-value').value : ''), schema: $('src-schema') ? $('src-schema').value : '' })
+        .then(function () { return api('GET', '/api/state').then(render); })
         .then(function () { if (state.current_step === 1) { $('btn-connect').disabled = false; $('btn-connect').textContent = 'Connect'; } });
     });
   }
 
   function mapHtml() {
     if (!state.plan) return '<p class="muted">Connect a source first.</p>';
-    var a = state.analysis, roles = a.roles;
+    var a = state.analysis, roles = a.roles, verdictBox = verdictHtml();
     var byRole = {}; Object.keys(roles).forEach(function (t) { (byRole[roles[t].role] = byRole[roles[t].role] || []).push(t); });
     var roleCards = ['fact', 'dimension', 'bridge', 'isolated', 'other'].filter(function (r) { return byRole[r]; }).map(function (r) {
       return '<div class="q-card"><h3>' + r + ' <span class="muted tiny">' + byRole[r].length + '</span></h3><p class="muted tiny">' + esc(roles[byRole[r][0]].why) + '</p><p>' + byRole[r].map(function (t) { return '<button type="button" class="btn ghost small" data-focus="' + esc(t) + '">' + esc(t) + '</button> '; }).join('') + '</p></div>';
     }).join('');
     var areas = a.areas.map(function (g) { return '<li><strong>' + esc(g.name) + '</strong>: ' + esc(g.tables.join(', ')) + '</li>'; }).join('');
-    return '<p class="mono">' + esc(state.plan.summary).replace(/\n/g, '<br>') + '</p><p class="muted">' + esc(a.summary) + '</p>' +
+    return verdictBox + '<p class="mono">' + esc(state.plan.summary).replace(/\n/g, '<br>') + '</p><p class="muted">' + esc(a.summary) + '</p>' +
       '<h3>Roles</h3><div class="q-grid">' + roleCards + '</div>' +
       '<h3>Subject areas</h3><ul>' + areas + '</ul>' +
       (state.plan.keyless.length ? '<p class="muted">No key: ' + esc(state.plan.keyless.join(', ')) + ' \u2014 step 3 says what that means.</p>' : '') +

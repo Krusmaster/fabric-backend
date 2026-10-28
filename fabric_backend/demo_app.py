@@ -220,11 +220,19 @@ class Session:
         self.current_step = 1
         self._cache: dict | None = None
         self._validation: dict | None = None                      # the last health check, reused by the exports
+        self.connect_error: str | None = None                     # the last failed connect, for step 1's verdict
         self._lock = threading.RLock()                             # one request at a time: the sqlite connection and the cache are shared
 
     # -- decisions ---------------------------------------------------------------------------------------------------
     def connect(self, kind: str, value: str = "", schema_name: str = "") -> None:
-        src = open_source(str(kind or "sample"), str(value or ""), str(schema_name or ""))
+        try:
+            src = open_source(str(kind or "sample"), str(value or ""), str(schema_name or ""))
+        except Exception as e:                                     # noqa: BLE001 - kept for the verdict, then raised as before
+            self.connect_error = f"{type(e).__name__}: {e}"
+            if self.source is None:
+                self._cache = None
+            raise
+        self.connect_error = None
         old = self.source
         self.source, self.confirmed, self.keys, self.skipped, self._cache = src, [], {}, [], None
         self._validation = None
@@ -445,7 +453,10 @@ class Session:
         }
 
     def state(self) -> dict:
-        return {**self._base(), **self._derived()}
+        out = {**self._base(), **self._derived()}
+        if self.connect_error:                                     # the last connect failed: its verdict, whatever was connected before
+            out["verdict"] = verdict(None, None, error=self.connect_error)
+        return out
 
     def _base(self) -> dict:
         """The part that is never cached: the clock and the step."""
@@ -459,7 +470,7 @@ class Session:
         if self._cache is not None:
             return self._cache
         if self.source is None:
-            self._cache = {"source": None, "plan": None, "analysis": None, "health": None, "questions": [], "exports": []}
+            self._cache = {"verdict": verdict(None, None, error=self.connect_error) if self.connect_error else None, "source": None, "plan": None, "analysis": None, "health": None, "questions": [], "exports": []}
             return self._cache
         src = self.source
         try:
@@ -489,7 +500,7 @@ class Session:
                   "summary": (validation["summary"] if validation else "No rows to check: a columns list gives the plan only."),
                   "findings": findings,
                   "open": len(open_findings), "note": "Counts over the whole tables now. Accepting a suggestion is your decision; nothing here calls it verified."}
-        self._cache = {"source": {"kind": src.kind, "label": src.label, "schema": p.schema.schema, "dialect": src.dialect, "has_data": src.has_data,
+        self._cache = {"verdict": verdict(src, p, validation), "source": {"kind": src.kind, "label": src.label, "schema": p.schema.schema, "dialect": src.dialect, "has_data": src.has_data,
                                   "tables": len(p.schema), "notes": src.notes},
                        "plan": _plan_json(p, src, {"confirmed": self.confirmed}),
                        "analysis": {"summary": analysis["summary"], "roles": analysis["roles"], "areas": analysis["areas"],
@@ -552,6 +563,71 @@ class Session:
             return 400, "application/json; charset=utf-8", json.dumps({"error": str(e), "kind": "bad_input"}).encode("utf-8")
         except Exception as e:                                     # noqa: BLE001 - an ODBC failure gives a message, never a traceback page
             return 500, "application/json; charset=utf-8", json.dumps({"error": f"{type(e).__name__}: {e}", "kind": "failed"}).encode("utf-8")
+
+
+# The five answers step 1 ends with (no percentage of readiness: what is there, what is missing, and who can supply it)
+ENOUGH, KNOWLEDGE, MATERIAL, ACCESS, UNSUPPORTED = "enough", "knowledge", "material", "access", "unsupported"
+VERDICT_TITLES = {ENOUGH: "Enough to start", KNOWLEDGE: "We need your knowledge about", MATERIAL: "Missing material:",
+                  ACCESS: "Missing access:", UNSUPPORTED: "Not supported yet:"}
+_ACCESS_WORDS = ("login failed", "permission", "denied", "not authorized", "18456", "(229)", "(916)", "cannot open database")
+
+
+def verdict(src: Source | None, p: Plan | None, validation: dict | None = None, error: str | None = None) -> dict:
+    """What step 1 ends with: one headline in one of five states and the items behind it, each naming what is missing
+    and what would supply it. `error` is a failed connect (an access problem when the database says so)."""
+    items: list[dict] = []
+
+    def add(state: str, text: str) -> None:
+        items.append({"state": state, "title": VERDICT_TITLES[state], "text": text})
+    if error:
+        if any(w in error.lower() for w in _ACCESS_WORDS):
+            add(ACCESS, "the sign-in in the connection string cannot read this database: " + error.split("]")[-1].strip().rstrip('")').strip()[:200]
+                + ". Ask for a login with db_datareader on it (read only); nothing else is needed.")
+        elif "pyodbc" in error.lower() or "odbc driver" in error.lower() or "data source name" in error.lower():
+            add(ACCESS, "this laptop has no ODBC driver for SQL Server: install Microsoft ODBC Driver 18 for SQL Server and pip install pyodbc.")
+        else:
+            add(MATERIAL, error[:300])
+    if src is not None:
+        for u in src.unsupported:
+            add(UNSUPPORTED, u)
+        for t in src.empty:
+            add(MATERIAL, f"{t} has no rows: ask for an export that includes the rows, or a columns list if the rows cannot leave.")
+        if not src.has_data:
+            add(MATERIAL, "rows: a columns list gives the map from names only. For the health check, ask for an export of the "
+                          "main tables (CSV or Excel, a few thousand rows is enough) or a read-only sign-in.")
+        for n in src.notes:
+            if "could not run" in n or "could not be checked" in n:
+                add(ACCESS if any(w in n.lower() for w in _ACCESS_WORDS) else MATERIAL, n)
+    if p is not None:
+        linked = {r.source for r in p.relationships} | {r.target for r in p.relationships}
+        alone = [t.name for t in p.schema if t.name not in linked]
+        if p.ambiguous:
+            add(KNOWLEDGE, "which table each of these columns points at: " + ", ".join(f"{a['table']}.{a['column']} ({' or '.join(a['candidates'])})" for a in p.ambiguous[:6]))
+        if p.keyless:
+            add(KNOWLEDGE, "what identifies a row in " + ", ".join(p.keyless[:8]) + (" (no column is named like a key; a log or a "
+                           "transaction list may have none, and that is fine)" if len(p.keyless) else ""))
+        if alone and len(p.schema) > 1:
+            add(KNOWLEDGE, "how these tables connect to the rest: " + ", ".join(alone[:8]) + ". No column name links them. A person who knows the "
+                           "system can say which column refers to which table; that becomes a `confirmed` relationship.")
+        if len(p.schema) < 2:
+            add(MATERIAL, "a second table: one table has no relationships to map. Ask for the tables the question is about "
+                          "(for example the orders and their lines, the invoices and the customers).")
+        bad = [k["table"] for k in (validation or {}).get("keys", []) if not k["verdict"].startswith(("unique", "empty"))]
+        if bad:
+            add(KNOWLEDGE, "the real key of " + ", ".join(bad[:6]) + ": the key the names suggest has duplicates or NULLs in the rows.")
+    blockers = [i for i in items if i["state"] in (ACCESS, UNSUPPORTED)] if p is None else []
+    if p is not None and len(p.schema) >= 2 and p.relationships:
+        has = "with rows to count" if src is not None and src.has_data else "from names only"
+        headline = {"state": ENOUGH, "title": VERDICT_TITLES[ENOUGH],
+                    "text": f"{len(p.schema)} tables and {len(p.relationships)} relationships to start from, {has}."
+                            + (" The items below are what to ask about next." if items else "")}
+    elif items:
+        order = [ACCESS, UNSUPPORTED, MATERIAL, KNOWLEDGE]
+        first = sorted(blockers or items, key=lambda i: order.index(i["state"]))[0]
+        headline = {k: first[k] for k in ("state", "title", "text")}
+    else:
+        headline = {"state": MATERIAL, "title": VERDICT_TITLES[MATERIAL], "text": "nothing connected yet."}
+    return {"headline": headline, "items": items, "states": list(VERDICT_TITLES.values())}
 
 
 def _note(src: Source, text: str) -> None:

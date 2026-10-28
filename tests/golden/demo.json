@@ -97,7 +97,7 @@
   "rules": {
    "K0": "declared primary key",
    "K1": "`keys` override from the caller",
-   "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+   "K2": "a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
    "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
    "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
    "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
@@ -653,7 +653,7 @@
    "rules": {
     "K0": "declared primary key",
     "K1": "`keys` override from the caller",
-    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+    "K2": "a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
     "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
     "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
     "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
@@ -864,7 +864,22 @@
     "title": "The value",
     "what": "Five questions the data can answer, run here with the SQL shown. Exports for the hand-over."
    }
-  ]
+  ],
+  "verdict": {
+   "headline": {
+    "state": "enough",
+    "text": "2 tables and 1 relationships to start from, with rows to count.",
+    "title": "Enough to start"
+   },
+   "items": [],
+   "states": [
+    "Enough to start",
+    "We need your knowledge about",
+    "Missing material:",
+    "Missing access:",
+    "Not supported yet:"
+   ]
+  }
  },
  "sample": {
   "analysis": {
@@ -1153,7 +1168,7 @@
    "rules": {
     "K0": "declared primary key",
     "K1": "`keys` override from the caller",
-    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
+    "K2": "a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
     "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
     "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key (not applied to history tables with a start_*/valid_from/effective_* column)",
     "K5": "line: no column names a key; the reference to the header table plus a line-number column (line_no, position, seq…)",
@@ -1600,6 +1615,27 @@
     "title": "The value",
     "what": "Five questions the data can answer, run here with the SQL shown. Exports for the hand-over."
    }
-  ]
+  ],
+  "verdict": {
+   "headline": {
+    "state": "enough",
+    "text": "7 tables and 6 relationships to start from, with rows to count. The items below are what to ask about next.",
+    "title": "Enough to start"
+   },
+   "items": [
+    {
+     "state": "knowledge",
+     "text": "what identifies a row in audit_log (no column is named like a key; a log or a transaction list may have none, and that is fine)",
+     "title": "We need your knowledge about"
+    }
+   ],
+   "states": [
+    "Enough to start",
+    "We need your knowledge about",
+    "Missing material:",
+    "Missing access:",
+    "Not supported yet:"
+   ]
+  }
  }
 }

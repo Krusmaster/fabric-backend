@@ -13,7 +13,7 @@ German business words); every such match is reported under plan.synonyms and on 
 Keys (per table):
   K0  declared primary key
   K1  `keys` override from the caller
-  K2  a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name
+  K2  a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name
       (four letters or more) with one of those suffixes: `cust_key` in customer. An abbreviation that is another
       table's name (`ps_partkey` in PARTSUPP names PART) is a reference, not a key. When nothing matches literally, the
       same through the synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`.
@@ -100,9 +100,9 @@ class Plan:
 RULES = {
     "K0": "declared primary key",
     "K1": "`keys` override from the caller",
-    "K2": "a column named `id`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, "
+    "K2": "a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, "
           "`<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those "
-          "suffixes; a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the "
+          "suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`); a leading `dim_`/`fact_`/`tbl_` is not part of the table's name; when nothing matches literally, the same through the "
           "synonym table (`KundNr` in `kunder`, `cust_id` in `dim_customer`), reported under `synonyms`",
     "K3": "nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it",
     "K4": "junction: no column names a key and the table starts with two or more reference columns; together they are the key "
@@ -230,9 +230,10 @@ def _canon_bases(table: str) -> set[str]:
 
 
 def _key_candidates(table: str, synonyms: bool = False) -> set[str]:
-    c = {"id"} if not synonyms else set()
+    c = {"id", "no", "nr"} if not synonyms else set()      # a bare No / Nr is the key of its table, as in many ERP exports
     for b in (_canon_bases(table) if synonyms else _bases(table)):
         c.update(b + suf for suf in _SUFFIXES)
+        c.update(b + "s" + suf for suf in ("nr", "nummer"))   # the Swedish genitive: Leverantorsnr in Leverantor
     return c
 
 
@@ -240,6 +241,7 @@ def _ref_candidates(target: str, synonyms: bool = False) -> set[str]:
     c = set()
     for b in (_canon_bases(target) if synonyms else _bases(target)):
         c.update(b + suf for suf in _SUFFIXES)
+        c.update(b + "s" + suf for suf in ("nr", "nummer"))
     return c
 
 

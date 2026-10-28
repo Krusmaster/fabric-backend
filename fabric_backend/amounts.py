@@ -48,7 +48,7 @@ def is_numeric(sql_type: str) -> bool:
 
 def looks_like_amount(column: str, sql_type: str = "decimal") -> bool:
     """A numeric column whose name reads as an amount: order_amount, TotalDue, freight, belopp, OrderVärde."""
-    if not is_numeric(sql_type):
+    if not is_numeric(sql_type) and (sql_type or "unknown").lower() != "unknown":   # a columns list without types: names decide
         return False
     words = _words(column)
     if not words or words[-1] in _NOT_AMOUNT_END or column.lower().endswith(("_id", "id")):

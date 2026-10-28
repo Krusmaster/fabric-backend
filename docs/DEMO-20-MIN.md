@@ -31,7 +31,7 @@ tables as CSV or Excel?" Either works. If the answer is "we only have Excel", th
 | --- | --- |
 | a SQL Server you can reach from the laptop | `fabric-backend demo --odbc "Driver={ODBC Driver 18 for SQL Server};Server=sql01;Database=shopdb;Trusted_Connection=yes;TrustServerCertificate=yes" --schema dbo` (or `Uid=...;Pwd=...` for a SQL login; the string never appears on the page) |
 | a folder of CSV / Excel files | `fabric-backend demo --folder C:\data\export` |
-| only a columns list | `fabric-backend demo --columns columns.csv --schema dbo` (plan and map only; no counts, no questions) |
+| only a columns list | `fabric-backend demo --columns columns.csv --schema dbo` (plan and map only; no counts, no questions). The file can be an INFORMATION_SCHEMA export, a sheet with Table/Column (Tabell/Kolumn) or lines like `Kund.Kundnr`; CSV, TXT or XLSX. Or start without a flag and choose *Paste a columns list* on the page |
 | nothing yet | `fabric-backend demo`, then step 1 on the page offers the same choices, including "Try without your own data" |
 
 The terminal prints the address; the browser opens on it. Ctrl+C stops it; the loaded files and the decisions are
@@ -48,6 +48,13 @@ it, it is gone." Point at the pill in the header that says so.
 
 Do: pick the source, connect. Read the source notes aloud (how many tables, which files became which tables). If a
 file could not be read, the note says why; carry on with the rest.
+
+The step ends with one answer, in one of five states, at the top of step 1 and of the map: **Enough to start**, **We
+need your knowledge about …** (a column that could point at two tables, a table without a key, tables nothing links),
+**Missing material: …** (rows, a second table, an empty export), **Missing access: …** (the sign-in cannot read the
+database, or the laptop has no ODBC driver), **Not supported yet: …** (an .xls, an Access file, a PDF, with what to ask
+for instead). There is no percentage of how ready the data is, on purpose: say what is there and who can supply the
+rest.
 
 ### 2. The map (4 min)
 
@@ -98,6 +105,38 @@ them to delete it or save the sheet as CSV from the header row.
 
 Keys and relationships from exports come from names alone (there are no declared constraints in a file), so expect
 more suggestions and fewer rules R0; the health check still counts everything.
+
+## If the customer does not know which systems they have
+
+The first meeting may have one Excel export, a columns list from an e-mail, or nothing. That is enough to begin; the
+point of the meeting is to leave with the right export.
+
+Questions to ask, in this order:
+
+1. "Which question do you want answered first?" One question, in their words (for example *what did each customer buy
+   last quarter* or *which invoices have no order*). It decides which tables matter.
+2. "Where do you look today to answer it?" A report, a screen, a spreadsheet someone keeps. The name on that screen
+   or report is usually the system (or the module) the data lives in.
+3. "Who exports data from it, and what does the export look like?" The person, not the system, is what you need.
+4. "Is there a database behind it that someone can give read access to?" If yes, a login with `db_datareader` on a
+   SQL Server is the best material: keys are declared there.
+
+What to ask for, depending on the answer:
+
+| They have | Ask for |
+| --- | --- |
+| a report or screen they use | the export behind it as Excel (.xlsx) or CSV, *with the header row*, and the same for each list the screen links to (customers, articles, orders and their lines) |
+| exports already | the main tables of the question as separate files in one folder, a few thousand rows each is enough; one file per table, file name = table name |
+| only a system name | the system's own column list (many systems can print one), or a screenshot of the field list typed into lines like `Kund.Kundnr`; paste it on the page |
+| a database and an IT contact | a read-only login (`db_datareader`) and the connection string; run with `--odbc` |
+| nothing they may share yet | the column names only (no rows): the map and the questions for the next meeting come from names alone |
+
+Run the demo on what they brought, read the five-state answer at the end of step 1 aloud, and write down the
+*knowledge* and *material* lines: they are the agenda of the next meeting. Names from common business systems in
+Swedish and English are read (`Kundnr`, `Ordernr`, `Artikelnr`, `Leverantorsnr`, `CustomerNo`, a bare `No` as the key),
+and a table without a primary key is reported as such, never given a guessed key. English ERP exports where the order
+header and its lines share a `DocumentNo` are only partly linked by names today: expect the answer *We need your
+knowledge about …* there, and confirm the link with the customer.
 
 ## If something goes wrong
 
