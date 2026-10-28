@@ -8,21 +8,23 @@ from fabric_backend.schema import Schema
 # a few non-key columns per table, so the name rules have something to read (dates, types, organisation fields)
 EXTRA = {
     "KNA1": ["NAME1", "LAND1", "ORT01", "KTOKD"], "KNVV": ["KDGRP", "WAERS"], "MARA": ["MTART", "MATKL", "MEINS"],
-    "MAKT": ["MAKTX"], "TVKO": ["WAERS", "BUKRS"], "VBAK": ["AUART", "VBTYP", "KUNNR", "VKORG", "VTWEG", "SPART", "AUDAT"],
+    "MAKT": ["MAKTX"], "TVKO": ["WAERS", "BUKRS"], "VBAK": ["KNUMV", "AUART", "VBTYP", "KUNNR", "VKORG", "VTWEG", "SPART", "AUDAT"],
     "VBAP": ["MATNR", "PSTYV", "ABGRU"], "VBEP": ["EDATU", "ETTYP"], "VBPA": ["PARVW", "KUNNR", "ADRNR"],
     "LIKP": ["LFART", "KUNNR", "KUNAG", "VKORG", "WADAT_IST"], "LIPS": ["MATNR", "VGBEL", "VGPOS"],
-    "VBRK": ["FKART", "FKDAT", "KUNAG", "KUNRG", "VKORG", "BUKRS", "BELNR", "GJAHR", "FKSTO"],
+    "VBRK": ["FKART", "KNUMV", "FKDAT", "KUNAG", "KUNRG", "VKORG", "BUKRS", "BELNR", "GJAHR", "FKSTO"],
     "VBRP": ["MATNR", "AUBEL", "AUPOS", "VGBEL", "VGPOS"], "VBFA": ["VBTYP_V", "RFMNG", "ERDAT"],
     "LFA1": ["NAME1", "LAND1", "KTOKK"], "LFB1": ["AKONT", "ZTERM"], "LFM1": ["ZTERM"], "T024E": ["BUKRS"],
-    "T001W": ["NAME1"], "EBAN": ["MATNR", "WERKS", "BSART"], "EKKO": ["BSTYP", "BSART", "LIFNR", "BUKRS", "EKORG", "BEDAT"],
+    "T001W": ["NAME1"], "EBAN": ["MATNR", "WERKS", "BSART"], "EKKO": ["KNUMV", "BSTYP", "BSART", "LIFNR", "BUKRS", "EKORG", "BEDAT"],
     "EKPO": ["MATNR", "WERKS", "LOEKZ"], "EKET": ["EINDT"], "EKBE": ["SHKZG", "BUDAT"],
     "RBKP": ["LIFNR", "BUKRS", "BLDAT"], "RSEG": ["EBELN", "EBELP", "MATNR"],
     "BKPF": ["BLART", "BUDAT"], "BSEG": ["SHKZG", "HKONT", "KUNNR", "LIFNR"],
     "ACDOCA": ["RACCT", "BUDAT", "KUNNR", "LIFNR", "KOKRS", "RCNTR", "PRCTR"], "T001": ["KTOPL", "WAERS"],
+    "KONV": ["KSCHL", "KBETR", "KINAK", "KSTAT"], "PRCD_ELEMENTS": ["KSCHL", "KBETR", "KINAK", "KSTAT"],
+    "KONH": ["KSCHL", "DATAB", "DATBI"], "KONP": ["KSCHL", "KBETR", "KPEIN"],
     "SKA1": ["KTOKS"], "SKB1": ["WAERS"], "BSID": ["SHKZG", "BUDAT"], "BSAD": ["SHKZG", "AUGDT"], "BSIK": ["SHKZG"],
     "BSAK": ["SHKZG"], "CSKS": ["DATAB", "BUKRS"], "CEPC": ["DATAB"],
 }
-DECIMALS = {"RMWWR", "WMWST1", "MENGE", "NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
+DECIMALS = {"KWERT", "KBETR", "RMWWR", "WMWST1", "MENGE", "NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
 
 
 def columns(name: str) -> list[str]:

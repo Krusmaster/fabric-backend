@@ -252,7 +252,7 @@ synthetic sample: the suggestion, its data check and the decision that stays you
 SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
 `VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
 declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
-`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, each with the public source it rests
+`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, and the pricing conditions `KONV`/`PRCD_ELEMENTS`, each with the public source it rests
 on, for ECC and S/4HANA. It does not depend on how the tables arrive: Fabric mirroring of SAP (through SAP
 Datasphere), Databricks, a pipeline of your own; names are recognised with or without a prefix (`VBAK`, `vbak`,
 `sap_vbak`). Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
@@ -270,8 +270,8 @@ plan_backend(workspace="demo", source="sap_lh", schema="sap")
 validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
 ```
 
-On the synthetic SAP schema of the tests, the name rules alone find none of the 65 relationships; with the pack all
-65 and no wrong ones ([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has
+On the synthetic SAP schema of the tests, the name rules alone find none of the 67 relationships; with the pack all
+67 and no wrong ones ([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has
 not been run against an SAP system or a real installation. Contents, sources and how to contribute:
 [docs/SAP.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
 

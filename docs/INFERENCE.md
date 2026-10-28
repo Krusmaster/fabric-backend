@@ -172,10 +172,10 @@ what `create_backend` and `describe_backend` use); the Mermaid diagram by defaul
 it; `mermaid=false` and the summary form leave it out). The shop answers are already small; the gains are on large
 schemas, where a 1 MB answer is not an answer.
 
-## SAP tables: with and without the SAP pack, 28 October 2026, procure to pay added in round n21, finance in n22 (unit test, synthetic schema)
+## SAP tables: with and without the SAP pack, 28 October 2026, procure to pay added in round n21, finance in n22, pricing in n23 (unit test, synthetic schema)
 
 The SAP pack ([SAP.md](SAP.md)) on a synthetic SAP schema generated in `tests/sap_support.py` from the pack itself:
-the order-to-cash, procure-to-pay, finance and accounting-document tables with their key columns and a few ordinary columns each, no rows,
+the order-to-cash, procure-to-pay, finance, pricing and accounting-document tables with their key columns and a few ordinary columns each, no rows,
 no data from any SAP system. Three ways to plan it: the name rules alone (`plan(..., packs=False)`, Krusgraph before
 the pack); the name rules with every key given by the caller (`keys=`), as someone who knows SAP keys would pass them;
 and the pack. Scored against the pack's own keys and applied relationships, so the pack rows measure that the engine
@@ -183,15 +183,15 @@ applies the pack, not that the pack is right about SAP: that is what `validate_p
 
 | Schema | Planned by | Keys right | Relationships right | Wrong | Precision | Coverage |
 | --- | --- | --- | --- | --- | --- | --- |
-| ecc, upper names, 43 tables | names | 0 of 43 | 0 of 65 | 0 | – | 0.00 |
-| ecc, upper names, 43 tables | names+keys | 43 of 43 | 58 of 65 | 70 | 0.45 | 0.89 |
-| ecc, upper names, 43 tables | pack | 43 of 43 | 65 of 65 | 0 | 1.00 | 1.00 |
-| ecc, prefix names, 43 tables | names | 0 of 43 | 0 of 65 | 0 | – | 0.00 |
-| ecc, prefix names, 43 tables | names+keys | 43 of 43 | 58 of 65 | 70 | 0.45 | 0.89 |
-| ecc, prefix names, 43 tables | pack | 43 of 43 | 65 of 65 | 0 | 1.00 | 1.00 |
-| s4hana, lower names, 37 tables | names | 0 of 37 | 0 of 58 | 0 | – | 0.00 |
-| s4hana, lower names, 37 tables | names+keys | 37 of 37 | 47 of 58 | 36 | 0.57 | 0.81 |
-| s4hana, lower names, 37 tables | pack | 37 of 37 | 58 of 58 | 0 | 1.00 | 1.00 |
+| ecc, upper names, 47 tables | names | 0 of 47 | 0 of 67 | 0 | – | 0.00 |
+| ecc, upper names, 47 tables | names+keys | 47 of 47 | 60 of 67 | 70 | 0.46 | 0.90 |
+| ecc, upper names, 47 tables | pack | 47 of 47 | 67 of 67 | 0 | 1.00 | 1.00 |
+| ecc, prefix names, 47 tables | names | 0 of 47 | 0 of 67 | 0 | – | 0.00 |
+| ecc, prefix names, 47 tables | names+keys | 47 of 47 | 60 of 67 | 70 | 0.46 | 0.90 |
+| ecc, prefix names, 47 tables | pack | 47 of 47 | 67 of 67 | 0 | 1.00 | 1.00 |
+| s4hana, lower names, 41 tables | names | 0 of 41 | 0 of 60 | 0 | – | 0.00 |
+| s4hana, lower names, 41 tables | names+keys | 41 of 41 | 49 of 60 | 36 | 0.58 | 0.82 |
+| s4hana, lower names, 41 tables | pack | 41 of 41 | 60 of 60 | 0 | 1.00 | 1.00 |
 
 Without the pack the name rules find nothing: no SAP table has an `id` or `<table>_id` column, and `VBELN` names no
 table. With the keys given they find most links but also 36–70 wrong ones, because `VBELN` is in `VBAK`, `VBAP`,

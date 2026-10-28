@@ -1,0 +1,87 @@
+{
+  "pack": "sap",
+  "module": "pricing",
+  "format_version": 1,
+  "title": "SAP pricing: the condition lines of sales, billing and purchasing documents (KONV in ECC, PRCD_ELEMENTS in S/4HANA) and the condition records behind them",
+  "rule": "SAP pack",
+  "status": "documented",
+  "status_note": "Every table, key and relationship below is taken from public documentation and written in our own words. None of it has been checked against an SAP system by this project; validate_plan checks it against your rows. A pack is a sourced suggestion, not proof.",
+  "variants": {
+    "ecc": "SAP ERP 6.0 (ECC): document conditions in KONV. Not verified per enhancement package.",
+    "s4hana": "SAP S/4HANA: document conditions in PRCD_ELEMENTS. Whether KONV still exists (empty, or as a view) depends on release and is not asserted."
+  },
+  "client_column": "MANDT",
+  "sources": {
+    "sap_help_pricing": {
+      "title": "SAP Help Portal: SAP ERP Sales and Distribution / Materials Management, pricing and the condition technique (condition types, condition records, document conditions)",
+      "url": "https://help.sap.com/docs/SAP_ERP",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "help.sap.com could not be reached from the session that wrote this module (network policy); cited from public knowledge of the documentation, to be re-checked."
+    },
+    "sap_learning_s4_sales": {
+      "title": "SAP Learning: Exploring functions and innovations in SAP S/4HANA Sales, lesson 'Identifying data model simplifications in SAP S/4HANA' (document conditions moved from KONV to PRCD_ELEMENTS)",
+      "url": "https://learning.sap.com/learning-journeys/exploring-functions-and-innovations-in-sap-s-4hana-sales/identifying-data-model-simplifications-in-sap-s-4hana_fd1c3867-7016-40f1-9e98-3d44a5e81f25",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Found in a web search on 28 October 2026; the search summary named a pricing change on this page. The page itself could not be fetched (network policy)."
+    }
+  },
+  "tables": [
+    {"name": "KONV", "level": "item", "en": "Document conditions (pricing lines of a document)", "de": "Konditionen (Vorgangsdaten)",
+     "key": ["MANDT", "KNUMV", "KPOSN", "STUNR", "ZAEHK"], "number_columns": ["KNUMV", "KPOSN", "KNUMH"], "variants": ["ecc"],
+     "amounts": [{"column": "KWERT", "level": "item", "currency": "WAERS"}],
+     "currency_columns": ["WAERS"],
+     "note": "One row per condition (price, discount, surcharge, tax, subtotal) per item of a document; KPOSN 000000 holds conditions of the whole document. The document finds its conditions through its own KNUMV column, not through its document number.",
+     "sources": ["sap_help_pricing"]},
+    {"name": "PRCD_ELEMENTS", "level": "item", "en": "Document conditions (pricing lines of a document), S/4HANA", "de": "Preisfindungselemente",
+     "key": ["MANDT", "KNUMV", "KPOSN", "STUNR", "ZAEHK"], "number_columns": ["KNUMV", "KPOSN", "KNUMH"], "variants": ["s4hana"],
+     "amounts": [{"column": "KWERT", "level": "item", "currency": "WAERS"}],
+     "currency_columns": ["WAERS"],
+     "note": "Takes KONV's place in S/4HANA with the same key.",
+     "sources": ["sap_help_pricing", "sap_learning_s4_sales"]},
+    {"name": "KONH", "level": "header", "en": "Condition record, header", "de": "Konditionssatz, Kopf",
+     "key": ["MANDT", "KNUMH"], "number_columns": ["KNUMH"], "delta": ["ERDAT"],
+     "note": "Validity (DATAB, DATBI) and the condition type of a price or discount record.",
+     "sources": ["sap_help_pricing"]},
+    {"name": "KONP", "level": "item", "en": "Condition record, items (rates)", "de": "Konditionssatz, Positionen",
+     "key": ["MANDT", "KNUMH", "KOPOS"], "number_columns": ["KNUMH"],
+     "currency_columns": ["KONWA"],
+     "note": "KBETR is a rate, not an amount: a price per KPEIN units of KMEIN, or a percentage, as KONWA and KRECH say.",
+     "sources": ["sap_help_pricing"]},
+    {"name": "T685", "level": "organization", "en": "Condition types", "de": "Konditionsarten",
+     "key": ["MANDT", "KVEWE", "KAPPL", "KSCHL"],
+     "note": "The key carries usage (KVEWE) and application (KAPPL): pricing in sales is usage A, application V; purchasing is application M. Document conditions carry only KSCHL, so the link is listed, not applied.",
+     "sources": ["sap_help_pricing"]}
+  ],
+  "relationships": [
+    {"source": "KONP", "source_cols": ["MANDT", "KNUMH"], "target": "KONH", "target_cols": ["MANDT", "KNUMH"], "cardinality": "many-to-one", "sources": ["sap_help_pricing"]},
+    {"source": "KONV", "source_cols": ["MANDT", "KNUMH"], "target": "KONH", "target_cols": ["MANDT", "KNUMH"], "cardinality": "many-to-one", "role": "condition_record", "variants": ["ecc"], "condition": "Manual conditions, subtotals and conditions without a record leave KNUMH empty.", "sources": ["sap_help_pricing"]},
+    {"source": "PRCD_ELEMENTS", "source_cols": ["MANDT", "KNUMH"], "target": "KONH", "target_cols": ["MANDT", "KNUMH"], "cardinality": "many-to-one", "role": "condition_record", "variants": ["s4hana"], "condition": "Manual conditions, subtotals and conditions without a record leave KNUMH empty.", "sources": ["sap_help_pricing"]},
+    {"apply": false, "source": "KONV", "source_cols": ["MANDT", "KNUMV"], "target": "VBAK", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "sales_document", "variants": ["ecc"], "condition": "KNUMV is a unique column of VBAK but not its key; only conditions of sales documents find a row there (billing and purchasing documents have their own KNUMV). For an item's conditions add KPOSN = VBAP.POSNR.", "sources": ["sap_help_pricing"]},
+    {"apply": false, "source": "KONV", "source_cols": ["MANDT", "KNUMV"], "target": "VBRK", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "billing_document", "variants": ["ecc"], "condition": "As for VBAK: KNUMV is unique in VBRK but not its key; only billing conditions find a row.", "sources": ["sap_help_pricing"]},
+    {"apply": false, "source": "KONV", "source_cols": ["MANDT", "KNUMV"], "target": "EKKO", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "purchasing_document", "variants": ["ecc"], "condition": "As for VBAK: KNUMV is unique in EKKO but not its key; only purchasing conditions find a row.", "sources": ["sap_help_pricing"]},
+    {"apply": false, "source": "PRCD_ELEMENTS", "source_cols": ["MANDT", "KNUMV"], "target": "VBAK", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "sales_document", "variants": ["s4hana"], "condition": "KNUMV is a unique column of VBAK but not its key; only conditions of sales documents find a row there. For an item's conditions add KPOSN = VBAP.POSNR.", "sources": ["sap_help_pricing", "sap_learning_s4_sales"]},
+    {"apply": false, "source": "PRCD_ELEMENTS", "source_cols": ["MANDT", "KNUMV"], "target": "VBRK", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "billing_document", "variants": ["s4hana"], "condition": "As for VBAK: only billing conditions find a row.", "sources": ["sap_help_pricing", "sap_learning_s4_sales"]},
+    {"apply": false, "source": "PRCD_ELEMENTS", "source_cols": ["MANDT", "KNUMV"], "target": "EKKO", "target_cols": ["MANDT", "KNUMV"], "cardinality": "many-to-one", "role": "purchasing_document", "variants": ["s4hana"], "condition": "As for VBAK: only purchasing conditions find a row.", "sources": ["sap_help_pricing", "sap_learning_s4_sales"]},
+    {"apply": false, "source": "KONV", "source_cols": ["MANDT", "KSCHL"], "target": "T685", "target_cols": ["MANDT", "KSCHL"], "cardinality": "many-to-many", "role": "condition_type", "variants": ["ecc"], "condition": "T685's key also has usage and application; fix them (pricing in sales: A and V) before joining.", "sources": ["sap_help_pricing"]},
+    {"apply": false, "source": "PRCD_ELEMENTS", "source_cols": ["MANDT", "KSCHL"], "target": "T685", "target_cols": ["MANDT", "KSCHL"], "cardinality": "many-to-many", "role": "condition_type", "variants": ["s4hana"], "condition": "T685's key also has usage and application; fix them before joining.", "sources": ["sap_help_pricing"]}
+  ],
+  "traps": [
+    {"id": "knumv", "title": "Documents find their conditions through KNUMV",
+     "text": "VBAK, VBRK and EKKO carry a condition number KNUMV; their conditions are the KONV (ECC) or PRCD_ELEMENTS (S/4HANA) rows with that KNUMV, and an item's are those with KPOSN equal to the item number. Joining on the document number VBELN or EBELN finds nothing.",
+     "sources": ["sap_help_pricing"]},
+    {"id": "condition_sum", "title": "Summing all condition values is not the net value",
+     "text": "A document's conditions include prices, discounts, surcharges, taxes, subtotals and statistical conditions. Adding every KWERT counts subtotals and statistical lines on top of the lines they summarise. Pick condition types (KSCHL), leave out inactive (KINAK) and statistical (KSTAT) lines, and remember that header conditions (KPOSN 000000) are also distributed to the items.",
+     "sources": ["sap_help_pricing"]},
+    {"id": "rate_vs_value", "title": "KBETR is a rate, KWERT a value",
+     "text": "KBETR is a price per pricing unit or a percentage (the calculation type KRECH says which), stored in its own scale; KWERT is the resulting amount in the document currency. Summing KBETR adds rates of different kinds.",
+     "sources": ["sap_help_pricing"]},
+    {"id": "pricing_variant", "title": "KONV in ECC, PRCD_ELEMENTS in S/4HANA",
+     "text": "S/4HANA keeps document conditions in PRCD_ELEMENTS with the same key. A pipeline that extracts KONV from an S/4HANA system may get no rows; extract the table the variant has.",
+     "sources": ["sap_help_pricing", "sap_learning_s4_sales"]},
+    {"id": "condition_validity", "title": "Condition records are valid for a period",
+     "text": "A condition record (KONH) has a validity period; the record a document used is the one in its KNUMH, not the one valid today.",
+     "sources": ["sap_help_pricing"]}
+  ]
+}

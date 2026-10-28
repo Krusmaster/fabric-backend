@@ -16,7 +16,7 @@ FILES = sorted((sap_pack.PACKS).glob("*/*.json"))
 
 
 def test_there_are_pack_files():
-    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document", "procure_to_pay", "finance"}
+    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document", "procure_to_pay", "finance", "pricing"}
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)
@@ -191,3 +191,11 @@ def test_the_tool_is_read_only_and_answers(monkeypatch):
     assert out["variant_hint"].startswith("ecc") and out["export"]["format"] == exports.EXTRACTION_FORMAT
     bad = json.loads(server.sap_pack_draft("ws", "sap_lh", export="csv"))
     assert {"error", "kind", "hint"} <= set(bad)
+
+
+def test_an_applied_relationship_must_point_at_the_target_key():
+    pack = sap_pack.load()
+    bad = next(r for r in pack["relationships"] if r["target"] == "VBAK" and r["target_cols"] == ["MANDT", "KNUMV"])
+    assert sap_pack.problems(pack) == []                                   # listed only: allowed
+    pack["relationships"].append({**bad, "apply": True})
+    assert any("not VBAK's key" in x for x in sap_pack.problems(pack))

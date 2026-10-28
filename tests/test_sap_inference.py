@@ -58,15 +58,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 43, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
-    'ecc/prefix/names+keys': {'coverage': 0.89, 'key_hits': 43, 'keys': 43, 'precision': 0.45, 'rel_hits': 58, 'rel_wrong': 70, 'relationships': 65, 'tables': 43},
-    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 43, 'keys': 43, 'precision': 1.0, 'rel_hits': 65, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
-    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 43, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
-    'ecc/upper/names+keys': {'coverage': 0.89, 'key_hits': 43, 'keys': 43, 'precision': 0.45, 'rel_hits': 58, 'rel_wrong': 70, 'relationships': 65, 'tables': 43},
-    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 43, 'keys': 43, 'precision': 1.0, 'rel_hits': 65, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
-    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 37, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 58, 'tables': 37},
-    's4hana/lower/names+keys': {'coverage': 0.81, 'key_hits': 37, 'keys': 37, 'precision': 0.57, 'rel_hits': 47, 'rel_wrong': 36, 'relationships': 58, 'tables': 37},
-    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 37, 'keys': 37, 'precision': 1.0, 'rel_hits': 58, 'rel_wrong': 0, 'relationships': 58, 'tables': 37}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 47, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
+    'ecc/prefix/names+keys': {'coverage': 0.9, 'key_hits': 47, 'keys': 47, 'precision': 0.46, 'rel_hits': 60, 'rel_wrong': 70, 'relationships': 67, 'tables': 47},
+    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 47, 'keys': 47, 'precision': 1.0, 'rel_hits': 67, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
+    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 47, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
+    'ecc/upper/names+keys': {'coverage': 0.9, 'key_hits': 47, 'keys': 47, 'precision': 0.46, 'rel_hits': 60, 'rel_wrong': 70, 'relationships': 67, 'tables': 47},
+    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 47, 'keys': 47, 'precision': 1.0, 'rel_hits': 67, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
+    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 41, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 60, 'tables': 41},
+    's4hana/lower/names+keys': {'coverage': 0.82, 'key_hits': 41, 'keys': 41, 'precision': 0.58, 'rel_hits': 49, 'rel_wrong': 36, 'relationships': 60, 'tables': 41},
+    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 41, 'keys': 41, 'precision': 1.0, 'rel_hits': 60, 'rel_wrong': 0, 'relationships': 60, 'tables': 41}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -172,3 +172,14 @@ def test_open_items_point_at_their_accounting_document():
     rels = {(r.source, r.target, tuple(r.source_cols)) for r in p.relationships}
     assert ("BSID", "BKPF", ("MANDT", "BUKRS", "BELNR", "GJAHR")) in rels and ("BSAK", "LFA1", ("MANDT", "LIFNR")) in rels
     assert not [r for r in p.relationships if {r.source, r.target} == {"BSID", "BSEG"}]
+
+
+@pytest.mark.parametrize("variant,conditions", [("ecc", "KONV"), ("s4hana", "PRCD_ELEMENTS")])
+def test_pricing_conditions_are_found_through_knumv_not_applied(variant, conditions):
+    p = plan(sap_support.schema([conditions, "KONH", "KONP", "T685", "VBAK", "VBAP", "VBRK", "EKKO"], variant=variant))
+    rels = {(r.source, r.target) for r in p.relationships}
+    assert (conditions, "KONH") in rels and ("KONP", "KONH") in rels
+    assert not [r for r in p.relationships if r.source == conditions and r.target in ("VBAK", "VBRK", "EKKO", "VBAP", "T685")]
+    listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
+    assert {(conditions, "VBAK"), (conditions, "VBRK"), (conditions, "EKKO"), (conditions, "T685")} <= listed
+    assert p.keys[conditions] == (["MANDT", "KNUMV", "KPOSN", "STUNR", "ZAEHK"], "SAP pack")

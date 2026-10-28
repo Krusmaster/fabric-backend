@@ -18,6 +18,7 @@ SAP table and column names survive, with or without a prefix.
 | `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 31, of which 25 are applied and 6 listed but not applied (conditional, or many-to-many through `VBFA`) |
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 22, of which 21 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 23, of which 21 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
+| `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 3 are applied (condition lines and rates to their condition record); the links from conditions to `VBAK`, `VBRK`, `EKKO` (through `KNUMV`, not the document number) and to `T685` are listed only |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 3: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -57,6 +58,10 @@ compatibility view in a given S/4HANA release (not asserted).
   different number ranges. `RBKP` also has `BUKRS` and `GJAHR`, so the name rules (R3, with keys given) link it to
   `BKPF`; the pack does not, and names the real link (`BKPF.AWKEY`) in its traps. Invoice numbers are unique only
   within `GJAHR`.
+- **Conditions are found through `KNUMV`.** `VBAK`, `VBRK` and `EKKO` carry a condition number `KNUMV`; their
+  pricing lines are the `KONV`/`PRCD_ELEMENTS` rows with it (and `KPOSN` = item number). `KNUMV` is unique in the
+  document but not its key, so the pack lists the link instead of applying it. Summing every `KWERT` is not the net
+  value: subtotals, statistical and inactive conditions are lines too, and `KBETR` is a rate, not an amount.
 - **Open items are copies.** `BSID`/`BSAD`/`BSIK`/`BSAK` copy customer and supplier lines of `BSEG`; adding them to
   `BSEG` or `ACDOCA` counts a posting twice, and an item moves from the open to the cleared table when it is cleared.
 - **Time-dependent masters.** `CSKS` and `CEPC` have `DATBI` in the key; a journal line joined on the cost center
@@ -104,6 +109,7 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | SAP Help Portal, SAP ERP / S/4HANA Sales and Distribution (help.sap.com/docs/SAP_ERP) | tables, keys, relationships of order to cash | no: help.sap.com was outside the session's network policy; cited from public knowledge of the documentation, **to be re-checked** |
 | SAP Help Portal, Materials Management (purchasing, purchase order history, logistics invoice verification) | procure to pay | no, as above |
 | SAP Help Portal, S/4HANA business partner | `LFA1` behind the business partner in S/4HANA | no, as above |
+| SAP Help Portal, pricing and the condition technique (SD and MM) | pricing | no, as above |
 | SAP Help Portal, ABAP keyword documentation, client handling | `MANDT` as first key field | no, as above |
 | SAP Learning, *Identifying data model simplifications in SAP S/4HANA* (Sales) | `VBUK`/`VBUP` folded into the document tables; `VBFA` simplified | found in a web search on 28 October 2026; the page could not be fetched |
 | SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA`, and the ECC index tables it replaces | no, as above |
@@ -133,7 +139,9 @@ Not built yet, in this order:
 2. ~~Finance~~: built in round n22 (above). Left for later: the G/L open-item tables `BSIS`/`BSAS`, ledgers and
    currency types in S/4HANA, fixed assets (`ANLA`, `ANLC`), and a time-dependent join (a date between `DATAB` and
    `DATBI`) as a relationship kind of its own, so cost and profit centers can be applied instead of only listed.
-3. **Pricing**: `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA) — a clear variant case.
+3. ~~Pricing~~: built in round n23 (above). Left for later: the condition tables `Annn` (one per key combination,
+   numbered per installation, so only the standard ones could be described), and a relationship kind on a unique
+   column that is not the key (`KNUMV`), so the document links can be applied.
 4. **Business partner** in S/4HANA: `BUT000`, `BUT100`, `CVI_CUST_LINK` between partner and customer.
 
 ## Contributing

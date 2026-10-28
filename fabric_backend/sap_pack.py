@@ -86,7 +86,8 @@ def problems(pack: dict) -> list[str]:
             continue
         if len(r["source_cols"]) != len(r["target_cols"]):
             out.append(f"{name}: {len(r['source_cols'])} source column(s) against {len(r['target_cols'])} target column(s)")
-        if r["cardinality"] != "many-to-many" and list(r["target_cols"]) != list(tables[r["target"]]["key"]):
+        # a link on another unique column of the target (VBAK.KNUMV) is allowed only as a listed, not applied, relationship
+        if r["cardinality"] != "many-to-many" and r.get("apply") is not False and list(r["target_cols"]) != list(tables[r["target"]]["key"]):
             out.append(f"{name}: the target columns are not {r['target']}'s key")
         for v in r.get("variants", []):
             if v not in pack["variants"]:
