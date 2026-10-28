@@ -209,12 +209,33 @@ BUILDS = (("GraphQL API", "create_backend"), ("Power BI semantic model", "create
           ("Fabric IQ ontology", "create_ontology"), ("views", "create_views"), ("data agent", "create_data_agent"),
           ("silver notebooks", "create_silver_notebook"))
 
-# MCP clients that have signed in to the hosted service and run tools, where and when: Claude with the connector at /mcp,
-# the others through client registration at /mcp/connect (fabric_backend/registration.py), in the maintainer's live test
-# with the test account. A client is named as working only while it is here and, for /mcp/connect, while client
-# registration is switched on (clients_working()).
-CLIENTS_TESTED = {"Claude": ("/mcp", "26 October 2026"), "VS Code": ("/mcp/connect", "27 October 2026"),
-                  "Cursor": ("/mcp/connect", "27 October 2026"), "Glama": ("/mcp/connect", "27 October 2026")}
+# The clients, one row each (Gustav's brief of 28 October 2026): where each one reaches Krusgraph and its status word.
+# Client registration at /mcp/connect is switched on at krusgraph.com since 27 October 2026; VS Code and Glama reached
+# the approval page there, but a full sign-in is not yet confirmed, so those clients are Experimental. A client is named
+# as working (the hub, the docs' sentence) only when its status here is Tested end to end.
+@dataclass(frozen=True)
+class ClientStatus:
+    name: str
+    where: str                 # how it connects, in words
+    path: str                  # /mcp, /mcp/connect, or "" for a client that does not use MCP
+    status: str                # one of WORDS
+    since: str = ""            # the date behind a Tested end to end
+    note: str = ""
+
+
+CONNECT_NOTE = ("client registration is switched on at krusgraph.com since 27 October 2026; VS Code and Glama reached the "
+                "approval page, a full sign-in is not yet confirmed")
+CLIENTS = (
+    ClientStatus("Claude", "hosted, via /mcp (the connector)", "/mcp", "Tested end to end", "26 October 2026",
+                 "the live runs of 26 and 27 October 2026"),
+    ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
+    ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
+    ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
+    ClientStatus("Lovable", "via the GraphQL API that create_backend makes (not an MCP client of Krusgraph)", "", "Experimental",
+                 note="Lovable's own Microsoft Fabric connector reads the API; the chain is in docs/LOVABLE-END-TO-END.md"),
+)
+# derived, for the hub and the docs' sentence: only what has signed in and run tools end to end
+CLIENTS_TESTED = {c.name: (c.path, c.since) for c in CLIENTS if c.status == "Tested end to end" and c.path}
 WHERE_YOU_BUILD = ("Claude", "VS Code", "Cursor")       # the MCP clients the hub names, in this order; Lovable comes last
 
 
@@ -239,3 +260,68 @@ def clients_tested_at(path: str) -> list[tuple[str, str]]:
 def clients_working(registration_on: bool) -> list[str]:
     """The MCP clients the site names as working with the hosted service, in WHERE_YOU_BUILD order."""
     return [c for c in WHERE_YOU_BUILD if c in CLIENTS_TESTED and (CLIENTS_TESTED[c][0] == "/mcp" or registration_on)]
+
+
+def connect_sentence() -> str:
+    """What the site says about /mcp/connect: the tested clients there, or the status of the experimental ones."""
+    seen = clients_tested_at("/mcp/connect")
+    if seen:
+        dates = list(dict.fromkeys(d for _, d in seen))
+        return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])}"
+    names = [c.name for c in CLIENTS if c.path == "/mcp/connect"]
+    return f"Experimental: {CONNECT_NOTE} ({_listed(names)})"
+
+
+# ------------------------------------------------------------------ the overview of tools, functions and clients -------
+# One table on /docs, /docs.md and llms-full.txt (Gustav's brief of 28 October 2026), rendered from here: every hosted
+# tool with its status and where it runs, the functions outside the hosted tools, and one row per client.
+
+# the hosted tools the local stdio server (fabric_backend/mcp_server.py) has too; tests/test_capabilities.py locks it
+LOCAL_TOOLS = ("list_tables", "plan_backend", "validate_plan", "sample_rows", "join_path", "data_dictionary", "dbt_schema",
+               "analyze_schema", "suggest_relationships", "rayfin_connector", "create_views", "answer_query_draft",
+               "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend")
+
+# what is not a hosted tool: (name, status word, where, what it is)
+FUNCTIONS = (
+    ("`validate_plan` → `amount_levels`", "Experimental", "hosted, local demo, library",
+     "the total that doubles: header amounts a join with their line rows would repeat, with the line rows per header counted; "
+     "unit-tested, and run on 28 October 2026 against SQL Server 2022 in a container with synthetic data"),
+    ("`plan_sql_server`", "Experimental", "library",
+     "`from fabric_backend import plan_sql_server`: plan, validate, data dictionary and dbt schema over ODBC from your own Python; "
+     "run on 28 October 2026 against SQL Server 2022 in a container, not yet on Windows"),
+    ("`fabric-backend demo`", "Experimental", "local demo",
+     "the 20-minute demo on 127.0.0.1: SQL Server over ODBC, a folder of CSV / Excel files, a columns list (file or pasted), "
+     "or the synthetic shop; step 1 ends with one of five answers; over ODBC run on 28 October 2026 against SQL Server 2022 in a container"),
+    ("`fabric-backend-mcp`", "Experimental", "local",
+     "the local stdio MCP server over one ODBC connection string; its tools run on 28 October 2026 against SQL Server 2022 in a "
+     "container; Claude Desktop starting it is not yet tried"),
+    ("`plan_from` / `create`", "Experimental", "library", "the engine in a Fabric notebook (Spark catalog) or over any execute(sql)"),
+    ("Claude plugin", "Planned", "—", "the connector with a skill and `/krusgraph` commands, built in the repository (`plugin/krusgraph`), not published; see *For agents*"),
+    ("Databricks adapter", "Draft only", "library, local",
+     "Unity Catalog metadata, informational constraints, and the `databricks_*` tools of the local server; see docs/DATABRICKS.md"),
+)
+
+
+def where(name: str) -> str:
+    return "hosted, local" if name in LOCAL_TOOLS else "hosted"
+
+
+def overview_md(registration_on: bool = True) -> str:
+    """The table, as Markdown. With client registration off (a server hosted elsewhere), the clients that would use
+    /mcp/connect cannot sign in, and the table says so."""
+    rows = ["| Tool, function or client | Status | Where |", "| --- | --- | --- |"]
+    rows += [f"| `{t}` | {label(t)} | {where(t)} |" for t in STATUS]
+    rows += [f"| {n} | {w}: {what} | {at} |" for n, w, at, what in FUNCTIONS]
+    for c in CLIENTS:
+        status = c.status + (f" (since {c.since})" if c.since else "") + (f"; {c.note}" if c.note else "")
+        at = c.where
+        if c.path == "/mcp/connect" and not registration_on:
+            status, at = c.status + "; cannot sign in to this server: client registration is not switched on here", "hosted elsewhere"
+        rows.append(f"| {c.name} (client) | {status} | {at} |")
+    return "\n".join(rows)
+
+
+def overview_words() -> set[str]:
+    """The status words the table uses: always from WORDS."""
+    used = {word(t) for t in STATUS} | {w for _, w, _, _ in FUNCTIONS} | {c.status for c in CLIENTS}
+    return {next(w for w in WORDS if u.startswith(w) or u.lower().startswith(w.lower())) for u in used}

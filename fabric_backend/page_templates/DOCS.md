@@ -307,6 +307,15 @@ that ran live is listed as tested, and its *What it changes* column says it crea
   ([docs/SCOPES.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SCOPES.md)).
 - **Planned** — not available yet, such as the Claude plugin (see *For agents*).
 
+### Overview: tools, functions and clients
+
+Each tool, each function outside the hosted tools, and each client, with its status and where it runs: *hosted*
+(krusgraph.com), *local* (the stdio server `fabric-backend-mcp` on your machine), *local demo* (`fabric-backend demo`)
+or *library* (the Python package in your own scripts or notebooks). Generated from the same source as the tool table
+below and the server's instructions.
+
+{{OVERVIEW_TABLE}}
+
 ### Tools
 
 All tools take the workspace by id or display name. `schema` defaults to `dbo`; `keys` overrides a table's key

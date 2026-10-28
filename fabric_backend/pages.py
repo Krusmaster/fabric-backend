@@ -112,10 +112,8 @@ def _clients_sentence() -> str:
 
 def _connect_tested() -> str:
     """"Tested on 27 October 2026 with VS Code, Cursor and Glama": the clients recorded as signed in at /mcp/connect."""
-    from .tool_status import clients_tested_at
-    seen = clients_tested_at("/mcp/connect")
-    dates = list(dict.fromkeys(date for _, date in seen))
-    return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])}" if seen else "Not tried with a client yet"
+    from .tool_status import connect_sentence
+    return connect_sentence()
 
 
 def hub_html() -> str:
@@ -476,7 +474,7 @@ def _tool_statuses(md: str) -> str:
         raise ValueError(f"tool table and tool_status differ: {sorted(seen ^ set(ts.STATUS))}")
     return (md.replace("{{LIVE_RUN_BUILD}}", ts.LIVE_RUN_BUILD).replace("{{LIVE_RUN_LIST}}", ts.live_run_list())
               .replace("{{NOT_RUN_LIST}}", ts.not_run_list()).replace("{{FIRST_RUN_DATE}}", ts.FIRST_RUN_DATE)
-              .replace("{{FIRST_RUN_STEPS}}", str(ts.FIRST_RUN_STEPS)))
+              .replace("{{FIRST_RUN_STEPS}}", str(ts.FIRST_RUN_STEPS)).replace("{{OVERVIEW_TABLE}}", ts.overview_md(_registration_on())))
 
 
 def docs_md() -> str:
