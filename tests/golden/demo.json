@@ -359,6 +359,12 @@
   ]
  },
  "demo_validation": {
+  "amount_levels": {
+   "findings": [],
+   "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. The counts are over the whole tables at the moment of the call.",
+   "rule": "A number on the header table of a many-to-one relationship is repeated on every line row in a join of the two; summing it over the joined rows counts each header once per line.",
+   "summary": "no header table with an amount column that a line table points at"
+  },
   "computed": "on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same checks validate_plan runs on a Fabric source",
   "keys": [
    {
@@ -985,6 +991,23 @@
    "findings": [
     {
      "accepted": false,
+     "can_accept": false,
+     "evidence": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[order_lines] AS l JOIN [demo].[orders] AS h ON l.[order_id] = h.[order_id]",
+     "id": "amt:demo",
+     "kind": "amount_level",
+     "means": "orders.order_amount is an amount on orders, and order_lines has 2 rows for each row of orders on average and up to 2 (1 row(s) of orders referenced) (rule R1: order_lines.order_id → orders.order_id). In a join of the two, each orders amount is repeated on every order_lines row, so SUM(orders.order_amount) over the joined rows comes out about 2 times too large. Sum it on orders itself, or sum an amount of order_lines instead: order amount and line amount are different levels.",
+     "next": {
+      "sql": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[orders] AS h WHERE EXISTS (SELECT 1 FROM [demo].[order_lines] AS l WHERE l.[order_id] = h.[order_id])"
+     },
+     "next_text": "Sum an order amount on the orders table, or sum the line amounts; never the order amount over its lines. This example is two extra synthetic tables (fabric_backend.seed.AMOUNT_DEMO), not part of the shop's map.",
+     "saw": "A synthetic order of 1 000 with two lines (1 000 together). Summed over the joined lines the order comes out at 2 000 (before); summed on the order, 1 000 (after).",
+     "severity": "warning",
+     "skipped": false,
+     "table": "orders (synthetic example)",
+     "title": "The total that doubles: order amount and line amount are different levels"
+    },
+    {
+     "accepted": false,
      "can_accept": true,
      "evidence": "SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.[address_id]) AS matched, COUNT_BIG(DISTINCT s.[ship_to_id]) AS distinct_values FROM [shop].[orders] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [shop].[addresses]) AS t ON s.[ship_to_id] = t.[address_id] WHERE s.[ship_to_id] IS NOT NULL",
      "id": "sug:orders.ship_to_id>addresses",
@@ -1029,7 +1052,7 @@
     }
    ],
    "note": "Counts over the whole tables now. Accepting a suggestion is your decision; nothing here calls it verified.",
-   "open": 2,
+   "open": 3,
    "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
   },
   "host": "127.0.0.1",

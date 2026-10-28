@@ -21,7 +21,7 @@ import threading
 import time
 from urllib.parse import urlsplit, parse_qs
 
-from . import evidence, graphs, paths as _paths
+from . import amounts, evidence, graphs, paths as _paths
 from .infer import RULES, Plan, PlanInputError, plan
 
 HOST = "127.0.0.1"                                   # the one address the demo listens on; not configurable on purpose
@@ -189,6 +189,11 @@ def run_question(q: dict, execute) -> dict:
     return out
 
 
+def _amount(v) -> str:
+    """1000.0 as 1 000: the way the example is told."""
+    return f"{float(v):,.0f}".replace(",", " ") if isinstance(v, (int, float)) else _cell(v)
+
+
 def _cell(v) -> str:
     if v is None:
         return ""
@@ -298,6 +303,7 @@ class Session:
                         "next": {"sql": f"SELECT s.* FROM {evidence.qi(schema)}.{evidence.qi(r['source'])} AS s LEFT JOIN {evidence.qi(schema)}.{evidence.qi(r['target'])} AS t ON " + " AND ".join(f"s.{evidence.qi(a)} = t.{evidence.qi(b)}" for a, b in zip(r['columns'], r['target_columns'])) + f" WHERE t.{evidence.qi(r['target_columns'][0])} IS NULL AND s.{evidence.qi(r['columns'][0])} IS NOT NULL"},
                         "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",
                         "evidence": evidence.relationship_sql(schema, r["source"], r["columns"], r["target"], r["target_columns"])})
+        out += self._amount_findings(p, validation)
         decided_cols = {(c["source"], tuple(x.lower() for x in c["source_cols"])) for c in self.confirmed}
         for a in p.ambiguous:
             if (a["table"], (a["column"].lower(),)) in decided_cols:   # already linked by a decision here: the question is answered
@@ -391,6 +397,34 @@ class Session:
             f["can_accept"] = "confirmed" in f.get("next", {}) or "keys" in f.get("next", {})
         order = {"problem": 0, "warning": 1, "question": 2, "suggestion": 3, "info": 4}
         out.sort(key=lambda f: (f["accepted"], f["skipped"], order.get(f["severity"], 9), f["table"], f["id"]))
+        return out
+
+    def _amount_findings(self, p: Plan, validation: dict | None) -> list[dict]:
+        """The total that doubles (amounts.py): a header amount that a join with its line rows repeats, with both sums
+        run here; on the synthetic shop, the example of seed.AMOUNT_DEMO (one order of 1 000 with two lines)."""
+        schema = p.schema.schema
+        levels = (validation or {}).get("amount_levels") or amounts.check(p)
+        out = []
+        for f in levels["findings"][:5]:
+            ba = amounts.before_after(schema, f, self.source.execute) if self.source.has_data else None
+            col = f["amount_columns"][0]
+            before, after = ba or {}, amounts.before_after_sql(schema, f, col)
+            out.append({"id": f"amt:{f['line']}>{f['header']}.{col}", "kind": "amount_level", "severity": "warning", "table": f["header"],
+                        "title": f"{f['header']}.{col} would be summed once per {f['line']} row",
+                        "saw": (f"Summed over the joined {f['line']} rows: {_cell(before.get('summed_over_lines'))}; summed once per {f['header']} row: "
+                                f"{_cell(before.get('summed_per_header'))}. " if ba else "") + f["explanation"].split(" (rule")[0] + ".",
+                        "means": f["explanation"], "next": {"sql": after[1]},
+                        "next_text": f["do_instead"], "evidence": after[0]})
+        if self.source.kind == "sample":
+            d = amounts.demo()
+            out.append({"id": "amt:demo", "kind": "amount_level", "severity": "warning", "table": "orders (synthetic example)",
+                        "title": "The total that doubles: order amount and line amount are different levels",
+                        "saw": (f"A synthetic order of {_amount(d['after'])} with two lines ({_amount(d['lines_total'])} together). Summed over the joined lines "
+                                f"the order comes out at {_amount(d['before'])} (before); summed on the order, {_amount(d['after'])} (after)."),
+                        "means": d["finding"]["explanation"], "next": {"sql": d["sql_after"]},
+                        "next_text": "Sum an order amount on the orders table, or sum the line amounts; never the order amount over its lines. "
+                                     "This example is two extra synthetic tables (fabric_backend.seed.AMOUNT_DEMO), not part of the shop's map.",
+                        "evidence": d["sql_before"]})
         return out
 
     def exports(self, p: Plan, validation: dict | None, qs: list[dict]) -> dict[str, tuple[str, str]]:

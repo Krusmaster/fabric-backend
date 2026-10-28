@@ -137,7 +137,9 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     flagged = _privacy.personal_columns(plan.schema)
     sources = {f"{schema}.{t.name}".lower() for t in plan.schema}
     silver = {f"{silver_schema}.{t.name}".lower() for t in plan.schema}
-    views, omitted, kept = [], [], []
+    views, omitted, kept, levels = [], [], [], []
+    from . import amounts as _amounts
+    header_amounts = _amounts.columns(plan)
     for fact in sorted(facts, key=str.lower):
         target = f"{gold_schema}.{fact}".lower()
         if target in sources or target in silver:
@@ -153,6 +155,13 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
         columns, out_names = [], []
         for t in [fact] + [s["to"] for s in steps]:
             for c in plan.schema[t].column_names:
+                if t != fact and (t, c) in header_amounts and (t, c.lower()) not in needed:
+                    # the total that doubles (amounts.py): one row per fact row repeats this amount once per fact row
+                    levels.append({"view": target, "table": t, "column": c,
+                                   "why": f"{t}.{c} is an amount on {t}, and this view has one row per {fact} row, so it would repeat "
+                                          f"once per {fact} row and a SUM over the view would count it several times; order amount and "
+                                          f"line amount are different levels. Take it from {t} itself (its own view, if it is a fact table)"})
+                    continue
                 f = flagged.get((t, c))
                 if f and not show_personal_data and (t, c.lower()) not in needed:
                     omitted.append({"view": target, "table": t, "column": c, **f})
@@ -191,6 +200,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
             "silver_schema": silver_schema, "gold_schema": gold_schema, "owner": owner, "views": views,
+            "header_amounts_left_out": levels,
             "personal_data": {"shown": bool(show_personal_data), "omitted": omitted, "kept_for_joins": kept,
                               "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views for t in v["tables"]}})}}
 

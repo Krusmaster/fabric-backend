@@ -1496,8 +1496,8 @@
   "Transaction Type": "SELECT TOP (10) [Transaction Type Key], [WWI Transaction Type ID], [Transaction Type], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Transaction Type]"
  },
  "semantic_model": {
-  "bytes": 115555,
-  "sha256": "a1199312f1303daea76c4520726c5a2ac56eb4b89b51d85a437d7d1ce0f27d7e"
+  "bytes": 120550,
+  "sha256": "b48a4905adaaa2588040d3376b0c881c771e0eebd7ea65ef2f3d1e0b48e75564"
  },
  "silver": {
   "bytes": 37452,

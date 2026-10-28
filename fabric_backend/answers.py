@@ -261,7 +261,7 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         on = " AND ".join(f"{alias[s['from']]}.{qi(a)} = {alias[s['to']]}.{qi(b)}" for a, b in zip(left, right))
         joins.append(f"JOIN {qi(schema)}.{qi(s['to'])} AS {alias[s['to']]} ON {on}")
     select, group, order = [], [], []
-    measure = None
+    measure = level = None
     root_key = plan.keys.get(root, ([], ""))[0]
     if u["aggregate"]:
         if u["group_table"]:
@@ -295,7 +295,15 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
             measure = [mt, mc]
             name = f"{'total' if u['aggregate'] == 'sum' else 'average'}_{mc}"
             expr = f"SUM({alias[mt]}.{qi(mc)})" if u["aggregate"] == "sum" else f"AVG(CAST({alias[mt]}.{qi(mc)} AS float))"
-            if fans_out and u["aggregate"] == "sum":
+            mkey = plan.keys.get(mt, ([], ""))[0]
+            if (mt != root or fans_out) and mkey:
+                # the total that doubles (amounts.py): mt's rows repeat once per root row, so take each mt row once
+                level = (mt, mkey)
+                expr = f"SUM(x.{qi(mc)})" if u["aggregate"] == "sum" else f"AVG(CAST(x.{qi(mc)} AS float))"
+                assumptions.append(f"{mt}.{mc} is a value on {mt}, and the joined rows repeat each {mt} row (once per {root} row): it is "
+                                   f"{'summed' if u['aggregate'] == 'sum' else 'averaged'} once per {mt} row (DISTINCT on its key "
+                                   f"{' + '.join(mkey)}), never over the {root} rows: an amount on {mt} and one on {root} are different levels")
+            elif fans_out and u["aggregate"] == "sum":
                 assumptions.append("the path goes one-to-many, so a value can be counted more than once in the sum; check the grain")
         select.append(f"{expr} AS {qi(name)}")
         order.append(f"{qi(name)} DESC")
@@ -320,9 +328,24 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
     top = u["top"] or (None if u["aggregate"] else 100)
     if u["aggregate"] and not group and u["top"]:
         top = None
-    sql = (("SELECT " + (f"TOP ({top}) " if top else "")) + ", ".join(select) + f"\nFROM {qi(schema)}.{qi(root)} AS t0"
-           + "".join("\n" + j for j in joins) + (("\nGROUP BY " + ", ".join(group)) if group else "")
-           + (("\nORDER BY " + ", ".join(order)) if order and (group or not u["aggregate"]) else ""))
+    if level:
+        mt, mkey = level
+        mc = measure[1]
+        outer = [g.split(".", 1)[1] for g in group]           # the grouping columns by their own names
+        inner = list(dict.fromkeys(group + [f"{alias[mt]}.{qi(c)}" for c in mkey] + [f"{alias[mt]}.{qi(mc)}"]))
+        names_in = []
+        for i, e in enumerate(inner):
+            n = e.split(".", 1)[1]
+            names_in.append(f"{e} AS {n}" if n not in [x.split(" AS ")[-1] for x in names_in] else f"{e} AS {qi('c' + str(i))}")
+        sql = (("SELECT " + (f"TOP ({top}) " if top else "")) + ", ".join([f"x.{c}" for c in outer] + [select[-1]])
+               + "\nFROM (SELECT DISTINCT " + ", ".join(names_in) + f"\n      FROM {qi(schema)}.{qi(root)} AS t0"
+               + "".join("\n      " + j for j in joins) + ") AS x"
+               + (("\nGROUP BY " + ", ".join(f"x.{c}" for c in outer)) if outer else "")
+               + (("\nORDER BY " + ", ".join(order)) if order and group else ""))
+    else:
+        sql = (("SELECT " + (f"TOP ({top}) " if top else "")) + ", ".join(select) + f"\nFROM {qi(schema)}.{qi(root)} AS t0"
+               + "".join("\n" + j for j in joins) + (("\nGROUP BY " + ", ".join(group)) if group else "")
+               + (("\nORDER BY " + ", ".join(order)) if order and (group or not u["aggregate"]) else ""))
     if not u["aggregate"] and not u["top"]:
         assumptions.append("no number of rows asked for: the first 100")
     if personal_group and not u["group_table"]:

@@ -158,6 +158,12 @@
   "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with many distinct values is strong evidence, 100% with two distinct values is not. After the data check the order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score."
  },
  "validate": {
+  "amount_levels": {
+   "findings": [],
+   "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. The counts are over the whole tables at the moment of the call.",
+   "rule": "A number on the header table of a many-to-one relationship is repeated on every line row in a join of the two; summing it over the joined rows counts each header once per line.",
+   "summary": "no header table with an amount column that a line table points at"
+  },
   "keys": [
    {
     "columns": [

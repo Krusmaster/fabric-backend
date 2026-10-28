@@ -67,6 +67,14 @@ SCHEMAS = {
     "audit_log": "event STRING, customer_id INT, happened_at TIMESTAMP",
 }
 
+# The total that doubles (fabric_backend/amounts.py): one order of 1 000 with two lines. Kept apart from the seven shop
+# tables so the shop's plan, the site's demo and the live workspace stay as they are; `fabric-backend demo` shows it as
+# a finding of its own.
+AMOUNT_DEMO = {
+    "orders": ("order_id INT, order_date DATE, order_amount DOUBLE", [(1, "2026-10-01", 1000.0)]),
+    "order_lines": ("order_id INT, line_no INT, line_amount DOUBLE", [(1, 1, 600.0), (1, 2, 400.0)]),
+}
+
 
 def schema(name: str = "shop"):
     """The seven tables as a `Schema` (no data), for planning offline — the site's demo runs `plan()` on this."""

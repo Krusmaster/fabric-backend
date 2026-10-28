@@ -143,7 +143,9 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
     ok_rels = sum(1 for r in rels if r["verdict"].startswith("holds"))
     summary = (f"{ok_keys} of {len(keys)} keys unique, {ok_rels} of {len(rels)} relationships hold without orphans"
                + ("" if checked == total else f" (checked {checked} of {total}; raise max_items to check the rest)"))
-    return {"summary": summary, "keys": keys, "relationships": rels,
+    from . import amounts
+    levels = amounts.check(plan, execute if budget > 0 else None, max_items=min(20, max(budget, 0)))
+    return {"summary": summary, "keys": keys, "relationships": rels, "amount_levels": levels,
             "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan "
                     "today; they do not prove the meaning, and new rows can change them."}
 

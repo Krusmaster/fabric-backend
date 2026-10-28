@@ -1499,8 +1499,8 @@
   "Territories": "SELECT TOP (10) [TerritoryID], [TerritoryDescription], [RegionID] FROM [dbo].[Territories]"
  },
  "semantic_model": {
-  "bytes": 35178,
-  "sha256": "28cb28bd7587f12cc00c69c31f1d38f0682e0107a45edcf9e33c5a7f4fe57c7e"
+  "bytes": 39278,
+  "sha256": "adaccc87ae130d6bccb18b5f88359e1758cfd7e5a11b889af0aabcb8acd5832b"
  },
  "silver": {
   "bytes": 26385,

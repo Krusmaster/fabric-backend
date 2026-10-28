@@ -64,8 +64,12 @@ def test_camelcase_ids_codes_and_label_numbers_are_not_summed():
                 ("SalesOrderHeader", "RevisionNumber"), ("SalesOrderHeader", "Status"), ("CreditCard", "ExpYear"),
                 ("SalesTaxRate", "TaxType")]:
         assert aw[col] == "none", col
-    for col in [("SalesOrderHeader", "SubTotal"), ("SalesOrderDetail", "OrderQty"), ("Product", "ListPrice")]:
+    for col in [("SalesOrderDetail", "OrderQty"), ("SalesOrderDetail", "UnitPrice")]:
         assert aw[col] == "sum", col
+    # the total that doubles (amounts.py): an amount on a table that another has several rows per row of is not summed
+    # by default; SubTotal on the header, ListPrice on the product, each repeated per SalesOrderDetail row in a join
+    for col in [("SalesOrderHeader", "SubTotal"), ("Product", "ListPrice")]:
+        assert aw[col] == "none", col
     for word, expected in (("PersonID", True), ("CustomerId", True), ("ship_to_id", True), ("FiscalYear", True),
                            ("PAID", False), ("unit_price", False), ("Quantity", False), ("Typeface", False)):
         assert semantic_model._looks_like_id(word) is expected, word

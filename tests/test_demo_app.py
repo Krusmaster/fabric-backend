@@ -67,7 +67,8 @@ def test_accept_adds_a_confirmed_relationship_and_the_plan_updates_at_once(shop)
 def test_skip_hides_the_suggestion_and_accepting_a_finding_without_an_action_is_refused(shop):
     shop.skip("sug:orders.ship_to_id>addresses")
     st = shop.state()
-    assert st["health"]["open"] == 1 and next(f for f in st["health"]["findings"] if f["id"].startswith("sug:"))["skipped"]
+    # open: the keyless audit_log and the synthetic example of the total that doubles (amt:demo)
+    assert st["health"]["open"] == 2 and next(f for f in st["health"]["findings"] if f["id"].startswith("sug:"))["skipped"]
     with pytest.raises(ValueError):
         shop.accept("nokey:audit_log")
     with pytest.raises(KeyError):

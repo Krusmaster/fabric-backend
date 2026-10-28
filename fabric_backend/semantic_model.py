@@ -126,6 +126,19 @@ def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: se
     return out
 
 
+def header_amount_columns(plan: Plan, names: set[str]) -> dict[tuple[str, str], list[str]]:
+    """(header, column) -> the line tables in the model that have several rows per header row (amounts.py)."""
+    from . import amounts
+    out: dict[tuple[str, str], list[str]] = {}
+    for f in amounts.header_amounts(plan):
+        if f["header"] in names and f["line"] in names:
+            for c in f["amount_columns"]:
+                out.setdefault((f["header"], c), [])
+                if f["line"] not in out[(f["header"], c)]:
+                    out[(f["header"], c)].append(f["line"])
+    return out
+
+
 def _dax_table(name: str) -> str:
     return "'" + name.replace("'", "''") + "'"
 
@@ -236,6 +249,21 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
     measures = suggested_measures(plan, chosen, role_of, ref_cols)
+    header_level = header_amount_columns(plan, names)
+    for (t, c), lines_of in header_level.items():                 # the total that doubles (amounts.py): a measure on the header
+        why = (f"{t}.{c} is an amount at the level of {t}, and {', '.join(lines_of)} has several rows per {t} row: the measure sums it "
+               f"once per {t} row, while summing it over {lines_of[0]} rows (a flat table, a view or an export of the joined rows) "
+               f"would count each {t} once per line, so the column itself is not summed by default (summarizeBy: none). "
+               "Order amount and line amount are different levels")
+        m = next((x for x in measures if x["table"] == t and x["column"] == c), None)
+        if m:
+            m["why"] = why
+            continue
+        taken = {x["name"].lower() for x in measures} | {x.name.lower() for x in chosen} | {col.name.lower() for x in chosen for col in x.columns}
+        mname = f"Total {c}" if f"total {c}".lower() not in taken else f"Total {c} ({t})"
+        dt = data_type(next(col.data_type for col in plan.schema[t].columns if col.name == c))
+        measures.append({"table": t, "column": c, "name": mname, "expression": f"SUM({_dax_table(t)}[{_dax_column(c)}])",
+                         "format": "#,##0" if dt == "int64" else "#,##0.00", "why": why})
     by_table: dict[str, list[dict]] = {}
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
@@ -270,6 +298,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             dt = data_type(c.data_type)
             is_key = len(key) == 1 and c.name == key[0]
             summarize = summarize_by(c.name, c.data_type, (t.name, c.name.lower()) in ref_cols or c.name in key)
+            if (t.name, c.name) in header_level:
+                summarize = "none"
+                lines.append(f"\t/// An amount at the level of {t.name}; {', '.join(header_level[(t.name, c.name)])} has several rows per "
+                             f"{t.name} row. Not summed by default: use the measure, never a sum over the line rows.")
             lines.append(f"\tcolumn {tmdl_name(c.name)}")
             lines.append(f"\t\tdataType: {dt}")
             if is_key:
@@ -370,6 +402,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                ""]
     readme += ["## Suggested measures", ""] + ([f"- `{m['name']}` = `{m['expression']}` on `{m['table']}`: {m['why']}." for m in measures]
                                               or ["- None: the plan has no fact table (a table that points at others and that nothing points at)."])
+    readme += ["", "## Amounts at header level", ""] + ([f"- `{t}.{c}`: an amount on `{t}`, which {', '.join(f'`{x}`' for x in ls)} has "
+                                                            f"several rows for; `summarizeBy: none` and a measure on `{t}` instead. Order amount and "
+                                                            "line amount are different levels: summed over the line rows it would count each "
+                                                            f"`{t}` row once per line." for (t, c), ls in header_level.items()]
+                                                           or ["- None: no table that another one has several rows for carries an amount column."])
     readme += ["", "No measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get "
                "no sums; their numbers describe one row.", "", "## Date table", ""]
     if calendar:
@@ -395,6 +432,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive],
                "measures": [{k: m[k] for k in ("table", "name", "expression", "why")} for m in measures],
+               "header_amounts": [{"table": t, "column": c, "lines": ls, "summarize_by": "none"} for (t, c), ls in header_level.items()],
                "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
                                "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}
