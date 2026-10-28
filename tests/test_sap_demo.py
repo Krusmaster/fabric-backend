@@ -92,3 +92,14 @@ def test_no_value_looks_like_a_real_party():
 def test_the_command_writes_the_folder(tmp_path, capsys):
     assert cli.main(["sap-demo", "--out", str(tmp_path / "demo")]) == 0
     assert (tmp_path / "demo" / "KNA1.csv").exists() and "Files/sap_demo" in capsys.readouterr().out
+
+
+def test_the_one_cell_notebook_holds_the_same_rows_and_is_committed():
+    from pathlib import Path
+    nb = sap_demo.notebook_inline()
+    compile(nb, "load_sap_demo_inline.py", "exec")
+    data = json.loads(nb.split('json.loads(r"""', 1)[1].split('""")', 1)[0])
+    assert {n: [tuple(r) for r in t["rows"]] for n, t in data.items()} == {n: [tuple(r) for r in rows] for n, (_, _, rows) in sap_demo.tables().items()}
+    committed = Path(__file__).resolve().parent.parent / "examples" / "sap_demo" / "load_sap_demo_inline.py"
+    assert committed.read_text(encoding="utf-8") == nb, "regenerate: fabric-backend sap-demo --notebook examples/sap_demo/load_sap_demo_inline.py"
+

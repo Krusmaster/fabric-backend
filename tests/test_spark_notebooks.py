@@ -255,3 +255,24 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
                         exec('GOLD_SCHEMA = "silver"', nb)
     finally:
         spark.stop()
+
+
+def test_sap_demo_one_cell_notebook_writes_every_table(tmp_path):
+    """fabric_backend/sap_demo.notebook_inline() as pasted into Fabric (round n33): every table written with its rows
+    and types, leading zeros kept. Parquet instead of Delta, as in the tests above."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql import SparkSession
+    from fabric_backend import sap_demo
+    spark = (SparkSession.builder.master("local[1]").appName("krusgraph-sap-demo-test")
+             .config("spark.sql.warehouse.dir", str(tmp_path / "warehouse")).config("spark.ui.enabled", "false").getOrCreate())
+    try:
+        cell = sap_demo.notebook_inline().replace('.format("delta")', '.format("parquet")')
+        exec(compile(cell, "load_sap_demo_inline.py", "exec"), {"spark": spark})
+        for name, (cols, kinds, rows) in sap_demo.tables().items():
+            df = spark.table("sap_" + name.lower())
+            assert df.columns == cols and df.count() == len(rows), name
+        vbak = spark.table("sap_vbak")
+        assert dict(vbak.dtypes)["NETWR"] == "decimal(15,2)" and dict(vbak.dtypes)["VBELN"] == "string"
+        assert sorted(r.VBELN for r in vbak.collect()) == ["0000000001", "0000000001", "0000000002"]
+    finally:
+        spark.stop()

@@ -174,3 +174,25 @@ def sqlite(prefix: str = PREFIX, schema: str = "sap"):
         names = [d[0] for d in cur.description]
         return [dict(zip(names, r)) for r in cur.fetchall()]
     return Schema.from_information_schema(info, schema=schema), execute
+
+
+def notebook_inline(prefix: str = PREFIX) -> str:
+    """One notebook cell that holds every row itself: paste it into a Fabric notebook attached to the lakehouse and
+    run it. No files to upload. The rows are the same as tables() and write_csv()."""
+    data = {name: {"columns": cols, "types": kinds, "rows": [list(r) for r in rows]} for name, (cols, kinds, rows) in tables().items()}
+    return f'''# Synthetic SAP demo tables for Krusgraph (fabric_backend/sap_demo.py, round n33). Every value is made up.
+# Paste this whole cell into a notebook attached to the lakehouse (demo_lh) and run it. It writes {prefix}<name> tables
+# (sap_t001, sap_kna1, sap_vbak, ...) as Delta tables in the default schema, replacing tables of those names.
+import json
+from decimal import Decimal
+from pyspark.sql.types import DecimalType, StringType, StructField, StructType
+
+DATA = json.loads(r"""{json.dumps(data, ensure_ascii=False)}""")
+
+for name, t in DATA.items():
+    fields = [StructField(c, DecimalType(15, 2) if k != "string" else StringType(), True) for c, k in zip(t["columns"], t["types"])]
+    rows = [tuple(Decimal(str(v)) if k != "string" else v for v, k in zip(r, t["types"])) for r in t["rows"]]
+    df = spark.createDataFrame(rows, StructType(fields))
+    df.write.mode("overwrite").format("delta").option("overwriteSchema", "true").saveAsTable("{prefix}" + name.lower())
+    print(name, df.count(), "rows")
+'''

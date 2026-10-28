@@ -27,7 +27,12 @@ work on SAP-shaped data in Fabric: the prefix `sap_`, the client column, the ext
 It does **not** show that the pack is right about SAP, because the rows are written from the pack;
 `sap-verify --write` refuses to record such a run.
 
-1. On your machine: `fabric-backend sap-demo --out sap_demo` writes 17 CSV files, `_types.json` and
+1. **The quickest way (round n33):** open
+   [`examples/sap_demo/load_sap_demo_inline.py`](../examples/sap_demo/load_sap_demo_inline.py) on GitHub, copy all of
+   it, paste it into one cell of a new notebook attached to `demo_lh`, and run it. The rows are inside the cell;
+   nothing to upload. It writes the same 17 tables as below. Then go to step 3.
+
+   Or, on your machine: `fabric-backend sap-demo --out sap_demo` writes 17 CSV files, `_types.json` and
    `load_sap_demo.py` (every value made up: "Demo Customer 10", e-mail at `example.invalid`).
 2. In Fabric: upload the files to `demo_lh` under `Files/sap_demo`, open `load_sap_demo.py` as a notebook attached to
    `demo_lh`, run it. It writes `sap_t001`, `sap_kna1`, `sap_vbak` … as Delta tables (replacing tables of those names).
