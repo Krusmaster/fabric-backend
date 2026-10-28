@@ -17,9 +17,9 @@ SAP table and column names survive, with or without a prefix.
 | --- | --- | --- |
 | `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 48, of which 30 are applied; 18 are listed but not applied: conditional (partners, status and document-flow rows that belong to orders, deliveries or invoices alike) or many-to-many through `VBFA` |
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, of which 24 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
-| `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 31, of which 29 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
+| `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 31, all applied; journal line → cost center and → profit center as joins valid on the posting date (kind `valid_on`, round n25) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 3 are applied (condition lines and rates to their condition record); the links from conditions to `VBAK`, `VBRK`, `EKKO` (through `KNUMV`, not the document number) and to `T685` are listed only |
-| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK` | 8, of which 6 are applied; link table → `BUT000` on the partner's GUID is listed only (a unique column, not the key) |
+| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK` | 8, all applied; link table → `BUT000` on the partner's GUID as a join on a unique column (kind `unique`, round n25) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -94,6 +94,34 @@ own tables. A schema without SAP tables gets exactly the plan it got before (the
 A pack relationship is a suggestion with a source, not evidence. `validate_plan` counts orphans and key duplicates for
 it like for any other, and the test `test_validate_plan_checks_pack_relationships_against_rows` shows an item without
 its header and a customer of another client found that way.
+
+### Joins that are not key joins (round n25)
+
+Two kinds of relationship are not an equality join on the target's key, and the pack says which with `kind`:
+
+- **`unique`**: equality on a column set the target declares unique besides its key (`unique_keys`):
+  `CVI_CUST_LINK.PARTNER_GUID` → `BUT000.PARTNER_GUID`, `KONV.KNUMV` → `VBAK.KNUMV`.
+- **`valid_on`**: equality on the target's key without its valid-to column, plus a date of the source row inside the
+  target row's period: `ACDOCA.RCNTR` → `CSKS.KOSTL` with `ACDOCA.BUDAT BETWEEN CSKS.DATAB AND CSKS.DATBI`.
+
+The engine keeps them in `plan.extended` (class `ExtendedRelationship` in `infer.py`), never in `plan.relationships`.
+The API for GraphQL, the semantic model, the views, the notebooks and the ontology read `plan.relationships` as key
+joins, and none of them can express these two kinds; they are left out there, not bent into a key join. What shows
+them: `plan_backend` (`extended_relationships`, with the join as SQL), `validate_plan`, `data_dictionary`,
+`sap_pack_draft`, the Krusgraph export (`extended`) and the Data API builder export (kind `unique` only: the format
+takes any `source.fields`/`target.fields`; whether Data API builder accepts a target that is not the key at runtime is
+not verified, and a date-range join has no form there).
+
+`validate_plan` checks them against the rows: for `unique`, that the target columns are unique and how many source rows
+find no target; for `valid_on`, how many rows find no period that holds their date and how many fall in more than one
+(overlapping periods, which would repeat the row in a join). Both are unit-tested on synthetic rows in SQLite. Dates in
+SAP are text in the form `YYYYMMDD`, which compares correctly as text as long as both sides have the same type.
+
+Still listed only, on purpose: `KONV`/`PRCD_ELEMENTS` → `VBAK`/`VBRK`/`EKKO` is now a `unique` join, but the
+conditions of all three document kinds share one table, so applied it would show orphans by design; partners, status
+and document-flow rows of several document kinds (`VBPA`, `VBUK`, `VBUP`, `VBFA`) for the same reason; and
+`EKBE` → `RBKP` (invoice rows only). A third kind, *filtered* (a join that holds where a column has a given value, such
+as `VBTYP_N`), would let those be applied; it is not built.
 
 `sap_pack_draft` (read-only) shows what the pack recognises in a source, what it applies, what it lists but does not
 apply, which pack tables and columns are missing, and the traps; with `export=` it adds one export (below).

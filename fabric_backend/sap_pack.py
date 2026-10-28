@@ -86,8 +86,18 @@ def problems(pack: dict) -> list[str]:
             continue
         if len(r["source_cols"]) != len(r["target_cols"]):
             out.append(f"{name}: {len(r['source_cols'])} source column(s) against {len(r['target_cols'])} target column(s)")
-        # a link on another unique column of the target (VBAK.KNUMV) is allowed only as a listed, not applied, relationship
-        if r["cardinality"] != "many-to-many" and r.get("apply") is not False and list(r["target_cols"]) != list(tables[r["target"]]["key"]):
+        kind, target = r.get("kind", "key"), tables[r["target"]]
+        if kind == "unique":                                             # VBAK.KNUMV: a unique column set the table declares
+            if list(r["target_cols"]) not in [list(u) for u in target.get("unique_keys", [])]:
+                out.append(f"{name}: the target columns are not a unique key {r['target']} declares (unique_keys)")
+        elif kind == "valid_on":                                         # CSKS: the key without its valid-to column, plus a date
+            v = r.get("valid_on") or {}
+            if not {"source_date", "target_from", "target_to"} <= set(v):
+                out.append(f"{name}: valid_on needs source_date, target_from and target_to")
+            elif sorted(list(r["target_cols"]) + [v["target_to"]]) != sorted(target["key"]):
+                out.append(f"{name}: the target columns and {v['target_to']} are not {r['target']}'s key")
+        elif r["cardinality"] != "many-to-many" and r.get("apply") is not False and list(r["target_cols"]) != list(target["key"]):
+            # a key join that is only listed may point elsewhere (a conditional link); an applied one never
             out.append(f"{name}: the target columns are not {r['target']}'s key")
         for v in r.get("variants", []):
             if v not in pack["variants"]:
@@ -180,7 +190,17 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
                 continue                                                  # the client dropped on one side: dropped on both
             else:
                 lost.append((s, a) if not ha else (g, b))
+        kind = r.get("kind", "key")
+        valid = None
+        if kind == "valid_on":                                            # the date and the period columns must be there too
+            v = r["valid_on"]
+            sd, tf, tt = cols[s].get(v["source_date"]), cols[g].get(v["target_from"]), cols[g].get(v["target_to"])
+            lost += [(t_, c_) for t_, c_, have in ((s, v["source_date"], sd), (g, v["target_from"], tf), (g, v["target_to"], tt)) if not have]
+            valid = {"source_date": sd, "target_from": tf, "target_to": tt}
         info = {k: r[k] for k in ("cardinality", "role", "condition", "sources", "module") if k in r}
+        info["kind"] = kind
+        if valid:
+            info["valid_on"] = valid
         if lost:
             for table in dict.fromkeys(x for x, _ in lost):
                 missing_cols.append({"table": table, "columns": [c for x, c in lost if x == table],
@@ -239,9 +259,11 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
                "key": m.keys[t], **({"note": p["tables"][n]["note"]} if p["tables"][n].get("note") else {}),
                "sources": srcs(p["tables"][n]["sources"])} for t, n in m.tables.items()]
     rels = [{"source": r["source"], "source_cols": r["source_cols"], "target": r["target"], "target_cols": r["target_cols"],
-             "cardinality": r["cardinality"], **({"role": r["role"]} if r.get("role") else {}),
+             "cardinality": r["cardinality"], "kind": r.get("kind", "key"), **({"valid_on": r["valid_on"]} if r.get("valid_on") else {}),
+             **({"role": r["role"]} if r.get("role") else {}),
              **({"condition": r["condition"]} if r.get("condition") else {}), "sources": srcs(r["sources"])} for r in m.relationships]
     in_plan = {(r.source, tuple(c.lower() for c in r.source_cols), r.target): r.rule for r in plan.relationships}
+    in_plan.update({(r.source, tuple(c.lower() for c in r.source_cols), r.target): f"{r.rule} ({r.kind}, plan.extended)" for r in plan.extended})
     for r in rels:
         r["in_plan"] = in_plan.get((r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]), "no (confirmed or keys override it)")
     out = {"summary": f"{len(m.tables)} SAP table(s) recognised, {len(rels)} pack relationship(s) apply, {len(m.not_applied)} listed "

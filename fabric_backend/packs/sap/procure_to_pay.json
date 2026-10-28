@@ -55,7 +55,7 @@
      "note": "A requisition has no header table of its own: BANFN groups the items.",
      "sources": ["sap_help_mm"]},
     {"name": "EKKO", "level": "header", "en": "Purchasing document, header", "de": "Einkaufsbeleg, Kopf",
-     "key": ["MANDT", "EBELN"], "number_columns": ["EBELN", "LIFNR"], "currency_columns": ["WAERS"], "delta": ["AEDAT"],
+     "key": ["MANDT", "EBELN"], "unique_keys": [["MANDT", "KNUMV"]], "number_columns": ["EBELN", "LIFNR"], "currency_columns": ["WAERS"], "delta": ["AEDAT"],
      "note": "Purchase orders, contracts and scheduling agreements share this table; BSTYP and BSART tell them apart.",
      "sources": ["sap_help_mm"]},
     {"name": "EKPO", "level": "item", "en": "Purchasing document, items", "de": "Einkaufsbeleg, Positionen",

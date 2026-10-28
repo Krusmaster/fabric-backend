@@ -62,6 +62,10 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
                        f"| {r.rule} | {_cell(r.field_name)} / {_cell(r.reverse_name)} |")
     else:
         out.append("None inferred.")
+    if plan.extended:                                                    # only with a knowledge pack: other answers are unchanged
+        out += ["", "Joins that are not on the target's key (from the pack; a GraphQL API or semantic model built from the plan "
+                "does not carry them):", "", "| From | To | Kind | Join |", "| --- | --- | --- | --- |"]
+        out += [f"| {_cell(r.source)} | {_cell(r.target)} | {r.kind} | {_cell(r.join_sql())} |" for r in plan.extended]
     out += ["", "## Tables without a key", ""]
     out += [f"- {t}: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that." for t in plan.keyless] or ["None."]
     out += ["", "## Ambiguous columns", ""]

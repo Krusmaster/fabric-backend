@@ -166,7 +166,7 @@ def test_a_missing_column_is_named_on_the_table_that_lacks_it():
 def test_draft_answers_with_every_export(export):
     out = sap_pack.draft(plan(sap_support.schema(style="prefix")), "sap", export=export)
     assert out["summary"].startswith(f"{len(sap_support.schema())} SAP table(s) recognised") and out["status"].startswith("documented")
-    assert all(r["sources"] and r["in_plan"] == "SAP pack" for r in out["relationships"])
+    assert all(r["sources"] and r["in_plan"].startswith("SAP pack") for r in out["relationships"])
     assert ("export" in out) == (export != "none")
 
 
@@ -197,5 +197,23 @@ def test_an_applied_relationship_must_point_at_the_target_key():
     pack = sap_pack.load()
     bad = next(r for r in pack["relationships"] if r["target"] == "VBAK" and r["target_cols"] == ["MANDT", "KNUMV"])
     assert sap_pack.problems(pack) == []                                   # listed only: allowed
-    pack["relationships"].append({**bad, "apply": True})
+    pack["relationships"].append({k: v for k, v in {**bad, "apply": True}.items() if k != "kind"})   # as a key join
     assert any("not VBAK's key" in x for x in sap_pack.problems(pack))
+
+
+def test_kinds_are_checked():
+    pack = sap_pack.load()
+    cvi = next(r for r in pack["relationships"] if r["source"] == "CVI_CUST_LINK" and r["target"] == "BUT000")
+    csks = next(r for r in pack["relationships"] if r["source"] == "ACDOCA" and r["target"] == "CSKS")
+    pack["relationships"].append({**cvi, "target_cols": ["CLIENT", "TYPE"]})
+    pack["relationships"].append({**csks, "valid_on": {**csks["valid_on"], "target_to": "DATAB"}})
+    found = sap_pack.problems(pack)
+    assert any("not a unique key BUT000 declares" in x for x in found)
+    assert any("DATAB are not CSKS's key" in x for x in found)
+
+
+def test_dab_config_carries_a_unique_column_join_but_not_a_date_join():
+    cfg = exports.dab_config(plan(sap_support.schema(variant="s4hana")))
+    rels = [r for e in cfg["entities"].values() for r in e.get("relationships", {}).values()]
+    assert any(r["source.fields"] == ["CLIENT", "PARTNER_GUID"] and r["target.entity"] == "BUT000" for r in rels)
+    assert not any("RCNTR" in r["source.fields"] for r in rels)

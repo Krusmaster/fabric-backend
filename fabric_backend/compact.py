@@ -57,7 +57,8 @@ def sub_plan(p: Plan, keep: set[str] | None) -> Plan:
     return Plan(s, {t: k for t, k in p.keys.items() if t in keep},
                 [r for r in p.relationships if r.source in keep or r.target in keep],
                 [a for a in p.ambiguous if a["table"] in keep], [t for t in p.keyless if t in keep],
-                [x for x in p.synonyms if x.get("table") in keep])
+                [x for x in p.synonyms if x.get("table") in keep], pack=p.pack,
+                extended=[r for r in p.extended if r.source in keep or r.target in keep])
 
 
 NARROW_HINT = "Narrow the answer with tables=[\"pattern*\"] (names or fnmatch patterns), or ask for one area at a time."
@@ -70,7 +71,7 @@ def rel_line(r) -> str:
 
 def plan_summary(p: Plan, suggested_keys: list[dict], scope_note: str = "") -> dict:
     """plan_backend in summary form: one line per key and relationship, no field names, no diagram."""
-    return {
+    out = {
         "summary": p.summary(),
         "detail": "summary",
         "keys": {t: f"{'+'.join(k)} ({r})" for t, (k, r) in p.keys.items()},
@@ -82,6 +83,20 @@ def plan_summary(p: Plan, suggested_keys: list[dict], scope_note: str = "") -> d
         "note": ("Summary form" + (f" ({scope_note})" if scope_note else "") + ": detail=\"full\" adds the GraphQL field names, the suggested-key "
                  "details and the Mermaid ER diagram; tables=[\"pattern*\"] narrows the answer to matching tables."),
     }
+    if p.extended:
+        out["extended_relationships"] = [f"{r.source} -> {r.target} ({r.kind}, {r.rule}): {r.join_sql()}" for r in p.extended]
+    return out
+
+
+def _extended(r) -> dict:
+    """An ExtendedRelationship for an answer: what it joins and how, in one line of SQL."""
+    out = {"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols,
+           "kind": r.kind, "cardinality": r.cardinality, "rule": r.rule, "join": r.join_sql()}
+    if r.valid_on:
+        out["valid_on"] = r.valid_on
+    if r.note:
+        out["note"] = r.note
+    return out
 
 
 def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict:
@@ -94,6 +109,11 @@ def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict
     }
     if p.synonyms:
         out["synonyms"] = p.synonyms
+    if p.extended:                                     # only with a knowledge pack: other answers are unchanged
+        out["extended_relationships"] = [_extended(r) for r in p.extended]
+    if p.pack:
+        out["pack"] = {k: p.pack[k] for k in ("pack", "rule", "status", "variant_hint", "not_applied", "missing_tables",
+                                               "missing_columns", "client_dropped") if p.pack.get(k)}
     if mermaid:
         out["mermaid"] = p.mermaid()
     return out

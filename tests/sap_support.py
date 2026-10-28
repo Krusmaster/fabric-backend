@@ -77,3 +77,13 @@ def listed(variant: str = "ecc") -> set:
     out = {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in rels}
     # a one-to-one link holds both ways: VBUK -> VBAK also reads VBAK -> VBUK (the status row of the same document)
     return out | {(r["target"], tuple(c.lower() for c in r["target_cols"]), r["source"]) for r in rels if r["cardinality"] == "one-to-one"}
+
+
+def reversed_one_to_one(variant: str = "ecc") -> set:
+    """The pack's applied one-to-one relationships read from the other end (BUT000.PARTNER_GUID -> CVI_CUST_LINK): the
+    same join, so a name rule that finds it that way is right."""
+    pack = sap_pack.load()
+    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    return {(r["target"], tuple(c.lower() for c in r["target_cols"]), r["source"]) for r in pack["relationships"]
+            if r.get("apply") is not False and r["cardinality"] == "one-to-one" and r["source"] in names and r["target"] in names
+            and (not r.get("variants") or variant in r["variants"])}

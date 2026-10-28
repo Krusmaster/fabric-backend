@@ -49,6 +49,21 @@ def relationship_sql(schema: str, source: str, source_cols: list[str], target: s
             f"WHERE {has_value}")
 
 
+def valid_on_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str], valid_on: dict,
+                 dialect: Dialect = TSQL) -> str:
+    """A relationship valid on a date (ACDOCA.RCNTR on BUDAT -> CSKS.KOSTL, DATAB..DATBI): rows with a value, rows with
+    no target row whose period holds the date (orphans), and rows that more than one target row matches (overlapping
+    periods, which would multiply the row in a join)."""
+    q, count = dialect.quote, dialect.count
+    d, f, to = q(valid_on["source_date"]), q(valid_on["target_from"]), q(valid_on["target_to"])
+    on = " AND ".join([f"t.{q(b)} = s.{q(a)}" for a, b in zip(source_cols, target_cols)] + [f"s.{d} BETWEEN t.{f} AND t.{to}"])
+    has_value = " AND ".join([f"s.{q(a)} IS NOT NULL" for a in source_cols] + [f"s.{d} IS NOT NULL"])
+    matches = f"(SELECT {count}(*) FROM {_t(schema, target, dialect)} AS t WHERE {on})"
+    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN {matches} = 0 THEN 1 ELSE 0 END) AS orphans, "
+            f"SUM(CASE WHEN {matches} > 1 THEN 1 ELSE 0 END) AS several "
+            f"FROM {_t(schema, source, dialect)} AS s WHERE {has_value}")
+
+
 def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL) -> str:
     """Inclusion check for a candidate relationship: how many non-NULL values of source.column exist in target.key,
     and how many distinct values the column has. One counting statement, read-only."""
@@ -137,8 +152,32 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
             verdict += f"; but the target key of {r.target} is not unique, so a row can match more than one"
         rels.append({"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                      "rule": r.rule, "rows_with_value": with_value, "orphans": orphans, "verdict": verdict})
+    for r in getattr(plan, "extended", []):                          # a knowledge pack's joins that are not key joins
+        if budget <= 0:
+            break
+        budget -= 1
+        entry = {"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
+                 "rule": r.rule, "kind": r.kind, "join": r.join_sql(quote=dialect.quote)}
+        if r.kind == "valid_on":
+            row = execute(valid_on_sql(schema, r.source, r.source_cols, r.target, r.target_cols, r.valid_on, dialect))[0]
+            with_value, orphans, several = _int(row.get("with_value")), _int(row.get("orphans")), _int(row.get("several"))
+            verdict = relationship_verdict(with_value, orphans)
+            if several:
+                verdict += f"; but {several} row(s) fall in more than one validity period of {r.target}, so a join repeats them"
+            entry.update({"valid_on": r.valid_on, "rows_with_value": with_value, "orphans": orphans, "several_periods": several})
+        else:                                                          # kind unique: is the target column set unique, then orphans
+            krow = execute(key_sql(schema, r.target, r.target_cols, dialect))[0]
+            n, nulls, distinct = _int(krow.get("n")), _int(krow.get("nulls")), _int(krow.get("distinct_keys"))
+            row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect))[0]
+            with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
+            verdict = relationship_verdict(with_value, orphans)
+            if distinct != n - nulls:
+                verdict += f"; but {'+'.join(r.target_cols)} is not unique in {r.target}, so a row can match more than one"
+            entry.update({"rows_with_value": with_value, "orphans": orphans, "target_unique": distinct == n - nulls})
+        entry["verdict"] = verdict
+        rels.append(entry)
     checked = len(keys) + len(rels)
-    total = len(plan.keys) + len(plan.relationships)
+    total = len(plan.keys) + len(plan.relationships) + len(getattr(plan, "extended", []))
     ok_keys = sum(1 for k in keys if k["verdict"].startswith("unique"))
     ok_rels = sum(1 for r in rels if r["verdict"].startswith("holds"))
     summary = (f"{ok_keys} of {len(keys)} keys unique, {ok_rels} of {len(rels)} relationships hold without orphans"

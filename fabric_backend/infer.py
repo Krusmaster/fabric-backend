@@ -45,6 +45,10 @@ between them come from the pack, with the rule "SAP pack" and the public source 
 rules add nothing between two such tables (`LIPS.VBELN` is a delivery, not an order). Declared keys (K0), the
 caller's keys (K1) and confirmed relationships still win. A schema without such tables gets exactly the plan it got
 before. The pack is a suggestion with a source; validate_plan checks it against the rows.
+A pack join that is not an equality on the target's key goes to plan.extended (ExtendedRelationship), never to
+plan.relationships: kind "unique" (a unique column set of the target that is not its key, CVI_CUST_LINK.PARTNER_GUID ->
+BUT000) and kind "valid_on" (the key without its valid-to column, plus a date inside the target row's period,
+ACDOCA.RCNTR on BUDAT -> CSKS DATAB..DATBI). Everything built from plan.relationships stays a key join.
 """
 from __future__ import annotations
 
@@ -71,6 +75,28 @@ class Relationship:
 
 
 @dataclass
+class ExtendedRelationship(Relationship):
+    """A relationship that is not an equality join on the target's key, so it lives in plan.extended and not in
+    plan.relationships (which the API, the semantic model, the views and the notebooks read as key joins):
+      kind "unique":   equality on a unique column set of the target that is not its key (KONV.KNUMV -> VBAK.KNUMV,
+                       CVI_CUST_LINK.PARTNER_GUID -> BUT000.PARTNER_GUID);
+      kind "valid_on": equality on the target's key without its validity column, plus a date of the source row that
+                       falls in the target row's validity period (ACDOCA.RCNTR on BUDAT -> CSKS.KOSTL, DATAB..DATBI).
+    valid_on = {"source_date": ..., "target_from": ..., "target_to": ...} for kind "valid_on"."""
+    kind: str = "unique"
+    valid_on: dict | None = None
+    cardinality: str = "many-to-one"
+
+    def join_sql(self, source_alias: str = "s", target_alias: str = "t", quote=lambda c: f"[{c}]") -> str:
+        """The ON clause of the join, in the target's terms."""
+        on = [f"{source_alias}.{quote(a)} = {target_alias}.{quote(b)}" for a, b in zip(self.source_cols, self.target_cols)]
+        if self.kind == "valid_on" and self.valid_on:
+            v = self.valid_on
+            on.append(f"{source_alias}.{quote(v['source_date'])} BETWEEN {target_alias}.{quote(v['target_from'])} AND {target_alias}.{quote(v['target_to'])}")
+        return " AND ".join(on)
+
+
+@dataclass
 class Plan:
     schema: Schema
     keys: dict[str, tuple[list[str], str]] = field(default_factory=dict)  # table -> (cols, rule)
@@ -79,6 +105,7 @@ class Plan:
     keyless: list[str] = field(default_factory=list)
     synonyms: list[dict] = field(default_factory=list)    # keys and relationships that rest on the synonym table (SYNONYMS)
     pack: dict | None = None                               # what a knowledge pack recognised (sap_pack.py); None when none did
+    extended: list = field(default_factory=list)          # ExtendedRelationship: joins on a unique non-key column or valid on a date
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -661,6 +688,8 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
     """packs=False plans by the name rules alone, as before the knowledge packs (for comparison)."""
     check_input(schema, keys, confirmed)
     summary, pack_keys, pack_rels, pack_tables = _pack(schema, keys) if packs else (None, {}, [], set())
+    special = [r for r in pack_rels if r.get("kind", "key") != "key"]  # not key joins: plan.extended, never plan.relationships
+    pack_rels = [r for r in pack_rels if r.get("kind", "key") == "key"]
     notes: list[dict] = []
     k = infer_keys(schema, keys, notes, pack_keys)
     # a pack relationship whose target has another key now (K0/K1 given by the caller) is left to the name rules
@@ -673,7 +702,13 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
         k.update(extra)
         rel_notes = []
         rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
-    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary)
+    # an extended relationship stands while the target's key is still the pack's: a caller's own key says otherwise
+    extended = [ExtendedRelationship(r["source"], list(r["source_cols"]), r["target"], list(r["target_cols"]), PACK_RULE,
+                                     note=r.get("note", ""), kind=r["kind"], valid_on=r.get("valid_on"),
+                                     cardinality=r.get("cardinality", "many-to-one"))
+                for r in special if k.get(r["target"], ([], ""))[1] == PACK_RULE]
+    return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
+                extended=extended)
 
 
 def _m(s: str) -> str:

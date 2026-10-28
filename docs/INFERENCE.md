@@ -172,7 +172,7 @@ what `create_backend` and `describe_backend` use); the Mermaid diagram by defaul
 it; `mermaid=false` and the summary form leave it out). The shop answers are already small; the gains are on large
 schemas, where a 1 MB answer is not an answer.
 
-## SAP tables: with and without the SAP pack (rounds n20–n24; measurement corrected in n24; unit test, synthetic schema)
+## SAP tables: with and without the SAP pack (rounds n20–n25; measurement corrected in n24; unit test, synthetic schema)
 
 The SAP pack ([SAP.md](SAP.md)) on a synthetic SAP schema generated in `tests/sap_support.py` from the pack itself:
 the order-to-cash, procure-to-pay, finance, pricing, business-partner and accounting-document tables with their key columns and a few
@@ -182,15 +182,15 @@ someone who knows SAP keys would pass them; and the pack.
 
 | Schema | Planned by | Keys right | Pack relationships found | Implied (shortcut) | Listed by the pack | Wrong | Wrong share |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ecc, upper names, 53 tables | names | 0 of 53 | 0 of 89 | 0 | 0 | 0 | – |
-| ecc, upper names, 53 tables | names+keys | 53 of 53 | 78 of 89 | 9 | 20 | 27 | 0.20 |
-| ecc, upper names, 53 tables | pack (self-check) | 53 of 53 | 89 of 89 | 0 | 0 | 0 | 0.00 |
-| ecc, prefix names, 53 tables | names | 0 of 53 | 0 of 89 | 0 | 0 | 0 | – |
-| ecc, prefix names, 53 tables | names+keys | 53 of 53 | 78 of 89 | 9 | 20 | 27 | 0.20 |
-| ecc, prefix names, 53 tables | pack (self-check) | 53 of 53 | 89 of 89 | 0 | 0 | 0 | 0.00 |
-| s4hana, lower names, 47 tables | names | 0 of 47 | 0 of 75 | 0 | 0 | 0 | – |
-| s4hana, lower names, 47 tables | names+keys | 47 of 47 | 59 of 75 | 4 | 12 | 14 | 0.16 |
-| s4hana, lower names, 47 tables | pack (self-check) | 47 of 47 | 75 of 75 | 0 | 0 | 0 | 0.00 |
+| ecc, upper names, 53 tables | names | 0 of 53 | 0 of 91 | 0 | 0 | 0 | – |
+| ecc, upper names, 53 tables | names+keys | 53 of 53 | 78 of 91 | 11 | 18 | 27 | 0.20 |
+| ecc, upper names, 53 tables | pack (self-check) | 53 of 53 | 91 of 91 | 0 | 0 | 0 | 0.00 |
+| ecc, prefix names, 53 tables | names | 0 of 53 | 0 of 91 | 0 | 0 | 0 | – |
+| ecc, prefix names, 53 tables | names+keys | 53 of 53 | 78 of 91 | 11 | 18 | 27 | 0.20 |
+| ecc, prefix names, 53 tables | pack (self-check) | 53 of 53 | 91 of 91 | 0 | 0 | 0 | 0.00 |
+| s4hana, lower names, 47 tables | names | 0 of 47 | 0 of 79 | 0 | 0 | 0 | – |
+| s4hana, lower names, 47 tables | names+keys | 47 of 47 | 59 of 79 | 6 | 10 | 14 | 0.16 |
+| s4hana, lower names, 47 tables | pack (self-check) | 47 of 47 | 79 of 79 | 0 | 0 | 0 | 0.00 |
 
 **The pack row is a self-check, not a precision figure.** The schema is generated from the pack and scored against
 the pack, so it shows only that the engine applies the pack as written. Whether the pack is right about SAP is not
@@ -214,7 +214,7 @@ ECC). About 25 of those were real links the pack lacked: `BUKRS` → `T001`, `LI
 their `BSEG` line, `KNVV` → `TVTW`/`TSPA`. They are in the pack since round n24, and the measurement sorts the rest as
 above. The wrong share is wrong ÷ everything the name rules found.
 
-The pack finds the 11 links (ECC) the name rules miss with keys given: role names such as `VBRK.KUNRG` (payer) →
+Since round n25 the pack's joins on a unique column and joins valid on a date (`plan.extended`) are counted as pack relationships too; a name rule that finds a one-to-one pack join from the other end (`BUT000.PARTNER_GUID` → `CVI_CUST_LINK`) is counted as implied. The pack finds the 13 links (ECC) the name rules miss with keys given: role names such as `VBRK.KUNRG` (payer) →
 `KNA1.KUNNR`, `LIPS.VGBEL`+`VGPOS` → `VBAP`, `BSEG.HKONT` → `SKB1.SAKNR`, `CVI_CUST_LINK.CUSTOMER` → `KNA1.KUNNR`, `BUT050.PARTNER1`/`PARTNER2` → `BUT000`. Without keys the name rules find nothing:
 no SAP table has an `id` or `<table>_id` column. `python tests/test_sap_inference.py` prints the table; the numbers are
 asserted in that test. Schemas without SAP tables plan exactly as before (the golden tests are unchanged).

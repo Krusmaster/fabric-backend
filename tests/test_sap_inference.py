@@ -74,11 +74,11 @@ def score(variant: str, style: str, how: str) -> dict:
     if given:                                                               # in the key's own order
         given = {t: sorted(cols, key=lambda c: [k.upper() for k in keys[name[t]]].index(c.upper())) for t, cols in given.items()}
     p = plan(s, keys=given, packs=how == "pack")
-    inferred = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in p.relationships}
+    inferred = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in list(p.relationships) + p.extended}
     key_hits = sum(1 for t, (cols, _) in p.keys.items() if tuple(c.lower() for c in cols) == keys[name[t]])
     hits = len(inferred & truth)
     other = inferred - truth
-    implied = {r for r in other if _implied(r, truth)}
+    implied = {r for r in other if _implied(r, truth) or r in sap_support.reversed_one_to_one(variant)}
     # partly right: a link the pack lists (conditional), or a shortcut over a path that uses one
     partly = {r for r in other - implied if any(r[0] == l[0] and r[2] == l[2] and set(r[1]) <= set(l[1]) for l in listed)
               or _implied(r, truth, listed)}
@@ -107,15 +107,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.88, 'implied': 9, 'key_hits': 53, 'keys': 53, 'listed': 20, 'rel_hits': 78, 'relationships': 89, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 89, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.88, 'implied': 9, 'key_hits': 53, 'keys': 53, 'listed': 20, 'rel_hits': 78, 'relationships': 89, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 89, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 75, 'tables': 47, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.79, 'implied': 4, 'key_hits': 47, 'keys': 47, 'listed': 12, 'rel_hits': 59, 'relationships': 75, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 75, 'relationships': 75, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.86, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 18, 'rel_hits': 78, 'relationships': 91, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 91, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.86, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 18, 'rel_hits': 78, 'relationships': 91, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 91, 'relationships': 91, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 79, 'tables': 47, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.75, 'implied': 6, 'key_hits': 47, 'keys': 47, 'listed': 10, 'rel_hits': 59, 'relationships': 79, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 79, 'relationships': 79, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -211,8 +211,8 @@ def test_finance_time_dependent_masters_and_the_chart_of_accounts():
     p = plan(sap_support.schema(["ACDOCA", "BKPF", "SKA1", "SKB1", "T001", "T004", "CSKS", "CEPC", "TKA01"], variant="s4hana"))
     rels = {(r.source, r.target) for r in p.relationships}
     assert ("ACDOCA", "SKB1") in rels and ("T001", "T004") in rels and ("SKA1", "T004") in rels
-    assert ("ACDOCA", "CSKS") not in rels and ("ACDOCA", "CEPC") not in rels       # time-dependent: listed, not applied
-    assert {(n["source"], n["target"]) for n in p.pack["not_applied"]} >= {("ACDOCA", "CSKS"), ("ACDOCA", "CEPC")}
+    assert ("ACDOCA", "CSKS") not in rels and ("ACDOCA", "CEPC") not in rels       # time-dependent: not a key join...
+    assert {(r.source, r.target, r.kind) for r in p.extended} >= {("ACDOCA", "CSKS", "valid_on"), ("ACDOCA", "CEPC", "valid_on")}  # ...but valid on a date (n25)
     assert ("SKB1", "SKA1") not in rels                                            # no KTOPL in SKB1: through T001 only
     assert p.keys["CSKS"] == (["MANDT", "KOKRS", "KOSTL", "DATBI"], "SAP pack")
 
@@ -253,8 +253,8 @@ def test_business_partner_links_through_cvi_not_by_number():
     assert ("CVI_CUST_LINK", ("CLIENT", "CUSTOMER"), "KNA1") in rels and ("CVI_VEND_LINK", ("CLIENT", "VENDOR"), "LFA1") in rels
     assert ("BUT050", ("CLIENT", "PARTNER2"), "BUT000") in rels
     assert not [r for r in p.relationships if {r.source, r.target} == {"BUT000", "KNA1"}]       # never PARTNER = KUNNR
-    listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
-    assert {("CVI_CUST_LINK", "BUT000"), ("CVI_VEND_LINK", "BUT000")} <= listed                   # on the GUID: listed only
+    on_guid = {(r.source, r.target, r.kind, tuple(r.source_cols)) for r in p.extended}           # on the GUID: kind unique (n25)
+    assert {("CVI_CUST_LINK", "BUT000", "unique", ("CLIENT", "PARTNER_GUID")), ("CVI_VEND_LINK", "BUT000", "unique", ("CLIENT", "PARTNER_GUID"))} <= on_guid
     assert p.keys["BUT000"] == (["CLIENT", "PARTNER"], "SAP pack")
 
 
@@ -262,3 +262,44 @@ def test_a_dropped_client_column_named_client_is_dropped_too():
     p = plan(sap_support.schema(["BUT000", "BUT100", "CVI_CUST_LINK", "KNA1"], drop_client=True))
     r = next(r for r in p.relationships if (r.source, r.target) == ("CVI_CUST_LINK", "KNA1"))
     assert r.source_cols == ["CUSTOMER"] and r.target_cols == ["KUNNR"]
+
+
+def test_extended_relationships_are_kept_apart_from_key_joins():
+    p = plan(sap_support.schema(variant="s4hana"))
+    ext = {(r.source, r.target): r for r in p.extended}
+    assert ext[("CVI_CUST_LINK", "BUT000")].kind == "unique" and ext[("ACDOCA", "CSKS")].kind == "valid_on"
+    assert ext[("ACDOCA", "CSKS")].valid_on == {"source_date": "BUDAT", "target_from": "DATAB", "target_to": "DATBI"}
+    assert "BETWEEN t.[DATAB] AND t.[DATBI]" in ext[("ACDOCA", "CSKS")].join_sql()
+    assert not {(r.source, r.target) for r in p.relationships} & set(ext)      # never among the key joins the API reads
+    from fabric_backend.infer import Relationship
+    assert all(type(r) is Relationship for r in p.relationships)
+
+
+def test_a_caller_key_on_the_target_drops_the_extended_relationship():
+    s = sap_support.schema(["ACDOCA", "CSKS", "BKPF"], variant="s4hana")
+    assert not [r for r in plan(s, keys={"CSKS": ["MANDT", "KOKRS", "KOSTL"]}).extended if r.target == "CSKS"]
+
+
+def test_validate_checks_a_unique_column_join_and_a_join_valid_on_a_date():
+    from fabric_backend import evidence
+    s, execute = _sqlite({
+        "BUT000": (["CLIENT", "PARTNER", "PARTNER_GUID"], [("100", "0000000001", "G1"), ("100", "0000000002", "G2")]),
+        "CVI_CUST_LINK": (["CLIENT", "PARTNER_GUID", "CUSTOMER"], [("100", "G1", "0000000010"), ("100", "G9", "0000000011")]),
+        "KNA1": (["MANDT", "KUNNR"], [("100", "0000000010"), ("100", "0000000011")]),
+        "CSKS": (["MANDT", "KOKRS", "KOSTL", "DATBI", "DATAB"], [("100", "A", "C1", "20241231", "20240101"),
+                                                                  ("100", "A", "C1", "99991231", "20250101"),
+                                                                  ("100", "A", "C2", "99991231", "20240101"),
+                                                                  ("100", "A", "C2", "20251231", "20250101")]),   # overlaps the row above
+        "ACDOCA": (["RCLNT", "RLDNR", "RBUKRS", "GJAHR", "BELNR", "DOCLN", "KOKRS", "RCNTR", "BUDAT"],
+                   [("100", "0L", "1000", "2025", "1", "1", "A", "C1", "20250315"),     # the second period of C1
+                    ("100", "0L", "1000", "2025", "1", "2", "A", "C1", "20230101"),     # before C1 existed: an orphan
+                    ("100", "0L", "1000", "2025", "1", "3", "A", "C2", "20250601")]),   # two periods of C2 hold it
+        "BKPF": (["MANDT", "BUKRS", "BELNR", "GJAHR"], [("100", "1000", "1", "2025")]),
+    })
+    out = evidence.validate(plan(s), execute)
+    rel = {(r["source"], r["target"]): r for r in out["relationships"]}
+    cvi = rel[("CVI_CUST_LINK", "BUT000")]
+    assert cvi["kind"] == "unique" and cvi["orphans"] == 1 and cvi["target_unique"] is True
+    cs = rel[("ACDOCA", "CSKS")]
+    assert cs["kind"] == "valid_on" and (cs["rows_with_value"], cs["orphans"], cs["several_periods"]) == (3, 1, 1)
+    assert "more than one validity period" in cs["verdict"]
