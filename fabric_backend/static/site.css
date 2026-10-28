@@ -879,3 +879,36 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 @media (max-width:600px){.before-after .ba{grid-template-columns:minmax(0,1fr)}.before-after .ba-figure .mascot{width:56px;height:56px}}
 /* /start hides its figures on a phone, so the toggle goes with them there */
 @media (max-width:600px){body:has([data-page=start]) .footer-controls [data-mascot-toggle],body:has([data-page=start]) #mascot-toggle-note{display:none}}
+
+/* /check: the engine in the browser */
+.check-private{max-width:70ch;background:var(--sage-soft);border-radius:var(--radius-s);padding:12px 16px;margin:0}
+.check-inputs{display:grid;grid-template-columns:1fr;gap:16px}
+@media (min-width:900px){.check-inputs{grid-template-columns:1.1fr 1.2fr .9fr}}
+.check-inputs .card{padding:20px}
+.check-drop{border:2px dashed var(--line-strong)}
+.check-drop.over{border-color:var(--coral);background:var(--coral-soft)}
+#check-files:focus-visible+label{outline:3px solid var(--focus);outline-offset:3px}
+.check-inputs textarea{width:100%;box-sizing:border-box;font:14px/1.5 var(--mono);background:var(--card-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-s);padding:10px}
+.check-status{font-weight:700;margin:16px 0 0}
+.check-result{padding-top:8px}
+.check-result:focus{outline:none}
+.check-state{font-size:18px;margin:0 0 6px}
+.check-verdict ul{margin:0;padding-left:20px}
+.check-map{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);margin:8px 0 16px;overflow:hidden}
+.check-map svg{display:block;width:100%;height:auto}
+.check-map .m-edge{stroke:var(--line-strong);stroke-width:2}
+.check-map .m-rule{font:12px var(--mono);fill:var(--muted)}
+.check-map .m-node rect{fill:var(--sage-soft);stroke:var(--sage-d);stroke-width:1.5}
+.check-map .m-nokey rect{fill:var(--card-2);stroke:var(--line-strong);stroke-dasharray:5 4}
+.check-map .m-name{font:600 14px var(--font-head);fill:var(--ink)}
+.check-map .m-key{font:11px var(--mono);fill:var(--muted)}
+.check-tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-bottom:24px}
+.check-table{padding:14px 16px}
+.check-table h4{margin:0 0 4px;word-break:break-word}
+.check-table p{margin:2px 0;word-break:break-word}
+.check-findings{padding-left:22px}
+.check-finding{margin-bottom:14px}
+.check-finding p{margin:2px 0;overflow-wrap:anywhere}
+.check-finding pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
+.check-tags code{margin-right:6px}
+.check-notes,.check-suggestions{margin:8px 0}

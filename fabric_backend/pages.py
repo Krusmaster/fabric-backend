@@ -32,7 +32,8 @@ STATIC_DIR = HERE / "static"
 
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
                 ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8", ".json": "application/json",
-                ".ico": "image/x-icon"}
+                ".ico": "image/x-icon", ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm",
+                ".zip": "application/zip", ".whl": "application/zip"}
 
 PAGES = {
     # path: (template, title, description, nav key)
@@ -40,6 +41,8 @@ PAGES = {
           "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
     "/demo": ("demo.html", "Guided demo: where should each order be delivered? — {{PRODUCT}}",
               "Follow one order to its delivery address on a synthetic shop schema: what the engine suggests, what the data shows, your decision and what you can explain afterwards. No account needed.", "product"),
+    "/check": ("check.html", "Check your files in the browser — {{PRODUCT}}",
+               "Drop CSV or Excel exports, or paste a list of columns: see how the tables connect and what is wrong, with the rule behind each item. The files are read in your browser and never uploaded.", "check"),
     "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
                  "A demo on a synthetic shop schema: select a table to inspect its key, or a line to see why two tables were linked.", "product"),
     "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
@@ -335,7 +338,7 @@ def before_after_html() -> str:
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Try a pilot")]
+    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Try a pilot")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -411,7 +414,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/demo">Guided demo</a><a href="/explore">Demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
+      <a href="/demo">Guided demo</a><a href="/check">Check your files</a><a href="/explore">Demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -604,6 +607,23 @@ def _home_vars() -> dict[str, str]:
             "HOME_GUIDE": home_guide(), "HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
 
 
+PYODIDE_DIR = STATIC_DIR / "pyodide"
+CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
+                  "sqlite3-1.0.0-cp312-cp312-pyodide_2024_0_wasm32.whl")      # what /check's worker loads, besides the engine
+
+
+def check_download_bytes() -> int:
+    """What the first visit to /check downloads, uncompressed: Pyodide's files, the engine zip and the page's two scripts."""
+    from .browser_check import engine_zip
+    return (sum((PYODIDE_DIR / n).stat().st_size for n in CHECK_DOWNLOAD) + len(engine_zip())
+            + sum((STATIC_DIR / n).stat().st_size for n in ("check.js", "check-worker.js")))
+
+
+def check_vars() -> dict[str, str]:
+    from .browser_check import engine_zip
+    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_ENGINE_V": hashlib.sha256(engine_zip()).hexdigest()[:10]}
+
+
 def render(path: str) -> str:
     template, title, description, nav = PAGES[path]
     v = _vars()
@@ -614,6 +634,9 @@ def render(path: str) -> str:
     if "{{DEMO_" in body:
         dv = _demo_vars()
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
+    if "{{CHECK_" in body:
+        cv = check_vars()
+        body = re.sub(r"\{\{(CHECK_\w+)\}\}", lambda m: cv.get(m.group(1), ""), body)
     if "{{UC_" in body:
         from .use_cases import page_vars
         uv = page_vars()

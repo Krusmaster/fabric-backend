@@ -1913,9 +1913,20 @@ def build_app(host: str = "0.0.0.0"):
             headers = {**headers, "Content-Encoding": "gzip"}
         return Response(body, status_code=status, media_type=media_type, headers={**headers, "Vary": "Accept-Encoding"})
 
+    # /check runs the engine in a Web Worker on files that never leave the browser. The page itself fetches nothing
+    # (connect-src 'none'); the worker may load exactly Pyodide's files and the engine zip from this host, and compile
+    # WebAssembly. A request carrying a file therefore has nowhere to go (tests/browser_check.js checks it on screen).
+    def check_headers(request, worker: bool = False) -> dict:
+        host = request.headers.get("host", "").strip()
+        own = f"{host}/static/pyodide/ {host}/check/engine.zip" if host and all(c.isalnum() or c in ".-:[]" for c in host) else "'none'"
+        csp = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src " + own + "; base-uri 'none'" if worker else
+               "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+               "font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'")
+        return {**PAGE_HEADERS, "Content-Security-Policy": csp}
+
     def page_route(path: str, fn):
         async def handler(request):
-            headers = {"Cache-Control": PAGE_CACHE, **PAGE_HEADERS}
+            headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
             return compressed(request, fn().encode("utf-8"), "text/html; charset=utf-8", headers)
@@ -2008,13 +2019,36 @@ def build_app(host: str = "0.0.0.0"):
         return compressed(request, demo_validation_json().encode("utf-8"), "application/json", {"Cache-Control": "public, max-age=3600"})
     app.router.routes.append(Route("/demo/validation.json", validation_json))
 
-    TEXT_STATIC = {".css", ".js", ".svg", ".txt", ".json"}       # woff2 and png are already compressed
+    TEXT_STATIC = {".css", ".js", ".svg", ".txt", ".json", ".mjs"}       # woff2 and png are already compressed
+    _gz: dict[str, bytes] = {}                                      # Pyodide's large files, compressed once per process
+
+    def pyodide_file(request, p, cache: str) -> Response:
+        if "gzip" not in request.headers.get("accept-encoding", "") or p.suffix in (".whl",):
+            return FileResponse(str(p), media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache})
+        body = _gz.get(p.name)
+        if body is None:
+            body = _gz[p.name] = _gzip.compress(p.read_bytes(), compresslevel=9)
+        return Response(body, media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache, "Content-Encoding": "gzip", "Vary": "Accept-Encoding"})
+
+    async def check_worker(request):
+        p = static_file("check-worker.js")
+        headers = {"Cache-Control": "public, max-age=31536000, immutable" if request.query_params.get("v") else PAGE_CACHE, **check_headers(request, worker=True)}
+        return compressed(request, p.read_bytes(), STATIC_TYPES[".js"], headers)
+    app.router.routes.append(Route("/check/worker.js", check_worker))
+
+    async def check_engine(request):
+        from .browser_check import engine_zip
+        cache = "public, max-age=31536000, immutable" if request.query_params.get("v") else PAGE_CACHE
+        return Response(engine_zip(), media_type="application/zip", headers={"Cache-Control": cache, "X-Content-Type-Options": "nosniff"})
+    app.router.routes.append(Route("/check/engine.zip", check_engine))
 
     async def static(request):
         p = static_file(request.path_params.get("path", ""))
         if p is None:
             return PlainTextResponse("not found", status_code=404)
         cache = "public, max-age=31536000, immutable" if request.query_params.get("v") else "public, max-age=86400"
+        if p.parent.name == "pyodide":                              # a pinned release (0.27.7): its files never change under a name
+            return pyodide_file(request, p, "public, max-age=31536000, immutable")
         if p.suffix in TEXT_STATIC:
             return compressed(request, p.read_bytes(), STATIC_TYPES[p.suffix], {"Cache-Control": cache})
         return FileResponse(str(p), media_type=STATIC_TYPES[p.suffix], headers={"Cache-Control": cache})
