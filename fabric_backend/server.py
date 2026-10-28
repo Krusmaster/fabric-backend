@@ -22,6 +22,7 @@ check (entitlements.py).
 from __future__ import annotations
 
 import json
+import re
 
 import requests
 import os
@@ -34,7 +35,7 @@ from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_f
 from .rayfin import rayfin_files
 from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
-from .errors import SchemaEmpty, classify_http, safe
+from .errors import HINTS, SchemaEmpty, _fabric_body, classify_http, safe
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
@@ -924,15 +925,52 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
 # Write tools can replace an existing definition (a model, a view, an agent) in place, so Claude asks before each call.
 
 
+# Fabric's own errorCode decides what a 401/403 from a create call means. Codes from Microsoft's Fabric REST
+# documentation: InsufficientScopes (the token lacks a delegated scope; learn.microsoft.com/rest/api/fabric/articles/scopes),
+# InsufficientPrivileges (the account's workspace role is too low; the error responses of the item APIs in
+# learn.microsoft.com/rest/api/fabric/core/items), WorkspaceNotOnCapacity / CapacityNotActive (capacity, as errors.py
+# already reads them). A feature turned off in the tenant's settings (an item type in preview, such as the ontology) has
+# no single documented code, so it is recognised by its words. Anything else is reported as unknown, with the code.
+_SCOPE_CODES = {"InsufficientScopes"}
+_ROLE_CODES = {"InsufficientPrivileges"}
+_FEATURE_WORDS = re.compile(r"(?i)tenant|feature|not enabled|disabled|turned off|preview|admin(?:istrator)? setting")
+_CAPACITY_WORDS = re.compile(r"(?i)capacity")
+
+
 def _consent(result: dict, scope: str, where: str) -> dict | None:
-    """A 401/403 from a create call is almost always a missing delegated permission: say exactly which one."""
+    """A 401/403 from a create call, told apart by Fabric's errorCode and message: a scope missing from the token
+    (kind consent, the only case that says consent), a workspace role (no_access), a feature off in the tenant or no
+    capacity (feature_disabled / capacity), an expired sign-in (sign_in), or a code this server does not know
+    (fabric_refused, with the code). Fabric's own errorCode and message are always in the answer."""
     http = result.get("http")
-    if http in (401, 403):
-        return {"error": f"Fabric refused {where} (HTTP {http}): the token does not carry the delegated permission this needs.",
-                "kind": "consent",
+    if http not in (401, 403):
+        return None
+    code, msg = _fabric_body(str(result.get("body", "")))
+    said = {"fabric_error_code": code or None, "fabric_message": msg or None}
+    quoted = f" Fabric said: {code or '(no errorCode)'}{(': ' + msg) if msg else ''}."
+    if code in _SCOPE_CODES:
+        return {**said, "error": f"Fabric refused {where} (HTTP {http}, {code}): the token does not carry the delegated permission this needs.",
+                "kind": "consent", "scope": scope,
                 "hint": f"The Entra app needs the delegated permission {scope} and an administrator's consent, then sign in again. "
                         "docs/SCOPES.md in the repository lists the exact az commands."}
-    return None
+    if code in _ROLE_CODES:
+        return {**said, "error": f"Fabric refused {where} (HTTP {http}, {code}): the signed-in account's role in the workspace is not enough.",
+                "kind": "no_access",
+                "hint": "Ask a workspace admin for Contributor (or Member/Admin) on the workspace, then try again. The token's permissions are not the problem."}
+    if code in ("WorkspaceNotOnCapacity", "CapacityNotActive") or _CAPACITY_WORDS.search(f"{code} {msg}"):
+        return {**said, "error": f"Fabric refused {where} (HTTP {http}): the workspace has no active capacity for it.{quoted}",
+                "kind": "capacity", "hint": HINTS["capacity"]}
+    if _FEATURE_WORDS.search(f"{code} {msg}"):
+        return {**said, "error": f"Fabric refused {where} (HTTP {http}): the feature looks turned off in the tenant's settings.{quoted}",
+                "kind": "feature_disabled",
+                "hint": "A Fabric administrator enables the item type in the admin portal's tenant settings (items in preview are "
+                        "often off by default), for the whole organisation or a security group the user is in. The token's permissions are not the problem."}
+    if http == 401 and code in ("", "Unauthorized", "TokenExpired"):
+        return {**said, **classify_http(401, str(result.get("body", "")), where)}
+    return {**said, "error": f"Fabric refused {where} (HTTP {http}) with an error code this server does not know: {code or '(none)'}.{quoted}",
+            "kind": "fabric_refused",
+            "hint": "The cause is unknown here: it may be a missing permission in the token, the workspace role, or a tenant setting. "
+                    f"Check that the token has {scope}, that the account is Contributor on the workspace, and the tenant settings for this item type."}
 
 
 def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:

@@ -72,7 +72,7 @@ def test_create_ontology_dry_run_returns_the_parts_and_the_rest_call_and_creates
 
 def test_create_ontology_without_the_permission_answers_consent_naming_the_scope(shop, monkeypatch):
     calls = []
-    monkeypatch.setattr(server, "_create_ontology", lambda env, ws, token_provider=None: calls.append(env) or {"status": "Failed", "mode": "created", "http": 403, "body": "InsufficientScopes"})
+    monkeypatch.setattr(server, "_create_ontology", lambda env, ws, token_provider=None: calls.append(env) or {"status": "Failed", "mode": "created", "http": 403, "body": json.dumps({"errorCode": "InsufficientScopes", "message": "scope"})})
     out = json.loads(server.create_ontology(*shop, name="shop_ontology", schema="shop", dry_run=False))
     assert out["kind"] == "consent" and "Item.ReadWrite.All" in out["hint"] and "body" not in out["result"] and out["result"]["http"] == 403
     assert calls[0]["displayName"] == "shop_ontology" and calls[0]["definition"]["parts"][0]["payloadType"] == "InlineBase64"
