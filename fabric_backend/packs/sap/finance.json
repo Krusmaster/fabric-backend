@@ -108,7 +108,15 @@
     {"source": "BSAK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi_gl"]},
     {"source": "CSKS", "source_cols": ["MANDT", "KOKRS"], "target": "TKA01", "target_cols": ["MANDT", "KOKRS"], "cardinality": "many-to-one", "sources": ["sap_help_co"]},
     {"source": "CSKS", "source_cols": ["MANDT", "BUKRS"], "target": "T001", "target_cols": ["MANDT", "BUKRS"], "cardinality": "many-to-one", "sources": ["sap_help_co"]},
-    {"source": "CEPC", "source_cols": ["MANDT", "KOKRS"], "target": "TKA01", "target_cols": ["MANDT", "KOKRS"], "cardinality": "many-to-one", "sources": ["sap_help_co"]}
+    {"source": "CEPC", "source_cols": ["MANDT", "KOKRS"], "target": "TKA01", "target_cols": ["MANDT", "KOKRS"], "cardinality": "many-to-one", "sources": ["sap_help_co"]},
+    {"source": "BSEG", "source_cols": ["MANDT", "LIFNR", "BUKRS"], "target": "LFB1", "target_cols": ["MANDT", "LIFNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "role": "supplier_company_code", "condition": "Supplier lines only; other lines leave LIFNR empty.", "sources": ["sap_help_fi_gl"]},
+    {"source": "ACDOCA", "source_cols": ["RCLNT", "LIFNR", "RBUKRS"], "target": "LFB1", "target_cols": ["MANDT", "LIFNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["s4hana"], "role": "supplier_company_code", "condition": "Supplier lines only; other lines leave LIFNR empty.", "sources": ["sap_help_s4_finance"]},
+    {"source": "BSIK", "source_cols": ["MANDT", "LIFNR", "BUKRS"], "target": "LFB1", "target_cols": ["MANDT", "LIFNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi_gl"]},
+    {"source": "BSAK", "source_cols": ["MANDT", "LIFNR", "BUKRS"], "target": "LFB1", "target_cols": ["MANDT", "LIFNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi_gl"]},
+    {"source": "BSID", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
+    {"source": "BSAD", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
+    {"source": "BSIK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
+    {"source": "BSAK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]}
   ],
   "traps": [
     {"id": "open_items_twice", "title": "Open items are copies of journal lines",

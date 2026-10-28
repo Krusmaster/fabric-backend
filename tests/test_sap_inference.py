@@ -1,13 +1,25 @@
-"""The SAP pack in the engine, measured on the synthetic SAP schema of tests/sap_support.py (names only, no rows).
+"""The SAP pack in the engine, on the synthetic SAP schema of tests/sap_support.py (names only, no rows).
 
-Three ways to plan the same schema, scored against the pack's own keys and applied relationships:
+Three ways to plan the same schema:
 - names: the name rules alone (plan(..., packs=False)), what Krusgraph did before the pack;
 - names + keys: the name rules with every table's key given by the caller (keys=), as a consultant who knows SAP
   keys would pass them;
 - pack: plan() as it is.
-The numbers are asserted exactly, like tests/test_inference_quality.py; `python tests/test_sap_inference.py` prints
-the table docs/INFERENCE.md carries. The truth is the pack itself, so the pack row measures that the engine applies
-it, not that the pack is right about SAP: that is what validate_plan on real rows is for.
+
+Read the pack row as a self-check, not as precision: the schema is generated from the pack and scored against the
+pack, so 100 % only shows that the engine applies the pack as written. Whether the pack is right about SAP is not
+measured here; validate_plan on real rows is the only test of that.
+
+A relationship found by the name rules but not in the pack is sorted, so a link the pack lacks is not counted as an
+error of the name rules (round n24, after the first measurement counted all of them as wrong):
+- implied: the pack reaches the same target through a longer path that starts with the same columns
+  (EKET.MANDT+EBELN -> EKKO, where the pack has EKET -> EKPO -> EKKO);
+- listed: partly right. The pack lists that link but does not apply it (conditional, many-to-many, or on a unique
+  column that is not the key: VBPA.VBELN -> VBAK holds for the partner rows of sales documents only), or the link is a
+  shortcut over a path that uses such a listed link;
+- wrong: neither. These are the real errors: a column that names another document (LIPS.VBELN, a delivery, read as
+  an order; RBKP.BELNR, an invoice number, read as an accounting document).
+The numbers are asserted exactly; `python tests/test_sap_inference.py` prints the table docs/INFERENCE.md carries.
 """
 from __future__ import annotations
 
@@ -24,9 +36,39 @@ from tests import sap_support  # noqa: E402
 CASES = [("ecc", "upper"), ("ecc", "prefix"), ("s4hana", "lower")]
 
 
+def _implied(rel: tuple, truth: set, last: set = frozenset()) -> bool:
+    """The pack reaches rel's target from rel's source through two or more of its relationships, the first one
+    carrying rel's columns (so the shortcut is the same join, only skipping a table). With `last`, the final hop may
+    be one listed (conditional) link: never two in a row, since two conditions need not hold for the same rows
+    (VBAP -> VBAK -> VBUK -> LIKP would read an order as a delivery)."""
+    src, cols, tgt = rel
+    out: dict[str, set] = {}
+    for s, _, t in truth:
+        out.setdefault(s, set()).add(t)
+    ends: dict[str, set] = {}
+    for s, _, t in last:
+        ends.setdefault(s, set()).add(t)
+    for s, c, mid in truth | last:
+        if s != src or mid == tgt or not set(cols) <= set(c):
+            continue
+        if (s, c, mid) in last:                                         # the first hop is the listed one: it must also be the last
+            continue
+        seen, todo = {mid}, [mid]
+        while todo:
+            n0 = todo.pop()
+            if tgt in out.get(n0, ()) or tgt in ends.get(n0, ()):
+                return True
+            for n in out.get(n0, ()):
+                if n not in seen:
+                    seen.add(n)
+                    todo.append(n)
+    return False
+
+
 def score(variant: str, style: str, how: str) -> dict:
     s = sap_support.schema(style=style, variant=variant)
     keys, truth = sap_support.truth(variant)
+    listed = sap_support.listed(variant)
     name = {t.name: t.name.upper().removeprefix("SAP_") for t in s}
     given = {t.name: [c for c in t.column_names if c.upper() in {k.upper() for k in keys[name[t.name]]}] for t in s} if how == "names+keys" else None
     if given:                                                               # in the key's own order
@@ -35,8 +77,15 @@ def score(variant: str, style: str, how: str) -> dict:
     inferred = {(name[r.source], tuple(c.lower() for c in r.source_cols), name[r.target]) for r in p.relationships}
     key_hits = sum(1 for t, (cols, _) in p.keys.items() if tuple(c.lower() for c in cols) == keys[name[t]])
     hits = len(inferred & truth)
+    other = inferred - truth
+    implied = {r for r in other if _implied(r, truth)}
+    # partly right: a link the pack lists (conditional), or a shortcut over a path that uses one
+    partly = {r for r in other - implied if any(r[0] == l[0] and r[2] == l[2] and set(r[1]) <= set(l[1]) for l in listed)
+              or _implied(r, truth, listed)}
+    wrong = other - implied - partly
     return {"tables": len(s), "keys": len(keys), "key_hits": key_hits, "relationships": len(truth), "rel_hits": hits,
-            "rel_wrong": len(inferred - truth), "precision": round(hits / len(inferred), 2) if inferred else None,
+            "implied": len(implied), "listed": len(partly), "wrong": len(wrong),
+            "wrong_share": round(len(wrong) / len(inferred), 2) if inferred else None,
             "coverage": round(hits / len(truth), 2)}
 
 
@@ -45,7 +94,7 @@ def score(variant: str, style: str, how: str) -> dict:
 @pytest.mark.parametrize("variant,style", CASES)
 def test_the_pack_finds_every_key_and_relationship_and_nothing_else(variant, style):
     r = score(variant, style, "pack")
-    assert (r["key_hits"], r["rel_hits"], r["rel_wrong"]) == (r["keys"], r["relationships"], 0)
+    assert (r["key_hits"], r["rel_hits"], r["implied"], r["listed"], r["wrong"]) == (r["keys"], r["relationships"], 0, 0, 0)
 
 
 @pytest.mark.parametrize("variant,style", CASES)
@@ -58,15 +107,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 47, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
-    'ecc/prefix/names+keys': {'coverage': 0.9, 'key_hits': 47, 'keys': 47, 'precision': 0.46, 'rel_hits': 60, 'rel_wrong': 70, 'relationships': 67, 'tables': 47},
-    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 47, 'keys': 47, 'precision': 1.0, 'rel_hits': 67, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
-    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 47, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
-    'ecc/upper/names+keys': {'coverage': 0.9, 'key_hits': 47, 'keys': 47, 'precision': 0.46, 'rel_hits': 60, 'rel_wrong': 70, 'relationships': 67, 'tables': 47},
-    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 47, 'keys': 47, 'precision': 1.0, 'rel_hits': 67, 'rel_wrong': 0, 'relationships': 67, 'tables': 47},
-    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 41, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 60, 'tables': 41},
-    's4hana/lower/names+keys': {'coverage': 0.82, 'key_hits': 41, 'keys': 41, 'precision': 0.58, 'rel_hits': 49, 'rel_wrong': 36, 'relationships': 60, 'tables': 41},
-    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 41, 'keys': 41, 'precision': 1.0, 'rel_hits': 60, 'rel_wrong': 0, 'relationships': 60, 'tables': 41}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.92, 'implied': 9, 'key_hits': 47, 'keys': 47, 'listed': 18, 'rel_hits': 76, 'relationships': 83, 'tables': 47, 'wrong': 27, 'wrong_share': 0.21},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 83, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.92, 'implied': 9, 'key_hits': 47, 'keys': 47, 'listed': 18, 'rel_hits': 76, 'relationships': 83, 'tables': 47, 'wrong': 27, 'wrong_share': 0.21},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 83, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 41, 'listed': 0, 'rel_hits': 0, 'relationships': 69, 'tables': 41, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.83, 'implied': 4, 'key_hits': 41, 'keys': 41, 'listed': 10, 'rel_hits': 57, 'relationships': 69, 'tables': 41, 'wrong': 14, 'wrong_share': 0.16},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 41, 'keys': 41, 'listed': 0, 'rel_hits': 69, 'relationships': 69, 'tables': 41, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -93,14 +142,15 @@ def test_the_header_amount_of_an_sap_order_is_found():
 
 
 if __name__ == "__main__":
-    print("| Schema | Planned by | Keys right | Relationships right | Wrong | Precision | Coverage |")
-    print("| --- | --- | --- | --- | --- | --- | --- |")
+    print("| Schema | Planned by | Keys right | Pack relationships found | Implied (shortcut) | Listed by the pack | Wrong | Wrong share |")
+    print("| --- | --- | --- | --- | --- | --- | --- | --- |")
     for v, s in CASES:
         for h in ("names", "names+keys", "pack"):
             r = score(v, s, h)
-            prec = "–" if r["precision"] is None else f"{r['precision']:.2f}"
-            print(f"| {v}, {s} names, {r['tables']} tables | {h} | {r['key_hits']} of {r['keys']} | {r['rel_hits']} of {r['relationships']} "
-                  f"| {r['rel_wrong']} | {prec} | {r['coverage']:.2f} |")
+            share = "–" if r["wrong_share"] is None else f"{r['wrong_share']:.2f}"
+            label = "pack (self-check)" if h == "pack" else h
+            print(f"| {v}, {s} names, {r['tables']} tables | {label} | {r['key_hits']} of {r['keys']} | {r['rel_hits']} of {r['relationships']} "
+                  f"| {r['implied']} | {r['listed']} | {r['wrong']} | {share} |")
 
 
 def test_the_data_dictionary_names_the_pack_its_traps_and_sources():
@@ -171,7 +221,8 @@ def test_open_items_point_at_their_accounting_document():
     p = plan(sap_support.schema(["BKPF", "BSEG", "BSID", "BSAK", "KNA1", "LFA1"], variant="ecc"))
     rels = {(r.source, r.target, tuple(r.source_cols)) for r in p.relationships}
     assert ("BSID", "BKPF", ("MANDT", "BUKRS", "BELNR", "GJAHR")) in rels and ("BSAK", "LFA1", ("MANDT", "LIFNR")) in rels
-    assert not [r for r in p.relationships if {r.source, r.target} == {"BSID", "BSEG"}]
+    # an open item is a copy of one journal line, and points at it (added in round n24; the first version lacked it)
+    assert ("BSID", "BSEG", ("MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI")) in rels
 
 
 @pytest.mark.parametrize("variant,conditions", [("ecc", "KONV"), ("s4hana", "PRCD_ELEMENTS")])
@@ -183,3 +234,14 @@ def test_pricing_conditions_are_found_through_knumv_not_applied(variant, conditi
     listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
     assert {(conditions, "VBAK"), (conditions, "VBRK"), (conditions, "EKKO"), (conditions, "T685")} <= listed
     assert p.keys[conditions] == (["MANDT", "KNUMV", "KPOSN", "STUNR", "ZAEHK"], "SAP pack")
+
+
+def test_the_classification_counts_a_wrong_document_as_wrong_and_a_shortcut_as_implied():
+    from tests.test_sap_inference import _implied
+    keys, truth = sap_support.truth("ecc")
+    listed = sap_support.listed("ecc")
+    assert _implied(("EKET", ("mandt", "ebeln"), "EKKO"), truth)                    # EKET -> EKPO -> EKKO
+    assert not _implied(("LIPS", ("mandt", "vbeln"), "VBAK"), truth, listed)        # a delivery number is not an order
+    assert not _implied(("VBAP", ("mandt", "vbeln"), "LIKP"), truth, listed)        # not through two conditional links
+    assert _implied(("VBAP", ("mandt", "vbeln"), "VBUK"), truth, listed)            # the status row of the same document
+    assert not _implied(("RBKP", ("mandt", "bukrs", "belnr", "gjahr"), "BKPF"), truth, listed)   # two different BELNR

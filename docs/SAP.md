@@ -15,11 +15,11 @@ SAP table and column names survive, with or without a prefix.
 
 | Module | Tables | Relationships |
 | --- | --- | --- |
-| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 31, of which 25 are applied and 6 listed but not applied (conditional, or many-to-many through `VBFA`) |
-| `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 22, of which 21 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
-| `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 23, of which 21 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
+| `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 48, of which 30 are applied; 18 are listed but not applied: conditional (partners, status and document-flow rows that belong to orders, deliveries or invoices alike) or many-to-many through `VBFA` |
+| `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, of which 24 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
+| `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 31, of which 29 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 3 are applied (condition lines and rates to their condition record); the links from conditions to `VBAK`, `VBRK`, `EKKO` (through `KNUMV`, not the document number) and to `T685` are listed only |
-| `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 3: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF` |
+| `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
 document flow), an English and a German name in our own words, the amount columns with their level and currency
@@ -35,6 +35,12 @@ marked ECC, `ACDOCA` S/4HANA. The tables present tell which variant a schema loo
 claimed to be verified per release or enhancement package. Known open points: the key of `VBFA` in S/4HANA (the table
 was simplified; we give the key as documented for ECC and say so), and whether `BSEG` is read as a table or a
 compatibility view in a given S/4HANA release (not asserted).
+
+Round n24 added links the first versions lacked, found when the measurement was corrected: `VBRK`, `BKPF`,
+`T024E` → `T001`; `EKKO`, `RBKP`, `BSEG`, `BSIK`, `BSAK`, `ACDOCA` → `LFB1` (supplier per company code); open items
+`BSID`/`BSAD`/`BSIK`/`BSAK` → their `BSEG` line; `KNVV` → `TVTW`/`TSPA`; `LIKP` → `TVKO`; `VBUP` → `VBUK`; and, listed
+only, the partner, status and document-flow rows of deliveries and invoices (`VBPA`, `VBUK`, `VBUP`, `VBFA` → `LIKP`,
+`LIPS`, `VBRK`, `VBRP`).
 
 ## The traps it explains
 

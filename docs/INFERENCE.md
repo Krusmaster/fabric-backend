@@ -172,33 +172,52 @@ what `create_backend` and `describe_backend` use); the Mermaid diagram by defaul
 it; `mermaid=false` and the summary form leave it out). The shop answers are already small; the gains are on large
 schemas, where a 1 MB answer is not an answer.
 
-## SAP tables: with and without the SAP pack, 28 October 2026, procure to pay added in round n21, finance in n22, pricing in n23 (unit test, synthetic schema)
+## SAP tables: with and without the SAP pack (rounds n20–n23; measurement corrected in n24; unit test, synthetic schema)
 
 The SAP pack ([SAP.md](SAP.md)) on a synthetic SAP schema generated in `tests/sap_support.py` from the pack itself:
-the order-to-cash, procure-to-pay, finance, pricing and accounting-document tables with their key columns and a few ordinary columns each, no rows,
-no data from any SAP system. Three ways to plan it: the name rules alone (`plan(..., packs=False)`, Krusgraph before
-the pack); the name rules with every key given by the caller (`keys=`), as someone who knows SAP keys would pass them;
-and the pack. Scored against the pack's own keys and applied relationships, so the pack rows measure that the engine
-applies the pack, not that the pack is right about SAP: that is what `validate_plan` against real rows is for.
+the order-to-cash, procure-to-pay, finance, pricing and accounting-document tables with their key columns and a few
+ordinary columns each, no rows, no data from any SAP system. Three ways to plan it: the name rules alone
+(`plan(..., packs=False)`, Krusgraph before the pack); the name rules with every key given by the caller (`keys=`), as
+someone who knows SAP keys would pass them; and the pack.
 
-| Schema | Planned by | Keys right | Relationships right | Wrong | Precision | Coverage |
-| --- | --- | --- | --- | --- | --- | --- |
-| ecc, upper names, 47 tables | names | 0 of 47 | 0 of 67 | 0 | – | 0.00 |
-| ecc, upper names, 47 tables | names+keys | 47 of 47 | 60 of 67 | 70 | 0.46 | 0.90 |
-| ecc, upper names, 47 tables | pack | 47 of 47 | 67 of 67 | 0 | 1.00 | 1.00 |
-| ecc, prefix names, 47 tables | names | 0 of 47 | 0 of 67 | 0 | – | 0.00 |
-| ecc, prefix names, 47 tables | names+keys | 47 of 47 | 60 of 67 | 70 | 0.46 | 0.90 |
-| ecc, prefix names, 47 tables | pack | 47 of 47 | 67 of 67 | 0 | 1.00 | 1.00 |
-| s4hana, lower names, 41 tables | names | 0 of 41 | 0 of 60 | 0 | – | 0.00 |
-| s4hana, lower names, 41 tables | names+keys | 41 of 41 | 49 of 60 | 36 | 0.58 | 0.82 |
-| s4hana, lower names, 41 tables | pack | 41 of 41 | 60 of 60 | 0 | 1.00 | 1.00 |
+| Schema | Planned by | Keys right | Pack relationships found | Implied (shortcut) | Listed by the pack | Wrong | Wrong share |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ecc, upper names, 47 tables | names | 0 of 47 | 0 of 83 | 0 | 0 | 0 | – |
+| ecc, upper names, 47 tables | names+keys | 47 of 47 | 76 of 83 | 9 | 18 | 27 | 0.21 |
+| ecc, upper names, 47 tables | pack (self-check) | 47 of 47 | 83 of 83 | 0 | 0 | 0 | 0.00 |
+| ecc, prefix names, 47 tables | names | 0 of 47 | 0 of 83 | 0 | 0 | 0 | – |
+| ecc, prefix names, 47 tables | names+keys | 47 of 47 | 76 of 83 | 9 | 18 | 27 | 0.21 |
+| ecc, prefix names, 47 tables | pack (self-check) | 47 of 47 | 83 of 83 | 0 | 0 | 0 | 0.00 |
+| s4hana, lower names, 41 tables | names | 0 of 41 | 0 of 69 | 0 | 0 | 0 | – |
+| s4hana, lower names, 41 tables | names+keys | 41 of 41 | 57 of 69 | 4 | 10 | 14 | 0.16 |
+| s4hana, lower names, 41 tables | pack (self-check) | 41 of 41 | 69 of 69 | 0 | 0 | 0 | 0.00 |
 
-Without the pack the name rules find nothing: no SAP table has an `id` or `<table>_id` column, and `VBELN` names no
-table. With the keys given they find most links but also 36–70 wrong ones, because `VBELN` is in `VBAK`, `VBAP`,
-`LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBPA` and `VBFA` and the composite-key rule R3 links every one of them to every
-header keyed by `MANDT`+`VBELN`; likewise `RBKP` (invoice number `BELNR`) is linked to `BKPF` (accounting document `BELNR`), two different number ranges. Precision is the share of inferred relationships that are right; coverage the share
-of the pack's relationships found. `python tests/test_sap_inference.py` prints the table; the numbers are asserted in
-that test. Schemas without SAP tables plan exactly as before (the golden tests are unchanged).
+**The pack row is a self-check, not a precision figure.** The schema is generated from the pack and scored against
+the pack, so it shows only that the engine applies the pack as written. Whether the pack is right about SAP is not
+measured here; `validate_plan` against real rows is the only test of that, and none has been run.
+
+**What the name rules get wrong, and what they do not.** A relationship the name rules find that the pack does not
+apply is sorted into three kinds (round n24):
+
+- *implied*: a shortcut the pack reaches through a longer path that starts with the same columns, such as
+  `EKET.MANDT+EBELN` → `EKKO` where the pack has `EKET` → `EKPO` → `EKKO`. The join is right; it only skips a table.
+- *listed by the pack*: partly right. The pack lists the link but does not apply it because it holds for some rows
+  only (`VBPA.VBELN` → `LIKP` for the partner rows of deliveries), or the link is a shortcut whose last step is such
+  a listed link (`VBAP` → `VBUK`, the status row of the same document). Never two conditional steps in a row.
+- *wrong*: neither. In ECC 24 of the 27 are a document number read as another kind of document: `LIPS.VBELN` (a
+  delivery) as an order or an invoice, `VBAP.VBELN` (an order) as a delivery, and `BSEG`/`BKPF.BELNR` (an accounting
+  document) as a supplier invoice in `RBKP`/`RSEG`, or the reverse. The other 3 (`VBFA`/`VBPA` → `VBUK`/`VBUP`) hold
+  for some rows through two conditions and are counted as wrong to stay on the safe side.
+
+The first version of this measurement (rounds n20–n23) counted every relationship outside the pack as wrong (70 in
+ECC). About 25 of those were real links the pack lacked: `BUKRS` → `T001`, `LIFNR`+`BUKRS` → `LFB1`, open items →
+their `BSEG` line, `KNVV` → `TVTW`/`TSPA`. They are in the pack since round n24, and the measurement sorts the rest as
+above. The wrong share is wrong ÷ everything the name rules found.
+
+The pack finds the 7 links the name rules miss with keys given: role names such as `VBRK.KUNRG` (payer) →
+`KNA1.KUNNR`, `LIPS.VGBEL`+`VGPOS` → `VBAP`, `BSEG.HKONT` → `SKB1.SAKNR`. Without keys the name rules find nothing:
+no SAP table has an `id` or `<table>_id` column. `python tests/test_sap_inference.py` prints the table; the numbers are
+asserted in that test. Schemas without SAP tables plan exactly as before (the golden tests are unchanged).
 
 ## Rerunning
 

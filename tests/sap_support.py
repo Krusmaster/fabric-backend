@@ -63,3 +63,15 @@ def truth(variant: str = "ecc") -> tuple[dict, set]:
             if r["source"] in names and r["target"] in names and r.get("apply") is not False
             and (not r.get("variants") or variant in r["variants"])}
     return keys, rels
+
+
+def listed(variant: str = "ecc") -> set:
+    """(source, columns, target) of the pack's relationships that are listed but not applied: conditional, many-to-many, or on a
+    unique column that is not the key. A name rule that finds one of them is partly right, not simply wrong."""
+    pack = sap_pack.load()
+    names = {n for n, t in pack["tables"].items() if not t.get("variants") or variant in t["variants"]}
+    rels = [r for r in pack["relationships"] if r.get("apply") is False
+            and r["source"] in names and r["target"] in names and (not r.get("variants") or variant in r["variants"])]
+    out = {(r["source"], tuple(c.lower() for c in r["source_cols"]), r["target"]) for r in rels}
+    # a one-to-one link holds both ways: VBUK -> VBAK also reads VBAK -> VBUK (the status row of the same document)
+    return out | {(r["target"], tuple(c.lower() for c in r["target_cols"]), r["source"]) for r in rels if r["cardinality"] == "one-to-one"}

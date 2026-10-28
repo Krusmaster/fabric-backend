@@ -270,9 +270,12 @@ plan_backend(workspace="demo", source="sap_lh", schema="sap")
 validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
 ```
 
-On the synthetic SAP schema of the tests, the name rules alone find none of the 67 relationships; with the pack all
-67 and no wrong ones ([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has
-not been run against an SAP system or a real installation. Contents, sources and how to contribute:
+On the synthetic SAP schema of the tests, the name rules alone find none of the 83 relationships. Given every key,
+they find most of them but also 27 joins that read a document number as another kind of document (a delivery number
+as an order, an invoice number as an accounting document); the pack applies none of those. The schema is generated
+from the pack, so this shows what the pack adds over the name rules, not that the pack is right about SAP
+([measurement](https://github.com/Krusmaster/fabric-backend/blob/main/docs/INFERENCE.md)). It has not been run against
+an SAP system or a real installation. Contents, sources and how to contribute:
 [docs/SAP.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
 
 ## Build from a plan

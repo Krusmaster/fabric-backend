@@ -51,7 +51,8 @@
   "relationships": [
     {"source": "BSEG", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi"]},
     {"source": "ACDOCA", "source_cols": ["RCLNT", "RBUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "many-to-one", "variants": ["s4hana"], "sources": ["sap_help_s4_finance"]},
-    {"source": "VBRK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "one-to-one", "role": "accounting_document", "condition": "Set once the billing document has been posted to accounting; empty before that.", "sources": ["sap_help_fi"]}
+    {"source": "VBRK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "one-to-one", "role": "accounting_document", "condition": "Set once the billing document has been posted to accounting; empty before that.", "sources": ["sap_help_fi"]},
+    {"source": "BKPF", "source_cols": ["MANDT", "BUKRS"], "target": "T001", "target_cols": ["MANDT", "BUKRS"], "cardinality": "many-to-one", "sources": ["sap_help_fi"]}
   ],
   "traps": [
     {"id": "ledger", "title": "One line per ledger in ACDOCA",
