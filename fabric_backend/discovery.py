@@ -124,8 +124,8 @@ def llms_txt() -> str:
     v, o = _vars(), site_url()
     p = v["PRODUCT"]
     if v["CLIENT_REGISTRATION"]:              # client registration on: VS Code, Cursor and others sign in at /mcp/connect
-        clients_said = (f"The hosted service works with Claude at that address and, at {v['CONNECT_URL']}, with MCP clients that "
-                        f"register themselves ({v['CONNECT_TESTED'][0].lower() + v['CONNECT_TESTED'][1:]}).")
+        clients_said = (f"The hosted service works with Claude at that address; at {v['CONNECT_URL']}, MCP clients that "
+                        f"register themselves can sign in ({v['CONNECT_TESTED'][0].lower() + v['CONNECT_TESTED'][1:]}).")
         connect_lines = (
             f"- Claude Code: `claude mcp add --transport http {v['PRODUCT_LOWER']} {v['CONNECT_URL']}` (sign-in through client registration; not tried yet).\n"
             f"- VS Code, Cursor and other MCP clients that register themselves: streamable HTTP at `{v['CONNECT_URL']}`, OAuth discovery at "

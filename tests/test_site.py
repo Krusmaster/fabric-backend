@@ -606,7 +606,7 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
                 assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)
             else:
                 assert re.search(r"can(?:no|’|')t|not registered|not supported|mcp/connect|27 October 2026|does not accept|"
-                                 r"Where you build|Claude, VS Code and Cursor|Anysphere|/oauth", sentence), (path, sentence)
+                                 r"Where you build|Experimental|Anysphere|/oauth", sentence), (path, sentence)
 
 
 
@@ -965,10 +965,11 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                                                                        "SQL database": "experimental"}
     built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
     assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
-    assert built == {"GraphQL API": "creates", "Power BI semantic model": "draft", "Fabric IQ ontology": "draft", "views": "draft",
+    assert built == {"GraphQL API": "updates", "Power BI semantic model": "draft", "Fabric IQ ontology": "draft", "views": "draft",
                      "data agent": "draft", "silver notebooks": "draft"}                  # the live test of 27 October 2026
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
-                                         ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]
+                                         ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
+                                                     '<span class="hub-tag hub-experimental">experimental</span>')]
     assert '<span class="c-hub">krusgraph</span>' in visual and "one plan, the rule behind every relationship" in visual
     assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
     assert not re.search(r"<(img|svg|picture|object|image)\b", row) and "logo" not in row.lower() and "data-mascot" not in row
@@ -976,10 +977,11 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
     for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
-                 "one plan, with the rule behind every relationship", "it creates the GraphQL API",
+                 "one plan, with the rule behind every relationship",
+                 "it updates an existing GraphQL API (creating a new one is experimental)",
                  "Power BI semantic model, Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
                  "Claude connects to Krusgraph through MCP",
-                 "Lovable uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
+                 "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
     assert ('<p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, '
             'Anthropic or Lovable.</p>') in row
@@ -992,7 +994,9 @@ def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     row, visual, groups, said = _hub(client)
     assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Cursor", "Lovable"]
-    assert "Claude, VS Code and Cursor connect to Krusgraph through MCP" in said
+    assert "Claude, VS Code (experimental) and Cursor (experimental) connect to Krusgraph through MCP" in said
+    assert dict(groups["Where you build"])["Cursor"].endswith('<span class="hub-tag hub-experimental">experimental</span>')
+    assert "experimental" not in dict(groups["Where you build"])["Claude"]
     assert "Not affiliated with or endorsed by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
     monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
     row, visual, groups, said = _hub(client)
@@ -1008,7 +1012,7 @@ def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkey
     row, visual, groups, said = _hub(client)
     assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
     assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
-    assert "it creates the GraphQL API and views" in said and "Warehouse (tested end to end)" in said
+    assert "it creates the views; it updates an existing GraphQL API" in said and "Warehouse (tested end to end)" in said
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
@@ -1019,7 +1023,8 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert "Tested on 27 October 2026 with VS Code, Cursor and Glama (Experimental for now)" in start
+    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026; they stay Experimental until a full "
+            "sign-in with each is confirmed") in start
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_
@@ -1027,7 +1032,7 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     assert "streamable HTTP at `https://krusgraph.test/mcp/connect`" in llms and "docs.md#other-mcp-clients" in llms
     assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
     home = client.get("/").text
-    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home
+    assert "Krusgraph connects Claude (and, Experimental, VS Code and Cursor) to Microsoft Fabric through MCP" in home
 
 
 def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):
@@ -1044,3 +1049,58 @@ def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):
     html = client.get("/docs").text
     assert re.search(r'<h2 id="why-[^"]+">Why ', html) and '<h3 id="app-access">App access</h3>' in html
     assert "can see data they have no permission to read" in md
+
+
+# ------------------------------------------------------------------ n30: the site says no more than tool_status --------
+# A sentence that names one tool or one client with a status word must use that tool's or client's own word, and no
+# page uses the sales words the maintainer ruled out.
+from fabric_backend import tool_status as ts  # noqa: E402
+from fabric_backend.discovery import PUBLIC_PAGES  # noqa: E402
+
+CLAIM_PAGES = PUBLIC_PAGES + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md",
+                        "/llms.txt", "/llms-full.txt", "/mcp/server-card"]
+SALES = ("ai-driven", "ai-powered", "zero-etl", "zero etl", "gold standard", "guldstandard", "saves costs", "save costs",
+         "cost savings", "sparar kostnader", "best-in-class", "revolutionary", "game-changing", "enterprise-grade")
+WORDS = {w.lower() for w in ts.WORDS}
+
+
+def _claim_sentences(text: str):
+    out = []
+    for block in re.split(r"\n|</(?:tr|li|p|h\d|summary)>|<br\s*/?>", text):     # a table row, a list item or a line on its own
+        plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", block)).replace("`", "").replace("\\_", "_")
+        out += re.split(r"(?<=[.!?])\s+", plain)
+    return out
+
+
+def _claim_named(sentence: str, names) -> list[str]:
+    return [n for n in names if re.search(rf"(?<![\w-]){re.escape(n)}(?![\w-])", sentence)]
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_status_words_on_the_site_match_tool_status(client, monkeypatch, registration):
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    clients = {c.name: c.status.lower() for c in ts.CLIENTS if c.name != "Claude"}
+    bad = []
+    for path in CLAIM_PAGES:
+        for sentence in _claim_sentences(client.get(path).text):
+            low = sentence.lower()
+            used = {w for w in WORDS if w in low}
+            if not used:
+                continue
+            # a row about a function outside the hosted tools or about a client carries that one's word, checked below
+            other = any(f.replace("`", "") in sentence for f, *_ in ts.FUNCTIONS) or "(client)" in sentence
+            tools = [] if other else _claim_named(sentence, ts.STATUS)
+            if len(tools) == 1:
+                own = ts.label(tools[0]).lower()
+                bad += [(path, tools[0], w, sentence) for w in used if w not in own]
+            for c in ([] if _claim_named(sentence, ts.STATUS) else _claim_named(sentence, clients)):   # not a tool's row
+                if "tested end to end" in used and clients[c] != "tested end to end" and "experimental" not in low:
+                    bad.append((path, c, "tested end to end", sentence))
+    assert not bad, bad[:5]
+
+
+def test_no_page_uses_the_ruled_out_sales_words(client):
+    for path in CLAIM_PAGES:
+        low = client.get(path).text.lower()
+        for word in SALES:
+            assert word not in low, (path, word)

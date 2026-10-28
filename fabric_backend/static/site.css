@@ -815,7 +815,7 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .hub-group li b{font-weight:700}
 .hub-via{font-size:12.5px;color:var(--muted)}
 .hub-tag{font:700 11.5px/1.5 var(--mono);padding:0 7px;border-radius:999px;border:1.5px solid var(--line-strong);color:var(--muted);white-space:nowrap}
-.hub-tag.hub-creates{background:var(--sage-soft);border-color:var(--sage-d);color:var(--sage-ink)}
+.hub-tag.hub-creates,.hub-tag.hub-updates{background:var(--sage-soft);border-color:var(--sage-d);color:var(--sage-ink)}
 /* the lines: from each card on the left to a shared line, from there into the product, and on to the right */
 .hub-link{position:relative}
 .hub-link::before,.hub-link::after,.hub-node::before,.hub-node::after{content:"";position:absolute;border:0 solid var(--line-strong)}

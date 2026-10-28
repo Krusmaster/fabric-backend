@@ -27,7 +27,7 @@
       </div>
       <div class="start-pane" data-pane="2">
         <div class="start-pane-head"><div><h2 class="h3">Choose a Fabric workspace</h2>
-        <p>Choose a workspace you can access and a source you want to explore, such as a lakehouse or warehouse. Keep the workspace name or ID handy. Viewer is enough to read and plan; creating needs Contributor. The workspace needs a Fabric capacity, and a trial capacity works.</p></div>
+        <p>Choose a workspace you can access and a source you want to explore: {{SOURCES_STATUS}}. Keep the workspace name or ID handy. Viewer is enough to read and plan; creating needs Contributor. The workspace needs a Fabric capacity, and a trial capacity works.</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="thinker" data-pose="look" data-label=""></span></div></div>
         <p class="muted">No workspace yet? The <a href="/explore">demo</a> runs on a synthetic schema and needs no account, and <code>fabric-backend demo</code> runs the same engine on your own laptop against a SQL Server or a folder of files (<a href="/local">run it locally</a>).</p>
       </div>
@@ -43,7 +43,7 @@
       <p class="start-sample"><a href="/explore">Explore a sample first →</a></p>
       <details id="access" data-open-wide>
         <summary>What will {{PRODUCT}} access?</summary>
-        <p><strong>In short:</strong> {{PRODUCT}} acts as the signed-in user and reaches only what that person can already reach. It reads workspaces, items and table metadata, runs the checks and queries you ask for, and creates or updates only the one GraphQL API you ask for. It never deletes. Your admin can revoke the approval at any time.</p>
+        <p><strong>In short:</strong> {{PRODUCT}} acts as the signed-in user and reaches only what that person can already reach. It reads workspaces, items and table metadata, runs the checks and queries you ask for, and creates or updates only what you ask for: the one GraphQL API, or views in one schema of the SQL analytics endpoint or warehouse ({{STATUS_CREATE_VIEWS}}). It never deletes or drops. Your admin can revoke the approval at any time.</p>
         <h3>For your admin: the permissions in detail</h3>
         <p>The hosted app asks for these delegated permissions, all approved by your admin once and all acting as the user:</p>
         <div class="table-wrap" tabindex="0"><table>
@@ -53,7 +53,7 @@
             <tr><td><code>Workspace.Read.All</code>, <code>Item.Read.All</code> (Fabric)</td><td>listing sources and reading item metadata</td></tr>
             <tr><td><code>GraphQLApi.ReadWrite.All</code> (Fabric)</td><td>creating or updating the one API for GraphQL item you ask for; never deleting</td></tr>
             <tr><td><code>GraphQLApi.Execute.All</code> (Fabric)</td><td>running the read-only queries you ask for</td></tr>
-            <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>reading table and column names from the SQL analytics endpoint</td></tr>
+            <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>reading table and column names from the SQL analytics endpoint, running the counting checks, and creating the views you ask for with <code>create_views</code></td></tr>
           </tbody>
         </table></div>
         <p>Why each one: <code>Workspace.Read.All</code> and <code>Item.Read.All</code> are what <code>list_workspaces</code>, <code>list_sources</code>, <code>describe_backend</code>, <code>plan_drift</code> and <code>lineage</code> read; <code>GraphQLApi.ReadWrite.All</code> is used by <code>create_backend</code> alone; <code>GraphQLApi.Execute.All</code> by <code>query_graphql</code> and <code>app_readiness</code>; the SQL permission by the tools that read table and column names or count rows (<code>list_tables</code>, <code>plan_backend</code>, <code>validate_plan</code>, <code>sample_rows</code>, the drafts). The tools that create semantic models, ontologies, data agents, notebooks and pipelines need <code>Item.ReadWrite.All</code> or a narrower permission per item type, which the hosted app does not ask for today. The docs mark them <a href="/docs#test-status">available when enabled by the operator</a>: their dry runs work, and asked to create they answer <code>consent</code> with the permission’s name.</p>

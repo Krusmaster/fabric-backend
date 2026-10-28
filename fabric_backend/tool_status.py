@@ -248,10 +248,13 @@ def source_word(tested: bool) -> str:
 
 
 def build_word(tool: str) -> str:
-    """"creates" only for what has been created or updated live on the hosted service; "draft" for the rest, whose
+    """"creates" only for what has been created live on the hosted service, "updates" for what has only been updated in
+    place there; "draft" for the rest, whose
     tools ran live only as drafts or dry runs, or not yet."""
     s = STATUS[tool]
-    return "creates" if s.kind == CREATES and s.live and not s.dry_run_only else "draft"
+    if s.kind == CREATES and s.live and not s.dry_run_only:
+        return "updates" if tool in LIVE_RUN_PARTLY else "creates"     # create_backend: live only as an update in place (n30)
+    return "draft"
 
 
 def clients_tested_at(path: str) -> list[tuple[str, str]]:
@@ -267,12 +270,14 @@ def clients_working(registration_on: bool) -> list[str]:
 
 
 def connect_sentence() -> str:
-    """What the site says about /mcp/connect: the clients that have signed in there, and their status word."""
+    """What the site says about /mcp/connect: Experimental, with the clients that have been tried there. The word comes
+    first so the sentence cannot read as tested end to end before a full sign-in with each client is confirmed (n30)."""
     seen = clients_tested_at("/mcp/connect")
     if not seen:
         return "Experimental: " + CONNECT_NOTE + "; not tried with a client yet"
     dates = list(dict.fromkeys(d for _, d in seen))
-    return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])} (Experimental for now)"
+    return (f"Experimental: {_listed([n for n, _ in seen])} were tried here on {_listed(dates)}; they stay Experimental "
+            "until a full sign-in with each is confirmed")
 
 
 # ------------------------------------------------------------------ the overview of tools, functions and clients -------

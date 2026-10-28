@@ -92,6 +92,9 @@ def _vars() -> dict[str, str]:
         # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
         "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(),
         **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
+        # the sources with their status, as the hub and the docs' "Why" section give it (tool_status.SOURCES)
+        "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
+                                    for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
 
 
@@ -105,9 +108,14 @@ def _listed(names: list[str]) -> str:
 
 
 def _clients_sentence() -> str:
-    """"Claude", or "Claude, VS Code and Cursor" once client registration is on (tool_status.clients_working)."""
-    from .tool_status import clients_working
-    return _listed(clients_working(_registration_on()))
+    """"Claude", or "Claude (and, Experimental, VS Code and Cursor)" once client registration is on
+    (tool_status.clients_working); a client not tested end to end is never named as plainly as Claude (n30)."""
+    from .tool_status import CLIENTS, clients_working
+    status = {c.name: c.status for c in CLIENTS}
+    names = clients_working(_registration_on())
+    tested = [c for c in names if status[c] == "Tested end to end"]
+    other = [c for c in names if c not in tested]
+    return _listed(tested) + (f" (and, Experimental, {_listed(other)})" if other else "")
 
 
 def _connect_tested() -> str:
@@ -119,8 +127,8 @@ def _connect_tested() -> str:
 def hub_html() -> str:
     """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
     builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
-    Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "draft"
-    for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
+    Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "updates"
+    for what has only been updated in place there, "draft" for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
     in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
     the visual is hidden from screen readers, which get the same as one paragraph."""
     from . import tool_status as ts
@@ -132,18 +140,24 @@ def hub_html() -> str:
         return f'<span class="hub-tag hub-{word.split()[0]}">{word}</span>'
     sources = "".join(f"<li><b>{n}</b>{'' if tested else tag('experimental')}</li>" for n, tested in ts.SOURCES)
     builds = "".join(f"<li><b>{n}</b>{tag(ts.build_word(tool))}</li>" for n, tool in ts.BUILDS)
-    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span></li>' for c in clients)
-    where += '<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span></li>'
+    status = {c.name: c.status for c in ts.CLIENTS}
+    exp = lambda c: "" if status[c] == "Tested end to end" else tag("experimental")
+    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span>{exp(c)}</li>' for c in clients)
+    where += f'<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span>{exp("Lovable")}</li>'
 
+    exp_word = lambda c: "" if status[c] == "Tested end to end" else " (experimental)"
     created = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "creates"]
-    drafted = [n for n, tool in ts.BUILDS if ts.build_word(tool) != "creates"]
+    updated = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "updates"]
+    drafted = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "draft"]
     said = (f"Your data in Fabric: " + _listed([f"{n} ({ts.source_word(t)})" for n, t in ts.SOURCES]) + ". "
             f"In the middle, {p}: one plan, with the rule behind every relationship. "
             f"What {p} builds in Fabric from that plan: " + "; ".join(
                 ([f"it creates the {_listed(created)}"] if created else [])
+                + ([f"it updates an existing {_listed(updated)} (creating a new one is experimental)"] if updated else [])
                 + ([f"{_listed(drafted)} {'is a draft' if len(drafted) == 1 else 'are drafts'} so far"] if drafted else [])) + ". "
-            f"Where you build: {_listed(clients)} {'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
-            f"Lovable uses the GraphQL API {p} creates in Fabric rather than {p} itself.")
+            f"Where you build: {_listed([c + exp_word(c) for c in clients])} "
+            f"{'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
+            f"Lovable{exp_word('Lovable')} uses the GraphQL API {p} creates in Fabric rather than {p} itself.")
     makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
     return f"""<section class="wrap connects" aria-label="What {p} connects">
   <p class="visually-hidden">{said}</p>
