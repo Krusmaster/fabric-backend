@@ -238,6 +238,33 @@
             "items": {
               "$ref": "#/definitions/columns"
             }
+          },
+          "personal": {
+            "type": "array",
+            "description": "Columns that hold personal data (customers and suppliers can be people), by the privacy rule they fall under (P1 name, P2 e-mail, P3 telephone, P4 national id, P5 address, P6 birth date). sample_rows masks them like any column the name rules flag.",
+            "items": {
+              "type": "object",
+              "required": [
+                "column",
+                "rule"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "column": {
+                  "$ref": "#/definitions/name"
+                },
+                "rule": {
+                  "enum": [
+                    "P1",
+                    "P2",
+                    "P3",
+                    "P4",
+                    "P5",
+                    "P6"
+                  ]
+                }
+              }
+            }
           }
         }
       }

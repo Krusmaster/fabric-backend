@@ -113,15 +113,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 112, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 112, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.74, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 112, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 112, 'relationships': 112, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 49, 'listed': 0, 'rel_hits': 0, 'relationships': 98, 'tables': 49, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.62, 'implied': 6, 'key_hits': 49, 'keys': 49, 'listed': 10, 'rel_hits': 61, 'relationships': 98, 'tables': 49, 'wrong': 14, 'wrong_share': 0.15},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 49, 'keys': 49, 'listed': 0, 'rel_hits': 98, 'relationships': 98, 'tables': 49, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 57, 'listed': 0, 'rel_hits': 0, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.73, 'implied': 11, 'key_hits': 57, 'keys': 57, 'listed': 19, 'rel_hits': 83, 'relationships': 114, 'tables': 57, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 57, 'keys': 57, 'listed': 0, 'rel_hits': 114, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 57, 'listed': 0, 'rel_hits': 0, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.73, 'implied': 11, 'key_hits': 57, 'keys': 57, 'listed': 19, 'rel_hits': 83, 'relationships': 114, 'tables': 57, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 57, 'keys': 57, 'listed': 0, 'rel_hits': 114, 'relationships': 114, 'tables': 57, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 51, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 51, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.61, 'implied': 6, 'key_hits': 51, 'keys': 51, 'listed': 10, 'rel_hits': 61, 'relationships': 100, 'tables': 51, 'wrong': 14, 'wrong_share': 0.15},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 51, 'keys': 51, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 51, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -371,3 +371,23 @@ def test_validate_picks_the_standard_address_valid_today():
     assert (kna1["rows_with_value"], kna1["orphans"], kna1["several"]) == (3, 1, 0)    # A9 has no address; A1 and A2 one each
     vbpa = rel[("VBPA", "ADRC")]
     assert (vbpa["rows_with_value"], vbpa["orphans"]) == (1, 0)                       # the blank ADRNR is not counted
+
+
+def test_the_pack_names_sap_personal_columns_that_the_name_rules_miss():
+    from fabric_backend import privacy
+    schema = sap_support.schema(["KNA1", "ADRC", "ADR2", "ADR6", "VBAK"])
+    flagged = privacy.personal_columns(schema)
+    assert flagged[("ADR6", "SMTP_ADDR")]["rule"] == "P2" and "sap pack" in flagged[("ADR6", "SMTP_ADDR")]["why"]
+    assert flagged[("KNA1", "TELF1")]["rule"] == "P3" and flagged[("KNA1", "STRAS")]["rule"] == "P5"
+    assert flagged[("ADR2", "TEL_NUMBER")]["why"].startswith("the column name")       # a name rule found it first and wins
+    assert ("VBAK", "KUNNR") not in flagged and ("ADR6", "FLGDEFAULT") not in flagged
+    rows, masked = privacy.mask_rows("ADR6", [{"SMTP_ADDR": "someone@example.invalid", "FLGDEFAULT": "X"}], flagged)
+    assert rows == [{"SMTP_ADDR": privacy.MASK, "FLGDEFAULT": "X"}] and masked == ["SMTP_ADDR"]
+    assert privacy.personal_columns(sap_support.schema(["ADR6"])) .get(("ADR6", "SMTP_ADDR")) is None   # one table: no pack match
+
+
+def test_phone_and_e_mail_point_at_the_standard_address():
+    p = plan(sap_support.schema(["ADRC", "ADR2", "ADR6", "KNA1"]))
+    ext = {r.source: r for r in p.extended if r.target == "ADRC"}
+    assert ext["ADR2"].target_cols == ["CLIENT", "ADDRNUMBER", "DATE_FROM"] and ext["ADR6"].kind == "key"
+    assert "COALESCE(LTRIM(RTRIM(t.[NATION])), '') = ''" in ext["ADR6"].join_sql()

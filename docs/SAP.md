@@ -19,7 +19,7 @@ SAP table and column names survive, with or without a prefix.
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, all applied; `EKBE` → `RBKP` filtered on invoice-receipt rows (`VGABE` = `2`, round n26) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer company-code data `KNB1` (round n27); customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 39, all applied; journal line → cost center and → profit center as joins valid on the posting date (kind `valid_on`, round n25); `KNB1` from journal lines, open items and the billing document's payer (round n27) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 7 are applied: condition lines and rates to their record, and (filtered, round n26) conditions → `EKKO` and → `T685`; conditions → `VBAK` and → `VBRK` are listed only |
-| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK`; central addresses `ADRC` (round n27) | 13, all applied; link table → `BUT000` on the partner's GUID (kind `unique`); the address links to `ADRC` valid today in the standard version (round n28) |
+| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK`; central addresses `ADRC` (round n27); telephone numbers `ADR2` and e-mail addresses `ADR6` (round n29) | 15, all applied; link table → `BUT000` on the partner's GUID (kind `unique`); the address links to `ADRC` valid today in the standard version (round n28); `ADR2`/`ADR6` → `ADRC` on the standard version (round n29) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -84,6 +84,14 @@ only, the partner, status and document-flow rows of deliveries and invoices (`VB
   the number alone repeats a customer once per version and period. Since round n28 the pack applies these links as
   joins valid on the date of the call in the standard version (below). A document can carry its own address
   (`VBPA.ADRNR`, such as a one-time ship-to address); a blank `ADRNR` is no reference.
+- **Personal data under SAP's own names.** `ADR6.SMTP_ADDR` is an e-mail address, `KNA1.TELF1` a telephone number,
+  `KNA1.STRAS` a street; the general privacy rules read none of these names. Since round n29 a pack table can name
+  its personal columns (`personal`, by rule P1–P6), and the privacy rules use them for the tables the pack recognises:
+  `sample_rows` masks them, drafted queries and gold views leave them out, `show_personal_data=true` shows them, as for
+  any flagged column. Named so far: `KNA1`, `LFA1` (customers and suppliers can be people), `ADRC`, `ADR2`, `ADR6`,
+  `BUT000`. A name rule that already flags a column wins, and its reason is kept.
+- **Several numbers and e-mail addresses per address.** `ADR2` and `ADR6` have a row per number (`CONSNUMBER`) and per
+  contact person (`PERSNUMBER`); filter `FLGDEFAULT` for the standard one.
 - **Customer data per company code.** `KNB1` holds a row per customer and company code (reconciliation account,
   payment terms); journal lines and open items reach it on customer and company code together.
 - **Sold-to, ship-to and payer.** `VBAK.KUNNR`, `LIKP.KUNNR`, `VBRK.KUNRG` and the partner functions in `VBPA` can be
@@ -190,6 +198,7 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | SAP Help Portal, S/4HANA business partner | `LFA1` behind the business partner in S/4HANA | no, as above |
 | SAP Help Portal, pricing and the condition technique (SD and MM) | pricing | no, as above |
 | SAP Help Portal, business partner and customer/vendor integration | business partner | no, as above |
+| SAP Help Portal, central address management | `ADRC`, `ADR2`, `ADR6` and their personal columns | no, as above |
 | SAP Help Portal, ABAP keyword documentation, client handling | `MANDT` as first key field | no, as above |
 | SAP Learning, *Identifying data model simplifications in SAP S/4HANA* (Sales) | `VBUK`/`VBUP` folded into the document tables; `VBFA` simplified | found in a web search on 28 October 2026; the page could not be fetched |
 | SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA`, and the ECC index tables it replaces | no, as above |
@@ -222,7 +231,7 @@ Not built yet, in this order:
 3. ~~Pricing~~: built in round n23 (above). Left for later: the condition tables `Annn` (one per key combination,
    numbered per installation, so only the standard ones could be described), and a relationship kind on a unique
    column that is not the key (`KNUMV`), so the document links can be applied.
-4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27, the `ADRC` links applied in round n28. Left for later: the other address tables (`ADR2` phone, `ADR6` e-mail), which hold personal data and need the privacy rules of `sample_rows`.
+4. ~~Business partner~~: built in round n24 (above); `KNB1` and `ADRC` in round n27, the `ADRC` links applied in round n28, `ADR2` and `ADR6` with the pack's personal columns in round n29. Left for later: fax and other communication tables (`ADR3`, `ADR12`), and naming the personal columns of the remaining modules (contact persons `KNVK`).
 
 ## Contributing
 

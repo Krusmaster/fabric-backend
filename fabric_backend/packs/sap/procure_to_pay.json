@@ -38,7 +38,7 @@
     {"name": "LFA1", "level": "master", "en": "Supplier master, general data", "de": "Lieferantenstamm, allgemeine Daten",
      "key": ["MANDT", "LIFNR"], "number_columns": ["LIFNR"], "delta": ["ERDAT"],
      "note": "In S/4HANA suppliers are maintained as business partners; LFA1 is still the supplier table that purchasing documents point at.",
-     "sources": ["sap_help_mm", "sap_help_s4_bp"]},
+     "personal": [{"column": "NAME1", "rule": "P1"}, {"column": "NAME2", "rule": "P1"}, {"column": "STRAS", "rule": "P5"}, {"column": "PSTLZ", "rule": "P5"}, {"column": "ORT01", "rule": "P5"}, {"column": "TELF1", "rule": "P3"}, {"column": "TELFX", "rule": "P3"}], "sources": ["sap_help_mm", "sap_help_s4_bp"]},
     {"name": "LFB1", "level": "master", "en": "Supplier master, company code data", "de": "Lieferantenstamm, Buchungskreisdaten",
      "key": ["MANDT", "LIFNR", "BUKRS"], "number_columns": ["LIFNR"], "delta": ["ERDAT"],
      "sources": ["sap_help_mm"]},

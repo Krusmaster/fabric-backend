@@ -20,7 +20,9 @@ already flags the column wins. What the rules flag is masked by default where va
 would reach an answer (sample_rows) or an example, and left out of generated views and drafted queries; the tools
 take `show_personal_data=true` to show them, and the user's own Fabric permissions apply either way. Nothing here
 reads a value: a column of e-mail addresses called `contact` is not found, and a column called `name` in a products
-table is not flagged. The answer always says which rule flagged what.
+table is not flagged. The answer always says which rule flagged what. For tables a knowledge pack recognises, the
+pack names the personal columns too (SAP's ADR6.SMTP_ADDR is an e-mail address, KNA1.TELF1 a telephone number), under
+the same rules; the reason then names the pack.
 """
 from __future__ import annotations
 
@@ -210,6 +212,28 @@ def personal_columns(schema, tables: list[str] | None = None) -> dict[tuple[str,
             f = classify(t.name, c) or classify_tags(tags.get(c.lower()))
             if f:
                 out[(t.name, c)] = f
+    for key, f in _pack_columns(schema, wanted).items():                # SAP's names say nothing to the rules above
+        out.setdefault(key, f)
+    return out
+
+
+def _pack_columns(schema, wanted: set[str] | None) -> dict[tuple[str, str], dict]:
+    """The columns a knowledge pack names as personal data (ADR6.SMTP_ADDR, KNA1.TELF1), for the tables it recognises;
+    empty for a schema without such tables. A name rule that flags the column already wins."""
+    from . import sap_pack
+    m = sap_pack.match(schema)
+    if m is None:
+        return {}
+    out = {}
+    for table, name in m.tables.items():
+        if wanted is not None and table.lower() not in wanted:
+            continue
+        have = {c.upper(): c for c in schema[table].column_names}
+        for p in sap_pack.table_info(name, m.pack).get("personal", []):
+            col = have.get(p["column"])
+            if col:
+                out[(table, col)] = {"rule": p["rule"], "what": RULES[p["rule"]],
+                                     "why": f"the {m.pack} pack names {name}.{p['column']} {RULES[p['rule']]}"}
     return out
 
 

@@ -59,7 +59,7 @@
     {"name": "KNA1", "level": "master", "en": "Customer master, general data", "de": "Kundenstamm, allgemeine Daten",
      "key": ["MANDT", "KUNNR"], "number_columns": ["KUNNR"], "delta": ["ERDAT"],
      "note": "In S/4HANA customers are maintained as business partners; KNA1 is still the customer table that sales documents point at.",
-     "sources": ["sap_help_sd"]},
+     "personal": [{"column": "NAME1", "rule": "P1"}, {"column": "NAME2", "rule": "P1"}, {"column": "STRAS", "rule": "P5"}, {"column": "PSTLZ", "rule": "P5"}, {"column": "ORT01", "rule": "P5"}, {"column": "TELF1", "rule": "P3"}, {"column": "TELFX", "rule": "P3"}], "sources": ["sap_help_sd"]},
     {"name": "KNVV", "level": "master", "en": "Customer master, sales area data", "de": "Kundenstamm, Vertriebsbereichsdaten",
      "key": ["MANDT", "KUNNR", "VKORG", "VTWEG", "SPART"], "number_columns": ["KUNNR"], "delta": ["ERDAT"],
      "note": "One row per customer and sales area (sales organization, distribution channel, division).",
