@@ -3,8 +3,9 @@
 The bodies are written in Fabric's error shape ({"errorCode", "message"}, Fabric REST "ErrorResponse"). The codes are
 the documented ones: InsufficientScopes (learn.microsoft.com/rest/api/fabric/articles/scopes), InsufficientPrivileges
 (the item APIs' error responses, learn.microsoft.com/rest/api/fabric/core/items), WorkspaceNotOnCapacity /
-CapacityNotActive (already read by errors.py). A feature turned off in the tenant has no single documented code, so its
-body (its code made up for the test) is matched by its words; the last body carries a code nobody here knows.
+CapacityNotActive (already read by errors.py). A feature turned off in the tenant: FeatureNotAvailable, the code Fabric
+answered create_ontology with on 28 October 2026, or another code matched by its words; the last body carries a code
+nobody here knows.
 """
 import json
 
@@ -44,6 +45,11 @@ def test_a_feature_off_in_the_tenant_is_feature_disabled_and_quotes_fabric():
     out = answer(403, {"errorCode": "FeatureNotAvailable", "message": "The feature is disabled in the tenant settings"})
     assert out["kind"] == "feature_disabled" and "tenant settings" in out["hint"] and "consent" not in out["kind"]
     assert "FeatureNotAvailable" in out["error"] and out["fabric_message"] == "The feature is disabled in the tenant settings"
+
+
+def test_feature_not_available_is_feature_disabled_by_its_code_alone():
+    out = answer(403, {"errorCode": "FeatureNotAvailable", "message": "Forbidden"})
+    assert out["kind"] == "feature_disabled" and out["fabric_error_code"] == "FeatureNotAvailable"
 
 
 def test_an_unknown_code_says_so_and_shows_it():

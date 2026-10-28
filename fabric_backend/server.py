@@ -929,9 +929,11 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
 # documentation: InsufficientScopes (the token lacks a delegated scope; learn.microsoft.com/rest/api/fabric/articles/scopes),
 # InsufficientPrivileges (the account's workspace role is too low; the error responses of the item APIs in
 # learn.microsoft.com/rest/api/fabric/core/items), WorkspaceNotOnCapacity / CapacityNotActive (capacity, as errors.py
-# already reads them). A feature turned off in the tenant's settings (an item type in preview, such as the ontology) has
-# no single documented code, so it is recognised by its words. Anything else is reported as unknown, with the code.
+# already reads them). A feature turned off in the tenant's settings (an item type in preview, such as the ontology):
+# FeatureNotAvailable, the code Fabric answered create_ontology with on 28 October 2026; other codes for it are
+# recognised by their words. Anything else is reported as unknown, with the code.
 _SCOPE_CODES = {"InsufficientScopes"}
+_FEATURE_CODES = {"FeatureNotAvailable"}
 _ROLE_CODES = {"InsufficientPrivileges"}
 _FEATURE_WORDS = re.compile(r"(?i)tenant|feature|not enabled|disabled|turned off|preview|admin(?:istrator)? setting")
 _CAPACITY_WORDS = re.compile(r"(?i)capacity")
@@ -960,7 +962,7 @@ def _consent(result: dict, scope: str, where: str) -> dict | None:
     if code in ("WorkspaceNotOnCapacity", "CapacityNotActive") or _CAPACITY_WORDS.search(f"{code} {msg}"):
         return {**said, "error": f"Fabric refused {where} (HTTP {http}): the workspace has no active capacity for it.{quoted}",
                 "kind": "capacity", "hint": HINTS["capacity"]}
-    if _FEATURE_WORDS.search(f"{code} {msg}"):
+    if code in _FEATURE_CODES or _FEATURE_WORDS.search(f"{code} {msg}"):
         return {**said, "error": f"Fabric refused {where} (HTTP {http}): the feature looks turned off in the tenant's settings.{quoted}",
                 "kind": "feature_disabled",
                 "hint": "A Fabric administrator enables the item type in the admin portal's tenant settings (items in preview are "

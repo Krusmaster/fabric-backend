@@ -42,8 +42,9 @@ LATER_LIVE = {
     "create_drift_monitor": "On 28 October 2026 it created drift_shop and drift_shop_nightly live with schedule=false against a "
                             "Fabric workspace with synthetic data; neither has been run in Fabric, and the schedule needs "
                             "DataPipeline.Execute.All.",
-    "create_ontology": "On 28 October 2026 it ran live with dry_run=false and Fabric answered HTTP 403; the cause is unknown "
-                       "(possibly the ontology preview turned off in the tenant's settings). Its dry run ran live without errors.",
+    "create_ontology": "On 28 October 2026 it ran live with dry_run=false and Fabric answered HTTP 403 FeatureNotAvailable: "
+                       "the ontology (preview) is turned off in that tenant's settings, so nothing was created. Its dry run "
+                       "ran live without errors.",
 }
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
@@ -98,7 +99,8 @@ _RAW = {
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
                           "unit tests; creating by unit tests only", True),
     "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; the dry run live on 28 October 2026", False,
-                        "; run live on 28 October 2026 with dry_run=false and stopped by HTTP 403, cause unknown"),
+                        "; run live on 28 October 2026 with dry_run=false and stopped by HTTP 403 FeatureNotAvailable "
+                        "(the ontology is turned off in that tenant's settings)"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
     "analyze_schema": (HOSTED, READS, _NO, "unit tests"),
@@ -158,6 +160,16 @@ def phrase(name: str) -> str:
     return text
 
 
+def short(name: str) -> str:
+    """The status next to an offer on a sales page (the home page): the word without the history behind it. A creating
+    tool that has not created anything live is "draft; deployment not yet verified"; the long form (`label`, with the
+    dates and Fabric's answers) is on /docs#test-status."""
+    if STATUS[name].kind == CREATES and build_word(name) == "draft":
+        return "draft; deployment not yet verified"
+    w = word(name)
+    return w[0].lower() + w[1:]
+
+
 def _listed(names) -> str:
     names = list(names)
     return ", ".join(names[:-1]) + " and " + names[-1] if len(names) > 1 else "".join(names)
@@ -211,10 +223,19 @@ def create_api_status() -> str:
     return "Creating the API is " + phrase("create_backend")
 
 
+def create_api_word() -> str:
+    """The status tag next to create_api_status(): the word for creating a new API."""
+    s = STATUS["create_backend"]
+    return "Experimental" if s.live and "create_backend" in LIVE_RUN_PARTLY else word("create_backend")
+
+
 def task_status(tools: list[str]) -> str:
     """One line for a group of tools: the live date when all ran live, otherwise each tool with its word."""
     if all(STATUS[t].live and not STATUS[t].dry_run_only and not STATUS[t].note.startswith(";") for t in tools):
-        return f"tested end to end on {LIVE_RUN_DATE}"
+        drafts = [f"`{t}`" for t in tools if STATUS[t].kind == DRAFT]
+        what = "" if not drafts else (f" ({_listed(drafts)}: a draft; creates nothing)" if len(drafts) == 1
+                                      else f" ({_listed(drafts)}: drafts; they create nothing)")
+        return f"tested end to end on {LIVE_RUN_DATE}{what}"
     return "; ".join(f"`{t}`: {phrase(t)}" for t in tools)
 
 
