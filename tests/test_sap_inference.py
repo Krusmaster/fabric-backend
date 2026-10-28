@@ -113,15 +113,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 19, 'rel_hits': 78, 'relationships': 100, 'tables': 53, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 53, 'keys': 53, 'listed': 19, 'rel_hits': 78, 'relationships': 100, 'tables': 53, 'wrong': 26, 'wrong_share': 0.19},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 100, 'relationships': 100, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 88, 'tables': 47, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.67, 'implied': 6, 'key_hits': 47, 'keys': 47, 'listed': 10, 'rel_hits': 59, 'relationships': 88, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 88, 'relationships': 88, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 107, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 107, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 55, 'listed': 0, 'rel_hits': 0, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.78, 'implied': 11, 'key_hits': 55, 'keys': 55, 'listed': 19, 'rel_hits': 83, 'relationships': 107, 'tables': 55, 'wrong': 26, 'wrong_share': 0.19},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 55, 'keys': 55, 'listed': 0, 'rel_hits': 107, 'relationships': 107, 'tables': 55, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 49, 'listed': 0, 'rel_hits': 0, 'relationships': 93, 'tables': 49, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.66, 'implied': 6, 'key_hits': 49, 'keys': 49, 'listed': 10, 'rel_hits': 61, 'relationships': 93, 'tables': 49, 'wrong': 14, 'wrong_share': 0.15},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 49, 'keys': 49, 'listed': 0, 'rel_hits': 93, 'relationships': 93, 'tables': 49, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -336,3 +336,14 @@ def test_dab_config_leaves_out_filtered_joins():
     cfg = exports.dab_config(plan(sap_support.schema(variant="s4hana")))
     rels = [r for e in cfg["entities"].values() for r in e.get("relationships", {}).values()]
     assert not any(r["source.fields"] == ["MANDT", "KNUMV"] and r["target.entity"] == "EKKO" for r in rels)
+
+
+def test_customer_company_code_data_and_central_addresses():
+    p = plan(sap_support.schema(["KNA1", "KNB1", "T001", "SKB1", "BSEG", "BKPF", "VBRK", "VBPA", "ADRC", "BUT020", "BUT000"], variant="ecc"))
+    rels = {(r.source, tuple(r.source_cols), r.target) for r in p.relationships}
+    assert ("BSEG", ("MANDT", "KUNNR", "BUKRS"), "KNB1") in rels and ("VBRK", ("MANDT", "KUNRG", "BUKRS"), "KNB1") in rels
+    assert ("KNB1", ("MANDT", "BUKRS", "AKONT"), "SKB1") in rels
+    assert p.keys["ADRC"] == (["CLIENT", "ADDRNUMBER", "DATE_FROM", "NATION"], "SAP pack")
+    assert not [r for r in list(p.relationships) + p.extended if r.target == "ADRC"]   # version and period: listed only
+    listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
+    assert {("KNA1", "ADRC"), ("VBPA", "ADRC"), ("BUT020", "ADRC")} <= listed

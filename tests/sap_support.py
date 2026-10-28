@@ -7,18 +7,18 @@ from fabric_backend.schema import Schema
 
 # a few non-key columns per table, so the name rules have something to read (dates, types, organisation fields)
 EXTRA = {
-    "KNA1": ["NAME1", "LAND1", "ORT01", "KTOKD"], "KNVV": ["KDGRP", "WAERS"], "MARA": ["MTART", "MATKL", "MEINS"],
+    "KNA1": ["NAME1", "LAND1", "ORT01", "KTOKD", "ADRNR"], "KNVV": ["KDGRP", "WAERS"], "MARA": ["MTART", "MATKL", "MEINS"],
     "MAKT": ["MAKTX"], "TVKO": ["WAERS", "BUKRS"], "VBAK": ["KNUMV", "AUART", "VBTYP", "KUNNR", "VKORG", "VTWEG", "SPART", "AUDAT"],
     "VBAP": ["MATNR", "PSTYV", "ABGRU"], "VBEP": ["EDATU", "ETTYP"], "VBPA": ["PARVW", "KUNNR", "ADRNR"],
     "LIKP": ["LFART", "KUNNR", "KUNAG", "VKORG", "WADAT_IST"], "LIPS": ["MATNR", "VGBEL", "VGPOS"],
     "VBRK": ["FKART", "KNUMV", "FKDAT", "KUNAG", "KUNRG", "VKORG", "BUKRS", "BELNR", "GJAHR", "FKSTO"],
     "VBRP": ["MATNR", "AUBEL", "AUPOS", "VGBEL", "VGPOS"], "VBFA": ["VBTYP_V", "RFMNG", "ERDAT"],
-    "LFA1": ["NAME1", "LAND1", "KTOKK"], "LFB1": ["AKONT", "ZTERM"], "LFM1": ["ZTERM"], "T024E": ["BUKRS"],
+    "LFA1": ["NAME1", "LAND1", "KTOKK", "ADRNR"], "LFB1": ["AKONT", "ZTERM"], "LFM1": ["ZTERM"], "T024E": ["BUKRS"],
     "T001W": ["NAME1"], "EBAN": ["MATNR", "WERKS", "BSART"], "EKKO": ["KNUMV", "BSTYP", "BSART", "LIFNR", "BUKRS", "EKORG", "BEDAT"],
     "EKPO": ["MATNR", "WERKS", "LOEKZ"], "EKET": ["EINDT"], "EKBE": ["SHKZG", "BUDAT"],
     "RBKP": ["LIFNR", "BUKRS", "BLDAT"], "RSEG": ["EBELN", "EBELP", "MATNR"],
     "BKPF": ["BLART", "BUDAT"], "BSEG": ["SHKZG", "HKONT", "KUNNR", "LIFNR"],
-    "ACDOCA": ["RACCT", "BUDAT", "KUNNR", "LIFNR", "KOKRS", "RCNTR", "PRCTR"], "T001": ["KTOPL", "WAERS"],
+    "ACDOCA": ["RACCT", "BUDAT", "KUNNR", "LIFNR", "KOKRS", "RCNTR", "PRCTR"], "T001": ["KTOPL", "WAERS", "ADRNR"], "KNB1": ["AKONT", "ZTERM"], "ADRC": ["DATE_TO", "NAME1", "CITY1", "COUNTRY"],
     "BUT000": ["PARTNER_GUID", "TYPE", "BU_GROUP"], "BUT100": ["VALID_FROM"], "BUT020": ["ADDRESS_GUID"],
     "BUT050": ["RELTYP", "DATE_FROM"], "CVI_CUST_LINK": ["CUSTOMER"], "CVI_VEND_LINK": ["VENDOR"],
     "KONV": ["KAPPL", "KSCHL", "KBETR", "KINAK", "KSTAT"], "PRCD_ELEMENTS": ["KAPPL", "KSCHL", "KBETR", "KINAK", "KSTAT"],

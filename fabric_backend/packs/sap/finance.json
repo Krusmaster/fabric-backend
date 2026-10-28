@@ -83,7 +83,8 @@
     {"name": "CEPC", "level": "master", "en": "Profit center master", "de": "Profitcenterstamm",
      "key": ["MANDT", "PRCTR", "DATBI", "KOKRS"], "number_columns": ["PRCTR"], "delta": ["ERSDA"],
      "note": "Time-dependent like CSKS; the controlling area is the last key column.",
-     "sources": ["sap_help_co"]}
+     "sources": ["sap_help_co"]},
+    {"name": "KNB1", "level": "master", "en": "Customer master, company code data", "de": "Kundenstamm, Buchungskreisdaten", "key": ["MANDT", "KUNNR", "BUKRS"], "number_columns": ["KUNNR", "AKONT"], "delta": ["ERDAT"], "note": "One row per customer and company code: the reconciliation account (AKONT) and payment terms the receivables of that company use.", "sources": ["sap_help_fi_gl"]}
   ],
   "relationships": [
     {"source": "T001", "source_cols": ["MANDT", "KTOPL"], "target": "T004", "target_cols": ["MANDT", "KTOPL"], "cardinality": "many-to-one", "sources": ["sap_help_fi_gl"]},
@@ -116,7 +117,15 @@
     {"source": "BSID", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
     {"source": "BSAD", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
     {"source": "BSIK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
-    {"source": "BSAK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]}
+    {"source": "BSAK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "target": "BSEG", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "cardinality": "one-to-one", "variants": ["ecc"], "role": "journal_line", "sources": ["sap_help_fi_gl"]},
+    {"source": "KNB1", "source_cols": ["MANDT", "KUNNR"], "target": "KNA1", "target_cols": ["MANDT", "KUNNR"], "cardinality": "many-to-one", "sources": ["sap_help_fi_gl"]},
+    {"source": "KNB1", "source_cols": ["MANDT", "BUKRS"], "target": "T001", "target_cols": ["MANDT", "BUKRS"], "cardinality": "many-to-one", "sources": ["sap_help_fi_gl"]},
+    {"source": "KNB1", "source_cols": ["MANDT", "BUKRS", "AKONT"], "target": "SKB1", "target_cols": ["MANDT", "BUKRS", "SAKNR"], "cardinality": "many-to-one", "role": "reconciliation_account", "sources": ["sap_help_fi_gl"]},
+    {"source": "BSEG", "source_cols": ["MANDT", "KUNNR", "BUKRS"], "target": "KNB1", "target_cols": ["MANDT", "KUNNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "role": "customer_company_code", "condition": "Customer lines only; other lines leave KUNNR empty.", "sources": ["sap_help_fi_gl"]},
+    {"source": "ACDOCA", "source_cols": ["RCLNT", "KUNNR", "RBUKRS"], "target": "KNB1", "target_cols": ["MANDT", "KUNNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["s4hana"], "role": "customer_company_code", "condition": "Customer lines only; other lines leave KUNNR empty.", "sources": ["sap_help_s4_finance"]},
+    {"source": "BSID", "source_cols": ["MANDT", "KUNNR", "BUKRS"], "target": "KNB1", "target_cols": ["MANDT", "KUNNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi_gl"]},
+    {"source": "BSAD", "source_cols": ["MANDT", "KUNNR", "BUKRS"], "target": "KNB1", "target_cols": ["MANDT", "KUNNR", "BUKRS"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi_gl"]},
+    {"source": "VBRK", "source_cols": ["MANDT", "KUNRG", "BUKRS"], "target": "KNB1", "target_cols": ["MANDT", "KUNNR", "BUKRS"], "cardinality": "many-to-one", "role": "payer_company_code", "condition": "The receivable of a billing document is posted to the payer in the billing document's company code.", "sources": ["sap_help_fi_gl"]}
   ],
   "traps": [
     {"id": "open_items_twice", "title": "Open items are copies of journal lines",
@@ -133,6 +142,7 @@
      "sources": ["sap_help_fi_gl", "sap_help_s4_finance"]},
     {"id": "special_gl", "title": "Special G/L transactions in the open items",
      "text": "UMSKZ marks down payments, guarantees and other special G/L transactions in the open-item tables. A receivables total usually leaves them out or shows them apart.",
-     "sources": ["sap_help_fi_gl"]}
+     "sources": ["sap_help_fi_gl"]},
+    {"id": "company_code_master", "title": "Customer and supplier data per company code", "text": "KNB1 (customers) and LFB1 (suppliers) hold one row per company code: the reconciliation account, payment terms and dunning data differ by company. Join open items and journal lines to them on the customer or supplier and the company code together.", "sources": ["sap_help_fi_gl"]}
   ]
 }
