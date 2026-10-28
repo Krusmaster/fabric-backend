@@ -1,5 +1,6 @@
 """The public site: every page, the static files, the demo plan and the honesty rules the pages must keep."""
 import json
+from pathlib import Path
 import re
 
 import pytest
@@ -63,7 +64,10 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     h1 = re.search(r"<h1>(.*?)</h1>", html).group(1)
     assert "Fabric tables" in h1 and "MCP" not in h1 and "GraphQL" not in h1
     first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
-    assert "relationships" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
+    assert first.startswith("See how your business tables really connect – with the proof behind every link")      # n39: the USP
+    usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
+    assert usp == ["The proof.", "The errors before anyone sees them.", "SAP knowledge from public sources.", "One plan for what you build."]
+    assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
     assert 'href="/demo">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
     assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
@@ -1140,3 +1144,21 @@ def test_the_demo_ends_with_own_data_and_help(client):
     text = client.get("/demo").text
     end = text[text.index('class="wrap demo-next"'):]
     assert 'href="/local#the-20-minute-demo">Try with your own data' in end and 'href="/support">Get help with a question' in end
+
+
+def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
+    """n39: one promise for people and agents, each point backed by a tool in tool_status."""
+    from fabric_backend import tool_status as ts
+    from fabric_backend.discovery import DESCRIPTION, USP, USP_POINTS
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    import html as _html
+    home = _html.unescape(client.get("/").text)
+    for text in (home, client.get("/docs.md").text, client.get("/llms.txt").text, readme):
+        assert USP in text
+    for text in (client.get("/docs.md").text, client.get("/llms.txt").text, readme):
+        assert all(p in text for p in USP_POINTS)
+    assert client.get("/mcp/server-card").json()["description"] == DESCRIPTION and USP.startswith(DESCRIPTION.split(",")[0])
+    for tool in ("validate_plan", "sap_pack_draft", "create_backend", "semantic_model_draft", "ontology_draft", "create_data_agent"):
+        assert tool in ts.STATUS, tool
+    first = home.index(USP)
+    assert home.find("MCP", first) > home.index('<ul class="usp">') and home.find("open source", 0, first) == -1

@@ -1,5 +1,12 @@
 # {{PRODUCT}} docs
 
+See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
+
+- The proof: every key and link comes with the rule or source behind it, and is checked against your data.
+- The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
+- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
+- One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
+
 Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
 data and build from the plan. Start with the connection guide, or try the [guided demo](/demo) and the
 [demo graph](/explore) without an account. The tool reference explains what each tool reads, returns or changes, and

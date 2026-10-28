@@ -143,6 +143,9 @@ section{padding-top:40px;padding-bottom:40px}
 @media (max-width:899px){.hero-figure{min-height:0;justify-content:flex-start}.hero-figure .mascot{width:96px;height:96px}}
 .hero-copy{text-align:center;display:flex;flex-direction:column;align-items:center}
 .hero-copy h1{max-width:20ch;margin-left:auto;margin-right:auto}
+.usp{list-style:none;margin:0 auto 20px;padding:0;max-width:60ch;display:grid;gap:8px;text-align:left}
+.usp li{padding-left:22px;position:relative;line-height:1.45}
+.usp li::before{content:"";position:absolute;left:4px;top:.6em;width:8px;height:8px;border-radius:50%;background:var(--coral,#e8735a)}
 .hero-copy .lede{margin-left:auto;margin-right:auto;margin-bottom:12px}
 .hero-copy .intro{margin-left:auto;margin-right:auto;max-width:58ch}
 .hero-copy .ctas{justify-content:center}

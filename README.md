@@ -1,7 +1,11 @@
 # fabric-backend — the engine behind Krusgraph
 
-**Tables in Microsoft Fabric → an explainable graph and a GraphQL API for apps and agents — and the Rayfin
-connector for Fabric Apps. One plan, both outputs, one call.**
+**See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.**
+
+- The proof: every key and link comes with the rule or source behind it, and is checked against your data.
+- The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
+- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
+- One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
 Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
 `https://krusgraph.com/mcp/connect` for VS Code, Cursor and other MCP clients that register themselves (signed in and
