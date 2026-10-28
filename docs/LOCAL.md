@@ -5,11 +5,16 @@ on-prem SQL Server reached with Windows sign-in, an Azure SQL database, or a Fab
 leaves the machine except the queries to that database; there is no account with us and no Microsoft sign-in to
 krusgraph.com. The web page version of this guide is https://krusgraph.com/local.
 
-Status (26 October 2026): unit-tested against recorded SQL Server metadata (`tests/test_sqlserver.py`: declared
-primary and foreign keys in two schemas with shared constraint names, a table with a space in its name and a composite
-key, `nvarchar(max)`, `datetimeoffset`, `uniqueidentifier`, `decimal`, a computed column, a view) and against the shop
-schema in SQLite; not yet run against a live SQL Server by us. The first user who does is asked to report what
-differed.
+Status (28 October 2026): run against SQL Server 2022 in a container (`mcr.microsoft.com/mssql/server:2022-latest`, on
+Linux) with Microsoft ODBC Driver 18 and a SQL login that has `db_datareader` only, on the synthetic shop data
+(`fabric_backend.seed`) plus the two tables of the amount example (`seed.AMOUNT_DEMO`, schema `demo`): the Python API
+below (plan, validate, data dictionary, dbt schema, the check for the total that doubles), the local server's
+`plan_backend`, `validate_plan`, `data_dictionary`, `dbt_schema` and `answer_query_draft` (its SQL run on the server gave
+1 000, not 2 000), and `fabric-backend demo` with `--odbc` (all four steps and every export). The login was refused a
+`CREATE TABLE`, as it should be. Not yet run: a SQL Server on Windows with Windows sign-in (`Trusted_Connection=yes`),
+`dbt test` itself on the generated `schema.yml` (the file is generated, dbt was not run), and Claude Desktop starting
+the local server. Unit-tested as before against recorded SQL Server metadata (`tests/test_sqlserver.py`). The first
+user on a real server is asked to report what differed.
 
 ## 1. What you need
 
@@ -94,6 +99,43 @@ connector only.
 files, or no flag to choose on the page) opens one local page on 127.0.0.1 with the map, the health check with Accept
 and Skip, five questions run on the data and the exports. The script for running it with a customer is
 [DEMO-20-MIN.md](DEMO-20-MIN.md).
+
+## 5b. From your own Python
+
+The same engine without Claude and without the demo page, for a team that writes Python:
+
+```python
+from fabric_backend import plan_sql_server
+
+dsn = ("Driver={ODBC Driver 18 for SQL Server};Server=sql01;Database=shopdb;"
+       "Trusted_Connection=yes;TrustServerCertificate=yes")
+
+with plan_sql_server(dsn, schema="shop") as local:          # reads INFORMATION_SCHEMA; declared keys are K0/R0
+    print(local.plan.summary())
+    for r in local.plan.relationships:
+        print(f"{r.source}.{'+'.join(r.source_cols)} -> {r.target} ({r.rule})")
+    checks = local.validate()                               # counting queries only: keys, orphans, amount_levels
+    print(checks["summary"])
+    for f in checks["amount_levels"]["findings"]:           # the total that doubles
+        print(f["explanation"])
+    open("dictionary.md", "w", encoding="utf-8").write(local.data_dictionary(checks))
+    open("schema.yml", "w", encoding="utf-8").write(local.dbt_schema())   # dbt sources with unique/not_null/relationships
+```
+
+`keys={"order_items": ["order_id", "line_no"]}` and `confirmed=[{"source": ..., "source_cols": [...], "target": ...,
+"target_cols": [...]}]` work as in the tools. `local.amount_levels()` runs only the amount check. `local.execute(sql)`
+runs your own read-only query over the same connection. Nothing is written and nothing leaves the machine but the
+queries to the database.
+
+To try it without a server of your own, a SQL Server in Docker with the synthetic data is what we ran:
+
+```powershell
+docker run -d --name mssql -e ACCEPT_EULA=Y -e MSSQL_SA_PASSWORD=<a strong password> -p 1433:1433 mcr.microsoft.com/mssql/server:2022-latest
+```
+
+then create a database, load `fabric_backend.seed.rows()` into a schema `shop` and `seed.AMOUNT_DEMO` into a schema
+`demo`, and give a login `db_datareader`. `KRUSGRAPH_SQLSERVER_DSN=<its connection string> pytest
+tests/test_sqlserver_api.py` then runs the live test as well.
 
 ## 6. The CSV path: no connection at all
 

@@ -191,7 +191,10 @@ def run_question(q: dict, execute) -> dict:
 
 def _amount(v) -> str:
     """1000.0 as 1 000: the way the example is told."""
-    return f"{float(v):,.0f}".replace(",", " ") if isinstance(v, (int, float)) else _cell(v)
+    try:
+        return f"{float(v):,.0f}".replace(",", " ")
+    except (TypeError, ValueError):
+        return _cell(v)
 
 
 def _cell(v) -> str:
@@ -411,8 +414,8 @@ class Session:
             before, after = ba or {}, amounts.before_after_sql(schema, f, col)
             out.append({"id": f"amt:{f['line']}>{f['header']}.{col}", "kind": "amount_level", "severity": "warning", "table": f["header"],
                         "title": f"{f['header']}.{col} would be summed once per {f['line']} row",
-                        "saw": (f"Summed over the joined {f['line']} rows: {_cell(before.get('summed_over_lines'))}; summed once per {f['header']} row: "
-                                f"{_cell(before.get('summed_per_header'))}. " if ba else "") + f["explanation"].split(" (rule")[0] + ".",
+                        "saw": (f"Summed over the joined {f['line']} rows: {_amount(before.get('summed_over_lines'))}; summed once per {f['header']} row: "
+                                f"{_amount(before.get('summed_per_header'))}. " if ba else "") + f["explanation"].split(" (rule")[0] + ".",
                         "means": f["explanation"], "next": {"sql": after[1]},
                         "next_text": f["do_instead"], "evidence": after[0]})
         if self.source.kind == "sample":
