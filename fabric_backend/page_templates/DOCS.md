@@ -5,6 +5,44 @@ data and build from the plan. Start with the connection guide, or try the [guide
 [demo graph](/explore) without an account. The tool reference explains what each tool reads, returns or changes, and
 how far it has been tested.
 
+## Why {{PRODUCT}}
+
+**Your data stays in Fabric.** {{PRODUCT}} reads your lakehouse, warehouse or SQL database where it is (lakehouses are
+tested end to end; the other sources are Experimental until a live run). It has no database of its own: plans come
+from table and column metadata, checks run as counting queries in Fabric, and the samples and query results you ask for
+pass through to your MCP client without being kept. What it creates is created in Fabric.
+
+**Rules you can check, not guesses.** Keys and relationships come from documented rules ([K0–K5, R0–R4](#how-relationships-are-inferred))
+and, for SAP tables, a pack built from public SAP documentation (`sap_pack_draft`: Draft only, tested on a synthetic
+SAP schema, not on an SAP system). Every key and relationship shows the rule or source behind it. Columns that could
+mean more than one thing are reported, not guessed.
+
+**Checked against the data.** `validate_plan` counts, per key, the rows, the empty key values and the distinct values,
+and, per relationship, the references with no matching row. It is a separate step: run it before you create anything,
+because `create_backend` does not run it for you.
+
+**One reviewed plan, several Fabric items.** The same plan drafts the API for GraphQL, a Power BI semantic model, a
+Fabric IQ ontology, views, a data agent and silver notebooks, so they agree on how the tables relate. How far creating
+each one is tested differs: `create_backend` has been run live as an update of an existing API, `create_views` as a dry
+run, the semantic model and data agent as dry runs and only once the operator has enabled the permission, and the
+ontology and silver notebooks by unit tests only. Each tool's status is in the [tool reference](#test-status).
+
+**Your Microsoft account and permissions.** On the hosted service you sign in with your work account, and {{PRODUCT}}
+acts with delegated permissions as you, so it sees only what your Fabric permissions allow. An app built on the API
+has its own identity and access settings; see [App access](#app-access) before you publish one.
+
+**Drafts first.** Every creating tool except `create_backend` answers with what it would create until you pass
+`dry_run=false`. `create_backend` creates or updates directly and has no dry run; use `plan_backend`, `validate_plan`
+and, for an existing API, `plan_drift` first.
+
+**Open source.** MIT-licensed. Use the hosted service or run it yourself ([locally](/local), or in your own Azure
+subscription with `deploy/krusgraph.sh`).
+
+**When {{PRODUCT}} is not the right tool:** if your data isn't in Fabric yet, if you're building a transactional app
+that needs its own database, or if you need row-level security defined in the API itself. Fabric's API for GraphQL has
+no row-level security of its own; it applies what the source enforces for the identity that queries it (see
+[App access](#app-access)), and {{PRODUCT}} does not create security policies.
+
 ## Get started
 
 New to a Fabric lakehouse? Start by understanding how its tables fit together: connect the hosted server to Claude, then ask a first question. The [guided demo](/demo) follows one order to its delivery address in four steps, and the [demo graph](/explore) shows every table and relationship of the same sample; neither needs an account.
@@ -289,6 +327,24 @@ Fabric has no API for these yet, and the connector tells you when they are neede
 
 1. **Introspection** on the GraphQL item (item → Settings → Introspection) — needed by tools such as Lovable that read the schema.
 2. **Permissions** on the item for other apps or service principals that should query it.
+
+### App access
+
+An app built on the API for GraphQL does not use your {{PRODUCT}} sign-in. It calls the API with its own identity,
+usually a Microsoft Entra service principal (the route `app_starter` drafts), and what it can read depends on two
+settings in Fabric:
+
+- **Who may call the API.** The app's identity needs *Run Queries and Mutations* on the item (the second manual step
+  above), and for a service principal the tenant setting that lets service principals use Fabric APIs.
+- **Which identity reads the data.** The API connects to its source either with **single sign-on**, where each caller's
+  own identity reads the source and that caller's permissions (row-level security defined on the source included)
+  apply, or with **saved credentials**, where one stored identity reads the source for every caller. With saved
+  credentials a caller needs only access to the API, so **the app's users can see data they have no permission to read
+  themselves.** {{PRODUCT}} does not set this; check it in the item's settings in the Fabric portal before you publish an app.
+
+The API for GraphQL has no row-level security of its own. Restrict rows at the source and use single sign-on, or
+expose only views that hold the rows the app may show. `app_readiness` lists what it can read about an API and marks the
+permissions as "unknown" with the portal path, because the Fabric API does not return them.
 
 ### Use with Lovable
 

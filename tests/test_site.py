@@ -693,7 +693,8 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     page, /start, the README and other sites) must keep landing on the same section."""
     docs = client.get("/docs").text
     groups = re.findall(r'<h2 id="([^"]+)">', docs)
-    assert groups == ["get-started", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]
+    assert groups[0].startswith("why-")                    # n23: "Why <product>" ahead of the five parts
+    assert groups[1:] == ["get-started", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]
     for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
                    "how-relationships-are-inferred", "cold-start-and-min-replicas-if-you-run-it-yourself", "one-plan-five-fabric-pieces",
                    "with-microsoft-s-fabric-mcp-servers", "fabric-iq-the-same-graph-as-an-ontology", "sources",
@@ -1027,3 +1028,19 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
     home = client.get("/").text
     assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home
+
+
+def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):
+    """'Why Krusgraph' comes from DOCS.md alone, so the three pages cannot say different things (n23)."""
+    import re
+    from fabric_backend.pages import docs_md
+    md = docs_md()
+    why = md[md.index("## Why "):md.index("## Get started")]
+    assert "When " in why and "row-level security" in why and "(#app-access)" in why
+    for word in ("zero-ETL", "AI-driven", "gold standard", "saves costs"):
+        assert word.lower() not in why.lower(), word
+    assert client.get("/docs.md").text.count(why) == 1
+    assert why.strip() in client.get("/llms-full.txt").text
+    html = client.get("/docs").text
+    assert re.search(r'<h2 id="why-[^"]+">Why ', html) and '<h3 id="app-access">App access</h3>' in html
+    assert "can see data they have no permission to read" in md
