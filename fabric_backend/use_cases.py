@@ -645,7 +645,7 @@ def tasks_html() -> str:
 
 
 def page_vars() -> dict[str, str]:
-    return {"UC_TASKS": tasks_html(), "UC_INDEX": index_html(), "UC_LEGEND": legend_html(), "UC_OUTPUTS": outputs_html(),
+    return {"UC_PROBLEMS": problems_html(), "UC_TASKS": tasks_html(), "UC_INDEX": index_html(), "UC_LEGEND": legend_html(), "UC_OUTPUTS": outputs_html(),
             "UC_SECTIONS": "\n".join(_section(n, i) for n, i in enumerate(INDUSTRIES, 1)),
             "UC_FOOTNOTE": html.escape(FOOTNOTE), "UC_COUNT": NUMBER_WORDS[len(INDUSTRIES)], "UC_CONSULTANCY": html.escape(CONSULTANCY_TEXT.format(product="{{PRODUCT}}")),
             "UC_INTRO": html.escape(INTRO.format(product="{{PRODUCT}}"))}
@@ -659,6 +659,12 @@ def markdown(product: str, origin: str, contact: str) -> str:
            f"*{FOOTNOTE}*\n",
            "## Start from your task\n"]
     out += [f"- **“{t['quote']}”** {t['shows']} Tools: {_tools(t)}. Status: {task_status(t['tools'])}." for t in TASKS]
+    out.append("\n## Problems we see in first reports\n")
+    for p in PROBLEMS:
+        out += [f"### {p['title']}\n", f"**“{p['question']}”**\n", f"- **Why it matters.** {p['why']}",
+                f"- **How {product} shows it.** {p['how']}", f"- **What we do not know.** {p['unknown']}",
+                f"- **See it.** {p['demo']} Run it on your laptop: [{origin}/local]({origin}/local).",
+                f"- Tools: {_tools(p)}. Status: {task_status(p['tools'])}.\n"]
     out += ["",
            "Plan from names (`plan_backend`, nothing is deployed), check against the rows (`validate_plan`, a step you "
            "ask for), then create (`create_backend`). Ambiguous columns are reported, never guessed.\n",
@@ -695,6 +701,40 @@ def markdown(product: str, origin: str, contact: str) -> str:
                f"Start at [{origin}/start]({origin}/start), read [{origin}/docs]({origin}/docs), and email "
                f"Gustav at {contact} to discuss a pilot.\n")
     return "\n".join(out).replace("\n\n\n", "\n\n").replace("{{PRODUCT}}", product)
+
+
+# Problem cards: one report error each, told the way a customer asks about it (Gustav's brief of 28 October 2026).
+PROBLEMS = [
+    {"slug": "total-doubles", "title": "The total that doubles",
+     "question": "Why is our order total twice what finance says?",
+     "why": "An amount on the order (the header) is joined to the order lines and then summed. Every order's amount is "
+            "repeated once per line, so an order of 1 000 with two lines adds up to 2 000. It is the most common error "
+            "in a first report, and it looks plausible.",
+     "how": "For every relationship from a line table to its header, the plan points out the header's columns that look "
+            "like amounts. `validate_plan` adds a section, `amount_levels`, with the rule and the number of lines per "
+            "header counted in the data (\"unknown\" until it is counted). The semantic model draft leaves such a column "
+            "unsummed and puts a measure on the header; `answer_query_draft` sums it once per order; a gold view at line "
+            "level leaves it out. Order amount and line amount are different levels.",
+     "unknown": "Which columns are amounts is read from names and types. Whether a report really sums one over the lines, "
+                "and which amount finance counts, is not in the data: someone who knows the figures confirms it.",
+     "demo": "In `fabric-backend demo`, *Try without your own data* shows a synthetic order of 1 000 with two lines as a "
+             "finding of its own in the health check: 2 000 summed over the lines (before), 1 000 per order (after).",
+     "tools": ["validate_plan", "semantic_model_draft", "answer_query_draft", "gold_views_draft"]},
+]
+
+
+def problems_html() -> str:
+    e = html.escape
+    out = []
+    for p in PROBLEMS:
+        out.append(f'<article class="uc-problem" id="problem-{e(p["slug"])}"><h3>{e(p["title"])}</h3>'
+                   f'<p class="uc-task-q">“{e(p["question"])}”</p>'
+                   f'<p><strong>Why it matters.</strong> {_inline(p["why"])}</p>'
+                   f'<p><strong>How {{{{PRODUCT}}}} shows it.</strong> {_inline(p["how"])}</p>'
+                   f'<p><strong>What we do not know.</strong> {_inline(p["unknown"])}</p>'
+                   f'<p><strong>See it.</strong> {_inline(p["demo"])} <a href="/local#5-the-20-minute-demo">Run the demo on your laptop</a>.</p>'
+                   f'<p class="muted tiny">Tools: {_inline(_tools(p))}. Status: {_inline(task_status(p["tools"]))}.</p></article>')
+    return "".join(out)
 
 
 CONSULTANCY_TEXT = ("Start a client conversation from their own schema instead of a slide. The plan lists every key and "

@@ -123,3 +123,19 @@ def test_the_demo_health_check_shows_the_example_as_a_finding_of_its_own():
     assert "1 000" in f["saw"] and "2 000" in f["saw"] and "order amount and line amount are different levels" in f["title"].lower()
     assert f["kind"] == "amount_level" and not f["can_accept"]
     assert st["plan"]["summary"].startswith("7 tables")                # the example is not part of the shop's map
+
+
+
+def test_the_problem_card_on_use_cases(monkeypatch):
+    from starlette.testclient import TestClient
+
+    from fabric_backend import server
+    monkeypatch.setenv("PRODUCT_NAME", "Krusgraph")
+    monkeypatch.setenv("MCP_PUBLIC_URL", "https://krusgraph.test/mcp")
+    with TestClient(server.build_app()) as c:
+        page, md = c.get("/use-cases").text, c.get("/use-cases.md").text
+    for text in (page, md):
+        for part in ("The total that doubles", "Why is our order total twice what finance says?", "Why it matters.",
+                     "shows it.", "What we do not know.", "different levels", "1 000 with two lines"):
+            assert part in text, part
+    assert 'href="/local#5-the-20-minute-demo"' in page and "/local" in md
