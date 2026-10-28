@@ -180,3 +180,26 @@ PYTHONPATH=. python tests/test_inference_quality.py       # the table above, plu
 ```
 
 These numbers are for the repository and this page only; the website does not quote them.
+
+## How the tools describe themselves (round n18, 28 October 2026)
+
+Every parameter of the 35 hosted tools has a description in tools/list (`inputSchema.properties.*.description`),
+defined once per shared parameter in `fabric_backend/tool_params.py`; `tests/test_tool_descriptions.py` fails on a
+parameter without one and on an instructing phrase in a description. Size of the hosted tools/list (the tools array as
+compact JSON, measured with `server.mcp.list_tools()`; tokens estimated as characters / 4, not counted by a tokenizer):
+
+| | characters | ≈ tokens | of which tool descriptions | of which parameter schemas |
+| --- | ---: | ---: | ---: | ---: |
+| before (1c0cf0f) | 57 104 | ≈ 14 300 | 18 594 | ≈ 15 000 |
+| after | 90 535 | ≈ 22 600 | 14 649 | 57 104 |
+
+The tool descriptions are shorter than before (−21 %), but the parameter descriptions (meaning, format, default and an
+example for 248 parameters) add more than that saves, so the whole listing grew by 59 %. Most of the growth is the
+shared parameters repeated in each tool: `confirmed` (24 tools) and `keys` (24) with their examples.
+
+### Structured output, a possible change after the listing
+
+Each tool's outputSchema is `{result: string}` with JSON text inside; the descriptions name the fields of that JSON
+and the error shape `{error, kind, hint}`. Once the connector is listed, the tools could return structured content
+with a real outputSchema per tool (and the error as its own shape), so a client can read fields without parsing text.
+Not now: the catalog reviews the current format.
