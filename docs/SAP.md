@@ -17,6 +17,7 @@ SAP table and column names survive, with or without a prefix.
 | --- | --- | --- |
 | `order_to_cash` | customers `KNA1`, `KNVV`; materials `MARA`, `MAKT`; organisation `TVKO`, `TVTW`, `TSPA`, `T001`; orders `VBAK`, `VBAP`, `VBEP`; status `VBUK`, `VBUP` (ECC only); partners `VBPA`; deliveries `LIKP`, `LIPS`; billing `VBRK`, `VBRP`; document flow `VBFA` | 31, of which 25 are applied and 6 listed but not applied (conditional, or many-to-many through `VBFA`) |
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 22, of which 21 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
+| `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 23, of which 21 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 3: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -56,6 +57,13 @@ compatibility view in a given S/4HANA release (not asserted).
   different number ranges. `RBKP` also has `BUKRS` and `GJAHR`, so the name rules (R3, with keys given) link it to
   `BKPF`; the pack does not, and names the real link (`BKPF.AWKEY`) in its traps. Invoice numbers are unique only
   within `GJAHR`.
+- **Open items are copies.** `BSID`/`BSAD`/`BSIK`/`BSAK` copy customer and supplier lines of `BSEG`; adding them to
+  `BSEG` or `ACDOCA` counts a posting twice, and an item moves from the open to the cleared table when it is cleared.
+- **Time-dependent masters.** `CSKS` and `CEPC` have `DATBI` in the key; a journal line joined on the cost center
+  number alone is repeated once per validity period. The pack lists these links and does not apply them.
+- **An account needs its chart of accounts.** `SKB1` and journal lines carry no `KTOPL`; it comes from
+  `T001.KTOPL`, so `SKA1` is reached through `T001`.
+- **Debit and credit.** ECC lines are unsigned with `SHKZG`; `ACDOCA` is signed.
 - **Sold-to, ship-to and payer.** `VBAK.KUNNR`, `LIKP.KUNNR`, `VBRK.KUNRG` and the partner functions in `VBPA` can be
   three different customers.
 
@@ -98,7 +106,8 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | SAP Help Portal, S/4HANA business partner | `LFA1` behind the business partner in S/4HANA | no, as above |
 | SAP Help Portal, ABAP keyword documentation, client handling | `MANDT` as first key field | no, as above |
 | SAP Learning, *Identifying data model simplifications in SAP S/4HANA* (Sales) | `VBUK`/`VBUP` folded into the document tables; `VBFA` simplified | found in a web search on 28 October 2026; the page could not be fetched |
-| SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA` | no, as above |
+| SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA`, and the ECC index tables it replaces | no, as above |
+| SAP Help Portal, Financial Accounting (G/L accounts, open items) and Controlling (cost and profit centers) | finance | no, as above |
 | Microsoft Fabric docs, *Mirroring SAP* (fabric-docs `docs/mirroring/sap.md`) | which SAP systems the mirroring supports (S/4HANA, ECC, BW/4HANA, BW, Datasphere) | yes, 28 October 2026; it names no tables |
 | Krusmaster/sap-ontology README | the header/item pairs `VBAK` → `VBAP` → `VBEP` and their join keys | yes; used only where it agrees with SAP's documentation |
 
@@ -121,8 +130,9 @@ Not built yet, in this order:
 1. ~~Procure to pay~~: built in round n21 (above). Left for later: contracts and scheduling agreements as their own
    relationships (`EKAB`), account assignment `EKKN`, and the goods-receipt documents (`MKPF`/`MSEG`, `MATDOC` in
    S/4HANA), which belong to inventory.
-2. **Finance**: `SKA1`/`SKB1` (G/L accounts), `BSID`/`BSAD`/`BSIK`/`BSAK` in ECC and their S/4HANA replacement by
-   `ACDOCA` plus compatibility views, `CSKS`, `CEPC`, `T001` currencies.
+2. ~~Finance~~: built in round n22 (above). Left for later: the G/L open-item tables `BSIS`/`BSAS`, ledgers and
+   currency types in S/4HANA, fixed assets (`ANLA`, `ANLC`), and a time-dependent join (a date between `DATAB` and
+   `DATBI`) as a relationship kind of its own, so cost and profit centers can be applied instead of only listed.
 3. **Pricing**: `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA) — a clear variant case.
 4. **Business partner** in S/4HANA: `BUT000`, `BUT100`, `CVI_CUST_LINK` between partner and customer.
 

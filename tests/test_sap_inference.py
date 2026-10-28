@@ -58,15 +58,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 33, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
-    'ecc/prefix/names+keys': {'coverage': 0.88, 'key_hits': 33, 'keys': 33, 'precision': 0.45, 'rel_hits': 42, 'rel_wrong': 51, 'relationships': 48, 'tables': 33},
-    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 33, 'keys': 33, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
-    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 33, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
-    'ecc/upper/names+keys': {'coverage': 0.88, 'key_hits': 33, 'keys': 33, 'precision': 0.45, 'rel_hits': 42, 'rel_wrong': 51, 'relationships': 48, 'tables': 33},
-    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 33, 'keys': 33, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 33},
-    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 31, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 48, 'tables': 31},
-    's4hana/lower/names+keys': {'coverage': 0.85, 'key_hits': 31, 'keys': 31, 'precision': 0.53, 'rel_hits': 41, 'rel_wrong': 36, 'relationships': 48, 'tables': 31},
-    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 31, 'keys': 31, 'precision': 1.0, 'rel_hits': 48, 'rel_wrong': 0, 'relationships': 48, 'tables': 31}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 43, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
+    'ecc/prefix/names+keys': {'coverage': 0.89, 'key_hits': 43, 'keys': 43, 'precision': 0.45, 'rel_hits': 58, 'rel_wrong': 70, 'relationships': 65, 'tables': 43},
+    'ecc/prefix/pack': {'coverage': 1.0, 'key_hits': 43, 'keys': 43, 'precision': 1.0, 'rel_hits': 65, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
+    'ecc/upper/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 43, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
+    'ecc/upper/names+keys': {'coverage': 0.89, 'key_hits': 43, 'keys': 43, 'precision': 0.45, 'rel_hits': 58, 'rel_wrong': 70, 'relationships': 65, 'tables': 43},
+    'ecc/upper/pack': {'coverage': 1.0, 'key_hits': 43, 'keys': 43, 'precision': 1.0, 'rel_hits': 65, 'rel_wrong': 0, 'relationships': 65, 'tables': 43},
+    's4hana/lower/names': {'coverage': 0.0, 'key_hits': 0, 'keys': 37, 'precision': None, 'rel_hits': 0, 'rel_wrong': 0, 'relationships': 58, 'tables': 37},
+    's4hana/lower/names+keys': {'coverage': 0.81, 'key_hits': 37, 'keys': 37, 'precision': 0.57, 'rel_hits': 47, 'rel_wrong': 36, 'relationships': 58, 'tables': 37},
+    's4hana/lower/pack': {'coverage': 1.0, 'key_hits': 37, 'keys': 37, 'precision': 1.0, 'rel_hits': 58, 'rel_wrong': 0, 'relationships': 58, 'tables': 37}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -155,3 +155,20 @@ def test_procure_to_pay_amounts_and_the_two_belnr():
     assert any((n["source"], n["target"]) == ("EKBE", "RBKP") for n in p.pack["not_applied"])
     names = plan(sap_support.schema(["RBKP", "BKPF"]), keys={"RBKP": ["MANDT", "BELNR", "GJAHR"], "BKPF": ["MANDT", "BUKRS", "BELNR", "GJAHR"]}, packs=False)
     assert any((r.source, r.target, r.rule) == ("RBKP", "BKPF", "R3") for r in names.relationships)   # what the name rules alone do
+
+
+def test_finance_time_dependent_masters_and_the_chart_of_accounts():
+    p = plan(sap_support.schema(["ACDOCA", "BKPF", "SKA1", "SKB1", "T001", "T004", "CSKS", "CEPC", "TKA01"], variant="s4hana"))
+    rels = {(r.source, r.target) for r in p.relationships}
+    assert ("ACDOCA", "SKB1") in rels and ("T001", "T004") in rels and ("SKA1", "T004") in rels
+    assert ("ACDOCA", "CSKS") not in rels and ("ACDOCA", "CEPC") not in rels       # time-dependent: listed, not applied
+    assert {(n["source"], n["target"]) for n in p.pack["not_applied"]} >= {("ACDOCA", "CSKS"), ("ACDOCA", "CEPC")}
+    assert ("SKB1", "SKA1") not in rels                                            # no KTOPL in SKB1: through T001 only
+    assert p.keys["CSKS"] == (["MANDT", "KOKRS", "KOSTL", "DATBI"], "SAP pack")
+
+
+def test_open_items_point_at_their_accounting_document():
+    p = plan(sap_support.schema(["BKPF", "BSEG", "BSID", "BSAK", "KNA1", "LFA1"], variant="ecc"))
+    rels = {(r.source, r.target, tuple(r.source_cols)) for r in p.relationships}
+    assert ("BSID", "BKPF", ("MANDT", "BUKRS", "BELNR", "GJAHR")) in rels and ("BSAK", "LFA1", ("MANDT", "LIFNR")) in rels
+    assert not [r for r in p.relationships if {r.source, r.target} == {"BSID", "BSEG"}]

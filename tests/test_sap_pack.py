@@ -16,7 +16,7 @@ FILES = sorted((sap_pack.PACKS).glob("*/*.json"))
 
 
 def test_there_are_pack_files():
-    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document", "procure_to_pay"}
+    assert {f.stem for f in FILES} >= {"order_to_cash", "accounting_document", "procure_to_pay", "finance"}
 
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)

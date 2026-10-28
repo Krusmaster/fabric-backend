@@ -17,7 +17,10 @@ EXTRA = {
     "T001W": ["NAME1"], "EBAN": ["MATNR", "WERKS", "BSART"], "EKKO": ["BSTYP", "BSART", "LIFNR", "BUKRS", "EKORG", "BEDAT"],
     "EKPO": ["MATNR", "WERKS", "LOEKZ"], "EKET": ["EINDT"], "EKBE": ["SHKZG", "BUDAT"],
     "RBKP": ["LIFNR", "BUKRS", "BLDAT"], "RSEG": ["EBELN", "EBELP", "MATNR"],
-    "BKPF": ["BLART", "BUDAT"], "BSEG": ["SHKZG", "HKONT"], "ACDOCA": ["RACCT", "BUDAT"],
+    "BKPF": ["BLART", "BUDAT"], "BSEG": ["SHKZG", "HKONT", "KUNNR", "LIFNR"],
+    "ACDOCA": ["RACCT", "BUDAT", "KUNNR", "LIFNR", "KOKRS", "RCNTR", "PRCTR"], "T001": ["KTOPL", "WAERS"],
+    "SKA1": ["KTOKS"], "SKB1": ["WAERS"], "BSID": ["SHKZG", "BUDAT"], "BSAD": ["SHKZG", "AUGDT"], "BSIK": ["SHKZG"],
+    "BSAK": ["SHKZG"], "CSKS": ["DATAB", "BUKRS"], "CEPC": ["DATAB"],
 }
 DECIMALS = {"RMWWR", "WMWST1", "MENGE", "NETWR", "MWSBK", "KWMENG", "WMENG", "LFIMG", "FKIMG", "WRBTR", "DMBTR", "WSL", "HSL", "RFMNG"}
 
