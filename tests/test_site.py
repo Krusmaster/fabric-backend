@@ -41,7 +41,7 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
         if m.group(0).startswith('<link rel="canonical"'):                               # a URL, not something loaded
             continue
         assert not m.group(1).startswith(("http://", "https://", "//")), m.group(0)
-    assert 'data-mascot-toggle' in html                                                  # the visible off switch
+    # the visible off switch, where the page has mascots: test_the_mascot_toggle_is_only_on_pages_with_mascots (n36)
     # only descriptive use of Microsoft; no approval / listing / partner claims
     for banned in ("approved by Microsoft", "Microsoft partner", "listed in the Claude directory", "trusted by", "Microsoft Partner"):
         assert banned.lower() not in html.lower().replace("not affiliated with, endorsed by or certified by microsoft", ""), banned
@@ -73,8 +73,12 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
 
 def test_home_introduces_the_developer_without_a_story(client):
     html = client.get("/").text
-    assert "A note from Gustav" in html and "I’m Gustav, the developer behind Krusgraph" in html
-    assert 'href="mailto:hello@krusgraph.test?subject=Krusgraph"' in html and ">Email Gustav</a>" in html
+    assert "Work through one schema with Gustav" in html and "I’m Gustav, the developer behind Krusgraph at Kruse Consulting AB" in html
+    note = html[html.index('id="developer"'):html.index("</section>", html.index('id="developer"'))]
+    assert 'href="/partners">Discuss your schema' in note and 'href="/support">Get help with a question' in note
+    assert 'href="mailto:hello@krusgraph.test?subject=Krusgraph">email Gustav</a>' in note and "/issues" in note   # feedback: the other ways
+    for word in ("price", "kr", "SEK", "response time", "within", "customers"):                       # no prices, terms or customers (n36)
+        assert not re.search(rf"\b{word}\b", note, re.I), word
     assert "Sweden" not in html and "Swedish" not in html                                # no country of origin on the start page
 
 
@@ -536,7 +540,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
     for tool in ("create_silver_notebook", "create_gold_views", "create_drift_monitor"):      # created live on 28 October 2026 (n33)
         assert tools[tool].startswith("Experimental; created live on 28 October 2026") and "not yet run in Fabric" in tools[tool], tool
-    assert "stopped by HTTP 403, cause unknown" in tools["create_ontology"]
+    assert "stopped by HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md
     assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
     assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md
@@ -938,8 +942,9 @@ def test_old_links_into_the_demo_on_the_start_page_go_on_to_demo(client):
 
 def _hub(client):
     html = client.get("/").text
-    after_hero = html.split('<section class="hero">', 1)[1].split("</section>", 1)[1].lstrip()
-    assert after_hero.startswith('<section class="wrap connects" aria-label="What Krusgraph connects">')
+    after_hero = html.split('<section class="wrap connects"', 1)[1]                 # after the example and the steps since n36
+    after_hero = '<section class="wrap connects"' + after_hero
+    assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
     visual = re.search(r'<div class="hub" aria-hidden="true">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)
     groups = {re.search(r'<p class="hub-h">(.*?)</p>', g).group(1): re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
@@ -1107,3 +1112,30 @@ def test_no_page_uses_the_ruled_out_sales_words(client):
         low = client.get(path).text.lower()
         for word in SALES:
             assert word not in low, (path, word)
+
+
+# ------------------------------------------------------------------ n36: the mascot toggle goes with the mascots --------
+# The footer said "Mascots: on" on pages with no mascot (the home page, /docs). The toggle is rendered only where the page
+# has a placeholder or draws mascots by script (/demo's graph); tests/browser_check.js checks the same on screen.
+@pytest.mark.parametrize("path", PUBLIC_PAGES + ["/mascots"])
+def test_the_mascot_toggle_is_only_on_pages_with_mascots(client, path):
+    text = client.get(path).text
+    body = text[text.index("<main"):text.index("</main>")] if "<main" in text else text
+    expected = "data-mascot=" in body or 'data-page="demo"' in body
+    assert ("data-mascot-toggle" in text) == expected, path
+
+
+def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(client):
+    from fabric_backend.seed import AMOUNT_DEMO
+    text = client.get("/").text
+    amount = AMOUNT_DEMO["orders"][1][0][2]
+    assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
+    example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
+    assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
+    assert "403" not in text and "cause unknown" not in text and "draft; deployment not yet verified" in text
+
+
+def test_the_demo_ends_with_own_data_and_help(client):
+    text = client.get("/demo").text
+    end = text[text.index('class="wrap demo-next"'):]
+    assert 'href="/local#the-20-minute-demo">Try with your own data' in end and 'href="/support">Get help with a question' in end

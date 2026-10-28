@@ -12,7 +12,7 @@
   </div>
 </section>
 
-{{HOME_HUB}}
+{{HOME_BEFORE_AFTER}}
 
 <section class="wrap demo-entry" id="demo" aria-labelledby="guide">
   <div class="card">
@@ -26,7 +26,7 @@
   <ol class="steps">
     <li><span class="step-n coral">1</span><h3>Explore your tables</h3><p>Choose a lakehouse in Claude. {{PRODUCT}} reads the schema and suggests keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span></li>
     <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span></li>
-    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">Experimental</span> {{CREATE_API_STATUS}}. <a href="/docs#test-status">See current test status</a>.</p></li>
+    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">{{CREATE_API_WORD}}</span> {{CREATE_API_STATUS}}. <a href="/docs#test-status">See current test status</a>.</p></li>
   </ol>
   <p class="muted tiny" style="margin:14px 6px 0">Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
 </section>
@@ -36,9 +36,11 @@
   <ul class="build-rows">
     <li><h3>Document the schema</h3><p>A data dictionary in Markdown or dbt tests from the plan, with the checks you ran. <a href="/docs#what-you-can-ask">What you can ask</a>.</p></li>
     <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. {{CREATE_API_STATUS}}. <a href="/lovable">Use it with Lovable</a>.</p></li>
-    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. Creating the semantic model: {{STATUS_CREATE_SEMANTIC_MODEL}}; the ontology: {{STATUS_CREATE_ONTOLOGY}}. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
+    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. Creating the semantic model: {{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
   </ul>
 </section>
+
+{{HOME_HUB}}
 
 <section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
   <h2 id="data-h">What {{PRODUCT}} reads</h2>
@@ -52,9 +54,10 @@
 
 <section class="wrap developer-note" id="developer" aria-labelledby="developer-h" style="padding-top:0">
   <div class="card soft">
-    <h2 id="developer-h" class="h3">A note from Gustav</h2>
-    <p>I’m Gustav, the developer behind {{PRODUCT}}. If you try it, tell me which relationships it got right and which ones you had to fix. That’s the feedback I need to make it more useful.</p>
-    <p style="margin:0"><a class="btn ghost small" href="mailto:{{CONTACT}}?subject={{PRODUCT_URL}}">Email Gustav</a></p>
+    <h2 id="developer-h" class="h3">Work through one schema with Gustav</h2>
+    <p>I’m Gustav, the developer behind {{PRODUCT}} at Kruse Consulting AB. I help you take one schema and one question through it: read how the tables connect, check the relationships against your data, settle what needs a person’s judgement, and choose what to build from the plan you agreed on. The column names are enough to start.</p>
+    <p class="ctas" style="margin:0"><a class="btn secondary small" href="/partners">Discuss your schema</a><a class="btn ghost small" href="/support">Get help with a question</a></p>
+    <p class="muted tiny" style="margin:12px 0 0">Found a relationship it got wrong, or one it got right? <a href="{{GITHUB}}/issues" rel="noopener">Open a GitHub issue</a> or <a href="mailto:{{CONTACT}}?subject={{PRODUCT_URL}}">email Gustav</a>.</p>
   </div>
 </section>
 

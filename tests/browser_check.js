@@ -24,6 +24,12 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
       if (sw > width) errors.push(`${label}: horizontal overflow ${sw} > ${width}`);
       const fonts = await page.evaluate(() => Promise.all([document.fonts.check('600 20px Fredoka'), document.fonts.check('400 16px Nunito')]));
       if (!fonts.every(Boolean)) errors.push(`${label}: self-hosted fonts not loaded`);
+      // the mascot toggle and the mascots go together (n36): the button shows only where a mascot does
+      const pair = await page.evaluate(() => new Promise(r => setTimeout(() => {
+        const shown = e => { const b = e.getBoundingClientRect(), s = getComputedStyle(e); return b.width > 0 && b.height > 0 && s.visibility !== 'hidden'; };
+        r({ toggle: [...document.querySelectorAll('[data-mascot-toggle]')].some(shown), mascots: [...document.querySelectorAll('svg.mascot')].filter(shown).length });
+      }, 300)));
+      if (pair.toggle !== pair.mascots > 0) errors.push(`${label}: mascot toggle ${pair.toggle ? 'shown' : 'hidden'} with ${pair.mascots} mascots visible`);
       if (path === '/explore') {
         // "What you can build automatically from this plan": every disclosure open, still no horizontal scroll, each card inside the screen
         facts[`build@${vname}`] = await page.evaluate(() => {

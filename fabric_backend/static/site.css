@@ -866,3 +866,16 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .bar-chart text{font-size:13px;fill:currentColor}
 .rule-list div{display:flex;gap:10px}.rule-list dt{flex:0 0 3em}.rule-list dd{margin:0}
 @media (prefers-reduced-motion:reduce){.build-card,.build-card *,.path-steps,.path-steps *{transition:none;animation:none}}
+/* the home page's before and after (n36): the total that doubles on the synthetic order of seed.AMOUNT_DEMO */
+.before-after .ba-head{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.before-after .ba-head h2{margin-top:4px}
+.before-after .ba-figure .mascot{width:72px;height:72px}
+.before-after .ba{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 12px}
+.before-after .ba>div{border-radius:var(--radius-s);padding:12px 16px;border:1px solid var(--line)}
+.before-after .ba dt{font-size:15px;color:var(--muted)}
+.before-after .ba dd{margin:2px 0 0;font:600 32px/1.2 var(--font-head)}
+.before-after .ba-before{background:var(--coral-soft)}.before-after .ba-before dd{color:var(--coral-ink)}
+.before-after .ba-after{background:var(--sage-soft)}.before-after .ba-after dd{color:var(--sage-ink)}
+@media (max-width:600px){.before-after .ba{grid-template-columns:minmax(0,1fr)}.before-after .ba-figure .mascot{width:56px;height:56px}}
+/* /start hides its figures on a phone, so the toggle goes with them there */
+@media (max-width:600px){body:has([data-page=start]) .footer-controls [data-mascot-toggle],body:has([data-page=start]) #mascot-toggle-note{display:none}}

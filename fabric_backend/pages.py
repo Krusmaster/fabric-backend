@@ -90,8 +90,10 @@ def _vars() -> dict[str, str]:
                                if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip().lower() == "memory"
                                else "an Azure Table Storage table of ours in the service's Azure region"),
         # the test status, from tool_status: the live run's date and what it covered, and each tool's status in a sentence
-        "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(),
+        "LIVE_RUN_DATE": ts.LIVE_RUN_DATE, "LIVE_RUN_SUMMARY": ts.LIVE_RUN_SUMMARY, "CREATE_API_STATUS": ts.create_api_status(), "CREATE_API_WORD": ts.create_api_word(),
         **{f"STATUS_{name.upper()}": ts.phrase(name) for name in ts.STATUS},
+        # the short form next to an offer on the home page; the long form, with its history, is on /docs#test-status
+        **{f"SHORT_{name.upper()}": ts.short(name) for name in ts.STATUS},
         # the sources with their status, as the hub and the docs' "Why" section give it (tool_status.SOURCES)
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
@@ -301,6 +303,35 @@ def site_url() -> str:
 MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases")       # pages that are also served as <path>.md
 
 
+MASCOT_PAGES_BY_SCRIPT = ("demo",)          # site.js draws three mascots in /demo's graph; no placeholder in its HTML
+
+
+def has_mascots(body: str, page: str) -> bool:
+    return "data-mascot=" in body or page in MASCOT_PAGES_BY_SCRIPT
+
+
+def before_after_html() -> str:
+    """The total that doubles, before and after, from the synthetic rows in seed.AMOUNT_DEMO (one order, two lines): the
+    order amount summed over the joined line rows, then once per order. The numbers are computed, not typed."""
+    from .seed import AMOUNT_DEMO
+    (order_id, _, amount), = AMOUNT_DEMO["orders"][1]
+    lines = [r[2] for r in AMOUNT_DEMO["order_lines"][1] if r[0] == order_id]
+    n = lambda x: f"{x:,.0f}".replace(",", "\u00a0")
+    return f"""<section class="wrap before-after" id="example" aria-labelledby="example-h">
+  <div class="card">
+    <div class="ba-head"><div><p class="eyebrow">Before and after, on sample data</p>
+    <h2 id="example-h">Why is the order total twice what finance says?</h2>
+    <p>One order of {n(amount)} with {len(lines)} lines ({" and ".join(n(x) for x in lines)}). Join the order to its lines and sum the order amount, and every line repeats it.</p></div>
+    <span class="ba-figure" aria-hidden="true"><span data-mascot="thinker" data-pose="look" data-label=""></span></span></div>
+    <dl class="ba">
+      <div class="ba-before"><dt>Before: summed over the joined lines</dt><dd>{n(amount * len(lines))}</dd></div>
+      <div class="ba-after"><dt>After: once per order, as the plan says</dt><dd>{n(amount)}</dd></div>
+    </dl>
+    <p class="muted tiny"><code>validate_plan</code> points out the order amount as a header amount and counts the lines per order: order amount and line amount are different levels. <a href="/use-cases#problem-total-doubles">The total that doubles</a>.</p>
+  </div>
+</section>"""
+
+
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
@@ -312,6 +343,11 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     og_image = html.escape(f"https://{v['DOMAIN']}/static/og.png", quote=True)
     md_alternate = (f'<link rel="alternate" type="text/markdown" href="{path}.md" title="Markdown version">'
                     if path in MARKDOWN_TWINS else "")                       # agents and crawlers get the text form in one hop
+    # the mascot toggle only on a page that has mascots: a placeholder in the HTML, or the ones /demo's graph draws (n36:
+    # the toggle said "Mascots: on" on pages with none, such as /docs)
+    toggle = ('<button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>\n'
+              '      <span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>'
+              if has_mascots(body, page) else "")
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -379,8 +415,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
-      <button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>
-      <span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>
+      {toggle}
     </div>
   </div>
 </footer>
@@ -492,7 +527,7 @@ def build_path_html() -> str:
     """The row of steps above the cards, with the counts from the path, the demo plan and the 20-minute demo's budget."""
     from .demo import demo_plan
     from .demo_app import STEPS
-    from .tool_status import label
+    from .tool_status import short
     e = html.escape
     path = build_path()
     before = sum(len(s["tools"]) for s in path[:-1])
@@ -512,7 +547,8 @@ def build_path_html() -> str:
             f'<p class="path-facts">From your tables to a checked plan in about {minutes} minutes; each part after that is one call '
             f'when you ask for it. The {minutes} minutes are the budget of the <a href="/local#the-20-minute-demo">20-minute demo</a> '
             f'({e(budget)}), which ends with the plan checked against the rows and the exports in your hands.</p>'
-            f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(label(t))}" for t in path[-1]["tools"])}.</p>')
+            f'<p class="muted tiny">Status of creating: {"; ".join(f"<code>{e(t)}</code> {e(short(t))}" for t in path[-1]["tools"])}. '
+            f'The runs behind each: <a href="/docs#test-status">test status per tool</a>.</p>')
 
 
 def build_html() -> str:
@@ -565,7 +601,7 @@ def _home_vars() -> dict[str, str]:
     details = home_details()
     safe = json.dumps(details, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
     return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list(),
-            "HOME_GUIDE": home_guide(), "HOME_HUB": hub_html()}
+            "HOME_GUIDE": home_guide(), "HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
 
 
 def render(path: str) -> str:

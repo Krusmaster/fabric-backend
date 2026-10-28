@@ -138,4 +138,4 @@ def test_the_problem_card_on_use_cases(monkeypatch):
         for part in ("The total that doubles", "Why is our order total twice what finance says?", "Why it matters.",
                      "shows it.", "What we do not know.", "different levels", "1 000 with two lines"):
             assert part in text, part
-    assert 'href="/local#5-the-20-minute-demo"' in page and "/local" in md
+    assert 'href="/local#the-20-minute-demo"' in page and "/local" in md

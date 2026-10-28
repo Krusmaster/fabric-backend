@@ -732,7 +732,7 @@ def problems_html() -> str:
                    f'<p><strong>Why it matters.</strong> {_inline(p["why"])}</p>'
                    f'<p><strong>How {{{{PRODUCT}}}} shows it.</strong> {_inline(p["how"])}</p>'
                    f'<p><strong>What we do not know.</strong> {_inline(p["unknown"])}</p>'
-                   f'<p><strong>See it.</strong> {_inline(p["demo"])} <a href="/local#5-the-20-minute-demo">Run the demo on your laptop</a>.</p>'
+                   f'<p><strong>See it.</strong> {_inline(p["demo"])} <a href="/local#the-20-minute-demo">Run the demo on your laptop</a>.</p>'
                    f'<p class="muted tiny">Tools: {_inline(_tools(p))}. Status: {_inline(task_status(p["tools"]))}.</p></article>')
     return "".join(out)
 
