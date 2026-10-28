@@ -1,0 +1,64 @@
+{
+  "pack": "sap",
+  "module": "accounting_document",
+  "format_version": 1,
+  "title": "SAP accounting document: the link from billing to accounting, in ECC (BKPF/BSEG) and S/4HANA (BKPF/ACDOCA)",
+  "rule": "SAP pack",
+  "status": "documented",
+  "status_note": "A small module that shows the variant mechanism; the finance module itself (G/L accounts, open items, cost objects) is a next step, see docs/SAP.md. Nothing here is checked against an SAP system by this project.",
+  "variants": {
+    "ecc": "SAP ERP 6.0 (ECC): the accounting document is BKPF (header) and BSEG (lines). Not verified per enhancement package.",
+    "s4hana": "SAP S/4HANA: the universal journal ACDOCA holds the line items; BKPF remains the header. Whether BSEG is read as a table or a compatibility view depends on release and is not asserted here."
+  },
+  "client_column": "MANDT",
+  "sources": {
+    "sap_help_fi": {
+      "title": "SAP Help Portal: SAP ERP Financial Accounting, accounting document header and line items",
+      "url": "https://help.sap.com/docs/SAP_ERP",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "help.sap.com could not be reached from the session that wrote this pack (network policy)."
+    },
+    "sap_help_s4_finance": {
+      "title": "SAP Help Portal: SAP S/4HANA Finance, the universal journal (ACDOCA)",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not fetched in the writing session (network policy)."
+    }
+  },
+  "tables": [
+    {"name": "BKPF", "level": "header", "en": "Accounting document, header", "de": "Buchhaltungsbeleg, Kopf",
+     "key": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "number_columns": ["BELNR"], "delta": ["CPUDT", "AEDAT"],
+     "currency_columns": ["WAERS"],
+     "note": "BELNR is unique only within company code and fiscal year: all three are needed, with MANDT.",
+     "sources": ["sap_help_fi"]},
+    {"name": "BSEG", "level": "item", "en": "Accounting document, line items", "de": "Buchhaltungsbeleg, Positionen",
+     "key": ["MANDT", "BUKRS", "BELNR", "GJAHR", "BUZEI"], "number_columns": ["BELNR"], "variants": ["ecc"],
+     "amounts": [{"column": "WRBTR", "level": "item", "currency": "BKPF.WAERS"},
+                 {"column": "DMBTR", "level": "item", "currency": "company code currency (T001.WAERS)"}],
+     "note": "Amounts are unsigned; SHKZG says debit or credit.",
+     "sources": ["sap_help_fi"]},
+    {"name": "ACDOCA", "level": "item", "en": "Universal journal, line items", "de": "Universal Journal, Positionen",
+     "key": ["RCLNT", "RLDNR", "RBUKRS", "GJAHR", "BELNR", "DOCLN"], "number_columns": ["BELNR"], "variants": ["s4hana"],
+     "amounts": [{"column": "WSL", "level": "item", "currency": "RWCUR"},
+                 {"column": "HSL", "level": "item", "currency": "RHCUR"}],
+     "currency_columns": ["RWCUR", "RHCUR"],
+     "key_note": "The client column of ACDOCA is RCLNT, not MANDT, and the ledger RLDNR is part of the key: one posting has a line per ledger.",
+     "note": "Amounts are signed. Filter on one ledger (RLDNR) before summing, or each posting counts once per ledger.",
+     "sources": ["sap_help_s4_finance"]}
+  ],
+  "relationships": [
+    {"source": "BSEG", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "many-to-one", "variants": ["ecc"], "sources": ["sap_help_fi"]},
+    {"source": "ACDOCA", "source_cols": ["RCLNT", "RBUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "many-to-one", "variants": ["s4hana"], "sources": ["sap_help_s4_finance"]},
+    {"source": "VBRK", "source_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "target": "BKPF", "target_cols": ["MANDT", "BUKRS", "BELNR", "GJAHR"], "cardinality": "one-to-one", "role": "accounting_document", "condition": "Set once the billing document has been posted to accounting; empty before that.", "sources": ["sap_help_fi"]}
+  ],
+  "traps": [
+    {"id": "ledger", "title": "One line per ledger in ACDOCA",
+     "text": "ACDOCA carries the ledger in its key; a company with a leading and a parallel ledger has each posting twice. Pick a ledger before summing.",
+     "sources": ["sap_help_s4_finance"]},
+    {"id": "client_name", "title": "The client column is not always called MANDT",
+     "text": "ACDOCA names its client column RCLNT and its company code RBUKRS. The pack maps them to MANDT and BUKRS of BKPF explicitly.",
+     "sources": ["sap_help_s4_finance"]}
+  ]
+}

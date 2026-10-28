@@ -30,7 +30,7 @@ build-backend = "setuptools.build_meta"
 include = ["fabric_backend*"]
 
 [tool.setuptools.package-data]
-fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*"]
+fabric_backend = ["page_templates/*.md", "page_templates/*.html", "static/*", "static/fonts/*", "packs/*.json", "packs/*/*.json"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]          # tests import deploy/azure_containerapp.py from the repo root; plain `pytest` (CI) does not add the cwd

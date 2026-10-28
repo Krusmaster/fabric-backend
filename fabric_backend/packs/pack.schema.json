@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Krusmaster/fabric-backend/fabric_backend/packs/pack.schema.json",
+  "title": "Krusgraph knowledge pack",
+  "description": "Tables, keys and relationships of a known source system, with a source per claim. Independent of how the data arrives (mirroring, Databricks, Data API builder, a pipeline).",
+  "type": "object",
+  "required": ["pack", "module", "format_version", "title", "rule", "status", "variants", "sources", "tables", "relationships"],
+  "additionalProperties": false,
+  "definitions": {
+    "name": {"type": "string", "pattern": "^[A-Z][A-Z0-9_/]*$"},
+    "columns": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/name"}},
+    "source_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "variants": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "amount": {
+      "type": "object", "required": ["column", "level", "currency"], "additionalProperties": false,
+      "properties": {
+        "column": {"$ref": "#/definitions/name"},
+        "level": {"enum": ["header", "item", "schedule_line"]},
+        "currency": {"type": "string", "minLength": 1}
+      }
+    },
+    "quantity": {
+      "type": "object", "required": ["column", "unit"], "additionalProperties": false,
+      "properties": {"column": {"$ref": "#/definitions/name"}, "unit": {"type": "string", "minLength": 1}}
+    }
+  },
+  "properties": {
+    "pack": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "module": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+    "format_version": {"const": 1},
+    "title": {"type": "string"},
+    "rule": {"type": "string", "minLength": 1},
+    "status": {"enum": ["documented", "verified"]},
+    "status_note": {"type": "string"},
+    "client_column": {"$ref": "#/definitions/name"},
+    "variants": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "string"}},
+    "sources": {
+      "type": "object", "minProperties": 1,
+      "additionalProperties": {
+        "type": "object", "required": ["title", "url", "publisher", "fetched"], "additionalProperties": false,
+        "properties": {
+          "title": {"type": "string"}, "url": {"type": "string", "pattern": "^https://"},
+          "publisher": {"type": "string"}, "fetched": {"type": "boolean"}, "note": {"type": "string"}
+        }
+      }
+    },
+    "tables": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "required": ["name", "level", "en", "de", "key", "sources"], "additionalProperties": false,
+        "properties": {
+          "name": {"$ref": "#/definitions/name"},
+          "level": {"enum": ["header", "item", "schedule_line", "master", "text", "organization", "status", "partner", "document_flow"]},
+          "en": {"type": "string"}, "de": {"type": "string"},
+          "key": {"$ref": "#/definitions/columns"},
+          "key_note": {"type": "string"},
+          "number_columns": {"$ref": "#/definitions/columns"},
+          "delta": {"$ref": "#/definitions/columns"},
+          "amounts": {"type": "array", "items": {"$ref": "#/definitions/amount"}},
+          "quantities": {"type": "array", "items": {"$ref": "#/definitions/quantity"}},
+          "currency_columns": {"$ref": "#/definitions/columns"},
+          "unit_columns": {"$ref": "#/definitions/columns"},
+          "variants": {"$ref": "#/definitions/variants"},
+          "note": {"type": "string"},
+          "sources": {"$ref": "#/definitions/source_ids"}
+        }
+      }
+    },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["source", "source_cols", "target", "target_cols", "cardinality", "sources"], "additionalProperties": false,
+        "properties": {
+          "source": {"$ref": "#/definitions/name"}, "source_cols": {"$ref": "#/definitions/columns"},
+          "target": {"$ref": "#/definitions/name"}, "target_cols": {"$ref": "#/definitions/columns"},
+          "cardinality": {"enum": ["many-to-one", "one-to-one", "many-to-many"]},
+          "role": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "condition": {"type": "string"},
+          "apply": {"type": "boolean"},
+          "variants": {"$ref": "#/definitions/variants"},
+          "sources": {"$ref": "#/definitions/source_ids"}
+        }
+      }
+    },
+    "traps": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["id", "title", "text", "sources"], "additionalProperties": false,
+        "properties": {"id": {"type": "string"}, "title": {"type": "string"}, "text": {"type": "string"}, "sources": {"$ref": "#/definitions/source_ids"}}
+      }
+    }
+  }
+}
