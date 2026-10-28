@@ -252,7 +252,7 @@ synthetic sample: the suggestion, its data check and the decision that stays you
 SAP tables do not follow general naming rules: `VBAP.VBELN` is the order an item belongs to, `LIPS.VBELN` a delivery,
 `VBRP.VBELN` an invoice, and every key starts with the client `MANDT`. For these tables Krusgraph uses its SAP pack:
 declarative files with the keys and the order-to-cash relationships of `KNA1`, `KNVV`, `MARA`, `MAKT`, `TVKO`, `VBAK`,
-`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, and the pricing conditions `KONV`/`PRCD_ELEMENTS`, each with the public source it rests
+`VBAP`, `VBEP`, `VBPA`, `LIKP`, `LIPS`, `VBRK`, `VBRP`, `VBFA`, and the procure-to-pay relationships of `LFA1`, `EBAN`, `EKKO`, `EKPO`, `EKET`, `EKBE`, `RBKP`, `RSEG`, and the finance relationships of `BKPF`, `BSEG`, `ACDOCA`, `SKA1`, `SKB1`, `BSID`, `BSIK`, `CSKS`, the pricing conditions `KONV`/`PRCD_ELEMENTS`, and the business partner `BUT000` with its links to customers and suppliers, each with the public source it rests
 on, for ECC and S/4HANA. It does not depend on how the tables arrive: Fabric mirroring of SAP (through SAP
 Datasphere), Databricks, a pipeline of your own; names are recognised with or without a prefix (`VBAK`, `vbak`,
 `sap_vbak`). Every relationship it adds carries the rule `SAP pack`; `sap_pack_draft` shows what it recognises and
@@ -270,7 +270,7 @@ plan_backend(workspace="demo", source="sap_lh", schema="sap")
 validate_plan(...) -> amount_levels: sap_vbak.netwr is repeated on every sap_vbap row in a join of the two
 ```
 
-On the synthetic SAP schema of the tests, the name rules alone find none of the 83 relationships. Given every key,
+On the synthetic SAP schema of the tests, the name rules alone find none of the 89 relationships. Given every key,
 they find most of them but also 27 joins that read a document number as another kind of document (a delivery number
 as an order, an invoice number as an accounting document); the pack applies none of those. The schema is generated
 from the pack, so this shows what the pack adds over the name rules, not that the pack is right about SAP

@@ -107,15 +107,15 @@ def test_numbers():
     assert {f"{v}/{s}/{h}": score(v, s, h) for v, s in CASES for h in ("names", "names+keys", "pack")} == NUMBERS
 
 
-NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': None},
-    'ecc/prefix/names+keys': {'coverage': 0.92, 'implied': 9, 'key_hits': 47, 'keys': 47, 'listed': 18, 'rel_hits': 76, 'relationships': 83, 'tables': 47, 'wrong': 27, 'wrong_share': 0.21},
-    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 83, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0},
-    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': None},
-    'ecc/upper/names+keys': {'coverage': 0.92, 'implied': 9, 'key_hits': 47, 'keys': 47, 'listed': 18, 'rel_hits': 76, 'relationships': 83, 'tables': 47, 'wrong': 27, 'wrong_share': 0.21},
-    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 83, 'relationships': 83, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0},
-    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 41, 'listed': 0, 'rel_hits': 0, 'relationships': 69, 'tables': 41, 'wrong': 0, 'wrong_share': None},
-    's4hana/lower/names+keys': {'coverage': 0.83, 'implied': 4, 'key_hits': 41, 'keys': 41, 'listed': 10, 'rel_hits': 57, 'relationships': 69, 'tables': 41, 'wrong': 14, 'wrong_share': 0.16},
-    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 41, 'keys': 41, 'listed': 0, 'rel_hits': 69, 'relationships': 69, 'tables': 41, 'wrong': 0, 'wrong_share': 0.0}}
+NUMBERS = {'ecc/prefix/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/prefix/names+keys': {'coverage': 0.88, 'implied': 9, 'key_hits': 53, 'keys': 53, 'listed': 20, 'rel_hits': 78, 'relationships': 89, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
+    'ecc/prefix/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 89, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    'ecc/upper/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 53, 'listed': 0, 'rel_hits': 0, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': None},
+    'ecc/upper/names+keys': {'coverage': 0.88, 'implied': 9, 'key_hits': 53, 'keys': 53, 'listed': 20, 'rel_hits': 78, 'relationships': 89, 'tables': 53, 'wrong': 27, 'wrong_share': 0.2},
+    'ecc/upper/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 53, 'keys': 53, 'listed': 0, 'rel_hits': 89, 'relationships': 89, 'tables': 53, 'wrong': 0, 'wrong_share': 0.0},
+    's4hana/lower/names': {'coverage': 0.0, 'implied': 0, 'key_hits': 0, 'keys': 47, 'listed': 0, 'rel_hits': 0, 'relationships': 75, 'tables': 47, 'wrong': 0, 'wrong_share': None},
+    's4hana/lower/names+keys': {'coverage': 0.79, 'implied': 4, 'key_hits': 47, 'keys': 47, 'listed': 12, 'rel_hits': 59, 'relationships': 75, 'tables': 47, 'wrong': 14, 'wrong_share': 0.16},
+    's4hana/lower/pack': {'coverage': 1.0, 'implied': 0, 'key_hits': 47, 'keys': 47, 'listed': 0, 'rel_hits': 75, 'relationships': 75, 'tables': 47, 'wrong': 0, 'wrong_share': 0.0}}
 
 
 def test_pack_relationships_carry_rule_and_source():
@@ -245,3 +245,20 @@ def test_the_classification_counts_a_wrong_document_as_wrong_and_a_shortcut_as_i
     assert not _implied(("VBAP", ("mandt", "vbeln"), "LIKP"), truth, listed)        # not through two conditional links
     assert _implied(("VBAP", ("mandt", "vbeln"), "VBUK"), truth, listed)            # the status row of the same document
     assert not _implied(("RBKP", ("mandt", "bukrs", "belnr", "gjahr"), "BKPF"), truth, listed)   # two different BELNR
+
+
+def test_business_partner_links_through_cvi_not_by_number():
+    p = plan(sap_support.schema(["BUT000", "BUT100", "BUT020", "BUT050", "CVI_CUST_LINK", "CVI_VEND_LINK", "KNA1", "LFA1"], variant="s4hana"))
+    rels = {(r.source, tuple(r.source_cols), r.target) for r in p.relationships}
+    assert ("CVI_CUST_LINK", ("CLIENT", "CUSTOMER"), "KNA1") in rels and ("CVI_VEND_LINK", ("CLIENT", "VENDOR"), "LFA1") in rels
+    assert ("BUT050", ("CLIENT", "PARTNER2"), "BUT000") in rels
+    assert not [r for r in p.relationships if {r.source, r.target} == {"BUT000", "KNA1"}]       # never PARTNER = KUNNR
+    listed = {(n["source"], n["target"]) for n in p.pack["not_applied"]}
+    assert {("CVI_CUST_LINK", "BUT000"), ("CVI_VEND_LINK", "BUT000")} <= listed                   # on the GUID: listed only
+    assert p.keys["BUT000"] == (["CLIENT", "PARTNER"], "SAP pack")
+
+
+def test_a_dropped_client_column_named_client_is_dropped_too():
+    p = plan(sap_support.schema(["BUT000", "BUT100", "CVI_CUST_LINK", "KNA1"], drop_client=True))
+    r = next(r for r in p.relationships if (r.source, r.target) == ("CVI_CUST_LINK", "KNA1"))
+    assert r.source_cols == ["CUSTOMER"] and r.target_cols == ["KUNNR"]

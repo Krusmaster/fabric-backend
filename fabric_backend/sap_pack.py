@@ -28,7 +28,7 @@ from pathlib import Path
 
 PACKS = Path(__file__).parent / "packs"
 RULE = "SAP pack"
-CLIENT_COLUMNS = ("MANDT", "RCLNT")
+CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
 _LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract")
 
 

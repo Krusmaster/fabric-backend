@@ -1,0 +1,83 @@
+{
+  "pack": "sap",
+  "module": "business_partner",
+  "format_version": 1,
+  "title": "SAP business partner: the partner, its roles, addresses and relationships, and the link from partner to customer and supplier (customer/vendor integration)",
+  "rule": "SAP pack",
+  "status": "documented",
+  "status_note": "Every table, key and relationship below is taken from public documentation and written in our own words. None of it has been checked against an SAP system by this project; validate_plan checks it against your rows. A pack is a sourced suggestion, not proof.",
+  "variants": {
+    "ecc": "SAP ERP 6.0 (ECC): the business partner exists, but customers and suppliers need not be linked to it. Not verified per enhancement package.",
+    "s4hana": "SAP S/4HANA: customers and suppliers are maintained through the business partner, and the link tables are filled. Not verified per release."
+  },
+  "client_column": "CLIENT",
+  "sources": {
+    "sap_help_bp": {
+      "title": "SAP Help Portal: SAP Business Partner (general data, roles, addresses, relationships between partners)",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "help.sap.com could not be reached from the session that wrote this module (network policy); cited from public knowledge of the documentation, to be re-checked."
+    },
+    "sap_help_cvi": {
+      "title": "SAP Help Portal: SAP S/4HANA, customer/vendor integration (CVI) between business partner, customer and supplier",
+      "url": "https://help.sap.com/docs/SAP_S4HANA_ON-PREMISE",
+      "publisher": "SAP",
+      "fetched": false,
+      "note": "Not fetched in the writing session (network policy)."
+    }
+  },
+  "tables": [
+    {"name": "BUT000", "level": "master", "en": "Business partner, general data", "de": "Geschäftspartner, allgemeine Daten",
+     "key": ["CLIENT", "PARTNER"], "number_columns": ["PARTNER"], "delta": ["CRDAT", "CHDAT"],
+     "note": "The client column is CLIENT, not MANDT. PARTNER_GUID is a second unique identifier, the one the link tables use. TYPE says person, organization or group.",
+     "sources": ["sap_help_bp"]},
+    {"name": "BUT100", "level": "master", "en": "Business partner roles", "de": "Geschäftspartnerrollen",
+     "key": ["CLIENT", "PARTNER", "RLTYP", "DFVAL"], "number_columns": ["PARTNER"],
+     "note": "One row per role a partner has (customer, supplier, contact and others): a partner with three roles has three rows.",
+     "sources": ["sap_help_bp"]},
+    {"name": "BUT020", "level": "master", "en": "Business partner addresses", "de": "Geschäftspartneradressen",
+     "key": ["CLIENT", "PARTNER", "ADDRNUMBER"], "number_columns": ["PARTNER"],
+     "note": "A partner can have several addresses; the address itself is kept in the central address tables under ADDRNUMBER.",
+     "sources": ["sap_help_bp"]},
+    {"name": "BUT050", "level": "master", "en": "Relationships between business partners", "de": "Geschäftspartnerbeziehungen",
+     "key": ["CLIENT", "RELNR", "PARTNER1", "PARTNER2", "DATE_TO"], "number_columns": ["PARTNER1", "PARTNER2"],
+     "note": "Time-dependent: DATE_TO is in the key. RELTYP says the kind (contact person of, belongs to and so on), and the direction matters.",
+     "sources": ["sap_help_bp"]},
+    {"name": "CVI_CUST_LINK", "level": "master", "en": "Link between business partner and customer", "de": "Verknüpfung Geschäftspartner zu Debitor",
+     "key": ["CLIENT", "PARTNER_GUID"], "number_columns": ["CUSTOMER"],
+     "note": "One row per partner that is a customer. The partner is named by its GUID, not its number.",
+     "sources": ["sap_help_cvi"]},
+    {"name": "CVI_VEND_LINK", "level": "master", "en": "Link between business partner and supplier", "de": "Verknüpfung Geschäftspartner zu Kreditor",
+     "key": ["CLIENT", "PARTNER_GUID"], "number_columns": ["VENDOR"],
+     "note": "One row per partner that is a supplier. The partner is named by its GUID, not its number.",
+     "sources": ["sap_help_cvi"]}
+  ],
+  "relationships": [
+    {"source": "BUT100", "source_cols": ["CLIENT", "PARTNER"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER"], "cardinality": "many-to-one", "sources": ["sap_help_bp"]},
+    {"source": "BUT020", "source_cols": ["CLIENT", "PARTNER"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER"], "cardinality": "many-to-one", "sources": ["sap_help_bp"]},
+    {"source": "BUT050", "source_cols": ["CLIENT", "PARTNER1"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER"], "cardinality": "many-to-one", "role": "partner_1", "sources": ["sap_help_bp"]},
+    {"source": "BUT050", "source_cols": ["CLIENT", "PARTNER2"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER"], "cardinality": "many-to-one", "role": "partner_2", "sources": ["sap_help_bp"]},
+    {"source": "CVI_CUST_LINK", "source_cols": ["CLIENT", "CUSTOMER"], "target": "KNA1", "target_cols": ["MANDT", "KUNNR"], "cardinality": "one-to-one", "role": "customer", "sources": ["sap_help_cvi"]},
+    {"source": "CVI_VEND_LINK", "source_cols": ["CLIENT", "VENDOR"], "target": "LFA1", "target_cols": ["MANDT", "LIFNR"], "cardinality": "one-to-one", "role": "supplier", "sources": ["sap_help_cvi"]},
+    {"apply": false, "source": "CVI_CUST_LINK", "source_cols": ["CLIENT", "PARTNER_GUID"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER_GUID"], "cardinality": "one-to-one", "role": "business_partner", "condition": "PARTNER_GUID is unique in BUT000 but not its key, so the link is listed, not applied. Join on the GUID, never on PARTNER = CUSTOMER.", "sources": ["sap_help_cvi"]},
+    {"apply": false, "source": "CVI_VEND_LINK", "source_cols": ["CLIENT", "PARTNER_GUID"], "target": "BUT000", "target_cols": ["CLIENT", "PARTNER_GUID"], "cardinality": "one-to-one", "role": "business_partner", "condition": "PARTNER_GUID is unique in BUT000 but not its key, so the link is listed, not applied. Join on the GUID, never on PARTNER = VENDOR.", "sources": ["sap_help_cvi"]}
+  ],
+  "traps": [
+    {"id": "bp_number", "title": "The partner number is not the customer number",
+     "text": "A business partner and the customer or supplier behind it can have different numbers, depending on how number ranges were set up. Join BUT000 to KNA1 or LFA1 through CVI_CUST_LINK or CVI_VEND_LINK, never on PARTNER = KUNNR.",
+     "sources": ["sap_help_cvi"]},
+    {"id": "bp_guid", "title": "The link tables use the partner's GUID",
+     "text": "CVI_CUST_LINK and CVI_VEND_LINK name the partner by PARTNER_GUID, a 16-byte identifier. Extraction tools may write it as binary, as 32 hex characters or as a dashed GUID; both sides of the join must come out in the same form.",
+     "sources": ["sap_help_cvi"]},
+    {"id": "bp_client", "title": "CLIENT, not MANDT",
+     "text": "The business partner tables call the client column CLIENT. The pack pairs it with MANDT of KNA1 and LFA1 explicitly.",
+     "sources": ["sap_help_bp"]},
+    {"id": "bp_roles", "title": "Roles multiply partners",
+     "text": "BUT100 has a row per role. Counting partners over a join with BUT100 counts a partner once per role; filter RLTYP to the role you mean.",
+     "sources": ["sap_help_bp"]},
+    {"id": "bp_relationships", "title": "Partner relationships have validity and direction",
+     "text": "BUT050 carries DATE_TO in the key and two partners with a direction; pick the period, and read PARTNER1 and PARTNER2 by the relationship type.",
+     "sources": ["sap_help_bp"]}
+  ]
+}

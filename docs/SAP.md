@@ -19,6 +19,7 @@ SAP table and column names survive, with or without a prefix.
 | `procure_to_pay` (round n21) | suppliers `LFA1`, `LFB1`, `LFM1`; organisation `T024E`, `T001W`; requisitions `EBAN`; purchase orders `EKKO`, `EKPO`, `EKET`; purchase order history `EKBE`; supplier invoices `RBKP`, `RSEG` | 25, of which 24 are applied; `EKBE` → `RBKP` is listed only (it holds for invoice rows, not goods receipts) |
 | `finance` (round n22) | charts of accounts `T004`; G/L accounts `SKA1`, `SKB1`; customer and supplier open and cleared items `BSID`, `BSAD`, `BSIK`, `BSAK` (ECC); controlling area `TKA01`; cost centers `CSKS`; profit centers `CEPC` | 31, of which 29 are applied; journal line → cost center and → profit center are listed only (both masters are time-dependent) |
 | `pricing` (round n23) | document conditions `KONV` (ECC) and `PRCD_ELEMENTS` (S/4HANA); condition records `KONH`, `KONP`; condition types `T685` | 11, of which 3 are applied (condition lines and rates to their condition record); the links from conditions to `VBAK`, `VBRK`, `EKKO` (through `KNUMV`, not the document number) and to `T685` are listed only |
+| `business_partner` (round n24) | business partner `BUT000`, roles `BUT100`, addresses `BUT020`, relationships between partners `BUT050`; links to customer and supplier `CVI_CUST_LINK`, `CVI_VEND_LINK` | 8, of which 6 are applied; link table → `BUT000` on the partner's GUID is listed only (a unique column, not the key) |
 | `accounting_document` | `BKPF`; `BSEG` (ECC); `ACDOCA` (S/4HANA) | 4: `BSEG` → `BKPF`, `ACDOCA` → `BKPF`, `VBRK` → `BKPF`, `BKPF` → `T001` |
 
 Per table: key (with `MANDT`), level (header, item, schedule line, master, text, organisation, status, partner,
@@ -75,6 +76,9 @@ only, the partner, status and document-flow rows of deliveries and invoices (`VB
 - **An account needs its chart of accounts.** `SKB1` and journal lines carry no `KTOPL`; it comes from
   `T001.KTOPL`, so `SKA1` is reached through `T001`.
 - **Debit and credit.** ECC lines are unsigned with `SHKZG`; `ACDOCA` is signed.
+- **The partner number is not the customer number.** `BUT000.PARTNER` and `KNA1.KUNNR` can differ; the link goes
+  through `CVI_CUST_LINK` (and `CVI_VEND_LINK` for suppliers), which names the partner by `PARTNER_GUID`. Tools may
+  write that GUID as binary, hex or dashed text. The business partner tables call the client column `CLIENT`.
 - **Sold-to, ship-to and payer.** `VBAK.KUNNR`, `LIKP.KUNNR`, `VBRK.KUNRG` and the partner functions in `VBPA` can be
   three different customers.
 
@@ -116,6 +120,7 @@ configuration formats of third-party SAP extractors. The extraction list is the 
 | SAP Help Portal, Materials Management (purchasing, purchase order history, logistics invoice verification) | procure to pay | no, as above |
 | SAP Help Portal, S/4HANA business partner | `LFA1` behind the business partner in S/4HANA | no, as above |
 | SAP Help Portal, pricing and the condition technique (SD and MM) | pricing | no, as above |
+| SAP Help Portal, business partner and customer/vendor integration | business partner | no, as above |
 | SAP Help Portal, ABAP keyword documentation, client handling | `MANDT` as first key field | no, as above |
 | SAP Learning, *Identifying data model simplifications in SAP S/4HANA* (Sales) | `VBUK`/`VBUP` folded into the document tables; `VBFA` simplified | found in a web search on 28 October 2026; the page could not be fetched |
 | SAP Help Portal, S/4HANA Finance, universal journal | `ACDOCA`, and the ECC index tables it replaces | no, as above |
@@ -148,7 +153,7 @@ Not built yet, in this order:
 3. ~~Pricing~~: built in round n23 (above). Left for later: the condition tables `Annn` (one per key combination,
    numbered per installation, so only the standard ones could be described), and a relationship kind on a unique
    column that is not the key (`KNUMV`), so the document links can be applied.
-4. **Business partner** in S/4HANA: `BUT000`, `BUT100`, `CVI_CUST_LINK` between partner and customer.
+4. ~~Business partner~~: built in round n24 (above). Left for later: the central address tables (`ADRC`), customer and supplier company-code data `KNB1` (and `KNB1` → `T001`), and a relationship kind on a unique column that is not the key, so the GUID links can be applied.
 
 ## Contributing
 
