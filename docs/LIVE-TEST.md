@@ -119,10 +119,8 @@ Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash
 | Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | works (the maintainer) | 27 October 2026 |
 | Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | works: Glama identified itself with its client ID metadata document; its connection test "Healthy" at 17:59 | 27 October 2026 |
 
-28 October 2026, the maintainer's brief: VS Code and Glama reached the approval page, but a full sign-in through
-`/mcp/connect` is not yet confirmed. Until a run confirms it, VS Code, Claude Code and Cursor are *Experimental* in
-`fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and this status follow; the rows above are what
-was seen on 27 October.
+28 October 2026: VS Code, Cursor and Glama work through `/mcp/connect` (the rows above); they stay *Experimental* for
+now in `fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and the start page follow.
 | Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
 | Deny | choose Deny on the page once | the client reports access denied | | |
 

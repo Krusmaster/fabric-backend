@@ -606,7 +606,7 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
                 assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)
             else:
                 assert re.search(r"can(?:no|’|')t|not registered|not supported|mcp/connect|27 October 2026|does not accept|"
-                                 r"Where you build|Claude, VS Code and Cursor|Anysphere|/oauth|not yet confirmed", sentence), (path, sentence)
+                                 r"Where you build|Claude, VS Code and Cursor|Anysphere|/oauth", sentence), (path, sentence)
 
 
 
@@ -985,19 +985,18 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
 
 
 def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in(client, monkeypatch):
-    """Cursor (and VS Code) only once a full sign-in through client registration is confirmed: tool_status.CLIENTS says
-    Experimental for them (the brief of 28 October 2026: they reached the approval page, a full sign-in is not yet
-    confirmed), so the hub names Claude only; recorded as tested, they join it, and Anysphere joins the disclaimer."""
+    """Cursor (and VS Code) only once the hosted service supports their sign-in: with client registration on, as
+    recorded in tool_status.CLIENTS_TESTED (27 October 2026); Anysphere joins the disclaimer with Cursor."""
     from fabric_backend import tool_status as ts
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
-    row, visual, groups, said = _hub(client)
-    assert [n for n, _ in groups["Where you build"]] == ["Claude", "Lovable"] and "Cursor" not in row
-    monkeypatch.setitem(ts.CLIENTS_TESTED, "VS Code", ("/mcp/connect", "29 October 2026"))
-    monkeypatch.setitem(ts.CLIENTS_TESTED, "Cursor", ("/mcp/connect", "29 October 2026"))
     row, visual, groups, said = _hub(client)
     assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Cursor", "Lovable"]
     assert "Claude, VS Code and Cursor connect to Krusgraph through MCP" in said
     assert "Not affiliated with or endorsed by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
+    monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
+    row, visual, groups, said = _hub(client)
+    assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Lovable"] and "Cursor" not in row
+    assert "Anysphere" not in row
 
 
 def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkeypatch):
@@ -1019,7 +1018,7 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert "a full sign-in is not yet confirmed (VS Code, Claude Code and Cursor)" in start      # the brief of 28 October 2026
+    assert "Tested on 27 October 2026 with VS Code, Cursor and Glama (Experimental for now)" in start
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_
@@ -1027,4 +1026,4 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     assert "streamable HTTP at `https://krusgraph.test/mcp/connect`" in llms and "docs.md#other-mcp-clients" in llms
     assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
     home = client.get("/").text
-    assert "Krusgraph connects Claude to Microsoft Fabric through MCP" in home              # VS Code and Cursor: Experimental (tool_status.CLIENTS)
+    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home

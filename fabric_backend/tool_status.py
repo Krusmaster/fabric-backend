@@ -210,33 +210,36 @@ BUILDS = (("GraphQL API", "create_backend"), ("Power BI semantic model", "create
           ("Fabric IQ ontology", "create_ontology"), ("views", "create_views"), ("data agent", "create_data_agent"),
           ("silver notebooks", "create_silver_notebook"))
 
-# The clients, one row each (Gustav's brief of 28 October 2026): where each one reaches Krusgraph and its status word.
-# Client registration at /mcp/connect is switched on at krusgraph.com since 27 October 2026; VS Code and Glama reached
-# the approval page there, but a full sign-in is not yet confirmed, so those clients are Experimental. A client is named
-# as working (the hub, the docs' sentence) only when its status here is Tested end to end.
+# The clients, one row each (Gustav's brief of 28 October 2026): where each one reaches Krusgraph, its status word, and
+# since when it works. VS Code, Cursor and Glama signed in through client registration at /mcp/connect and ran tools on
+# 27 October 2026 (docs/LIVE-TEST.md); they stay Experimental for now. A client is named as working (the hub, the
+# /mcp/connect sentence) when it has a `works_since`.
 @dataclass(frozen=True)
 class ClientStatus:
     name: str
     where: str                 # how it connects, in words
     path: str                  # /mcp, /mcp/connect, or "" for a client that does not use MCP
     status: str                # one of WORDS
-    since: str = ""            # the date behind a Tested end to end
+    works_since: str = ""      # the date it first signed in and ran tools on the hosted service
     note: str = ""
 
 
-CONNECT_NOTE = ("client registration is switched on at krusgraph.com since 27 October 2026; VS Code and Glama reached the "
-                "approval page, a full sign-in is not yet confirmed")
+CONNECT_NOTE = "client registration is switched on at krusgraph.com since 27 October 2026"
 CLIENTS = (
     ClientStatus("Claude", "hosted, via /mcp (the connector)", "/mcp", "Tested end to end", "26 October 2026",
                  "the live runs of 26 and 27 October 2026"),
-    ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
-    ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
-    ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE),
+    ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
+                 CONNECT_NOTE),
+    ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE + "; not tried yet"),
+    ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
+                 CONNECT_NOTE),
+    ClientStatus("Glama", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
+                 CONNECT_NOTE + "; signed in with its client ID metadata document, connection test Healthy, 27 October 2026"),
     ClientStatus("Lovable", "via the GraphQL API that create_backend makes (not an MCP client of Krusgraph)", "", "Experimental",
                  note="Lovable's own Microsoft Fabric connector reads the API; the chain is in docs/LOVABLE-END-TO-END.md"),
 )
-# derived, for the hub and the docs' sentence: only what has signed in and run tools end to end
-CLIENTS_TESTED = {c.name: (c.path, c.since) for c in CLIENTS if c.status == "Tested end to end" and c.path}
+# derived, for the hub and the /mcp/connect sentence: the clients that have signed in and run tools
+CLIENTS_TESTED = {c.name: (c.path, c.works_since) for c in CLIENTS if c.works_since and c.path}
 WHERE_YOU_BUILD = ("Claude", "VS Code", "Cursor")       # the MCP clients the hub names, in this order; Lovable comes last
 
 
@@ -264,13 +267,12 @@ def clients_working(registration_on: bool) -> list[str]:
 
 
 def connect_sentence() -> str:
-    """What the site says about /mcp/connect: the tested clients there, or the status of the experimental ones."""
+    """What the site says about /mcp/connect: the clients that have signed in there, and their status word."""
     seen = clients_tested_at("/mcp/connect")
-    if seen:
-        dates = list(dict.fromkeys(d for _, d in seen))
-        return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])}"
-    names = [c.name for c in CLIENTS if c.path == "/mcp/connect"]
-    return f"Experimental: {CONNECT_NOTE} ({_listed(names)})"
+    if not seen:
+        return "Experimental: " + CONNECT_NOTE + "; not tried with a client yet"
+    dates = list(dict.fromkeys(d for _, d in seen))
+    return f"Tested on {_listed(dates)} with {_listed([n for n, _ in seen])} (Experimental for now)"
 
 
 # ------------------------------------------------------------------ the overview of tools, functions and clients -------
@@ -314,7 +316,8 @@ def overview_md(registration_on: bool = True) -> str:
     rows += [f"| `{t}` | {label(t)} | {where(t)} |" for t in STATUS]
     rows += [f"| {n} | {w}: {what} | {at} |" for n, w, at, what in FUNCTIONS]
     for c in CLIENTS:
-        status = c.status + (f" (since {c.since})" if c.since else "") + (f"; {c.note}" if c.note else "")
+        status = c.status + (f" (works since {c.works_since})" if c.works_since and c.status != "Tested end to end" else
+                             f" (since {c.works_since})" if c.works_since else "") + (f"; {c.note}" if c.note else "")
         at = c.where
         if c.path == "/mcp/connect" and not registration_on:
             status, at = c.status + "; cannot sign in to this server: client registration is not switched on here", "hosted elsewhere"
