@@ -2,6 +2,7 @@
 tools/list (inputSchema.properties.*.description), and a tool's description describes rather than instructs (the
 Claude directory's policy: "Returns …" and "Use when …" are fine, "Always call X first" and "You must" are not)."""
 import asyncio
+import json
 import re
 
 import pytest
@@ -51,3 +52,12 @@ def test_creating_tools_say_what_changes_in_fabric():
                  "create_silver_notebook", "create_gold_views", "create_drift_monitor"):
         assert "Changes Fabric" in by[name] and ("deleted" in by[name] or "dropped" in by[name]), name
     assert "does not run validate_plan" in by["create_backend"]
+
+
+def test_read_only_listing_stays_small():
+    """Round n26: the tools an agent gets with read-only access, as compact JSON of list_tools(), stay under a cap a
+    little above what n26 landed on (57 974 characters), so the listing does not grow again by accident."""
+    ro = [t.model_dump(by_alias=True, exclude_none=True, mode="json") for t in TOOLS
+          if t.annotations and t.annotations.read_only_hint]
+    size = len(json.dumps({"tools": ro}, separators=(",", ":"), ensure_ascii=False))
+    assert size <= 60_000, f"read-only tools/list is {size} characters"

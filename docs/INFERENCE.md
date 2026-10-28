@@ -211,19 +211,29 @@ These numbers are for the repository and this page only; the website does not qu
 
 ## How the tools describe themselves (round n18, 28 October 2026)
 
-Every parameter of the 35 hosted tools has a description in tools/list (`inputSchema.properties.*.description`),
+Every parameter of the 36 hosted tools has a description in tools/list (`inputSchema.properties.*.description`),
 defined once per shared parameter in `fabric_backend/tool_params.py`; `tests/test_tool_descriptions.py` fails on a
-parameter without one and on an instructing phrase in a description. Size of the hosted tools/list (the tools array as
-compact JSON, measured with `server.mcp.list_tools()`; tokens estimated as characters / 4, not counted by a tokenizer):
+parameter without one and on an instructing phrase in a description. Size of the hosted tools/list: the tools array of
+`server.mcp.list_tools()` as compact JSON (`separators=(",", ":")`, `ensure_ascii=False`), in characters; "tool
+descriptions" is the sum of the `description` strings, "parameter schemas" the sum of each `inputSchema` as compact
+JSON (with the parameter descriptions in it); the rest is names, titles, annotations and outputSchema. "Read-only" is
+the 28 tools with `readOnlyHint: true`. Tokens are estimated as characters / 4, not counted by a tokenizer.
 
-| | characters | ≈ tokens | of which tool descriptions | of which parameter schemas |
-| --- | ---: | ---: | ---: | ---: |
-| before (1c0cf0f) | 57 104 | ≈ 14 300 | 18 594 | ≈ 15 000 |
-| after | 90 535 | ≈ 22 600 | 14 649 | 57 104 |
+| | all 36: characters | ≈ tokens | tool descriptions | parameter schemas | read-only 28: characters |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| before n18 (8a87132) | 59 384 | ≈ 14 800 | 19 739 | 24 499 | 43 946 |
+| after n18 (cd4f7d9) | 93 278 | ≈ 23 300 | 15 197 | 63 048 | 67 165 |
+| after n26 | 80 672 | ≈ 20 200 | 14 768 | 50 875 | 57 974 |
 
-The tool descriptions are shorter than before (−21 %), but the parameter descriptions (meaning, format, default and an
-example for 248 parameters) add more than that saves, so the whole listing grew by 59 %. Most of the growth is the
-shared parameters repeated in each tool: `confirmed` (24 tools) and `keys` (24) with their examples.
+n18 made the tool descriptions shorter (−23 %), but the parameter descriptions (meaning, format, default and an
+example) added more than that saved, so the whole listing grew by 57 %. Most of the growth was the shared parameters
+repeated in each tool: `confirmed` and `keys` (18 read-only tools each) with their examples. Round n26 shortened those
+shared descriptions and moved what holds for every tool (where a workspace, source or API name comes from, that
+`confirmed` is not an approval flag and its optional fields, that `tables` never narrows the plan itself) to the
+server's instructions, which are sent once. The read-only listing is 14 % smaller than after n18; the goal of 30 % was
+not reached, because about half of what remains is schema structure (types, titles, `anyOf`, defaults, annotations,
+outputSchema) that may not change, and cutting the rest further would remove meaning or the examples for `confirmed` and
+`keys`. `tests/test_tool_descriptions.py` caps the read-only listing at 60 000 characters.
 
 ### Structured output, a possible change after the listing
 

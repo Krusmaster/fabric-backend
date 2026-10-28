@@ -16,40 +16,27 @@ def _d(text: str):
 
 # ------------------------------------------------------------------ shared ---------------------
 
-Workspace = Annotated[str, _d(
-    'Fabric workspace, name or id (list_workspaces). Example: "demo".')]
-Source = Annotated[str, _d(
-    'Lakehouse, warehouse or SQL database in the workspace, name or id (list_sources). Example: "demo_lh".')]
-Schema = Annotated[str, _d('Schema in the source. Default "dbo". Example: "shop".')]
+Workspace = Annotated[str, _d('Fabric workspace, name or id.')]
+Source = Annotated[str, _d('Lakehouse, warehouse or SQL database, name or id.')]
+Schema = Annotated[str, _d('Schema in the source. Default "dbo".')]
 Keys = Annotated[dict[str, list[str]] | None, _d(
-    'Primary keys replacing the inferred ones, {table: [columns]}, e.g. composite keys. Default: inferred. '
-    'Example: {"order_items": ["order_id", "line_no"]}.')]
+    'Primary keys replacing the inferred ones. Default: inferred. Example: {"order_items": ["order_id", "line_no"]}.')]
 Confirmed = Annotated[list[dict] | None, _d(
-    'Relationships the user confirmed, added to the plan even when no rule found them (not an approval flag).'
-    ' Entry: source, source_cols, target, target_cols (default source_cols), optional field_name, '
-    'reverse_name. Default none. Example: [{"source": "orders", "source_cols": ["ship_to_id"], "target": '
-    '"addresses", "target_cols": ["address_id"], "field_name": "ship_to", "reverse_name": "shipped_orders"}].')]
-TablesShown = Annotated[list[str] | None, _d(
-    'Table names or glob patterns narrowing the answer; the plan still covers the whole schema. Default all. '
-    'Example: ["orders", "sales_*"].')]
-TablesOnly = Annotated[list[str] | None, _d(
-    'Exact table names to include; the plan still covers the whole schema. Default all. Example: ["orders", '
-    '"customers"].')]
-Detail = Annotated[str, _d('"auto" (default: full up to 60 tables, else summary), "full" or "summary". Example: "summary".')]
-MaxItems = Annotated[int, _d(
-    'Cap on counting queries (one per key and relationship), 1–200. Default 60. Example: 120.')]
+    'Relationships the user confirmed, added to the plan. Default none. Example: [{"source": "orders", "source_cols": '
+    '["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}].')]
+TablesShown = Annotated[list[str] | None, _d('Table names or globs to show. Default all. Example: ["sales_*"].')]
+TablesOnly = Annotated[list[str] | None, _d('Exact table names to include. Default all.')]
+Detail = Annotated[str, _d('"auto" (default: full up to 60 tables, else summary), "full" or "summary".')]
+MaxItems = Annotated[int, _d('Cap on counting queries (one per key and relationship), 1–200. Default 60.')]
 DryRun = Annotated[bool, _d(
-    'true (default) returns what would be created and the REST calls, changing nothing; false creates or '
-    'updates. Example: false.')]
+    'true (default) returns what would be created and the REST calls, changing nothing; false creates or updates.')]
 ShowPersonalData = Annotated[bool, _d(
-    'true includes columns named like personal data (name, e-mail, phone, address, id number, birth date); '
-    'false (default) masks or omits them. Example: true.')]
-Api = Annotated[str, _d(
-    'API for GraphQL item, name or id (list_sources: graphql_apis). Example: "shop_api".')]
+    'true includes columns named like personal data; false (default) masks or omits them.')]
+Api = Annotated[str, _d('API for GraphQL item, name or id (list_sources: graphql_apis).')]
 Writable = Annotated[bool, _d('true includes create, update and delete mutations in the API; false (default) gives a '
                               'read-only API. Example: true.')]
 SilverSchema = Annotated[str, _d('Lakehouse schema with the silver tables create_silver_notebook writes. Default '
-                                 '"silver". Example: "silver".')]
+                                 '"silver".')]
 GoldSchema = Annotated[str, _d('Lakehouse schema for the gold views. Default "gold". Example: "gold".')]
 ViewsSchema = Annotated[str, _d('Schema the T-SQL views go into; created if missing. Default "krusgraph". Example: '
                                 '"reporting".')]
@@ -57,7 +44,7 @@ OrderBy = Annotated[dict[str, str] | None, _d(
     '{table: column} deciding which duplicate row is kept (the latest wins). Default: a column named like updated_at. '
     'Example: {"orders": "modified_at"}.')]
 Validate = Annotated[bool, _d('true runs validate_plan\'s counting queries and includes the counts; false (default) '
-                              'reads metadata only. Example: true.')]
+                              'reads metadata only.')]
 At = Annotated[str, _d('Daily run time, hh:mm in time_zone. Default "02:00". Example: "05:30".')]
 TimeZone = Annotated[str, _d('Windows time zone id for `at`. Default "W. Europe Standard Time". Example: "UTC".')]
 LibraryRef = Annotated[str | None, _d('Git tag, branch or commit of fabric-backend that the notebook installs. Default: '
@@ -132,7 +119,7 @@ ExportItems = Annotated[list[str] | None, _d(
 ExportNames = Annotated[dict[str, str] | None, _d(
     '{tool: display name} per exported item. Default: <source>_api, <source>_model, silver_<schema>, '
     'drift_monitor_<schema>, gold_<schema>. Example: {"create_backend": "shop_api"}.')]
-StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id. Example: "shop_api".')]
+StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id.')]
 LineageTable = Annotated[str | None, _d('One table to trace: the answer adds what a change to it reaches. Default: none. '
                                         'Example: "orders".')]
 Question = Annotated[str, _d('The question, in Swedish or English. Example: "total amount per customer last month".')]

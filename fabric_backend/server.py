@@ -103,7 +103,11 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
     "hand-over document with everything above. review_plan keeps the plan, the decisions about it and the checks as a file "
     "for the user's own repository; passed back as previous it applies the decisions again and marks checks on changed "
-    "tables stale. " + _tool_status.instructions_sentence()))
+    "tables stale. Shared parameters: workspace (list_workspaces), source (list_sources; lakehouse, warehouse or SQL "
+    "database) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag; "
+    "an entry has source, source_cols, target, target_cols (default source_cols) and optional field_name and reverse_name; "
+    "tables narrows what is shown or included while the plan is still made from the whole schema. "
+    + _tool_status.instructions_sentence()))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -419,10 +423,9 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
 def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                 confirmed: _p.Confirmed = None, decisions: _p.Decisions = None, previous: _p.Previous = None,
                 validate: _p.Validate = False, tables: _p.TablesShown = None, max_items: _p.MaxItems = 60, ctx: Context = None) -> str:
-    """Builds a review file of the plan: each key and relationship with a review status (proposed, accepted, rejected,
-    open) and a check status (not_checked, passed, failed, stale), plus a short Markdown report. Requires workspace
-    and source. Returns JSON with the file, the report and what needs attention first, no row values. Changes
-    nothing in Fabric. Errors: {error, kind, hint}."""
+    """Builds a review file of the plan: each key and relationship with a review status and a check status, plus a
+    Markdown report. Requires workspace and source. Returns JSON with the file, the report and what needs attention
+    first, no row values. Changes nothing. Errors: {error, kind, hint}."""
     from datetime import datetime, timezone
     from . import review as _review
     prev = _review.read(previous) if previous else None
@@ -717,10 +720,9 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
                            confirmed: _p.Confirmed = None, check_data: _p.CheckData = False, max_items: _p.MaxItems = 60,
                            tmdl: _p.Tmdl = None, ctx: Context = None) -> str:
     """Compares an existing Power BI semantic model with the plan: missing, contradicted and extra relationships,
-    cardinality, filter direction, active or inactive, stale tables and columns, and suggested measures. Requires
-    workspace, source and model or tmdl; reading the model needs SemanticModel.ReadWrite.All or Item.ReadWrite.All,
-    tmdl needs no permission. Returns JSON with the differences and confirmed entries for extra links. Changes
-    nothing. Errors: {error, kind, hint}."""
+    cardinality, direction, active, stale columns, suggested measures. Requires workspace, source and model
+    (SemanticModel.ReadWrite.All or Item.ReadWrite.All) or tmdl (no permission). Returns JSON with the differences and
+    confirmed entries for extra links. Changes nothing. Errors: {error, kind, hint}."""
     from . import model_compare as _mc
     if not model and not tmdl:
         return json.dumps({"error": "Name the semantic model (`model`, its name or id), or pass its definition files as `tmdl`.",
@@ -1117,10 +1119,9 @@ def silver_notebook_draft(workspace: _p.Workspace, source: _p.Source, schema: _p
                           order_by: _p.OrderBy = None, keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
                           ctx: Context = None) -> str:
-    """Drafts a PySpark notebook that writes de-duplicated silver Delta tables from a lakehouse: one row per key, every
-    relationship checked, rows with a missing reference put in krusgraph_quarantine. Requires workspace and a
-    lakehouse source. Returns JSON with the steps (each with its rule) and the notebook source. Changes nothing;
-    create_silver_notebook creates the item. Errors: {error, kind, hint}."""
+    """Drafts a PySpark notebook writing de-duplicated silver Delta tables: one row per key, references checked, broken
+    rows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the
+    notebook source. Changes nothing. Errors: {error, kind, hint}."""
     p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
     if refusal:
         return refusal
@@ -1415,10 +1416,9 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                             confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.SilverSchema = "silver",
                             gold_schema: _p.GoldSchema = "gold", views_schema: _p.ViewsSchema = "krusgraph", writable: _p.Writable = False,
                             show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
-    """Exports what the creating tools (create_backend, create_semantic_model, create_views, create_silver_notebook,
-    create_drift_monitor, create_gold_views) would create, as files in Fabric's Git format: one <name>.<type> folder
-    per item, views as .sql, and a README. Requires workspace and source. Returns JSON with the files, the items and
-    what was skipped and why. Calls no Git provider; changes nothing in Fabric. Errors: {error, kind, hint}."""
+    """Exports what the creating tools would create as files in Fabric's Git format: a <name>.<type> folder per item,
+    views as .sql, a README. Requires workspace and source. Returns JSON with the files, the items and what was
+    skipped and why. Changes nothing. Errors: {error, kind, hint}."""
     from . import git_export as _gx, notebook as _notebook, silver as _silver_mod, gold as _gold_mod, monitor as _monitor
     from .infer import PlanInputError
     wanted = list(dict.fromkeys(items or EXPORTABLE))
