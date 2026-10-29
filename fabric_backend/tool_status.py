@@ -43,10 +43,11 @@ LATER_LIVE = {
                             "Fabric workspace with synthetic data; neither has been run in Fabric, and the schedule needs "
                             "DataPipeline.Execute.All.",
     "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
-                       "data (7 entity types, 5 with a key; 7 relationship types); the item has not been reviewed in Fabric. "
-                       "Before that, with the ontology (preview) turned off in the tenant's settings, Fabric answered HTTP 403 "
-                       "FeatureNotAvailable.",
+                       "data (7 entity types, 5 with a key; 7 relationship types). Before that, with the ontology (preview) turned off in the tenant's settings, Fabric "
+                       "answered HTTP 403 FeatureNotAvailable. On 29 October 2026 Gustav reviewed the item in the Fabric portal.",
 }
+# Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
+REVIEWED = {"create_ontology": "29 October 2026"}
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
@@ -100,7 +101,7 @@ _RAW = {
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
                           "unit tests; creating by unit tests only", True),
     "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 28 October 2026", False,
-                        "; created live on 28 October 2026 (shop_ontology), not yet reviewed in Fabric; first stopped by HTTP 403 "
+                        "; created live on 28 October 2026 (shop_ontology), reviewed in the Fabric portal on 29 October 2026; first stopped by HTTP 403 "
                         "FeatureNotAvailable while the ontology was turned off in that tenant's settings"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
@@ -164,7 +165,9 @@ def phrase(name: str) -> str:
 def short(name: str) -> str:
     """The status next to an offer on a sales page (the home page): the word without the history behind it. A creating
     tool that has not created anything live is "draft; deployment not yet verified"; the long form (`label`, with the
-    dates and Fabric's answers) is on /docs#test-status."""
+    dates and Fabric's answers) is on /docs#test-status. A tool whose item has been reviewed in Fabric says so instead."""
+    if name in REVIEWED:
+        return "created live; reviewed in Fabric"
     if STATUS[name].kind == CREATES and build_word(name) == "draft":
         return "draft; deployment not yet verified"
     w = word(name)

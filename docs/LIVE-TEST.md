@@ -160,9 +160,10 @@ What the site and the docs now give only as a status word, with the run behind i
   `demo`, lakehouse `demo_lh`, schema `shop`, with the confirmed relationship `orders.ship_to_id → addresses.address_id`).
   Fabric answered status Succeeded, mode created: the item `shop_ontology` with 7 entity types (5 with a key), 7
   relationship types and 0 skipped relationships. Notes: `AuditLog` has no key; `OrderItems` has a composite key and was
-  left keyless. The item has not been reviewed in the portal and no ontology agent has used it. The site says "draft;
-  deployment not yet verified" next to the offer, as for the other creating tools created live; the tool table in the
-  docs gives the long form from `fabric_backend/tool_status.py`.
+  left keyless. On 29 October 2026 Gustav reviewed the item in the Fabric portal; his verdict: "ontology ser väldigt bra
+  ut". No single part (entity types, keys, relationships, data bindings) was recorded as checked on its own, and no
+  ontology agent or question has used it. The site says "created live; reviewed in Fabric" next to the offer; the tool
+  table in the docs gives the long form from `fabric_backend/tool_status.py`.
 
 ## Databricks
 
