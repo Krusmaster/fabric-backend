@@ -57,11 +57,11 @@ const { chromium } = require("playwright");
       const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
       const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
       const out = [];
-      for (const b of document.querySelectorAll(".check-ex")) {
+      for (const b of document.querySelectorAll(".check-ex")) {      // the examples and, n49, the two build buttons (no tag)
         const bg = rgb(getComputedStyle(b).backgroundColor);
         for (const t of b.querySelectorAll("strong, span")) out.push(ratio(rgb(getComputedStyle(t).color), bg));
         const em = b.querySelector("em");
-        out.push(ratio(rgb(getComputedStyle(em).color), rgb(getComputedStyle(em).backgroundColor)));
+        if (em) out.push(ratio(rgb(getComputedStyle(em).color), rgb(getComputedStyle(em).backgroundColor)));
       }
       return out.map((x) => Math.round(x * 100) / 100);
     }));

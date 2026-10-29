@@ -90,7 +90,7 @@ def test_check_page_policy_worker_and_files(client):
     r = client.get("/check")
     csp = r.headers["content-security-policy"]
     assert "connect-src 'none'" in csp and "worker-src 'self'" in csp and "form-action 'none'" in csp
-    assert r.text.count("Synthetic data") == 3 and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
+    assert r.text.count("Synthetic Data") == 3 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1]
     assert "are not uploaded" in r.text and 'href="/demo"' in r.text and 'href="/local"' in r.text and "Get help with a question" in r.text
     assert "http://" not in r.text.split("<main")[1].split("</main>")[0].replace("http://www.w3.org", "")
@@ -145,3 +145,87 @@ def test_the_privacy_sentence_matches_what_the_page_sends(client):
         assert "<strong>Your files are read in this browser and are not uploaded.</strong>" in page
         assert "sends only two anonymous events" in page and "no file contents, file names or table names" in page
         assert "sends only two anonymous events" in llms
+
+
+# ------------------------------------------------------------------ n49: go further from the graph ----------------
+from fabric_backend import browser_build as bb, tool_status as ts  # noqa: E402
+
+
+@pytest.mark.parametrize("kind", ["sample", "sap", "crm"])
+def test_build_gives_a_power_bi_project_and_an_app_starter_from_the_same_plan(kind):
+    r = bb.build(kind)
+    model = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_model.zip"])))
+    names = model.namelist()
+    pbip = json.loads(model.read(f"{r['name']}_model.pbip"))
+    assert pbip["artifacts"] == [{"report": {"path": f"{r['name']}_model.Report"}}]
+    pbir = json.loads(model.read(f"{r['name']}_model.Report/definition.pbir"))
+    assert pbir["datasetReference"]["byPath"]["path"] == f"../{r['name']}_model.SemanticModel"
+    assert f"{r['name']}_model.SemanticModel/definition/model.tmdl" in names and f"{r['name']}_model.SemanticModel/definition.pbism" in names
+    readme = model.read("README.md").decode()
+    assert ts.label("semantic_model_draft") in readme and "Not yet tried: opening this project in Power BI Desktop" in readme
+    app = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_app.zip"])))
+    assert "app/rayfin/connectors/data/schema.ts" in app.namelist() and "app/lovable-prompt.md" in app.namelist()
+    assert r["status"] == {"model": ts.label("semantic_model_draft"), "report": "Draft only", "create_model": ts.short("create_semantic_model"),
+                           "rayfin": ts.label("rayfin_connector"), "app_starter": ts.label("app_starter")}
+    assert r["report"]["has_data"] and r["report"]["measures"] and r["app"]["kpis"]
+
+
+def test_the_report_puts_the_right_total_beside_the_wrong_one_counted_in_the_rows():
+    d = bb.build("crm")["report"]["doubled"]
+    lines = bc.crm_tables()["sales_order_lines"][1]
+    orders = bc.crm_tables()["sales_orders"][1]
+    with_lines = {x[0] for x in lines}
+    assert d["right"] == sum(o[3] for o in orders if o[0] in with_lines)
+    assert d["wrong"] == sum(o[3] for o in orders for x in lines if x[0] == o[0]) and d["wrong"] > d["right"]
+    assert bb.build("sample")["report"]["doubled"] is None              # the shop plan has no header amount
+
+
+def test_build_from_files_and_from_a_columns_list():
+    r = bb.build("files", [("orders.csv", b"order_id,customer_id,amount\n1,1,10\n2,9,20\n"), ("customers.csv", b"customer_id,name\n1,a\n")])
+    assert r["app"]["list"]["rows"] and {m["name"]: m["value"] for m in r["report"]["measures"]}["Total amount"] == 30
+    c = bb.build("columns", None, "orders.order_id\norders.customer_id\ncustomers.customer_id")
+    assert not c["report"]["has_data"] and not c["report"]["measures"] and len(c["downloads"]) == 2
+
+
+def test_the_browser_reads_an_api_definition_as_describe_backend_does():
+    from fabric_backend import server
+    from fabric_backend.graphql import decode, definition
+    from fabric_backend.infer import plan
+    from fabric_backend.seed import schema
+    env = definition(plan(schema("shop")), "shop_api", "<ws>", "<item>")
+    assert bb._describe(env) == server.describe_definition(decode(env))
+
+
+def test_the_engine_zip_carries_what_build_imports():
+    names = zipfile.ZipFile(io.BytesIO(bc.engine_zip())).namelist()
+    for m in ("browser_build", "semantic_model", "rayfin", "app_starter", "graphql", "tool_status", "amounts"):
+        assert f"fabric_backend/{m}.py" in names
+
+
+def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client):
+    html = client.get("/check").text
+    box = html[html.index('id="check-build"'):html.index("</section>", html.index('id="check-build"'))]
+    assert "Build a Power BI model" in box and "See it as an app" in box
+    assert 'href="/start">Create it in your own Fabric<' in box and 'href="/start">Connect to Claude<' in box and 'href="/support">Get help with a question<' in box
+    assert 'id="check-loading"' in html and 'data-mascot="onto"' in html.split('id="check-loading"')[1][:200]
+    css = client.get("/static/site.css").text
+    assert "@media (prefers-reduced-motion:reduce){.check-hop{animation:none}}" in css
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_without_a_request(site):
+    out = subprocess.run(["node", str(ROOT / "tests/check_build_browser.js"), site] + ([CHROMIUM] if CHROMIUM else []),
+                         capture_output=True, text=True, timeout=600)
+    assert out.returncode == 0, out.stderr[-2000:]
+    r = json.loads(out.stdout.strip().splitlines()[-1])
+    assert not r["errors"] and all(x.startswith("GET ") for x in r["requests"]), r
+    for motion, anim in (("no-preference", "check-hop"), ("reduce", "none")):
+        o = r[motion]
+        assert o["loading_at_start"] and o["mascot_drawn"] and o["hop_animation"] == anim, o
+        assert o["loading_after_result"] is False and o["build_shown"]
+        assert "Draft only" in o["model_text"] and "Right: summed once per sales_orders row" in o["model_text"] and "14,400" in o["model_text"]
+        assert o["focus"] == "check-model" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
+        assert o["requests_while_building"] == [], o["requests_while_building"]
+        assert o["app_rows"] > 0 and "Download crm_erp_app.zip" in o["app_text"]
+        assert o["next_links"] == ["Create it in your own Fabric /start", "Connect to Claude /start", "Get help with a question /support"]
+        assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]

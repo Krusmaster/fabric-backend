@@ -22,10 +22,11 @@
 
     <div class="check-examples" role="group" aria-labelledby="check-ex-h">
       <p id="check-ex-h" class="check-ex-h">No files at hand? Try an example</p>
-      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: an order amount repeated on its lines</span><em>Synthetic data</em></button>
-      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices with two clients</span><em>Synthetic data</em></button>
-      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts in one system, customers in the other</span><em>Synthetic data</em></button>
+      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: an order amount repeated on its lines</span><em>Synthetic Data</em></button>
+      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices with two clients</span><em>Synthetic Data</em></button>
+      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts in one system, customers in the other</span><em>Synthetic Data</em></button>
     </div>
+    <div class="check-loading" id="check-loading" hidden><span class="check-hop" data-mascot="onto" data-pose="look" data-label=""></span><p id="check-loading-text" aria-hidden="true"></p></div>
     <p class="check-status" id="check-status" role="status" aria-live="polite">The engine needs JavaScript and WebAssembly. Loading it starts when the page opens.</p>
   </div>
 </section>
@@ -54,6 +55,19 @@
   <ol class="check-findings" id="check-findings"></ol>
   <details class="check-suggestions" id="check-suggestions-box" hidden><summary>Suggestions to decide on</summary><ol class="check-findings" id="check-suggestions"></ol></details>
   <details class="check-notes"><summary>Tables, keys and what was read</summary><div class="check-tables" id="check-tables"></div><ul id="check-notes"></ul></details>
+</section>
+
+<section class="wrap check-build" id="check-build" aria-labelledby="check-build-h" hidden>
+  <h2 id="check-build-h">Go further with these tables</h2>
+  <p class="muted">Made from the plan above and your own rows, in this browser: nothing is uploaded. No account needed.</p>
+  <div class="check-build-choices">
+    <button type="button" class="check-ex coral" id="check-build-model" aria-expanded="false" aria-controls="check-model"><strong>Build a Power BI model</strong><span>A simple report preview and the model as a Power BI project</span></button>
+    <button type="button" class="check-ex sage" id="check-build-app" aria-expanded="false" aria-controls="check-app"><strong>See it as an app</strong><span>Key figures, a list and a chart, and the starter code</span></button>
+  </div>
+  <p class="check-status" id="check-build-status" role="status" aria-live="polite"></p>
+  <div class="card check-preview" id="check-model" hidden tabindex="-1"></div>
+  <div class="card check-preview" id="check-app" hidden tabindex="-1"></div>
+  <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">Create it in your own Fabric</a><a class="btn secondary" href="/start">Connect to Claude</a><a class="btn ghost" href="/support">Get help with a question</a></div>
 </section>
 
 <section class="wrap demo-next" aria-labelledby="check-next-h">

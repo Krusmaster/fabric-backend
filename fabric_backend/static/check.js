@@ -2,6 +2,9 @@
 // left column lists each engine step as it finishes (its rules and its time), the right column builds the map from the
 // same events. Files are read with the File API into memory and posted to the worker; the page itself makes no request
 // with them (its CSP: connect-src 'none'). With prefers-reduced-motion the steps and the map appear at once, when done.
+// n49: while the engine loads or runs, Onto hops beside the step under way (still, with reduced motion; hidden with the
+// mascots switched off); under the result, a Power BI model and an app from the same input, previewed on the rows and
+// downloaded as zips made in the worker and saved from a Blob: no request carries them either.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -13,8 +16,15 @@
   let seq = 0, busy = false, onStep = null;
   const bootSteps = [];
 
+  const loading = $("check-loading"), loadingText = $("check-loading-text");
+  function hop(text) { loadingText.textContent = text; loading.hidden = false; }
+  function landed() { loading.hidden = true; }
+  const NEXT = { runtime: "Loading the engine…", engine: "The engine is ready." };
+
   worker.onmessage = (e) => {
     const d = e.data;
+    if (d.step && !busy && NEXT[d.step.step]) hop(NEXT[d.step.step]);
+    else if (d.step && busy) hop(d.step.title + "…");
     if (d.step) { if (onStep) onStep(d.step); else bootSteps.push(d.step); return; }
     const p = pending.get(d.id); if (p) { pending.delete(d.id); p(d); }
   };
@@ -26,10 +36,12 @@
   function say(text) { status.textContent = text; }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
-  let booted = false;
+  let booted = false, last = null, built = null;
   say("Loading the engine in this browser…");
+  hop("Starting the Python runtime…");
   const boot = call({ kind: "boot" }).then((r) => {
     booted = r.ok;
+    if (!busy) landed();
     if (r.ok) ping("loaded");
     if (!busy) say(r.ok ? "The engine is ready. Nothing has been read yet." : "The engine could not start: " + r.error);
     return r;
@@ -40,6 +52,10 @@
   async function start(kind, files, text) {
     if (busy) return;
     busy = true;
+    last = { kind, files: files || [], text: text || "" };
+    built = null;
+    resetBuild();
+    hop(booted ? "Reading the input…" : "Loading the engine…");
     document.documentElement.dataset.check = "running";
     delete document.documentElement.dataset.checkMs;
     const what = LABELS[kind] || (files.length + (files.length === 1 ? " file" : " files"));
@@ -59,9 +75,11 @@
       if (!booted) await boot;
       const r = await call({ kind, files, text });
       onStep = null;
-      if (!r.ok) { say("The engine stopped: " + r.error); return; }
+      if (!r.ok) { landed(); say("The engine stopped: " + r.error); return; }
       if (still) { run.hidden = false; events.forEach(show); }
+      landed();
       draw(r.result);
+      $("check-build").hidden = !r.result.tables.length;
       ping("done");
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
@@ -94,6 +112,102 @@
   drop.addEventListener("drop", async (e) => { e.preventDefault(); if (e.dataTransfer.files.length) start("files", await readFiles(e.dataTransfer.files)); });
   window.addEventListener("dragover", (e) => e.preventDefault());       // a file dropped beside the box stays on the page
   window.addEventListener("drop", (e) => e.preventDefault());
+
+  // ------------------------------------------------------------------ n49: go further from the graph
+  const panels = { model: $("check-model"), app: $("check-app") };
+  const choices = { model: $("check-build-model"), app: $("check-build-app") };
+  function resetBuild() {
+    $("check-build").hidden = true; $("check-build-next").hidden = true; $("check-build-status").textContent = "";
+    for (const k in panels) { panels[k].hidden = true; panels[k].replaceChildren(); choices[k].setAttribute("aria-expanded", "false"); }
+  }
+  async function openBuild(which) {
+    if (!last || busy) return;
+    const other = which === "model" ? "app" : "model";
+    panels[other].hidden = true; choices[other].setAttribute("aria-expanded", "false");
+    choices[which].setAttribute("aria-expanded", "true");
+    if (!built) {
+      busy = true;
+      $("check-build-status").textContent = "Drafting from your rows in this browser…";
+      try {
+        const r = await call({ kind: "build", input: last.kind, files: last.files, text: last.text });
+        if (!r.ok) { $("check-build-status").textContent = "The engine stopped: " + r.error; return; }
+        built = r.result;
+        drawModel(built); drawApp(built);
+      } finally { busy = false; }
+    }
+    $("check-build-status").textContent = which === "model" ? "The Power BI model draft is shown below." : "The app draft is shown below.";
+    panels[which].hidden = false; $("check-build-next").hidden = false;
+    panels[which].focus({ preventScroll: true });
+    panels[which].scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+  }
+  choices.model.addEventListener("click", () => openBuild("model"));
+  choices.app.addEventListener("click", () => openBuild("app"));
+
+  const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
+  const tag = (t) => el("span", { class: "status-tag" }, t);
+  function download(name, b64, label) {
+    const a = el("a", { class: "btn primary small", href: "#", download: name }, label);
+    a.addEventListener("click", (e) => {               // the zip was made in the worker; a Blob saves it, nothing is fetched
+      const bin = atob(b64), bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
+      a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
+    });
+    return a;
+  }
+  function figures(items) {
+    return el("ul", { class: "check-kpis" }, ...items.map((m) => el("li", null, el("span", { class: "check-kpi-v" }, fmt(m.value)), el("span", { class: "check-kpi-l" }, m.name || m.label))));
+  }
+  function bars(c) {
+    if (!c) return el("p", { class: "muted tiny" }, "No chart: no single-column relationship from a table with a measure to a table with a name to group by.");
+    const max = Math.max(...c.bars.map((b) => Number(b.value) || 0), 1);
+    const list = el("ul", { class: "check-bars", "aria-label": c.title },
+      ...c.bars.map((b) => el("li", null, el("span", { class: "check-bar-l" }, b.label),
+        el("span", { class: "check-bar-t" }, el("span", { class: "check-bar", style: "width:" + Math.max(2, Math.round(100 * (Number(b.value) || 0) / max)) + "%" })),
+        el("span", { class: "check-bar-v mono" }, fmt(b.value)))));
+    return el("figure", { class: "check-chart" }, el("figcaption", null, el("strong", null, c.title), c.more ? " (largest eight; " + c.more + " more)" : ""), list);
+  }
+  const noRows = () => el("p", { class: "muted" }, "A list of columns has no rows, so there is nothing to count: the download below has the model, the preview needs files with rows.");
+  function drawModel(b) {
+    const r = b.report;
+    const kids = [el("h3", null, "A simple report from your rows"),
+      el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
+    if (!r.has_data) kids.push(noRows());
+    else {
+      kids.push(figures(r.measures));
+      if (r.doubled) kids.push(el("div", { class: "check-doubled" },
+        el("p", null, el("strong", null, "The total that doubles: " + r.doubled.column)),
+        el("ul", { class: "check-kpis" }, el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.right)), el("span", { class: "check-kpi-l" }, "Right: summed once per " + r.doubled.header + " row")),
+          el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.wrong)), el("span", { class: "check-kpi-l" }, "Wrong: summed over the " + r.doubled.line + " rows"))),
+        el("p", { class: "muted tiny" }, r.doubled.why + " The model's measure sums it the right way.")));
+      kids.push(bars(r.chart));
+    }
+    const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
+    kids.push(el("h3", null, "The model as a Power BI project"),
+      el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opening it in Power BI Desktop has not been tried yet."),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)),
+      el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
+    panels.model.replaceChildren(...kids);
+  }
+  function drawApp(b) {
+    const a = b.app;
+    const kids = [el("h3", null, "A small app over the same data"),
+      el("p", { class: "tiny" }, tag("Draft only"), " A preview drawn here from your rows. The code: Rayfin connector ", tag(b.status.rayfin), "; app starter ", tag(b.status.app_starter), ".")];
+    if (!a.has_data) kids.push(noRows());
+    else {
+      kids.push(figures(a.kpis));
+      if (a.list) kids.push(el("div", { class: "check-table-wrap" }, el("table", { class: "check-list" },
+        el("caption", null, "First rows of " + a.list.table),
+        el("thead", null, el("tr", null, ...a.list.columns.map((c) => el("th", { scope: "col" }, c)))),
+        el("tbody", null, ...a.list.rows.map((row) => el("tr", null, ...row.map((v) => el("td", null, fmt(v)))))))));
+      kids.push(bars(a.chart));
+    }
+    const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
+    kids.push(el("h3", null, "The app's starter code"),
+      el("p", null, "Rayfin connector entities with the plan's keys and relationships, and a Lovable prompt, GraphQL queries and a Supabase edge function for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)));
+    panels.app.replaceChildren(...kids);
+  }
 
   // ------------------------------------------------------------------ drawing (textContent only: names come from files)
   function el(tag, attrs, ...kids) {

@@ -29,6 +29,17 @@ self.onmessage = async (event) => {
   try {
     const py = await (ready = ready || boot(id));
     if (kind === "boot") { self.postMessage({ id, ok: true }); return; }
+    if (kind === "build") {                  // n49: the Power BI model and the app from the same input, previews and zips
+      py.runPython("import os, shutil\nshutil.rmtree('/upload', ignore_errors=True)\nos.makedirs('/upload')");
+      (files || []).forEach((f, i) => py.FS.writeFile("/upload/" + i, new Uint8Array(f.bytes)));
+      py.globals.set("build_args", py.toPy({ input: event.data.input, names: (files || []).map((f) => f.name), text: text || "" }));
+      const built = py.runPython(
+        "import json, shutil\nfrom fabric_backend.browser_build import build\n_b = build_args\n"
+        + "_bf = [(n, open('/upload/%d' % i, 'rb').read()) for i, n in enumerate(_b['names'])]\n"
+        + "shutil.rmtree('/upload', ignore_errors=True)\njson.dumps(build(_b['input'], _bf, _b['text']), default=str)");
+      self.postMessage({ id, ok: true, result: JSON.parse(built) });
+      return;
+    }
     py.runPython("import os, shutil\nshutil.rmtree('/upload', ignore_errors=True)\nos.makedirs('/upload')");
     const names = [];
     (files || []).forEach((f, i) => { py.FS.writeFile("/upload/" + i, new Uint8Array(f.bytes)); names.push(f.name); });

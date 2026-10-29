@@ -1002,3 +1002,40 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 @keyframes session-show{0%{opacity:0}1.5%,7.9%{opacity:1}8.25%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.session-turns{gap:18px}.session-turn{grid-area:auto;opacity:1;animation:none}
   .session-thread{min-height:0}.session-sent,.session-answer{opacity:1;animation:none}.session-ask,.session-pause{display:none}}
+
+/* n49: Onto hops beside the step under way while the engine loads or runs (still with reduced motion; the mascot goes
+   with the mascots switch, the text stays) */
+.check-loading{display:flex;align-items:center;gap:12px;justify-content:center;margin:10px 0 0}
+.check-loading[hidden]{display:none}
+.check-loading p{margin:0;font-weight:700}
+.check-loading .mascot{width:56px;height:56px}
+.check-hop{display:inline-block;animation:check-hop .9s cubic-bezier(.3,0,.4,1) infinite}
+@keyframes check-hop{0%,100%{transform:translateY(0)}45%{transform:translateY(-14px)}60%{transform:translateY(-14px)}}
+@media (prefers-reduced-motion:reduce){.check-hop{animation:none}}
+/* n49: go further from the graph — a report preview, an app preview and their downloads */
+.check-build-choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:12px 0}
+.check-build-choices .check-ex[aria-expanded=true]{outline:3px solid var(--line-strong);outline-offset:2px}
+.check-preview{margin:12px 0}
+.check-preview h3{margin:18px 0 6px}
+.check-preview h3:first-child{margin-top:0}
+.check-kpis{list-style:none;margin:10px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.check-kpis li{background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.check-kpis li.ok{background:var(--sage-soft)}
+.check-kpis li.bad{background:var(--coral-soft)}
+.check-kpi-v{font:700 24px/1.2 var(--font-head);color:var(--ink)}
+.check-kpi-l{font-size:14px;color:var(--ink)}
+.check-doubled{margin:12px 0}
+.check-doubled p{margin:4px 0}
+.check-chart{margin:12px 0}
+.check-chart figcaption{margin:0 0 6px}
+.check-bars{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.check-bars li{display:grid;grid-template-columns:minmax(0,9rem) 1fr auto;gap:8px;align-items:center;font-size:14px}
+.check-bar-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.check-bar-t{background:var(--card-2);border-radius:6px;height:14px;overflow:hidden}
+.check-bar{display:block;height:100%;background:var(--sage-ink);border-radius:6px}
+.check-table-wrap{overflow-x:auto;margin:12px 0}
+.check-list{border-collapse:collapse;font-size:14px;min-width:100%}
+.check-list caption{text-align:left;font-weight:700;margin-bottom:6px}
+.check-list th,.check-list td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;white-space:nowrap}
+.check-build-next{margin:12px 0}
+.check-build-next[hidden],.check-preview[hidden],.check-build[hidden]{display:none}
