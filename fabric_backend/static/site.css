@@ -980,5 +980,8 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .session-tool{font:600 13px/1.5 var(--mono);color:var(--sage-ink)}
 .session-rule{font:600 11px/1 var(--mono);border:1px solid var(--line-strong);border-radius:999px;padding:2px 6px;white-space:nowrap}
 .session figcaption{margin-top:14px;font-size:12px;color:var(--muted)}
+/* a question that wraps would be typed on both lines at once: on narrow screens it fades in whole instead */
+@media (max-width:719px){.session{padding:18px 16px 12px}.session-text{animation-name:session-show;clip-path:none}}
+@keyframes session-show{0%{opacity:0}3%,100%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.session-turns{gap:18px}.session-turn{grid-area:auto;opacity:1;animation:none}
   .session-text,.session-answer{clip-path:none;opacity:1;animation:none}.session-text::after{display:none}}
