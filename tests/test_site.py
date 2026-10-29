@@ -544,7 +544,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
         assert tools[tool].startswith("Available when enabled by the operator"), tool
     for tool in ("create_silver_notebook", "create_gold_views", "create_drift_monitor"):      # created live on 28 October 2026 (n33)
         assert tools[tool].startswith("Experimental; created live on 28 October 2026") and "not yet run in Fabric" in tools[tool], tool
-    assert "created live on 28 October 2026 (shop_ontology), not yet reviewed in Fabric" in tools["create_ontology"]
+    assert "created live on 28 October 2026 (shop_ontology), reviewed in the Fabric portal on 29 October 2026" in tools["create_ontology"]
     assert "first stopped by HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md
     assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
     assert "one creating call that updated an existing API in place" in md
@@ -1138,6 +1138,7 @@ def test_the_home_page_shows_the_map_under_the_hero_and_the_total_that_doubles_n
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     assert "403" not in text and "cause unknown" not in text and "draft; deployment not yet verified" in text
+    assert "the ontology: created live; reviewed in Fabric" in text and "not yet reviewed" not in text
 
 
 def test_the_demo_ends_with_own_data_and_help(client):

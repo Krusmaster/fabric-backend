@@ -46,8 +46,8 @@ created `gold_shop` and `create_drift_monitor` with `schedule=false` created `dr
 the notebooks and the pipeline have not been run in Fabric. `create_ontology` first got HTTP 403 and answered `kind: consent`
 although the token carried `Item.ReadWrite.All` after reconnecting; Fabric's `errorCode` was `FeatureNotAvailable`: the
 ontology (preview) was turned off in the tenant's settings, not a missing permission (docs/LIVE-TEST.md, section 6). After the tenant setting "Users can create Ontology
-(preview) items" was turned on, it created `shop_ontology` the same day (7 entity types, 7 relationship types); the item
-has not been reviewed in Fabric. Since round n33 a refusal like the first one quotes Fabric's own `errorCode` and
+(preview) items" was turned on, it created `shop_ontology` the same day (7 entity types, 7 relationship types); on 29
+October 2026 Gustav reviewed the item in the Fabric portal. Since round n33 a refusal like the first one quotes Fabric's own `errorCode` and
 `message` and says `consent` only for `InsufficientScopes` (`fabric_backend/server.py` `_consent`).
 `create_semantic_model` and `create_data_agent` have not been run with `dry_run=false`.
 
