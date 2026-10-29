@@ -9,9 +9,9 @@
       <p class="session-head">A replay of a session in Claude</p>
       <ol class="session-turns">
         <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Plan a backend over the shop lakehouse.</p>
+          <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
           <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Plan a backend over the shop lakehouse.</span><span class="session-send">↑</span></p>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
         </li>
         <li class="session-turn">
           <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
@@ -19,13 +19,18 @@
           <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
         </li>
         <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">How do order lines reach the customer?</p>
-          <div class="session-answer"><p class="session-tool">join_path</p><p><code>order_items</code> → <code>orders</code> → <code>customers</code>, two many-to-one hops, each <span class="session-rule">R1</span>, with the T-SQL join.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">How do order lines reach the customer?</span><span class="session-send">↑</span></p>
+          <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
+          <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>. <span class="session-status">{{SHORT_CREATE_ONTOLOGY}}</span></p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
+        </li>
+        <li class="session-turn">
+          <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
+          <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet. <span class="session-status">{{SHORT_CREATE_SEMANTIC_MODEL}}</span></p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
         </li>
       </ol>
       <p class="session-links"><a href="/check">Try it with your own files</a><a href="/start">Connect to Claude</a></p>
-      <figcaption id="session-cap">Answers shortened from a read-only run in Claude on 29 October 2026, against synthetic shop data in a Fabric lakehouse.</figcaption>
+      <figcaption id="session-cap">Answers shortened from real runs in Claude against synthetic shop data in a Fabric lakehouse: questions 1 and 2 read only (29 October 2026), question 3 created an ontology (28 October 2026) and question 4 a semantic model (29 October 2026).</figcaption>
     </figure>
     <ul class="usp">
       <li><strong>The proof.</strong> Every key and link comes with the rule or source behind it, and is checked against your data.</li>

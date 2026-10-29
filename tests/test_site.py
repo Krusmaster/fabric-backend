@@ -1165,15 +1165,15 @@ def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
     assert home.find("MCP", first) > home.index('<ul class="usp">') and home.find("open source", 0, first) == -1
 
 
-def test_the_hero_plays_a_session_of_read_only_tools_with_where_and_when(client):
-    """n47: the box under the heading shows real questions and shortened answers, says where and when they ran, and
-    names only read-only tools (nothing that creates)."""
+def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
+    """n47: the box under the heading shows real questions and shortened answers and says where and when they ran.
+    n49: two of them now create (an ontology, a semantic model), and the caption says which and when."""
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     assert html.index("<h1") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
-    assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "join_path"]
-    assert "synthetic" in box and "29 October 2026" in box and "read-only" in box
+    assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
+    assert "synthetic" in box and "29 October 2026" in box and "read only" in box and "created" in box
 
 
 def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(client):
@@ -1186,3 +1186,22 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     assert "A replay of a session in Claude" in box and "You type in Claude" not in box
     assert '<a href="/check">Try it with your own files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
     assert "<input" not in box and "29 October 2026" in box
+
+
+def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_status(client):
+    """n49: the questions a non-technical user would ask, each answered by a real run; the creating turns carry the
+    status from tool_status, never a hand-written one, and no turn claims a report."""
+    from fabric_backend import tool_status as ts
+    html = client.get("/").text
+    box = re.search(r'<figure class="session".*?</figure>', html, re.S).group(0)
+    sent = re.findall(r'<p class="session-sent">(.*?)</p>', box)
+    assert sent == ["How are the tables in my lakehouse connected?", "Check the plan against the data.",
+                    "Create an ontology from my shop data.", "Build a Power BI model from my lakehouse."]
+    tools = re.findall(r'<p class="session-tool">(.*?)</p>', box)
+    assert tools == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
+    assert "7 entity types (5 with a key) and 7 relationship types, 0 skipped" in box and "shop_ontology" in box
+    assert "shop_model_live" in box and "6 active relationships and 1 inactive" in box and "4 measures" in box
+    assert ts.short("create_ontology") in box and ts.short("create_semantic_model") in box
+    assert "report" not in box.lower() and "visual" not in box.lower()
+    cap = re.search(r"<figcaption.*?</figcaption>", box, re.S).group(0)
+    assert "read only (29 October 2026)" in cap and "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap

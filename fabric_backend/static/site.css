@@ -955,13 +955,13 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .check-notes,.check-suggestions{margin:8px 0}
 
 /* n47: a played session under the hero heading, as a chat: each real question is typed into the field at the
-   bottom, sent, and then shows above it as a bubble with its shortened answer; one at a time, 6 s each. Without
-   motion all three show at once and the field is left out */
+   bottom, sent, and then shows above it as a bubble with its shortened answer; one at a time, 6 s each (n49: four turns). Without
+   motion all four show at once and the field is left out */
 .session{margin:10px auto 26px;width:100%;max-width:760px;text-align:left;background:var(--card);border:1px solid var(--line);
   border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px 14px;position:relative}
 .session-head{margin:0 0 12px;font:600 13px/1 var(--font-head);text-transform:uppercase;letter-spacing:.06em;color:var(--coral-ink)}
 .session-turns{list-style:none;margin:0;padding:0;display:grid}
-.session-turn{grid-area:1/1;display:flex;flex-direction:column;justify-content:flex-end;gap:16px;opacity:0;animation:session-turn 18s infinite}
+.session-turn{grid-area:1/1;display:flex;flex-direction:column;justify-content:flex-end;gap:16px;opacity:0;animation:session-turn 24s infinite}
 .session-turn *{animation-play-state:inherit}
 .session.is-paused .session-turn{animation-play-state:paused}
 /* n48: a tap or click in the replay shows two links instead of pausing it; Tab reaches them, Escape hides them */
@@ -975,28 +975,30 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .session-pause:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .session-turn:nth-child(2),.session-turn:nth-child(2) *{animation-delay:6s}
 .session-turn:nth-child(3),.session-turn:nth-child(3) *{animation-delay:12s}
+.session-turn:nth-child(4),.session-turn:nth-child(4) *{animation-delay:18s}
 .session-text::after{animation-delay:0s!important}
-@keyframes session-turn{0%{opacity:0}2%,31%{opacity:1}33.3%,100%{opacity:0}}
+@keyframes session-turn{0%{opacity:0}1.5%,23.25%{opacity:1}25%,100%{opacity:0}}
 .session-thread{display:flex;flex-direction:column;gap:12px;min-height:150px;justify-content:flex-end}
 .session-sent{align-self:flex-end;max-width:85%;margin:0;padding:10px 16px;border-radius:16px 16px 4px 16px;background:var(--coral-soft);
-  color:var(--ink);font-weight:700;opacity:0;animation:session-sent 18s infinite}
-@keyframes session-sent{0%,11%{opacity:0;transform:translateY(10px)}13%,100%{opacity:1;transform:none}}
-.session-answer{border-left:3px solid var(--sage);padding:2px 0 2px 14px;font-size:16px;color:var(--muted);opacity:0;animation:session-answer 18s infinite}
-@keyframes session-answer{0%,15%{opacity:0;transform:translateY(6px)}18%,100%{opacity:1;transform:none}}
+  color:var(--ink);font-weight:700;opacity:0;animation:session-sent 24s infinite}
+@keyframes session-sent{0%,8.25%{opacity:0;transform:translateY(10px)}9.75%,100%{opacity:1;transform:none}}
+.session-answer{border-left:3px solid var(--sage);padding:2px 0 2px 14px;font-size:16px;color:var(--muted);opacity:0;animation:session-answer 24s infinite}
+@keyframes session-answer{0%,11.25%{opacity:0;transform:translateY(6px)}13.5%,100%{opacity:1;transform:none}}
 .session-answer p{margin:0}
 .session-tool{font:600 13px/1.5 var(--mono);color:var(--sage-ink)}
+.session-status{font:600 12px/1.4 var(--font-head);color:var(--sage-ink);white-space:nowrap}
 .session-rule{font:600 11px/1 var(--mono);border:1px solid var(--line-strong);border-radius:999px;padding:2px 6px;white-space:nowrap}
 .session-ask{margin:0;display:flex;align-items:center;gap:12px;min-height:58px;padding:12px 12px 12px 18px;
   border:2px solid var(--coral);border-radius:16px;background:var(--card-2);font-size:clamp(17px,2.2vw,20px);font-weight:700}
-.session-text{flex:1;display:inline-block;clip-path:inset(0 100% 0 0);animation:session-type 18s infinite steps(28,end)}
-@keyframes session-type{0%{clip-path:inset(0 100% 0 0);opacity:1}9%,10.5%{clip-path:inset(0 0 0 0);opacity:1}11%,100%{opacity:0}}
+.session-text{flex:1;display:inline-block;clip-path:inset(0 100% 0 0);animation:session-type 24s infinite steps(28,end)}
+@keyframes session-type{0%{clip-path:inset(0 100% 0 0);opacity:1}6.75%,7.9%{clip-path:inset(0 0 0 0);opacity:1}8.25%,100%{opacity:0}}
 .session-text::after{content:"";display:inline-block;width:2px;height:1.1em;margin-left:2px;vertical-align:-.15em;background:var(--coral-ink);animation:session-caret 1s step-end infinite}
 @keyframes session-caret{50%{opacity:0}}
-.session-send{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--coral);color:#fff;font-weight:800;animation:session-press 18s infinite}
-@keyframes session-press{0%,10%,12%,100%{transform:none}11%{transform:scale(.85)}}
+.session-send{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--coral);color:#fff;font-weight:800;animation:session-press 24s infinite}
+@keyframes session-press{0%,7.5%,9%,100%{transform:none}8.25%{transform:scale(.85)}}
 .session figcaption{margin-top:14px;font-size:12px;color:var(--muted)}
 /* a question that wraps would be typed on both lines at once: on narrow screens it fades in whole instead */
 @media (max-width:719px){.session{padding:18px 16px 12px}.session-text{animation-name:session-show;clip-path:none}}
-@keyframes session-show{0%{opacity:0}2%,10.5%{opacity:1}11%,100%{opacity:0}}
+@keyframes session-show{0%{opacity:0}1.5%,7.9%{opacity:1}8.25%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.session-turns{gap:18px}.session-turn{grid-area:auto;opacity:1;animation:none}
   .session-thread{min-height:0}.session-sent,.session-answer{opacity:1;animation:none}.session-ask,.session-pause{display:none}}
