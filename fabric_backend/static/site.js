@@ -662,5 +662,14 @@
     document.getElementById('m-details').addEventListener('click', function () { document.getElementById('m-detail-text').hidden = false; });
   }
 
+  // the played session under the hero heading (n47): a button stops and restarts it, for keyboards as well as the mouse
+  document.querySelectorAll('.session-pause').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var paused = b.closest('.session').classList.toggle('is-paused');
+      b.setAttribute('aria-pressed', paused ? 'true' : 'false');
+      b.textContent = paused ? 'Play' : 'Pause';
+    });
+  });
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

@@ -1163,3 +1163,14 @@ def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
         assert tool in ts.STATUS, tool
     first = home.index(USP)
     assert home.find("MCP", first) > home.index('<ul class="usp">') and home.find("open source", 0, first) == -1
+
+
+def test_the_hero_plays_a_session_of_read_only_tools_with_where_and_when(client):
+    """n47: the box under the heading shows real questions and shortened answers, says where and when they ran, and
+    names only read-only tools (nothing that creates)."""
+    html = client.get("/").text
+    box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
+    assert html.index("<h1") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
+    assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
+    assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "join_path"]
+    assert "synthetic" in box and "29 October 2026" in box and "read-only" in box
