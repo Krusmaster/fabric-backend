@@ -920,7 +920,10 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .check-run{padding-top:28px}
 .check-run:focus{outline:none}
 .check-run-grid{display:grid;grid-template-columns:1fr;gap:20px}
-@media (min-width:900px){.check-run-grid{grid-template-columns:minmax(280px,1fr) 1.7fr}}
+@media (min-width:1024px){.check-run-grid{grid-template-columns:minmax(280px,1fr) 1.7fr}}
+.check-build-head{margin-top:20px}
+.check-build-head[hidden]{display:none}
+.check-build-head .check-build-choices{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .check-steps{list-style:none;margin:0;padding:0;border-left:3px solid var(--lav-soft)}
 .check-step{display:grid;grid-template-columns:auto 1fr;column-gap:10px;padding:8px 0 8px 14px;position:relative}
 .check-step::before{content:"";position:absolute;left:-8px;top:15px;width:13px;height:13px;border-radius:50%;background:var(--sage-d)}

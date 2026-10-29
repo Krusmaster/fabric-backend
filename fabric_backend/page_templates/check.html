@@ -43,6 +43,14 @@
       <div class="check-map" id="check-map" role="img" aria-labelledby="check-map-h check-map-summary"></div>
       <p class="muted tiny" id="check-map-summary"></p>
       <p class="legend check-legend"><span><i class="l-key"></i> table with a key</span><span><i class="l-nokey"></i> no key</span><span><i class="l-bad"></i> orphan rows</span><span><i class="l-sug"></i> suggested, your decision</span></p>
+      <div class="check-build-head" id="check-build-head" hidden>
+        <h3 id="check-build-h">Go further with these tables</h3>
+        <p class="muted">Made from the plan above and your own rows, in this browser: nothing is uploaded. No account needed.</p>
+        <div class="check-build-choices">
+          <button type="button" class="check-ex coral" id="check-build-model" aria-expanded="false" aria-controls="check-model"><strong>Build a Power BI model</strong><span>A simple report preview and the model as a Power BI project</span></button>
+          <button type="button" class="check-ex sage" id="check-build-app" aria-expanded="false" aria-controls="check-app"><strong>See it as an app</strong><span>Key figures, a list and a chart, and the starter code</span></button>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -57,16 +65,10 @@
   <details class="check-notes"><summary>Tables, keys and what was read</summary><div class="check-tables" id="check-tables"></div><ul id="check-notes"></ul></details>
 </section>
 
-<section class="wrap check-build" id="check-build" aria-labelledby="check-build-h" hidden>
-  <h2 id="check-build-h">Go further with these tables</h2>
-  <p class="muted">Made from the plan above and your own rows, in this browser: nothing is uploaded. No account needed.</p>
-  <div class="check-build-choices">
-    <button type="button" class="check-ex coral" id="check-build-model" aria-expanded="false" aria-controls="check-model"><strong>Build a Power BI model</strong><span>A simple report preview and the model as a Power BI project</span></button>
-    <button type="button" class="check-ex sage" id="check-build-app" aria-expanded="false" aria-controls="check-app"><strong>See it as an app</strong><span>Key figures, a list and a chart, and the starter code</span></button>
-  </div>
+<section class="wrap check-build" id="check-build" aria-label="Go further: the preview" hidden>
   <p class="check-status" id="check-build-status" role="status" aria-live="polite"></p>
-  <div class="card check-preview" id="check-model" hidden tabindex="-1"></div>
-  <div class="card check-preview" id="check-app" hidden tabindex="-1"></div>
+  <div class="card check-preview" id="check-model" hidden></div>
+  <div class="card check-preview" id="check-app" hidden></div>
   <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">Create it in your own Fabric</a><a class="btn secondary" href="/start">Connect to Claude</a><a class="btn ghost" href="/support">Get help with a question</a></div>
 </section>
 

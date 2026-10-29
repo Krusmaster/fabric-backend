@@ -204,8 +204,10 @@ def test_the_engine_zip_carries_what_build_imports():
 
 def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client):
     html = client.get("/check").text
+    head = html[html.index('id="check-build-head"'):html.index('id="check-build-head"') + 1500]
+    assert "Build a Power BI model" in head and "See it as an app" in head and "Go further with these tables" in head
+    assert html.index('id="check-map"') < html.index('id="check-build-head"') < html.index('id="check-result"')   # n51: in the map column
     box = html[html.index('id="check-build"'):html.index("</section>", html.index('id="check-build"'))]
-    assert "Build a Power BI model" in box and "See it as an app" in box
     assert 'href="/start">Create it in your own Fabric<' in box and 'href="/start">Connect to Claude<' in box and 'href="/support">Get help with a question<' in box
     assert 'id="check-loading"' in html and 'data-mascot="onto"' in html.split('id="check-loading"')[1][:200]
     css = client.get("/static/site.css").text
@@ -214,8 +216,12 @@ def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client
 
 @pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
 def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_without_a_request(site):
+    from fabric_backend.seed import AMOUNT_DEMO                       # the home page's before and after, as two CSV files
+    csv = {n: ",".join(c.split()[0] for c in ddl.split(", ")) + "\n" + "".join(",".join(str(v) for v in r) + "\n" for r in rows)
+           for n, (ddl, rows) in AMOUNT_DEMO.items()}
     out = subprocess.run(["node", str(ROOT / "tests/check_build_browser.js"), site] + ([CHROMIUM] if CHROMIUM else []),
-                         capture_output=True, text=True, timeout=600)
+                         capture_output=True, text=True, timeout=600,
+                         env=os.environ | {"CHECK_ORDERS": csv["orders"], "CHECK_LINES": csv["order_lines"]})
     assert out.returncode == 0, out.stderr[-2000:]
     r = json.loads(out.stdout.strip().splitlines()[-1])
     assert not r["errors"] and all(x.startswith("GET ") for x in r["requests"]), r
@@ -223,12 +229,19 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         o = r[motion]
         assert o["loading_at_start"] and o["mascot_drawn"] and o["hop_animation"] == anim, o
         assert o["loading_after_result"] is False and o["build_shown"]
-        assert "Draft only" in o["model_text"] and "Right: summed once per sales_orders row" in o["model_text"] and "14,400" in o["model_text"]
-        assert o["focus"] == "check-model" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
+        assert "Draft only" in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
+        assert "Summed over the joined lines (sales_order_lines)" in o["model_text"] and "14,400" in o["model_text"]
+        assert o["at_1280"] == {"in_map_col": True, "right_of_steps": True, "below_map": True, "beside_steps": True, "dom_order": True}, o
+        assert o["at_375"]["below_map"] and not o["at_375"]["right_of_steps"] and o["at_375"]["dom_order"], o
+        assert 0 <= o["heading_top"] < 120, o["heading_top"]
+        assert o["focus"] == "check-model-h" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
         assert o["requests_while_building"] == [], o["requests_while_building"]
         assert o["app_rows"] > 0 and "Download crm_erp_app.zip" in o["app_text"]
         assert o["next_links"] == ["Create it in your own Fabric /start", "Connect to Claude /start", "Get help with a question /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
+    o = r["reduce"]
+    assert o["shop_doubled"] is False                                  # the shop's orders have no amount: no comparison
+    assert o["files_doubled"] == ["2,000Summed over the joined lines (order_lines)", "1,000Summed once per header (orders)"], o
 
 
 @pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")

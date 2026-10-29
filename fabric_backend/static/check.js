@@ -5,6 +5,8 @@
 // n49: while the engine loads or runs, Onto hops beside the step under way (still, with reduced motion; hidden with the
 // mascots switched off); under the result, a Power BI model and an app from the same input, previewed on the rows and
 // downloaded as zips made in the worker and saved from a Blob: no request carries them either.
+// n51: the two choices sit in the map column, under the legend, once the run is done (the empty space beside the long
+// steps column); the preview they open stays full width under the result, and the click scrolls to its heading.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -79,7 +81,7 @@
       if (still) { run.hidden = false; events.forEach(show); }
       landed();
       draw(r.result);
-      $("check-build").hidden = !r.result.tables.length;
+      $("check-build-head").hidden = !r.result.tables.length;
       ping("done");
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
@@ -117,7 +119,7 @@
   const panels = { model: $("check-model"), app: $("check-app") };
   const choices = { model: $("check-build-model"), app: $("check-build-app") };
   function resetBuild() {
-    $("check-build").hidden = true; $("check-build-next").hidden = true; $("check-build-status").textContent = "";
+    $("check-build-head").hidden = true; $("check-build").hidden = true; $("check-build-next").hidden = true; $("check-build-status").textContent = "";
     for (const k in panels) { panels[k].hidden = true; panels[k].replaceChildren(); choices[k].setAttribute("aria-expanded", "false"); }
   }
   async function openBuild(which) {
@@ -125,6 +127,7 @@
     const other = which === "model" ? "app" : "model";
     panels[other].hidden = true; choices[other].setAttribute("aria-expanded", "false");
     choices[which].setAttribute("aria-expanded", "true");
+    $("check-build").hidden = false;
     if (!built) {
       busy = true;
       $("check-build-status").textContent = "Drafting from your rows in this browser…";
@@ -137,7 +140,8 @@
     }
     $("check-build-status").textContent = which === "model" ? "The Power BI model draft is shown below." : "The app draft is shown below.";
     panels[which].hidden = false; $("check-build-next").hidden = false;
-    panels[which].focus({ preventScroll: true });
+    const h = panels[which].querySelector("h3");
+    h.focus({ preventScroll: true });
     panels[which].scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
   }
   choices.model.addEventListener("click", () => openBuild("model"));
@@ -170,15 +174,15 @@
   const noRows = () => el("p", { class: "muted" }, "A list of columns has no rows, so there is nothing to count: the download below has the model, the preview needs files with rows.");
   function drawModel(b) {
     const r = b.report;
-    const kids = [el("h3", null, "A simple report from your rows"),
+    const kids = [el("h3", { id: "check-model-h", tabindex: "-1" }, "A simple report from your rows"),
       el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
     if (!r.has_data) kids.push(noRows());
     else {
       kids.push(figures(r.measures));
       if (r.doubled) kids.push(el("div", { class: "check-doubled" },
         el("p", null, el("strong", null, "The total that doubles: " + r.doubled.column)),
-        el("ul", { class: "check-kpis" }, el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.right)), el("span", { class: "check-kpi-l" }, "Right: summed once per " + r.doubled.header + " row")),
-          el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.wrong)), el("span", { class: "check-kpi-l" }, "Wrong: summed over the " + r.doubled.line + " rows"))),
+        el("ul", { class: "check-kpis" }, el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + r.doubled.line + ")")),
+          el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + r.doubled.header + ")"))),
         el("p", { class: "muted tiny" }, r.doubled.why + " The model's measure sums it the right way.")));
       kids.push(bars(r.chart));
     }
@@ -191,7 +195,7 @@
   }
   function drawApp(b) {
     const a = b.app;
-    const kids = [el("h3", null, "A small app over the same data"),
+    const kids = [el("h3", { id: "check-app-h", tabindex: "-1" }, "A small app over the same data"),
       el("p", { class: "tiny" }, tag("Draft only"), " A preview drawn here from your rows. The code: Rayfin connector ", tag(b.status.rayfin), "; app starter ", tag(b.status.app_starter), ".")];
     if (!a.has_data) kids.push(noRows());
     else {

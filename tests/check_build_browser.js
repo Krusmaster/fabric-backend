@@ -1,6 +1,7 @@
 // /check, n49: Onto hops while the engine loads and is gone with the result; under the result, the Power BI model and
 // the app previews with their downloads made in the browser (no request carries them); 375 and 1280 px, keyboard,
-// reduced motion, light and dark.
+// reduced motion, light and dark. n51: the choices in the map column from 1024 px and after the map at 375 px; a click
+// scrolls to the preview's heading; the total that doubles beside the right one on the home page's own rows.
 const { chromium } = require("playwright");
 (async () => {
   const [base, exe] = process.argv.slice(2);
@@ -20,7 +21,19 @@ const { chromium } = require("playwright");
     await page.click("#check-crm");
     await until(() => !!document.documentElement.dataset.checkMs);
     o.loading_after_result = await page.evaluate(() => !document.getElementById("check-loading").hidden);
-    o.build_shown = await page.evaluate(() => !document.getElementById("check-build").hidden);
+    o.build_shown = await page.evaluate(() => !document.getElementById("check-build-head").hidden && document.getElementById("check-build").hidden);
+    const where = () => page.evaluate(() => {
+      const r = (id) => document.getElementById(id).getBoundingClientRect();
+      const head = r("check-build-head"), map = r("check-map-summary"), steps = r("check-steps");
+      const order = ["check-steps", "check-map", "check-build-model", "check-build-app", "check-model"].map((id) => document.getElementById(id));
+      return { in_map_col: !!document.getElementById("check-build-head").closest(".check-map-col"),
+               right_of_steps: head.left >= steps.right, below_map: head.top >= map.bottom, beside_steps: head.top < steps.bottom,
+               dom_order: order.every((n, i) => !i || order[i - 1].compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING) };
+    });
+    o.at_375 = await where();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    o.at_1280 = await where();
+    await page.setViewportSize({ width: 375, height: 800 });
     const before = out.requests.length;
     // keyboard: focus the model button and press Enter
     await page.focus("#check-build-model");
@@ -28,6 +41,8 @@ const { chromium } = require("playwright");
     await until(() => !document.getElementById("check-model").hidden);
     o.model_text = await page.textContent("#check-model");
     o.focus = await page.evaluate(() => document.activeElement.id);
+    await page.waitForTimeout(1200);                                   // the smooth scroll lands
+    o.heading_top = await page.evaluate(() => Math.round(document.getElementById("check-model-h").getBoundingClientRect().top));
     o.next_links = await page.$$eval("#check-build-next a", (a) => a.map((x) => x.textContent + " " + x.getAttribute("href")));
     const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#check-model a[download]")]);
     o.download_name = dl.suggestedFilename();
@@ -54,6 +69,21 @@ const { chromium } = require("playwright");
         return [...document.querySelectorAll("#check-model .check-kpis li span, #check-app .check-kpis li span, #check-app td, .check-bar-l, #check-loading-text")]
           .map((t) => Math.round(ratio(rgb(getComputedStyle(t).color), bg(t)) * 100) / 100);
       }));
+    }
+    if (motion === "reduce") {
+      // the shop example: no header amount, so no comparison; then the home page's two tables as files
+      await page.click("#check-sample");
+      await until(() => document.documentElement.dataset.check === "done" && !document.getElementById("check-build-head").hidden);
+      await page.click("#check-build-model");
+      await until(() => !document.getElementById("check-model").hidden);
+      o.shop_doubled = await page.evaluate(() => !!document.querySelector("#check-model .check-doubled"));
+      await page.setInputFiles("#check-files", [
+        { name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from(process.env.CHECK_ORDERS) },
+        { name: "order_lines.csv", mimeType: "text/csv", buffer: Buffer.from(process.env.CHECK_LINES) }]);
+      await until(() => document.documentElement.dataset.check === "done" && !document.getElementById("check-build-head").hidden);
+      await page.click("#check-build-model");
+      await until(() => !document.getElementById("check-model").hidden);
+      o.files_doubled = await page.$$eval("#check-model .check-doubled li", (l) => l.map((x) => x.textContent));
     }
     await ctx.close();
   }
