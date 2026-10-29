@@ -1006,6 +1006,17 @@
    "findings": [
     {
      "accepted": false,
+     "amount": {
+      "column": "order_amount",
+      "header": "orders",
+      "line": "order_lines",
+      "line_columns": [
+       "order_id"
+      ],
+      "on_map": false,
+      "right": 1000.0,
+      "wrong": 2000.0
+     },
      "can_accept": false,
      "evidence": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[order_lines] AS l JOIN [demo].[orders] AS h ON l.[order_id] = h.[order_id]",
      "id": "amt:demo",

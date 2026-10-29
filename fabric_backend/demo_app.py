@@ -425,7 +425,10 @@ class Session:
                         "saw": (f"Summed over the joined {f['line']} rows: {_amount(before.get('summed_over_lines'))}; summed once per {f['header']} row: "
                                 f"{_amount(before.get('summed_per_header'))}. " if ba else "") + f["explanation"].split(" (rule")[0] + ".",
                         "means": f["explanation"], "next": {"sql": after[1]},
-                        "next_text": f["do_instead"], "evidence": after[0]})
+                        "next_text": f["do_instead"], "evidence": after[0],
+                        # n53: /check's "Ask Onto" points at this relationship on the map and shows both sums
+                        "amount": {"header": f["header"], "line": f["line"], "line_columns": f["line_columns"], "column": col,
+                                   "wrong": before.get("summed_over_lines"), "right": before.get("summed_per_header"), "on_map": True}})
         if self.source.kind == "sample":
             d = amounts.demo()
             out.append({"id": "amt:demo", "kind": "amount_level", "severity": "warning", "table": "orders (synthetic example)",
@@ -435,7 +438,9 @@ class Session:
                         "means": d["finding"]["explanation"], "next": {"sql": d["sql_after"]},
                         "next_text": "Sum an order amount on the orders table, or sum the line amounts; never the order amount over its lines. "
                                      "This example is two extra synthetic tables (fabric_backend.seed.AMOUNT_DEMO), not part of the shop's map.",
-                        "evidence": d["sql_before"]})
+                        "evidence": d["sql_before"],
+                        "amount": {"header": d["finding"]["header"], "line": d["finding"]["line"], "line_columns": d["finding"]["line_columns"],
+                                   "column": d["finding"]["amount_columns"][0], "wrong": d["before"], "right": d["after"], "on_map": False}})
         return out
 
     def exports(self, p: Plan, validation: dict | None, qs: list[dict]) -> dict[str, tuple[str, str]]:

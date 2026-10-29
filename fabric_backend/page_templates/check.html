@@ -59,6 +59,15 @@
 <section class="wrap check-result" id="check-result" aria-labelledby="check-result-h" hidden>
   <h2 id="check-result-h">Result</h2>
   <div class="card check-verdict" id="check-verdict"></div>
+  <section class="check-ask" id="check-ask" aria-labelledby="check-ask-h" data-product="{{PRODUCT}}" hidden>
+    <span class="check-ask-figure" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span>
+    <div class="check-ask-body">
+      <h3 id="check-ask-h">Ask Onto</h3>
+      <p class="muted tiny">Questions picked from what the engine found, answered in this browser from its own result, with the rule names. There is no question box here: nothing you type or drop leaves the browser.</p>
+      <ul class="check-ask-list" id="check-ask-list"></ul>
+      <div class="check-ask-answer" id="check-ask-answer" role="region" aria-live="polite" aria-label="Onto's answer" hidden></div>
+    </div>
+  </section>
   <h3>What is wrong or unclear</h3>
   <p class="muted tiny">Each item names the engine's own check and rule (K0–K5 for keys, R0–R4 for relationships). An unclear column is listed, never linked by guess.</p>
   <ol class="check-findings" id="check-findings"></ol>

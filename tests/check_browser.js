@@ -33,6 +33,29 @@ const { chromium } = require("playwright");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-result");
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
+  // n53: Ask Onto — the questions the result chose, each answered on the page, by keyboard, without a request
+  const before = out.requests.length;
+  out.ask_questions = await page.$$eval("#check-ask-list button", (n) => n.map((x) => x.textContent));
+  out.ask = {};
+  for (const id of ["total", "first", "key", "own"]) {
+    await page.focus(`[data-ask="${id}"]`);
+    await page.keyboard.press("Enter");
+    out.ask[id] = { text: await page.textContent("#check-ask-answer"), expanded: await page.getAttribute(`[data-ask="${id}"]`, "aria-expanded"),
+                    lit: await page.evaluate(() => document.querySelectorAll("#check-map .m-hl").length) };
+  }
+  await page.click('[data-ask="powerbi"]');
+  await until(() => !document.getElementById("check-model").hidden && document.getElementById("check-model").textContent.length > 0);
+  out.ask_powerbi_focus = await page.evaluate(() => document.activeElement.id);
+  out.ask_requests = out.requests.slice(before).filter((u) => !u.includes("/check/event"));
+  await page.evaluate(() => window.Mascots.setEnabled(false));
+  out.ask_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-ask-figure")).display,
+    list: getComputedStyle(document.getElementById("check-ask-list")).display, n: document.querySelectorAll("#check-ask-list button").length }));
+  for (const w of [375, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    out["ask_overflow_" + w] = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  }
+  await page.evaluate(() => window.Mascots.setEnabled(true));
+  await page.setViewportSize({ width: 1280, height: 720 });
   // reduced motion: no step is added while the run is still going (the result is hidden); they all come with it.
   // A MutationObserver runs after the task that added the steps, so it sees whether the result was shown with them.
   await page.evaluate(() => {

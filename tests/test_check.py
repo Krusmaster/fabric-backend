@@ -130,6 +130,19 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert r["crm_suggested_edges"] == 1 and r["sap_text"].count("SAP pack") > 0
     assert min(r["contrast"]) >= 4.5, r["contrast"]
     assert r["focused"] == "check-sample" and not r["overflow_375"] and not r["overflow_1280"]
+    # n53: Ask Onto on the shop example: the questions come from what the engine found, the answers from its result
+    assert r["ask_questions"] == ["Why does this total come out twice?", "What should I check first?", "Why is there no key on audit_log?",
+                                  "How do I get this into Power BI?", "Can I ask my own questions?"], r["ask_questions"]
+    total = r["ask"]["total"]["text"]
+    assert "Summed over the joined lines (order_lines)" in total and "Summed once per header (orders)" in total
+    assert "2,000" in total and "1,000" in total and "amount_level" in total
+    assert "rule K3" in r["ask"]["key"]["text"] and r["ask"]["key"]["lit"] == 1
+    assert "Yes, in Claude." in r["ask"]["own"]["text"] and "Connect to Claude" in r["ask"]["own"]["text"]
+    assert all(a["expanded"] == "true" for a in r["ask"].values())
+    assert r["ask_powerbi_focus"] == "check-model-h"
+    assert not r["ask_requests"], r["ask_requests"]                   # answered from the result: no request at all
+    assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 5}
+    assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
 
 
 def test_the_privacy_sentence_matches_what_the_page_sends(client):

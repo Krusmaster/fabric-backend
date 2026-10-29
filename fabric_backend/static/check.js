@@ -7,6 +7,9 @@
 // downloaded as zips made in the worker and saved from a Blob: no request carries them either.
 // n51: the two choices sit in the map column, under the legend, once the run is done (the empty space beside the long
 // steps column); the preview they open stays full width under the result, and the click scrolls to its heading.
+// n53: "Ask Onto" under the verdict: three to five questions picked from what the engine found, each answered here from
+// the engine's own result (its check and rule names), never sent anywhere; the doubled total and a missing key are
+// also marked on the map. No free text: a question box would have to send what is typed.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -38,7 +41,7 @@
   function say(text) { status.textContent = text; }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
-  let booted = false, last = null, built = null;
+  let booted = false, last = null, built = null, map = null;
   say("Loading the engine in this browser…");
   hop("Starting the Python runtime…");
   const boot = call({ kind: "boot" }).then((r) => {
@@ -64,7 +67,8 @@
     const t0 = performance.now();
     say("Reading " + what + " in this browser…");
     const events = [];
-    const map = new MapView($("check-map"));
+    map = new MapView($("check-map"));
+    $("check-ask").hidden = true;
     $("check-steps").replaceChildren();
     result.hidden = true;
     if (!still) run.hidden = false;
@@ -230,7 +234,8 @@
 
   function MapView(box) {
     const NS = "http://www.w3.org/2000/svg";
-    let svg = null, edges = null, nodes = null, pos = {}, W = 760, H = 460;
+    let svg = null, edges = null, nodes = null, pos = {}, W = 760, H = 460, lit = [];
+    const groups = {};
     box.replaceChildren();
     const add = (parent, tag, attrs, text) => { const x = document.createElementNS(NS, tag); for (const k in attrs) x.setAttribute(k, attrs[k]); if (text != null) x.textContent = text; parent.append(x); return x; };
     const key = (s, t, c) => s + "|" + (c || []).join("+").toLowerCase() + "|" + t;
@@ -243,6 +248,13 @@
       if (x.rule) add(g, "text", { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 - 5, class: "m-rule", "text-anchor": "middle" }, x.rule);
       lines[key(x.source, x.target, x.source_cols)] = g;
     }
+    // n53: mark one relationship (source, target, columns) or one table; returns whether it is on the map
+    this.highlight = (x) => {
+      lit.forEach((g) => g.classList.remove("m-hl")); lit = [];
+      const g = !x ? null : x.table ? groups[x.table] : lines[key(x.source, x.target, x.source_cols)];
+      if (g) { g.classList.add("m-hl"); lit.push(g); }
+      return !!g;
+    };
     this.update = (s) => {
       if (s.step === "keys") {
         const n = s.tables.length;
@@ -258,6 +270,7 @@
           pos[t.name] = n === 1 ? [W / 2, H / 2] : [W / 2 + rx * Math.cos(a), H / 2 + ry * Math.sin(a)];
           const [x, y] = pos[t.name], label = t.name.length > 18 ? t.name.slice(0, 17) + "…" : t.name, w = Math.max(84, Math.min(170, 8.4 * label.length + 22));
           const g = add(nodes, "g", { class: (t.key.length ? "m-node" : "m-node m-nokey") + (still ? "" : " in"), style: still ? "" : `animation-delay:${Math.min(i * 40, 600)}ms` });
+          groups[t.name] = g;
           add(g, "rect", { x: x - w / 2, y: y - 21, width: w, height: 42, rx: 12 });
           add(g, "text", { x, y: y - 3, "text-anchor": "middle", class: "m-name" }, label);
           add(g, "text", { x, y: y + 13, "text-anchor": "middle", class: "m-key" }, t.key.length ? "key " + t.key_rule : "no key · K3");
@@ -291,5 +304,67 @@
     $("check-tables").replaceChildren(...r.tables.map((t) => el("p", { class: "tiny" }, el("strong", null, t.name), " ",
       ...(t.key.length ? ["key ", code(t.key.join(" + ")), " (rule " + t.key_rule + ")"] : ["no key (rule K3)"]))));
     $("check-notes").replaceChildren(...((r.source && r.source.notes) || []).map((n) => el("li", null, n)));
+    ask(r);
+  }
+
+  // ------------------------------------------------------------------ n53: Ask Onto
+  // Every answer is drawn from `r`, the result the worker returned; nothing here makes a request.
+  function ask(r) {
+    const box = $("check-ask"), listEl = $("check-ask-list"), answer = $("check-ask-answer");
+    answer.hidden = true; answer.replaceChildren();
+    if (map) map.highlight(null);
+    if (!r.tables.length) { box.hidden = true; return; }
+    const tags = (f) => el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)));
+    const amounts = r.findings.filter((f) => f.check === "amount_level" && f.amount);
+    const doubled = amounts.find((f) => Number(f.amount.wrong) > Number(f.amount.right)) || amounts[0];
+    const keyless = r.tables.find((t) => !t.key.length);
+    const qs = [];
+    if (doubled) qs.push({ id: "total", q: "Why does this total come out twice?", a: () => {
+      const a = doubled.amount;
+      const rel = { source: a.line, target: a.header, source_cols: a.line_columns };
+      const shown = a.on_map && map && map.highlight(rel);
+      return [el("p", null, el("strong", null, a.header + "." + a.column), " is an amount on ", code(a.header), ", and ", code(a.line),
+          " has rows that point at each ", code(a.header), " row (", code(a.line + "." + a.line_columns.join(" + ")), " → ", code(a.header), "). Summed over the joined rows, each header amount is counted once per line."),
+        el("ul", { class: "check-kpis" },
+          el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + a.line + ")")),
+          el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + a.header + ")"))),
+        el("p", { class: "muted tiny" }, shown ? "The relationship is marked on the map. " : "", doubled.next),
+        tags(doubled)];
+    } });
+    qs.push({ id: "first", q: "What should I check first?", a: () => {
+      const f = r.findings[0] || r.suggestions[0];
+      if (!f) return [el("p", null, "Nothing the engine counts as wrong or unclear, and nothing to decide on. " + (r.health || ""))];
+      if (f.link && map) map.highlight(f.link); else if (map) map.highlight(f.table ? { table: f.table } : null);
+      return [el("p", null, el("strong", null, f.title)), el("p", null, f.saw), f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
+        el("p", { class: "muted tiny" }, r.findings.length > 1 ? "It comes first in the list below, ordered by severity (" + f.severity + "); " + (r.findings.length - 1) + " more follow." : "Severity: " + f.severity + "."), tags(f)];
+    } });
+    if (keyless) qs.push({ id: "key", q: "Why is there no key on " + keyless.name + "?", a: () => {
+      const f = r.findings.concat(r.suggestions).find((x) => x.check === "keyless" && x.table === keyless.name);
+      if (map) map.highlight({ table: keyless.name });
+      return [el("p", null, f ? f.saw : "No column of " + keyless.name + " is named like a key (rule K3)."),
+        el("p", { class: "muted" }, f ? f.means : "The table can point at others, but nothing can point at it."),
+        f && f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
+        el("p", { class: "muted tiny" }, "The table is marked on the map."), f ? tags(f) : el("p", { class: "tiny check-tags" }, code("rule K3"))];
+    } });
+    qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {
+      setTimeout(() => openBuild("model"), 0);
+      return [el("p", null, "Below the result: a simple report from your rows and the model as a Power BI project (.pbip) to download, made from the same plan in this browser. Creating the model in your own Fabric is a step in Claude (create_semantic_model).")];
+    } });
+    qs.push({ id: "own", q: "Can I ask my own questions?", a: () => [
+      el("p", null, el("strong", null, "Yes, in Claude."), " Connect " + $("check-ask").dataset.product + " to Claude and ask about your own lakehouse; the answers come with the same rules and are checked against the rows. Here on /check nothing leaves the browser, so there is no question box."),
+      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect to Claude"))] });
+    listEl.replaceChildren(...qs.map((x) => {
+      const b = el("button", { type: "button", class: "check-ask-q", "aria-expanded": "false", "aria-controls": "check-ask-answer", "data-ask": x.id }, x.q);
+      b.addEventListener("click", () => {
+        const open = b.getAttribute("aria-expanded") === "true";
+        listEl.querySelectorAll("button").forEach((o) => o.setAttribute("aria-expanded", "false"));
+        if (open) { answer.hidden = true; answer.replaceChildren(); if (map) map.highlight(null); return; }
+        b.setAttribute("aria-expanded", "true");
+        answer.replaceChildren(el("p", { class: "check-ask-said" }, x.q), ...x.a());
+        answer.hidden = false;
+      });
+      return el("li", null, b);
+    }));
+    box.hidden = false;
   }
 })();

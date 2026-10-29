@@ -100,7 +100,7 @@ def _source(kind: str, files: list | None, text: str):
 def _finding(f: dict) -> dict:
     return {"severity": f["severity"], "check": f["kind"], "rules": sorted(set(_RULE.findall(f.get("saw", "") + " " + f.get("title", "")))),
             "table": f["table"], "title": f["title"], "saw": f["saw"], "means": f["means"], "next": f.get("next_text", ""),
-            "sql": f.get("next", {}).get("sql", ""), "link": _link(f)}
+            "sql": f.get("next", {}).get("sql", ""), "link": _link(f), "amount": f.get("amount")}
 
 
 def _link(f: dict) -> dict | None:
