@@ -221,7 +221,7 @@ def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client
     assert "Build a Power BI model" in head and "See it as an app" in head and "Go further with these tables" in head
     assert html.index('id="check-map"') < html.index('id="check-build-head"') < html.index('id="check-result"')   # n51: in the map column
     box = html[html.index('id="check-build"'):html.index("</section>", html.index('id="check-build"'))]
-    assert 'href="/start">Create it in your own Fabric<' in box and 'href="/start">Connect to Claude<' in box and 'href="/support">Get help<' in box
+    assert 'href="/start">Create it in your own Fabric<' in box and box.count('href="/start"') == 1 and 'href="/support">Get help<' in box
     assert 'id="check-loading"' in html and 'data-mascot="onto"' in html.split('id="check-loading"')[1][:200]
     css = client.get("/static/site.css").text
     assert "@media (prefers-reduced-motion:reduce){.check-hop{animation:none}}" in css
@@ -250,7 +250,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["focus"] == "check-model-h" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
         assert o["requests_while_building"] == [], o["requests_while_building"]
         assert o["app_rows"] > 0 and "Download crm_erp_app.zip" in o["app_text"]
-        assert o["next_links"] == ["Create it in your own Fabric /start", "Connect to Claude /start", "Get help /support"]
+        assert o["next_links"] == ["Create it in your own Fabric /start", "Get help /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
     o = r["reduce"]
     assert o["shop_doubled"] is False                                  # the shop's orders have no amount: no comparison
