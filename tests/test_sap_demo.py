@@ -103,3 +103,14 @@ def test_the_one_cell_notebook_holds_the_same_rows_and_is_committed():
     committed = Path(__file__).resolve().parent.parent / "examples" / "sap_demo" / "load_sap_demo_inline.py"
     assert committed.read_text(encoding="utf-8") == nb, "regenerate: fabric-backend sap-demo --notebook examples/sap_demo/load_sap_demo_inline.py"
 
+
+
+def test_extended_sql_has_no_subquery_inside_an_aggregate(run):
+    """SQL Server (Fabric's SQL endpoint) refuses SUM over a subquery (error 130), which SQLite accepts: the
+    correlated count must sit in a derived table, not inside SUM. Found in the live run of LIVE-TEST-SAP.md part 0."""
+    import re
+    p = run[1]
+    assert p.extended
+    for r in p.extended:
+        sql = evidence.extended_sql("dbo", r)
+        assert not re.search(r"SUM\(CASE WHEN \(SELECT", sql), sql
