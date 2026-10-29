@@ -670,6 +670,17 @@
       b.textContent = paused ? 'Play' : 'Pause';
     });
   });
+  // n48: a tap or click in the box (not on the button) shows two links and the replay keeps playing; Escape hides them
+  document.querySelectorAll('.session').forEach(function (box) {
+    box.addEventListener('click', function (e) {
+      if (!e.target.closest('.session-pause, .session-links a')) box.classList.add('show-links');
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      box.classList.remove('show-links');
+      if (box.querySelector('.session-links').contains(document.activeElement)) box.querySelector('.session-pause').focus();
+    });
+  });
 
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

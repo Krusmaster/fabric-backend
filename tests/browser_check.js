@@ -250,6 +250,27 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
   facts.salesSavedList = await sp2.textContent('#sp-saved');
   facts.salesChoiceKept = await sp2.isChecked('input[name="link-B-7003"][value="A-103"]');
   await sc.close();
+  // n48: the played session at 375 with touch, and at 1280 by mouse and keyboard: a tap shows two links, never pauses
+  for (const [w, touch] of [[375, true], [1280, false]]) {
+    const tc = await browser.newContext({ viewport: { width: w, height: 900 }, hasTouch: touch, isMobile: touch });
+    const tp = await tc.newPage(); watch(tp, '/ session@' + w);
+    await tp.goto(base + '/', { waitUntil: 'networkidle' });
+    const state = () => tp.evaluate(() => getComputedStyle(document.querySelector('.session-turn')).animationPlayState);
+    if (touch) await tp.tap('.session-head'); else await tp.click('.session-head');
+    await tp.waitForTimeout(100);
+    const links = await tp.evaluate(() => [...document.querySelectorAll('.session-links a')].filter(a => a.getBoundingClientRect().width > 20).map(a => a.getAttribute('href')));
+    const wide = await tp.evaluate(() => document.documentElement.scrollWidth);
+    const pause = await tp.textContent('.session-pause');
+    await tp.keyboard.press('Escape');
+    const hidden = await tp.evaluate(() => document.querySelector('.session-links').getBoundingClientRect().width <= 1);
+    await tp.focus('.session-pause'); await tp.keyboard.press('Tab');
+    const tabbed = await tp.evaluate(() => document.activeElement.getAttribute('href'));
+    const tabShown = await tp.evaluate(() => document.activeElement.getBoundingClientRect().width > 20);
+    await tp.keyboard.press('Escape');
+    const escFocus = await tp.evaluate(() => document.activeElement.className);
+    facts['session@' + w] = { state: await state(), links, wide, pause, hidden, tabbed, tabShown, escFocus };
+    await tc.close();
+  }
   // builder on /mascots: failure keeps its status, no celebrate pose
   const m = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
   const mp = await m.newPage(); watch(mp, '/mascots builder');

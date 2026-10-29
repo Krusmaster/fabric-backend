@@ -1174,3 +1174,15 @@ def test_the_hero_plays_a_session_of_read_only_tools_with_where_and_when(client)
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
     assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "join_path"]
     assert "synthetic" in box and "29 October 2026" in box and "read-only" in box
+
+
+def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(client):
+    """n48: on touch :hover sticks after a tap, so no :hover rule may pause the session; the box says it is a replay and
+    carries two links shown by a tap, with no input field."""
+    css = client.get("/static/site.css").text
+    assert not re.search(r"\.session[^{,]*:hover[^{]*\{[^}]*animation-play-state", css)
+    html = client.get("/").text
+    box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
+    assert "A replay of a session in Claude" in box and "You type in Claude" not in box
+    assert '<a href="/check">Try it with your own files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
+    assert "<input" not in box and "29 October 2026" in box

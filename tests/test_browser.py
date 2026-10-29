@@ -169,3 +169,12 @@ def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_mot
         assert b["steps"] == len(pages.build_path()) and b["stepsOutside"] == 0, (v, b)     # the row of steps (n34)
     assert f["build@1280-light"]["stepsInRow"] == 1 and f["build@375-light"]["stepsInRow"] == len(pages.build_path())
     assert f["buildMotion"] == 0
+
+
+def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report):
+    """n48: touch at 375 and mouse at 1280; Tab reaches the links, Escape hides them."""
+    for w in (375, 1280):
+        s = report["facts"][f"session@{w}"]
+        assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
+        assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)
+        assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)

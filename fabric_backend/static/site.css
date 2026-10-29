@@ -958,12 +958,19 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
    bottom, sent, and then shows above it as a bubble with its shortened answer; one at a time, 6 s each. Without
    motion all three show at once and the field is left out */
 .session{margin:10px auto 26px;width:100%;max-width:760px;text-align:left;background:var(--card);border:1px solid var(--line);
-  border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px 14px}
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:22px 24px 14px;position:relative}
 .session-head{margin:0 0 12px;font:600 13px/1 var(--font-head);text-transform:uppercase;letter-spacing:.06em;color:var(--coral-ink)}
 .session-turns{list-style:none;margin:0;padding:0;display:grid}
 .session-turn{grid-area:1/1;display:flex;flex-direction:column;justify-content:flex-end;gap:16px;opacity:0;animation:session-turn 18s infinite}
 .session-turn *{animation-play-state:inherit}
-.session:hover .session-turn,.session.is-paused .session-turn{animation-play-state:paused}
+.session.is-paused .session-turn{animation-play-state:paused}
+/* n48: a tap or click in the replay shows two links instead of pausing it; Tab reaches them, Escape hides them */
+.session{cursor:pointer}
+.session-links{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.session.show-links .session-links,.session-links:focus-within{position:static;width:auto;height:auto;overflow:visible;clip-path:none;white-space:normal;
+  display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0}
+.session-links a{font:600 14px/1 var(--font-head);color:var(--ink);background:var(--card-2);border:1px solid var(--line-strong);border-radius:999px;padding:10px 14px;text-decoration:none}
+.session-links a:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .session-pause{float:right;margin:-4px 0 0 12px;font:600 13px/1 var(--font-head);color:var(--ink);background:var(--card-2);border:1px solid var(--line-strong);border-radius:999px;padding:6px 12px;cursor:pointer}
 .session-pause:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
 .session-turn:nth-child(2),.session-turn:nth-child(2) *{animation-delay:6s}
