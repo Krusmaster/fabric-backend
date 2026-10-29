@@ -953,3 +953,22 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .check-finding pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px}
 .check-tags code{margin-right:6px}
 .check-notes,.check-suggestions{margin:8px 0}
+
+/* n42: a played session under the hero heading: three real questions and shortened answers, one at a time; all three
+   at once without motion */
+.session{margin:6px auto 22px;width:100%;max-width:620px;text-align:left;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:18px 20px 12px}
+.session-turns{list-style:none;margin:0;padding:0;display:grid}
+.session-turn{grid-area:1/1;opacity:0;animation:session-turn 15s infinite}
+.session-turn:nth-child(2){animation-delay:5s}.session-turn:nth-child(3){animation-delay:10s}
+.session:hover .session-turn{animation-play-state:paused}
+@keyframes session-turn{0%{opacity:0;transform:translateY(6px)}4%,30%{opacity:1;transform:none}34%,100%{opacity:0}}
+.session-ask{margin:0 0 10px;font-weight:700;display:flex;gap:10px;align-items:baseline}
+.session-you{font:600 12px/1 var(--font-head);text-transform:uppercase;letter-spacing:.06em;color:var(--coral-ink);
+  background:var(--coral-soft);border-radius:999px;padding:4px 9px;flex:none}
+.session-answer{border-left:3px solid var(--sage);padding:2px 0 2px 12px;font-size:15px;color:var(--muted)}
+.session-answer p{margin:0}
+.session-tool{font:600 12px/1.4 var(--mono);color:var(--sage-ink)}
+.session-rule{font:600 11px/1 var(--mono);border:1px solid var(--line-strong);border-radius:999px;padding:2px 6px;white-space:nowrap}
+.session figcaption{margin-top:12px;font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.session-turns{gap:14px}.session-turn{grid-area:auto;opacity:1;animation:none}}

@@ -4,6 +4,23 @@
     <p class="eyebrow">For teams working in Microsoft Fabric</p>
     <h1>Understand how your Fabric tables fit together.</h1>
     <p class="lede">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
+    <figure class="session" aria-labelledby="session-cap">
+      <ol class="session-turns">
+        <li class="session-turn">
+          <p class="session-ask"><span class="session-you">You</span> Plan a backend over the shop lakehouse.</p>
+          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div>
+        </li>
+        <li class="session-turn">
+          <p class="session-ask"><span class="session-you">You</span> Check the plan against the data.</p>
+          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div>
+        </li>
+        <li class="session-turn">
+          <p class="session-ask"><span class="session-you">You</span> How do order lines reach the customer?</p>
+          <div class="session-answer"><p class="session-tool">join_path</p><p><code>order_items</code> → <code>orders</code> → <code>customers</code>, two many-to-one hops, each <span class="session-rule">R1</span>, with the T-SQL join.</p></div>
+        </li>
+      </ol>
+      <figcaption id="session-cap">Answers shortened from a read-only run in Claude on 29 October 2026, against synthetic shop data in a Fabric lakehouse.</figcaption>
+    </figure>
     <ul class="usp">
       <li><strong>The proof.</strong> Every key and link comes with the rule or source behind it, and is checked against your data.</li>
       <li><strong>The errors before anyone sees them.</strong> The total that doubles, keys that are not unique, references with no matching row.</li>
