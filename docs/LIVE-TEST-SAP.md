@@ -40,12 +40,12 @@ It does **not** show that the pack is right about SAP, because the rows are writ
 
 | # | Question in Claude | Expected (the same as `tests/test_sap_demo.py` finds in SQLite) | Result | Date |
 | --- | --- | --- | --- | --- |
-| 0.1 | *"Which SAP tables does the SAP pack recognise in demo_lh?"* (`sap_pack_draft`) | 17 tables, from `sap_t001` to `sap_adr6`; keys with `MANDT` (`CLIENT` for `ADRC`, `ADR6`) | | |
-| 0.2 | *"Check the plan of demo_lh against the data, max_items 200."* (`validate_plan`) | 17 of 17 keys unique, 32 of 34 relationships hold without orphans; `sap_vbap` → `sap_vbak` has 1 orphan (the planted item of order 0000000009) | | |
-| 0.3 | (same answer) `amount_levels` | `sap_vbak.NETWR` over `sap_vbap` rows, up to 3 lines per order | | |
-| 0.4 | (same answer) `sap_kna1` → `sap_adrc` | 3 rows with a value, 0 orphans, 0 matching twice (version I and the expired period are left out) | | |
-| 0.5 | *"Show five rows of sap_adr6."* (`sample_rows`) | `SMTP_ADDR` shown as `***`, the reason naming the SAP pack | | |
-| 0.6 | `fabric-backend sap-verify validation.json --where "synthetic SAP demo" --when YYYY-MM-DD` | 32 verified, 1 review (`VBAP` → `VBAK`), 1 no evidence (`VBFA` → `VBAK`), 6 not checked; with `--write` it refuses | | |
+| 0.1 | *"Which SAP tables does the SAP pack recognise in demo_lh?"* (`sap_pack_draft`) | 17 tables, from `sap_t001` to `sap_adr6`; keys with `MANDT` (`CLIENT` for `ADRC`, `ADR6`) | as expected (earlier run, PR #4) | earlier run |
+| 0.2 | *"Check the plan of demo_lh against the data, max_items 200."* (`validate_plan`) | 17 of 17 keys unique, 32 of 34 relationships hold without orphans; `sap_vbap` → `sap_vbak` has 1 orphan (the planted item of order 0000000009) | summary verbatim "17 of 17 keys unique, 32 of 34 relationships hold without orphans"; `sap_vbap` → `sap_vbak` "1 of 6 rows (16.7%) point at nothing"; `sap_vbfa` → `sap_vbak` (VBTYP_N A–L) "no rows with a value: nothing to check"; no SQL Server error 130 | 29 Oct 2026, build src-6423dd7301bf53c2 (747768a) |
+| 0.3 | (same answer) `amount_levels` | `sap_vbak.NETWR` over `sap_vbap` rows, up to 3 lines per order; the explanation names the referenced header values and how many of them are in `sap_vbak` ("4 referenced header value(s), 3 of them in sap_vbak": the fourth is the orphan order 0000000009) | `sap_vbak.NETWR` over `sap_vbap`, avg_lines 1.5, max_lines 3; also `sap_vbap.NETWR` over `sap_vbep`, `sap_lips` and `sap_vbrp`, and `sap_vbrk.NETWR`, `MWSBK` over `sap_vbrp` with 2 rows. The explanation then said "(4 row(s) of sap_vbak referenced)" although `sap_vbak` has 3 rows; reworded in n50 | 29 Oct 2026, build src-6423dd7301bf53c2 (747768a) |
+| 0.4 | (same answer) `sap_kna1` → `sap_adrc` | 3 rows with a value, 0 orphans, 0 matching twice (version I and the expired period are left out) | rows_with_value 3, orphans 0, several 0 (valid_on, NATION blank) | 29 Oct 2026, build src-6423dd7301bf53c2 (747768a) |
+| 0.5 | *"Show five rows of sap_adr6."* (`sample_rows`) | `SMTP_ADDR` shown as `***`, the reason naming the SAP pack | as expected (earlier run, PR #4) | earlier run |
+| 0.6 | `fabric-backend sap-verify validation.json --where "synthetic SAP demo" --when YYYY-MM-DD` | 32 verified, 1 review (`VBAP` → `VBAK`), 1 no evidence (`VBFA` → `VBAK`), 6 not checked; with `--write` it refuses | not run yet: needs validation.json locally | remains |
 
 The counts assume the schema holds only these 17 tables; other tables in it add their own keys and relationships to the answer. They can also differ from SQLite in one way: Spark reads an empty CSV field as `NULL`, SQLite keeps `''`. The
 checks treat both as no value, so the expected numbers are the same.

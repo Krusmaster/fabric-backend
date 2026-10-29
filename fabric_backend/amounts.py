@@ -84,12 +84,19 @@ def columns(plan: Plan) -> set[tuple[str, str]]:
     return {(f["header"], c) for f in header_amounts(plan) for c in f["amount_columns"]}
 
 
-def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Dialect = TSQL) -> str:
-    """Headers referenced, average and largest number of line rows per header: three numbers, read-only."""
+def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Dialect = TSQL,
+                         header: str | None = None, header_cols: list[str] | None = None) -> str:
+    """Header values the line rows reference, how many of them the header table holds, average and largest number of
+    line rows per referenced value: read-only."""
     q = dialect.quote
     cs = ", ".join(q(c) for c in cols)
     not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in cols)
-    return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MAX(n) AS max_lines "
+    found = ""
+    if header and header_cols:
+        on = " AND ".join(f"h.{q(b)} = g.{q(a)}" for a, b in zip(cols, header_cols))
+        found = (f", SUM(CASE WHEN EXISTS (SELECT 1 FROM {dialect.table(schema, header)} AS h WHERE {on}) "
+                 f"THEN 1 ELSE 0 END) AS headers_in_table")
+    return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MAX(n) AS max_lines{found} "
             f"FROM (SELECT {cs}, {dialect.count}(*) AS n FROM {dialect.table(schema, line)} WHERE {not_null} GROUP BY {cs}) AS g")
 
 
@@ -100,7 +107,8 @@ def _explain(f: dict, counts: dict | None) -> str:
     if counts and counts.get("headers"):
         avg = f"{counts['avg_lines']:g}"
         many = (f"{line} has {avg} rows for each row of {header} on average and up to {counts['max_lines']} "
-                f"({counts['headers']} row(s) of {header} referenced)")
+                f"({counts['headers']} referenced header value(s)"
+                + (f", {counts['headers_in_table']} of them in {header})" if "headers_in_table" in counts else ")"))
         size = f"so SUM({header}.{first}) over the joined rows comes out about {avg} times too large"
     else:
         many = f"{line} can have several rows for each row of {header} (rows per {header} row: unknown until the data is counted)"
@@ -120,10 +128,13 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
         if execute is not None and counted < max_items:
             counted += 1
             try:
-                row = list(execute(lines_per_header_sql(plan.schema.schema, f["line"], f["line_columns"], dialect)))[0]
+                row = list(execute(lines_per_header_sql(plan.schema.schema, f["line"], f["line_columns"], dialect,
+                                                         f["header"], f["header_columns"])))[0]
                 avg = row.get("avg_lines")
                 counts = {"headers": int(row.get("headers") or 0), "avg_lines": round(float(avg), 2) if avg is not None else 0,
                           "max_lines": int(row.get("max_lines") or 0)}
+                if row.get("headers_in_table") is not None:
+                    counts["headers_in_table"] = int(row["headers_in_table"])
             except Exception as e:                                       # noqa: BLE001 - one failed count never hides the finding
                 f["count_error"] = f"{type(e).__name__}: {e}"
         f["rows_per_header"] = counts if counts and counts["headers"] else "unknown"

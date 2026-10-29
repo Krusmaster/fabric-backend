@@ -1010,7 +1010,7 @@
      "evidence": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[order_lines] AS l JOIN [demo].[orders] AS h ON l.[order_id] = h.[order_id]",
      "id": "amt:demo",
      "kind": "amount_level",
-     "means": "orders.order_amount is an amount on orders, and order_lines has 2 rows for each row of orders on average and up to 2 (1 row(s) of orders referenced) (rule R1: order_lines.order_id → orders.order_id). In a join of the two, each orders amount is repeated on every order_lines row, so SUM(orders.order_amount) over the joined rows comes out about 2 times too large. Sum it on orders itself, or sum an amount of order_lines instead: order amount and line amount are different levels.",
+     "means": "orders.order_amount is an amount on orders, and order_lines has 2 rows for each row of orders on average and up to 2 (1 referenced header value(s), 1 of them in orders) (rule R1: order_lines.order_id → orders.order_id). In a join of the two, each orders amount is repeated on every order_lines row, so SUM(orders.order_amount) over the joined rows comes out about 2 times too large. Sum it on orders itself, or sum an amount of order_lines instead: order amount and line amount are different levels.",
      "next": {
       "sql": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[orders] AS h WHERE EXISTS (SELECT 1 FROM [demo].[order_lines] AS l WHERE l.[order_id] = h.[order_id])"
      },

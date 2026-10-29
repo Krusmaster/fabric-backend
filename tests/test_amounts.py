@@ -21,12 +21,13 @@ def demo_schema(with_lines: bool = True) -> Schema:
     return s
 
 
-def demo_execute():
+def demo_execute(extra_lines=()):
     con = sqlite3.connect(":memory:")
     con.execute("ATTACH DATABASE ':memory:' AS demo")
     for name, (ddl, data) in seed.AMOUNT_DEMO.items():
         con.execute(f"CREATE TABLE demo.[{name}] ({ddl})")
         con.executemany(f"INSERT INTO demo.[{name}] VALUES ({','.join('?' * len(data[0]))})", data)
+    con.executemany("INSERT INTO demo.[order_lines] VALUES (?, ?, ?)", extra_lines)
 
     def execute(sql):
         cur = con.execute(sqlite_sql(sql))
@@ -46,8 +47,15 @@ def test_the_header_amount_is_found_from_names_with_the_rule_and_unknown_rows_pe
 
 def test_with_rows_the_lines_per_header_are_counted():
     [f] = amounts.check(plan(demo_schema()), demo_execute())["findings"]
-    assert f["rows_per_header"] == {"headers": 1, "avg_lines": 2.0, "max_lines": 2}
+    assert f["rows_per_header"] == {"headers": 1, "avg_lines": 2.0, "max_lines": 2, "headers_in_table": 1}
     assert "2 rows for each row of orders" in f["explanation"] and "about 2 times too large" in f["explanation"]
+    assert "(1 referenced header value(s), 1 of them in orders)" in f["explanation"]
+
+
+def test_an_orphan_line_is_a_referenced_header_value_that_the_header_table_does_not_hold():
+    [f] = amounts.check(plan(demo_schema()), demo_execute([(9, 1, 50.0)]))["findings"]
+    assert f["rows_per_header"] == {"headers": 2, "avg_lines": 1.5, "max_lines": 2, "headers_in_table": 1}
+    assert "(2 referenced header value(s), 1 of them in orders)" in f["explanation"]
 
 
 def test_before_2000_after_1000():
