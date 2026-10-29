@@ -79,7 +79,7 @@ def test_home_introduces_the_developer_without_a_story(client):
     html = client.get("/").text
     assert "Work through one schema with Gustav" in html and "I’m Gustav, the developer behind Krusgraph at Kruse Consulting AB" in html
     note = html[html.index('id="developer"'):html.index("</section>", html.index('id="developer"'))]
-    assert 'href="/partners">Discuss your schema' in note and 'href="/support">Get help with a question' in note
+    assert 'href="/partners">Try a pilot' in note and 'href="/support">Get help' in note
     assert 'href="mailto:hello@krusgraph.test?subject=Krusgraph">email Gustav</a>' in note and "/issues" in note   # feedback: the other ways
     for word in ("price", "kr", "SEK", "response time", "within", "customers"):                       # no prices, terms or customers (n36)
         assert not re.search(rf"\b{word}\b", note, re.I), word
@@ -910,7 +910,7 @@ def test_the_guided_demo_has_a_page_of_its_own_and_home_a_short_way_in(client):
     for gone in ('class="guide"', 'id="home-graph"', 'class="rel-list"', 'id="home-details"', 'class="result-card"'):
         assert gone not in home, gone
     hero = re.search(r'<section class="hero">.*?</section>', home, re.S).group(0)
-    assert re.findall(r'<a class="btn [^"]*" href="([^"]+)"', hero) == ["/demo", "/start"]
+    assert re.findall(r'<a class="btn [^"]*" href="([^"]+)"', hero) == ["/check", "/start", "/demo"]
 
     demo = client.get("/demo").text
     assert "<title>Guided demo: where should each order be delivered? — Krusgraph</title>" in demo
@@ -1146,7 +1146,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
 def test_the_demo_ends_with_own_data_and_help(client):
     text = client.get("/demo").text
     end = text[text.index('class="wrap demo-next"'):]
-    assert 'href="/local#the-20-minute-demo">Try with your own data' in end and 'href="/support">Get help with a question' in end
+    assert 'href="/local#the-20-minute-demo">Try with your own data' in end and 'href="/support">Get help' in end
 
 
 def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
@@ -1186,7 +1186,7 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     assert "A replay of a session in Claude" in box and "You type in Claude" not in box
-    assert '<a href="/check">Try it with your own files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
+    assert '<a href="/check">Check your files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
     assert "<input" not in box and "29 October 2026" in box
 
 
@@ -1207,3 +1207,22 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
     assert "report" not in box.lower() and "visual" not in box.lower()
     cap = re.search(r"<figcaption.*?</figcaption>", box, re.S).group(0)
     assert "read only (29 October 2026)" in cap and "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap
+
+
+def test_one_name_for_each_way_in_across_the_site(client):
+    """n52: the start page had six ways in under four names. Buttons, the menu and the footer now use one name per
+    target on every page: /check "Check your files" (the hero adds "– no account"), /start "Connect to Claude", /support
+    "Get help", /partners "Try a pilot", /demo "Try the guided demo", /explore "Explore the demo graph"."""
+    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Connect to Claude", "Create it in your own Fabric"},   # the latter: /check's build step, named in browser_build.py's drafts
+             "/support": {"Get help"}, "/partners": {"Try a pilot"}, "/demo": {"Try the guided demo"},
+             "/explore": {"Explore the demo graph"}}
+    for path in ("/", "/demo", "/check", "/start", "/use-cases", "/support", "/partners", "/explore"):
+        html = client.get(path).text
+        links = re.findall(r'<a class="btn [^"]*" href="([^"]+)">([^<]+)</a>', html)
+        for nav in re.findall(r'<nav[^>]*>(.*?)</nav>', html, re.S):
+            links += re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', nav)
+        for href, text in links:
+            if href in names:
+                assert text.strip() in names[href], (path, href, text)
+    for gone in ("Discuss your schema", "Get help with a question", "Explore the demo<", "Try it with your own files"):
+        assert gone not in client.get("/").text, gone

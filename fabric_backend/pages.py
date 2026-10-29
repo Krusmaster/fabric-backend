@@ -338,7 +338,7 @@ def before_after_html() -> str:
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Support"), ("partners", "/partners", "Try a pilot")]
+    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -414,7 +414,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/demo">Guided demo</a><a href="/check">Check your files</a><a href="/explore">Demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Get started</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Support</a><a href="/partners">Try a pilot</a>
+      <a href="/demo">Try the guided demo</a><a href="/check">Check your files</a><a href="/explore">Explore the demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -713,7 +713,7 @@ def not_found_html(path: str) -> str:
     body = f"""<section class="wrap hero"><div class="hero-grid"><div>
 <span class="kicker">404</span><h1>Nothing connects here.</h1>
 <p class="lede">There is no page at <code>{html.escape(path[:120])}</code>.</p>
-<div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/explore">Explore the demo</a><a class="btn ghost" href="/docs">Docs</a></div>
+<div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/explore">Explore the demo graph</a><a class="btn ghost" href="/docs">Docs</a></div>
 </div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="aside" data-label=""></span></div></div></section>"""
     return _shell("Page not found — {{PRODUCT}}", "There is no page at this address.", body, page="notfound", nav="", noindex=True)
 

@@ -4,6 +4,12 @@
     <div class="check-figures" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span><span data-mascot="thinker" data-pose="look" data-label=""></span></div>
     <h1 id="check-h">How do your tables connect, and what is wrong with them?</h1>
     <p class="check-sub">Drop CSV or Excel exports, or paste a list of columns. Keys, relationships and problems, each with the rule behind it.</p>
+    <div class="check-examples" role="group" aria-labelledby="check-ex-h">
+      <p id="check-ex-h" class="check-ex-h">No files? Try an example</p>
+      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: an order amount repeated on its lines</span><em>Synthetic Data</em></button>
+      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices with two clients</span><em>Synthetic Data</em></button>
+      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts in one system, customers in the other</span><em>Synthetic Data</em></button>
+    </div>
 
     <div class="check-box" id="check-drop">
       <input type="file" id="check-files" class="visually-hidden" multiple accept=".csv,.xlsx,.txt,text/csv">
@@ -18,14 +24,9 @@
         <button type="button" class="btn secondary small" id="check-columns-run">Read the list</button>
       </div>
     </div>
-    <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The engine is downloaded once from {{DOMAIN}} ({{CHECK_MB}} MB unpacked, about 7 MB over the network) and runs here. The page sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done, with no file contents, file names or table names.</p>
+    <p class="check-private" id="check-private"><strong>Your files are read in this browser and are not uploaded.</strong> The page sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done, with no file contents, file names or table names.</p>
+    <details class="check-engine-size"><summary>About the engine download</summary><p>The engine is downloaded once from {{DOMAIN}} ({{CHECK_MB}} MB unpacked, about 7 MB over the network) and runs here.</p></details>
 
-    <div class="check-examples" role="group" aria-labelledby="check-ex-h">
-      <p id="check-ex-h" class="check-ex-h">No files at hand? Try an example</p>
-      <button type="button" class="check-ex coral" data-example="sample" id="check-sample"><strong>A total that doubles</strong><span>Shop: an order amount repeated on its lines</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex lav" data-example="sap" id="check-sap"><strong>SAP sales tables</strong><span>Orders, deliveries, invoices with two clients</span><em>Synthetic Data</em></button>
-      <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts in one system, customers in the other</span><em>Synthetic Data</em></button>
-    </div>
     <div class="check-loading" id="check-loading" hidden><span class="check-hop" data-mascot="onto" data-pose="look" data-label=""></span><p id="check-loading-text" aria-hidden="true"></p></div>
     <p class="check-status" id="check-status" role="status" aria-live="polite">The engine needs JavaScript and WebAssembly. Loading it starts when the page opens.</p>
   </div>
@@ -69,14 +70,14 @@
   <p class="check-status" id="check-build-status" role="status" aria-live="polite"></p>
   <div class="card check-preview" id="check-model" hidden></div>
   <div class="card check-preview" id="check-app" hidden></div>
-  <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">Create it in your own Fabric</a><a class="btn secondary" href="/start">Connect to Claude</a><a class="btn ghost" href="/support">Get help with a question</a></div>
+  <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">Create it in your own Fabric</a><a class="btn secondary" href="/start">Connect to Claude</a><a class="btn ghost" href="/support">Get help</a></div>
 </section>
 
 <section class="wrap demo-next" aria-labelledby="check-next-h">
   <div class="card">
     <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/demo">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p>
     <p class="muted tiny">Measured on “A total that doubles”, from opening the page to the result (Chromium, 28 October 2026): {{CHECK_TIMES}}. With your own files, choosing them is most of the two minutes.</p></div>
-    <div class="ctas"><a class="btn primary" href="/demo">Guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help with a question</a></div>
+    <div class="ctas"><a class="btn primary" href="/demo">Try the guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help</a></div>
   </div>
 </section>
 <script type="module" src="/static/check.js?v={{ASSET_V}}" data-worker="/check/worker.js?v={{ASSET_V}}&amp;e={{CHECK_ENGINE_V}}"></script>

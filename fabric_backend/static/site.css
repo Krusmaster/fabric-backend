@@ -905,7 +905,11 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 #check-files:focus-visible+label{outline:3px solid var(--focus);outline-offset:-6px;border-radius:var(--radius)}
 .check-box textarea{width:100%;box-sizing:border-box;font:14px/1.5 var(--mono);background:var(--card-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-s);padding:10px;resize:vertical}
 .check-private{max-width:68ch;margin:16px auto 0;font-size:15px}
-.check-examples{display:grid;grid-template-columns:1fr;gap:12px;margin-top:22px}
+.check-examples{display:grid;grid-template-columns:1fr;gap:8px;margin:14px 0 18px}
+@media (max-width:759px){.check-ex{padding:8px 12px}}
+.check-engine-size{max-width:68ch;margin:6px auto 0;font-size:14px;text-align:left}
+.check-engine-size summary{cursor:pointer}
+.hero-ctas{justify-content:center;margin:18px 0 26px}
 @media (min-width:760px){.check-examples{grid-template-columns:repeat(3,1fr)}}
 .check-ex-h{grid-column:1/-1;margin:0;font-weight:700}
 .check-ex{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;font:inherit;color:var(--ink);border:1px solid transparent;border-radius:var(--radius-s);padding:14px 16px;cursor:pointer;transition:transform .15s ease}

@@ -90,7 +90,7 @@ def test_demo_graph_and_the_mobile_list(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
         assert f[f"demoList@{v}"] == f["edgeCount"], v                 # every relationship is in the list at every width
-        assert f[f"homeCtas@{v}"][:2] == ["/demo", "/start"], v
+        assert f[f"homeCtas@{v}"][:2] == ["/check", "/start"], v
     assert f["homeDefault"] == "orders.customer_id>customers"
     for part in ("Suggestion", "Why", "Data check", "Your review", "Technical details"):
         assert part in f["homePanelDefault"], part
@@ -178,3 +178,38 @@ def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report
         assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
         assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)
         assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
+
+
+# ------------------------------------------------------------------ round n52: first-time visitors' ways in ----------
+@pytest.fixture(scope="module")
+def first_visit(site):
+    cmd = ["node", str(ROOT / "tests" / "first_visit_browser.js"), site] + ([CHROMIUM] if CHROMIUM else [])
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
+    """n52: on 29 October 2026 the start page's first button sat at y 1069 (1280 x 800) and 1411 (375 x 812). Now
+    "Check your files – no account" and "Connect to Claude" come right after the lede, before the replayed session,
+    and both are wholly on the first screen at both sizes, light and dark, with and without reduced motion."""
+    for v, ctas in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("hero@")):
+        height = int(v.split("-")[0].split("x")[1])
+        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), ("/start", "Connect to Claude")], v
+        assert all(c["bottom"] <= height for c in ctas), (v, ctas)
+
+
+def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
+    for w in (1280, 375):
+        seen = first_visit[f"tab@{w}"]
+        assert "/check" in seen and seen.index("/check") < seen.index("/start"), (w, seen)
+
+
+def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
+    """n52: at 375 x 812 the examples sat at y 1078, below the drop box and the privacy note. Now the heading and all
+    three examples are on the first screen, and the privacy sentence is still next to the drop box."""
+    for v, e in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("examples@")):
+        height = int(v.split("-")[0].split("x")[1])
+        assert e["heading"]["bottom"] <= height and len(e["buttons"]) == 3, v
+        assert all(b["bottom"] <= height for b in e["buttons"]), (v, e["buttons"])
+        assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
