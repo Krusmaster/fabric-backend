@@ -15,6 +15,11 @@ and the [demo graph](https://krusgraph.com/explore) run the same engine on a syn
 repository is the whole thing: engine, MCP server, website and deployment. Krusgraph is independent and not affiliated
 with Microsoft; "Microsoft Fabric" is used descriptively.
 
+**Try it without an account: [krusgraph.com/check](https://krusgraph.com/check).** No account, no Fabric and no
+administrator needed. Drop CSV or Excel files, or paste a list of columns, and see how the tables connect and what is
+wrong with them. The files are read in your browser and are not uploaded. No files at hand? Three synthetic examples
+are one click away.
+
 ![The Krusgraph start page: the headline, the row of what Krusgraph connects and the way in to the guided demo](docs/screenshots/home-1280-light.png)
 
 **The problem.** You have a lakehouse or warehouse in Fabric and you want an app on top of it —

@@ -9,6 +9,12 @@ Status (26 October 2026): unit-tested on the synthetic shop schema in SQLite and
 no request to any host but 127.0.0.1). Not yet run by us against a customer's SQL Server; the ODBC path is the one the
 local MCP server uses (docs/LOCAL.md), which is unit-tested against recorded SQL Server metadata only.
 
+The shortest way to show the engine, with nothing installed: open https://krusgraph.com/check and click "A total
+that doubles". The engine runs in the browser and the files are not uploaded. It does not replace this demo: it reads
+CSV, Excel or a list of columns, not a database sign-in. Live timings of /check from a cloud session could not be
+taken in round n46 (the session's network policy refused both krusgraph.com and the Container Apps address); the timings shown on the page are n38's
+measurement against a local server with a throttled network, not against krusgraph.com.
+
 ## Before the visit (10 minutes, once)
 
 On the laptop, Windows:
