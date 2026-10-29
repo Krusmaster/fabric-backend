@@ -947,9 +947,9 @@ def test_old_links_into_the_demo_on_the_start_page_go_on_to_demo(client):
 
 def _hub(client):
     html = client.get("/").text
-    after_hero = html.split('<section class="wrap connects"', 1)[1]                 # after the example and the steps since n36
+    after_hero = html.split('<section class="wrap connects"', 1)[1]                 # right under the hero since n43
     after_hero = '<section class="wrap connects"' + after_hero
-    assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
+    assert html.index('class="hero"') < html.index('<section class="wrap connects"') < html.index('id="example"') < html.index('id="how"')
     row = after_hero.split("</section>", 1)[0]
     visual = re.search(r'<div class="hub" aria-hidden="true">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)
     groups = {re.search(r'<p class="hub-h">(.*?)</p>', g).group(1): re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
@@ -1130,11 +1130,11 @@ def test_the_mascot_toggle_is_only_on_pages_with_mascots(client, path):
     assert ("data-mascot-toggle" in text) == expected, path
 
 
-def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(client):
+def test_the_home_page_shows_the_map_under_the_hero_and_the_total_that_doubles_next(client):
     from fabric_backend.seed import AMOUNT_DEMO
     text = client.get("/").text
     amount = AMOUNT_DEMO["orders"][1][0][2]
-    assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
+    assert text.index('aria-label="What Krusgraph connects"') < text.index('id="example"') < text.index('id="data"')
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     assert "403" not in text and "cause unknown" not in text and "draft; deployment not yet verified" in text
