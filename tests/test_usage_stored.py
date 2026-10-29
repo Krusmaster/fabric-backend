@@ -2,6 +2,7 @@
 deploy script (rerunnable, never switched off), and the report script, formatted from made-up answers (no Azure)."""
 import io
 import json
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -158,7 +159,7 @@ FAKE = {
     "totals": [{"calls": "200", "p50_ms": 840.0, "p95_ms": 5120.0, "orgs": 3, "consent": 10, "no_access": 4, "rate_limited": 0}],
     "calls_per_day": [{"day": "2026-11-01T00:00:00Z", "calls": 120, "errors": 9}, {"day": "2026-11-02T00:00:00Z", "calls": 80, "errors": 5}],
     "per_tool": [{"tool": "plan_backend", "calls": 120, "errors": 4, "p50_ms": 900, "p95_ms": 4000}],
-    "errors_by_kind": [{"kind": "consent", "calls": 10}, {"kind": "no_access", "calls": 4}],
+    "errors_by_kind": [{"error_kind": "consent", "calls": 10}, {"error_kind": "no_access", "calls": 4}],
     "page_views": [{"path": "/", "views": 50}, {"path": "/check", "views": 12}],
     "check": [{"step": "loaded", "events": 9}, {"step": "done", "events": 6}],
 }
@@ -179,6 +180,8 @@ def test_the_report_runs_each_query_for_7_and_30_days():
     seen = []
 
     def runner(command, **kwargs):
+        if "--analytics-query" not in command:
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
         text = command[command.index("--analytics-query") + 1]
         seen.append((command[command.index("--timespan") + 1], text))
         name = next(n for n in ur.QUERIES if ur.kql(n, 7 if "ago(7d)" in text else 30, "krusgraph") == text)
@@ -195,3 +198,61 @@ def test_usage_md_has_every_query_of_the_script():
         assert ur.kql(name, 30, "krusgraph") in doc, name
     for word in ("consent", "no_access", "rate_limited", "percentile(toint(e.ms), 95)", "dcountif", "/partners", "krusgraph.check"):
         assert word in doc
+
+
+# n42: kind and views (then step) gave SYN0002 against the real workspace on 29 October 2026; reserved words in KQL.
+RESERVED = ("kind", "views", "step", "count", "type", "range", "project", "where", "order", "by")
+
+
+def _unquoted_names(text: str) -> list:
+    import re
+    bad = []
+    for line in text.splitlines():
+        if line.startswith("| summarize"):
+            bad += [m for m in re.findall(r'(?:^|,|\bby)\s*([A-Za-z_]\w*)\s*=(?!=)', line[len("| summarize"):])]
+        if line.startswith("| order by"):
+            bad += [c.split()[0] for c in line[len("| order by"):].split(",") if not c.strip().startswith('["')]
+    return bad
+
+
+def _all_query_texts():
+    yield from ((n, ur.kql(n, 30, "krusgraph")) for n in ur.QUERIES)
+    import re
+    for doc in ("docs/USAGE.md", "docs/OPERATIONS.md"):
+        for block in re.findall(r"```kusto\n(.*?)```", (ROOT / doc).read_text(encoding="utf-8"), re.S):
+            yield doc, "\n".join(line.strip() for line in block.splitlines())
+
+
+def test_every_alias_and_order_column_is_quoted():
+    for name, text in _all_query_texts():
+        assert _unquoted_names(text) == [], name
+        for word in RESERVED:
+            for line in text.splitlines():
+                if line.startswith(("| summarize", "| order by")):
+                    assert f" {word} =" not in line and f",{word} =" not in line and f"by {word}" not in line, (name, word)
+
+
+def test_the_quoting_check_catches_the_failing_queries():
+    assert _unquoted_names("| summarize calls = count() by kind = tostring(e.outcome)") == ["calls", "kind"]
+    assert _unquoted_names("| order by views desc") == ["views"]
+    assert _unquoted_names('| summarize ["events"] = count() by ["step"] = tostring(e.step)') == []
+
+
+def test_the_extension_is_added_without_a_question_and_az_has_a_timeout():
+    calls = []
+
+    def runner(command, **kwargs):
+        calls.append((command, kwargs))
+        return SimpleNamespace(returncode=0, stdout="[]", stderr="")
+    ur.report("cust-1", "krusgraph", runner)
+    assert calls[0][0][:5] == ["az", "extension", "add", "--name", "log-analytics"] and "--yes" in calls[0][0]
+    assert all(kw.get("timeout") for _, kw in calls)
+
+    def slow(command, **kwargs):
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+    try:
+        ur.report("cust-1", "krusgraph", slow)
+    except RuntimeError as exc:
+        assert "svarade inte" in str(exc)
+    else:
+        raise AssertionError("no timeout error")

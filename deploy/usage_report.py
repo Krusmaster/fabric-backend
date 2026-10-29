@@ -26,25 +26,25 @@ BASE = (f'{TABLE}\n'
 
 QUERIES = {
     "calls_per_day": BASE + '| where ev == "krusgraph.tool_call"\n'
-                            '| summarize calls = count(), errors = countif(tostring(e.outcome) != "ok") by day = startofday(TimeGenerated)\n'
-                            '| order by day asc',
+                            '| summarize ["calls"] = count(), ["errors"] = countif(tostring(e.outcome) != "ok") by ["day"] = startofday(TimeGenerated)\n'
+                            '| order by ["day"] asc',
     "per_tool": BASE + '| where ev == "krusgraph.tool_call"\n'
-                       '| summarize calls = count(), errors = countif(tostring(e.outcome) != "ok"), p50_ms = percentile(toint(e.ms), 50), '
-                       'p95_ms = percentile(toint(e.ms), 95) by tool = tostring(e.tool)\n'
-                       '| order by calls desc',
+                       '| summarize ["calls"] = count(), ["errors"] = countif(tostring(e.outcome) != "ok"), ["p50_ms"] = percentile(toint(e.ms), 50), '
+                       '["p95_ms"] = percentile(toint(e.ms), 95) by ["tool"] = tostring(e.tool)\n'
+                       '| order by ["calls"] desc',
     "errors_by_kind": BASE + '| where ev == "krusgraph.tool_call" and tostring(e.outcome) != "ok"\n'
-                             '| summarize calls = count() by kind = tostring(e.outcome)\n'
-                             '| order by calls desc',
+                             '| summarize ["calls"] = count() by ["error_kind"] = tostring(e.outcome)\n'
+                             '| order by ["calls"] desc',
     "totals": BASE + '| where ev == "krusgraph.tool_call"\n'
-                     '| summarize calls = count(), p50_ms = percentile(toint(e.ms), 50), p95_ms = percentile(toint(e.ms), 95), '
-                     'orgs = dcountif(tostring(e.org), isnotempty(tostring(e.org))), '
-                     'consent = countif(tostring(e.outcome) == "consent"), no_access = countif(tostring(e.outcome) == "no_access"), '
-                     'rate_limited = countif(tostring(e.outcome) == "rate_limited")',
+                     '| summarize ["calls"] = count(), ["p50_ms"] = percentile(toint(e.ms), 50), ["p95_ms"] = percentile(toint(e.ms), 95), '
+                     '["orgs"] = dcountif(tostring(e.org), isnotempty(tostring(e.org))), '
+                     '["consent"] = countif(tostring(e.outcome) == "consent"), ["no_access"] = countif(tostring(e.outcome) == "no_access"), '
+                     '["rate_limited"] = countif(tostring(e.outcome) == "rate_limited")',
     "page_views": BASE + '| where ev == "krusgraph.page_view"\n'
-                         '| summarize views = count() by path = tostring(e.path)\n'
-                         '| order by views desc',
+                         '| summarize ["views"] = count() by ["path"] = tostring(e.path)\n'
+                         '| order by ["views"] desc',
     "check": BASE + '| where ev == "krusgraph.check"\n'
-                    '| summarize events = count() by step = tostring(e.step)',
+                    '| summarize ["events"] = count() by ["step"] = tostring(e.step)',
 }
 PAGES = ("/", "/check", "/explore", "/start", "/partners")
 WINDOWS = (7, 30)
@@ -86,7 +86,7 @@ def summary(days: int, results: dict) -> str:
                        f"   median {_n(r.get('p50_ms'))} ms, p95 {_n(r.get('p95_ms'))} ms")
         kinds = results.get("errors_by_kind") or []
         if kinds:
-            out.append("Fel per kind: " + ", ".join(f"{r.get('kind', '?')} {_n(r.get('calls'))}" for r in kinds))
+            out.append("Fel per kind: " + ", ".join(f"{r.get('error_kind', '?')} {_n(r.get('calls'))}" for r in kinds))
     views = {r.get("path"): _n(r.get("views")) for r in results.get("page_views") or []}
     out.append("Sidvisningar: " + ", ".join(f"{p} {views.get(p, 0)}" for p in PAGES))
     steps = {r.get("step"): _n(r.get("events")) for r in results.get("check") or []}
@@ -94,16 +94,40 @@ def summary(days: int, results: dict) -> str:
     return "\n".join(out)
 
 
+TIMEOUT = 180                             # seconds per az call; the report must never hang silently
+
+
+def _az(command: list, runner=subprocess.run):
+    try:
+        return runner(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"az svarade inte på {TIMEOUT} sekunder ({' '.join(command[:4])}). Kontrollera inloggningen "
+                           "(az account show) och försök igen.") from None
+    except FileNotFoundError:
+        raise RuntimeError("Hittar inte kommandot az. Kör skriptet i Azure Cloud Shell eller installera Azure CLI.") from None
+
+
+def ensure_extension(runner=subprocess.run) -> None:
+    """az monitor log-analytics query needs the log-analytics extension; add it without az asking (it waits silently
+    for a yes/no when the output is captured). Only a preview version exists, so az notes that; --only-show-errors hides it."""
+    result = _az(["az", "extension", "add", "--name", "log-analytics", "--yes", "--only-show-errors"], runner)
+    if result.returncode:
+        raise RuntimeError("Kunde inte lägga till az-tillägget log-analytics: "
+                           + ((result.stderr or result.stdout).strip()[-2000:] or "okänt fel")
+                           + "\nKör: az extension add --name log-analytics --yes")
+
+
 def run_query(workspace_id: str, text: str, days: int, runner=subprocess.run) -> list:
     command = ["az", "monitor", "log-analytics", "query", "--workspace", workspace_id, "--analytics-query", text,
                "--timespan", f"P{int(days)}D", "--only-show-errors", "--output", "json"]
-    result = runner(command, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    result = _az(command, runner)
     if result.returncode:
         raise RuntimeError((result.stderr or result.stdout).strip()[-2000:] or "az monitor log-analytics query misslyckades")
     return json.loads(result.stdout or "[]")
 
 
 def report(workspace_id: str, app: str, runner=subprocess.run) -> str:
+    ensure_extension(runner)
     parts = []
     for days in WINDOWS:
         results = {name: run_query(workspace_id, kql(name, days, app), days, runner) for name in QUERIES}
@@ -115,9 +139,9 @@ def workspace_from_config(config: dict, runner=subprocess.run) -> str:
     name = (config.get("log_analytics_workspace") or "").strip()
     if not name:
         raise RuntimeError("log_analytics_workspace saknas i deploy/krusgraph.json; ange --workspace-id i stället.")
-    result = runner(["az", "monitor", "log-analytics", "workspace", "show", "--resource-group", config["resource_group"],
+    result = _az(["az", "monitor", "log-analytics", "workspace", "show", "--resource-group", config["resource_group"],
                      "--workspace-name", name, "--subscription", config["subscription_id"], "--query", "customerId",
-                     "--only-show-errors", "--output", "tsv"], capture_output=True, text=True, encoding="utf-8", errors="replace")
+                     "--only-show-errors", "--output", "tsv"], runner)
     if result.returncode or not result.stdout.strip():
         raise RuntimeError((result.stderr or "").strip()[-2000:] or f"Hittar inte arbetsytan {name}.")
     return result.stdout.strip()

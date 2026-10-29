@@ -183,14 +183,18 @@ To keep all of them in Log Analytics (n39):
    ContainerAppConsoleLogs_CL
    | where ContainerAppName_s == "krusgraph" and Log_s startswith "{\"event\":\"krusgraph.tool_call\""
    | extend e = parse_json(Log_s)
-   | summarize calls = count(), errors = countif(tostring(e.outcome) != "ok"),
-               p50_ms = percentile(toint(e.ms), 50), p95_ms = percentile(toint(e.ms), 95)
-       by tool = tostring(e.tool), day = bin(TimeGenerated, 1d)
-   | order by day desc, calls desc
+   | summarize ["calls"] = count(), ["errors"] = countif(tostring(e.outcome) != "ok"),
+               ["p50_ms"] = percentile(toint(e.ms), 50), ["p95_ms"] = percentile(toint(e.ms), 95)
+       by ["tool"] = tostring(e.tool), ["day"] = bin(TimeGenerated, 1d)
+   | order by ["day"] desc, ["calls"] desc
    ```
 
-   Errors per kind: `| summarize count() by tool = tostring(e.tool), outcome = tostring(e.outcome)`. Organisations per
-   week (with the salt): `| summarize dcount(tostring(e.org)) by bin(TimeGenerated, 7d)`. If the table in your
+   Errors per kind: `| summarize ["calls"] = count() by ["tool"] = tostring(e.tool), ["error_kind"] = tostring(e.outcome)`.
+   Organisations per week (with the salt): `| summarize ["orgs"] = dcount(tostring(e.org)) by ["week"] = bin(TimeGenerated, 7d)`.
+   Quote every alias and `order by` column as `["..."]`: `kind`, `views` and `step` are reserved in KQL (SYN0002).
+   The script needs the az extension `log-analytics` and adds it itself (`az extension add --name log-analytics --yes
+   --only-show-errors`). The script's queries ran against the real workspace on 29 October 2026 with the maintainer's
+   local fix; the committed fix (n42) has not run against Azure until the maintainer runs it again. If the table in your
    workspace is `ContainerAppConsoleLogs` (without `_CL`), the column is `Log` instead of `Log_s`.
 
 `/metrics` (optional) serves the totals since the replica started in the Prometheus text format. It is a 404 unless a
