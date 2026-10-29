@@ -8,16 +8,19 @@
       <p class="session-head">You type in Claude</p>
       <ol class="session-turns">
         <li class="session-turn">
-          <p class="session-ask"><span class="session-text">Plan a backend over the shop lakehouse.</span><span class="session-send" aria-hidden="true">↑</span></p>
-          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div>
+          <div class="session-thread"><p class="session-sent">Plan a backend over the shop lakehouse.</p>
+          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Plan a backend over the shop lakehouse.</span><span class="session-send">↑</span></p>
         </li>
         <li class="session-turn">
-          <p class="session-ask"><span class="session-text">Check the plan against the data.</span><span class="session-send" aria-hidden="true">↑</span></p>
-          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div>
+          <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
+          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
         </li>
         <li class="session-turn">
-          <p class="session-ask"><span class="session-text">How do order lines reach the customer?</span><span class="session-send" aria-hidden="true">↑</span></p>
-          <div class="session-answer"><p class="session-tool">join_path</p><p><code>order_items</code> → <code>orders</code> → <code>customers</code>, two many-to-one hops, each <span class="session-rule">R1</span>, with the T-SQL join.</p></div>
+          <div class="session-thread"><p class="session-sent">How do order lines reach the customer?</p>
+          <div class="session-answer"><p class="session-tool">join_path</p><p><code>order_items</code> → <code>orders</code> → <code>customers</code>, two many-to-one hops, each <span class="session-rule">R1</span>, with the T-SQL join.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">How do order lines reach the customer?</span><span class="session-send">↑</span></p>
         </li>
       </ol>
       <figcaption id="session-cap">Answers shortened from a read-only run in Claude on 29 October 2026, against synthetic shop data in a Fabric lakehouse.</figcaption>
