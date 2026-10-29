@@ -23,12 +23,12 @@ Anthropic says so. No password, secret or workspace id belongs here.
 
 ## Left for Gustav (28 October 2026)
 
-1. Deploy (`--update`) so krusgraph.com serves round n37: `create_ontology` created live, and the 403 answers with Fabric's `errorCode` from n33.
+1. Deploy (`--update`) so krusgraph.com serves round n41: `create_ontology` created live and reviewed in Fabric, and the 403 answers with Fabric's `errorCode` from n33.
 2. Run `deploy/krusgraph.sh --check`: it now expects the three Fabric permissions added on 28 October.
 3. `create_ontology`: keep the tenant setting "Users can create Ontology (preview) items" on (it must be on for the
    tool to create anything; with it off Fabric answered `FeatureNotAvailable`). `shop_ontology` was created on 28 October
-   2026: review it in the portal (entity types, keys, bindings; `AuditLog` has no key, `OrderItems` was left keyless),
-   or say in the portal that it was created but not reviewed.
+   2026 and reviewed by Gustav in the Fabric portal on 29 October 2026 (an overall review; no single part recorded as
+   checked on its own, and no ontology agent has used it).
 4. Run `silver_shop`, `gold_shop` and `drift_shop_nightly` once in Fabric, or say in the portal that they were created
    but not run.
 5. Decide on `DataPipeline.Execute.All` for the drift monitor's schedule (an execute permission), or keep `schedule=false`.
@@ -124,7 +124,7 @@ Source: https://claude.com/docs/connectors/building/submission ("Submit a connec
 | Remote, reachable over HTTPS | `https://krusgraph.com/mcp` |
 | "OAuth 2.0 for authenticated services"; Anthropic can hold the OAuth client | Entra ID, Anthropic-held client credentials (answer 6) |
 | "every tool includes a `title` and the applicable `readOnlyHint` or `destructiveHint`" | all 36; `tests/test_submission.py` |
-| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; `sap_pack_draft` and the four other creating tools on 28 Oct 2026 (step 5); `create_ontology` created `shop_ontology` once the tenant setting "Users can create Ontology (preview) items" was on (first HTTP 403 `FeatureNotAvailable` while it was off); not reviewed in Fabric — say so in the portal |
+| Tested in Claude as a custom connector; "run every tool yourself" (Test & launch) | 30 tools on 27 Oct 2026; `sap_pack_draft` and the four other creating tools on 28 Oct 2026 (step 5); `create_ontology` created `shop_ontology` once the tenant setting "Users can create Ontology (preview) items" was on (first HTTP 403 `FeatureNotAvailable` while it was off); reviewed in the Fabric portal by Gustav on 29 Oct 2026 |
 | Documentation, privacy policy URL, support contact, icon | /docs, /privacy, hello@krusgraph.com, /favicon.ico |
 | Test account for reviewers, entered in the portal | step 6 |
 | Seven compliance acknowledgements | answer 9 |
