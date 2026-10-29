@@ -1913,7 +1913,8 @@ def build_app(host: str = "0.0.0.0"):
             headers = {**headers, "Content-Encoding": "gzip"}
         return Response(body, status_code=status, media_type=media_type, headers={**headers, "Vary": "Accept-Encoding"})
 
-    # /check runs the engine in a Web Worker on files that never leave the browser. The page itself fetches nothing
+    # /check runs the engine in a Web Worker on files that never leave the browser. Apart from its two events (an image
+    # from /check/event, step name only) the page itself fetches nothing
     # (connect-src 'none'); the worker may load exactly Pyodide's files and the engine zip from this host, and compile
     # WebAssembly. A request carrying a file therefore has nowhere to go (tests/browser_check.js checks it on screen).
     def check_headers(request, worker: bool = False) -> dict:

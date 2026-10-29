@@ -176,7 +176,7 @@ It reads table and column names, infers keys and relationships from names (decla
 ## Demo
 
 - [Guided demo]({o}/demo): one order followed to its delivery address in four steps, on the synthetic shop schema: what the engine suggests (`suggest_relationships` for `orders.ship_to_id`), what the data check shows, the visitor's decision and a summary of the result; nothing is changed in Fabric
-- [Check your files]({o}/check): drop CSV or Excel exports, or paste a list of columns, and see the map of the tables (keys and relationships with their rules) and what is wrong or unclear; the same engine runs in the browser (Pyodide), and the files are read there and never uploaded
+- [Check your files]({o}/check): drop CSV or Excel exports, or paste a list of columns, and see the map of the tables (keys and relationships with their rules) and what is wrong or unclear; the same engine runs in the browser (Pyodide), and the files are read there and never uploaded; the page sends only two anonymous events (the engine has loaded, a check is done), with no file contents, file names or table names
 - [Demo graph]({o}/explore): every table and relationship of the same schema, with the rule behind each one and the checks on its rows
 - [Demo plan]({o}/demo/plan.json): the real planning engine's output on a synthetic shop schema (JSON, with a Mermaid ER diagram)
 - [Demo validation]({o}/demo/validation.json): what validate_plan answers for that plan, computed on the synthetic rows

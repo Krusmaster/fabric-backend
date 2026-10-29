@@ -130,3 +130,18 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert r["crm_suggested_edges"] == 1 and r["sap_text"].count("SAP pack") > 0
     assert min(r["contrast"]) >= 4.5, r["contrast"]
     assert r["focused"] == "check-sample" and not r["overflow_375"] and not r["overflow_1280"]
+
+
+def test_the_privacy_sentence_matches_what_the_page_sends(client):
+    """n40: check.js sends two events, so the page must not claim it sends nothing, and must say what it does send."""
+    js = (ROOT / "fabric_backend/static/check.js").read_text()
+    sends = "/check/event" in js
+    html = (ROOT / "fabric_backend/page_templates/check.html").read_text()
+    page = client.get("/check").text
+    llms = client.get("/llms.txt").text
+    for text in (html, page, llms):
+        assert ("send nothing" in text or "sends nothing" in text) is not sends
+    if sends:
+        assert "<strong>Your files are read in this browser and are not uploaded.</strong>" in page
+        assert "sends only two anonymous events" in page and "no file contents, file names or table names" in page
+        assert "sends only two anonymous events" in llms
