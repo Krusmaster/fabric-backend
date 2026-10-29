@@ -69,9 +69,10 @@ def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
     cond += r.filter_sql("target", "t", q)
     has_value += r.filter_sql("source", "s", q)
     matches = f"(SELECT {count}(*) FROM {_t(schema, r.target, dialect)} AS t WHERE {' AND '.join(cond)})"
-    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN {matches} = 0 THEN 1 ELSE 0 END) AS orphans, "
-            f"SUM(CASE WHEN {matches} > 1 THEN 1 ELSE 0 END) AS several "
-            f"FROM {_t(schema, r.source, dialect)} AS s WHERE {' AND '.join(has_value)}")
+    # The count goes into a derived table first: SQL Server (Fabric's SQL endpoint) refuses a subquery inside SUM (error 130)
+    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN m.n = 0 THEN 1 ELSE 0 END) AS orphans, "
+            f"SUM(CASE WHEN m.n > 1 THEN 1 ELSE 0 END) AS several "
+            f"FROM (SELECT {matches} AS n FROM {_t(schema, r.source, dialect)} AS s WHERE {' AND '.join(has_value)}) AS m")
 
 
 def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL) -> str:
