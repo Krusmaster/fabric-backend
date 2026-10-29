@@ -39,7 +39,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 15 | `data_dictionary` | *"Write the data dictionary for schema shop, with the checks."* Then *"Only for orders."* | Markdown with the 7 tables and the counts of row 6; with `tables=["orders"]`, `orders` is a fact table and the subject area lists all seven tables | 26, 27 Oct (with `tables`: see section 2) | | |
 | 16 | `dbt_schema` | *"Give me the dbt sources file for schema shop."* | `models/sources/shop.yml` with `unique`, `not_null` and `relationships` tests | 26, 27 Oct | | |
 | 17 | `plan_drift` | *"What would change in shop_api if I re-ran create_backend?"* | the `ship_to_id → addresses` relationship the plan does not infer, with its `confirmed` entry | 26, 27 Oct | | |
-| 18 | `create_semantic_model` | *"Create the semantic model shop_model from demo_lh, schema shop. Dry run first, then create."* | dry run: the parts and the REST call; create: `kind: consent` naming `SemanticModel.ReadWrite.All` (or `Item.ReadWrite.All`) | 27 Oct (dry run) | | |
+| 18 | `create_semantic_model` | *"Create the semantic model shop_model from demo_lh, schema shop. Dry run first, then create."* | dry run: the parts and the REST call; create: `kind: consent` naming `SemanticModel.ReadWrite.All` (or `Item.ReadWrite.All`) | 27 Oct (dry run); 29 Oct created `shop_model_live` (section 6) | | |
 | 19 | `create_views` | *"Which views would create_views make in demo_lh, schema shop? Dry run."* | `vw_order_items`, `vw_orders`; with `ship_to_id` confirmed also a view named after the relationship's field (`vw_orders_ship_to` with the entry of section 3; 27 October showed `vw_orders_address`, the field name Claude passed) | 26, 27 Oct (dry run) | | |
 | 20 | `create_views` (create) | *"Create those views."* (only if a test schema `krusgraph` on `demo_lh` is wanted) | schema `krusgraph` and the views created; `list_tables` with schema `krusgraph` lists them | — | | |
 | 21 | `create_data_agent` | *"Draft a data agent over demo_lh, schema shop. Dry run."* | instructions, the source with the plan's tables, 10 example questions with T-SQL; no example selects or groups by `customers.name` (`customer_id` instead) and `personal_data.left_out` names it, unless `show_personal_data=true`; asked to create: `kind: consent` | 27 Oct (dry run; see section 2) | | |
@@ -164,6 +164,12 @@ What the site and the docs now give only as a status word, with the run behind i
   ut". No single part (entity types, keys, relationships, data bindings) was recorded as checked on its own, and no
   ontology agent or question has used it. The site says "created live; reviewed in Fabric" next to the offer; the tool
   table in the docs gives the long form from `fabric_backend/tool_status.py`.
+
+- **`create_semantic_model`, 29 October 2026.** Run live through the hosted connector with `dry_run=false` (workspace
+  `demo`, lakehouse `demo_lh`, schema `shop`, name `shop_model_live`, with the confirmed relationship
+  `orders.ship_to_id → addresses.address_id`). Fabric answered status Succeeded, mode created: 7 tables, 6 active and 1
+  inactive relationship (`addresses.customer_id → customers`, which would close a cycle), Direct Lake, 4 measures and
+  the date table `Calendar`. On 29 October 2026 Gustav refreshed (framed) both `shop_model_live` and `shop_model` in the Fabric portal, and the refresh succeeded. Afterwards he opened `shop_model_live` in the model view and confirmed that the relationships look right (7 tables plus `Calendar`, 6 active relationships, the inactive `addresses.customer_id → customers` dashed, 4 measures). No report or query has used the model. The site says "created live; reviewed in Fabric" next to the offer, as for `create_ontology`.
 
 ## Databricks
 

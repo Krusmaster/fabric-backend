@@ -23,7 +23,7 @@ per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` i
 | Tool | Fabric REST operation(s) | Delegated permission | Have it? |
 | --- | --- | --- | --- |
 | `create_backend` | `graphQLApis` create / `updateDefinition` | `GraphQLApi.ReadWrite.All` | yes |
-| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026) |
+| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026); created live on 29 October 2026 (`shop_model_live`), refreshed and reviewed in the Fabric portal by Gustav the same day |
 | `create_views` | none — T-SQL on the SQL analytics endpoint / warehouse | Azure SQL `user_impersonation` (have), plus the SQL right to create objects: Contributor on the workspace, or `CREATE VIEW` / `ALTER SCHEMA` granted on the endpoint | yes (scope); rights are per workspace |
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | yes (since 28 October 2026) |
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | yes (since 28 October 2026); also the tenant setting "Users can create Ontology (preview) items"; created live on 28 October 2026 (`shop_ontology`) once it was on, after HTTP 403 `FeatureNotAvailable` while it was off |
@@ -49,7 +49,7 @@ ontology (preview) was turned off in the tenant's settings, not a missing permis
 (preview) items" was turned on, it created `shop_ontology` the same day (7 entity types, 7 relationship types); on 29
 October 2026 Gustav reviewed the item in the Fabric portal. Since round n33 a refusal like the first one quotes Fabric's own `errorCode` and
 `message` and says `consent` only for `InsufficientScopes` (`fabric_backend/server.py` `_consent`).
-`create_semantic_model` and `create_data_agent` have not been run with `dry_run=false`.
+On 29 October 2026 `create_semantic_model` created `shop_model_live` with `dry_run=false` (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, the date table `Calendar`); the same day Gustav refreshed it and reviewed it in the Fabric portal. `create_data_agent` has not been run with `dry_run=false`.
 
 A deployment whose Entra app lacks a permission still works in `dry_run=true` (the default); asked to create, the tool
 answers `kind: consent` with the permission's name when Fabric says `InsufficientScopes`.

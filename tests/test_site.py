@@ -552,8 +552,9 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert "22 tools" not in md and "for real" not in md
     assert tools["create_backend"] == "Tested end to end (27 October 2026: update in place of shop_api with confirmed)"
     assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
-    for tool in ("create_semantic_model", "create_data_agent"):
-        assert tools[tool] == "Available when enabled by the operator; tested end to end as a dry run", tool
+    assert tools["create_data_agent"] == "Available when enabled by the operator; tested end to end as a dry run"
+    assert tools["create_semantic_model"] == ("Available when enabled by the operator; created live on 29 October 2026 "
+                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day")
     for tool in ("ontology_draft", "semantic_model_draft", "data_dictionary", "dbt_schema", "app_starter", "answer_query_draft",
                  "rayfin_connector", "export_item_definitions"):
         assert tools[tool] == "Tested end to end (a draft; creates nothing)", tool
@@ -798,7 +799,8 @@ def test_one_status_source_covers_exactly_the_hosted_tools(client):
         assert f"| `{name}` | {ts.label(name)} | {s.changes} | " in md, name
         if s.kind == ts.CREATES and s.live:                                       # a dry run, or what the one live call did
             assert (s.dry_run_only and "tested end to end as a dry run" in ts.label(name).lower()
-                    or name in ts.LIVE_RUN_PARTLY and "update in place" in ts.label(name)), name
+                    or name in ts.LIVE_RUN_PARTLY and "update in place" in ts.label(name)
+                    or name in ts.REVIEWED and "created live" in ts.label(name)), name
         if s.kind != ts.CREATES:
             assert s.changes.startswith("nothing"), name
     assert set(ts.LIVE_RUN) <= hosted and len(set(ts.LIVE_RUN)) == len(ts.LIVE_RUN)
@@ -978,7 +980,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                                                                        "SQL database": "experimental"}
     built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
     assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
-    assert built == {"GraphQL API": "updates", "Power BI semantic model": "draft", "Fabric IQ ontology": "draft", "views": "draft",
+    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "draft", "views": "draft",
                      "data agent": "draft", "silver notebooks": "draft"}                  # the live test of 27 October 2026
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
@@ -991,8 +993,8 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
         assert other not in plain, other
     for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
                  "one plan, with the rule behind every relationship",
-                 "it updates an existing GraphQL API (creating a new one is experimental)",
-                 "Power BI semantic model, Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
+                 "it creates the Power BI semantic model; it updates an existing GraphQL API (creating a new one is experimental)",
+                 "Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
                  "Claude connects to Krusgraph through MCP",
                  "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
@@ -1025,7 +1027,7 @@ def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkey
     row, visual, groups, said = _hub(client)
     assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
     assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
-    assert "it creates the views; it updates an existing GraphQL API" in said and "Warehouse (tested end to end)" in said
+    assert re.search(r"it creates the [^;]*views; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
@@ -1137,7 +1139,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
-    assert "403" not in text and "cause unknown" not in text and "draft; deployment not yet verified" in text
+    assert "403" not in text and "cause unknown" not in text and "Creating the semantic model: created live; reviewed in Fabric" in text
     assert "the ontology: created live; reviewed in Fabric" in text and "not yet reviewed" not in text
 
 

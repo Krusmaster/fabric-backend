@@ -45,9 +45,12 @@ LATER_LIVE = {
     "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
                        "data (7 entity types, 5 with a key; 7 relationship types). Before that, with the ontology (preview) turned off in the tenant's settings, Fabric "
                        "answered HTTP 403 FeatureNotAvailable. On 29 October 2026 Gustav reviewed the item in the Fabric portal.",
+    "create_semantic_model": "On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace "
+                             "with synthetic data (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, "
+                             "the date table Calendar); the same day Gustav refreshed it and reviewed it in the Fabric portal.",
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
-REVIEWED = {"create_ontology": "29 October 2026"}
+REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026"}
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
@@ -95,7 +98,8 @@ _RAW = {
     "dbt_schema": (HOSTED, DRAFT, _NO, "unit tests"),
     "sap_pack_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic SAP schema; no SAP system)"),
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
-    "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; creating by unit tests only", True),
+    "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 29 October 2026", False,
+                              "; created live on 29 October 2026 (shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day"),
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",
                      "unit tests; creating by unit tests only", True, "; creating them: Experimental"),
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
