@@ -45,7 +45,7 @@ def test_every_page_renders_with_title_description_and_footer(client, path):
     # the visible off switch, where the page has mascots: test_the_mascot_toggle_is_only_on_pages_with_mascots (n36)
     # only descriptive use of Microsoft; no approval / listing / partner claims
     for banned in ("approved by Microsoft", "Microsoft partner", "listed in the Claude directory", "trusted by", "Microsoft Partner"):
-        assert banned.lower() not in html.lower().replace("not affiliated with, endorsed by or certified by microsoft", ""), banned
+        assert banned.lower() not in html.lower(), banned
 
 
 def test_nav_and_pages_are_linked(client):
@@ -83,6 +83,7 @@ def test_home_introduces_the_developer_without_a_story(client):
     assert 'href="mailto:hello@krusgraph.test?subject=Krusgraph">email Gustav</a>' in note and "/issues" in note   # feedback: the other ways
     for word in ("price", "kr", "SEK", "response time", "within", "customers"):                       # no prices, terms or customers (n36)
         assert not re.search(rf"\b{word}\b", note, re.I), word
+    html = _without_agreed_facts(html)                    # n53: the maintainer's facts line is the one place for it
     assert "Sweden" not in html and "Swedish" not in html                                # no country of origin on the start page
 
 
@@ -178,7 +179,7 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
     html = client.get("/privacy").text
     assert "Kruse Consulting AB, Sweden (org. nr 123456-7890)" in html
     footer = client.get("/").text.split('<footer class="site-footer">')[1]
-    assert "Kruse Consulting AB · Org. no. 123456-7890 · Open source under the MIT licence" in footer and "Sweden" not in footer
+    assert "Kruse Consulting AB · Org. no. 123456-7890 · Open source under the MIT licence" in footer and "Sweden" not in _without_agreed_facts(footer)
 
 
 def test_docs_describe_the_data_path(client):
@@ -290,7 +291,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/demo", "/check", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/support", "/partners", "/partners/workspace"]
+PUBLIC = ["/", "/demo", "/check", "/explore", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -638,7 +639,7 @@ def test_docs_and_llms_place_krusgraph_beside_microsofts_fabric_mcp_servers_with
     for text in (docs, llms, server.mcp.instructions):
         low = text.lower()
         for banned in ("partner of microsoft", "microsoft partner", "in partnership with microsoft", "approved by microsoft",
-                       "recommended by microsoft"):          # the footer's "not affiliated with, endorsed by or certified by" stays
+                       "recommended by microsoft"):          # n53: the only partner wording is test_who_stands_behind_it's
             assert banned not in low, banned
 
 
@@ -761,6 +762,12 @@ def test_home_data_check_is_computed_from_the_demo_validation(monkeypatch):
     assert "not checked" in data_check(demo.home_details(), sid).lower()
 
 
+def _without_agreed_facts(text: str) -> str:
+    """n53 (29 October 2026): the maintainer asked for "Based in Uppsala, Sweden, and Bern, Switzerland" and "Hosted in
+    Azure, Sweden Central" in the footer, his text on the home page and /it; anywhere else the rule below still holds."""
+    return text.replace("Based in Uppsala, Sweden, and Bern, Switzerland", "").replace("Hosted in Azure, Sweden Central", "")
+
+
 def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):
     """The brief of 26 October 2026: the operator, IMY and Sweden Central stay in /privacy; the product pages do not
     sell the product on where it is made. Swedish as a language the tools read (kund, a question in Swedish) is a
@@ -768,7 +775,7 @@ def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):
     privacy = client.get("/privacy").text
     assert "Kruse Consulting AB, Sweden" in privacy and "IMY" in privacy and "Sweden Central" in privacy
     for path in ("/", "/use-cases", "/start", "/partners", "/support", "/explore", "/lovable", "/local", "/docs", "/llms.txt"):
-        text = re.sub(r"<[^>]+>", " ", client.get(path).text)
+        text = _without_agreed_facts(re.sub(r"<[^>]+>", " ", client.get(path).text))
         assert not re.search(r"\b(?:Sweden|Swedish (?:company|team|developer|consultan\w*)|Stockholm|svensk\w*)\b", text), path
 
 
@@ -998,7 +1005,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                  "Claude connects to Krusgraph through MCP",
                  "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
-    assert ('<p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by Microsoft, '
+    assert ('<p class="muted tiny connects-note">Independent product, not made by Microsoft, '
             'Anthropic or Lovable.</p>') in row
 
 
@@ -1012,7 +1019,7 @@ def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in
     assert "Claude, VS Code (experimental) and Cursor (experimental) connect to Krusgraph through MCP" in said
     assert dict(groups["Where you build"])["Cursor"].endswith('<span class="hub-tag hub-experimental">experimental</span>')
     assert "experimental" not in dict(groups["Where you build"])["Claude"]
-    assert "Not affiliated with or endorsed by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
+    assert "Independent product, not made by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
     monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
     row, visual, groups, said = _hub(client)
     assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Lovable"] and "Cursor" not in row
@@ -1226,3 +1233,71 @@ def test_one_name_for_each_way_in_across_the_site(client):
                 assert text.strip() in names[href], (path, href, text)
     for gone in ("Discuss your schema", "Get help with a question", "Explore the demo<", "Try it with your own files"):
         assert gone not in client.get("/").text, gone
+
+
+# ------------------------------------------------------------------ n53: who stands behind it, /it and the FAQ --------
+# The maintainer's facts of 29 October 2026, in his words only: the partner programme by its full name, "based in", and
+# what is checkable. No "Microsoft partner", "certified", "endorsed" or "offices" anywhere else on the site.
+ROOT = Path(__file__).resolve().parents[1]
+BEHIND_TEXT = "Member of the Microsoft AI Cloud Partner Program"
+
+
+@pytest.mark.parametrize("path", CLAIM_PAGES + ["/it"])
+def test_who_stands_behind_it_uses_only_the_agreed_words(client, path):
+    low = client.get(path).text.lower()
+    assert "microsoft partner" not in low.replace(BEHIND_TEXT.lower(), ""), path
+    for word in ("certified", "endorsed", "offices", "solutions partner"):
+        assert word not in low, (path, word)
+    assert "microsoft-logo" not in low and "partner-badge" not in low
+
+
+def test_the_facts_are_in_the_footer_on_the_home_page_and_on_it(client):
+    from fabric_backend.pages import BEHIND, BUILT
+    assert BEHIND == (BEHIND_TEXT, "Based in Uppsala, Sweden, and Bern, Switzerland")
+    assert BUILT == ("Built for Microsoft Fabric", "Sign in with Microsoft Entra ID", "Hosted in Azure, Sweden Central")
+    home, it = client.get("/").text, client.get("/it").text
+    footer = home[home.index('<footer'):]
+    assert " · ".join(BEHIND) in footer and " · ".join(BUILT) in footer and 'href="/it"' in footer
+    gustav = home[home.index('id="developer"'):home.index('id="faq"')]
+    assert "Kruse Consulting AB · " + " · ".join(BEHIND) in gustav
+    for fact in BEHIND + BUILT:
+        assert f"<li>{fact}</li>" in it, fact
+
+
+def test_it_page_lists_the_app_permissions_the_deploy_check_requires(client):
+    import importlib
+    deploy = importlib.import_module("deploy.azure_containerapp")
+    it = client.get("/it").text
+    listed = set(re.findall(r"<tr><td><code>([\w.]+)</code>", it))
+    assert listed == set().union(*deploy.REQUIRED_SCOPES.values()), listed
+    for part in ("delegated", "Sweden Central", "are not uploaded", "Enterprise applications", "MIT licence", "docs/SCOPES.md", "@media print"):
+        assert part in it or part in (ROOT / "fabric_backend/static/site.css").read_text(), part
+    assert 'href="/privacy"' in it and 'href="/check"' in it
+
+
+@pytest.mark.parametrize("retention", ["", "30"])
+def test_it_page_says_how_long_logs_are_kept_as_the_privacy_page_does(client, monkeypatch, retention):
+    monkeypatch.setenv("KRUSGRAPH_LOG_RETENTION_DAYS", retention)
+    it = client.get("/it").text
+    assert ("deleted after 30 days" in it) is bool(retention)
+    assert ("nothing persists beyond the live console stream" in it) is not bool(retention)
+
+
+def test_it_is_linked_from_home_privacy_start_footer_sitemap_and_llms(client):
+    assert 'href="/it"' in client.get("/").text.split("<footer")[0]
+    assert 'href="/it"' in client.get("/privacy").text.split("<footer")[0]
+    assert 'href="/it"' in client.get("/start").text.split("<footer")[0]
+    assert "/it</loc>" in client.get("/sitemap.xml").text
+    assert "/it)" in client.get("/llms.txt").text
+
+
+def test_the_faq_answers_only_what_the_repository_supports(client):
+    home = client.get("/").text
+    faq = home[home.index('id="faq"'):]
+    faq = faq[:faq.index("</section>")]
+    asked = re.findall(r"<summary>(.*?)</summary>", faq)
+    assert asked == ["Do you touch my data?", "What does Krusgraph create in my Fabric, and when?", "What does my IT department need to approve?",
+                     "Can I try it without Fabric?", "How is this different from asking a chat assistant directly?"], asked
+    assert "dry_run=false" in faq and 'href="/it"' in faq and 'href="/check"' in faq
+    for word in ("price", "pricing", "cost", "terms", "response time", "sla", "chatgpt", "copilot", "hallucinat"):
+        assert word not in faq.lower(), word

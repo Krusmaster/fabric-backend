@@ -715,5 +715,8 @@
     });
   });
 
+  // n53: /it's print button (the page has a print stylesheet; no PDF is made here)
+  document.querySelectorAll('[data-print]').forEach(function (b) { b.addEventListener('click', function () { window.print(); }); });
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

@@ -20,7 +20,7 @@ permissions your administrator granted (listed under [What it accesses](/docs#wh
 items and the SQL analytics endpoint, running your GraphQL queries, and creating or updating the API for GraphQL item
 or the views you ask for), and what your own account may do in Fabric. It cannot reach anything your account cannot.
 Your organization's administrator grants this once and can revoke it at any time in Microsoft Entra ID (Enterprise
-applications).
+applications). A summary for your IT department, with each permission in plain words, is at [/it](/it).
 
 ## Metadata, samples and query results
 

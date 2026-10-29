@@ -55,9 +55,17 @@ PAGES = {
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Ten illustrative schemas show what {{PRODUCT}} proposes, where it can go wrong and what still needs your judgement.", "usecases"),
+    "/it": ("it.html", "For your IT department — {{PRODUCT}}",
+            "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
+
+
+# n53: who stands behind the product, in the maintainer's words (29 October 2026), and what is true of it and checkable.
+# Only these phrasings: tests/test_site.py keeps "partner", "certified", "endorsed" and "offices" off the site otherwise.
+BEHIND = ("Member of the Microsoft AI Cloud Partner Program", "Based in Uppsala, Sweden, and Bern, Switzerland")
+BUILT = ("Built for Microsoft Fabric", "Sign in with Microsoft Entra ID", "Hosted in Azure, Sweden Central")
 
 
 def _vars() -> dict[str, str]:
@@ -75,6 +83,7 @@ def _vars() -> dict[str, str]:
         "ORGNR_PAREN": (" (org. nr " + orgnr + ")") if orgnr else "",
         "ORGNR_DOT": (" · Org. no. " + orgnr) if orgnr else "",
         "MCP_URL": url,
+        "BEHIND": " · ".join(BEHIND), "BUILT": " · ".join(BUILT),
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "ASSET_V": asset_version(),
@@ -174,7 +183,7 @@ def hub_html() -> str:
     <div class="hub-mid"><span class="hub-node"><span class="c-hub">{low}</span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
     <div class="hub-group hub-where c-mustard"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
-  <p class="muted tiny connects-note">Independent product. Not affiliated with or endorsed by {_listed(makers).replace(" and ", " or ")}.</p>
+  <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
 </section>"""
 
 
@@ -411,7 +420,8 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     <div>
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
       <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
-      <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product and is not affiliated with, endorsed by or certified by Microsoft.</p>
+      <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
+      <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
       <a href="/demo">Try the guided demo</a><a href="/check">Check your files</a><a href="/explore">Explore the demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a>

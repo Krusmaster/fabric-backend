@@ -93,14 +93,29 @@
   <div class="card soft">
     <h2 id="developer-h" class="h3">Work through one schema with Gustav</h2>
     <p>I’m Gustav, the developer behind {{PRODUCT}} at Kruse Consulting AB. I help you take one schema and one question through it: read how the tables connect, check the relationships against your data, settle what needs a person’s judgement, and choose what to build from the plan you agreed on. The column names are enough to start.</p>
+    <p class="muted tiny developer-facts">Kruse Consulting AB · {{BEHIND}}. {{BUILT}}.</p>
     <p class="ctas" style="margin:0"><a class="btn secondary small" href="/partners">Try a pilot</a><a class="btn ghost small" href="/support">Get help</a></p>
     <p class="muted tiny" style="margin:12px 0 0">Found a relationship it got wrong, or one it got right? <a href="{{GITHUB}}/issues" rel="noopener">Open a GitHub issue</a> or <a href="mailto:{{CONTACT}}?subject={{PRODUCT_URL}}">email Gustav</a>.</p>
   </div>
 </section>
 
+<section class="wrap faq" id="faq" aria-labelledby="faq-h" style="padding-top:0">
+  <h2 id="faq-h">Questions</h2>
+  <details><summary>Do you touch my data?</summary>
+    <p>Planning reads schema metadata only: workspace, item, table and column names and types. The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
+  <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
+    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. The one tool without a dry run, <code>create_backend</code>, creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
+  <details><summary>What does my IT department need to approve?</summary>
+    <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
+  <details><summary>Can I try it without Fabric?</summary>
+    <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/demo">guided demo</a> uses synthetic sample data.</p></details>
+  <details><summary>How is this different from asking a chat assistant directly?</summary>
+    <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
+</section>
+
 <section class="wrap" style="padding-top:0">
   <div class="card ready" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
-    <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to Claude, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need.</p></div>
+    <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to Claude, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need; <a href="/it">a page for your IT department</a> lists what the admin approves and why.</p></div>
     <div class="ctas"><a class="btn primary" href="/start">Connect to Claude</a><a class="btn ghost" href="/explore">Explore the demo graph</a></div>
   </div>
   <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/docs">read the docs</a> · <a href="/support">get help</a> · <a href="/partners">try a pilot</a></p>

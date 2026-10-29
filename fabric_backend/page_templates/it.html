@@ -1,0 +1,61 @@
+<div data-page="it">
+<article class="wrap prose it-page">
+  <p class="eyebrow">For your IT department</p>
+  <h1>{{PRODUCT}}: what your IT department needs to know</h1>
+  <p class="lede">A page to forward. It says which permissions the {{PRODUCT}} app asks for in Microsoft Entra ID and why, what is stored, where and for how long, and how to revoke access. Every point comes from the open source code and its docs.</p>
+  <p class="it-print-note"><button type="button" class="btn ghost small" data-print>Print this page</button> <span class="muted tiny">Or save it as a PDF from the print dialog.</span></p>
+
+  <h2 id="who">Who stands behind it</h2>
+  <ul class="it-facts">
+    <li>{{PRODUCT}} is made and run by Kruse Consulting AB{{ORGNR_PAREN}}.</li>
+    <li>Member of the Microsoft AI Cloud Partner Program</li>
+    <li>Based in Uppsala, Sweden, and Bern, Switzerland</li>
+    <li>Built for Microsoft Fabric</li>
+    <li>Sign in with Microsoft Entra ID</li>
+    <li>Hosted in Azure, Sweden Central</li>
+    <li>Contact: <a href="mailto:{{CONTACT}}">{{CONTACT}}</a></li>
+  </ul>
+
+  <h2 id="permissions">What the Entra app asks for, and why</h2>
+  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions.</p>
+  <div class="table-wrap" tabindex="0"><table class="it-scopes">
+    <thead><tr><th>Permission</th><th>In plain words</th></tr></thead>
+    <tbody>
+      <tr><td><code>User.Read</code> (Microsoft Graph)</td><td>Signing in. Nothing else is read from Microsoft Graph.</td></tr>
+      <tr><td><code>Workspace.Read.All</code> (Fabric)</td><td>Listing the workspaces the person can open.</td></tr>
+      <tr><td><code>Item.Read.All</code> (Fabric)</td><td>Listing lakehouses, warehouses and other items in a workspace, and reading their metadata.</td></tr>
+      <tr><td><code>GraphQLApi.ReadWrite.All</code> (Fabric)</td><td>Creating or updating the one API for GraphQL item the person asks for, and reading an existing API’s definition (Fabric has no read-only permission for that). Never deleting.</td></tr>
+      <tr><td><code>GraphQLApi.Execute.All</code> (Fabric)</td><td>Running the read-only GraphQL queries the person asks for. Mutations are refused.</td></tr>
+      <tr><td><code>Notebook.ReadWrite.All</code> (Fabric)</td><td>Creating the notebooks the person asks for (silver tables, gold views, a drift check), only on a call with <code>dry_run=false</code>.</td></tr>
+      <tr><td><code>DataPipeline.ReadWrite.All</code> (Fabric)</td><td>Creating the pipeline of the drift check the person asks for, only on a call with <code>dry_run=false</code>.</td></tr>
+      <tr><td><code>Item.ReadWrite.All</code> (Fabric)</td><td>Creating a Power BI semantic model, a Fabric IQ ontology or a data agent the person asks for, only on a call with <code>dry_run=false</code>; reading a semantic model’s definition to compare it with the plan.</td></tr>
+      <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>Reading table and column names from the SQL analytics endpoint, running the counting checks, returning sample rows when asked, and creating the views the person asks for.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted tiny">The app does not ask for <code>DataPipeline.Execute.All</code>: it cannot run or schedule pipelines. The full list per tool, with the Fabric REST operation behind each permission, is in <a href="{{GITHUB}}/blob/main/docs/SCOPES.md" rel="noopener">docs/SCOPES.md</a>.</p>
+
+  <h2 id="stored">What is stored, where and for how long</h2>
+  <ul>
+    <li><strong>No table contents.</strong> Metadata (workspace, item, table and column names and types), the counts from checks, sample rows and query results pass through {{PRODUCT}} to the person’s MCP client and are not kept after the request.</li>
+    <li><strong>Tokens</strong> are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only.</li>
+    <li><strong>A usage record per tool call</strong>: the tool’s name, the outcome, the duration and, for creating tools, whether it was a dry run{{#IF USAGE_ORG}}, plus a salted hash of the organisation’s tenant id{{/IF}}. No user id, no table or column names.</li>
+    <li><strong>Where</strong>: the service runs in Azure, Sweden Central (EU).{{#IF LOGS_KEPT_DAYS}} The usage records and the technical console log (no IP addresses, headers, tokens or query text) go to a Log Analytics workspace in the same region and are deleted after {{LOGS_KEPT_DAYS}} days.{{/IF}}{{#IF LOGS_NOT_KEPT}} Console logs are not sent to any storage; nothing persists beyond the live console stream.{{/IF}}</li>
+    <li>Microsoft Entra ID records sign-ins in your own tenant, as for any app.</li>
+  </ul>
+  <p>The <a href="/privacy">privacy policy</a> has each record with its purpose and how long it is kept.</p>
+
+  <h2 id="check">/check runs in the browser</h2>
+  <p>The page <a href="/check">/check</a> runs the same engine in the visitor’s browser (Python compiled to WebAssembly). Files dropped there are read in the browser and are not uploaded; the page’s content security policy does not let it send requests with them. It sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done, with no file contents, file names or table names. No account and no Entra app are involved.</p>
+
+  <h2 id="revoke">How to revoke access</h2>
+  <ul>
+    <li>An administrator can revoke the app at any time in Microsoft Entra ID, under <strong>Enterprise applications</strong>: removing the consent or the app ends every renewal of its tokens.</li>
+    <li>A person can disconnect the connector in their MCP client (in Claude: Settings → Connectors).</li>
+    {{#IF CLIENT_REGISTRATION}}<li>Sign-in approvals for MCP clients other than Claude are withdrawn on request to {{CONTACT}}.</li>{{/IF}}
+  </ul>
+
+  <h2 id="open-source">The code is open</h2>
+  <p>{{PRODUCT}} is open source under the MIT licence: the engine, the inference rules, the server and the deployment are on <a href="{{GITHUB}}" rel="noopener">GitHub</a>. Your team can read what each tool does, or host {{PRODUCT}} in your own Azure subscription with your own Entra app.</p>
+  <p class="muted tiny it-print-url">This page: https://{{DOMAIN}}/it</p>
+</article>
+</div>
