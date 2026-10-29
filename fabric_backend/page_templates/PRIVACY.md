@@ -98,6 +98,11 @@ The site writes one more kind of line: `path` when `/`, `/check`, `/explore`, `/
 sends this as a request for an image whose address carries only that word; your files, their names and their tables and
 columns stay in your browser.{{#IF LOGS_KEPT_DAYS}} Like the usage records, these lines are deleted after {{LOGS_KEPT_DAYS}} days.{{/IF}}
 
+The start page can download `/check`'s engine (Pyodide and the engine, the same files `/check` loads) before you open `/check`, so that it
+starts sooner: only when your pointer or keyboard focus reaches a link to `/check`, or when the page has been still for a
+few seconds on a fast connection that has not asked to save data. These are ordinary requests for public files; they
+carry nothing from you, write no usage record, and the files stay in your browser's cache.
+
 ## Technical logs
 
 {{#IF LOGS_NOT_KEPT}}The server writes a technical access line per request to its console (time, method, path, HTTP status and

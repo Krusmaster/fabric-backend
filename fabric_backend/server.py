@@ -1925,9 +1925,16 @@ def build_app(host: str = "0.0.0.0"):
                "font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'")
         return {**PAGE_HEADERS, "Content-Security-Policy": csp}
 
+    # n49: the start page fetches nothing but /check's engine, ahead of a visit (site.js): its connect-src names those
+    # two paths on this host and nothing else
+    def home_headers(request) -> dict:
+        host = request.headers.get("host", "").strip()
+        own = f"{host}/static/pyodide/ {host}/check/engine.zip" if host and all(c.isalnum() or c in ".-:[]" for c in host) else "'none'"
+        return {**PAGE_HEADERS, "Content-Security-Policy": PAGE_HEADERS["Content-Security-Policy"].replace("connect-src 'self'", "connect-src " + own)}
+
     def page_route(path: str, fn):
         async def handler(request):
-            headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else PAGE_HEADERS)}
+            headers = {"Cache-Control": PAGE_CACHE, **(check_headers(request) if path == "/check" else home_headers(request) if path == "/" else PAGE_HEADERS)}
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
             _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else

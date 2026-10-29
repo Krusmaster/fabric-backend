@@ -229,3 +229,51 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["app_rows"] > 0 and "Download crm_erp_app.zip" in o["app_text"]
         assert o["next_links"] == ["Create it in your own Fabric /start", "Connect to Claude /start", "Get help with a question /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_the_start_page_fetches_the_engine_ahead_only_when_asked_and_check_then_uses_the_cache(tmp_path):
+    """n49: a pointer on a link to /check fetches Pyodide and the engine ahead; /check afterwards asks the server for
+    none of them again (counted in the server's own access log)."""
+    import socket, sys as _sys, time, urllib.request
+    sock = socket.socket(); sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]; sock.close()
+    log = (tmp_path / "access.log").open("w")
+    proc = subprocess.Popen([_sys.executable, "-m", "fabric_backend.server", "--host", "127.0.0.1", "--port", str(port)],
+                            env=os.environ | {"PRODUCT_NAME": "Krusgraph"}, cwd=ROOT, stdout=log, stderr=log)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(60):
+            try:
+                urllib.request.urlopen(base + "/healthz", timeout=1); break
+            except Exception:
+                time.sleep(0.25)
+        out = subprocess.run(["node", str(ROOT / "tests/check_prefetch_browser.js"), base] + ([CHROMIUM] if CHROMIUM else []),
+                             capture_output=True, text=True, timeout=300)
+    finally:
+        proc.terminate(); proc.wait(timeout=10); log.close()
+    assert out.returncode == 0, out.stderr[-2000:]
+    r = json.loads(out.stdout.strip().splitlines()[-1])
+    assert not r["errors"], r["errors"]
+    assert r["before_still"] == 0 and r["before_hover"] == 0, r
+    if r["connection"] and r["connection"]["type"] == "4g" and not r["connection"]["save"]:
+        assert r["after_still"] == 7, r                                # still for a while on a fast connection
+    else:
+        assert r["after_still"] == 0, r
+    want = sorted([f"/static/pyodide/{n}" for n in pages.CHECK_DOWNLOAD] + [f"/check/engine.zip?v={pages.check_vars()['CHECK_ENGINE_V']}"])
+    assert r["prefetched"] == want and r["check_done"]
+    access = (tmp_path / "access.log").read_text()
+    for u in want:
+        n = access.count(f'"GET {u} HTTP')
+        # once in part 1 (still, fast connection) and once ahead of /check in part 2: never a third time from /check
+        assert n == (2 if r["after_still"] else 1), (u, n)
+
+
+def test_the_start_page_policy_allows_only_the_engine_and_privacy_says_when_it_is_fetched(client):
+    r = client.get("/")
+    csp = r.headers["content-security-policy"]
+    assert "connect-src testserver/static/pyodide/ testserver/check/engine.zip;" in csp and "connect-src 'self'" not in csp
+    assert 'data-check-prefetch="/static/pyodide/pyodide.mjs ' in r.text and f"/check/engine.zip?v={pages.check_vars()['CHECK_ENGINE_V']}" in r.text
+    assert client.get("/start").headers["content-security-policy"].count("connect-src 'self'") == 1
+    privacy = client.get("/privacy").text
+    assert "can download <code>/check</code>" in privacy or "can download `/check`" in privacy
+    assert "has not asked to save data" in privacy and "write no usage record" in privacy

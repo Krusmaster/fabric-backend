@@ -624,6 +624,39 @@
     });
   });
 
+  /* ------------------------------------------------------------------ n49: /check's engine, fetched ahead
+     On the start page only, and only when a pointer or the focus reaches a link to /check, or when the page has been
+     still for a while on a fast connection (navigator.connection says 4g and no data saver; without that API, never).
+     Low priority, the same URLs and credentials mode as /check's worker, so the browser's cache (immutable, one year)
+     answers the worker later. Nothing is sent: plain GETs for public files, the bodies are read and dropped. */
+  var pre = document.querySelector('[data-check-prefetch]');
+  if (pre && window.fetch) {
+    var urls = (pre.getAttribute('data-check-prefetch') || '').split(' ').filter(Boolean), fetched = false, still = null;
+    var conn = navigator.connection;
+    var saving = function () { return !!(conn && conn.saveData); };
+    var fast = function () { return !!conn && !conn.saveData && conn.effectiveType === '4g'; };
+    var fetchAhead = function () {
+      if (fetched || saving()) return;
+      fetched = true; clearTimeout(still);
+      urls.forEach(function (u) {
+        try {
+          fetch(u, { credentials: 'same-origin', priority: 'low' }).then(function (r) {
+            if (!r.body) return r.arrayBuffer();
+            var rd = r.body.getReader();
+            var drain = function () { return rd.read().then(function (x) { if (!x.done) return drain(); }); };
+            return drain();
+          }).catch(function () { /* /check loads it itself */ });
+        } catch (e) { /* idem */ }
+      });
+    };
+    var toCheck = function (e) { var a = e.target.closest && e.target.closest('a[href]'); if (a && /^\/check(?:[?#]|$)/.test(a.getAttribute('href'))) fetchAhead(); };
+    document.addEventListener('pointerover', toCheck, { passive: true });
+    document.addEventListener('focusin', toCheck);
+    var rest = function () { clearTimeout(still); if (!fetched && fast()) still = setTimeout(fetchAhead, 6000); };
+    ['scroll', 'pointermove', 'keydown', 'touchstart'].forEach(function (t) { window.addEventListener(t, rest, { passive: true }); });
+    if (document.readyState === 'complete') rest(); else window.addEventListener('load', rest);
+  }
+
   /* ------------------------------------------------------------------ mascot review page */
   var mp = document.querySelector('[data-page=mascots]');
   if (mp) {

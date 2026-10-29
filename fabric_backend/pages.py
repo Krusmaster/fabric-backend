@@ -626,7 +626,11 @@ CHECK_TIMES = ("about 13.5 s the first time on a 5 Mbit/s line, 5.5 s on 20 Mbit
 
 def check_vars() -> dict[str, str]:
     from .browser_check import engine_zip
-    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_TIMES": CHECK_TIMES, "CHECK_ENGINE_V": hashlib.sha256(engine_zip()).hexdigest()[:10]}
+    v = hashlib.sha256(engine_zip()).hexdigest()[:10]
+    # n49: the start page may fetch these ahead of a visit to /check, at exactly the URLs the worker asks for, so the
+    # browser's cache answers the worker (site.js, checkPrefetch)
+    urls = [f"/static/pyodide/{n}" for n in CHECK_DOWNLOAD] + [f"/check/engine.zip?v={v}"]
+    return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_TIMES": CHECK_TIMES, "CHECK_ENGINE_V": v, "CHECK_PREFETCH": " ".join(urls)}
 
 
 def render(path: str) -> str:
