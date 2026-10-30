@@ -968,8 +968,8 @@
   "tbl_orders": "SELECT TOP (10) [OrderId], [CustId], [EmpId], [OrderDate], [TotalAmount] FROM [dbo].[tbl_orders]"
  },
  "semantic_model": {
-  "bytes": 22206,
-  "sha256": "4fa774151fa9c97b10178c73e7e2dfba0f273a4768a915c59aed94b2d0ac8093"
+  "bytes": 23067,
+  "sha256": "deb4cf84796b90352fe5b2c82c5beb7a5d062c909ad13f6d56aa7b118ccd36d5"
  },
  "silver": {
   "bytes": 20230,

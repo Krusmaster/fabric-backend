@@ -172,8 +172,12 @@ def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
         "", "Before it shows data: Direct Lake reads Delta tables in Fabric, so the tables must be in a lakehouse first, and",
         f"`{sm}/definition/expressions.tmdl` must name its SQL analytics endpoint and lakehouse (now placeholders).",
         "Create it in your own Fabric (krusgraph.com/start) does that with create_semantic_model.", "",
+        f"Extract the whole zip first, then open `{name}.pbip` from the extracted folder. Opening the .pbip from inside the zip extracts",
+        "that one file only, and Power BI Desktop stops with \"definition.pbism is missing\".", "",
         "Opened in Power BI Desktop on 30 October 2026 (the shop project from /check): the empty report page opens, and the data shows",
-        "once the tables are in a Fabric lakehouse. If it does not open for you, tell us (krusgraph.com/support).", ""])
+        "once the tables are in a Fabric lakehouse. The same day the SAP example stopped with a TMDL format error on a relationships.tmdl",
+        "that held only a comment; a document with nothing to put in it is no longer written (README.generated.md in the model folder",
+        "says what the plan found instead). If it does not open for you, tell us (krusgraph.com/support).", ""])
     return out
 
 

@@ -5,6 +5,18 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n67: the TMDL writer never writes a document that holds only comments. On 30 October 2026 Power BI
+  Desktop 2.151 opened the shop project from /check but refused the SAP one with "InvalidLineType ... Document:
+  ./relationships, line 1": with no expressible relationship, `relationships.tmdl` had been one comment line. The file
+  is now left out when there is nothing to put in it, the rule (`has_object`) is applied to every part of the draft, and
+  `README.generated.md` says why. Composite keys (SAP's MANDT+VBELN) are listed in the summary as `not_expressible`
+  with the reason: one column per side, no calculated columns in Direct Lake, so the lakehouse needs a combined key
+  column (a gold view, `create_gold_views`) before the relationship can exist; the old "or a calculated column" advice
+  is gone. The zip's README and the model's README say to extract the whole zip before opening the `.pbip` (opening it
+  from inside the zip gives "definition.pbism is missing"). Tests: a TMDL document check over every generated document
+  for the shop, the SAP demo and Salesforce + ERP, and the zip from /check holds `.pbip`, `definition.pbism`, both
+  `.platform` files and the report folder for all three. The Fabric REST API was not called in this round; the SAP
+  draft after the change has not been opened in Power BI Desktop yet.
 - Round n66: three contradictions in the trust texts, found by an external review of the live site on 30 October
   2026, text only. "Your data stays in your tenant" (home, /it, /pricing) is replaced by the same sentence on all
   three pages: Krusgraph stores no table contents; names, counts and requested sample rows pass through in memory and

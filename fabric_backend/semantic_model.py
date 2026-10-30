@@ -25,6 +25,12 @@ The TMDL language reference on learn.microsoft.com (analysis-services/tmdl/*) co
 build environment; the syntax here is what those files use and nothing beyond it. Open points are written to
 README.generated.md rather than guessed.
 
+Every document written here starts with an object. On 30 October 2026 Power BI Desktop (2.151) opened the shop project
+from /check but refused the SAP one: its relationships.tmdl held one comment line and nothing else, and the TMDL parser
+stopped with "InvalidLineType, unexpected line type: Other!, Document: ./relationships, line 1". A document that would
+hold only comments is therefore not written (relationships.tmdl is left out when nothing is expressible), and the
+explanation goes to README.generated.md. `has_object` is the rule; the draft applies it to every part before returning.
+
 Why Direct Lake on SQL and not Import: the plan comes from the source's SQL analytics endpoint, and Direct Lake
 reads the same Delta tables without a refresh or a copy; the endpoint supplies schema and security. Import would
 need a refresh schedule and a copy of the data for no gain here. Direct Lake on OneLake (recommended by the docs
@@ -52,6 +58,7 @@ _TYPES = [
 ]
 
 _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_OBJECT = re.compile(r"^(database|model|table|expression|relationship|role|perspective|culture|function|namespace|entity)\b")
 
 
 # The last word of a column that identifies, codes or labels something rather than measuring it: never summed.
@@ -175,6 +182,17 @@ def calendar_tmdl(name: str, model: str) -> str:
     return "\n".join(lines)
 
 
+def has_object(text: str) -> bool:
+    """Whether a TMDL document holds an object: its first line that is neither blank nor a comment (`//`, or a `///`
+    description) starts an object such as `database`, `model`, `table`, `expression` or `relationship`. The parser in
+    Power BI Desktop refuses a document without one (InvalidLineType, 30 October 2026)."""
+    for line in text.splitlines():
+        body = line.strip()
+        if body and not body.startswith("//"):
+            return _OBJECT.match(body) is not None
+    return False
+
+
 def tmdl_name(name: str) -> str:
     """Object names in TMDL: bare when they are identifier-like, otherwise in single quotes."""
     return name if _PLAIN.match(name) else "'" + name.replace("'", "''") + "'"
@@ -190,6 +208,25 @@ def data_type(sql_type: str) -> str:
 
 def _tag(*parts: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, "krusgraph-semantic-model|" + "|".join(parts)))
+
+
+def not_expressible_why(plan: Plan, r: Relationship) -> str:
+    """Why a relationship of the plan cannot be a tabular relationship as the tables stand: either it uses several
+    columns per side (a composite key, SAP's MANDT+VBELN), or its one column points at a table whose key has several
+    columns, so the one side is not unique on that column. Direct Lake allows no calculated columns, so the combined key
+    has to be a column of the Delta table: a gold view (gold_views_draft, create_gold_views) or the silver step."""
+    key = plan.keys.get(r.target, ([], ""))[0]
+    combined = " + '|' + ".join(r.target_cols if len(r.target_cols) > 1 else key)
+    if len(r.source_cols) > 1 or len(r.target_cols) > 1:
+        return (f"a tabular relationship uses one column per side, and this one needs {len(r.source_cols)}; Direct Lake allows no "
+                f"calculated column to combine them. Add a combined key column ({combined}) to `{r.target}` and the matching column "
+                f"to `{r.source}` in the lakehouse, for example in a gold view (gold_views_draft / create_gold_views), and relate on it")
+    if not key:
+        return (f"`{r.target}` has no key, so `{r.target_cols[0]}` is not known to be unique on the one side. Give `keys` for `{r.target}` "
+                "(or add a key column to it in the lakehouse) and relate on it")
+    return (f"`{r.target}`'s key has {len(key)} columns ({'+'.join(key)}), so `{r.target_cols[0]}` alone is not unique on the one side; "
+            f"Direct Lake allows no calculated column to combine them. Add a combined key column ({combined}) to `{r.target}` and the "
+            f"matching column to `{r.source}` in the lakehouse, for example in a gold view (gold_views_draft / create_gold_views), and relate on it")
 
 
 def active_relationships(plan: Plan, rels: list[Relationship], validation: dict | None = None) -> tuple[list[Relationship], list[tuple[Relationship, str]]]:
@@ -354,7 +391,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         if joined:
             rel_lines.append("\tisActive: false")
         rel_lines += [f"\tfromColumn: {tmdl_name(fact)}.{tmdl_name(col)}", f"\ttoColumn: {tmdl_name(calendar)}.Date", ""]
-    parts["definition/relationships.tmdl"] = "\n".join(rel_lines) if rel_lines else "// no single-column relationships in the plan\n"
+    if rel_lines:                       # with nothing to relate the document is left out: a TMDL document must hold an object,
+        parts["definition/relationships.tmdl"] = "\n".join(rel_lines)      # and a comment-only one stops Power BI Desktop (see the module docstring)
     parts["definition.pbism"] = ('{\n  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/'
                                  'definitionProperties/1.0.0/schema.json",\n  "version": "4.2",\n  "settings": {}\n}\n')
 
@@ -374,21 +412,31 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     readme += [f"| `{t.name}` | {analysis['roles'][t.name]['role']} | {analysis['roles'][t.name]['why']} |" for t in chosen]
     readme += ["", "Fact tables are the many side of the model; dimensions are what they point at. A fact table's numeric columns "
                "are the ones to turn into measures.", "",
-               "## Relationships", "", "| From | To | Rule | Active |", "| --- | --- | --- | --- |"]
-    for r in active:
-        readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | yes |")
-    for r, why in inactive:
-        readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | no: {why} |")
+               "## Relationships", ""]
+    if active or inactive:
+        readme += ["| From | To | Rule | Active |", "| --- | --- | --- | --- |"]
+        for r in active:
+            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | yes |")
+        for r, why in inactive:
+            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | no: {why} |")
+    if not rel_lines:
+        readme += [f"None in the model, so there is no `definition/relationships.tmdl`: a TMDL document must hold an object, and Power BI "
+                   "Desktop (2.151, 30 October 2026) refuses one that holds only a comment (`InvalidLineType`, document `./relationships`, "
+                   "line 1). " + (f"The plan found {len(composite)} relationship(s) that the tables cannot express yet; each is under "
+                                  "Decisions to check with what the lakehouse needs." if composite else "The plan found no relationship between these tables.")]
+    elif composite:
+        readme += ["", f"{len(composite)} relationship(s) of the plan are not in the file: see Decisions to check."]
     readme += ["", "## Decisions to check", ""]
     for r, why in inactive:
         readme.append(f"- `{r.source}.{r.source_cols[0]} -> {r.target}` is inactive: {why}. Use USERELATIONSHIP in DAX or pick another active one.")
     for r in composite:
-        readme.append(f"- `{r.source}.{'+'.join(r.source_cols)} -> {r.target}` ({r.rule}) is not in the model: tabular relationships use one "
-                      "column per side. Add a combined key column in the source (or a calculated column) and relate on it.")
+        readme.append(f"- `{r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}` ({r.rule}) is not in the model: "
+                      f"{not_expressible_why(plan, r)}.")
     for t in keyless:
         readme.append(f"- `{t}` has no key: it is in the model but nothing relates to it (rule K3). Give `keys` to change that.")
     for t in multi_key:
-        readme.append(f"- `{t}` has a composite key ({'+'.join(plan.keys[t][0])}): no `isKey` column and nothing can relate to it one-to-many.")
+        readme.append(f"- `{t}` has a composite key ({'+'.join(plan.keys[t][0])}): no `isKey` column and nothing can relate to it one-to-many "
+                      "until the lakehouse has a combined key column (a gold view); Direct Lake allows no calculated column for it.")
     readme += ["", "## Uncertain, written down rather than guessed", "",
                "- Key uniqueness: `isKey` is set from the plan's inferred keys (rules K0–K5). Power BI refuses a one-side column with "
                "duplicates when the model is framed; run `validate_plan` first.",
@@ -424,6 +472,16 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                    "table in Power BI (Table tools -> Mark as date table) once its date column is unique."]
     else:
         readme += ["- None generated: no fact table has a date column."]
+    readme += ["", "## Opening it in Power BI Desktop", "",
+               "- If the files came as a zip (the Power BI project from /check), extract the whole zip first and open the `.pbip` from the "
+               "extracted folder. Opening the `.pbip` from inside the zip extracts that one file only, and Power BI Desktop stops with "
+               "\"definition.pbism is missing\".",
+               "- Every `.tmdl` document here starts with an object; one that would hold only comments is not written, because the TMDL "
+               "parser refuses it (seen on 30 October 2026 with a relationships.tmdl of one comment line).",
+               "- The shop project from /check was opened in Power BI Desktop 2.151 on 30 October 2026; the data shows once the tables are "
+               "in a Fabric lakehouse and `expressions.tmdl` names its SQL analytics endpoint."]
+    for path in [p for p, c in parts.items() if p.endswith(".tmdl") and not has_object(c)]:
+        del parts[path]                 # the rule above, applied to every document (none is expected here; relationships is handled above)
     readme += ["", "## Files", ""] + [f"- `{p}`" for p in parts] + [""]
     parts["README.generated.md"] = "\n".join(readme)
     summary = {"tables": len(chosen), "roles": {t.name: role_of.get(t.name) for t in chosen},
@@ -431,6 +489,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive],
+               "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
+                                    "rule": r.rule, "why": not_expressible_why(plan, r)} for r in composite],
                "measures": [{k: m[k] for k in ("table", "name", "expression", "why")} for m in measures],
                "header_amounts": [{"table": t, "column": c, "lines": ls, "summarize_by": "none"} for (t, c), ls in header_level.items()],
                "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
