@@ -6,7 +6,7 @@
 </section>
 <section class="wrap" style="padding-top:0;padding-bottom:20px" aria-label="Two ways to start">
   <div class="grid-2 start-paths">
-    <a class="card soft path-card" href="/explore"><h2 class="h3">Explore without an account</h2><p class="muted">The demo runs on sample data in your browser: see how tables are linked, why, and what the checks found.</p><span class="path-go">Explore the demo graph →</span></a>
+    <a class="card soft path-card" href="/check?example=sample#check-map"><h2 class="h3">Explore without an account</h2><p class="muted">The demo runs on sample data in your browser: see how tables are linked, why, and what the checks found.</p><span class="path-go">See the example’s map →</span></a>
     <a class="card soft path-card" href="#step-1"><h2 class="h3">Connect your workspace</h2><p class="muted">Three steps below: your admin’s approval, a Fabric workspace, and the connector in Claude.</p><span class="path-go">Start with step 1 ↓</span></a>
   </div>
 </section>
@@ -29,7 +29,7 @@
         <div class="start-pane-head"><div><h2 class="h3">Choose a Fabric workspace</h2>
         <p>Choose a workspace you can access and a source you want to explore: {{SOURCES_STATUS}}. Keep the workspace name or ID handy. Viewer is enough to read and plan; creating needs Contributor. The workspace needs a Fabric capacity, and a trial capacity works.</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="thinker" data-pose="look" data-label=""></span></div></div>
-        <p class="muted">No workspace yet? The <a href="/explore">demo</a> runs on a synthetic schema and needs no account, and <code>fabric-backend demo</code> runs the same engine on your own laptop against a SQL Server or a folder of files (<a href="/local">run it locally</a>).</p>
+        <p class="muted">No workspace yet? The <a href="/check?example=sample&amp;guide=1">guided demo</a> runs on a synthetic schema and needs no account, and <code>fabric-backend demo</code> runs the same engine on your own laptop against a SQL Server or a folder of files (<a href="/local">run it locally</a>).</p>
       </div>
       <div class="start-pane" data-pane="3">
         <div class="start-pane-head"><div><h2 class="h3">Add the connector in Claude</h2>
@@ -40,7 +40,7 @@
         <p>The first goal is a plan you have read and checked: the suggested keys and relationships, the rule behind each, and the counts from your data. Correct what doesn’t match how your business works, and keep the result: <em>“Keep this review as a file.”</em> gives you the plan, your decisions and the checks to commit to your own repository and read back next time ({{STATUS_REVIEW_PLAN}}; <a href="/docs#keep-your-review">how it works</a>). Creating a GraphQL API from it can be the next step: <em>“Create it as shop_api.”</em> {{CREATE_API_STATUS}} (<a href="/docs#test-status">test status</a>). Five first questions for a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
         {{#IF CLIENT_REGISTRATION}}<p class="muted">The hosted service at {{DOMAIN}} works with Claude at the address above. VS Code, Cursor and other MCP clients that sign in on their own use <code>{{CONNECT_URL}}</code> instead: {{PRODUCT}} first shows its own approval page for the client, then you sign in with Microsoft. {{CONNECT_TESTED}}; set-up for each client is in the <a href="/docs#other-mcp-clients">docs</a>.</p>{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}<p class="muted">The hosted service at {{DOMAIN}} supports Claude, and that is the client it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra app yet, so they can’t sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet). Full usage notes are in the <a href="/docs">docs</a>.</p>{{/IF}}
       </div>
-      <p class="start-sample"><a href="/explore">Explore a sample first →</a></p>
+      <p class="start-sample"><a href="/check?example=sample#check-map">Explore a sample first →</a></p>
       <details id="access" data-open-wide>
         <summary>What will {{PRODUCT}} access?</summary>
         <p><strong>In short:</strong> {{PRODUCT}} acts as the signed-in user and reaches only what that person can already reach. It reads workspaces, items and table metadata, runs the checks and queries you ask for, and creates or updates only what you ask for: the one GraphQL API, or views in one schema of the SQL analytics endpoint or warehouse ({{STATUS_CREATE_VIEWS}}). It never deletes or drops. Your admin can revoke the approval at any time.</p>

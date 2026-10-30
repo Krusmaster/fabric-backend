@@ -82,6 +82,28 @@ const { chromium } = require("playwright");
   await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
   await page.waitForTimeout(300);
   out.crm_suggested_edges = await page.evaluate(() => document.querySelectorAll("#check-map .m-sug").length);
+  // n55: the guided demo: /check?example=sample&guide=1 runs the example with no click, and Onto leads four steps,
+  // by keyboard, each marking the map; with the mascots off the same steps are text; it fits 375 px
+  await page.setViewportSize({ width: 375, height: 800 });
+  await page.goto(base + "/check?example=sample&guide=1");
+  await until(() => !!document.documentElement.dataset.checkMs && !document.getElementById("check-guide").hidden && document.getElementById("check-guide").dataset.step === "1");
+  const guideNow = () => page.evaluate(() => ({ step: document.getElementById("check-guide").dataset.step, title: document.getElementById("check-guide-h").textContent,
+    text: document.getElementById("check-guide-text").textContent, lit: document.querySelectorAll("#check-map .m-hl").length }));
+  out.guide = [await guideNow()];
+  for (let i = 0; i < 3; i++) { await page.focus("#check-guide-next"); await page.keyboard.press("Enter"); out.guide.push(await guideNow()); }
+  out.guide_next_disabled = await page.evaluate(() => document.getElementById("check-guide-next").disabled);
+  out.guide_overflow_375 = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+  await page.focus("#check-guide-back"); await page.keyboard.press("Enter");
+  await page.click("#check-guide-text >> text=Accept");
+  out.guide_decided = await page.textContent(".check-guide-said");
+  await page.evaluate(() => window.Mascots.setEnabled(false));
+  out.guide_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-guide-figure")).display, text: document.getElementById("check-guide-text").textContent.length }));
+  await page.evaluate(() => window.Mascots.setEnabled(true));
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // plain /check starts nothing by itself
+  await page.goto(base + "/check");
+  await page.waitForTimeout(500);
+  out.plain_idle = await page.evaluate(() => ({ check: document.documentElement.dataset.check || null, guide: document.getElementById("check-guide").hidden }));
   // WCAG AA: the example buttons' text against their soft backgrounds, light and dark
   out.contrast = [];
   for (const scheme of ["light", "dark"]) {

@@ -8,7 +8,7 @@
   // guided demo" button, #demo, a step's heading, the graph) go on to the same anchor on /demo. Without JavaScript, #demo
   // and #guide land on the start page's way in to the demo, which links to /demo.
   if (document.querySelector('[data-page=home]') && /^#(demo|demo-h|guide|guide-h[1-4]|home-graph|home-why|rel-list-h)$/.test(location.hash)) {
-    location.replace('/demo' + location.hash);
+    location.replace('/check?example=sample&guide=1');      // n55: the guided demo is on /check now
     return;
   }
 

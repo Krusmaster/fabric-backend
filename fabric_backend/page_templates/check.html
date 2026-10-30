@@ -34,6 +34,15 @@
 
 <section class="wrap check-run" id="check-run" aria-labelledby="check-run-h" hidden tabindex="-1">
   <h2 id="check-run-h" class="visually-hidden">The engine's run</h2>
+  <section class="check-guide" id="check-guide" aria-labelledby="check-guide-h" hidden>
+    <span class="check-guide-figure" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span>
+    <div class="check-guide-body">
+      <p class="check-guide-n muted tiny" id="check-guide-n">The guided demo · synthetic data</p>
+      <h3 id="check-guide-h" tabindex="-1">Onto shows you around</h3>
+      <div id="check-guide-text" aria-live="polite"><p>The engine is reading the example. Onto takes you through it in four steps when the map is drawn.</p></div>
+      <div class="check-guide-nav"><button type="button" class="btn ghost small" id="check-guide-back" disabled>Back</button><button type="button" class="btn primary small" id="check-guide-next" disabled>Next</button></div>
+    </div>
+  </section>
   <div class="check-run-grid">
     <div class="check-steps-col">
       <h3>What the engine does</h3>
@@ -88,9 +97,9 @@
 
 <section class="wrap demo-next" aria-labelledby="check-next-h">
   <div class="card">
-    <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/demo">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p>
+    <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/check?example=sample&amp;guide=1">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p>
     <p class="muted tiny">Measured on “A total that doubles”, from opening the page to the result (Chromium, 28 October 2026): {{CHECK_TIMES}}. With your own files, choosing them is most of the two minutes.</p></div>
-    <div class="ctas"><a class="btn primary" href="/demo">Try the guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help</a></div>
+    <div class="ctas"><a class="btn primary" href="/check?example=sample&amp;guide=1">Try the guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help</a></div>
   </div>
 </section>
 <script type="module" src="/static/check.js?v={{ASSET_V}}" data-worker="/check/worker.js?v={{ASSET_V}}&amp;e={{CHECK_ENGINE_V}}"></script>

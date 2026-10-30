@@ -39,12 +39,8 @@ PAGES = {
     # path: (template, title, description, nav key)
     "/": ("home.html", "{{PRODUCT}} | Understand your Microsoft Fabric tables",
           "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
-    "/demo": ("demo.html", "Guided demo: where should each order be delivered? — {{PRODUCT}}",
-              "Follow one order to its delivery address on a synthetic shop schema: what the engine suggests, what the data shows, your decision and what you can explain afterwards. No account needed.", "product"),
     "/check": ("check.html", "Check your files in the browser — {{PRODUCT}}",
                "Drop CSV or Excel exports, or paste a list of columns: see how the tables connect and what is wrong, with the rule behind each item. The files are read in your browser and never uploaded.", "check"),
-    "/explore": ("explore.html", "Explore the demo graph — {{PRODUCT}}",
-                 "A demo on a synthetic shop schema: select a table to inspect its key, or a line to see why two tables were linked.", "product"),
     "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
                "What you need, admin approval in Microsoft Entra, and how to add {{PRODUCT}} as a custom connector in Claude.", "start"),
     "/support": ("support.html", "Get help with {{PRODUCT}}",
@@ -328,6 +324,10 @@ _THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle a
 MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases")       # pages that are also served as <path>.md
 
 
+# n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
+# links still land: /demo on the guided demo, /explore on the map of the same example.
+REDIRECTS = {"/demo": "/check?example=sample&guide=1", "/explore": "/check?example=sample#check-map"}
+
 MASCOT_PAGES_BY_SCRIPT = ("demo",)          # site.js draws three mascots in /demo's graph; no placeholder in its HTML
 
 
@@ -438,7 +438,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/demo">Try the guided demo</a><a href="/check">Check your files</a><a href="/explore">Explore the demo graph</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -737,7 +737,7 @@ def not_found_html(path: str) -> str:
     body = f"""<section class="wrap hero"><div class="hero-grid"><div>
 <span class="kicker">404</span><h1>Nothing connects here.</h1>
 <p class="lede">There is no page at <code>{html.escape(path[:120])}</code>.</p>
-<div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/explore">Explore the demo graph</a><a class="btn ghost" href="/docs">Docs</a></div>
+<div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/check?example=sample#check-map">See the example’s map</a><a class="btn ghost" href="/docs">Docs</a></div>
 </div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="aside" data-label=""></span></div></div></section>"""
     return _shell("Page not found — {{PRODUCT}}", "There is no page at this address.", body, page="notfound", nav="", noindex=True)
 

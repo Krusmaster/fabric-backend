@@ -92,7 +92,7 @@ def test_check_page_policy_worker_and_files(client):
     assert "connect-src 'none'" in csp and "worker-src 'self'" in csp and "form-action 'none'" in csp
     assert r.text.count("Synthetic Data") == 3 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1]
-    assert "are not uploaded" in r.text and 'href="/demo"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
+    assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
     assert "http://" not in r.text.split("<main")[1].split("</main>")[0].replace("http://www.w3.org", "")
     w = client.get("/check/worker.js")
     assert w.headers["content-security-policy"].startswith("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src testserver/static/pyodide/ testserver/check/engine.zip;")
@@ -143,6 +143,12 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert not r["ask_requests"], r["ask_requests"]                   # answered from the result: no request at all
     assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 5}
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
+    # n55: the guided demo on /check, started from the address, four steps by keyboard, each marking the map
+    assert [g["title"] for g in r["guide"]] == ["How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"]
+    assert [g["lit"] for g in r["guide"][:3]] == [1, 1, 1] and "2,000" in r["guide"][1]["text"] and "ship_to_id" in r["guide"][2]["text"]
+    assert r["guide_next_disabled"] is True and not r["guide_overflow_375"] and "Accepted on this page" in r["guide_decided"]
+    assert r["guide_plain"]["figure"] == "none" and r["guide_plain"]["text"] > 100
+    assert r["plain_idle"] == {"check": None, "guide": True}
     # n55: the map first, one line with the state and the count, every finding folded under it, a title marks the map
     assert r["folded"] == {"open": False, "summary": "Show all 3 findings", "line": "Enough to start · 3 things to check", "order": True, "findingsInside": True}
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}

@@ -1,4 +1,4 @@
-"""/explore's "What you can build automatically from this plan" (round n31): every card is engine output on the synthetic shop plan,
+"""The cards "What you can build automatically from a plan" (round n31; on /use-cases since n55, when /explore became a redirect): every card is engine output on the synthetic shop plan,
 its status word comes from tool_status, and the page loads no script from elsewhere."""
 import re
 
@@ -33,7 +33,7 @@ def test_the_chart_is_the_seed_rows_summed_along_the_safest_path(fresh):
     for line in r["order_items"]:
         want[name[cat[line[2]]]] = want.get(name[cat[line[2]]], 0) + line[3]
     assert {b["label"]: b["value"] for b in c["bars"]} == want
-    assert c["question"] in _section(pages.render("/explore"))
+    assert c["question"] in _section(pages.render("/use-cases"))
 
 
 def test_changing_the_seed_rows_changes_the_chart(fresh, monkeypatch):
@@ -45,7 +45,7 @@ def test_changing_the_seed_rows_changes_the_chart(fresh, monkeypatch):
     _clear()
     after = demo.build_cards()["chart"]["bars"]
     assert [b["value"] * 10 for b in before] == [b["value"] for b in after]
-    assert f'{after[0]["value"]:g}' in _section(pages.render("/explore"))
+    assert f'{after[0]["value"]:g}' in _section(pages.render("/use-cases"))
 
 
 def test_changing_the_plan_changes_every_card(fresh, monkeypatch):
@@ -66,7 +66,7 @@ def test_changing_the_plan_changes_every_card(fresh, monkeypatch):
 
 def test_the_cards_show_the_engine_output(fresh):
     c = demo.build_cards()
-    html = _section(pages.render("/explore"))
+    html = _section(pages.render("/use-cases"))
     for r in c["model"]["relationships"]:
         assert f"<code>{r['from']}</code> → <code>{r['to']}</code>" in html
     for m in c["model"]["measures"]:
@@ -80,12 +80,12 @@ def test_the_cards_show_the_engine_output(fresh):
 
 
 def test_status_words_come_from_tool_status(fresh, monkeypatch):
-    html = _section(pages.render("/explore"))
+    html = _section(pages.render("/use-cases"))
     found = re.findall(r'data-tool="(\w+)">.*?<span class="build-status">([^<]+)</span>', html)
     assert [t for t, _ in found] == ["join_path", "semantic_model_draft", "rayfin_connector", "app_starter"]
     assert all(word == tool_status.label(t) for t, word in found)
     monkeypatch.setattr(tool_status, "label", lambda name: f"STATUS-OF-{name}")
-    html = _section(pages.render("/explore"))
+    html = _section(pages.render("/use-cases"))
     assert all(f"STATUS-OF-{t}" in html for t, _ in found)
 
 
@@ -94,11 +94,11 @@ def test_each_card_links_to_a_docs_section_that_exists():
     for tool in pages.BUILD_DOCS:
         anchor = pages.build_doc_anchor(tool).split("#", 1)[1]
         assert f'id="{anchor}"' in docs, tool
-        assert f'href="/docs#{anchor}"' in _section(pages.render("/explore"))
+        assert f'href="/docs#{anchor}"' in _section(pages.render("/use-cases"))
 
 
-def test_explore_loads_no_external_script():
-    html = pages.render("/explore")
+def test_the_build_section_loads_no_external_script():
+    html = pages.render("/use-cases")
     srcs = re.findall(r"<script[^>]*\bsrc=\"([^\"]+)\"", html)
     assert srcs and all(s.startswith("/") and not s.startswith("//") for s in srcs)
     assert "<svg" in _section(html) and not re.search(r"<script|<link|(src|href)=\"(https?:)?//", _section(html))
@@ -109,8 +109,8 @@ def test_the_path_is_counted_from_the_tools_and_the_demo_budget():
     path = pages.build_path()
     assert all(t in tool_status.STATUS for s in path for t in s["tools"])
     assert path[-1]["tools"] == tuple(t for _, t in tool_status.BUILDS)
-    html = _section(pages.render("/explore"))
+    html = _section(pages.render("/use-cases"))
     assert html.count('<li><span class="path-n"') == len(path)
     assert f"{sum(len(s['tools']) for s in path[:-1])} tool calls" in html and f"{len(path[-1]['tools'])} parts in all" in html
     assert f"to a checked plan in about {sum(s['minutes'] for s in STEPS)} minutes; each part after that is one call" in html and 'href="/local#the-20-minute-demo"' in html
-    assert "What you can build automatically from this plan" in html and "when you ask for it" in html
+    assert "What you can build automatically from a plan" in html and "when you ask for it" in html

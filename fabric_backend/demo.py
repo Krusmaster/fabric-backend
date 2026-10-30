@@ -308,11 +308,11 @@ def home_relationship_list() -> str:
     first = [r for r in p["relationships"] if _edge_id(r["source"], r["source_cols"], r["target"]) == HOME_DEFAULT]
     for r in first + [r for r in p["relationships"] if r not in first]:
         rid = _edge_id(r["source"], r["source_cols"], r["target"])
-        items.append(f'<li><a href="/explore#edge={quote(rid)}" data-edge="{e(rid)}"><span><code>{e(r["source"])}.{e("+".join(r["source_cols"]))}</code> → '
+        items.append(f'<li><a href="/check?example=sample#edge={quote(rid)}" data-edge="{e(rid)}"><span><code>{e(r["source"])}.{e("+".join(r["source_cols"]))}</code> → '
                      f'<code>{e(r["target"])}</code></span><span class="rel-tag">suggested</span></a></li>')
     for h in p["suggestions"]:
         hid = _edge_id(h["table"], [h["column"]], h["target"])
-        items.append(f'<li><a href="/explore#edge={quote(hid)}" data-edge="{e(hid)}"><span><code>{e(h["table"])}.{e(h["column"])}</code> → '
+        items.append(f'<li><a href="/check?example=sample#edge={quote(hid)}" data-edge="{e(hid)}"><span><code>{e(h["table"])}.{e(h["column"])}</code> → '
                      f'<code>{e(h["target"])}</code></span><span class="rel-tag decide">needs your decision</span></a></li>')
     return "".join(items)
 

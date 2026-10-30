@@ -44,4 +44,4 @@ Lovable's own guide lists every prerequisite and limit: https://docs.lovable.dev
 
 ## Next
 
-[Get started](/start) · [Docs](/docs) · [Try the demo graph](/explore)
+[Get started](/start) · [Docs](/docs) · [Try the guided demo](/check?example=sample&guide=1)

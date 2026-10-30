@@ -43,7 +43,7 @@
       <li><strong>One plan for what you build.</strong> The same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.</li>
     </ul>
     <div class="ctas">
-      <a class="btn secondary" href="/demo">Try the guided demo</a>
+      <a class="btn secondary" href="/check?example=sample&amp;guide=1">Try the guided demo</a>
     </div>
     <p class="sources-line">The demo uses sample data. No account needed.</p>
   </div>
@@ -54,7 +54,7 @@
 <section class="wrap demo-entry" id="demo" aria-labelledby="guide">
   <div class="card">
     <div><h2 id="guide">Where should each order be delivered?</h2><p>Follow one order to its delivery address in four steps: what the engine suggests, what the data shows, your decision, and what you can explain afterwards.</p></div>
-    <a class="btn primary" href="/demo">Try the guided demo</a>
+    <a class="btn primary" href="/check?example=sample&amp;guide=1">Try the guided demo</a>
   </div>
 </section>
 
@@ -108,7 +108,7 @@
   <details><summary>What does my IT department need to approve?</summary>
     <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
   <details><summary>Can I try it without Fabric?</summary>
-    <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/demo">guided demo</a> uses synthetic sample data.</p></details>
+    <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/check?example=sample&amp;guide=1">guided demo</a> uses synthetic sample data.</p></details>
   <details><summary>How is this different from asking a chat assistant directly?</summary>
     <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
 </section>
@@ -116,7 +116,7 @@
 <section class="wrap" style="padding-top:0">
   <div class="card ready" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
     <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to Claude, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need; <a href="/it">a page for your IT department</a> lists what the admin approves and why.</p></div>
-    <div class="ctas"><a class="btn primary" href="/start">Connect to Claude</a><a class="btn ghost" href="/explore">Explore the demo graph</a></div>
+    <div class="ctas"><a class="btn primary" href="/start">Connect to Claude</a><a class="btn ghost" href="/check?example=sample#check-map">See the example’s map</a></div>
   </div>
   <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/docs">read the docs</a> · <a href="/support">get help</a> · <a href="/partners">try a pilot</a></p>
 </section>

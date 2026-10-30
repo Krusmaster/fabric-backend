@@ -18,13 +18,13 @@ def client(monkeypatch):
 def test_browser_404_is_styled_and_noindex(client):
     r = client.get("/no-such-page", headers={"Accept": "text/html,application/xhtml+xml"})
     assert r.status_code == 404 and r.headers["x-robots-tag"] == "noindex"
-    assert "Nothing connects here." in r.text and "/no-such-page" in r.text and 'href="/explore"' in r.text
+    assert "Nothing connects here." in r.text and "/no-such-page" in r.text and 'href="/check?example=sample#check-map"' in r.text
     assert 'content="noindex,nofollow"' in r.text and "{{" not in r.text
     assert "&lt;" in client.get("/<script>alert(1)</script>", headers={"Accept": "text/html"}).text        # path is escaped
 
 
 def test_pages_carry_a_strict_csp_but_mcp_does_not(client):
-    for path in ("/", "/demo", "/explore", "/docs", "/privacy", "/mascots"):
+    for path in ("/", "/check", "/use-cases", "/docs", "/privacy", "/mascots"):
         h = client.get(path).headers
         assert h["content-security-policy"].startswith("default-src 'self'; script-src 'self' 'sha256-"), path
         assert h["x-content-type-options"] == "nosniff" and h["referrer-policy"] == "strict-origin-when-cross-origin"
@@ -66,25 +66,11 @@ def test_non_browser_404_stays_plain(client):
 def test_sitemap_and_robots(client):
     r = client.get("/sitemap.xml")
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
-    for p in ("/", "/demo", "/explore", "/start", "/support", "/partners", "/partners/workspace", "/docs", "/privacy"):
+    for p in ("/", "/check", "/use-cases", "/start", "/support", "/partners", "/partners/workspace", "/docs", "/privacy"):
         assert f"<loc>https://krusgraph.test{p}</loc>" in r.text
     assert "/mascots" not in r.text
     robots = client.get("/robots.txt").text
     assert "Sitemap: https://krusgraph.test/sitemap.xml" in robots and "Disallow: /mascots" in robots
-
-
-def test_explore_has_the_plan_as_text(client):
-    html = client.get("/explore").text
-    assert "The plan as text" in html and 'id="plan-text"' in html
-    assert "7 tables, 6 with keys, 6 relationships" in html
-    assert "<strong>audit_log</strong>: no key, <code>K3</code>" in html
-    assert "<code>orders.customer_id</code> → <code>customers.customer_id</code>, <code>R1</code>" in html
-    text = html.split('id="plan-text"', 1)[1].split("</details>", 1)[0]
-    from fabric_backend.infer import RULES
-    for code in ("K1", "K2", "K3", "R1"):                                 # each rule explained once, then only its code
-        assert text.count(RULES[code].replace("`", "")[:40]) <= 1 and f"<dt><code>{code}</code></dt>" in text
-    assert "<code>orders.ship_to_id</code>: no rule matched" in html
-    assert 'aria-label="Tables and legend"' in html and 'aria-label="Why these tables are linked"' in html
 
 
 def test_heading_order_starts_at_h2_after_the_h1(client):

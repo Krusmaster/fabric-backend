@@ -1943,6 +1943,10 @@ def build_app(host: str = "0.0.0.0"):
 
     for path in PAGES:
         page_route(path, (lambda p: lambda: render(p))(path))
+    from starlette.responses import RedirectResponse
+    from .pages import REDIRECTS
+    for path, to in REDIRECTS.items():
+        app.router.routes.append(Route(path, (lambda t: lambda request: RedirectResponse(t, status_code=301))(to)))
     page_route("/privacy", privacy_html)
     page_route("/docs", docs_html)
     page_route("/lovable", lovable_html)

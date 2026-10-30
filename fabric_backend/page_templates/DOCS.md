@@ -8,8 +8,8 @@ See how your business tables really connect – with the proof behind every link
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
 Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
-data and build from the plan. Start with the connection guide, or try the [guided demo](/demo) and the
-[demo graph](/explore) without an account. The tool reference explains what each tool reads, returns or changes, and
+data and build from the plan. Start with the connection guide, or try the [guided demo](/check?example=sample&guide=1) and
+[the example's map](/check?example=sample#check-map) without an account. The tool reference explains what each tool reads, returns or changes, and
 how far it has been tested.
 
 ## Why {{PRODUCT}}
@@ -52,7 +52,7 @@ no row-level security of its own; it applies what the source enforces for the id
 
 ## Get started
 
-New to a Fabric lakehouse? Start by understanding how its tables fit together: connect the hosted server to Claude, then ask a first question. The [guided demo](/demo) follows one order to its delivery address in four steps, and the [demo graph](/explore) shows every table and relationship of the same sample; neither needs an account.
+New to a Fabric lakehouse? Start by understanding how its tables fit together: connect the hosted server to Claude, then ask a first question. The [guided demo](/check?example=sample&guide=1) runs the engine on a synthetic shop in your browser, and Onto leads four steps over its map: how the tables connect, the total that doubles, a suggestion to decide on and on to Power BI or an app; it needs no account.
 
 ### Connect
 
@@ -102,7 +102,7 @@ One example per tool, in the order a first session usually goes (list, plan, loo
 - `list_tables` — *"Which tables are in demo_lh, schema shop?"*
 - `plan_backend` — *"Plan a backend over demo_lh, schema shop."* — nothing is deployed; you get keys, relationships, the rule for each, ambiguous columns, suggested composite keys and an ER diagram. *"Treat order_id plus line_no as the key of order_items"* passes `keys`.
 - `sample_rows` — *"Show me a few rows of orders."* — when a column's meaning is unclear before deciding on keys.
-- `validate_plan` — *"Check the plan against the data."* — every key counted for uniqueness and NULLs, every relationship for orphans; the [demo](/explore#plan-check) shows what the answer looks like.
+- `validate_plan` — *"Check the plan against the data."* — every key counted for uniqueness and NULLs, every relationship for orphans; the [example on /check](/check?example=sample) shows what the answer looks like.
 - `create_backend` — *"Create it as shop_api."* — creates the API for GraphQL item, or updates it in place if the name exists.
 - `describe_backend` — *"What can I query in shop_api?"* — the types, fields and relationship names a query uses.
 - `query_graphql` — *"Using shop_api, which customers ordered a trail bike in October?"* — a read-only query; relationships nest.
@@ -182,7 +182,7 @@ A review is worth keeping when the next report or app builds on the same tables.
 A lakehouse has no declared keys, so names are all there is — and every result says which rule produced it,
 so you can overrule it. Declared keys and foreign keys (warehouses) always win. A column that could point at
 two tables is reported, never guessed; a column no rule matches is left unlinked and you can pass it as
-`confirmed`. The [demo](/explore) shows the rules on a synthetic schema. The rules, in the engine's own words:
+`confirmed`. The [example on /check](/check?example=sample) shows the rules on a synthetic schema. The rules, in the engine's own words:
 
 {{RULES_TABLE}}
 
@@ -251,7 +251,7 @@ Unit-tested on the synthetic shop schema and the public benchmark schemas; `anal
 were run against the demo workspace (synthetic shop data) on 26 October 2026: the one column outside every relationship, `orders.ship_to_id`, came back with
 every value present in `addresses.address_id` (15 distinct values) and well below that for the other candidates. On
 27 October 2026, after the ranking was fixed, `addresses.address_id` came first before the data check (3.94 against
-1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/demo) walks through this column on the
+1.5 or less) and held for every value after it (inclusion 1.0). The [guided demo](/check?example=sample&guide=1) walks through this column on the
 synthetic sample: the suggestion, its data check and the decision that stays yours.
 
 ### SAP on Fabric

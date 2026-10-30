@@ -85,6 +85,7 @@
       if (still) { run.hidden = false; events.forEach(show); }
       landed();
       draw(r.result);
+      if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
       ping("done");
       const ms = Math.round(performance.now());
@@ -106,7 +107,8 @@
   }
 
   $("check-files").addEventListener("change", async (e) => { if (e.target.files.length) start("files", await readFiles(e.target.files)); });
-  document.querySelectorAll("[data-example]").forEach((b) => b.addEventListener("click", () => start(b.dataset.example)));
+  document.querySelectorAll("[data-example]").forEach((b) => b.addEventListener("click", () => { guided = false; $("check-guide").hidden = true; start(b.dataset.example); }));
+  let guided = false;                       // n55: set from the address at the end of this file
   $("check-columns-run").addEventListener("click", () => {
     const text = $("check-columns").value.trim();
     if (!text) { say("Paste a list of columns first: one table.column per line."); $("check-columns").focus(); return; }
@@ -334,6 +336,59 @@
     ask(r);
   }
 
+  // ------------------------------------------------------------------ n55: the guided demo
+  // Onto leads four steps over the run on the page: how the tables connect, the total that doubles, a suggestion to
+  // decide on (orders.ship_to_id, the old /demo story), and on to Power BI or an app. Each step marks the map; with the
+  // mascots off the same steps are text. The decision stays on this page: nothing is sent or saved.
+  function guide(r) {
+    const box = $("check-guide"), text = $("check-guide-text"), back = $("check-guide-back"), next = $("check-guide-next");
+    const amount = r.findings.find((f) => f.check === "amount_level" && f.amount);
+    const sug = r.suggestions.find((f) => f.link);
+    const rel = r.relationships[0];
+    const steps = [{ title: "How the tables connect", at: rel ? { source: rel.source, target: rel.target, source_cols: rel.source_cols } : null, body: () => [
+      el("p", null, "The engine read " + r.tables.length + " tables and found " + r.relationships.length + " relationships from the column names alone. Each line on the map is one, with the rule that found it."),
+      rel ? el("p", null, "For example ", code(rel.source + "." + rel.source_cols.join(" + ")), " → ", code(rel.target), ", rule " + rel.rule + ": marked on the map.") : null,
+      el("p", { class: "muted tiny" }, r.health)] }];
+    if (amount) steps.push({ title: "Here the total doubles", finding: amount, body: () => {
+      const a = amount.amount;
+      return [el("p", null, code(a.header + "." + a.column), " is an amount on each ", code(a.header), " row. Join ", code(a.line), " to it and sum, and every line repeats it."),
+        el("ul", { class: "check-kpis" },
+          el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines")),
+          el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per " + a.header + " row"))),
+        el("p", { class: "muted tiny" }, amount.next || "")];
+    } });
+    if (sug) steps.push({ title: "A suggestion to decide on", at: sug.link, body: () => {
+      const said = el("p", { class: "check-guide-said", role: "status" });
+      const decide = (yes) => { said.textContent = yes ? "Accepted on this page. In Claude, the review keeps your decision and its reason." : "Rejected on this page: the column stays unlinked."; };
+      const yes = el("button", { type: "button", class: "btn secondary small" }, "Accept"), no = el("button", { type: "button", class: "btn ghost small" }, "Reject");
+      yes.addEventListener("click", () => decide(true)); no.addEventListener("click", () => decide(false));
+      return [el("p", null, code(sug.link.source + "." + sug.link.source_cols.join(" + ")), " names no table, so no naming rule links it. The values point at ", code(sug.link.target), ": the dashed line."),
+        el("p", null, sug.saw), el("p", { class: "muted" }, sug.means || "What it means is your decision: a delivery address, or something else?"),
+        el("p", { class: "ctas" }, yes, no), said];
+    } });
+    steps.push({ title: "On to Power BI or an app", body: () => {
+      const m = el("button", { type: "button", class: "btn primary small" }, "Build a Power BI model"), a = el("button", { type: "button", class: "btn secondary small" }, "See it as an app");
+      m.addEventListener("click", () => openBuild("model")); a.addEventListener("click", () => openBuild("app"));
+      return [el("p", null, "From the same plan and the rows, in this browser: a simple report and the model as a Power BI project, or a small app and its starter code. In your own Fabric it is a step in Claude."),
+        el("p", { class: "ctas" }, m, a)];
+    } });
+    let i = 0;
+    function show(focus) {
+      const s = steps[i];
+      $("check-guide-n").textContent = "The guided demo · step " + (i + 1) + " of " + steps.length + " · synthetic data";
+      $("check-guide-h").textContent = s.title;
+      text.replaceChildren(...s.body().filter(Boolean));
+      if (map) { if (s.finding) mark(s.finding, null); else map.highlight(s.at || null); }
+      back.disabled = i === 0; next.disabled = i === steps.length - 1;
+      box.dataset.step = String(i + 1);
+      if (focus) $("check-guide-h").focus({ preventScroll: true });
+    }
+    back.onclick = () => { if (i > 0) { i--; show(true); } };
+    next.onclick = () => { if (i < steps.length - 1) { i++; show(true); } };
+    box.hidden = false;
+    show(false);
+  }
+
   // ------------------------------------------------------------------ n53: Ask Onto
   // Every answer is drawn from `r`, the result the worker returned; nothing here makes a request.
   function ask(r) {
@@ -393,5 +448,14 @@
       return el("li", null, b);
     }));
     box.hidden = false;
+  }
+
+  // n55: /check?example=sample starts that example at once (the start page's "Try the guided demo", the industry
+  // examples on /use-cases); &guide=1 adds Onto's four steps over the same run. /demo and /explore redirect here.
+  const query = new URLSearchParams(location.search);
+  if (["sample", "sap", "crm"].includes(query.get("example"))) {
+    guided = query.get("guide") === "1";
+    if (guided) $("check-guide").hidden = false;
+    start(query.get("example"));
   }
 })();

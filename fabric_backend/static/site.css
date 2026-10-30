@@ -1122,3 +1122,14 @@ html[data-mascots=off] .check-ask-q{background:none;border:0;border-radius:0;pad
 .check-all>summary{cursor:pointer;font-weight:700;padding:6px 0}
 .check-verdict-items{padding-left:20px}
 .check-sug-h{margin-top:14px}
+/* n55: the guided demo on /check (?example=sample&guide=1): Onto beside four steps over the same map */
+.check-guide{display:flex;gap:16px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;margin:0 0 18px;box-shadow:var(--shadow)}
+.check-guide-figure{flex:0 0 auto;width:64px}
+.check-guide-figure .mascot{width:64px;height:64px}
+.check-guide-body{flex:1;min-width:0}
+.check-guide-n{margin:0 0 2px}
+.check-guide-nav{display:flex;gap:10px;margin-top:8px}
+.check-guide-said{font-weight:700}
+html[data-mascots=off] .check-guide-figure{display:none}
+@media (max-width:759px){.check-guide{padding:14px}.check-guide-figure{width:44px}.check-guide-figure .mascot{width:44px;height:44px}}
+.build-intro{max-width:72ch}

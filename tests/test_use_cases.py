@@ -43,7 +43,9 @@ def test_page_renders_indexable_with_every_industry_and_the_footnote(client):
 
 
 def test_page_keeps_out_what_it_must_not_claim(client):
-    text = client.get("/use-cases").text + client.get("/use-cases.md").text
+    page = client.get("/use-cases").text
+    page = page.split('id="build"')[0] + page.split('id="build"', 1)[1].split("</section>", 1)[1]   # n55: the tools' own output (code with ${tenant})
+    text = page + client.get("/use-cases.md").text
     low = text.lower().replace("based in uppsala, sweden, and bern, switzerland", "")    # n53: the footer's agreed fact
     for banned in ("switzerland", "swiss", "logistics", "warehousing", "distribution", "pharmacy", "wholesale", " ewm",
                    "trusted by", "customer story", "case study", "testimonial", "chf", "price:", "€", "$"):
