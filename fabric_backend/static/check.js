@@ -287,19 +287,46 @@
     };
   }
 
+  // n55: the map first. Under it one line with the state and the count, the most important finding, and every item
+  // folded into "Show all N findings"; selecting a finding's title marks its relationship or table on the map.
+  // where a finding is on the map, most precise first: its relationship, the amount's lines → header, its table
+  function where(f) {
+    const a = f.amount;
+    return [f.link, a && { source: a.line, target: a.header, source_cols: a.line_columns }, a && { table: a.header }, f.table && { table: f.table }].filter(Boolean);
+  }
+  function mark(f, btn) {
+    const shown = !!map && where(f).some((x) => map.highlight(x));
+    if (!shown && map) map.highlight(null);
+    document.querySelectorAll("[data-finding]").forEach((b) => b.setAttribute("aria-pressed", String(b === btn && shown)));
+    if (shown) $("check-map").scrollIntoView({ behavior: still ? "auto" : "smooth", block: "center" });
+    say(shown ? "Marked on the map: " + f.title + "." : f.title + ": not on the map.");
+  }
+  const findingButton = (f, cls) => {
+    const b = el("button", { type: "button", class: cls, "data-finding": "", "aria-pressed": "false" }, f.title);
+    b.addEventListener("click", () => mark(f, b));
+    return b;
+  };
+
   function draw(r) {
     result.hidden = false;
+    const all = r.findings.concat(r.suggestions), n = all.length, top = all[0];
     $("check-verdict").replaceChildren(
-      el("p", { class: "check-state check-" + r.verdict.headline.state }, el("strong", null, r.verdict.headline.title), " ", r.verdict.headline.text),
-      ...(r.verdict.items.length ? [el("ul", null, ...r.verdict.items.map((i) => el("li", null, el("strong", null, i.title), " ", i.text)))] : []));
+      el("p", { class: "check-state check-" + r.verdict.headline.state }, el("strong", null, r.verdict.headline.title),
+        " · " + (n ? n + (n === 1 ? " thing" : " things") + " to check" : "nothing to check")),
+      top ? el("p", { class: "check-top" }, el("span", { class: "muted" }, "Most important: "), findingButton(top, "check-finding-link")) : el("p", { class: "muted" }, r.verdict.headline.text));
+    $("check-all").hidden = !r.tables.length && !n;
+    $("check-all").open = false;
+    $("check-all-sum").textContent = "Show all " + n + (n === 1 ? " finding" : " findings");
+    $("check-verdict-items").replaceChildren(el("li", null, r.verdict.headline.text),
+      ...r.verdict.items.map((i) => el("li", null, el("strong", null, i.title), " ", i.text)));
     if (r.tables.length) $("check-map-summary").textContent = r.tables.length + " tables, " + r.relationships.length + " relationships. " + r.health;
     const list = (items) => items.map((f) => el("li", { class: "check-finding sev-" + f.severity },
-      el("p", { class: "check-finding-title" }, el("strong", null, f.title)),
+      el("p", { class: "check-finding-title" }, el("strong", null, findingButton(f, "check-finding-link"))),
       el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)), " ", f.severity),
       el("p", null, f.saw), el("p", { class: "muted" }, f.means), f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
       f.sql ? el("details", null, el("summary", null, "SQL to look for yourself"), el("pre", null, f.sql)) : null));
     $("check-findings").replaceChildren(...(r.findings.length ? list(r.findings) : [el("li", null, r.tables.length ? "Nothing the engine counts as wrong or unclear." : "Nothing could be read.")]));
-    $("check-suggestions-box").hidden = !r.suggestions.length;
+    $("check-suggestions-h").hidden = !r.suggestions.length;
     $("check-suggestions").replaceChildren(...list(r.suggestions));
     $("check-tables").replaceChildren(...r.tables.map((t) => el("p", { class: "tiny" }, el("strong", null, t.name), " ",
       ...(t.key.length ? ["key ", code(t.key.join(" + ")), " (rule " + t.key_rule + ")"] : ["no key (rule K3)"]))));

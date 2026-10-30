@@ -1113,3 +1113,12 @@ html[data-mascots=off] .check-ask-q{background:none;border:0;border-radius:0;pad
 .theme-toggle .t-sun{display:none}
 :root[data-theme="dark"] .theme-toggle .t-sun{display:block}:root[data-theme="dark"] .theme-toggle .t-moon{display:none}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .theme-toggle .t-sun{display:block}:root:not([data-theme="light"]) .theme-toggle .t-moon{display:none}}
+/* n55: /check's result under the map: one line, the top finding, the rest folded */
+.check-verdict{margin:4px 0 10px}
+.check-top{margin:0 0 8px}
+.check-finding-link{font:inherit;font-weight:700;color:inherit;background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}
+.check-finding-link:hover,.check-finding-link[aria-pressed=true]{color:var(--coral-ink)}
+.check-all{margin:6px 0 18px}
+.check-all>summary{cursor:pointer;font-weight:700;padding:6px 0}
+.check-verdict-items{padding-left:20px}
+.check-sug-h{margin-top:14px}

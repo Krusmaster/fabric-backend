@@ -33,6 +33,17 @@ const { chromium } = require("playwright");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-result");
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
+  // n55: the map first, then one line and the top finding; every finding folded under it; a title marks the map
+  out.folded = await page.evaluate(() => {
+    const y = (id) => document.getElementById(id).getBoundingClientRect().top + scrollY, all = document.getElementById("check-all");
+    return { open: all.open, summary: document.getElementById("check-all-sum").textContent, line: document.querySelector("#check-verdict .check-state").textContent,
+             order: y("check-map") < y("check-verdict") && y("check-verdict") < y("check-all"), findingsInside: all.contains(document.getElementById("check-findings")) };
+  });
+  await page.click("#check-verdict [data-finding]");
+  out.top_marks = await page.evaluate(() => ({ lit: document.querySelectorAll("#check-map .m-hl").length, pressed: document.querySelector("#check-verdict [data-finding]").getAttribute("aria-pressed") }));
+  await page.click("#check-all-sum");
+  await page.click('#check-findings [data-finding] >> nth=1');
+  out.finding_marks = await page.evaluate(() => [...document.querySelectorAll("#check-map .m-hl")].map((g) => g.textContent));
   // n53: Ask Onto — the questions the result chose, each answered on the page, by keyboard, without a request
   const before = out.requests.length;
   out.ask_questions = await page.$$eval("#check-ask-list button", (n) => n.map((x) => x.textContent));

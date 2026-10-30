@@ -143,6 +143,10 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert not r["ask_requests"], r["ask_requests"]                   # answered from the result: no request at all
     assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 5}
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
+    # n55: the map first, one line with the state and the count, every finding folded under it, a title marks the map
+    assert r["folded"] == {"open": False, "summary": "Show all 3 findings", "line": "Enough to start · 3 things to check", "order": True, "findingsInside": True}
+    assert r["top_marks"] == {"lit": 1, "pressed": "true"}
+    assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
 
 
 def test_the_privacy_sentence_matches_what_the_page_sends(client):

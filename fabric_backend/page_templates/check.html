@@ -57,8 +57,17 @@
 </section>
 
 <section class="wrap check-result" id="check-result" aria-labelledby="check-result-h" hidden>
-  <h2 id="check-result-h">Result</h2>
-  <div class="card check-verdict" id="check-verdict"></div>
+  <h2 id="check-result-h" class="visually-hidden">Result</h2>
+  <div class="check-verdict" id="check-verdict"></div>
+  <details class="check-all" id="check-all">
+    <summary id="check-all-sum">Show all findings</summary>
+    <p class="muted tiny">Each item names the engine's own check and rule (K0–K5 for keys, R0–R4 for relationships); select its title to mark it on the map. An unclear column is listed, never linked by guess.</p>
+    <ul class="check-verdict-items" id="check-verdict-items"></ul>
+    <ol class="check-findings" id="check-findings"></ol>
+    <h3 class="check-sug-h" id="check-suggestions-h" hidden>Suggestions to decide on</h3>
+    <ol class="check-findings" id="check-suggestions"></ol>
+    <details class="check-notes"><summary>Tables, keys and what was read</summary><div class="check-tables" id="check-tables"></div><ul id="check-notes"></ul></details>
+  </details>
   <section class="check-ask" id="check-ask" aria-labelledby="check-ask-h" data-product="{{PRODUCT}}" hidden>
     <span class="check-ask-figure" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span>
     <div class="check-ask-body">
@@ -68,11 +77,6 @@
       <div class="check-ask-answer" id="check-ask-answer" role="region" aria-live="polite" aria-label="Onto's answer" hidden></div>
     </div>
   </section>
-  <h3>What is wrong or unclear</h3>
-  <p class="muted tiny">Each item names the engine's own check and rule (K0–K5 for keys, R0–R4 for relationships). An unclear column is listed, never linked by guess.</p>
-  <ol class="check-findings" id="check-findings"></ol>
-  <details class="check-suggestions" id="check-suggestions-box" hidden><summary>Suggestions to decide on</summary><ol class="check-findings" id="check-suggestions"></ol></details>
-  <details class="check-notes"><summary>Tables, keys and what was read</summary><div class="check-tables" id="check-tables"></div><ul id="check-notes"></ul></details>
 </section>
 
 <section class="wrap check-build" id="check-build" aria-label="Go further: the preview" hidden>
