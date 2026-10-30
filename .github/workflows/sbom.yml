@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install "cyclonedx-bom==7.6.0"
       - run: cyclonedx-py requirements deploy/constraints.txt --of JSON -o sbom.cdx.json

@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       # pip's cache (downloaded wheels) is kept per Python version and the hash of the pins; pip still installs every run
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/checkout@v5
       # pyspark comes as a 434 MB source package that pip builds into a wheel each time; the cache keeps the built wheel,
       # keyed on this file, where the versions are pinned
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12", cache: pip, cache-dependency-path: .github/workflows/ci.yml }
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: "17" }
