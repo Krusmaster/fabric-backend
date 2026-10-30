@@ -48,12 +48,26 @@ const { chromium } = require("playwright");
   const before = out.requests.length;
   out.ask_questions = await page.$$eval("#check-ask-list button", (n) => n.map((x) => x.textContent));
   out.ask = {};
-  for (const id of ["total", "first", "key", "own"]) {
+  // n63: domain_draft's domains on the map (a tint and a label per table, interfaces thicker) and the list under it
+  out.domains = await page.evaluate(() => ({ tinted: document.querySelectorAll("#check-map .m-dom").length,
+    tags: [...document.querySelectorAll("#check-map .m-dom-tag")].map((t) => t.textContent), ifaces: document.querySelectorAll("#check-map .m-iface").length,
+    list: document.getElementById("check-domains").hidden ? null : document.getElementById("check-domains").textContent }));
+  out.domain_fill = {};
+  for (const scheme of ["light", "dark"]) {
+    await page.emulateMedia({ colorScheme: scheme });
+    out.domain_fill[scheme] = await page.evaluate(() => [...new Set([...document.querySelectorAll("#check-map .m-dom rect")].map((r) => getComputedStyle(r).fill))]);
+  }
+  await page.emulateMedia({ colorScheme: "light" });
+  for (const id of ["total", "first", "key", "product", "own"]) {
     await page.focus(`[data-ask="${id}"]`);
     await page.keyboard.press("Enter");
     out.ask[id] = { text: await page.textContent("#check-ask-answer"), expanded: await page.getAttribute(`[data-ask="${id}"]`, "aria-expanded"),
                     lit: await page.evaluate(() => document.querySelectorAll("#check-map .m-hl").length) };
   }
+  await page.focus('[data-ask="product"]'); await page.keyboard.press("Enter");
+  out.ask.product.html_links = await page.$$eval("#check-ask-answer a", (n) => n.map((a) => [a.textContent, a.getAttribute("href"), a.getAttribute("download")]));
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#check-ask-answer a[download]")]);
+  out.contract = { name: dl.suggestedFilename(), text: require("fs").readFileSync(await dl.path(), "utf8") };
   await page.click('[data-ask="powerbi"]');
   await until(() => !document.getElementById("check-model").hidden && document.getElementById("check-model").textContent.length > 0);
   out.ask_powerbi_focus = await page.evaluate(() => document.activeElement.id);

@@ -179,6 +179,14 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                  f"{len(suggestions.get('candidates', []))} candidate column(s) ranked" + (f", {len(cands)} with 90% or more of their values in the target's key" if src.has_data else ""),
                  suggested=cands)
         t = time.perf_counter()
+        try:                                                       # n63: domains.draft, the same call domain_draft makes
+            dom = _domains(p, src, validation)
+            step("domains", "domain_draft: proposed domains", t, f"{len(dom['domains'])} domain(s), {len(dom['interfaces'])} interface(s) between them"
+                 + (f", {len(dom['unassigned'])} table(s) unassigned" if dom["unassigned"] else ""), domains=dom)
+        except Exception as e:                                     # noqa: BLE001 - the rest of the result still shows
+            dom = None
+            step("domains", "domain_draft: proposed domains", t, f"could not run: {type(e).__name__}: {e}")
+        t = time.perf_counter()
         session = Session(src)
         found = session.findings(p, validation, suggestions)
         findings = [_finding(f) for f in found if f["severity"] in _SHOWN]
@@ -187,7 +195,7 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "source": {"kind": src.kind, "label": src.label, "has_data": src.has_data, "notes": src.notes},
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
-               "findings": findings, "suggestions": sugg}
+               "findings": findings, "suggestions": sugg, "domains": dom}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -196,6 +204,23 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
             shutil.rmtree(folder, ignore_errors=True)
         if src.close:
             src.close()
+
+
+def _domains(p, src, validation: dict | None) -> dict:
+    """domains.draft on the plan, with each domain's contract (ODCS YAML) and the checks validate_plan made on its
+    tables and on the relationships they hold."""
+    from . import domains
+    schema = getattr(src.schema, "schema", None) or "dbo"
+    out = domains.draft(p, schema, src.label, validation)
+    for d in out["domains"]:
+        mine = set(d["tables"])
+        d["keys"] = {t: list(p.keys.get(t, ([], ""))[0]) for t in d["tables"]}
+        d["relationships"] = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols,
+                               "rule": r.rule} for r in p.relationships if r.source in mine and r.target in mine]
+        d["checks"] = ([{"what": f"key of {k['table']}", "verdict": k["verdict"]} for k in (validation or {}).get("keys", []) if k.get("table") in mine]
+                       + [{"what": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}", "verdict": r["verdict"]}
+                          for r in (validation or {}).get("relationships", []) if r.get("source") in mine])
+    return out
 
 
 def _count(items: list[dict], key: str) -> dict[str, int]:

@@ -1161,3 +1161,18 @@ html[data-mascots=off] .check-guide-figure{display:none}
 .uc-ex-h{margin:8px 0 0}
 .uc-ex-finds{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:8px}
 .uc-other{margin:8px 0 0;padding-left:20px;display:grid;gap:6px}
+/* n63: domain_draft's domains on /check's map: a faint tint per domain from the soft tokens (they switch with the
+   theme), a small name label above each table, interfaces between domains drawn thicker */
+.check-map .m-dom-0 rect,.check-dom-sw.m-dom-0{fill:var(--sage-soft);background:var(--sage-soft)}
+.check-map .m-dom-1 rect,.check-dom-sw.m-dom-1{fill:var(--lav-soft);background:var(--lav-soft)}
+.check-map .m-dom-2 rect,.check-dom-sw.m-dom-2{fill:var(--mustard-soft);background:var(--mustard-soft)}
+.check-map .m-dom-3 rect,.check-dom-sw.m-dom-3{fill:var(--coral-soft);background:var(--coral-soft)}
+.check-map .m-dom-tag{font:600 10.5px var(--mono);fill:var(--muted);letter-spacing:.02em}
+.check-map .m-iface .m-edge{stroke:var(--ink);stroke-width:3.5;opacity:.7}
+.check-domains{margin:10px 0}
+.check-domains[hidden]{display:none}
+.check-domains h4{margin:0 0 2px}
+.check-dom-list,.check-dom-ifs{margin:6px 0;padding-left:20px}
+.check-dom-list li{margin:3px 0;overflow-wrap:anywhere}
+.check-dom-ifs li{overflow-wrap:anywhere}
+.check-dom-sw{display:inline-block;width:14px;height:14px;border-radius:4px;border:1px solid var(--line-strong);margin-right:6px;vertical-align:-2px}

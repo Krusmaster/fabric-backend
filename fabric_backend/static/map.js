@@ -29,6 +29,25 @@
       if (g) { g.classList.add("m-hl"); lit.push(g); }
       return !!g;
     };
+    // n63: domain_draft's proposal, drawn when there are two domains or more: each table's box tinted by its domain
+    // (tints 0–3, then again) with the domain's name as a small label above it, never colour alone; a relationship
+    // between two domains is an interface, drawn thicker. Returns the slug → tint index it used.
+    this.domains = (d) => {
+      const tint = {};
+      if (!svg || !d || (d.domains || []).length < 2) return tint;
+      d.domains.forEach((x, i) => {
+        tint[x.slug] = i % 4;
+        x.tables.forEach((t) => {
+          const g = groups[t], p = pos[t];
+          if (!g || !p) return;
+          g.classList.add("m-dom", "m-dom-" + (i % 4));
+          const label = x.name.length > 20 ? x.name.slice(0, 19) + "…" : x.name;
+          add(g, "text", { x: p[0], y: p[1] - 27, "text-anchor": "middle", class: "m-dom-tag" }, label);
+        });
+      });
+      (d.interfaces || []).forEach((x) => { const g = lines[key(x.source, x.target, x.source_cols)]; if (g) g.classList.add("m-iface"); });
+      return tint;
+    };
     this.update = (s) => {
       if (s.step === "keys") {
         const n = s.tables.length;

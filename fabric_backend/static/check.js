@@ -279,6 +279,7 @@
     $("check-tables").replaceChildren(...r.tables.map((t) => el("p", { class: "tiny" }, el("strong", null, t.name), " ",
       ...(t.key.length ? ["key ", code(t.key.join(" + ")), " (rule " + t.key_rule + ")"] : ["no key (rule K3)"]))));
     $("check-notes").replaceChildren(...((r.source && r.source.notes) || []).map((n) => el("li", null, n)));
+    domainsOn(r);
     $("check-pilot").hidden = !r.findings.length;     // n58: one way from a finding to the pilot page
     ask(r);
   }
@@ -336,6 +337,36 @@
     show(false);
   }
 
+  // ------------------------------------------------------------------ n63: domains on the map
+  // domain_draft's proposal from the worker's result (browser_check runs domains.draft on the same plan): with two
+  // domains or more the map tints each domain's tables and labels them, and a list under the map says the same in words.
+  const domainsOf = (r) => (r.domains && r.domains.domains) || [];
+  function domainsOn(r) {
+    const box = $("check-domains"), ds = domainsOf(r);
+    if (ds.length < 2) { box.hidden = true; box.replaceChildren(); return; }
+    const tint = map ? map.domains(r.domains) : {};
+    const name = (slug) => (ds.find((d) => d.slug === slug) || { name: slug }).name;
+    const ifs = r.domains.interfaces || [];
+    box.replaceChildren(el("h4", null, "Proposed domains"),
+      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision."),
+      el("ul", { class: "check-dom-list" }, ...ds.map((d) => el("li", null,
+        el("span", { class: "check-dom-sw m-dom-" + (tint[d.slug] != null ? tint[d.slug] : 0), "aria-hidden": "true" }),
+        el("strong", null, d.name), ": " + d.tables.join(", ")))),
+      ifs.length ? el("p", { class: "tiny" }, el("strong", null, "Interfaces between them (the thicker lines): ")) : null,
+      ifs.length ? el("ul", { class: "tiny check-dom-ifs" }, ...ifs.map((i) => el("li", null, code(i.source + "." + i.source_cols.join(" + ")), " → ", code(i.target),
+        " (" + i.rule + "): " + name(i.consumer) + " uses the key of " + name(i.provider)))) : null,
+      (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
+    box.hidden = false;
+  }
+  function saveText(name, text, label) {             // the contract is written here; a Blob saves it, nothing is fetched
+    const a = el("a", { class: "btn secondary small", href: "#", download: name }, label);
+    a.addEventListener("click", () => {
+      const url = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
+    });
+    return a;
+  }
+
   // ------------------------------------------------------------------ n53: Ask Onto
   // Every answer is drawn from `r`, the result the worker returned; nothing here makes a request.
   function ask(r) {
@@ -374,6 +405,25 @@
         el("p", { class: "muted" }, f ? f.means : "The table can point at others, but nothing can point at it."),
         f && f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
         el("p", { class: "muted tiny" }, "The table is marked on the map."), f ? tags(f) : el("p", { class: "tiny check-tags" }, code("rule K3"))];
+    } });
+    const product = domainsOf(r).find((d) => d.tables.length >= 2);
+    if (product) qs.push({ id: "product", q: "These " + product.tables.length + " tables hang together as " + product.name + ". Package them as a data product?", a: () => {
+      const yaml = (r.domains.contracts || {})[product.slug] || "";
+      const rels = product.relationships || [], checks = product.checks || [];
+      if (map) map.highlight({ table: product.tables[0] });
+      return [el("p", null, "A data product is a set of tables one team owns and promises to others, with a contract that says what they can rely on."),
+        el("p", { class: "muted tiny" }, "Why these belong together: " + product.name_reason + "."),
+        el("p", null, el("strong", null, "Tables and keys")),
+        el("ul", { class: "tiny" }, ...product.tables.map((t) => el("li", null, code(t), " ", ...((product.keys[t] || []).length ? ["key ", code(product.keys[t].join(" + "))] : ["no key"])))),
+        el("p", null, el("strong", null, "Relationships inside it")),
+        rels.length ? el("ul", { class: "tiny" }, ...rels.map((x) => el("li", null, code(x.source + "." + x.source_cols.join(" + ")), " → ", code(x.target), " (rule " + x.rule + ")")))
+          : el("p", { class: "tiny" }, "None: its tables are linked through a shared parent."),
+        el("p", null, el("strong", null, "What validate_plan counted")),
+        checks.length ? el("ul", { class: "tiny" }, ...checks.map((c) => el("li", null, c.what + ": " + c.verdict)))
+          : el("p", { class: "tiny" }, "No rows to count: a columns list gives the plan only."),
+        el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
+        el("p", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "Download the contract (YAML)"),
+          el("a", { class: "btn primary small", href: "/start" }, "Create it in your own Fabric"))];
     } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {
       setTimeout(() => openBuild("model"), 0);

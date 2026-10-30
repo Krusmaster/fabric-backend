@@ -25,11 +25,30 @@ def test_sample_gives_map_findings_and_the_five_states():
     assert "%" not in r["verdict"]["headline"]["text"]
 
 
+def test_the_result_carries_domain_drafts_proposal_and_contracts():
+    """n63: /check's engine runs domains.draft on the same plan; the page draws it and offers each contract."""
+    from fabric_backend import domains
+    from fabric_backend.infer import plan
+    r = bc.analyze("sample")
+    d = r["domains"]
+    assert [(x["name"], x["tables"]) for x in d["domains"]] == [("customers", ["addresses", "customers", "order_items", "orders"]),
+                                                                 ("products", ["categories", "products"])]
+    src, _ = bc._source("sample", None, "")
+    pair = lambda xs: [(i["source"], i["target"]) for i in xs]     # the weights differ: here validate_plan's counts are given
+    assert pair(d["interfaces"]) == pair(domains.propose_plan(plan(src.schema))["interfaces"]) == [("order_items", "products")]
+    c = d["domains"][0]
+    assert c["keys"]["order_items"] == ["order_id", "line_no"] and all(x["source"] in c["tables"] and x["target"] in c["tables"] for x in c["relationships"])
+    assert {"what": "key of customers", "verdict": "unique in all 10 rows"} in c["checks"]
+    assert d["contracts"]["customers"].startswith("# ODCS v3.2.0") and "kind: DataContract" in d["contracts"]["customers"]
+    sap = bc.analyze("sap")["domains"]
+    assert [x["name"] for x in sap["domains"]] == ["order-to-cash", "customer master"] and "public SAP" in sap["domains"][0]["name_reason"]
+
+
 @pytest.mark.parametrize("kind", ["sample", "sap", "crm"])
 def test_the_examples_report_each_engine_step_with_its_time(kind):
     events = []
     r = bc.analyze(kind, emit=events.append)
-    assert [e["step"] for e in events] == ["read", "keys", "relationships", "validate", "suggest", "findings"]
+    assert [e["step"] for e in events] == ["read", "keys", "relationships", "validate", "suggest", "domains", "findings"]
     assert all(isinstance(e["ms"], int) and e["detail"] for e in events)
     assert events[1]["tables"] == r["tables"] and events[2]["relationships"] == r["relationships"]
     assert events[-1]["result"] == r and r["verdict"]["headline"]["title"] == "Enough to start"
@@ -132,6 +151,7 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert r["focused"] == "check-sample" and not r["overflow_375"] and not r["overflow_1280"]
     # n53: Ask Onto on the shop example: the questions come from what the engine found, the answers from its result
     assert r["ask_questions"] == ["Why does this total come out twice?", "What should I check first?", "Why is there no key on audit_log?",
+                                  "These 4 tables hang together as customers. Package them as a data product?",
                                   "How do I get this into Power BI?", "Can I ask my own questions?"], r["ask_questions"]
     total = r["ask"]["total"]["text"]
     assert "Summed over the joined lines (order_lines)" in total and "Summed once per header (orders)" in total
@@ -141,7 +161,16 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert all(a["expanded"] == "true" for a in r["ask"].values())
     assert r["ask_powerbi_focus"] == "check-model-h"
     assert not r["ask_requests"], r["ask_requests"]                   # answered from the result: no request at all
-    assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 5}
+    assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 6}
+    # n63: the domains on the map, labelled (never colour alone) and tinted in both themes, and the data-product answer
+    d = r["domains"]
+    assert d["tinted"] == 6 and sorted(set(d["tags"])) == ["customers", "products"] and d["ifaces"] == 1, d
+    assert "Proposed domains" in d["list"] and "order_items.product_id → products" in d["list"], d["list"]
+    assert all(len(v) == 2 for v in r["domain_fill"].values()) and r["domain_fill"]["light"] != r["domain_fill"]["dark"], r["domain_fill"]
+    prod = r["ask"]["product"]["text"]
+    assert "A data product is a set of tables" in prod and "validate_plan counted" in prod and "unique in all" in prod and "[object" not in prod, prod
+    assert ["Create it in your own Fabric", "/start", None] in r["ask"]["product"]["html_links"]
+    assert r["contract"]["name"] == "customers.odcs.yaml" and "apiVersion: v3.2.0" in r["contract"]["text"] and "kind: DataContract" in r["contract"]["text"]
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
     # n55: the guided demo on /check, started from the address, four steps by keyboard, each marking the map
     assert [g["title"] for g in r["guide"]] == ["How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"]
