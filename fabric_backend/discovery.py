@@ -33,7 +33,7 @@ USP_POINTS = (
 )
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
 
 
 def package_version() -> str:
@@ -117,6 +117,18 @@ def robots_txt() -> str:
     for bot in AI_CRAWLERS:
         rules += f"\nUser-agent: {bot}\nAllow: /\nDisallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
     return rules + f"\nSitemap: {site_url()}/sitemap.xml\n"
+
+
+# n59: /.well-known/security.txt (RFC 9116). Expires is a fixed date, renewed by hand before it passes;
+# tests/test_site_extras.py fails once it is less than 30 days away, as the reminder.
+SECURITY_CONTACT = "mailto:gustav@krusgraph.com"
+SECURITY_EXPIRES = "2027-10-30T00:00:00Z"
+SECURITY_POLICY = "https://github.com/Krusmaster/fabric-backend/blob/main/SECURITY.md"
+
+
+def security_txt() -> str:
+    return (f"Contact: {SECURITY_CONTACT}\nExpires: {SECURITY_EXPIRES}\nPreferred-Languages: en, sv\n"
+            f"Policy: {SECURITY_POLICY}\nCanonical: {site_url()}/.well-known/security.txt\n")
 
 
 def llms_full_txt(parts: list[tuple[str, str]]) -> str:

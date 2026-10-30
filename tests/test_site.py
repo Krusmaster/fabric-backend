@@ -52,7 +52,7 @@ def test_nav_and_pages_are_linked(client):
     html = client.get("/").text
     for href in ("/docs", "/support", "/partners", "/check?example=sample&amp;guide=1", "/check", "/start", "/privacy", "https://github.com/Krusmaster/fabric-backend"):
         assert f'href="{href}"' in html, href
-    assert "Microsoft Fabric, connected." in html
+    assert "For Microsoft Fabric. Connected." in html
     assert 'href="/mascots"' not in html                                                 # review page is unlinked
 
 
@@ -280,7 +280,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
+PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -558,8 +558,8 @@ def test_use_cases_mark_outputs_with_the_docs_status(client):
     html = client.get("/use-cases").text
     assert "(planned)" not in html and "What do you need to understand about your data?" in html
     assert "time it takes to read and accept a plan" not in html and "defensible to auditors" not in html
-    first = html.split('id="industries"')[0]                                            # the illustrative note comes first
-    assert "The schemas are illustrative examples, not customer projects." in first
+    first = html.split('id="try"')[0]                                                   # the synthetic note comes first
+    assert "The examples are synthetic: invented tables and rows, not customer projects." in first
 
 
 @pytest.mark.parametrize("registration", ["", "1"])

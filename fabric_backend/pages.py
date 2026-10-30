@@ -50,7 +50,9 @@ PAGES = {
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
-                   "Start from an undocumented lakehouse, a join to check or an app to build. Ten illustrative schemas show what {{PRODUCT}} proposes, where it can go wrong and what still needs your judgement.", "usecases"),
+                   "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
+    "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
+                         "What each {{PRODUCT}} tool returns for the synthetic shop plan: the API, views, ontology, semantic model and data agent, with each tool's test status.", "usecases"),
     "/it": ("it.html", "For your IT department — {{PRODUCT}}",
             "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
@@ -396,7 +398,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta property="og:description" content="{d}">
 <meta property="og:image" content="{og_image}">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: Microsoft Fabric, connected.">
+<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: For Microsoft Fabric. Connected.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{t}">
 <meta name="twitter:description" content="{d}">
@@ -424,7 +426,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap header-row">
     <a class="brand" href="/" aria-label="{html.escape(v['PRODUCT'])} home">
       {_LOGO}
-      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">Microsoft Fabric, connected.</span></span>
+      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">For Microsoft Fabric. Connected.</span></span>
     </a>
     <nav id="site-nav" class="site-nav" aria-label="Main">
       {nav_html}
@@ -616,7 +618,7 @@ def render(path: str) -> str:
     if "{{HOME_" in body:
         hv = _home_vars()
         body = re.sub(r"\{\{(HOME_\w+)\}\}", lambda m: hv.get(m.group(1), ""), body)
-    if "{{DEMO_" in body:                                                  # the build cards on /use-cases (n55)
+    if "{{DEMO_" in body:                                                  # the build cards on /use-cases/build (n55; their own page since n59)
         dv = {"DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     if "{{CHECK_" in body:

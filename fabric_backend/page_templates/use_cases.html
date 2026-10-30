@@ -3,26 +3,13 @@
   <span class="kicker">Use cases</span>
   <h1>What do you need to understand about your data?</h1>
   <p class="lede">{{UC_INTRO}}</p>
-  <p class="intro">{{UC_FOOTNOTE}} {{PRODUCT}} reads table and column names, proposes keys and relationships with the rule behind each, and you can check the plan against the rows before creating anything.</p>
+  <p class="intro">{{UC_FOOTNOTE}}</p>
 </section>
 
 <section class="wrap uc-try" id="try" aria-labelledby="try-h">
-  <h2 id="try-h">Three examples you can run now</h2>
-  <p class="muted">Synthetic examples: invented tables and rows, no real company. Each opens /check with the example running; the engine reads it in your browser.</p>
-  <ul class="uc-try-list">
-    <li class="card uc-try-card coral" id="try-retail"><span class="pill demo">Synthetic data</span>
-      <h3>Retail and e-commerce</h3>
-      <p>A shop with customers, orders, order lines and products. Summed over its lines, the order total comes out twice; and <code>orders.ship_to_id</code> names no table, so the engine suggests the delivery address and leaves the decision to you.</p>
-      <a class="btn primary small" href="/check?example=sample" data-try="sample">Open the shop example</a></li>
-    <li class="card uc-try-card lav" id="try-sap"><span class="pill demo">Synthetic data</span>
-      <h3>Manufacturing and sales with SAP</h3>
-      <p>Sales orders, deliveries and billing documents from two SAP clients. The order-to-cash links come from public SAP knowledge (the SAP pack): which document follows which, with the client (MANDT) in every key.</p>
-      <a class="btn primary small" href="/check?example=sap" data-try="sap">Open the SAP sales tables</a></li>
-    <li class="card uc-try-card sage" id="try-crm"><span class="pill demo">Synthetic data</span>
-      <h3>Sales and CRM</h3>
-      <p>Accounts in Salesforce, customers in the ERP. No column name joins the two systems; the engine finds the link in the values and shows it as a suggestion for you to decide on.</p>
-      <a class="btn primary small" href="/check?example=crm" data-try="crm">Open Salesforce + ERP</a></li>
-  </ul>
+  <div class="uc-legend-head"><h2 id="try-h">Three examples you can run now</h2><span class="uc-onto" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span></div>
+  <p class="muted">Each map is the engine’s own run, drawn as on /check.</p>
+  <ul class="uc-ex-list">{{UC_EXAMPLES}}</ul>
 </section>
 
 <section class="wrap" id="tasks" aria-labelledby="tasks-h">
@@ -31,40 +18,20 @@
 </section>
 
 <section class="wrap" id="problems" aria-labelledby="problems-h">
-  <h2 id="problems-h">Problems we see in first reports</h2>
+  <h2 id="problems-h">A problem we see in first reports</h2>
   {{UC_PROBLEMS}}
 </section>
 
-<section class="wrap uc-flow-wrap" aria-label="From tables to what you build">
-  <ol class="uc-flow" aria-label="From tables to what you build">
-    <li><span class="uc-flow-n">1</span><strong>Tables</strong><span>no declared keys</span></li>
-    <li><span class="uc-flow-n">2</span><strong>Explained graph</strong><span><code>plan_backend</code>, then <code>validate_plan</code></span></li>
-    <li><span class="uc-flow-n">3</span><strong>What you build</strong><ul class="uc-outputs">{{UC_OUTPUTS}}</ul></li>
-  </ol>
+<section class="wrap uc-flow-wrap" id="outputs" aria-labelledby="outputs-h">
+  <h2 id="outputs-h">What you can build</h2>
+  <ul class="uc-outputs">{{UC_OUTPUTS}}</ul>
+  <p class="muted tiny">Each tool’s output on the shop plan: <a href="/use-cases/build">what you can build from a plan</a>.</p>
 </section>
 
-<section class="wrap uc-intro" id="industries" aria-labelledby="industries-h">
-  <div class="uc-index-grid">
-    <div>
-      <h2 id="industries-h">Examples by industry</h2>
-      <p class="muted">{{UC_COUNT}} sketches with invented tables. Each starts from one question and shows what {{PRODUCT}} would propose; open one to see the rules and what you could build once the plan is reviewed.</p>
-      {{UC_INDEX}}
-    </div>
-    <aside class="uc-legend" aria-labelledby="legend-h">
-      <div class="uc-legend-head"><h2 id="legend-h" class="h3">How to read the rules</h2><span class="uc-onto" aria-hidden="true"><span data-mascot="onto" data-pose="point" data-label=""></span></span></div>
-      <ul class="uc-find-list">{{UC_LEGEND}}</ul>
-      <p class="muted tiny">The full rule table is in the <a href="/docs#how-relationships-are-inferred">docs</a>. A column that could point at two tables is reported as ambiguous and left unlinked.</p>
-    </aside>
-  </div>
-</section>
-
-{{UC_SECTIONS}}
-
-<section class="wrap wide build" id="build" aria-labelledby="build-h">
-  <h2 id="build-h">What you can build automatically from a plan</h2>
-  {{DEMO_PATH}}
-  <p class="muted build-intro">Automatically means: the plan and the cards below come from the engine, and nobody writes code or configuration for them. What is created in Fabric is created when you ask for it. Each card is the output of one tool, run on the synthetic shop plan (the example “A total that doubles” on <a href="/check?example=sample">/check</a>) when this page was built. The status is the tool’s own, from the <a href="/docs#test-status">test status</a>.</p>
-  <div class="build-grid">{{DEMO_BUILD}}</div>
+<section class="wrap" id="industries" aria-labelledby="industries-h">
+  <h2 id="industries-h">Other industries</h2>
+  <ul class="uc-other">{{UC_INDUSTRIES}}</ul>
+  <p class="muted tiny">The rules behind each key and relationship are in the <a href="/docs#how-relationships-are-inferred">docs</a>.</p>
 </section>
 
 <section class="wrap" id="consultancies" aria-labelledby="consultancies-h">
@@ -77,4 +44,6 @@
     <div class="ctas"><a class="btn primary" href="/start">Connect to Claude</a><a class="btn ghost" href="/docs">Read the docs</a></div>
   </div>
 </section>
+<script src="/static/map.js?v={{ASSET_V}}" defer></script>
+<script src="/static/use-cases.js?v={{ASSET_V}}" defer></script>
 </div>

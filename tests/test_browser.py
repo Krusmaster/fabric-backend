@@ -88,10 +88,17 @@ def test_the_home_buttons_and_a_visible_focus_ring(report):
     assert f["ctaFocusOutline"] not in ("none", "")
 
 
-def test_use_cases_tasks_first_and_details_by_keyboard(report):
+def test_use_cases_maps_are_drawn_and_marked_by_keyboard(report):
+    """n59: three maps drawn with /check's renderer at every width and theme, inside the screen; a finding marked by
+    keyboard and unmarked again; with reduced motion the maps are drawn at once."""
     f = report["facts"]
     assert f["useCaseTasks"] == 3
-    assert f["useCaseDetailsClosed"] is True and f["useCaseDetailsOpened"] is True
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        maps = f[f"ucMaps@{v}"]
+        assert len(maps) == 3 and all(m["nodes"] >= 6 and m["lines"] >= 4 and m["rules"] >= 4 and m["inside"] for m in maps), (v, maps)
+        assert maps[0]["dashed"] == 1 and maps[2]["dashed"] == 1, v                 # the shop's and the CRM's suggestion
+    assert f["useCaseMarked"] == {"pressed": "true", "lit": 1} and f["useCaseUnmarked"] == 0
+    assert f["ucMapMotion"]["drawn"] > 0 and f["ucMapMotion"]["moving"] == 0
 
 
 def test_sales_example_journey_at_phone_width(report):

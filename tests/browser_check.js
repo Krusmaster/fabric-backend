@@ -4,7 +4,7 @@
 const { chromium } = require('playwright');
 const base = process.argv[2];
 const exe = process.argv[3];
-const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases'];
+const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/docs', '/privacy', '/lovable', '/mascots', '/use-cases', '/use-cases/build'];
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const errors = [], facts = {};
@@ -31,7 +31,15 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
       }, 300)));
       if (pair.toggle !== pair.mascots > 0) errors.push(`${label}: mascot toggle ${pair.toggle ? 'shown' : 'hidden'} with ${pair.mascots} mascots visible`);
       if (path === '/use-cases') {
-        // n55: "What you can build automatically from a plan", on /use-cases since /explore became a redirect: every disclosure open, still no horizontal scroll, each card inside the screen
+        // n59: each example's map drawn by map.js: tables, lines with rule names, no map wider than the screen
+        facts[`ucMaps@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.uc-map')].map(f => {
+          const r = f.getBoundingClientRect();
+          return { nodes: f.querySelectorAll('.m-node').length, lines: f.querySelectorAll('.m-edge').length, rules: f.querySelectorAll('.m-rule').length,
+                   dashed: f.querySelectorAll('.m-sug').length, inside: r.left >= 0 && r.right <= window.innerWidth };
+        }));
+      }
+      if (path === '/use-cases/build') {
+        // n55: "What you can build automatically from a plan", on /use-cases/build since n59: every disclosure open, still no horizontal scroll, each card inside the screen
         facts[`build@${vname}`] = await page.evaluate(() => {
           document.querySelectorAll('#build details, #plan-text').forEach(d => { d.open = true; });
           const cards = [...document.querySelectorAll('#build .build-card')];
@@ -102,9 +110,14 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   await tc.close();
   const hc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });
   const hp = await hc.newPage(); watch(hp, '/ focus');
-  // the build cards (on /use-cases since n55) with reduced motion: no transition or animation anywhere in the section
+  // n59: the maps on /use-cases with reduced motion: drawn at once, nothing animates in
+  const ucp = await hc.newPage(); watch(ucp, '/use-cases maps reduced motion');
+  await ucp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  facts.ucMapMotion = await ucp.evaluate(() => ({ drawn: document.querySelectorAll('.uc-map .m-edge').length,
+    moving: [...document.querySelectorAll('.uc-map *')].filter(el => { const cs = getComputedStyle(el); return cs.animationName && cs.animationName !== 'none'; }).length }));
+  // the build cards (on /use-cases/build since n59) with reduced motion: no transition or animation anywhere in the section
   const bp = await hc.newPage(); watch(bp, '/use-cases reduced motion');
-  await bp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
+  await bp.goto(base + '/use-cases/build', { waitUntil: 'networkidle' });
   facts.buildMotion = await bp.evaluate(() => [...document.querySelectorAll('#build, #build *')].filter(el => {
     const cs = getComputedStyle(el); return parseFloat(cs.transitionDuration) > 0 || (cs.animationName && cs.animationName !== 'none');
   }).length);
@@ -136,9 +149,12 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   const dp = await dc.newPage(); watch(dp, '/use-cases details');
   await dp.goto(base + '/use-cases', { waitUntil: 'networkidle' });
   facts.useCaseTasks = await dp.locator('.uc-task').count();
-  facts.useCaseDetailsClosed = await dp.evaluate(() => [...document.querySelectorAll('details.uc-more')].every(d => !d.open));
-  await dp.focus('details.uc-more summary'); await dp.keyboard.press('Enter');
-  facts.useCaseDetailsOpened = await dp.evaluate(() => document.querySelector('details.uc-more').open);
+  // n59: a finding under a map is marked on it by keyboard, as on /check, and unmarked by a second Enter
+  await dp.focus('#try-retail [data-finding]'); await dp.keyboard.press('Enter');
+  facts.useCaseMarked = await dp.evaluate(() => ({ pressed: document.querySelector('#try-retail [data-finding]').getAttribute('aria-pressed'),
+    lit: document.querySelectorAll('#try-retail .m-hl').length }));
+  await dp.keyboard.press('Enter');
+  facts.useCaseUnmarked = await dp.evaluate(() => document.querySelectorAll('#try-retail .m-hl').length);
   await dc.close();
   // the two-company sales example (a preview): the question, the definition, the one decision, filters, keyboard,
   // save and reopen, at phone width
