@@ -4,6 +4,9 @@ What each tool needs from the signed-in user's token, against what the Entra app
 the app: the `az` commands are for the maintainer to run (or not). Scopes are those the Fabric REST specification names
 per operation (microsoft/fabric-rest-api-specs, `## Required Delegated Scopes` in each swagger.json, read 25 October 2026).
 
+How to report a vulnerability, which versions are supported and what the service stores: `SECURITY.md` at the
+repository root.
+
 ## What the app has today (README, deploy check `REQUIRED_SCOPES`)
 
 | Resource | Delegated permission | Used by |

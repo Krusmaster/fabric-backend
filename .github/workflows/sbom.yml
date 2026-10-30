@@ -1,0 +1,36 @@
+name: SBOM
+# A CycloneDX SBOM of the image's exact versions (deploy/constraints.txt), kept as a workflow artifact, on every push to
+# main and on every version tag vX.Y.Z. On a tag it also checks that the tag matches pyproject.toml and writes the
+# tag's CHANGELOG.md section to the run summary. It creates no GitHub release and publishes nothing.
+on:
+  push:
+    branches: [main]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch: {}
+permissions: { contents: read }
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: { python-version: "3.12" }
+      - run: pip install "cyclonedx-bom==7.6.0"
+      - run: cyclonedx-py requirements deploy/constraints.txt --of JSON -o sbom.cdx.json
+      - if: github.ref_type == 'tag'
+        name: Tag matches pyproject.toml, and the CHANGELOG section for it
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          [ "$tag" = "$version" ] || { echo "::error::tag v$tag but pyproject.toml has $version"; exit 1; }
+          awk -v v="$tag" '/^## /{p = ($2 == v)} p' CHANGELOG.md > release-notes.md
+          [ -s release-notes.md ] || { echo "::error::CHANGELOG.md has no '## $tag' section"; exit 1; }
+          { echo "# Krusgraph v$tag"; echo; tail -n +2 release-notes.md; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ github.ref_name }}-${{ github.sha }}
+          path: |
+            sbom.cdx.json
+            release-notes.md
+          if-no-files-found: ignore
+          retention-days: 90

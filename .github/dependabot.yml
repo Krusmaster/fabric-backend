@@ -1,0 +1,14 @@
+# Weekly update PRs for the Python dependencies (pyproject.toml, deploy/constraints.txt) and the Actions in .github/workflows
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: pip
+    directory: /deploy
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }

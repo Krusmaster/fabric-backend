@@ -1,4 +1,4 @@
-# Operations: limits, Key Vault, usage statistics, health, alerts and client sign-in
+# Operations: limits, Key Vault, usage statistics, health, alerts, client sign-in and version tags
 
 Everything here is run by the maintainer in Azure Cloud Shell (Bash), from a checkout of this repository with
 `deploy/krusgraph.json` in place (or built from the running app with `--from-azure`, section 0). Nothing in this file has been run against Azure yet: the server code is
@@ -428,6 +428,33 @@ reason), and Entra's sign-in log in the tenant.
 **Switching it off:** `az containerapp update -n "$APP" -g "$RG" --set-env-vars KRUSGRAPH_CLIENT_REGISTRATION=0`.
 `/mcp/connect` and `/oauth/*` disappear; Claude is unaffected. Removing the redirect address from Entra and the
 storage account is optional and can wait.
+
+## 7. Tagging a version (maintainer only)
+
+A version tag `vX.Y.Z` marks a commit on `main` whose `pyproject.toml` version is X.Y.Z and whose `CHANGELOG.md` has a
+`## X.Y.Z — <date>` section. Pushing the tag runs `.github/workflows/sbom.yml`: it fails if the tag and
+`pyproject.toml` disagree or the section is missing, writes the section to the run's summary, and keeps the CycloneDX
+SBOM (`sbom.cdx.json`) and the notes (`release-notes.md`) as an artifact for 90 days. It creates no GitHub release and
+deploys nothing; deployment stays `bash deploy/krusgraph.sh --update` (section 0). Tags are pushed by the maintainer,
+or by a round he asks to do it. Nothing has been tagged yet (30 October 2026).
+
+The first tag, for the version on `main` now (0.8.0):
+
+```bash
+git checkout main && git pull --rebase
+grep '^version' pyproject.toml          # version = "0.8.0"
+grep '^## 0.8.0' CHANGELOG.md           # ## 0.8.0 — 2026-10-28
+git tag -a v0.8.0 -m "Krusgraph 0.8.0"
+git push origin v0.8.0
+```
+
+Then open Actions → SBOM → the run for `v0.8.0`: the summary shows the changelog section, the artifact holds the SBOM.
+A later version: raise `version` in `pyproject.toml`, `fabric_backend/__init__.py` and `server.json` (a test keeps them
+equal), add its `CHANGELOG.md` section, push to `main`, then tag as above. A wrong tag that has not been used anywhere
+can be removed with `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` (maintainer only).
+
+The same workflow also builds the SBOM on every push to `main` (artifact `sbom-main-<sha>`); Dependabot and the
+weekly `pip-audit` are described in `SECURITY.md` at the repository root.
 
 ## What the server reads from the environment (summary)
 

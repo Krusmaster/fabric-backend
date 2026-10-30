@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n60: `SECURITY.md` at the repository root (report to gustav@krusgraph.com, as in security.txt; only the latest
+  version supported; no customer data stored; no fixed response time, no certification). Dependabot for pip and
+  GitHub Actions. `.github/workflows/sbom.yml` builds a CycloneDX SBOM of `deploy/constraints.txt` on every push to
+  `main` and on a tag `vX.Y.Z`, kept as an artifact; on a tag it checks the version against `pyproject.toml` and puts
+  the CHANGELOG section in the run summary. How to tag: `docs/OPERATIONS.md` section 7. No tag created yet.
 - The start page's row under the hero is a hub (the brief of 27 October 2026): "Your data in Fabric" (Lakehouse,
   Warehouse, SQL database) and "What Krusgraph builds in Fabric" (GraphQL API, Power BI semantic model, Fabric IQ
   ontology, views, data agent, silver notebooks) on the left, Krusgraph in the middle ("one plan, the rule behind every
