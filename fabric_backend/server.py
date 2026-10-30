@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-six, from list_workspaces to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): thirty-seven, from list_workspaces to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -40,6 +40,7 @@ from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
+from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
 from .platforms import fabric as _fabric
@@ -875,6 +876,30 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     yml = _dbt.schema_yml(p, src, schema, database=item.get("sql_db") or item.get("displayName") or source,
                          tables=tables, arguments_block=arguments_block)
     return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
+
+
+@mcp.tool(title="Draft domains and data contracts from the plan (nothing created)", annotations=RO)
+@safe
+def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+                 confirmed: _p.Confirmed = None, check_rows: _p.CheckRows = False, ctx: Context = None) -> str:
+    """Proposes domains (candidate data products) from the plan's graph, the relationships crossing them and tables
+    left unassigned. Requires workspace and source. Returns JSON with the proposal and one ODCS v3.2.0 contract (YAML)
+    per domain. Changes nothing. Errors: {error, kind, hint}."""
+    validation = None
+    if check_rows:
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            p = make_plan(s, keys, confirmed)
+            validation = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
+    else:
+        p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    out = _domains.draft(p, schema, source, validation)
+    out["note"] = ("A proposal from keys and relationships, not a decision: review the names and the boundaries. "
+                   "Krusgraph creates no Fabric domain; that is POST /v1/admin/domains, which needs a Fabric administrator "
+                   "(Tenant.ReadWrite.All), so the customer's admin creates domains from this proposal.")
+    return _bounded(out, MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="Show which SAP tables and relationships the SAP pack recognises (nothing created)", annotations=RO)

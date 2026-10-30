@@ -96,6 +96,7 @@ _RAW = {
     "join_path": (HOSTED, READS, _NO, "unit tests"),
     "data_dictionary": (HOSTED, DRAFT, _NO, "unit tests"),
     "dbt_schema": (HOSTED, DRAFT, _NO, "unit tests"),
+    "domain_draft": (HOSTED, DRAFT, _NO, "unit tests (shop, the synthetic SAP demo, Salesforce + ERP)"),
     "sap_pack_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic SAP schema; no SAP system)"),
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
     "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 29 October 2026", False,

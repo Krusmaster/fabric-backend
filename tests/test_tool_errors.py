@@ -240,7 +240,7 @@ def test_tools_still_describe_themselves_to_mcp_clients():
                               "semantic_model_draft", "join_path", "data_dictionary", "dbt_schema", "plan_drift",
                               "create_semantic_model", "create_views", "create_data_agent", "app_starter", "app_readiness", "lineage", "analyze_schema", "suggest_relationships", "create_ontology", "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft",
                                     "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions",
-                                    "review_plan", "sap_pack_draft"}
+                                    "review_plan", "sap_pack_draft", "domain_draft"}
         assert "workspace" in tools["list_sources"]["inputSchema"]["properties"]
         assert set(tools["create_backend"]["inputSchema"]["properties"]) >= {"workspace", "source", "name", "schema", "writable", "keys", "confirmed", "tables"}
         assert "ctx" not in tools["plan_backend"]["inputSchema"]["properties"]
