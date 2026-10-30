@@ -2109,6 +2109,10 @@ def build_app(host: str = "0.0.0.0"):
         return PlainTextResponse(discovery.robots_txt(), headers={"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/robots.txt", robots))
 
+    async def security_txt(_request):
+        return PlainTextResponse(discovery.security_txt(), headers={"Cache-Control": "public, max-age=86400"})
+    app.router.routes.append(Route("/.well-known/security.txt", security_txt, methods=["GET", "HEAD"]))
+
     async def not_found(request, exc):
         """A styled 404 for browsers; plain text for everything else (the MCP endpoint itself is never a 404)."""
         if request.method in ("GET", "HEAD") and "text/html" in request.headers.get("accept", ""):
