@@ -5,6 +5,13 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n65: `deploy/krusgraph.sh --doctor` prints one table of the service's state (server and build, the
+  certificate's expiry, the Entra client secret's expiry as dates only, replicas, domain binding, Log Analytics,
+  budget), reads only; `--budget` creates a cost budget on the resource group with e-mail from two new keys,
+  `budget_amount` and `budget_email` (empty = nothing); `--backup` exports the registration table's consent records
+  to a git-ignored file, with the restore in `docs/OPERATIONS.md` section 8, and section 9 is the continuity
+  checklist. Unit-tested against a faked `az`, not run against Azure. `docs/NORDIC-PACK-SPIKE.md` writes down the
+  spike of 30 October 2026 on a Nordic ERP pack (Business Central first).
 - Round n60: `SECURITY.md` at the repository root (report to gustav@krusgraph.com, as in security.txt; only the latest
   version supported; no customer data stored; no fixed response time, no certification). Dependabot for pip and
   GitHub Actions. `.github/workflows/sbom.yml` builds a CycloneDX SBOM of `deploy/constraints.txt` on every push to

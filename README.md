@@ -4,7 +4,7 @@
 
 - The proof: every key and link comes with the rule or source behind it, and is checked against your data.
 - The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
+- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. The next pack, for the Nordic ERP systems, is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
 Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
@@ -240,7 +240,10 @@ Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed)
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
 token-protected `/metrics` (off by default), `/health` for uptime checks, the client secret optionally from Azure Key Vault
 (`ENTRA_CLIENT_SECRET_KEYVAULT_URI`, set up by `deploy/krusgraph.sh --key-vault`), and a dormant paid-plan check
-(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)).
+(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)). For the person on duty,
+`deploy/krusgraph.sh --doctor` (one table of the service's state, reads only), `--budget` (a cost budget with e-mail)
+and `--backup` (the registration table's consent records to a file), with a continuity checklist, are sections 8
+and 9 of the same file.
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE` (deploy config `ontology_write`) is no longer read: `create_ontology` is always offered, dry run by default; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
 `--check`, `--update`, `--status`, `--key-vault`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset

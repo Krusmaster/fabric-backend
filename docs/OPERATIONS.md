@@ -1,4 +1,4 @@
-# Operations: limits, Key Vault, usage statistics, health, alerts, client sign-in and version tags
+# Operations: limits, Key Vault, usage statistics, health, alerts, client sign-in, version tags, doctor, budget, backup and continuity
 
 Everything here is run by the maintainer in Azure Cloud Shell (Bash), from a checkout of this repository with
 `deploy/krusgraph.json` in place (or built from the running app with `--from-azure`, section 0). Nothing in this file has been run against Azure yet: the server code is
@@ -455,6 +455,158 @@ can be removed with `git tag -d vX.Y.Z && git push origin :refs/tags/vX.Y.Z` (ma
 
 The same workflow also builds the SBOM on every push to `main` (artifact `sbom-main-<sha>`); Dependabot and the
 weekly `pip-audit` are described in `SECURITY.md` at the repository root.
+
+## 8. Doctor, budget and backup (operations as code; unit-tested against a faked `az`, not yet run against Azure)
+
+Three steps of the deploy helper, added in round n65, for the person on duty. All three read `deploy/krusgraph.json`
+(or build it with `--from-azure`, section 0); `--doctor` and `--backup` only read Azure, `--budget` writes one budget.
+Tested with a faked `az` and faked network in `tests/test_deploy_doctor.py` (including the shell wrapper end to end
+with a fake `az` on `PATH`); none of them has been run against the live subscription yet.
+
+### 8.1 `--doctor`: the state of the service in one table
+
+```bash
+bash deploy/krusgraph.sh --doctor                  # or: bash deploy/krusgraph.sh --from-azure --doctor
+```
+
+It prints a table with the columns *Kontroll*, *Status* (`OK`, `VARNING`, `FEL`) and *Detalj*, one row per check,
+and exits with code 1 when a row is `FEL`. Every check runs even when an earlier one fails. What it reads, and how:
+
+| Row | Source | OK means |
+| --- | --- | --- |
+| Server (/healthz) | `https://<domain>/healthz` over HTTPS | `ok`, `auth: entra`, and the build is the one this checkout would deploy (`VARNING` names the live build and says `--update`) |
+| Certifikat | the certificate `https://<domain>` serves, read in a TLS handshake (no Azure call) | more than 14 days left; the date and the days are shown |
+| Entra-klienthemlighet | `az ad app credential list --id <client_id>` | the latest secret has more than 30 days left (`VARNING` within 30, `FEL` when expired or absent). Only dates are printed: never a hint, an id or a value |
+| Repliker | `az containerapp show`, `az containerapp replica list` | at least `min_replicas` replicas run; min and max are shown |
+| Domänbindning | the app's custom domains | HTTPS (`SniEnabled`) bound for the domain and, with `include_www`, for `www` |
+| Registreringslager | the app's `KRUSGRAPH_REGISTRATION_STORE` | informational: which Table Storage `--backup` would export, or that there is none |
+| Log Analytics | `az containerapp env show` | the environment's console logs go to Log Analytics (`VARNING` says `--log-analytics`) |
+| Budgetlarm | `az consumption budget list --resource-group` | at least one budget on the resource group (`VARNING` says `--budget`) |
+
+Nothing is changed and no secret is read. A row that cannot be read (the server down, `az` refused) is a `FEL` row
+with the first line of the error, and the other rows are still printed. Run it after every `--update`, when a
+sign-in fails, and once a month for the two expiry dates.
+
+### 8.2 `--budget`: one cost budget with e-mail
+
+Two new keys in `deploy/krusgraph.json`, empty in the example file:
+
+```json
+"budget_amount": 0,
+"budget_email": ""
+```
+
+`budget_amount` is the amount per month in the subscription's billing currency; `budget_email` gets the mails. With
+either empty, `--budget` prints that nothing is created and stops; nothing is ever created without both keys. With
+both:
+
+```bash
+bash deploy/krusgraph.sh --budget
+```
+
+creates the budget `budget-<app>` (for example `budget-krusgraph`) on the resource group: category Cost, monthly,
+from the first day of the current month for five years, with an e-mail to `budget_email` when the month's actual
+cost reaches 80 % and 100 % of the amount. It reads first (`az consumption budget show --budget-name budget-krusgraph
+--resource-group $RG`): the same amount and address already there means nothing is sent; a different one is replaced
+under the same name. The write goes through `az rest --method put` to `Microsoft.Consumption/budgets`
+(api-version 2023-05-01, the version `az consumption budget` itself uses), because `az consumption budget create`
+takes no notifications and a budget without an e-mail alerts nobody. The account needs the right to write budgets on
+the resource group (`Microsoft.Consumption/budgets/write`). To check or remove it by hand:
+
+```bash
+az consumption budget show --budget-name budget-krusgraph --resource-group $RG
+az consumption budget delete --budget-name budget-krusgraph --resource-group $RG     # never done by the script
+```
+
+A budget sends mail; it stops nothing. The spending limits of the subscription itself are a separate matter.
+
+### 8.3 `--backup`: the registration table to a file, and how to restore it
+
+Client registration (section 6) keeps its records in the Table Storage table `krusgraphoauth`. Of its five kinds of
+record (`docs/CLIENT-REGISTRATION.md`, "What is stored"), only `consent` is worth keeping: a keyed hash of the user,
+the client id, the client name, the https redirect address and a date, with no expiry. The other four (`txn`, `code`,
+`used`, `family`) carry Entra tokens encrypted with the server's key and expire by themselves within minutes or at
+most 90 days; a restore does not need them, because a sign-in replaces them.
+
+```bash
+bash deploy/krusgraph.sh --backup                                   # deploy/registration-backup-<date>.json
+bash deploy/krusgraph.sh --backup --out ~/clouddrive/consent.json   # somewhere else
+```
+
+It reads the storage account and the table from the running app's `KRUSGRAPH_REGISTRATION_STORE` (and stops, without
+a file, when the layer is off or in memory), then runs `az storage entity query --auth-mode login --filter
+"PartitionKey eq 'consent'"` page by page and writes one JSON document: `exported`, `account`, `table`, `kind`, `count`
+and `entities` (`PartitionKey`, `RowKey`, `data`, `exp` per record; the service's `Timestamp` and ETag are dropped).
+The file holds no key, no token, no name, e-mail address or IP address, and no value from any other kind of record.
+`deploy/registration-backup-*.json` is git-ignored. Your account needs "Storage Table Data Reader" on the table (the
+account has shared keys switched off, so `--auth-mode login` is the only way in).
+
+**Restoring.** Into the same table, or a new one made as in section 6 step 2 (the app's identity must have
+"Storage Table Data Contributor" on it and the app's `KRUSGRAPH_REGISTRATION_STORE` must point at it). Your account
+needs "Storage Table Data Contributor" on the table for this. From a checkout with the file:
+
+```bash
+FILE=deploy/registration-backup-2026-10-30.json
+ST=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['account'])" "$FILE")
+TABLE=$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['table'])" "$FILE")
+python3 - "$FILE" > consent.tsv <<'PY'
+import json, sys
+for e in json.load(open(sys.argv[1], encoding="utf-8"))["entities"]:
+    print(e["PartitionKey"], e["RowKey"], e["data"], e.get("exp", "0"), sep="\t")
+PY
+while IFS=$'\t' read -r pk rk data exp; do
+  az storage entity insert --account-name "$ST" --table-name "$TABLE" --auth-mode login --if-exists replace \
+    --entity PartitionKey="$pk" RowKey="$rk" data="$data" exp="$exp" exp@odata.type=Edm.Int64 --output none
+done < consent.tsv
+rm consent.tsv
+```
+
+`--if-exists replace` makes a rerun harmless. Two things to know: the user hash in each record is keyed with the
+server's registration key, so a restore is only useful while the app has the same `KRUSGRAPH_REGISTRATION_KEY` (with
+a new key the restored records match nobody and do no harm, as `docs/CLIENT-REGISTRATION.md` says of a key change);
+and a restored consent only skips the approval page, so losing the backup costs each user one more click, nothing
+else. Not run against Azure yet; the `az` parameters were checked against the source of azure-cli on 30 October 2026
+(`storage entity query` returns `items` and `nextMarker`, `--marker nextpartitionkey=… nextrowkey=…` continues it;
+`storage entity insert --entity … --if-exists replace`).
+
+## 9. Continuity: if the maintainer is unavailable
+
+What someone else needs to keep krusgraph.com running, in the order they will need it. No secret is written here;
+each line says where one lives.
+
+1. **Access.** The Azure subscription that holds the resource group in `deploy/krusgraph.json` (Contributor on the
+   group, plus the right to assign roles for sections 2 and 6), the Entra app registration (an owner of the app, for
+   `--check`, new secrets and redirect addresses), the GitHub organisation Krusmaster, and the registrar of the domain
+   (`deploy/KRUSGRAPH-START.md` names it; the DNS records the app needs are in `azure-result.json` after `--status`).
+   The list of who has these is kept by the maintainer outside the repository; nothing in the repository grants
+   access to anything.
+2. **The configuration.** `deploy/krusgraph.json` is git-ignored and tenant-specific. Recreate it from the running
+   app, in a Cloud Shell in the right directory (section 0):
+
+   ```bash
+   git clone https://github.com/Krusmaster/fabric-backend && cd fabric-backend
+   bash deploy/krusgraph.sh --from-azure          # shows and saves deploy/krusgraph.json; no secret is read
+   bash deploy/krusgraph.sh --doctor              # the state of the service
+   ```
+
+   `--from-azure` fills every key except `log_analytics_workspace`, `budget_amount` and `budget_email`; set those by
+   hand from the workspace and budget the portal shows, or leave them empty.
+3. **Where the secrets are** (names only). The Entra client secret: the container app's secret `entra-secret`, or
+   the Key Vault secret `entra-client-secret` in the vault named by `key_vault` (section 2); its expiry date is in
+   `--doctor`. Rotating it is section 2's last paragraph: a new secret in Entra, stored where the old one is, and the
+   same new value given to Anthropic for the Claude directory listing. The client registration key: the Key Vault
+   secret `krusgraph-registration-key`, or the container app secret `registration-key` (section 6). The usage salt
+   and the metrics token: container app secrets `usage-salt` and `metrics-token` (section 3). The Log Analytics
+   shared key is never stored; `--log-analytics` reads it when it needs it. None of these values is in git, in a
+   backup file or in any log.
+4. **Running it.** Deploy a new version: section 0. Health, alerts and mail: section 4 and `--doctor`. Budget:
+   `--budget` once (8.2). Before anything that touches the storage account: `--backup` (8.3). A version tag: section 7.
+   Security reports: `SECURITY.md` at the repository root. The hosted service is the only deployment; a fresh one in
+   another subscription is `deploy/KRUSGRAPH-START.md` from the top (an Entra app with the permissions in
+   `docs/SCOPES.md`, a domain, the full run of `deploy/krusgraph.sh`, then `--bind-domain`).
+5. **What cannot wait.** The client secret's expiry: an expired one stops every sign-in, and nothing renews it by
+   itself. The certificate is the managed one `--bind-domain` ordered from Azure Container Apps; whether Azure has
+   renewed it is what the Certifikat row of `--doctor` shows. Both dates are the two rows after the server there.
 
 ## What the server reads from the environment (summary)
 

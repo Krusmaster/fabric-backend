@@ -223,6 +223,9 @@ could not be checked against public documentation in this session; its example `
 
 ## Next modules
 
+The next pack after SAP: the Nordic ERP systems, starting with Business Central; the spike that ranks them and
+says what a pack would hold is [NORDIC-PACK-SPIKE.md](NORDIC-PACK-SPIKE.md) (30 October 2026, nothing built yet).
+
 Not built yet, in this order:
 
 1. ~~Procure to pay~~: built in round n21 (above). Left for later: contracts and scheduling agreements as their own
