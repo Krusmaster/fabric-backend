@@ -14,7 +14,7 @@ jobs:
           cache-dependency-path: |
             deploy/constraints.txt
             pyproject.toml
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v7
         with: { node-version: "22" }
       - run: pip install -c deploy/constraints.txt -e ".[server,test]"     # the image's exact versions; a bad pin fails here, not in az acr build
       # The browser checks (tests/test_browser.py) run when Playwright's Chromium is present; they are skipped otherwise.
