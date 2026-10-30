@@ -83,12 +83,34 @@ What each change does (all in `fabric_backend/infer.py`, each with a test in `te
 | Line key: header reference plus a line-number column | K5 | `LINEITEM` (`L_ORDERKEY` + `L_LINENUMBER`), shop `order_items` |
 | R3 compares names after prefix stripping | R3 | `LINEITEM (L_PARTKEY, L_SUPPKEY) → PARTSUPP`, `SalesOrderDetail (SpecialOfferID, ProductID) → SpecialOfferProduct` |
 
+## R5: code and role columns, checked against the rows (round n62, 30 October 2026)
+
+The name rules above run on names alone, and the numbers on this page are theirs: R5 needs rows, so it does not run
+in `tests/test_inference_quality.py` (no data) and changes none of the figures above. It runs when `plan()` is given
+`execute`; `plan_backend` and `/check` call `plan()` without it today, so they plan by names as before.
+
+| Rule | Text (from `fabric_backend/infer.py`, `RULES["R5"]`) |
+| --- | --- |
+| R5 | checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason |
+
+- The stem may follow other words and a Salesforce `__c` is dropped: `ERP_Customer_No__c` → `customers.customer_no`.
+- A target with no key gets `code`/`no`/`key` as its key (rule R5) only if that column is unique and never NULL in
+  the rows: `countries.code`, `currencies.code`.
+- Role words are the ones `suggest_relationships` uses (`graphs.ROLE_WORDS`: ship/bill/deliver… → an address table;
+  created/approved/owner/manager… → users, employees, staff, persons).
+- Not planned, and listed under `plan.proposed` with the reason: a value outside the key ("3 of 9 value(s) … are not
+  in currencies.code"), another type family, one distinct value, a target column that is not unique, or two tables
+  that both fit (`created_by` with both `users` and `employees` holding the values). `code` and `name` in two unrelated
+  tables are never compared with each other.
+- Tests: `tests/test_infer_r5.py`. Effect on the comparison benchmark: `examples/benchmark/README.md`.
+
 ## What is still missed, and why
 
 - **Columns that name a role but not the table** (`Orders.ShipVia`, `Employees.ReportsTo`, `Customer.SupportRepId`,
   `Document.Owner`, `BillOfMaterials.ComponentID`, WideWorldImporters' thirty `LastEditedBy` columns and
   `Picker Key` / `Salesperson Key` in the warehouse, `VorgesetzterID`, `ManagerId`, `AcctMgrId`): nothing in the name
-  says which table. `confirmed=[...]` is the way to add them; `suggest_relationships` finds them from the data.
+  says which table. `confirmed=[...]` is the way to add them; `suggest_relationships` finds them from the data, and
+  R5 links those whose role word names what the target holds when the rows are given and support it.
 - **Self-references** (`Orders.BackorderOrderID → Orders`, `Customers.BillToCustomerID → Customers`,
   `employees.ManagerId → employees`): a table is never linked to itself by name; a self-join is a `confirmed` entry.
 - **Subtype chains** (AdventureWorks `Person`, `Employee`, `SalesPerson`, `Vendor`, `Store` are all keyed by

@@ -209,6 +209,7 @@ run against the demo workspace (synthetic shop data) on 26 and 27 October 2026):
 | R1 (column named after the table) | 0.8 | |
 | R2 (column with the target key's name) | 0.6 | |
 | R3 (composite key present), R4 (role prefix or abbreviation) | 0.5 | |
+| R5 (code or role column, values counted in the rows): no own weight, the default | 0.5 | 0.9 once validate_plan finds no orphans |
 
 Cost is 1/certainty; the shortest path counts hops, the safest path minimises cost, and when they differ `join_path`
 says why. Roles come from in/out degree, betweenness and the share of measure-like columns; subject areas from label
@@ -260,15 +261,16 @@ carries the rule that produced it, and you can overrule any of them.
 | K2 | `id`, `<table>_id`, `<singular>_id`, `<table>_key`, `<table>_code`, or an abbreviation of four letters or more (`cust_key`) | | R2 | same name as another table's single key (`werks` → plant); plain `id` never matches |
 | K3 | none → query only, nothing can point at it | | R3 | all columns of another table's composite key are present |
 | K4 | junction: the table starts with two or more reference columns (`film_actor`: `actor_id` + `film_id`) | | R4 | weaker match when R1/R2 find nothing: a role before the name (`manager_staff_id` → staff) or an abbreviation (`o_custkey` → customer) |
-| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | | |
+| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | R5 | only with rows (`plan(..., execute=...)`; plan_backend and `/check` do not pass them yet): a code column `<stem>_code`/`_no`/`_key` (`currency_code` → `currencies.code`, `ERP_Customer_No__c` → `customers.customer_no`) or a role name (`ship_to_id` → addresses, `created_by` → users), planned when every value is in the target's key, same type family, two or more distinct values and one table fits; otherwise `plan.proposed` with the reason |
 
 Names are compared without case, separators or a table-wide column prefix (`N_NATIONKEY` in `NATION` reads as
 `nationkey`), and `<X>Header` also answers to `<X>`. How well this works on Northwind, Chinook, TPC-H,
 AdventureWorks and Sakila, from names alone, is measured in [docs/INFERENCE.md](docs/INFERENCE.md).
 
 A column that could point at two tables (`user_id` with both `users` and `user` present) is
-reported under `plan.ambiguous` and not applied. A column no rule matches (`ship_to_id` in the demo schema) is
-simply left unlinked; `confirmed=[...]` is how you add it. Two columns pointing at the same table get fields
+reported under `plan.ambiguous` and not applied. A column no name rule matches (`ship_to_id` in the demo schema) is
+left unlinked by names alone; with the rows (R5) it is linked when its values say so, and `confirmed=[...]` adds it
+otherwise. Two columns pointing at the same table get fields
 named by column (`airport_by_origin_airport_id`). Anything the rules miss goes in `confirmed=[...]`
 and is applied first. An entry can name the two GraphQL fields too: `field_name` on the source and `reverse_name` on
 the target (`{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"],
