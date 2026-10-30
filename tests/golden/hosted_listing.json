@@ -1652,14 +1652,14 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Draft domains and data contracts from the plan (nothing created)"
+    "title": "Draft domains and data contracts"
    },
-   "description": "Proposes domains (candidate data products) from the plan's graph, the relationships crossing them and tables\nleft unassigned. Requires workspace and source. Returns JSON with the proposal and one ODCS v3.2.0 contract (YAML)\nper domain. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "Proposes domains (data products) from the plan's graph. Returns JSON: domains, interfaces, unassigned tables\nand an ODCS v3.2.0 contract per domain. Changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "check_rows": {
       "default": false,
-      "description": "true adds validate_plan's counts to the contracts; false (default) reads metadata only.",
+      "description": "true adds validate_plan's counts. Default false.",
       "title": "Check Rows",
       "type": "boolean"
      },
@@ -1737,7 +1737,7 @@
     "title": "domain_draftOutput",
     "type": "object"
    },
-   "title": "Draft domains and data contracts from the plan (nothing created)"
+   "title": "Draft domains and data contracts"
   },
   {
    "annotations": {

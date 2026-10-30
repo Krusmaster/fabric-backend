@@ -878,13 +878,12 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
 
 
-@mcp.tool(title="Draft domains and data contracts from the plan (nothing created)", annotations=RO)
+@mcp.tool(title="Draft domains and data contracts", annotations=RO)
 @safe
 def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, check_rows: _p.CheckRows = False, ctx: Context = None) -> str:
-    """Proposes domains (candidate data products) from the plan's graph, the relationships crossing them and tables
-    left unassigned. Requires workspace and source. Returns JSON with the proposal and one ODCS v3.2.0 contract (YAML)
-    per domain. Changes nothing. Errors: {error, kind, hint}."""
+    """Proposes domains (data products) from the plan's graph. Returns JSON: domains, interfaces, unassigned tables
+    and an ODCS v3.2.0 contract per domain. Changes nothing. Errors: {error, kind, hint}."""
     validation = None
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
