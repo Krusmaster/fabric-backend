@@ -1133,3 +1133,9 @@ html[data-mascots=off] .check-ask-q{background:none;border:0;border-radius:0;pad
 html[data-mascots=off] .check-guide-figure{display:none}
 @media (max-width:759px){.check-guide{padding:14px}.check-guide-figure{width:44px}.check-guide-figure .mascot{width:44px;height:44px}}
 .build-intro{max-width:72ch}
+/* n55: three examples on /use-cases that open /check with the example running */
+.uc-try-list{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.uc-try-card{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:20px}
+.uc-try-card h3{margin:6px 0 2px}
+.uc-try-card p{flex:1}
+.uc-try-card.coral{border-top:4px solid var(--coral)}.uc-try-card.lav{border-top:4px solid var(--lav)}.uc-try-card.sage{border-top:4px solid var(--sage)}

@@ -6,6 +6,25 @@
   <p class="intro">{{UC_FOOTNOTE}} {{PRODUCT}} reads table and column names, proposes keys and relationships with the rule behind each, and you can check the plan against the rows before creating anything.</p>
 </section>
 
+<section class="wrap uc-try" id="try" aria-labelledby="try-h">
+  <h2 id="try-h">Three examples you can run now</h2>
+  <p class="muted">Synthetic examples: invented tables and rows, no real company. Each opens /check with the example running; the engine reads it in your browser.</p>
+  <ul class="uc-try-list">
+    <li class="card uc-try-card coral" id="try-retail"><span class="pill demo">Synthetic data</span>
+      <h3>Retail and e-commerce</h3>
+      <p>A shop with customers, orders, order lines and products. Summed over its lines, the order total comes out twice; and <code>orders.ship_to_id</code> names no table, so the engine suggests the delivery address and leaves the decision to you.</p>
+      <a class="btn primary small" href="/check?example=sample" data-try="sample">Open the shop example</a></li>
+    <li class="card uc-try-card lav" id="try-sap"><span class="pill demo">Synthetic data</span>
+      <h3>Manufacturing and sales with SAP</h3>
+      <p>Sales orders, deliveries and billing documents from two SAP clients. The order-to-cash links come from public SAP knowledge (the SAP pack): which document follows which, with the client (MANDT) in every key.</p>
+      <a class="btn primary small" href="/check?example=sap" data-try="sap">Open the SAP sales tables</a></li>
+    <li class="card uc-try-card sage" id="try-crm"><span class="pill demo">Synthetic data</span>
+      <h3>Sales and CRM</h3>
+      <p>Accounts in Salesforce, customers in the ERP. No column name joins the two systems; the engine finds the link in the values and shows it as a suggestion for you to decide on.</p>
+      <a class="btn primary small" href="/check?example=crm" data-try="crm">Open Salesforce + ERP</a></li>
+  </ul>
+</section>
+
 <section class="wrap" id="tasks" aria-labelledby="tasks-h">
   <h2 id="tasks-h">Start from your task</h2>
   <ul class="uc-tasks">{{UC_TASKS}}</ul>

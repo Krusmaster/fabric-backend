@@ -149,6 +149,9 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert r["guide_next_disabled"] is True and not r["guide_overflow_375"] and "Accepted on this page" in r["guide_decided"]
     assert r["guide_plain"]["figure"] == "none" and r["guide_plain"]["text"] > 100
     assert r["plain_idle"] == {"check": None, "guide": True}
+    for k, label in (("sample", "A total that doubles"), ("sap", "SAP sales tables"), ("crm", "Salesforce + ERP")):
+        g = r["industries"][k]
+        assert g["url"] == "/check?example=" + k and "Done: the example “" + label + "”" in g["status"] and g["guide"] is True, (k, g)
     # n55: the map first, one line with the state and the count, every finding folded under it, a title marks the map
     assert r["folded"] == {"open": False, "summary": "Show all 3 findings", "line": "Enough to start · 3 things to check", "order": True, "findingsInside": True}
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}

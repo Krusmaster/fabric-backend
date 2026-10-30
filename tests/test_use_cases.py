@@ -144,3 +144,17 @@ def test_sketch_is_engine_output():
     orders = next(t for t in sk["tables"] if t["name"] == "orders")
     assert orders["key"] == ["order_id"] and orders["rule"] == "K2"
     assert next(c for c in orders["columns"] if c["name"] == "customer_id")["link"] == ("customers", "R1")
+
+
+def test_three_synthetic_industry_examples_open_check_with_their_example(client):
+    """n55: retail and e-commerce, manufacturing and sales with SAP, sales and CRM; marked synthetic; no logistics,
+    warehouse or supply-chain theme."""
+    html = client.get("/use-cases").text
+    sec = html.split('id="try"', 1)[1].split("</section>", 1)[0]
+    assert [m for m in re.findall(r'href="(/check\?example=\w+)"', sec)] == ["/check?example=sample", "/check?example=sap", "/check?example=crm"]
+    for h in ("Retail and e-commerce", "Manufacturing and sales with SAP", "Sales and CRM"):
+        assert f"<h3>{h}</h3>" in sec, h
+    assert sec.count("Synthetic data</span>") == 3 and "no real company" in sec
+    low = sec.lower()
+    assert not any(w in low for w in ("logistic", "warehouse", "supply chain", "inventory", "lager"))
+    assert html.index('id="try"') < html.index('id="tasks"')

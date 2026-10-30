@@ -100,6 +100,14 @@ const { chromium } = require("playwright");
   out.guide_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-guide-figure")).display, text: document.getElementById("check-guide-text").textContent.length }));
   await page.evaluate(() => window.Mascots.setEnabled(true));
   await page.setViewportSize({ width: 1280, height: 720 });
+  // n55: each industry example on /use-cases opens /check with its own example running
+  out.industries = {};
+  for (const k of ["sample", "sap", "crm"]) {
+    await page.goto(base + "/use-cases");
+    await page.click(`[data-try="${k}"]`);
+    await until(() => !!document.documentElement.dataset.checkMs);
+    out.industries[k] = { url: page.url().replace(base, ""), status: await page.textContent("#check-status"), guide: await page.evaluate(() => document.getElementById("check-guide").hidden) };
+  }
   // plain /check starts nothing by itself
   await page.goto(base + "/check");
   await page.waitForTimeout(500);
