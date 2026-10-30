@@ -42,6 +42,21 @@ environment, identity, custom domains and resource group. It shows the result an
 when the file is missing (--overwrite-config replaces one). No secret is read, written or shown. With --update the
 image and its build tag are all that change: not min_replicas, not another environment variable. When the app is not
 in the selected subscription, the others are searched and the run stops with the `az account set` command to use.
+
+--doctor reads the running service and prints a table (docs/OPERATIONS.md, section 8): /healthz and its build against
+this checkout, the certificate the domain serves and when it expires, when the Entra app's client secrets expire
+(`az ad app credential list`: dates only), whether the environment's console logs go to Log Analytics, whether a cost
+budget exists on the resource group, and the replicas. Reads only; nothing is changed, no secret is read.
+
+--budget creates (or updates) one cost budget on the resource group, budget-<app>, with e-mail to budget_email when the
+month's cost reaches 80 and 100 per cent of budget_amount (in the subscription's currency). Both keys are new in
+deploy/krusgraph.json; with either empty nothing is created. `az consumption budget create` takes no notifications, so
+the budget is sent with `az rest` to the same API (Microsoft.Consumption/budgets, 2023-05-01).
+
+--backup exports the registration table's consent records (docs/CLIENT-REGISTRATION.md) with
+`az storage entity query --auth-mode login` to a git-ignored JSON file (--out, default
+deploy/registration-backup-<date>.json), without tokens, keys or anything about a person; the restore is in
+docs/OPERATIONS.md, section 8.
 """
 from __future__ import annotations
 
@@ -827,6 +842,7 @@ def config_from_azure(az, app=None, resource_group=None):
         "min_replicas": int((template.get("scale") or {}).get("minReplicas") or 0),
         "ontology_write": env.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in {"1", "true", "yes"},
         "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0, "log_analytics_workspace": "",
+        "budget_amount": 0, "budget_email": "",            # --budget's keys; a budget is not read back from Azure
     }
 
 
@@ -858,6 +874,297 @@ def show_plan(config):
     print(f"Befintlig Entra-app: {config['client_id']}\nPlanerad adress: https://{config['domain']}\n", flush=True)
 
 
+# ---- Operations as code (round n65): --doctor, --budget, --backup. Reads only, except --budget's one PUT. -------------
+
+BUDGET_API = "2023-05-01"                  # Microsoft.Consumption/budgets, the version `az consumption budget` itself uses
+BUDGET_YEARS = 5                           # a budget needs an end date; this one is renewed by running --budget again
+BUDGET_THRESHOLDS = (80, 100)              # per cent of the amount at which an e-mail goes out (actual cost)
+CERT_WARN_DAYS, SECRET_WARN_DAYS = 14, 30
+ENTITY_METADATA = {"Timestamp", "etag", "odata.etag", "odata.metadata", "odata.type", "odata.id", "odata.editLink"}
+BACKUP_KIND = "consent"                    # the only record kind without an expiry and without token material
+
+
+def budget_name(config) -> str:
+    return f"budget-{config['app']}"
+
+
+def served_certificate(domain: str) -> dict:
+    """The certificate https://<domain> serves right now, from a TLS handshake (standard library, no Azure call)."""
+    import socket
+    import ssl
+    context = ssl.create_default_context()
+    with socket.create_connection((domain, 443), timeout=15) as sock:
+        with context.wrap_socket(sock, server_hostname=domain) as tls:
+            return tls.getpeercert()
+
+
+def _days_until(when: float, now: float) -> int:
+    return int((when - now) // 86400)
+
+
+def _parse_iso(text: str) -> float:
+    """Entra's endDateTime ("2027-10-30T12:00:00Z", sometimes with fractions) as Unix seconds."""
+    from datetime import datetime, timezone
+    text = text.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    head, _, tail = text.partition(".")
+    if tail and "+" in tail:                                    # fractions longer than six digits are not ISO
+        fraction, _, zone = tail.partition("+")
+        text = f"{head}.{fraction[:6]}+{zone}"
+    stamp = datetime.fromisoformat(text)
+    if stamp.tzinfo is None:
+        stamp = stamp.replace(tzinfo=timezone.utc)
+    return stamp.timestamp()
+
+
+def _date(seconds: float) -> str:
+    from datetime import datetime, timezone
+    return datetime.fromtimestamp(seconds, timezone.utc).strftime("%Y-%m-%d")
+
+
+def app_env(app: dict) -> dict:
+    """The plain environment variables of the container (never a value that refers to a secret)."""
+    containers = ((app.get("properties") or {}).get("template") or {}).get("containers") or [{}]
+    return {e["name"]: e.get("value") or "" for e in containers[0].get("env") or [] if not e.get("secretRef")}
+
+
+def doctor(az, config, now=None) -> list[tuple[str, str, str]]:
+    """--doctor: the state of the running service as (check, status, detail) rows, from reads only: /healthz over
+    HTTPS, the served certificate over TLS, `az ad app credential list` (dates only, never a hint or a value),
+    `az containerapp show`, `az containerapp env show`, `az consumption budget list` and `az containerapp replica list`.
+    Every check runs even when an earlier one fails, so the table is complete; a failed check is a FEL row."""
+    now = time.time() if now is None else now
+    rg, domain = config["resource_group"], config["domain"]
+    rows = []
+
+    def row(check, status, detail):
+        rows.append((check, status, detail))
+
+    def attempt(check, fn):
+        try:
+            fn()
+        except (DeploymentError, OSError, ValueError, KeyError, TypeError) as exc:
+            row(check, "FEL", str(exc).strip().splitlines()[0][:160] if str(exc).strip() else exc.__class__.__name__)
+
+    def health():
+        status, _, body = http_response(f"https://{domain}/healthz")
+        if status != 200:
+            raise DeploymentError(f"/healthz svarade HTTP {status}")
+        health = json.loads(body)
+        if health.get("ok") is not True or health.get("auth") != "entra":
+            raise DeploymentError("servern svarar men Microsoft-inloggningen är inte aktiverad")
+        live, local = health.get("build"), source_tag()
+        if not live:
+            row("Server (/healthz)", "VARNING", "svarar, men utan byggmärke (äldre bild); kör --update")
+        elif live == local:
+            row("Server (/healthz)", "OK", f"svarar med bygget {live}, samma som denna utcheckning")
+        else:
+            row("Server (/healthz)", "VARNING", f"svarar med bygget {live}; denna utcheckning är {local} (--update driftsätter den)")
+
+    def certificate():
+        cert = served_certificate(domain)
+        import ssl
+        expires = ssl.cert_time_to_seconds(cert["notAfter"])
+        days = _days_until(expires, now)
+        status = "OK" if days > CERT_WARN_DAYS else ("VARNING" if days >= 0 else "FEL")
+        row("Certifikat", status, f"https://{domain} går ut {_date(expires)} ({days} dagar kvar)")
+
+    def secret():
+        credentials = az.run("ad", "app", "credential", "list", "--id", config["client_id"]) or []
+        ends = sorted(_parse_iso(c["endDateTime"]) for c in credentials if c.get("endDateTime"))
+        if not ends:
+            row("Entra-klienthemlighet", "FEL", "appen har ingen klienthemlighet; inloggningen kan inte fungera")
+            return
+        latest = ends[-1]
+        days = _days_until(latest, now)
+        status = "OK" if days > SECRET_WARN_DAYS else ("VARNING" if days >= 0 else "FEL")
+        dates = ", ".join(_date(e) for e in ends)
+        word = "hemlighet" if len(ends) == 1 else "hemligheter"
+        row("Entra-klienthemlighet", status, f"{len(ends)} {word}, går ut {dates}; den senaste om {days} dagar")
+
+    app_holder = {}
+
+    def container_app():
+        app = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
+        if not app:
+            raise DeploymentError(f"container-appen {config['app']} finns inte i {rg}")
+        app_holder["app"] = app
+        props = app.get("properties") or {}
+        scale = (props.get("template") or {}).get("scale") or {}
+        replicas = az.run("containerapp", "replica", "list", "--name", config["app"], "--resource-group", rg) or []
+        running = len(replicas)
+        minimum, maximum = int(scale.get("minReplicas") or 0), int(scale.get("maxReplicas") or 0)
+        detail = f"{running} kör nu; min {minimum}, max {maximum} (min_replicas {min_replicas(config)} i konfigurationen)"
+        row("Repliker", "OK" if running >= minimum else "VARNING", detail)
+        domains = {d.get("name", "").lower(): d.get("bindingType") for d in
+                   ((props.get("configuration") or {}).get("ingress") or {}).get("customDomains") or []}
+        wanted = [domain.lower()] + (["www." + domain.lower()] if config.get("include_www") else [])
+        missing = [d for d in wanted if domains.get(d) != "SniEnabled"]
+        row("Domänbindning", "OK" if not missing else "VARNING",
+            "HTTPS bundet för " + ", ".join(wanted) if not missing else "saknar HTTPS-bindning för " + ", ".join(missing) + " (--bind-domain)")
+        store = app_env(app).get("KRUSGRAPH_REGISTRATION_STORE", "")
+        if store.startswith("https://"):
+            row("Registreringslager", "OK", f"Table Storage {urlparse(store).hostname} (exporteras med --backup)")
+        else:
+            row("Registreringslager", "OK", "inget Table Storage (klientregistrering av eller i minnet); inget att säkerhetskopiera")
+
+    def logs():
+        environment = az.run("containerapp", "env", "show", "--name", config["environment"], "--resource-group", rg, missing_ok=True)
+        if not environment:
+            raise DeploymentError(f"miljön {config['environment']} finns inte i {rg}")
+        logs = ((environment.get("properties") or {}).get("appLogsConfiguration") or {})
+        destination = logs.get("destination") or "none"
+        if destination == "log-analytics":
+            name = (config.get("log_analytics_workspace") or "").strip()
+            row("Log Analytics", "OK", "konsolloggarna går till Log Analytics" + (f" ({name})" if name else ""))
+        else:
+            row("Log Analytics", "VARNING", f"konsolloggarna sparas inte (destination {destination}); --log-analytics kopplar dem")
+
+    def budget():
+        budgets = az.run("consumption", "budget", "list", "--resource-group", rg) or []
+        if budgets:
+            names = ", ".join(f"{b.get('name')} ({b.get('amount')} per {str(b.get('timeGrain') or '').lower() or 'period'})" for b in budgets)
+            row("Budgetlarm", "OK", names)
+        else:
+            row("Budgetlarm", "VARNING", "inget budgetlarm på resursgruppen; sätt budget_amount och budget_email och kör --budget")
+
+    attempt("Server (/healthz)", health)
+    attempt("Certifikat", certificate)
+    attempt("Entra-klienthemlighet", secret)
+    attempt("Repliker", container_app)
+    attempt("Log Analytics", logs)
+    attempt("Budgetlarm", budget)
+    return rows
+
+
+def format_rows(rows) -> str:
+    widths = [max(len(r[i]) for r in rows + [("Kontroll", "Status", "Detalj")]) for i in range(3)]
+    lines = [" | ".join(h.ljust(widths[i]) for i, h in enumerate(("Kontroll", "Status", "Detalj"))).rstrip()]
+    lines.append("-+-".join("-" * w for w in widths))
+    lines += [" | ".join(c.ljust(widths[i]) for i, c in enumerate(r)).rstrip() for r in rows]
+    return "\n".join(lines) + "\n"
+
+
+def budget_settings(config) -> tuple[float, str] | None:
+    """budget_amount and budget_email from the config, or None when either is empty: then --budget does nothing."""
+    amount, email = config.get("budget_amount"), (config.get("budget_email") or "").strip()
+    if amount in (None, "", 0, "0") or not email:
+        return None
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError) as exc:
+        raise DeploymentError("budget_amount ska vara ett tal (beloppet per månad i prenumerationens valuta).") from exc
+    if amount <= 0:
+        raise DeploymentError("budget_amount ska vara större än noll.")
+    if "@" not in email or " " in email:
+        raise DeploymentError("budget_email ska vara en e-postadress.")
+    return amount, email
+
+
+def budget_body(config, amount, email, today=None) -> dict:
+    """The budget as the Consumption API takes it: monthly, on the resource group, with e-mail at each threshold of
+    the actual cost. `az consumption budget create` cannot set notifications, so --budget sends this with `az rest`."""
+    from datetime import date
+    today = date.today() if today is None else today
+    start = today.replace(day=1)
+    end = start.replace(year=start.year + BUDGET_YEARS)
+    notifications = {
+        f"actual-{threshold}": {"enabled": True, "operator": "GreaterThanOrEqualTo", "threshold": threshold,
+                                "thresholdType": "Actual", "contactEmails": [email]}
+        for threshold in BUDGET_THRESHOLDS}
+    return {"properties": {"category": "Cost", "amount": amount, "timeGrain": "Monthly",
+                           "timePeriod": {"startDate": start.isoformat() + "T00:00:00Z", "endDate": end.isoformat() + "T00:00:00Z"},
+                           "notifications": notifications}}
+
+
+def budget_url(config) -> str:
+    return (f"https://management.azure.com/subscriptions/{config['subscription_id']}/resourceGroups/{config['resource_group']}"
+            f"/providers/Microsoft.Consumption/budgets/{budget_name(config)}?api-version={BUDGET_API}")
+
+
+def create_budget(az, config, today=None) -> bool:
+    """--budget: one cost budget on the resource group, named budget-<app>, with e-mail to budget_email at 80 and 100
+    per cent of budget_amount per month. Without both keys nothing is created and the run says so. Rerunnable: an
+    existing budget with the same amount and address is left alone; a different one is replaced (same name)."""
+    settings = budget_settings(config)
+    if not settings:
+        print("Inget budgetlarm skapas: sätt budget_amount (belopp per månad i prenumerationens valuta) och budget_email "
+              "i deploy/krusgraph.json först. Inget ändrades.", flush=True)
+        return False
+    amount, email = settings
+    name, rg = budget_name(config), config["resource_group"]
+    existing = az.run("consumption", "budget", "show", "--budget-name", name, "--resource-group", rg, missing_ok=True)
+    if existing:
+        current = {str(t): sorted((n.get("contactEmails") or [])) for t, n in
+                   ((existing.get("notifications") or {}).items()) if n.get("enabled", True)}
+        same_amount = float(existing.get("amount") or 0) == amount
+        same_mail = all(sorted([email]) == current.get(f"actual-{t}") for t in BUDGET_THRESHOLDS)
+        if same_amount and same_mail and str(existing.get("timeGrain") or "").lower() == "monthly":
+            print(f"Budgetlarmet {name} finns redan: {amount:g} per månad, e-post till {email}. Inget ändrades.", flush=True)
+            return True
+        print(f"Budgetlarmet {name} finns men skiljer sig; uppdaterar det.", flush=True)
+    else:
+        print(f"Skapar budgetlarmet {name} på {rg}: {amount:g} per månad, e-post till {email} vid "
+              + " och ".join(f"{t} %" for t in BUDGET_THRESHOLDS) + "…", flush=True)
+    body = budget_body(config, amount, email, today)
+    fd, filename = tempfile.mkstemp(prefix="krusgraph-budget-", suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            json.dump(body, out)
+        az.run("rest", "--method", "put", "--url", budget_url(config), "--body", "@" + filename, raw=True)
+    finally:
+        Path(filename).unlink(missing_ok=True)
+    print(f"Klart. Kontrollera med: az consumption budget show --budget-name {name} --resource-group {rg}", flush=True)
+    return True
+
+
+def registration_store_of(app: dict) -> tuple[str, str]:
+    """(storage account, table) from the running app's KRUSGRAPH_REGISTRATION_STORE, or DeploymentError when the
+    layer keeps its records in memory or is off: then there is nothing to export."""
+    store = app_env(app).get("KRUSGRAPH_REGISTRATION_STORE", "").strip()
+    parts = urlparse(store) if store.startswith("https://") else None
+    host, table = (parts.hostname or "") if parts else "", (parts.path.strip("/") if parts else "")
+    if not host or not host.endswith(".table.core.windows.net") or not table:
+        raise DeploymentError("Klientregistreringen använder inget Table Storage (KRUSGRAPH_REGISTRATION_STORE är "
+                              f"{store or 'inte satt'}), så det finns ingen registreringstabell att exportera.")
+    return host.split(".")[0], table
+
+
+def backup_registration(az, config, out_path: Path, now=None) -> int:
+    """--backup: the consent records of the registration table (who approved which client for which redirect address,
+    as the server stores them: a keyed user hash, a client id, a client name, an https address, a date) to a JSON file,
+    with `az storage entity query --auth-mode login`, page by page. Only that kind is exported: the other four hold
+    encrypted Entra tokens and expire within minutes or days, and a restore does not need them (a sign-in replaces
+    them). No key, token, name or address of a person is in the file. docs/OPERATIONS.md says how to restore it."""
+    now = time.time() if now is None else now
+    app = az.run("containerapp", "show", "--name", config["app"], "--resource-group", config["resource_group"], missing_ok=True)
+    if not app:
+        raise DeploymentError(f"Container-appen {config['app']} finns inte i {config['resource_group']}.")
+    account, table = registration_store_of(app)
+    entities, marker = [], None
+    for _ in range(1000):                                              # pages; the table is far smaller
+        args = ["storage", "entity", "query", "--account-name", account, "--table-name", table, "--auth-mode", "login",
+                "--filter", f"PartitionKey eq '{BACKUP_KIND}'", "--num-results", "1000"]
+        if marker:
+            args += ["--marker", f"nextpartitionkey={marker['nextpartitionkey']}", f"nextrowkey={marker['nextrowkey']}"]
+        page = az.run(*args) or {}
+        for entity in page.get("items") or []:
+            if entity.get("PartitionKey") != BACKUP_KIND:            # never another kind, whatever the service answers
+                continue
+            entities.append({k: v for k, v in entity.items() if k not in ENTITY_METADATA})
+        marker = page.get("nextMarker") or {}
+        if not marker.get("nextpartitionkey") and not marker.get("nextrowkey"):
+            break
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    document = {"exported": _date(now), "account": account, "table": table, "kind": BACKUP_KIND,
+                "count": len(entities), "entities": entities}
+    out_path.write_text(json.dumps(document, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(f"Exporterade {len(entities)} {BACKUP_KIND}-poster från {account}/{table} till {out_path} (ignoreras av git). "
+          "Filen innehåller inga nycklar, tokens, namn eller adresser till personer. Återställning: docs/OPERATIONS.md.", flush=True)
+    return len(entities)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("krusgraph.json"))
@@ -874,6 +1181,13 @@ def main():
                       help="Skriv ut az-kommandona som lägger till Claude Code, VS Code och Cursor som klienter (kör inget, inga Azure-anrop)")
     mode.add_argument("--client-registration", action="store_true",
                       help="Skriv ut kommandona som slår på klientregistrering för VS Code, Cursor och Glama (kör inget, inga Azure-anrop)")
+    mode.add_argument("--doctor", action="store_true",
+                      help="Läs tjänstens tillstånd (server, certifikat, klienthemlighet, loggar, budgetlarm, repliker) och skriv en tabell; ändrar inget")
+    mode.add_argument("--budget", action="store_true",
+                      help="Skapa ett budgetlarm på resursgruppen med budget_amount och budget_email ur deploy/krusgraph.json (tomma = inget görs)")
+    mode.add_argument("--backup", action="store_true",
+                      help="Exportera registreringstabellens consent-poster till en JSON-fil utan hemligheter (--out; ignoreras av git)")
+    parser.add_argument("--out", type=Path, help="Med --backup: filen att skriva (standard deploy/registration-backup-<datum>.json)")
     parser.add_argument("--from-azure", action="store_true",
                         help="Bygg konfigurationen ur den container-app som redan kör, när deploy/krusgraph.json saknas; "
                              "ensam sparar den filen, med --update (eller --check, --status) körs det steget sedan med den")
@@ -885,6 +1199,8 @@ def main():
         parser.error("--from-azure läser Azure; --plan, --client-redirects och --client-registration gör inga Azure-anrop.")
     if not args.from_azure and (args.app or args.resource_group or args.overwrite_config):
         parser.error("--app, --resource-group och --overwrite-config hör till --from-azure.")
+    if args.out and not args.backup:
+        parser.error("--out hör till --backup.")
     if not args.from_azure and not args.config.exists():
         print(f"STOPP: {args.config} saknas. Kör med --from-azure för att bygga den ur den körande appen "
               "(bash deploy/krusgraph.sh --from-azure --update), eller utgå från deploy/krusgraph.example.json.", file=sys.stderr)
@@ -905,7 +1221,8 @@ def main():
             config = config_from_azure(az, args.app, args.resource_group)
             save_config(args.config, config, args.overwrite_config)
             az.config = config
-            if not (args.check or args.status or args.bind_domain or args.update or args.key_vault):
+            if not (args.check or args.status or args.bind_domain or args.update or args.key_vault
+                    or args.doctor or args.budget or args.backup):
                 return
         az.check_context()
         if args.check:
@@ -921,6 +1238,16 @@ def main():
         elif args.log_analytics:
             if not connect_log_analytics(az, config):
                 raise DeploymentError("Ange log_analytics_workspace (och log_retention_days) i deploy/krusgraph.json först.")
+        elif args.doctor:
+            rows = doctor(az, config)
+            print(format_rows(rows), end="", flush=True)
+            if any(status == "FEL" for _, status, _ in rows):
+                raise DeploymentError("Minst en kontroll gav FEL; se tabellen ovan. Inget ändrades.")
+        elif args.budget:
+            create_budget(az, config)
+        elif args.backup:
+            out = args.out or Path(__file__).with_name(f"registration-backup-{_date(time.time())}.json")
+            backup_registration(az, config, out)
         else:
             deploy(az, config)
     except (DeploymentError, FileNotFoundError) as exc:

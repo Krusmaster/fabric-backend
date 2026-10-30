@@ -7,5 +7,6 @@ build/
 .venv/
 .entra-secret
 deploy/krusgraph.json
+deploy/registration-backup-*.json
 azure-result.json
 node_modules/

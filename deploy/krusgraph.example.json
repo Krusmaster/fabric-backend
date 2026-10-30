@@ -17,5 +17,7 @@
   "ontology_write": false,
   "key_vault": "",
   "log_retention_days": 0,
-  "log_analytics_workspace": ""
+  "log_analytics_workspace": "",
+  "budget_amount": 0,
+  "budget_email": ""
 }
