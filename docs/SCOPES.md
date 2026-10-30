@@ -137,3 +137,11 @@ carries the scope. `deploy/krusgraph.sh --check` compares the registration again
   endpoint is a Fabric workspace/SQL permission; Contributor on the workspace is enough on a warehouse and on a
   lakehouse's SQL analytics endpoint.
 - `Workspace.ReadWrite.All` is not needed by anything here.
+
+## Verified publisher (30 October 2026)
+
+The Entra app Krusgraph (client ID `6b92ed27-66e7-4767-8e72-eeb4b66da277`) is a verified publisher: publisher domain
+krusgraph.com, linked to Partner Center, publisher display name Kruse Consulting AB (Microsoft Entra publisher
+verification). This verifies who publishes the app, not that it is secure, and it changes no permission: a customer's
+administrator can still require admin consent before anyone signs in. The site shows the line on `/it` and does not
+print the Partner Center id.
