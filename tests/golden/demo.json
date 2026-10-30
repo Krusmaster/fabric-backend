@@ -106,6 +106,7 @@
    "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
    "R3": "all of B's composite key columns appear in A",
    "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+   "R5": "checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason",
    "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
   },
   "suggestions": [
@@ -662,6 +663,7 @@
     "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
     "R3": "all of B's composite key columns appear in A",
     "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+    "R5": "checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
    },
    "summary": "2 tables, 2 with keys, 1 relationships\n2 name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms",
@@ -1188,6 +1190,7 @@
     "R2": "column has exactly the same name as B's single key column, and that name is not just `id`",
     "R3": "all of B's composite key columns appear in A",
     "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → `customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+    "R5": "checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem (singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds; planned only when every value is in that table's key, the type family is the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference"
    },
    "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",

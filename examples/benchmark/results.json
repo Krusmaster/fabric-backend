@@ -38,13 +38,13 @@
       "doubled_found": "1/1",
       "facit": 5,
       "false_positives": [],
-      "left_to_human": "1 suggestion(s) to accept or reject",
+      "left_to_human": "0 suggestion(s) to accept or reject",
       "orphans_found": "2/2",
       "precision": 1.0,
-      "predicted": 4,
-      "recall": 0.8,
+      "predicted": 5,
+      "recall": 1.0,
       "recall_with_suggestions": 1.0,
-      "true_positives": 4
+      "true_positives": 5
     }
   },
   "sap": {
@@ -248,13 +248,13 @@
       "doubled_found": "0/0",
       "facit": 7,
       "false_positives": [],
-      "left_to_human": "4 suggestion(s) to accept or reject",
+      "left_to_human": "0 suggestion(s) to accept or reject",
       "orphans_found": "0/0",
       "precision": 1.0,
-      "predicted": 6,
-      "recall": 0.86,
+      "predicted": 7,
+      "recall": 1.0,
       "recall_with_suggestions": 1.0,
-      "true_positives": 6
+      "true_positives": 7
     }
   },
   "traps": {
@@ -301,13 +301,13 @@
       "doubled_found": "2/2",
       "facit": 8,
       "false_positives": [],
-      "left_to_human": "2 suggestion(s) to accept or reject",
+      "left_to_human": "0 suggestion(s) to accept or reject",
       "orphans_found": "2/2",
       "precision": 1.0,
-      "predicted": 4,
-      "recall": 0.5,
-      "recall_with_suggestions": 0.75,
-      "true_positives": 4
+      "predicted": 8,
+      "recall": 1.0,
+      "recall_with_suggestions": 1.0,
+      "true_positives": 8
     }
   }
 }

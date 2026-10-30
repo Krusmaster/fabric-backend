@@ -1,4 +1,4 @@
-"""Round n61: the comparison benchmark in examples/benchmark/ is reproducible and says what it measured."""
+"""Rounds n61 and n62: the comparison benchmark in examples/benchmark/ is reproducible and says what it measured."""
 import importlib.util
 import json
 from pathlib import Path
@@ -26,8 +26,12 @@ def test_what_each_method_catches_and_misses():
     k, a, d = (res["traps"][m] for m in ("krusgraph", "autodetect", "dbt"))
     assert k["doubled_found"] == "2/2" and d["doubled_found"] == "0/2" and a["doubled_found"] == "0/2"
     assert a["ambiguous_fallen_for"] == "2/2" and "countries code -> currencies" in a["false_positives"]
-    assert k["ambiguous_fallen_for"] == "0/2" and k["recall"] < d["recall"] == 1.0      # Krusgraph misses links a person sees
-    assert res["crm"]["krusgraph"]["recall"] < res["crm"]["krusgraph"]["recall_with_suggestions"] == 1.0
+    assert k["ambiguous_fallen_for"] == "0/2" and k["precision"] == 1.0 and not k["false_positives"]   # R5 adds no trap
+    # n62, measured: with the rows R5 plans the six links n61 missed (code columns and role names), at precision 1.0
+    for ds in ("shop", "sap", "crm", "traps"):
+        r = res[ds]["krusgraph"]
+        assert (r["precision"], r["recall"], r["recall_with_suggestions"]) == (1.0, 1.0, 1.0), ds
+    assert (res["shop"]["krusgraph"]["true_positives"], res["crm"]["krusgraph"]["true_positives"], k["true_positives"]) == (7, 5, 8)
     assert res["sap"]["dbt"]["orphans_found"] == "0/1"                                   # composite keys: no built-in test
 
 

@@ -2,8 +2,9 @@
 
 Three ways to get relationships and their traps, on the same four synthetic datasets, scored against facit.json:
 
-  krusgraph  plan() + evidence.validate (validate_plan) + graphs.suggest (suggest_relationships), the library calls
-             behind the MCP tools, over in-memory SQLite.
+  krusgraph  plan() with the rows (rule R5 counts code and role columns; plan_backend and /check do not pass rows yet) + evidence.validate
+             (validate_plan) + graphs.suggest (suggest_relationships), over in-memory SQLite. R5 proposals the rows did
+             not support count as suggestions.
   autodetect an approximation of documented autodetect rules (Power BI Desktop's "Autodetect during load" as described
              on Microsoft Learn, see the README): a relationship where two tables share a column name and data type and
              one side is unique in the rows; many-to-one toward the unique side, one-to-one when both are; single
@@ -75,7 +76,7 @@ def _family(data_type: str) -> str:
 # ---------------------------------------------------------------- (a) Krusgraph -----------------------------------------------
 
 def krusgraph(src) -> dict:
-    p = make_plan(src.schema)
+    p = make_plan(src.schema, execute=src.execute)
     predicted = [(_rel(r.source, r.source_cols, r.target), r.rule) for r in p.relationships]
     predicted += [(_rel(r.source, r.source_cols, r.target), r.rule) for r in getattr(p, "extended", [])]
     checked = evidence.validate(p, src.execute, max_items=200)
@@ -83,7 +84,8 @@ def krusgraph(src) -> dict:
     orphans = {_rel(r["source"], r["columns"], r["target"]) for r in checked["relationships"] if r.get("orphans")}
     doubled = {(f["header"].lower(), c.lower(), f["line"].lower()) for f in checked["amount_levels"]["findings"]
                if isinstance(f["rows_per_header"], dict) and f["rows_per_header"]["max_lines"] > 1 for c in f["amount_columns"]}
-    return {"predicted": [r for r, _ in predicted], "suggested": [_rel(c["source"], c["source_cols"], c["target"]) for c in sugg],
+    suggested = [_rel(c["source"], c["source_cols"], c["target"]) for c in sugg] + [_rel(x["source"], x["source_cols"], x["target"]) for x in p.proposed]
+    return {"predicted": [r for r, _ in predicted], "suggested": suggested,
             "orphans": orphans, "doubled": doubled, "keys_not_unique": sum(1 for k in checked["keys"] if not k["verdict"].startswith("unique"))}
 
 

@@ -37,6 +37,15 @@ Relationships (per column of a table A that is not A's own key):
       `ShipToAddressID` → Address), or an abbreviation of B of four letters or more (`o_custkey` → customer); never
       across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`). When two tables answer to the
       same name, the one whose key carries the column's suffix wins; otherwise the column is ambiguous.
+  R5  checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem
+      (singular/plural, snake/camel; a trailing Salesforce `__c` aside, words before the stem allowed:
+      `ERP_Customer_No__c`) is keyed by `code`/`no`/`key` or `<stem>_code`/`_no`/`_key`, or has no key and a column
+      `code`/`no`/`key` that is unique and never NULL in the rows (that column then becomes its key, rule R5); or a role
+      name (`ship_to_id`, `created_by`, `approved_by`) whose role word says what the table holds (an address, a
+      person). Runs only when plan() is given `execute`, for columns R0–R4 left unlinked. Planned only when the rows
+      support it: same type family, every non-NULL value of the column is in the table's key, at least two distinct
+      values, and exactly one table qualifies. Otherwise it goes to plan.proposed with the reason, never applied.
+      Same-named columns (`code`, `name`) in two unrelated tables are never compared with each other.
 A column that could point at two tables is reported as ambiguous and not applied.
 
 SAP pack (before K2–K5 and R1–R4): when two or more tables are tables a knowledge pack describes (sap_pack.py,
@@ -65,7 +74,7 @@ class Relationship:
     source_cols: list[str]
     target: str                      # the table being pointed at (the "one" side)
     target_cols: list[str]
-    rule: str                        # R0..R4, "SAP pack", or "confirmed"
+    rule: str                        # R0..R5, "SAP pack", or "confirmed"
     field_name: str = ""             # GraphQL field on the source, e.g. "customer"
     reverse_name: str = ""           # GraphQL field on the target, e.g. "orders"
     note: str = ""                   # how the name was read when it was not literal: "through the synonym table: kund -> customer"
@@ -138,6 +147,7 @@ class Plan:
     synonyms: list[dict] = field(default_factory=list)    # keys and relationships that rest on the synonym table (SYNONYMS)
     pack: dict | None = None                               # what a knowledge pack recognised (sap_pack.py); None when none did
     extended: list = field(default_factory=list)          # ExtendedRelationship: joins on a unique non-key column or valid on a date
+    proposed: list[dict] = field(default_factory=list)    # R5 candidates the rows did not support, each with its reason; never applied
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
@@ -147,6 +157,8 @@ class Plan:
             lines.append(f"{len(self.ambiguous)} ambiguous columns not applied — see plan.ambiguous")
         if self.synonyms:
             lines.append(f"{len(self.synonyms)} name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms")
+        if self.proposed:
+            lines.append(f"{len(self.proposed)} code or role column(s) the rows did not support (R5), not applied — see plan.proposed")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.pack['rule']}\"), to be checked with validate_plan — see plan.pack")
@@ -185,6 +197,10 @@ RULES = {
     "R4": "weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table (`Kunde_ID` → `Kunden`, `cust_id` → "
           "`customers`, noted on the relationship), a role before B's name (`manager_staff_id` → staff), or an abbreviation of B of four "
           "letters or more (`o_custkey` → customer); never across suffixes (`wwi_order_id` does not point at a table keyed by `order_key`)",
+    "R5": "checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem "
+          "(singular/plural, snake/camel) has the key `code`/`no`/`key`, or a role name (`ship_to_id`, `created_by`, `approved_by`) "
+          "whose role word says what the table holds; planned only when every value is in that table's key, the type family is "
+          "the same, there are two or more distinct values and one table qualifies, otherwise proposed with the reason",
     "confirmed": "given by the caller in `confirmed=[...]`, applied as-is, before inference",
 }
 
@@ -568,6 +584,124 @@ def infer_relationships(schema: Schema, keys: dict[str, tuple[list[str], str]],
     return rels, ambiguous
 
 
+_CODE_WORDS = ("code", "no", "key")                     # R5: the suffixes of a code column and the bare keys it points at
+_ROLE_END = ("id", "by", "key", "no", "code", "nr")     # R5: the last word of a role name (ship_to_id, created_by)
+R5_MIN_DISTINCT = 2
+
+
+def _family(data_type: str) -> str:
+    t = (data_type or "").lower()
+    return "number" if any(w in t for w in ("int", "decimal", "double", "float", "numeric", "real", "number", "money")) else \
+           "date" if "date" in t or "time" in t else "text"
+
+
+def _r5_candidates(schema: Schema, keys: dict[str, tuple[list[str], str]], linked: set[tuple[str, str]],
+                   pack_tables: set[str]) -> list[dict]:
+    """Columns R0–R4 left unlinked that R5 could link, each with every table that answers to its name:
+    {"source", "column", "kind": "code"|"role", "targets": [(table, key column, needs_key)]}."""
+    from .graphs import ROLE_WORDS                                    # lazily: graphs imports this module
+    single = {t: k[0] for t, (k, _) in keys.items() if len(k) == 1}
+    out = []
+    for t in schema:
+        prefix = _table_prefix(t)
+        own = {c.lower() for c in keys.get(t.name, ([], ""))[0]}
+        for c in t.column_names:
+            if c.lower() in own or (t.name, c.lower()) in linked:
+                continue
+            words = _words(_strip_prefix(c, prefix))
+            if len(words) > 2 and words[-1] == "c" and c.lower().endswith("__c"):
+                words = words[:-1]                                    # Salesforce's custom-field suffix
+            found: list[tuple[str, str, bool]] = []
+            kind = ""
+            if len(words) >= 2 and words[-1] in _CODE_WORDS:          # <stem>_code / _no / _key
+                suf, stem = words[-1], words[:-1]
+                for b in schema:
+                    if b.name == t.name or (t.name in pack_tables and b.name in pack_tables):
+                        continue
+                    bases = _bases(b.name)
+                    if not any("".join(stem[k:]) in bases for k in range(len(stem))):
+                        continue
+                    bprefix = _table_prefix(b)
+                    keyed = {_norm(x) + suf for x in bases} | {suf}
+                    if b.name in single:
+                        if _norm(_strip_prefix(single[b.name], bprefix)) in keyed:
+                            found.append((b.name, single[b.name], False))
+                    elif b.name not in keys:
+                        bare = [x for x in b.column_names if _norm(_strip_prefix(x, bprefix)) == suf]
+                        if len(bare) == 1:
+                            found.append((b.name, bare[0], True))
+                kind = "code"
+            if not found and len(words) >= 2 and words[-1] in _ROLE_END:  # role name: ship_to_id, created_by
+                for roles, nouns, _why in ROLE_WORDS:
+                    if not set(words[:-1]) & roles:
+                        continue
+                    for b, k in single.items():
+                        if b == t.name or (t.name in pack_tables and b in pack_tables):
+                            continue
+                        bwords = set(_content_words(b)) | {w for x in _singulars(b) for w in _words(x)}
+                        if bwords & nouns:
+                            found.append((b, k, False))
+                    kind = "role"
+                    break
+            if found:
+                out.append({"source": t.name, "column": c, "kind": kind, "targets": found})
+    return out
+
+
+def _r5_check(schema: Schema, execute, source: str, column: str, target: str, key: str, needs_key: bool) -> tuple[bool, str]:
+    """Count in the rows whether source.column can point at target.key: (supported, what was counted)."""
+    from . import evidence
+    from .dialects import of as dialect_of
+    s, b = schema[source], schema[target]
+    types = {x.name: x.data_type for x in s.columns}, {x.name: x.data_type for x in b.columns}
+    fa, fb = _family(types[0][column]), _family(types[1][key])
+    if fa != fb:
+        return False, f"{source}.{column} is {fa}, {target}.{key} is {fb}"
+    dialect = dialect_of(execute)
+    try:
+        if needs_key:
+            row = (list(execute(evidence.key_sql(schema.schema, target, [key], dialect))) or [{}])[0]
+            n, nulls, d = (evidence._int(row.get(x)) for x in ("n", "nulls", "distinct_keys"))
+            if not n or nulls or d != n:
+                return False, f"{target}.{key} is not unique and non-NULL in the rows ({n} rows, {d} distinct, {nulls} NULL), so it is no key"
+        row = (list(execute(evidence.inclusion_sql(schema.schema, source, column, target, key, dialect))) or [{}])[0]
+    except Exception as e:                                         # noqa: BLE001 - a candidate the rows could not answer stays a proposal
+        return False, f"could not count: {type(e).__name__}: {e}"
+    with_value, matched, distinct = (evidence._int(row.get(x)) for x in ("with_value", "matched", "distinct_values"))
+    if not with_value:
+        return False, f"{source}.{column} has no values to compare"
+    if matched != with_value:
+        return False, f"{with_value - matched} of {with_value} value(s) of {source}.{column} are not in {target}.{key}"
+    if distinct < R5_MIN_DISTINCT:
+        return False, f"{source}.{column} has {distinct} distinct value: too few to tell"
+    return True, f"{with_value} of {with_value} value(s) ({distinct} distinct) of {source}.{column} are in {target}.{key}, same type family ({fa})"
+
+
+def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels: list[Relationship], ambiguous: list[dict],
+                    execute, pack_tables: set[str] | None = None) -> tuple[list[Relationship], dict[str, tuple[list[str], str]], list[dict]]:
+    """R5: the code and role columns R0–R4 left unlinked, checked against the rows. Returns the relationships the rows
+    support, the keys R5 gave keyless targets, and the proposals with their reasons (plan.proposed)."""
+    linked = {(r.source, c.lower()) for r in rels for c in r.source_cols} | {(a["table"], a["column"].lower()) for a in ambiguous}
+    new_rels: list[Relationship] = []
+    new_keys: dict[str, tuple[list[str], str]] = {}
+    proposed: list[dict] = []
+    for cand in _r5_candidates(schema, keys, linked, pack_tables or set()):
+        src, col = cand["source"], cand["column"]
+        results = [(b, k, nk) + _r5_check(schema, execute, src, col, b, k, nk) for b, k, nk in cand["targets"]]
+        ok = [r for r in results if r[3]]
+        if len(ok) == 1:
+            b, k, nk, _, why = ok[0]
+            if nk:
+                new_keys[b] = ([k], "R5")
+            new_rels.append(Relationship(src, [col], b, [k], "R5", note=f"R5 ({cand['kind']} column), counted in the rows: {why}"))
+            continue
+        for b, k, nk, supported, why in results:
+            reason = why if not supported else f"the rows fit {len(ok)} tables ({', '.join(r[0] for r in ok)}); which one is for a person to say"
+            proposed.append({"source": src, "source_cols": [col], "target": b, "target_cols": [k], "rule": "R5", "kind": cand["kind"],
+                             "reason": reason, "confirmed": {"source": src, "source_cols": [col], "target": b, "target_cols": [k]}})
+    return new_rels, new_keys, proposed
+
+
 def _line_like(col: str) -> bool:
     """`line_no`, `LineNumber`, `position`, `order_line`, `item_seq`: the last word (or two) names a line number."""
     w = _words(col)
@@ -716,8 +850,11 @@ def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | Non
     return summary, m.keys, rels, set(m.tables)
 
 
-def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, packs: bool = True) -> Plan:
-    """packs=False plans by the name rules alone, as before the knowledge packs (for comparison)."""
+def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, packs: bool = True,
+         execute=None) -> Plan:
+    """packs=False plans by the name rules alone, as before the knowledge packs (for comparison). With `execute` (a
+    read-only query callable over the same tables) R5 also counts code and role columns in the rows; without it the
+    plan is exactly the plan by names."""
     check_input(schema, keys, confirmed)
     summary, pack_keys, pack_rels, pack_tables = _pack(schema, keys) if packs else (None, {}, [], set())
     plain = lambda r: r.get("kind", "key") == "key" and not r.get("where")
@@ -735,13 +872,20 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
         k.update(extra)
         rel_notes = []
         rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
+    proposed: list[dict] = []
+    if execute is not None:                     # R5: code and role columns, only where the rows support them
+        r5, r5_keys, proposed = infer_from_rows(schema, k, rels, amb, execute, pack_tables)
+        if r5:
+            k.update(r5_keys)
+            rels += r5
+            _name_fields(rels, {t.name: _table_prefix(t) for t in schema})
     # an extended relationship stands while the target's key is still the pack's: a caller's own key says otherwise
     extended = [ExtendedRelationship(r["source"], list(r["source_cols"]), r["target"], list(r["target_cols"]), PACK_RULE,
                                      note=r.get("note", ""), kind=r.get("kind", "key"), valid_on=r.get("valid_on"),
                                      cardinality=r.get("cardinality", "many-to-one"), where=list(r.get("where") or []))
                 for r in special if k.get(r["target"], ([], ""))[1] == PACK_RULE]
     return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
-                extended=extended)
+                extended=extended, proposed=proposed)
 
 
 def _m(s: str) -> str:

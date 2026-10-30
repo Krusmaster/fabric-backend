@@ -1,6 +1,7 @@
-# Benchmark: relationships and their traps on the same synthetic data (round n61)
+# Benchmark: relationships and their traps on the same synthetic data (rounds n61 and n62)
 
-Run on **30 October 2026**, Python 3.13.17, SQLite in memory, from the repository's commit at the time. No network, no
+First run on **30 October 2026** (round n61); run again the same day after round n62 added rule R5, Python 3.13.17,
+SQLite in memory, from the repository's commit at the time. No network, no
 Fabric, no Azure: every number below is what `benchmark.py` measured, and `tests/test_benchmark.py` checks that a new
 run gives the same table.
 
@@ -12,7 +13,7 @@ python examples/benchmark/benchmark.py
 
 | Method | What it is here |
 | --- | --- |
-| Krusgraph | `plan()` (the rules behind plan_backend, with the SAP pack), `evidence.validate` (validate_plan: keys, orphans, amount levels) and `graphs.suggest` (suggest_relationships, 15 candidates checked against the rows). Only the plan counts as predicted; suggestions count separately, as decisions for a person. |
+| Krusgraph | `plan()` with the rows (the rules behind plan_backend, with the SAP pack, plus R5, which counts code and role columns in the rows; plan_backend and `/check` still call `plan()` without rows and have no R5), `evidence.validate` (validate_plan: keys, orphans, amount levels) and `graphs.suggest` (suggest_relationships, 15 candidates checked against the rows). Only the plan counts as predicted; suggestions and R5 proposals (`plan.proposed`) count separately, as decisions for a person. |
 | Approximation of documented autodetect rules | Not Power BI. A small implementation of what Microsoft Learn documents for *Autodetect during load* in [Create and manage relationships in Power BI Desktop](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-create-and-manage-relationships): candidate relationships from matching column names, cardinality from the data (many-to-one toward the unique side, one-to-one when both are unique), single-column relationships. Implemented: same column name (case-insensitive), same type family, one side unique in the rows. Nothing else. |
 | dbt-style tests | A person declares the right relationships (the facit), then `unique` + `not_null` on each target key and dbt's built-in `relationships` test (one column) for orphans. Precision and recall are 1 by construction; the point is what the tests catch afterwards and how much the person had to declare. |
 
@@ -27,20 +28,32 @@ relationship. "Doubled totals" are header amounts that a join with more than one
 
 ## Result
 
+After round n62 (rule R5). The Krusgraph rows before it, as measured in round n61, are under the table; the two
+baselines did not change.
+
 | Dataset | Method | Precision | Recall | Recall incl. suggestions | Orphans found | Doubled totals found | Ambiguous columns fallen for | Left to the person |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| shop | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (6/6) | 0.86 (6/7) | 1.0 | 0/0 | 0/0 | 0/1 | 4 suggestion(s) to accept or reject |
+| shop | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (7/7) | 1.0 (7/7) | 1.0 | 0/0 | 0/0 | 0/1 | 0 suggestion(s) to accept or reject |
 | shop | Approximation of documented autodetect rules | 0.62 (5/8) | 0.71 (5/7) | 0.71 | 0/0 | 0/0 | 1/1 | every created relationship to review (no rule or evidence given) |
 | shop | dbt-style tests, relationships declared by a person | 1.0 (7/7) | 1.0 (7/7) | 1.0 | 0/0 | 0/0 | 0/1 | 7 relationships declared by hand |
 | sap | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (34/34) | 1.0 (34/34) | 1.0 | 1/1 | 4/4 | 0/4 | 0 suggestion(s) to accept or reject |
 | sap | Approximation of documented autodetect rules | 0.0 (0/123) | 0.0 (0/34) | 0.0 | 0/1 | 0/4 | 4/4 | every created relationship to review (no rule or evidence given) |
 | sap | dbt-style tests, relationships declared by a person | 1.0 (34/34) | 1.0 (34/34) | 1.0 | 0/1 | 0/4 | 0/4 | 34 relationships declared by hand; 34 composite need a package or custom test |
-| crm | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.8 (4/5) | 1.0 | 2/2 | 1/1 | 0/2 | 1 suggestion(s) to accept or reject |
+| crm | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (5/5) | 1.0 (5/5) | 1.0 | 2/2 | 1/1 | 0/2 | 0 suggestion(s) to accept or reject |
 | crm | Approximation of documented autodetect rules | 0.25 (2/8) | 0.4 (2/5) | 0.4 | 0/2 | 0/1 | 2/2 | every created relationship to review (no rule or evidence given) |
 | crm | dbt-style tests, relationships declared by a person | 1.0 (5/5) | 1.0 (5/5) | 1.0 | 2/2 | 0/1 | 0/2 | 5 relationships declared by hand |
-| traps | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.5 (4/8) | 0.75 | 2/2 | 2/2 | 0/2 | 2 suggestion(s) to accept or reject |
+| traps | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (8/8) | 1.0 (8/8) | 1.0 | 2/2 | 2/2 | 0/2 | 0 suggestion(s) to accept or reject |
 | traps | Approximation of documented autodetect rules | 0.27 (4/15) | 0.5 (4/8) | 0.5 | 0/2 | 0/2 | 2/2 | every created relationship to review (no rule or evidence given) |
 | traps | dbt-style tests, relationships declared by a person | 1.0 (8/8) | 1.0 (8/8) | 1.0 | 2/2 | 0/2 | 0/2 | 8 relationships declared by hand |
+
+Krusgraph before R5 (round n61, plan by names only):
+
+| Dataset | Method | Precision | Recall | Recall incl. suggestions | Orphans found | Doubled totals found | Ambiguous columns fallen for | Left to the person |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| shop | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (6/6) | 0.86 (6/7) | 1.0 | 0/0 | 0/0 | 0/1 | 4 suggestion(s) to accept or reject |
+| sap | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (34/34) | 1.0 (34/34) | 1.0 | 1/1 | 4/4 | 0/4 | 0 suggestion(s) to accept or reject |
+| crm | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.8 (4/5) | 1.0 | 2/2 | 1/1 | 0/2 | 1 suggestion(s) to accept or reject |
+| traps | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.5 (4/8) | 0.75 | 2/2 | 2/2 | 0/2 | 2 suggestion(s) to accept or reject |
 
 ## Where Krusgraph is better, equal, and worse
 
@@ -50,10 +63,14 @@ relationship. "Doubled totals" are header amounts that a join with more than one
   the SAP set the pack gives the composite keys with MANDT; the approximation found none of the 34.
 - **Equal:** orphan rows are found by Krusgraph and by dbt's `relationships` test alike wherever the relationship is
   known and single-column (crm, traps). The data check is ordinary counting; dbt does it as well.
-- **Worse:** a person who declares the relationships has recall 1.0; Krusgraph's plan reached 0.5 to 0.86 outside SAP.
-  It missed `orders.ship_to_id`, `Account.ERP_Customer_No__c`, `invoices.created_by`/`approved_by` (these four come
-  back as suggestions, among wrong ones a person must reject) and `currency_code → currencies.code` and
-  `country_code → countries.code`, which it neither planned nor suggested.
+- **Equal, since R5:** with the rows, Krusgraph's plan reaches the recall of a person who declares the relationships
+  (1.0 on all four sets) at precision 1.0. Before R5 it reached 0.5 to 0.86 outside SAP and missed `orders.ship_to_id`,
+  `Account.ERP_Customer_No__c`, `invoices.created_by`/`approved_by` and `currency_code → currencies.code` and
+  `country_code → countries.code`; R5 now plans all six because their values are all in the target's key.
+- **Worse, or not shown here:** R5 was written after round n61 named exactly these six misses, by the same project,
+  on these same sets: the 1.0 says the rule fixes what it was written for, not how it does on other data. R5 needs
+  the rows; plan_backend on names alone still misses the six. On real data with small integer keys a role name can
+  fit two tables, and then R5 proposes instead of planning (`tests/test_infer_r5.py`).
 
 ## Conditions and limitations
 
