@@ -690,43 +690,6 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     assert toc.index('href="#get-started"') < toc.index('href="#connect"') < toc.index('href="#explore-and-check"')
 
 
-def test_home_data_check_is_computed_from_the_demo_validation(monkeypatch):
-    """The home panel's 'Data check' comes from the same counting checks /demo/validation.json serves, not from copy:
-    change the counts and the sentence follows; drop a relationship's check and the panel says it was not checked."""
-    import copy
-    import re as _re
-    from fabric_backend import demo
-    real = demo.demo_validation()
-    rel = next(r for r in real["relationships"] if r["source"] == "orders" and r["target"] == "customers")
-    assert rel["orphans"] == 0 and rel["rows_with_value"] > 0
-
-    def data_check(details: dict, key: str) -> str:
-        m = _re.search(r"<dt>Data check</dt><dd>(.*?)</dd>", details[key])
-        return _re.sub(r"<[^>]+>", "", m.group(1))
-
-    assert str(rel["rows_with_value"]) in data_check(demo.home_details(), demo.HOME_DEFAULT)
-    broken = copy.deepcopy(real)
-    for r in broken["relationships"]:
-        if r["source"] == "orders" and r["target"] == "customers":
-            r["orphans"], r["rows_with_value"] = 3, 41
-    monkeypatch.setattr(demo, "demo_validation", lambda: broken)
-    text = data_check(demo.home_details(), demo.HOME_DEFAULT)
-    assert "3" in text and "41" in text and str(rel["rows_with_value"]) not in text
-    unchecked = copy.deepcopy(real)
-    unchecked["relationships"] = [r for r in unchecked["relationships"] if not (r["source"] == "orders" and r["target"] == "customers")]
-    monkeypatch.setattr(demo, "demo_validation", lambda: unchecked)
-    assert "not checked" in data_check(demo.home_details(), demo.HOME_DEFAULT).lower()
-    # the suggestion's data check is the engine's count; accepting its meaning never changes what the check says
-    monkeypatch.setattr(demo, "demo_validation", lambda: real)
-    d = demo.home_details()
-    sid = "orders.ship_to_id>addresses"
-    assert data_check(d, sid) == data_check(d, sid + "|accepted") == "All 60 orders in this sample have a ship_to_id that exists in addresses (15 different addresses)."
-    assert "Accepted in this demo" in d[sid + "|accepted"] and "separate" in d[sid + "|accepted"]
-    sug = demo.demo_suggestions()
-    monkeypatch.setattr(demo, "demo_suggestions", lambda: [dict(sug[0], evidence=None, check="")])
-    assert "not checked" in data_check(demo.home_details(), sid).lower()
-
-
 def _without_agreed_facts(text: str) -> str:
     """n53 (29 October 2026): the maintainer asked for "Based in Uppsala, Sweden, and Bern, Switzerland" and "Hosted in
     Azure, Sweden Central" in the footer, his text on the home page and /it; anywhere else the rule below still holds."""

@@ -1,7 +1,7 @@
 """The public site — served by the MCP server itself, so one domain is enough.
 
-    /                  start page           /explore            graph explorer (client-side demo, synthetic schema)
-    /demo              the guided demo: one order followed to its delivery address (demo.home_guide)
+    /                  start page           /check              the engine in the browser; ?example=sample&guide=1 is the guided demo
+    /demo, /explore    redirects to /check (n55)
     /start             get started          /support            support
     /partners          partners             /partners/workspace illustrative partner workspace
     /docs              setup and usage      /privacy            privacy policy
@@ -328,7 +328,7 @@ MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cas
 # links still land: /demo on the guided demo, /explore on the map of the same example.
 REDIRECTS = {"/demo": "/check?example=sample&guide=1", "/explore": "/check?example=sample#check-map"}
 
-MASCOT_PAGES_BY_SCRIPT = ("demo",)          # site.js draws three mascots in /demo's graph; no placeholder in its HTML
+MASCOT_PAGES_BY_SCRIPT = ()                 # pages whose mascots site.js draws without a placeholder in the HTML (none since n55)
 
 
 def has_mascots(body: str, page: str) -> bool:
@@ -452,54 +452,6 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 </html>"""
 
 
-def _demo_vars() -> dict[str, str]:
-    """Server-rendered fallbacks for the demo pages, so the table list exists before (or without) JavaScript."""
-    from .demo import demo_plan
-    d = demo_plan()
-    order = ["customers", "orders", "order_items", "products", "categories", "addresses", "audit_log"]
-    colors = ["coral", "sage", "lav", "mustard"]
-    icon = ('<svg class="g-ico" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="1.5" y="2.5" width="13" height="11" rx="2.6" '
-            'fill="currentColor" fill-opacity=".22" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 6.5h13M6.2 6.5v7" stroke="currentColor" stroke-width="1.5"/></svg>')
-
-    def row(i: int, t: dict) -> str:
-        color = colors[(order.index(t["name"]) if t["name"] in order else i) % len(colors)]
-        code = t["key_rule"] if t["key"] else "K3"
-        label = "no key" if not t["key"] else "composite key" if len(t["key"]) > 1 else "key"
-        tip = html.escape(f'Rule {code}: {d["rules"].get(code, "").replace("`", "")}')
-        return (f'<li><button type="button" data-table="{html.escape(t["name"])}"><span class="t-ico c-{color}">{icon}</span>'
-                f'<span class="nm">{html.escape(t["name"])}</span><span class="rule" title="{tip}">{label}</span></button></li>')
-    items = "".join(row(i, t) for i, t in enumerate(d["tables"]))
-    rules = {k: re.sub(r"`([^`]+)`", r"<code>\1</code>", html.escape(t)) for k, t in d["rules"].items()}
-    used = [t["key_rule"] if t["key"] else "K3" for t in d["tables"]] + [r["rule"] for r in d["relationships"]]
-    used = [k for k in d["rules"] if k in used]                              # each rule explained once, in the engine's order
-    legend = "".join(f'<div><dt><code>{k}</code></dt><dd>{rules[k]}</dd></div>' for k in used)
-    keys = "".join(f'<li><strong>{html.escape(t["name"])}</strong>: ' + (f'key <code>{html.escape(" + ".join(t["key"]))}</code>, <code>{t["key_rule"]}</code>'
-                   if t["key"] else 'no key, <code>K3</code>') + f'; columns {html.escape(", ".join(c["name"] for c in t["columns"]))}</li>'
-                   for t in d["tables"])
-    rels = "".join(f'<li><code>{html.escape(r["source"] + "." + "+".join(r["source_cols"]))}</code> → <code>{html.escape(r["target"] + "." + "+".join(r["target_cols"]))}</code>, '
-                   f'<code>{r["rule"]}</code>; GraphQL fields <code>{html.escape(r["field"])}</code> and <code>{html.escape(r["reverse"])}</code></li>'
-                   for r in d["relationships"])
-    unlinked = "".join(f'<li><code>{html.escape(u["table"] + "." + u["column"])}</code>: {html.escape(u["note"])}</li>' for u in d["unlinked"]) or "<li>none</li>"
-    text = (f'<p class="mono">{"<br>".join(html.escape(line) for line in d["summary"].splitlines())}</p><h3>The rules used</h3><dl class="rule-list">{legend}</dl>'
-            f'<h3>Tables and keys</h3><ul>{keys}</ul><h3>Relationships</h3><ul>{rels}</ul><h3>Left unlinked</h3><ul>{unlinked}</ul>')
-    from .demo import demo_validation
-    v = demo_validation()
-    e = html.escape
-    krows = "".join(f'<tr><td><code>{e(k["table"])}</code></td><td><code>{e(" + ".join(k["columns"]))}</code> <span class="muted">{e(k["rule"])}</span></td>'
-                    f'<td>{k["rows"]}</td><td>{k["distinct"]}</td><td>{k["nulls"]}</td><td>{e(k["verdict"])}</td></tr>' for k in v["keys"])
-    rrows = "".join(f'<tr><td><code>{e(r["source"] + "." + "+".join(r["columns"]))}</code> → <code>{e(r["target"] + "." + "+".join(r["target_columns"]))}</code> '
-                    f'<span class="muted">{e(r["rule"])}</span></td><td>{r["rows_with_value"]}</td><td>{r["orphans"]}</td><td>{e(r["verdict"])}</td></tr>'
-                    for r in v["relationships"])
-    sugg = "".join(f'<li><code>{e(x["table"])}</code>: <code>{e(" + ".join(x["columns"]))}</code> — {e(x["why"])}</li>' for x in v["suggested_keys"]) or "<li>none</li>"
-    check = (f'<p class="mono">{e(v["summary"])}</p>'
-             f'<h3>Keys</h3><div class="table-wrap"><table class="check"><thead><tr><th>Table</th><th>Key (rule)</th><th>Rows</th><th>Distinct</th><th>NULLs</th><th>Verdict</th></tr></thead><tbody>{krows}</tbody></table></div>'
-             f'<h3>Relationships</h3><div class="table-wrap"><table class="check"><thead><tr><th>Reference (rule)</th><th>Rows with a value</th><th>Orphans</th><th>Verdict</th></tr></thead><tbody>{rrows}</tbody></table></div>'
-             f'<h3>Composite keys the plan suggests before any override</h3><ul>{sugg}</ul>')
-    return {"DEMO_TABLE_LIST": items, "DEMO_SUMMARY": html.escape(d["summary"].splitlines()[0]), "DEMO_PLAN_TEXT": text,
-            "DEMO_CHECK": check, "DEMO_CHECK_SUMMARY": e(v["summary"]), "DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
-
-
-# The docs section each card of "What you can build automatically from this plan" links to, by heading (slugged as _md_to_html does).
 BUILD_DOCS = {"join_path": "How {{PRODUCT}} uses graph theory", "semantic_model_draft": "One plan, five Fabric pieces",
               "rayfin_connector": "Tools", "app_starter": "Use with Lovable"}
 
@@ -579,7 +531,7 @@ def build_path_html() -> str:
 
 
 def build_html() -> str:
-    """The four cards of /explore's last section, from demo.build_cards()."""
+    """The four cards "What you can build automatically from a plan" on /use-cases, from demo.build_cards()."""
     from .demo import build_cards
     e = html.escape
     c = build_cards()
@@ -621,15 +573,8 @@ def build_html() -> str:
 
 
 def _home_vars() -> dict[str, str]:
-    """The guided demo's example (/demo): the detail of the default relationship, server-rendered so it reads without JavaScript,
-    every detail as JSON for the page's script, and the relationships as links (demo.home_details)."""
-    import json
-    from .demo import HOME_DEFAULT, home_details, home_guide, home_relationship_list
-    details = home_details()
-    safe = json.dumps(details, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
-    return {"HOME_DETAIL": details[HOME_DEFAULT], "HOME_DETAILS_JSON": safe, "HOME_REL_LIST": home_relationship_list(),
-            "HOME_GUIDE": home_guide(), "HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
-
+    """The start page's server-rendered parts: the hub and the before/after example."""
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -664,8 +609,8 @@ def render(path: str) -> str:
     if "{{HOME_" in body:
         hv = _home_vars()
         body = re.sub(r"\{\{(HOME_\w+)\}\}", lambda m: hv.get(m.group(1), ""), body)
-    if "{{DEMO_" in body:
-        dv = _demo_vars()
+    if "{{DEMO_" in body:                                                  # the build cards on /use-cases (n55)
+        dv = {"DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     if "{{CHECK_" in body:
         cv = check_vars()
