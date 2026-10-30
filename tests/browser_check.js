@@ -107,6 +107,21 @@ const pages = ['/', '/demo', '/explore', '/start', '/support', '/partners', '/pa
   await page.click('[data-mascot-toggle]');
   facts.mascotsAfterToggleBack = await page.evaluate(() => document.documentElement.getAttribute('data-mascots'));
   await ctx.close();
+  // n55: the theme button: the system's choice first, a click (and Enter) switches, the choice survives a reload
+  const tc = await browser.newContext({ viewport: { width: 375, height: 800 }, colorScheme: 'light' });
+  const tp = await tc.newPage(); watch(tp, '/ theme');
+  await tp.goto(base + '/', { waitUntil: 'networkidle' });
+  const themeState = () => tp.evaluate(() => ({ theme: document.documentElement.dataset.theme || null,
+    pressed: document.querySelector('[data-theme-toggle]').getAttribute('aria-pressed'),
+    bg: getComputedStyle(document.body).backgroundColor, meta: document.querySelector('meta[name=theme-color]').content }));
+  facts.themeFirst = await themeState();
+  await tp.click('[data-theme-toggle]');
+  facts.themeAfterClick = await themeState();
+  await tp.reload({ waitUntil: 'networkidle' });
+  facts.themeAfterReload = await themeState();
+  await tp.focus('[data-theme-toggle]'); await tp.keyboard.press('Enter');
+  facts.themeAfterEnter = await themeState();
+  await tc.close();
   // the guided demo's graph on /demo: one relationship selected from the start, a decision by mouse and by keyboard,
   // reduced motion
   const hc = await browser.newContext({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' });

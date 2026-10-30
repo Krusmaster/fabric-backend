@@ -26,7 +26,7 @@ def test_browser_404_is_styled_and_noindex(client):
 def test_pages_carry_a_strict_csp_but_mcp_does_not(client):
     for path in ("/", "/demo", "/explore", "/docs", "/privacy", "/mascots"):
         h = client.get(path).headers
-        assert h["content-security-policy"].startswith("default-src 'self'; script-src 'self';"), path
+        assert h["content-security-policy"].startswith("default-src 'self'; script-src 'self' 'sha256-"), path
         assert h["x-content-type-options"] == "nosniff" and h["referrer-policy"] == "strict-origin-when-cross-origin"
     assert "content-security-policy" in client.get("/nope", headers={"Accept": "text/html"}).headers
     assert "content-security-policy" not in client.post("/mcp", json={}).headers
@@ -116,3 +116,17 @@ def test_oversized_bodies_are_refused_before_they_are_read():
     assert start["status"] == 413
     headers = {k.decode(): v.decode() for k, v in start["headers"]}
     assert headers["strict-transport-security"] == "max-age=31536000"
+
+
+def test_the_theme_script_is_the_one_inline_script_and_the_csp_allows_it_by_hash(client):
+    import base64, hashlib, re
+    from fabric_backend.pages import THEME_JS
+    digest = "'sha256-" + base64.b64encode(hashlib.sha256(THEME_JS.encode()).digest()).decode() + "'"
+    for path in ("/", "/check", "/use-cases"):
+        r = client.get(path)
+        inline = re.findall(r"<script>(.*?)</script>", r.text, re.S)
+        assert inline == [THEME_JS], path
+        assert r.text.index("<script>") < r.text.index('rel="stylesheet"'), path        # before the CSS: no flash
+        csp = r.headers["content-security-policy"]
+        assert digest in csp and "unsafe-inline" not in csp.split("script-src")[1].split(";")[0], path
+        assert 'data-theme-toggle aria-pressed="false" aria-label="Dark theme"' in r.text, path

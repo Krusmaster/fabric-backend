@@ -12,6 +12,30 @@
     return;
   }
 
+  /* ------------------------------------------------------------------ n55: light or dark theme */
+  // The first visit follows the system; a click switches and the choice is kept in this browser (restored by the inline
+  // script in <head> before the stylesheet loads). The map, the mascots and the charts take their colours from CSS.
+  var themeBtn = document.querySelector('[data-theme-toggle]');
+  if (themeBtn) {
+    var root = document.documentElement, sys = window.matchMedia('(prefers-color-scheme: dark)');
+    var current = function () { return root.dataset.theme || (sys.matches ? 'dark' : 'light'); };
+    var showTheme = function () {
+      var dark = current() === 'dark';
+      themeBtn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      themeBtn.setAttribute('aria-label', 'Dark theme');
+      themeBtn.title = dark ? 'Dark theme is on: switch to light' : 'Light theme is on: switch to dark';
+      document.querySelectorAll('meta[name=theme-color]').forEach(function (m) { m.content = dark ? '#1F1B19' : '#FBF8F5'; });
+    };
+    themeBtn.addEventListener('click', function () {
+      var next = current() === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch (e) { /* the choice lasts for this page only */ }
+      showTheme();
+    });
+    if (sys.addEventListener) sys.addEventListener('change', function () { if (!root.dataset.theme) showTheme(); });
+    showTheme();
+  }
+
   /* ------------------------------------------------------------------ nav */
   var toggle = document.querySelector('.nav-toggle'), nav = document.getElementById('site-nav');
   if (toggle && nav) {

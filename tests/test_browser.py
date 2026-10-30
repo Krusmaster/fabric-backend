@@ -83,6 +83,15 @@ def test_mascot_toggle_and_builder(report):
     assert f["motionClassUnderReducedMotion"] is False
 
 
+def test_the_theme_button_switches_and_the_choice_survives_a_reload(report):
+    f = report["facts"]
+    assert f["themeFirst"]["theme"] is None and f["themeFirst"]["pressed"] == "false"          # the system's choice (light)
+    assert f["themeAfterClick"]["theme"] == "dark" and f["themeAfterClick"]["pressed"] == "true"
+    assert f["themeAfterClick"]["bg"] != f["themeFirst"]["bg"] and f["themeAfterClick"]["meta"] == "#1F1B19"
+    assert f["themeAfterReload"] == f["themeAfterClick"]
+    assert f["themeAfterEnter"]["theme"] == "light" and f["themeAfterEnter"]["bg"] == f["themeFirst"]["bg"]
+
+
 def test_demo_graph_and_the_mobile_list(report):
     """The demo graph from the website brief of 26 October 2026, on /demo since round n17: orders.customer_id preselected
     with its explanation, ship_to_id as the decision by mouse and keyboard, the list as the graph's alternative at 375,

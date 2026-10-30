@@ -16,8 +16,11 @@
   --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,monospace;
   color-scheme:light dark;
 }
+/* n55: the theme button sets data-theme on <html> (an inline script in <head> restores it before this file loads);
+   without a choice the system preference decides */
+:root[data-theme="light"]{color-scheme:light}
 @media (prefers-color-scheme:dark){
-  :root{
+  :root:not([data-theme="light"]){
     --bg:#1F1B19; --card:#2A2522; --card-2:#312A26; --ink:#F4EEE8; --muted:#BDB3AA; --line:#3C3430; --line-strong:#4C433E;
     --coral:#F58A76; --coral-soft:#4A2E28; --coral-ink:#FFB2A2;
     --sage:#A9C4AC; --sage-soft:#2C3A2F; --sage-ink:#BFDCC3;
@@ -26,6 +29,15 @@
     --coral-d:#F58A76; --sage-d:#A9C4AC; --lav-d:#B9ACE0; --mustard-d:#EDBB5C;
     --focus:#CFC4F0; --shadow:0 18px 40px -16px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.25);
   }
+}
+:root[data-theme="dark"]{color-scheme:dark;
+    --bg:#1F1B19; --card:#2A2522; --card-2:#312A26; --ink:#F4EEE8; --muted:#BDB3AA; --line:#3C3430; --line-strong:#4C433E;
+    --coral:#F58A76; --coral-soft:#4A2E28; --coral-ink:#FFB2A2;
+    --sage:#A9C4AC; --sage-soft:#2C3A2F; --sage-ink:#BFDCC3;
+    --lav:#B9ACE0; --lav-soft:#352F49; --lav-ink:#CFC4F0;
+    --mustard:#EDBB5C; --mustard-soft:#43361E; --mustard-ink:#F5D597;
+    --coral-d:#F58A76; --sage-d:#A9C4AC; --lav-d:#B9ACE0; --mustard-d:#EDBB5C;
+    --focus:#CFC4F0; --shadow:0 18px 40px -16px rgba(0,0,0,.6),0 2px 6px rgba(0,0,0,.25);
 }
 
 *{box-sizing:border-box}
@@ -62,7 +74,8 @@ pre code{background:none;border:0;padding:0}
 @media (max-width:720px){.deco-tl{top:64px;opacity:.4}}
 .deco-arc{width:200px;height:200px;border-radius:200px 0 0 0;background:var(--coral-soft)}
 .deco-br{right:0;bottom:0;opacity:.55}
-@media (prefers-color-scheme:dark){.deco-arc{background:var(--sage-soft)}.deco-br{opacity:.35}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .deco-arc{background:var(--sage-soft)}:root:not([data-theme="light"]) .deco-br{opacity:.35}}
+:root[data-theme="dark"] .deco-arc{background:var(--sage-soft)}:root[data-theme="dark"] .deco-br{opacity:.35}
 @media (max-width:720px){.deco-dots{width:100px;height:100px}.deco-arc{width:120px;height:120px}}
 
 /* header */
@@ -383,7 +396,8 @@ tr:last-child td{border-bottom:0}
 .mascot .m-eye{fill:#1B1B1F}
 .mascot .m-glint{fill:#fff}
 .mascot .m-shadow{opacity:.45}
-@media (prefers-color-scheme:dark){.mascot .m-shadow{opacity:.7}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .mascot .m-shadow{opacity:.7}}
+:root[data-theme="dark"] .mascot .m-shadow{opacity:.7}
 @keyframes m-breathe{0%,100%{transform:rotate(var(--tilt)) scale(1)}50%{transform:rotate(var(--tilt)) scale(1.025,1.015)}}
 @keyframes m-nod{0%,100%{transform:rotate(var(--tilt))}50%{transform:rotate(calc(var(--tilt) + 3deg)) translateY(1px)}}
 @keyframes m-bounce{0%,100%{transform:rotate(var(--tilt)) translateY(0)}40%,60%{transform:rotate(var(--tilt)) translateY(-10px)}}
@@ -657,7 +671,8 @@ section.uc+section.uc{border-top:1px solid var(--line)}
 /* ------------------------------------------------------------------ the two-company sales example (/example/sales-planning) */
 /* series colours: the site's lavender and coral, checked with the dataviz validator against the card surface, light and dark */
 :root{--sp-a:#8A79C8;--sp-b:#E2604A}
-@media (prefers-color-scheme:dark){:root{--sp-a:#8D7DD0;--sp-b:#DE6550}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sp-a:#8D7DD0;--sp-b:#DE6550}}
+:root[data-theme="dark"]{--sp-a:#8D7DD0;--sp-b:#DE6550}
 .sp-hero{padding-top:20px;padding-bottom:8px}
 .sp-hero h1{margin-top:14px;max-width:22ch}
 .sp-who{max-width:70ch;margin:12px 0 0}
@@ -1089,3 +1104,12 @@ html[data-mascots=off] .check-ask-q{background:none;border:0;border-radius:0;pad
   .it-page h2{break-after:avoid}
   .it-scopes tr{break-inside:avoid}
 }
+
+/* n55: the theme button in the header (sun in dark mode, moon in light mode) */
+.header-tools{display:flex;align-items:center;gap:10px}
+.theme-toggle{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex:none;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;cursor:pointer;padding:0}
+.theme-toggle:hover{border-color:var(--line-strong);color:var(--coral-ink)}
+.theme-toggle svg{width:20px;height:20px}
+.theme-toggle .t-sun{display:none}
+:root[data-theme="dark"] .theme-toggle .t-sun{display:block}:root[data-theme="dark"] .theme-toggle .t-moon{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .theme-toggle .t-sun{display:block}:root:not([data-theme="light"]) .theme-toggle .t-moon{display:none}}

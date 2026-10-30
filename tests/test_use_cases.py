@@ -4,7 +4,7 @@ import re
 import pytest
 from starlette.testclient import TestClient
 
-from fabric_backend import server, use_cases
+from fabric_backend import pages, server, use_cases
 from fabric_backend.evidence import suggest_composite_keys
 from fabric_backend.infer import plan
 
@@ -35,7 +35,7 @@ def test_page_renders_indexable_with_every_industry_and_the_footnote(client):
     assert "For Fabric consultancies" in html and 'href="/start"' in html and 'href="/docs"' in html
     assert "mailto:hello@krusgraph.test" in html
     assert html.count('data-mascot="') == 1                                 # one mascot moment
-    assert "<script>" not in html and "<style" not in html                  # no inline script or style blocks
+    assert "<script>" not in html.replace("<script>" + pages.THEME_JS, "") and "<style" not in html   # only the theme script (n55)
     assert ' style="' not in html.split('<main id="main"')[1].split("</main>")[0]
     for m in re.finditer(r'<(?:script|link|img)[^>]+(?:src|href)="([^"]+)"', html):
         if not m.group(0).startswith('<link rel="canonical"'):

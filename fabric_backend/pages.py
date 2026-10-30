@@ -312,6 +312,19 @@ def site_url() -> str:
     return "https://" + _vars()["DOMAIN"]
 
 
+# n55: the theme choice from the header button, restored before the stylesheet loads so a page never flashes in the
+# other theme. The only inline script on the site; the CSP allows exactly this text by its hash (server.py).
+THEME_JS = ('(function(){var d=document.documentElement,t;try{t=localStorage.getItem("theme")}catch(e){}'
+            'if(t==="light"||t==="dark"){d.dataset.theme=t;'
+            'document.querySelectorAll("meta[name=theme-color]").forEach(function(m){m.content=t==="dark"?"#1F1B19":"#FBF8F5"})}})();')
+THEME_HASH = "'sha256-" + __import__("base64").b64encode(hashlib.sha256(THEME_JS.encode()).digest()).decode() + "'"
+_THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Dark theme">'
+                 '<svg class="t-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="currentColor"/></svg>'
+                 '<svg class="t-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor"/>'
+                 '<path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+                 '</button>')
+
+
 MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases")       # pages that are also served as <path>.md
 
 
@@ -392,6 +405,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/static/fonts/fredoka-var.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/fonts/nunito-var.woff2" as="font" type="font/woff2" crossorigin>
+<script>{THEME_JS}</script>
 <link rel="stylesheet" href="/static/site.css?v={v['ASSET_V']}">
 {head}
 </head>
@@ -405,11 +419,11 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       {_LOGO}
       <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">Microsoft Fabric, connected.</span></span>
     </a>
-    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><span></span><span></span><span></span></button>
     <nav id="site-nav" class="site-nav" aria-label="Main">
       {nav_html}
       <a class="icon-link" href="{GITHUB}" aria-label="Source on GitHub" rel="noopener">{_GITHUB_ICON}</a>
     </nav>
+    <div class="header-tools">{_THEME_BUTTON}<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><span></span><span></span><span></span></button></div>
   </div>
 </header>
 <main id="main" tabindex="-1">

@@ -1890,7 +1890,7 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/metrics", metrics))
 
     from starlette.responses import FileResponse, HTMLResponse
-    from .pages import (PAGES, STATIC_TYPES, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
+    from .pages import (PAGES, STATIC_TYPES, THEME_HASH, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
                         privacy_md, render, start_md, static_file, use_cases_md)
     from . import discovery
     from .demo import demo_plan_json, demo_validation_json
@@ -1899,7 +1899,7 @@ def build_app(host: str = "0.0.0.0"):
     # The pages load nothing from anywhere else, so the policy can say so. Inline style attributes are used in the
     # templates; scripts are only the two files under /static. Applies to HTML responses only, never to /mcp.
     PAGE_HEADERS = {
-        "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' " + THEME_HASH + "; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
                                    "font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
         "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin",
     }
@@ -1921,7 +1921,7 @@ def build_app(host: str = "0.0.0.0"):
         host = request.headers.get("host", "").strip()
         own = f"{host}/static/pyodide/ {host}/check/engine.zip" if host and all(c.isalnum() or c in ".-:[]" for c in host) else "'none'"
         csp = ("default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src " + own + "; base-uri 'none'" if worker else
-               "default-src 'self'; script-src 'self'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+               "default-src 'self'; script-src 'self' " + THEME_HASH + "; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
                "font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'")
         return {**PAGE_HEADERS, "Content-Security-Policy": csp}
 
