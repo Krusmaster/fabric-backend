@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-seven, from list_workspaces to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): thirty-eight, from list_workspaces to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -43,6 +43,8 @@ from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
+from .deploy import find_item as _find_item
+from . import report as _report
 from .platforms import fabric as _fabric
 
 try:
@@ -73,7 +75,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
     "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all but "
-    "create_backend answer with what they would create until dry_run=false. Creating a semantic model, ontology, data agent, notebook "
+    "create_backend answer with what they would create until dry_run=false. create_report adds an empty Power BI report (one blank page, no visuals) bound to an existing semantic model; a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
     "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
     "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -1050,6 +1052,53 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         return text
     result = _create_semantic_model(body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
     return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
+
+
+@mcp.tool(title="Create an empty Power BI report on a semantic model (dry run by default)", annotations=WRITE)
+@safe
+def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, dry_run: _p.DryRun = True,
+                  ctx: Context = None) -> str:
+    """Creates an empty Power BI report item (one blank page, no visuals) bound to an existing semantic model, through
+    Fabric's creationPayload; no report definition is sent. Requires workspace, model and name; Report.ReadWrite.All or
+    Item.ReadWrite.All, Contributor on the workspace and read permission on the model. Returns JSON with the REST call
+    and the next steps; with dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false, and
+    only by adding one item: a report of that name is left as it is (kind already_exists), nothing is updated or
+    deleted. Errors: {error, kind, hint}."""
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    if _GUID.match(model.strip()):
+        model_item = {"id": model.strip(), "displayName": model.strip()}
+    else:
+        model_item = find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+        if not model_item:
+            return json.dumps({"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                               "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id. "
+                                       "create_semantic_model creates a model from the plan."}, indent=2)
+    existing = _find_item(workspace_id, name, headers, _report.ITEM_TYPE)
+    if existing:
+        return json.dumps({"error": f"a report named {name!r} already exists in workspace {workspace} (id {existing}); nothing was created.",
+                           "kind": "already_exists", "existing": {"id": existing, "name": name},
+                           "hint": "Choose another name, or open the existing report in the Fabric portal. This tool never updates or "
+                                   "deletes a report."}, indent=2)
+    body = _report.payload(name, model_item["id"], workspace_id, f"Created by Krusgraph on the semantic model {model_item['displayName']}")
+    out = {"dry_run": dry_run,
+           "report": {"name": name, "pages": 1, "visuals": 0, "bound_to": {"semantic_model": model_item["displayName"], "id": model_item["id"]},
+                      "empty": "The report has one blank page and no visuals; it is bound to the model, so its tables and measures are "
+                               "ready in the field list."},
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": body,
+                    "delegated_scope": _report.SCOPE, "spec": _report.SPEC},
+           "after_creation": ["Open the report in the Fabric portal (the workspace's item list) and add visuals from the model's tables "
+                              "and measures; or build it in Power BI Desktop connected live to the same semantic model.",
+                              "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
+                              "A report definition with pages and visuals (PBIR) is not sent by this version; export_item_definitions does "
+                              "not include reports."],
+           "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken). "
+                   + _tool_status.answer_note("create_report")
+                   + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
+    if dry_run:
+        return json.dumps(out, indent=2)
+    result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}")
 
 
 @mcp.tool(title="Create or alter T-SQL views in a schema of their own (dry run by default)", annotations=WRITE)
