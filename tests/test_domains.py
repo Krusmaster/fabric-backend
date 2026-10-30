@@ -95,4 +95,4 @@ def test_domain_draft_tool(shop):
     assert tool_status.STATUS["domain_draft"].changes and tool_status.label("domain_draft")
     import asyncio
     t = next(t for t in asyncio.run(server.mcp.list_tools()) if t.name == "domain_draft")
-    assert t.annotations.read_only_hint is True and set(t.input_schema["properties"]) >= {"check_rows", "keys", "confirmed"}
+    assert t.annotations.read_only_hint is True and set(t.input_schema["properties"]) >= {"check_rows", "confirmed"}

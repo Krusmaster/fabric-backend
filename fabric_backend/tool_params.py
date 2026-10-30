@@ -81,7 +81,7 @@ Connector = Annotated[str, _d('Connector name; files go under rayfin/connectors/
 RayfinRelationships = Annotated[bool, _d('false leaves the @one/@many relationship fields out. Default true. '
                                          'Example: false.')]
 CheckRows = Annotated[bool, _d(
-    'true adds validate_plan\'s counts. Default false.')]
+    'true: with row counts. Default false.')]
 OntologyDraftName = Annotated[str, _d('Name of the ontology in the draft. Default "ontology". Example: "shop_ontology".')]
 OntologyName = Annotated[str, _name("ontology item", "shop_ontology")]
 ModelDraftName = Annotated[str, _d('Name of the semantic model in the draft. Default "semantic_model". Example: '

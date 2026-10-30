@@ -878,22 +878,22 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
 
 
-@mcp.tool(title="Draft domains and data contracts", annotations=RO)
+@mcp.tool(title="Draft domains and contracts", annotations=RO)
 @safe
-def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo",
                  confirmed: _p.Confirmed = None, check_rows: _p.CheckRows = False, ctx: Context = None) -> str:
-    """Proposes domains (data products) from the plan's graph. Returns JSON: domains, interfaces, unassigned tables
-    and an ODCS v3.2.0 contract per domain. Changes nothing. Errors: {error, kind, hint}."""
+    """Proposes domains from the plan. Returns JSON with interfaces and an ODCS contract per domain. Changes nothing.
+    Errors: {error, kind, hint}."""
     validation = None
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
-            p = make_plan(s, keys, confirmed)
+            p = make_plan(s, None, confirmed)
             validation = _evidence.validate(p, execute)
         finally:
             getattr(execute, "close", lambda: None)()
     else:
-        p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+        p, _, _ = _plan(workspace, source, schema, None, confirmed, ctx)
     out = _domains.draft(p, schema, source, validation)
     out["note"] = ("A proposal from keys and relationships, not a decision: review the names and the boundaries. "
                    "Krusgraph creates no Fabric domain; that is POST /v1/admin/domains, which needs a Fabric administrator "

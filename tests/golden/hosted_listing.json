@@ -1652,14 +1652,14 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Draft domains and data contracts"
+    "title": "Draft domains and contracts"
    },
-   "description": "Proposes domains (data products) from the plan's graph. Returns JSON: domains, interfaces, unassigned tables\nand an ODCS v3.2.0 contract per domain. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "Proposes domains from the plan. Returns JSON with interfaces and an ODCS contract per domain. Changes nothing.\nErrors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "check_rows": {
       "default": false,
-      "description": "true adds validate_plan's counts. Default false.",
+      "description": "true: with row counts. Default false.",
       "title": "Check Rows",
       "type": "boolean"
      },
@@ -1679,25 +1679,6 @@
       "default": null,
       "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
       "title": "Confirmed"
-     },
-     "keys": {
-      "anyOf": [
-       {
-        "additionalProperties": {
-         "items": {
-          "type": "string"
-         },
-         "type": "array"
-        },
-        "type": "object"
-       },
-       {
-        "type": "null"
-       }
-      ],
-      "default": null,
-      "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
-      "title": "Keys"
      },
      "schema": {
       "default": "dbo",
@@ -1737,7 +1718,7 @@
     "title": "domain_draftOutput",
     "type": "object"
    },
-   "title": "Draft domains and data contracts"
+   "title": "Draft domains and contracts"
   },
   {
    "annotations": {
