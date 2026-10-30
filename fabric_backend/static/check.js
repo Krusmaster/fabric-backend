@@ -69,6 +69,7 @@
     const events = [];
     map = new MapView($("check-map"));
     $("check-ask").hidden = true;
+    $("check-pilot").hidden = true;
     $("check-steps").replaceChildren();
     result.hidden = true;
     if (!still) run.hidden = false;
@@ -333,6 +334,7 @@
     $("check-tables").replaceChildren(...r.tables.map((t) => el("p", { class: "tiny" }, el("strong", null, t.name), " ",
       ...(t.key.length ? ["key ", code(t.key.join(" + ")), " (rule " + t.key_rule + ")"] : ["no key (rule K3)"]))));
     $("check-notes").replaceChildren(...((r.source && r.source.notes) || []).map((n) => el("li", null, n)));
+    $("check-pilot").hidden = !r.findings.length;     // n58: one way from a finding to the pilot page
     ask(r);
   }
 

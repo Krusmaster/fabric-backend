@@ -33,7 +33,7 @@ USP_POINTS = (
 )
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
 
 
 def package_version() -> str:
@@ -166,6 +166,8 @@ It reads table and column names, infers keys and relationships from names (decla
 - [Run it locally]({o}/local.md): the same engine on your own machine over ODBC (SQL Server with Windows sign-in, or a Fabric SQL endpoint), and exactly what leaves the machine
 - [Use cases]({o}/use-cases.md): three tasks to start from (an undocumented lakehouse, a join to check, an app to build), then ten illustrative schemas from different industries (retail, manufacturing, SaaS, professional services, AML, financial crime prevention, pharmaceutical research, environment and sustainability, property, education): typical tables, the keys and links found in them with their rules, what you build
 - [For your IT department]({o}/it): the Entra app's delegated permissions in plain words, what is stored, where and for how long, that /check runs in the browser, how to revoke access, the MIT source, and who stands behind it
+- [Pricing]({o}/pricing): Check (free, in the browser, no account) and {p} in Claude (MCP; free, open source, MIT); a pilot with named deliveries and Team, both on request and invoiced; where your data goes on {o}/it#data-goes
+- [Preview terms]({o}/terms): the draft terms of the preview
 - [Privacy policy]({o}/privacy.md): sign-in, metadata, sample rows and query results, access tokens, usage records and technical logs
 
 ## Connect

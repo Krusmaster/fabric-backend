@@ -1139,3 +1139,13 @@ html[data-mascots=off] .check-guide-figure{display:none}
 .uc-try-card h3{margin:6px 0 2px}
 .uc-try-card p{flex:1}
 .uc-try-card.coral{border-top:4px solid var(--coral)}.uc-try-card.lav{border-top:4px solid var(--lav)}.uc-try-card.sage{border-top:4px solid var(--sage)}
+/* n58: /pricing, where the data goes, the way from /check to a pilot */
+.pricing-cols{margin-top:24px}
+.pricing-cols .card h2{margin-top:0}
+.pricing-price{font:600 22px var(--font-head,inherit);margin:0 0 10px}
+.pricing-blocks{margin-top:24px}
+.data-stays{border-left:4px solid var(--line);padding:4px 0 4px 14px;max-width:70ch}
+.check-pilot{margin:18px 0 0;max-width:70ch}
+.pilot-example th{text-align:left;white-space:nowrap;padding-right:16px;vertical-align:top}
+@media (max-width:520px){.pilot-example th{white-space:normal}}
+.pricing-page .ctas{margin-top:20px}

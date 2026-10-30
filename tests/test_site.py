@@ -280,7 +280,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace"]
+PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -1145,3 +1145,68 @@ def test_the_old_demo_addresses_redirect_to_check(client):
     check = client.get("/check").text
     assert 'id="check-guide"' in check and 'class="check-guide-figure" aria-hidden="true"' in check
     assert "/demo\"" not in check and 'href="/explore' not in home
+
+
+# ------------------------------------------------------------------ n58: /pricing, where the data goes, preview terms ---
+DATA_STAYS = ("Your data stays in your tenant: Krusgraph stores no table contents, the hosted service runs in the EU, "
+              "or run it in your own Azure.")
+
+
+def test_pricing_has_three_columns_without_amounts(client):
+    html = client.get("/pricing").text
+    for h in ('id="plan-check">Check', 'id="plan-pilot">Pilot', 'id="plan-team">Team'):
+        assert h in html
+    assert "Krusgraph in Claude (MCP): Free, open source (MIT)" in html and html.count("Contact us</p>") == 2
+    assert "Azure Marketplace: planned." in html and "SOC 2" in html and 'href="/terms"' in html and 'href="/partners"' in html
+    assert not re.search(r"(€|\$|\bSEK\s*\d|\d\s*(SEK|EUR|kr)\b|per month|/month|response time)", html, re.I)
+
+
+@pytest.mark.parametrize("path", ["/", "/pricing", "/it"])
+def test_the_data_line_is_said_the_same_way(client, path):
+    assert DATA_STAYS in client.get(path).text
+
+
+def test_pricing_and_terms_are_linked_and_listed(client):
+    html = client.get("/").text
+    assert 'href="/pricing">Pricing</a>' in html and 'href="/terms">Preview terms</a>' in html
+    sitemap, llms = client.get("/sitemap.xml").text, client.get("/llms.txt").text
+    assert "/pricing</loc>" in sitemap and "/terms</loc>" in sitemap and "/pricing)" in llms and "/terms)" in llms
+
+
+def test_it_says_where_the_data_goes_and_who_publishes_the_app(client):
+    html = client.get("/it").text
+    assert html.index('id="data-goes"') < html.index('id="who"')
+    assert "deploy/krusgraph.sh" in html and "Krusgraph does not host your data or apps" in html
+    assert "Verified publisher: Kruse Consulting AB (Microsoft Entra publisher verification)" in html
+    assert "nothing about its security" in html and "admin consent" in html
+    assert "7183870" not in html and 'id="unavailable">If Gustav is unavailable' in html and 'href="/docs#test-status"' in html
+    assert 'href="/terms"' in html
+
+
+def test_terms_are_marked_as_a_preview_and_invent_nothing(client):
+    from fabric_backend.pages import TERMS_UPDATED
+    html = client.get("/terms").text
+    assert f"Preview terms, last updated {TERMS_UPDATED}" in html and "dry_run=false" in html
+    assert 'href="/privacy"' in html and 'href="/it"' in html and "MIT licence" in html
+    for word in ("liability", "governing law", "jurisdiction", "notice period", "SLA", "uptime", "warranty"):
+        assert word.lower() not in html.lower(), word
+
+
+def test_the_pilot_page_shows_the_example_and_the_scope(client):
+    html = client.get("/partners").text
+    for text in ("Why does order value differ between two reports?", "The order amount is repeated when orders are joined to order lines.",
+                 "How should returns be treated?", "What is not included", "an assessment with a clear end", 'href="/pricing"'):
+        assert text in html, text
+
+
+def test_check_leads_to_the_pilot_once(client):
+    html = client.get("/check").text
+    assert html.count('id="check-pilot"') == 1 and "Have a similar question in your own data?" in html
+
+
+@pytest.mark.parametrize("path", CLAIM_PAGES + ["/terms", "/pricing"])
+def test_no_page_promises_what_is_not_true(client, path):
+    """n58: no "always free"; the hosted service with Claude is not "in your environment" or kept "in Europe" end to end."""
+    low = re.sub(r"\s+", " ", client.get(path).text.lower())
+    for phrase in ("always free", "runs in your environment", "never leaves europe"):
+        assert phrase not in low, (path, phrase)

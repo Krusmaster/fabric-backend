@@ -1,6 +1,6 @@
 // Round n52: where a first-time visitor's ways in sit on the screen. Prints JSON with the top and bottom (px from the
 // top of the page) of the start page's hero buttons and of /check's examples, at 1280 x 800 and 375 x 812, light and
-// dark, with and without reduced motion, plus what Tab reaches first on the start page.
+// dark, with and without reduced motion, plus what Tab reaches first on the start page. (13 Tabs since n58 added Pricing to the menu.)
 const { chromium } = require('playwright');
 (async () => {
   const [base, exe] = process.argv.slice(2);
@@ -18,7 +18,7 @@ const { chromium } = require('playwright');
         }));
         if (v.endsWith('light-no-preference')) {
           const seen = [];
-          for (let i = 0; i < 12; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
+          for (let i = 0; i < 13; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
           out[`tab@${w}`] = seen;
         }
         await page.goto(base + '/check', { waitUntil: 'load' });

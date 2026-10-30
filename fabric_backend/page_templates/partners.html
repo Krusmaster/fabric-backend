@@ -16,14 +16,26 @@
   </div>
 </section>
 <section class="wrap" style="padding-top:0">
-  <div class="grid-3">
-    <div class="card soft"><h2 class="h3">What you bring</h2><ul class="muted plain-list"><li>one bounded area and one question in your own words, such as the orders and invoices behind a monthly figure</li><li>access to the data: a read-only sign-in, an export of the tables (Excel or CSV), or to begin with only the column names</li><li>one person who knows the concepts: what an order, a customer or an amount means in your business</li></ul><p class="muted tiny">No customer data is needed for a first conversation; the column names are enough to start.</p></div>
-    <div class="card soft"><h2 class="h3">What you get</h2><ul class="muted plain-list"><li>a picture of how the tables connect, with the rule behind each link</li><li>documented checks against the data (keys, references, amounts at the wrong level) and a list of open questions</li><li>when the material is sufficient, a read-only overview: a data dictionary, views or a semantic model draft built from the reviewed plan</li></ul></div>
-    <div class="card soft"><h2 class="h3">When it is done</h2><p class="muted">The question can be answered against an agreed reference, such as a figure finance already reports, and someone on your side who knows the concepts signs it off.</p><p class="muted tiny">Until then, the open questions say what is missing and who can supply it.</p></div>
+  <p class="muted" style="max-width:64ch">A pilot is a bounded first assignment. The typical starting point: a report whose total does not add up, such as order value in order-to-cash. <a href="/pricing">Pricing and how to buy</a>.</p>
+  <div class="grid-2">
+    <div class="card soft"><h2 class="h3">What you bring</h2><ul class="muted plain-list"><li>one question, in your own words</li><li>one bounded data area, such as the orders and invoices behind a monthly figure</li><li>a reference figure or report to check against</li><li>one person from the business who owns the question and knows what an order, a customer or an amount means</li><li>read access: a read-only sign-in, an export of the tables (Excel or CSV), or to begin with only the column names</li></ul><p class="muted tiny">No customer data is needed for a first conversation; the column names are enough to start.</p></div>
+    <div class="card soft"><h2 class="h3">What you get</h2><ul class="muted plain-list"><li>a reviewed basis and documented decisions</li><li>the plan: how the tables connect, with the rule behind each link</li><li>a check against the data (keys, references, amounts at the wrong level)</li><li>a semantic model built from the reviewed plan</li><li>drafts, such as a data contract or a domain proposal, marked as drafts</li></ul></div>
+    <div class="card soft"><h2 class="h3">What is not included</h2><ul class="muted plain-list"><li>an open-ended implementation or a migration</li><li>data areas beyond the one agreed</li><li>running or operating your reports or pipelines</li><li>deciding your business definitions for you: your person decides, we document</li></ul></div>
+    <div class="card soft"><h2 class="h3">If the material is not enough</h2><p class="muted">You get an assessment with a clear end instead of an open-ended implementation: what was checked, what is missing (knowledge, material or access, or something not supported yet) and who can supply it.</p></div>
   </div>
-  <div class="grid-2" style="margin-top:20px">
-    <div class="card"><h2 class="h3">First assessment</h2><p class="muted" style="margin:0">From what you bring, often in one meeting: we read the material with {{PRODUCT}}, run the checks it allows, and end with one of five answers: enough to start, we need your knowledge about something, material is missing, access is missing, or it is not supported yet. No percentage of readiness, and nothing is built.</p></div>
-    <div class="card"><h2 class="h3">Delivery</h2><p class="muted" style="margin:0">Once the assessment says there is enough to start: connect to the data, review the relationships together, settle the open questions with your person who knows the concepts, and build the chosen read-only result from the plan you agreed on. It is done when the question checks out against the reference and is signed off.</p></div>
+  <div class="card" style="margin-top:20px">
+    <h2 class="h3" id="example">An example delivery</h2>
+    <p class="muted tiny">Synthetic data: the shop schema used in the demo. Not a customer case.</p>
+    <div class="table-wrap" tabindex="0"><table class="pilot-example">
+      <tbody>
+        <tr><th scope="row">The question</th><td>Why does order value differ between two reports?</td></tr>
+        <tr><th scope="row">What was found</th><td>The order amount is repeated when orders are joined to order lines.</td></tr>
+        <tr><th scope="row">The check</th><td>The sum is compared with an agreed reference.</td></tr>
+        <tr><th scope="row">The customer’s decision</th><td>The team confirms which definition of order value applies.</td></tr>
+        <tr><th scope="row">Open question</th><td>How should returns be treated?</td></tr>
+        <tr><th scope="row">The result</th><td>A reviewed basis and documented decisions to build on.</td></tr>
+      </tbody>
+    </table></div>
   </div>
   <div class="card" style="margin-top:20px">
     <h2 style="font-size:26px">How a pilot could run</h2>

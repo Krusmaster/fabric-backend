@@ -53,6 +53,10 @@ PAGES = {
                    "Start from an undocumented lakehouse, a join to check or an app to build. Ten illustrative schemas show what {{PRODUCT}} proposes, where it can go wrong and what still needs your judgement.", "usecases"),
     "/it": ("it.html", "For your IT department — {{PRODUCT}}",
             "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
+    "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
+                 "Check and the connector in Claude are free and open source (MIT); a pilot with named deliveries and ongoing work for a team are on request and invoiced. What is stored, permissions and how to buy.", "pricing"),
+    "/terms": ("terms.html", "Preview terms — {{PRODUCT}}",
+               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric without dry_run=false and your own permissions.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -61,6 +65,8 @@ PAGES = {
 # n53: who stands behind the product, in the maintainer's words (29 October 2026), and what is true of it and checkable.
 # Only these phrasings: tests/test_site.py keeps "partner", "certified", "endorsed" and "offices" off the site otherwise.
 BEHIND = ("Member of the Microsoft AI Cloud Partner Program", "Based in Uppsala, Sweden, and Bern, Switzerland")
+# n58: the date on /terms, changed by hand with the text
+TERMS_UPDATED = "30 October 2026"
 BUILT = ("Built for Microsoft Fabric", "Sign in with Microsoft Entra ID", "Hosted in Azure, Sweden Central")
 
 
@@ -82,6 +88,7 @@ def _vars() -> dict[str, str]:
         "BEHIND": " · ".join(BEHIND), "BUILT": " · ".join(BUILT),
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
+        "TERMS_UPDATED": TERMS_UPDATED,
         "ASSET_V": asset_version(),
         "PARTNER_SIGNIN": "1" if os.environ.get("PARTNER_SIGNIN", "").strip() in {"1", "true", "yes"} else "",
         # the privacy page states what this deployment keeps: console logs in Log Analytics or nowhere, org hashes or none
@@ -360,7 +367,7 @@ def before_after_html() -> str:
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot")]
+    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -438,7 +445,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">

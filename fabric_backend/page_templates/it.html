@@ -5,6 +5,19 @@
   <p class="lede">A page to forward. It says which permissions the {{PRODUCT}} app asks for in Microsoft Entra ID and why, what is stored, where and for how long, and how to revoke access. Every point comes from the open source code and its docs.</p>
   <p class="it-print-note"><button type="button" class="btn ghost small" data-print>Print this page</button> <span class="muted tiny">Or save it as a PDF from the print dialog.</span></p>
 
+  <h2 id="data-goes">Where your data goes</h2>
+  <p class="data-stays">Your data stays in your tenant: {{PRODUCT}} stores no table contents, the hosted service runs in the EU, or run it in your own Azure.</p>
+  <div class="table-wrap" tabindex="0"><table class="it-data">
+    <thead><tr><th>Where you use it</th><th>Where the data goes</th></tr></thead>
+    <tbody>
+      <tr><td><a href="/check">/check</a></td><td>In the browser. The files are read there and nothing in them leaves it.</td></tr>
+      <tr><td>Hosted ({{DOMAIN}})</td><td>Azure, Sweden Central. Answers pass through memory during the call; no table contents are saved.{{#IF LOGS_KEPT_DAYS}} Logs are kept {{LOGS_KEPT_DAYS}} days, without content (no table contents, query text or tokens).{{/IF}}{{#IF LOGS_NOT_KEPT}} Console logs are not stored.{{/IF}}</td></tr>
+      <tr><td>In your own Azure</td><td>The same open-source code and script (<code>deploy/krusgraph.sh</code>), in your tenant and your region. Nothing passes through Kruse Consulting.</td></tr>
+      <tr><td>Your AI client (such as Claude)</td><td>Receives the tools’ answers (names, counts, sample rows when asked for), under your organisation’s agreement with the AI provider.</td></tr>
+    </tbody>
+  </table></div>
+  <p class="muted tiny">{{PRODUCT}} does not host your data or apps. What it creates in Fabric is created in your workspace, with your permissions.</p>
+
   <h2 id="who">Who stands behind it</h2>
   <ul class="it-facts">
     <li>{{PRODUCT}} is made and run by Kruse Consulting AB{{ORGNR_PAREN}}.</li>
@@ -32,6 +45,7 @@
       <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>Reading table and column names from the SQL analytics endpoint, running the counting checks, returning sample rows when asked, and creating the views the person asks for.</td></tr>
     </tbody>
   </table></div>
+  <p id="verified-publisher"><strong>Verified publisher: Kruse Consulting AB (Microsoft Entra publisher verification).</strong> The publisher domain is {{DOMAIN}}. Publisher verification confirms who publishes the app; it says nothing about its security. Your administrator can still require admin consent before anyone uses it.</p>
   <p class="muted tiny">The app does not ask for <code>DataPipeline.Execute.All</code>: it cannot run or schedule pipelines. The full list per tool, with the Fabric REST operation behind each permission, is in <a href="{{GITHUB}}/blob/main/docs/SCOPES.md" rel="noopener">docs/SCOPES.md</a>.</p>
 
   <h2 id="stored">What is stored, where and for how long</h2>
@@ -53,6 +67,17 @@
     <li>A person can disconnect the connector in their MCP client (in Claude: Settings → Connectors).</li>
     {{#IF CLIENT_REGISTRATION}}<li>Sign-in approvals for MCP clients other than Claude are withdrawn on request to {{CONTACT}}.</li>{{/IF}}
   </ul>
+
+  <h2 id="unavailable">If Gustav is unavailable</h2>
+  <ul>
+    <li>The code is open: your team can run {{PRODUCT}} in your own Azure with the same script (<code>deploy/krusgraph.sh</code>) and your own Entra app.</li>
+    <li>No customer data is stored with us, so there is nothing of yours to retrieve.</li>
+    <li>Access is revoked in your own tenant, as described under <a href="#revoke">How to revoke access</a>; it does not need us.</li>
+    <li>What each tool has been tested with, per version: <a href="/docs#test-status">test status per tool</a>.</li>
+  </ul>
+
+  <h2 id="terms">Terms</h2>
+  <p>The service is a preview: <a href="/terms">Preview terms</a>. Pilots and team work: <a href="/pricing">Pricing</a>.</p>
 
   <h2 id="open-source">The code is open</h2>
   <p>{{PRODUCT}} is open source under the MIT licence: the engine, the inference rules, the server and the deployment are on <a href="{{GITHUB}}" rel="noopener">GitHub</a>. Your team can read what each tool does, or host {{PRODUCT}} in your own Azure subscription with your own Entra app.</p>
