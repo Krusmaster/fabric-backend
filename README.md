@@ -98,7 +98,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, thirty-six tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, thirty-seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -115,6 +115,9 @@ same plan into the week's deliverables, all unit-tested and run against the demo
   relationship is missing.
 - `data_dictionary` — hand-over documentation in Markdown with an empty Description column; `validate=true` adds counts.
 - `dbt_schema` — a dbt sources file with `unique`, `not_null` and `relationships` tests (`fabric_backend/dbt.py` cites the dbt docs).
+- `domain_draft` — proposed domains (candidate data products) from the plan's graph, the relationships that cross them,
+  unassigned tables and one ODCS v3.2.0 data contract per domain; Fabric domains are created by the customer's admin
+  ([docs/DOMAINS.md](docs/DOMAINS.md)). Unit tests only.
 - `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change.
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
