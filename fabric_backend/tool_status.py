@@ -51,6 +51,9 @@ LATER_LIVE = {
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
 REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026"}
+# The creating tools without a dry_run argument: they write on the call. The site's sentences about dry runs render from
+# this, and tests/test_site.py checks it against the tools' signatures in server.py.
+NO_DRY_RUN = ("create_backend",)
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
@@ -176,6 +179,8 @@ def short(name: str) -> str:
     dates and Fabric's answers) is on /docs#test-status. A tool whose item has been reviewed in Fabric says so instead."""
     if name in REVIEWED:
         return "created live; reviewed in Fabric"
+    if name in LATER_LIVE:
+        return "created live"
     if STATUS[name].kind == CREATES and build_word(name) == "draft":
         return "draft; deployment not yet verified"
     w = word(name)
@@ -301,11 +306,11 @@ def source_word(tested: bool) -> str:
 
 
 def build_word(tool: str) -> str:
-    """"creates" only for what has been created live on the hosted service, "updates" for what has only been updated in
-    place there; "draft" for the rest, whose
-    tools ran live only as drafts or dry runs, or not yet."""
+    """"creates" only for what has been created live on the hosted service (in the live run or, LATER_LIVE, after it),
+    "updates" for what has only been updated in place there; "draft" for the rest, whose tools ran live only as drafts
+    or dry runs, or not yet."""
     s = STATUS[tool]
-    if s.kind == CREATES and s.live and not s.dry_run_only:
+    if s.kind == CREATES and (tool in LATER_LIVE or (s.live and not s.dry_run_only)):
         return "updates" if tool in LIVE_RUN_PARTLY else "creates"     # create_backend: live only as an update in place (n30)
     return "draft"
 

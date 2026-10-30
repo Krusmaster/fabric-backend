@@ -217,7 +217,7 @@ def test_build_gives_a_power_bi_project_and_an_app_starter_from_the_same_plan(ki
     assert pbir["datasetReference"]["byPath"]["path"] == f"../{r['name']}_model.SemanticModel"
     assert f"{r['name']}_model.SemanticModel/definition/model.tmdl" in names and f"{r['name']}_model.SemanticModel/definition.pbism" in names
     readme = model.read("README.md").decode()
-    assert ts.label("semantic_model_draft") in readme and "Not yet tried: opening this project in Power BI Desktop" in readme
+    assert ts.label("semantic_model_draft") in readme and "Opened in Power BI Desktop on 30 October 2026" in readme
     app = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_app.zip"])))
     assert "app/rayfin/connectors/data/schema.ts" in app.namelist() and "app/lovable-prompt.md" in app.namelist()
     assert r["status"] == {"model": ts.label("semantic_model_draft"), "report": "Draft only", "create_model": ts.short("create_semantic_model"),

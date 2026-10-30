@@ -82,7 +82,7 @@
 <section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
   <h2 id="data-h">What {{PRODUCT}} reads</h2>
   <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
-  <p class="data-stays">Your data stays in your tenant: {{PRODUCT}} stores no table contents, the hosted service runs in the EU, or run it in your own Azure. <a href="/it#data-goes">Where your data goes</a>.</p>
+  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything in your tenant. <a href="/it#data-goes">Where your data goes</a>.</p>
   <ul class="trust">
     <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
     <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
@@ -105,7 +105,7 @@
   <details><summary>Do you touch my data?</summary>
     <p>Planning reads schema metadata only: workspace, item, table and column names and types. The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
   <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
-    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. The one tool without a dry run, <code>create_backend</code>, creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
+    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. The one tool without a dry run, <code>{{NO_DRY_RUN_TOOLS}}</code>, creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
   <details><summary>What does my IT department need to approve?</summary>
     <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
   <details><summary>Can I try it without Fabric?</summary>

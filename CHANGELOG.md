@@ -5,6 +5,18 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n66: three contradictions in the trust texts, found by an external review of the live site on 30 October
+  2026, text only. "Your data stays in your tenant" (home, /it, /pricing) is replaced by the same sentence on all
+  three pages: Krusgraph stores no table contents; names, counts and requested sample rows pass through in memory and
+  reach the AI client; EU hosting, or your own Azure to keep everything in your tenant ("stays in your tenant" is
+  now a banned phrase in tests). /it and /docs say about tokens exactly what /privacy says: Claude's in memory only;
+  other MCP clients' sign-ins encrypted in Table Storage for the times /privacy gives, linked. The dry-run sentence
+  on /terms, home, /it and /docs renders from `tool_status.NO_DRY_RUN` (create_backend has none), and a test holds it
+  to the signatures in server.py. `build_word` and `short` count a tool created live after the run (`LATER_LIVE`)
+  as created, so the hub and the docs no longer say "draft" beside "created live" for the ontology and the
+  silver notebooks; the docs' hand-written statuses render from tool_status. The Power BI project from /check was
+  opened in Power BI Desktop on 30 October 2026, and /check and its README say so. Anchor links in the docs
+  Markdown render as links.
 - Round n65: `deploy/krusgraph.sh --doctor` prints one table of the service's state (server and build, the
   certificate's expiry, the Entra client secret's expiry as dates only, replicas, domain binding, Log Analytics,
   budget), reads only; `--budget` creates a cost budget on the resource group with e-mail from two new keys,

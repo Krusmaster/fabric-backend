@@ -122,7 +122,7 @@ same plan into the week's deliverables, all unit-tested and run against the demo
 
 Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked. On 27 October 2026 all three ran as dry runs against the demo lakehouse; creating with any of them is unit-tested only. The delegated permissions they need, against what the app has today, and
+mocked. On 27 October 2026 all three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
@@ -227,7 +227,8 @@ each user's token is validated (issuer per tenant, audience = the app, signature
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
 Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
 `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata, the counts from the checks, requested sample rows
-and query results pass through the server in memory only; there is no database. Each tool call leaves an anonymous
+and query results pass through the server in memory only and are not kept; Claude's tokens stay in memory, and the only
+stored records are the encrypted sign-in records of other MCP clients described below. Each tool call leaves an anonymous
 usage record, and `/privacy` says which technical logs the deployment keeps. MCP clients other than Claude (VS Code, Cursor, Glama)
 register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_CLIENT_REGISTRATION=1` serves them at
 `/mcp/connect` through Krusgraph's own authorization server at `/oauth` in front of Entra: Client ID Metadata Documents,

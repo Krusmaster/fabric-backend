@@ -58,7 +58,7 @@ PAGES = {
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
                  "Check and the connector in Claude are free and open source (MIT); a pilot with named deliveries and ongoing work for a team are on request and invoiced. What is stored, permissions and how to buy.", "pricing"),
     "/terms": ("terms.html", "Preview terms — {{PRODUCT}}",
-               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric without dry_run=false and your own permissions.", ""),
+               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric unless you ask for it (a dry run first for every tool but create_backend) and only with your own permissions.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -91,6 +91,8 @@ def _vars() -> dict[str, str]:
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "TERMS_UPDATED": TERMS_UPDATED,
+        # the creating tools without a dry run, from tool_status (a test checks them against the signatures in server.py)
+        "NO_DRY_RUN_TOOLS": _listed(list(ts.NO_DRY_RUN)),
         "ASSET_V": asset_version(),
         "PARTNER_SIGNIN": "1" if os.environ.get("PARTNER_SIGNIN", "").strip() in {"1", "true", "yes"} else "",
         # the privacy page states what this deployment keeps: console logs in Log Analytics or nowhere, org hashes or none
@@ -221,7 +223,7 @@ def _md_to_html(md: str) -> str:
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
+        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:|#)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
         s = re.sub(r"(?<![\"'>])(https://[^\s<]+[^\s<.,)])", r'<a href="\1">\1</a>', s)
         return s
 

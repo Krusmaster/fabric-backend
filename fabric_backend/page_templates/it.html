@@ -6,7 +6,7 @@
   <p class="it-print-note"><button type="button" class="btn ghost small" data-print>Print this page</button> <span class="muted tiny">Or save it as a PDF from the print dialog.</span></p>
 
   <h2 id="data-goes">Where your data goes</h2>
-  <p class="data-stays">Your data stays in your tenant: {{PRODUCT}} stores no table contents, the hosted service runs in the EU, or run it in your own Azure.</p>
+  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything in your tenant.</p>
   <div class="table-wrap" tabindex="0"><table class="it-data">
     <thead><tr><th>Where you use it</th><th>Where the data goes</th></tr></thead>
     <tbody>
@@ -30,7 +30,7 @@
   </ul>
 
   <h2 id="permissions">What the Entra app asks for, and why</h2>
-  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions.</p>
+  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions. Every creating tool except <code>{{NO_DRY_RUN_TOOLS}}</code> answers with what it would create until it is called with <code>dry_run=false</code>; <code>{{NO_DRY_RUN_TOOLS}}</code> has no dry run and creates or updates the one API for GraphQL named in the call.</p>
   <div class="table-wrap" tabindex="0"><table class="it-scopes">
     <thead><tr><th>Permission</th><th>In plain words</th></tr></thead>
     <tbody>
@@ -51,7 +51,7 @@
   <h2 id="stored">What is stored, where and for how long</h2>
   <ul>
     <li><strong>No table contents.</strong> Metadata (workspace, item, table and column names and types), the counts from checks, sample rows and query results pass through {{PRODUCT}} to the person’s MCP client and are not kept after the request.</li>
-    <li><strong>Tokens</strong> are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only.</li>
+    <li><strong>Tokens.</strong> From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs.{{#IF CLIENT_REGISTRATION}} From MCP clients other than Claude (VS Code, Cursor, Glama and others, which sign in through {{DOMAIN}}/oauth), the Microsoft tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until the client collects them (at most 60 seconds), and Microsoft’s refresh token stays there encrypted for as long as the client keeps renewing its access, at most 90 days, and is never given to the client; the <a href="/privacy#sign-in-from-mcp-clients-other-than-claude">privacy policy</a> has the details.{{/IF}}</li>
     <li><strong>A usage record per tool call</strong>: the tool’s name, the outcome, the duration and, for creating tools, whether it was a dry run{{#IF USAGE_ORG}}, plus a salted hash of the organisation’s tenant id{{/IF}}. No user id, no table or column names.</li>
     <li><strong>Where</strong>: the service runs in Azure, Sweden Central (EU).{{#IF LOGS_KEPT_DAYS}} The usage records and the technical console log (no IP addresses, headers, tokens or query text) go to a Log Analytics workspace in the same region and are deleted after {{LOGS_KEPT_DAYS}} days.{{/IF}}{{#IF LOGS_NOT_KEPT}} Console logs are not sent to any storage; nothing persists beyond the live console stream.{{/IF}}</li>
     <li>Microsoft Entra ID records sign-ins in your own tenant, as for any app.</li>

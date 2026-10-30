@@ -184,7 +184,7 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
 
 def test_docs_describe_the_data_path(client):
     html = client.get("/docs").text
-    assert 'id="what-it-accesses"' in html and "held in memory only" in html and "no database" in html
+    assert 'id="what-it-accesses"' in html and "From Claude, your tokens" in html and "held in memory only" in html and "no database" in html
     assert "https://krusgraph.test/mcp" in html and "client_id=cid-123" in html
     assert "<td><code>create_backend</code></td>" in html
     for code, text in infer.RULES.items():                                                 # the rules table comes from the engine
@@ -576,7 +576,7 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
         text = client.get(path).text
         plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))
         low = plain.lower()
-        for banned in ("every tool", "nothing stored", "stores nothing", "never data"):
+        for banned in ("every tool", "nothing stored", "stores nothing", "never data", "stays in your tenant"):   # n66: the last one
             assert banned not in low, (path, banned)
         for sentence in re.split(r"(?<=[.;!?])\s+", plain):
             if "cursor" not in sentence.lower():
@@ -804,7 +804,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     """Gustav's brief of 27 October 2026: under the hero a hub, "Your data in Fabric" and "What Krusgraph builds in
     Fabric" on the left, Krusgraph in the middle ("one plan, the rule behind every relationship"), "Where you build" on
     the right, joined by lines as in the graph; text names only, no third-party logos; the disclaimer word for word. A
-    built part says "creates" only when tool_status records it created live on the hosted service (the GraphQL API),
+    built part says "creates" only when tool_status records it created live on the hosted service (in the live run or after it),
     "draft" otherwise; the warehouse and the SQL database, not yet read live, are marked experimental. With client
     registration off, the only MCP client named is Claude."""
     from fabric_backend import tool_status as ts
@@ -815,8 +815,8 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                                                                        "SQL database": "experimental"}
     built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
     assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
-    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "draft", "views": "draft",
-                     "data agent": "draft", "silver notebooks": "draft"}                  # the live test of 27 October 2026
+    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "creates", "views": "draft",
+                     "data agent": "draft", "silver notebooks": "creates"}        # the live test of 27 October 2026 and LATER_LIVE (n66)
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
                                                      '<span class="hub-tag hub-experimental">experimental</span>')]
@@ -828,8 +828,8 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
         assert other not in plain, other
     for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
                  "one plan, with the rule behind every relationship",
-                 "it creates the Power BI semantic model; it updates an existing GraphQL API (creating a new one is experimental)",
-                 "Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
+                 "it creates the Power BI semantic model, Fabric IQ ontology and silver notebooks; it updates an existing GraphQL API (creating a new one is experimental)",
+                 "views and data agent are drafts so far",
                  "Claude connects to Krusgraph through MCP",
                  "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
@@ -862,7 +862,7 @@ def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkey
     row, visual, groups, said = _hub(client)
     assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
     assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
-    assert re.search(r"it creates the [^;]*views; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
+    assert re.search(r"it creates the [^;]*views[^;]*; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
@@ -1148,8 +1148,10 @@ def test_the_old_demo_addresses_redirect_to_check(client):
 
 
 # ------------------------------------------------------------------ n58: /pricing, where the data goes, preview terms ---
-DATA_STAYS = ("Your data stays in your tenant: Krusgraph stores no table contents, the hosted service runs in the EU, "
-              "or run it in your own Azure.")
+# n66: the review of 30 October 2026: no "stays in your tenant" (names, counts and requested sample rows reach the AI client)
+DATA_STAYS = ("Krusgraph stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory "
+              "and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything "
+              "in your tenant.")
 
 
 def test_pricing_has_three_columns_without_amounts(client):
@@ -1210,3 +1212,44 @@ def test_no_page_promises_what_is_not_true(client, path):
     low = re.sub(r"\s+", " ", client.get(path).text.lower())
     for phrase in ("always free", "runs in your environment", "never leaves europe"):
         assert phrase not in low, (path, phrase)
+
+
+# ------------------------------------------------------------------ n66: the trust texts agree with the code ---------
+def test_the_dry_run_claim_matches_the_tool_signatures(client):
+    """The review of 30 October 2026: /terms, /, /it and /docs say that every creating tool but create_backend answers
+    with what it would create until dry_run=false. tool_status.NO_DRY_RUN names the exceptions and renders into the
+    pages; the signatures in server.py decide what it must say."""
+    import inspect
+    from fabric_backend import server, tool_status as ts
+    creating = [t for t in ts.STATUS if ts.STATUS[t].kind == ts.CREATES]
+    params = {t: inspect.signature(getattr(server, t)).parameters for t in creating}
+    assert {t for t in creating if "dry_run" not in params[t]} == set(ts.NO_DRY_RUN) == {"create_backend"}
+    assert all(params[t]["dry_run"].default is True for t in creating if t not in ts.NO_DRY_RUN)
+    for path, text in (("/terms", "every creating tool except <code>create_backend</code> answers with what it would create until it is "
+                                  "called with <code>dry_run=false</code>, and <code>create_backend</code>, which has no dry run,"),
+                       ("/", "The one tool without a dry run, <code>create_backend</code>, creates or updates only the GraphQL API you name."),
+                       ("/it", "Every creating tool except <code>create_backend</code> answers with what it would create until it is called "
+                               "with <code>dry_run=false</code>; <code>create_backend</code> has no dry run"),
+                       ("/docs", "Every creating tool except <code>create_backend</code> answers with what it would create until you pass "
+                                 "<code>dry_run=false</code>. <code>create_backend</code> creates or updates directly and has no dry run")):
+        assert text in client.get(path).text, path
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_it_and_docs_say_where_tokens_are_kept_as_exactly_as_privacy(client, monkeypatch, registration):
+    """Claude's tokens stay in memory; sign-ins from other MCP clients (client registration on) keep encrypted records
+    for the times /privacy gives, and /it and /docs say so in the same words and link there."""
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    it, docs, privacy = (client.get(p).text for p in ("/it", "/docs", "/privacy"))
+    assert "From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs." in it
+    assert "From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk or logs." in docs
+    for text in (" are kept encrypted in ", "at most 60 seconds", "at most 90 days", "never given to the client",
+                 'href="/privacy#sign-in-from-mcp-clients-other-than-claude"'):
+        assert (text in it) == bool(registration) and (text in docs) == bool(registration), (text, registration)
+    if registration:
+        assert 'id="sign-in-from-mcp-clients-other-than-claude"' in privacy and "at most 90 days" in privacy
+        assert "an Azure Table Storage table of ours" in it and "an Azure Table Storage table of ours" in docs and "an Azure Table Storage table of ours" in privacy
+    else:
+        assert "There is no database and no file storage." in docs
+    for page in (it, docs):
+        assert "held in memory only; there is no database" not in page and "Tokens</strong> are exchanged" not in page
