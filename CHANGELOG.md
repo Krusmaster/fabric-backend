@@ -26,6 +26,24 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   model, with the ontology agent; links to Learn) and the one angle of `docs/FAQ-COMPETITION.md`: Krusgraph creates the
   ontology item; the evidence step comes before it. `domains.draft` and `domains.contract` take an optional `extra`
   (more top-level custom properties) for `/check`. `docs/SCOPES.md` was not touched: Docs and submission is n72's.
+- Round n72: a second knowledge pack, `younium_salesforce` (`fabric_backend/packs/younium_salesforce/`, modules `younium` and
+  `salesforce`): Younium's API v2 objects (accounts, products with charge plans and charges, subscriptions with versions
+  and charges, sales orders, invoices with lines, payments) beside the Salesforce standard objects the Younium connector
+  meets (Account, Contact, Opportunity, OpportunityLineItem, Product2, PricebookEntry, Order, OrderItem, Contract), 20
+  tables, 33 relationships (the Younium account to its Salesforce Account through External CRM Id; the links an invoice
+  line carries by number are listed, not applied) and 13 traps (versions, amounts on lines, MRR/ARR as measures, one
+  currency per account, usage charges, 15- against 18-character Salesforce ids, one customer as two account rows).
+  Every source is marked unverified with the date: developer.younium.com, support.younium.com and
+  developer.salesforce.com could not be opened from the session that wrote it (`docs/YOUNIUM-SALESFORCE.md` has the
+  list and the questions for someone who runs the integration). The loader reads a system prefix (`younium_`, `sf_`,
+  `salesforce_`, `crm_`) past like `sap_`, compares columns without case or underscores (`externalCrmId` and
+  `external_crm_id` alike), and gains `match_any` (the pack that recognises most of a schema) and `plan_with` (a plan with
+  a pack's keys and relationships as the caller's); the engine still calls `match` for the SAP pack alone, so the new
+  pack is not applied by `plan_backend` or `/check` yet. The pack schema gets an optional `area` per table, which the
+  domain proposal uses for a domain's name (billing, customers and sales), an optional Swedish name, and the level
+  `version`. A synthetic demo, `fabric_backend/younium_demo.py` (14 tables, 58 rows, no real party), with a planted
+  15-character id and an invoice total over three lines; the benchmark gains it as a fifth set, the four rows from
+  before unchanged.
 - Round n71: the amount that is not there. A line table with a quantity (`order_items.quantity`) and no amount of its own,
   pointing at a table that carries the price (`products.list_price`), gets the measure `Order amount` =
   `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` in `semantic_model_draft` and

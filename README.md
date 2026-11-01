@@ -4,7 +4,7 @@
 
 - The proof: every key and link comes with the rule or source behind it, and is checked against your data.
 - The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. The next pack, for the Nordic ERP systems, is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
+- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. A second pack describes Younium subscription billing beside Salesforce (accounts and their External CRM Id, subscription versions, charges, invoices with lines, payments); its sources could not be opened from the session that wrote it and it is marked unverified throughout, and the engine does not apply it yet ([docs/YOUNIUM-SALESFORCE.md](docs/YOUNIUM-SALESFORCE.md)). The pack for the Nordic ERP systems is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
 Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
