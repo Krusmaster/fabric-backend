@@ -98,7 +98,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, thirty-seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, thirty-eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -120,19 +120,23 @@ same plan into the week's deliverables, all unit-tested and run against the demo
   ([docs/DOMAINS.md](docs/DOMAINS.md)). Unit tests only.
 - `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change.
 
-Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
-would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked. On 27 October 2026 all three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
+Four more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
+would be created, each creating or updating in place under a name and never deleting (`create_report` only creates); all unit-tested with Fabric
+mocked. On 27 October 2026 the first three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day; `shop_model` updated in place from Lovable on 30 October 2026) and `create_report` created `shop_report_live` and `shop_report` live on 30 October 2026 (opened and reviewed in the Fabric portal the same day), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
-  `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (not granted today).
+  `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (`Item.ReadWrite.All` granted since 28 October 2026).
 - `create_views` — `CREATE OR ALTER VIEW` in a schema of its own (`krusgraph`) on the SQL analytics endpoint or
   warehouse: a wide view per fact table, one per header table (`vw_orders`: each order with its customer and, once
   `orders.ship_to_id` is confirmed, its ship-to address; in the dry run of 27 October, not yet created live) and one per hard-to-read
   relationship; needs no new scope, only the SQL right to create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
-  data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
+  data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (granted since 28 October 2026).
+- `create_report` — an empty Power BI report (one blank page, no visuals) bound to an existing semantic model
+  (`POST /reports` with `creationPayload.semanticModelReference`); a report of that name is left alone, never updated or
+  deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`. Experimental; created live on 30 October 2026
+  (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day.
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
   backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
   app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
@@ -451,6 +455,17 @@ counted a relationship the API has under another field name as removed (it now k
 also holds the view `krusgraph.vw_order_items`, so `create_views` has created a view at some point, but no protocol of
 that run exists: creating with it stays Experimental.
 
+**28 to 30 October 2026: creating calls after the run** (the protocol per tool: `docs/LIVE-TEST.md`, section 6). On 28
+October, after the Entra app got `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All`,
+`create_silver_notebook` created `silver_shop`, `create_gold_views` `gold_shop`, `create_drift_monitor` (`schedule=false`)
+`drift_shop` and `drift_shop_nightly` (none run in Fabric), and `create_ontology` created `shop_ontology` once the
+tenant setting for ontology items was on (reviewed in the Fabric portal on 29 October). On 29 October
+`create_semantic_model` created `shop_model_live` (refreshed and reviewed in the portal the same day). On 30 October
+`create_report` created `shop_report_live` (dry run first, then `dry_run=false`) and, from Lovable as an MCP client
+signed in at `/mcp/connect`, `shop_report`; Gustav opened `shop_report` in the portal, added a visualisation and saw
+data. Lovable also updated `shop_api` and `shop_model` in place that day, and a Lovable app reads `shop_api` live
+(orders, customers, ship-to addresses). Creating a new API with `create_backend` has still not run live.
+
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and
 the three fixes that came out of it are in [issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a
@@ -459,7 +474,8 @@ of the definition is stored as *Enabled* — so all five are now always spelled 
 `npx rayfin up` in the same sandbox on 2026-10-22 ([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)):
 deploy accepted, composite keys and `@date` columns work, the four-hop chain resolves through the connector's GraphQL
 item. Reading through the Rayfin browser client was not tested (app auth needs `Item.Execute.All`). Lovable-side: the
-endpoint is consumed by Lovable's standard Fabric connector; nothing Lovable-specific is generated.
+endpoint is consumed by Lovable's standard Fabric connector (a Lovable app read `shop_api` live on 30 October 2026);
+nothing Lovable-specific is generated.
 
 ## Development
 

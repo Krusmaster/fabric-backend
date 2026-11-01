@@ -5,6 +5,19 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n69: the status words after the live runs of 30 October 2026, text only (no tool's name, title, annotations
+  or behaviour changed). `create_report` is "Experimental; created live on 30 October 2026 (shop_report_live,
+  shop_report), opened and reviewed in the Fabric portal by Gustav the same day" and, next to the offer, "created live;
+  reviewed in Fabric" (`LATER_LIVE`, `REVIEWED`). `create_backend`'s long form adds that `shop_api` was updated in
+  place again from Lovable and is consumed live by a Lovable app on 30 October 2026; `create_semantic_model`'s that
+  `shop_model` was updated in place from Lovable the same day. Lovable has a second row in `tool_status.CLIENTS`: via
+  MCP (/mcp/connect), Experimental, signed in with Entra through Krusgraph's OAuth (dynamic client registration) and ran
+  plan, check and creates on 30 October 2026; the /mcp/connect sentence names it with its date. The server's test
+  status sentence names the tools that have created items live since the run of 27 October instead of saying creating is
+  unit-tested only, and `semantic_model_draft`'s note no longer says the item is not yet created live. Docs: a 30 October
+  section in docs/LIVE-TEST.md (and a `create_report` row and a Lovable client row), `create_report` in docs/SCOPES.md,
+  the README's tool list and status, deploy/SUBMISSION.md row 5, and step 1 of docs/LOVABLE-END-TO-END.md no longer
+  blocks. The Fabric REST API was not called in this round.
 - Round n67: the TMDL writer never writes a document that holds only comments. On 30 October 2026 Power BI
   Desktop 2.151 opened the shop project from /check but refused the SAP one with "InvalidLineType ... Document:
   ./relationships, line 1": with no expressible relationship, `relationships.tmdl` had been one comment line. The file
