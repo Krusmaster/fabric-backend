@@ -144,12 +144,10 @@ class FakeFabric:
 # ------------------------------------------------------------------ the SQL endpoint ----------------------------
 
 def _sqlite(sql: str) -> str:
-    """T-SQL as the engine writes it → SQLite: COUNT_BIG is COUNT, TOP (n) becomes LIMIT n. Brackets SQLite reads as they are."""
-    sql = sql.replace("COUNT_BIG(", "COUNT(")
-    m = re.match(r"^\s*SELECT\s+TOP\s*\(?\s*(\d+)\s*\)?\s+", sql, re.I)
-    if m:
-        sql = "SELECT " + sql[m.end():] + f"\nLIMIT {int(m.group(1))}"
-    return sql
+    """T-SQL as the engine writes it → SQLite: COUNT_BIG is COUNT, TOP (n) becomes LIMIT n, also inside a subquery
+    (fabric_backend.dialects.sqlite_sql). Brackets SQLite reads as they are."""
+    from fabric_backend.dialects import sqlite_sql
+    return sqlite_sql(sql)
 
 
 def shop_database() -> sqlite3.Connection:

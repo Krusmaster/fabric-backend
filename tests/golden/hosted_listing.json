@@ -2557,7 +2557,7 @@
     "read_only_hint": true,
     "title": "Plan keys and relationships (nothing deployed)"
    },
-   "description": "Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and\nsource. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R4), ambiguous\ncolumns, keyless tables, suggested composite keys and a Mermaid ER diagram. Changes nothing in Fabric.\nvalidate_plan checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}.",
+   "description": "Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and\nsource. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous\ncolumns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns\nthe names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values\nof a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan\nchecks it against the rows; create_backend builds the API. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {

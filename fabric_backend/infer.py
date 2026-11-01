@@ -148,9 +148,16 @@ class Plan:
     pack: dict | None = None                               # what a knowledge pack recognised (sap_pack.py); None when none did
     extended: list = field(default_factory=list)          # ExtendedRelationship: joins on a unique non-key column or valid on a date
     proposed: list[dict] = field(default_factory=list)    # R5 candidates the rows did not support, each with its reason; never applied
+    counted: dict | None = None                            # what R5 counted in the rows: candidates, queries, sample (None: no rows read)
 
     def summary(self) -> str:
         lines = [f"{len(self.schema)} tables, {len(self.keys)} with keys, {len(self.relationships)} relationships"]
+        if self.counted and (self.counted.get("candidates") or self.counted.get("queries")):   # nothing to count: no line
+            c = self.counted
+            lines.append(f"R5 counted {c['candidates']} code or role column(s) in the rows: {c['queries']} counting query(ies)"
+                         + (f", at most {c['sample']} distinct values of a column each" if c.get("sample") else "")
+                         + (f"; {c['not_counted']} candidate(s) left for validate_plan or suggest_relationships (limit {c['max_queries']} queries)"
+                            if c.get("not_counted") else ""))
         if self.keyless:
             lines.append("no key (query only; can reference others, cannot be referenced): " + ", ".join(self.keyless))
         if self.ambiguous:
@@ -158,7 +165,8 @@ class Plan:
         if self.synonyms:
             lines.append(f"{len(self.synonyms)} name(s) read through the synonym table (translations, abbreviations) — see plan.synonyms")
         if self.proposed:
-            lines.append(f"{len(self.proposed)} code or role column(s) the rows did not support (R5), not applied — see plan.proposed")
+            lines.append(f"{len(self.proposed)} code or role column(s) proposed by R5, not applied (the rows did not support them, or they "
+                         "were not counted) — see plan.proposed")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
                          f"public sources (rule \"{self.pack['rule']}\"), to be checked with validate_plan — see plan.pack")
@@ -648,8 +656,11 @@ def _r5_candidates(schema: Schema, keys: dict[str, tuple[list[str], str]], linke
     return out
 
 
-def _r5_check(schema: Schema, execute, source: str, column: str, target: str, key: str, needs_key: bool) -> tuple[bool, str]:
-    """Count in the rows whether source.column can point at target.key: (supported, what was counted)."""
+def _r5_check(schema: Schema, execute, source: str, column: str, target: str, key: str, needs_key: bool,
+              sample: int | None = None, budget: list[int] | None = None) -> tuple[bool, str]:
+    """Count in the rows whether source.column can point at target.key: (supported, what was counted). `sample`: only
+    the first so many distinct values of the column are compared (one query either way). `budget`: a one-element list
+    with the counting queries still allowed; each query takes one, and at zero the candidate is not counted."""
     from . import evidence
     from .dialects import of as dialect_of
     s, b = schema[source], schema[target]
@@ -658,36 +669,54 @@ def _r5_check(schema: Schema, execute, source: str, column: str, target: str, ke
     if fa != fb:
         return False, f"{source}.{column} is {fa}, {target}.{key} is {fb}"
     dialect = dialect_of(execute)
+    need = 2 if needs_key else 1
+    if budget is not None and budget[0] < need:
+        return False, R5_NOT_COUNTED
+    if budget is not None:
+        budget[0] -= need
     try:
         if needs_key:
             row = (list(execute(evidence.key_sql(schema.schema, target, [key], dialect))) or [{}])[0]
             n, nulls, d = (evidence._int(row.get(x)) for x in ("n", "nulls", "distinct_keys"))
             if not n or nulls or d != n:
                 return False, f"{target}.{key} is not unique and non-NULL in the rows ({n} rows, {d} distinct, {nulls} NULL), so it is no key"
-        row = (list(execute(evidence.inclusion_sql(schema.schema, source, column, target, key, dialect))) or [{}])[0]
+        row = (list(execute(evidence.inclusion_sql(schema.schema, source, column, target, key, dialect, sample))) or [{}])[0]
     except Exception as e:                                         # noqa: BLE001 - a candidate the rows could not answer stays a proposal
         return False, f"could not count: {type(e).__name__}: {e}"
     with_value, matched, distinct = (evidence._int(row.get(x)) for x in ("with_value", "matched", "distinct_values"))
+    what = f"of the first {sample} distinct values of {source}.{column}" if sample and distinct >= sample else f"value(s) of {source}.{column}"
     if not with_value:
         return False, f"{source}.{column} has no values to compare"
     if matched != with_value:
-        return False, f"{with_value - matched} of {with_value} value(s) of {source}.{column} are not in {target}.{key}"
+        return False, f"{with_value - matched} of {with_value} {what} are not in {target}.{key}"
     if distinct < R5_MIN_DISTINCT:
         return False, f"{source}.{column} has {distinct} distinct value: too few to tell"
-    return True, f"{with_value} of {with_value} value(s) ({distinct} distinct) of {source}.{column} are in {target}.{key}, same type family ({fa})"
+    return True, (f"{with_value} of {with_value} {what} are in {target}.{key}, same type family ({fa})"
+                  + (" (a sample: validate_plan counts every row)" if sample and distinct >= sample else ""))
+
+
+R5_NOT_COUNTED = "not counted: the counting queries allowed in this call were used up; validate_plan or suggest_relationships confirm it"
 
 
 def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels: list[Relationship], ambiguous: list[dict],
-                    execute, pack_tables: set[str] | None = None) -> tuple[list[Relationship], dict[str, tuple[list[str], str]], list[dict]]:
+                    execute, pack_tables: set[str] | None = None, sample: int | None = None, max_queries: int | None = None,
+                    counted: dict | None = None) -> tuple[list[Relationship], dict[str, tuple[list[str], str]], list[dict]]:
     """R5: the code and role columns R0–R4 left unlinked, checked against the rows. Returns the relationships the rows
-    support, the keys R5 gave keyless targets, and the proposals with their reasons (plan.proposed)."""
+    support, the keys R5 gave keyless targets, and the proposals with their reasons (plan.proposed). `sample` and
+    `max_queries` bound the work for a tool that plans in one call (plan_backend): the first `sample` distinct values of
+    a column, one counting query per candidate target, at most `max_queries` of them; what is left over is proposed.
+    `counted`, a dict, receives the numbers (candidates, queries, not_counted)."""
     linked = {(r.source, c.lower()) for r in rels for c in r.source_cols} | {(a["table"], a["column"].lower()) for a in ambiguous}
     new_rels: list[Relationship] = []
     new_keys: dict[str, tuple[list[str], str]] = {}
     proposed: list[dict] = []
-    for cand in _r5_candidates(schema, keys, linked, pack_tables or set()):
+    budget = [int(max_queries)] if max_queries is not None else None
+    cands = _r5_candidates(schema, keys, linked, pack_tables or set())
+    not_counted = 0
+    for cand in cands:
         src, col = cand["source"], cand["column"]
-        results = [(b, k, nk) + _r5_check(schema, execute, src, col, b, k, nk) for b, k, nk in cand["targets"]]
+        results = [(b, k, nk) + _r5_check(schema, execute, src, col, b, k, nk, sample, budget) for b, k, nk in cand["targets"]]
+        not_counted += sum(1 for r in results if r[4] == R5_NOT_COUNTED)
         ok = [r for r in results if r[3]]
         if len(ok) == 1:
             b, k, nk, _, why = ok[0]
@@ -699,6 +728,9 @@ def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels
             reason = why if not supported else f"the rows fit {len(ok)} tables ({', '.join(r[0] for r in ok)}); which one is for a person to say"
             proposed.append({"source": src, "source_cols": [col], "target": b, "target_cols": [k], "rule": "R5", "kind": cand["kind"],
                              "reason": reason, "confirmed": {"source": src, "source_cols": [col], "target": b, "target_cols": [k]}})
+    if counted is not None:
+        counted.update({"rule": "R5", "candidates": len(cands), "queries": (int(max_queries) - budget[0]) if budget is not None else
+                        sum(2 if nk else 1 for c in cands for _, _, nk in c["targets"]), "not_counted": not_counted})
     return new_rels, new_keys, proposed
 
 
@@ -851,10 +883,12 @@ def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | Non
 
 
 def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None, packs: bool = True,
-         execute=None) -> Plan:
+         execute=None, sample: int | None = None, max_queries: int | None = None) -> Plan:
     """packs=False plans by the name rules alone, as before the knowledge packs (for comparison). With `execute` (a
     read-only query callable over the same tables) R5 also counts code and role columns in the rows; without it the
-    plan is exactly the plan by names."""
+    plan is exactly the plan by names. `sample` and `max_queries` bound R5 for a tool that plans in one call
+    (plan_backend: the first `sample` distinct values of a column, at most `max_queries` counting queries); the
+    candidates left over are in plan.proposed, and plan.counted says what was counted."""
     check_input(schema, keys, confirmed)
     summary, pack_keys, pack_rels, pack_tables = _pack(schema, keys) if packs else (None, {}, [], set())
     plain = lambda r: r.get("kind", "key") == "key" and not r.get("where")
@@ -873,8 +907,10 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
         rel_notes = []
         rels, amb = infer_relationships(schema, k, confirmed, rel_notes, pack_rels, pack_tables)
     proposed: list[dict] = []
+    counted: dict | None = None
     if execute is not None:                     # R5: code and role columns, only where the rows support them
-        r5, r5_keys, proposed = infer_from_rows(schema, k, rels, amb, execute, pack_tables)
+        counted = {"sample": int(sample) if sample else None, "max_queries": int(max_queries) if max_queries is not None else None}
+        r5, r5_keys, proposed = infer_from_rows(schema, k, rels, amb, execute, pack_tables, sample, max_queries, counted)
         if r5:
             k.update(r5_keys)
             rels += r5
@@ -885,7 +921,7 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
                                      cardinality=r.get("cardinality", "many-to-one"), where=list(r.get("where") or []))
                 for r in special if k.get(r["target"], ([], ""))[1] == PACK_RULE]
     return Plan(schema, k, rels, amb, keyless=[t.name for t in schema if t.name not in k], synonyms=notes + rel_notes, pack=summary,
-                extended=extended, proposed=proposed)
+                extended=extended, proposed=proposed, counted=counted)
 
 
 def _m(s: str) -> str:

@@ -220,18 +220,24 @@ def _execute_factory(item: dict, sql_token: str):
     return _fabric.connect(item, sql_token, LOGIN_TIMEOUT, QUERY_TIMEOUT)
 
 
-def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
+R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # plan_backend's R5: the first 200 distinct values of a candidate column, at most 20 counting queries
+
+
+def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = False):
+    """The plan of a source. `rows`: R5 also counts the code and role columns the name rules left unlinked, over the
+    open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES (plan_backend); the other tools plan by names alone."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
     execute = _execute_factory(item, auth.sql(ctx))
     try:
         s = _fabric.PLATFORM.read_schema(execute, schema)
+        if len(s) == 0:
+            raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
+        p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES) if rows else make_plan(s, keys, confirmed)
     finally:
         getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
-    if len(s) == 0:
-        raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
-    return make_plan(s, keys, confirmed), item, headers
+    return p, item, headers
 
 
 # ------------------------------------------------------------------ tools --------------------
@@ -364,10 +370,12 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                  mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
     """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
-    source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R4), ambiguous
-    columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Changes nothing in Fabric.
-    validate_plan checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
-    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
+    columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
+    the names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values
+    of a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan
+    checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]

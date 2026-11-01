@@ -13,7 +13,7 @@ python examples/benchmark/benchmark.py
 
 | Method | What it is here |
 | --- | --- |
-| Krusgraph | `plan()` with the rows (the rules behind plan_backend, with the SAP pack, plus R5, which counts code and role columns in the rows; plan_backend and `/check` still call `plan()` without rows and have no R5), `evidence.validate` (validate_plan: keys, orphans, amount levels) and `graphs.suggest` (suggest_relationships, 15 candidates checked against the rows). Only the plan counts as predicted; suggestions and R5 proposals (`plan.proposed`) count separately, as decisions for a person. |
+| Krusgraph | `plan()` with the rows (the rules behind plan_backend, with the SAP pack, plus R5, which counts code and role columns in the rows; since round n71 the hosted plan_backend runs R5 too, bounded to the first 200 distinct values of a column and 20 counting queries per call, while `/check` still calls `plan()` without rows), `evidence.validate` (validate_plan: keys, orphans, amount levels) and `graphs.suggest` (suggest_relationships, 15 candidates checked against the rows). Only the plan counts as predicted; suggestions and R5 proposals (`plan.proposed`) count separately, as decisions for a person. |
 | Approximation of documented autodetect rules | Not Power BI. A small implementation of what Microsoft Learn documents for *Autodetect during load* in [Create and manage relationships in Power BI Desktop](https://learn.microsoft.com/en-us/power-bi/transform-model/desktop-create-and-manage-relationships): candidate relationships from matching column names, cardinality from the data (many-to-one toward the unique side, one-to-one when both are unique), single-column relationships. Implemented: same column name (case-insensitive), same type family, one side unique in the rows. Nothing else. |
 | dbt-style tests | A person declares the right relationships (the facit), then `unique` + `not_null` on each target key and dbt's built-in `relationships` test (one column) for orphans. Precision and recall are 1 by construction; the point is what the tests catch afterwards and how much the person had to declare. |
 
@@ -69,7 +69,7 @@ Krusgraph before R5 (round n61, plan by names only):
   `country_code → countries.code`; R5 now plans all six because their values are all in the target's key.
 - **Worse, or not shown here:** R5 was written after round n61 named exactly these six misses, by the same project,
   on these same sets: the 1.0 says the rule fixes what it was written for, not how it does on other data. R5 needs
-  the rows; plan_backend on names alone still misses the six. On real data with small integer keys a role name can
+  the rows; `/check` plans by names alone and still misses the six, and plan_backend's bounded R5 (round n71) sees only the first 200 distinct values of a column. On real data with small integer keys a role name can
   fit two tables, and then R5 proposes instead of planning (`tests/test_infer_r5.py`).
 
 ## Conditions and limitations

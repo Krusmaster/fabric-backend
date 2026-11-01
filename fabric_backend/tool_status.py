@@ -92,7 +92,7 @@ _RAW = {
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
     "list_tables": (HOSTED, READS, _NO, "unit tests"),
-    "plan_backend": (HOSTED, READS, _NO, "unit tests"),
+    "plan_backend": (HOSTED, READS, "nothing (counting queries for rule R5)", "unit tests"),
     "validate_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "sample_rows": (HOSTED, READS, _NO, "unit tests; the masking live since 27 October 2026"),
     "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only", False,
