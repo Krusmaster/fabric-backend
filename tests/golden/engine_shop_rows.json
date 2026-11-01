@@ -159,10 +159,33 @@
  },
  "validate": {
   "amount_levels": {
-   "findings": [],
+   "findings": [
+    {
+     "amount_columns": [
+      "list_price"
+     ],
+     "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
+     "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+     "header": "products",
+     "header_columns": [
+      "product_id"
+     ],
+     "line": "order_items",
+     "line_columns": [
+      "product_id"
+     ],
+     "rows_per_header": {
+      "avg_lines": 16.75,
+      "headers": 8,
+      "headers_in_table": 8,
+      "max_lines": 27
+     },
+     "rule": "R1"
+    }
+   ],
    "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. The counts are over the whole tables at the moment of the call.",
    "rule": "A number on the header table of a many-to-one relationship is repeated on every line row in a join of the two; summing it over the joined rows counts each header once per line.",
-   "summary": "no header table with an amount column that a line table points at"
+   "summary": "1 header amount(s) that a join with their line rows would repeat; 1 with more than one line per header in the data"
   },
   "keys": [
    {

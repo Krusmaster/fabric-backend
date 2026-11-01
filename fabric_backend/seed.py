@@ -4,7 +4,7 @@
     from fabric_backend.seed import seed
     seed(spark, schema="shop")
 
-Seven tables shaped like examples/columns.csv, deterministic (same rows every run), no real names or companies
+Seven tables shaped like examples/columns.csv (plus a list price on the products), deterministic (same rows every run), no real names or companies
 beyond obviously invented ones. This is what reviewers of the Claude directory listing connect to — never a
 customer's or an employer's workspace.
 """
@@ -19,9 +19,11 @@ CUSTOMERS = [
     (9, "Gotland Gear", "SE"), (10, "Moorland Tea Co", "DE"),
 ]
 CATEGORIES = [(1, "Bikes"), (2, "Tea"), (3, "Accessories")]
+# list_price: the shop's only price, on the product (one row per product). An order line has a quantity and no amount,
+# so the order amount is quantity × list_price summed over the lines (fabric_backend/amounts.py, order_amount_measures).
 PRODUCTS = [
-    (1, "Trail bike", 1), (2, "City bike", 1), (3, "Green tea 100 g", 2), (4, "Black tea 100 g", 2),
-    (5, "Rooibos 100 g", 2), (6, "Helmet", 3), (7, "Bottle", 3), (8, "Lights set", 3),
+    (1, "Trail bike", 1, 899.0), (2, "City bike", 1, 649.0), (3, "Green tea 100 g", 2, 6.5), (4, "Black tea 100 g", 2, 5.9),
+    (5, "Rooibos 100 g", 2, 6.2), (6, "Helmet", 3, 59.0), (7, "Bottle", 3, 12.0), (8, "Lights set", 3, 29.0),
 ]
 CITIES = {"DE": ["Hamburg", "Leipzig", "Freiburg", "Kiel"], "SE": ["Uppsala", "Visby", "Lund"], "NO": ["Bergen"], "FI": ["Turku"]}
 
@@ -60,7 +62,7 @@ def rows(seed_value: int = 42) -> dict[str, list[tuple]]:
 SCHEMAS = {
     "customers": "customer_id INT, name STRING, country STRING",
     "categories": "id INT, name STRING",
-    "products": "product_id INT, name STRING, category_id INT",
+    "products": "product_id INT, name STRING, category_id INT, list_price DOUBLE",
     "addresses": "address_id INT, customer_id INT, city STRING",
     "orders": "order_id INT, customer_id INT, order_date DATE, ship_to_id INT",
     "order_items": "order_id INT, line_no INT, product_id INT, quantity DOUBLE",

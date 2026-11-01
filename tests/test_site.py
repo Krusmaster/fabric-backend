@@ -52,7 +52,7 @@ def test_nav_and_pages_are_linked(client):
     html = client.get("/").text
     for href in ("/docs", "/support", "/partners", "/check?example=sample&amp;guide=1", "/check", "/start", "/privacy", "https://github.com/Krusmaster/fabric-backend"):
         assert f'href="{href}"' in html, href
-    assert "Microsoft Fabric, connected." in html
+    assert '<span class="tagline">For Microsoft Fabric.</span>' in html and "Connected." not in html     # n68: the tagline
     assert 'href="/mascots"' not in html                                                 # review page is unlinked
 
 
@@ -68,7 +68,7 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
     assert usp == ["The proof.", "The errors before anyone sees them.", "SAP knowledge from public sources.", "One plan for what you build."]
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
-    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
+    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="#connect">Connect<' in html       # n73: the chooser
     assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
@@ -89,7 +89,7 @@ def test_home_introduces_the_developer_without_a_story(client):
 
 def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     html = client.get("/start").text
-    assert "<h1>Connect Krusgraph to Claude</h1>" in html
+    assert "<h1>Connect Krusgraph</h1>" in html                                     # n73: "Connect", not "Connect to Claude"
     assert "https://krusgraph.test/mcp" in html
     assert "adminconsent?client_id=cid-123" in html
     assert "What will Krusgraph access?" in html and "GraphQLApi.ReadWrite.All" in html and "user_impersonation" in html
@@ -184,7 +184,7 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
 
 def test_docs_describe_the_data_path(client):
     html = client.get("/docs").text
-    assert 'id="what-it-accesses"' in html and "held in memory only" in html and "no database" in html
+    assert 'id="what-it-accesses"' in html and "From Claude, your tokens" in html and "held in memory only" in html and "no database" in html
     assert "https://krusgraph.test/mcp" in html and "client_id=cid-123" in html
     assert "<td><code>create_backend</code></td>" in html
     for code, text in infer.RULES.items():                                                 # the rules table comes from the engine
@@ -280,7 +280,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
+PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):
@@ -345,7 +345,7 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
 
 
 @pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
-                                         ("/start.md", "# Connect Krusgraph to Claude"), ("/lovable.md", "# Build a Lovable app on your Fabric tables"),
+                                         ("/start.md", "# Connect Krusgraph"), ("/lovable.md", "# Build a Lovable app on your Fabric tables"),
                                          ("/local.md", "# Run Krusgraph locally")])
 def test_markdown_versions(client, path, needle):
     r = client.get(path)
@@ -359,14 +359,27 @@ def test_start_md_keeps_the_permissions_table(client):
     assert "```\nhttps://krusgraph.test/mcp\n```" in t and "](https://krusgraph.test/docs)" in t
 
 
-def test_lovable_page_is_linked_and_makes_no_connector_claim(client):
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_lovable_page_follows_the_path_of_30_october(client, monkeypatch, registration):
+    """n73: /lovable is the way that worked on 30 October 2026 (docs/LOVABLE-END-TO-END.md): Krusgraph as a custom MCP
+    connector in Lovable at /mcp/connect (plan, check, create), the three portal steps (app registration, Contributor on
+    the workspace, introspection: the one with no API), then Lovable's Fabric connector. Status words from tool_status's
+    two Lovable rows; no screenshots; the /mcp/connect address only when client registration is on."""
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     assert 'href="/lovable"' in client.get("/").text                                      # footer
     assert 'href="/lovable"' in client.get("/docs").text
     html = client.get("/lovable").text
-    assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html
-    for step in ("Create the API with Krusgraph", "Turn on introspection in Fabric", "Add it in Lovable"):
-        assert step in html
-    assert "untested" in html and "dynamic client registration" in html
+    assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html and "https://docs.lovable.dev/integrations/custom-mcp" in html
+    for step in ("Plan, check and create the API from Lovable", "The three portal steps", "Connect Lovable", "Contributor", "Introspection", "has no API"):
+        assert step in html, step
+    mcp = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via MCP"))
+    api = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via the GraphQL"))
+    assert f"Lovable as an MCP client: {mcp.status} (works since {mcp.works_since}); {mcp.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
+    assert f"Lovable reading the API: {api.status}; {api.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
+    assert "dynamic client registration" in html and "untested" not in html and "<img" not in html.split("<main")[1]
+    assert ("https://krusgraph.test/mcp/connect" in html) is bool(registration)
+    if not registration:
+        assert "client registration switched off" in html and "continue at step 2" in html
 
 
 def test_server_card_is_public_and_follows_the_discovery_doc(client):
@@ -513,7 +526,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
     tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(tools) == 37, sorted(tools)
+    assert len(tools) == 38, sorted(tools)
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
     for tool in ("create_semantic_model", "create_data_agent", "create_ontology"):
@@ -526,11 +539,15 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md
     assert "22 tools" not in md and "for real" not in md
-    assert tools["create_backend"] == "Tested end to end (27 October 2026: update in place of shop_api with confirmed)"
+    assert tools["create_backend"] == ("Tested end to end (27 October 2026: update in place of shop_api with confirmed; updated in place again "
+                                       "from Lovable on 30 October 2026; consumed live by a Lovable app on 30 October 2026)")
+    assert tools["create_report"] == ("Experimental; created live on 30 October 2026 (shop_report_live, shop_report), opened and reviewed in "
+                                      "the Fabric portal by Gustav the same day")                   # n69
     assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
     assert tools["create_data_agent"] == "Available when enabled by the operator; tested end to end as a dry run"
     assert tools["create_semantic_model"] == ("Available when enabled by the operator; created live on 29 October 2026 "
-                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day")
+                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day; "
+                                              "shop_model updated in place from Lovable (experimental) on 30 October 2026")
     for tool in ("ontology_draft", "semantic_model_draft", "data_dictionary", "dbt_schema", "app_starter", "answer_query_draft",
                  "rayfin_connector", "export_item_definitions"):
         assert tools[tool] == "Tested end to end (a draft; creates nothing)", tool
@@ -558,8 +575,8 @@ def test_use_cases_mark_outputs_with_the_docs_status(client):
     html = client.get("/use-cases").text
     assert "(planned)" not in html and "What do you need to understand about your data?" in html
     assert "time it takes to read and accept a plan" not in html and "defensible to auditors" not in html
-    first = html.split('id="industries"')[0]                                            # the illustrative note comes first
-    assert "The schemas are illustrative examples, not customer projects." in first
+    first = html.split('id="try"')[0]                                                   # the synthetic note comes first
+    assert "The examples are synthetic: invented tables and rows, not customer projects." in first
 
 
 @pytest.mark.parametrize("registration", ["", "1"])
@@ -576,7 +593,7 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
         text = client.get(path).text
         plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", text))
         low = plain.lower()
-        for banned in ("every tool", "nothing stored", "stores nothing", "never data"):
+        for banned in ("every tool", "nothing stored", "stores nothing", "never data", "stays in your tenant"):   # n66: the last one
             assert banned not in low, (path, banned)
         for sentence in re.split(r"(?<=[.;!?])\s+", plain):
             if "cursor" not in sentence.lower():
@@ -788,9 +805,9 @@ def _hub(client):
     after_hero = '<section class="wrap connects"' + after_hero
     assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
-    visual = re.search(r'<div class="hub" aria-hidden="true">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)
-    groups = {re.search(r'<p class="hub-h">(.*?)</p>', g).group(1): re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
-              for g in re.findall(r'<div class="hub-group[^"]*">(.*?)</ul></div>', visual, re.S)}
+    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)   # n68: the first card carries the Connect chooser, so the visual as a whole is no longer aria-hidden
+    groups = {h: re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
+              for h, g in re.findall(r'<div class="hub-group[^"]*"[^>]*><p class="hub-h"[^>]*>(.*?)</p><ul[^>]*>(.*?)</ul>', visual, re.S)}
     said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
     return row, visual, groups, said
 
@@ -804,7 +821,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     """Gustav's brief of 27 October 2026: under the hero a hub, "Your data in Fabric" and "What Krusgraph builds in
     Fabric" on the left, Krusgraph in the middle ("one plan, the rule behind every relationship"), "Where you build" on
     the right, joined by lines as in the graph; text names only, no third-party logos; the disclaimer word for word. A
-    built part says "creates" only when tool_status records it created live on the hosted service (the GraphQL API),
+    built part says "creates" only when tool_status records it created live on the hosted service (in the live run or after it),
     "draft" otherwise; the warehouse and the SQL database, not yet read live, are marked experimental. With client
     registration off, the only MCP client named is Claude."""
     from fabric_backend import tool_status as ts
@@ -815,21 +832,24 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                                                                        "SQL database": "experimental"}
     built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
     assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
-    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "draft", "views": "draft",
-                     "data agent": "draft", "silver notebooks": "draft"}                  # the live test of 27 October 2026
+    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "creates", "views": "draft",
+                     "data agent": "draft", "silver notebooks": "creates"}        # the live test of 27 October 2026 and LATER_LIVE (n66)
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
                                                      '<span class="hub-tag hub-experimental">experimental</span>')]
-    assert '<span class="c-hub">krusgraph</span>' in visual and "one plan, the rule behind every relationship" in visual
+    assert '<span class="c-hub c-hub-logo" role="img" aria-label="Krusgraph">' in visual and '<span class="c-hub-word">krusgraph</span>' in visual   # n68: the logo in the middle
+    assert "one plan, the rule behind every relationship" in visual
     assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
-    assert not re.search(r"<(img|svg|picture|object|image)\b", row) and "logo" not in row.lower() and "data-mascot" not in row
+    assert re.findall(r'<svg class="([^"]+)"', row) == ["logo-mark"] and not re.search(r"<(img|picture|object|image)\b", row) and "data-mascot" not in row   # our mark only, no third-party logos
+    for part in ("hub-build c-sage\" aria-hidden=\"true\"", "hub-mid\" aria-hidden=\"true\"", "hub-where c-mustard\" aria-hidden=\"true\"", '<p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">'):
+        assert part in visual, part                                                    # the visual stays hidden from screen readers, the chooser does not
     plain = re.sub(r"<[^>]+>", " ", row)
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
     for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
                  "one plan, with the rule behind every relationship",
-                 "it creates the Power BI semantic model; it updates an existing GraphQL API (creating a new one is experimental)",
-                 "Fabric IQ ontology, views, data agent and silver notebooks are drafts so far",
+                 "it creates the Power BI semantic model, Fabric IQ ontology and silver notebooks; it updates an existing GraphQL API (creating a new one is experimental)",
+                 "views and data agent are drafts so far",
                  "Claude connects to Krusgraph through MCP",
                  "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
@@ -862,7 +882,7 @@ def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkey
     row, visual, groups, said = _hub(client)
     assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
     assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
-    assert re.search(r"it creates the [^;]*views; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
+    assert re.search(r"it creates the [^;]*views[^;]*; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
@@ -873,8 +893,8 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026; they stay Experimental until a full "
-            "sign-in with each is confirmed") in start
+    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026 and Lovable was tried here on 30 October 2026; "
+            "they stay Experimental until a full sign-in with each is confirmed") in start
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_
@@ -1015,7 +1035,7 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     assert "A replay of a session in Claude" in box and "You type in Claude" not in box
-    assert '<a href="/check">Check your files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
+    assert '<a href="/check">Check your files</a>' in box and '<a href="#connect">Connect</a>' in box
     assert "<input" not in box and "29 October 2026" in box
 
 
@@ -1040,9 +1060,12 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
 
 def test_one_name_for_each_way_in_across_the_site(client):
     """n52: the start page had six ways in under four names. Buttons, the menu and the footer now use one name per
-    target on every page: /check "Check your files" (the hero adds "– no account"), /start "Connect to Claude", /support
-    "Get help", /partners "Try a pilot", /demo "Try the guided demo", /explore "Explore the demo graph"."""
-    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Connect to Claude", "Create it in your own Fabric"},   # the latter: /check's build step, named in browser_build.py's drafts
+    target on every page: /check "Check your files" (the hero adds "– no account"), /support "Get help", /partners "Try a
+    pilot", /demo "Try the guided demo", /explore "Explore the demo graph". n73: "Connect" everywhere (the footer, the
+    session links, the closing card, /check's answer), pointing at the n68 chooser (#connect on the start page); /start is
+    "the set-up guide" or, from /check's build step, "Create it in your own Fabric" (named in browser_build.py's drafts)."""
+    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Create it in your own Fabric", "The set-up guide", "the set-up guide"},
+             "/#connect": {"Connect"}, "#connect": {"Connect"},
              "/support": {"Get help"}, "/partners": {"Try a pilot"}, "/demo": {"Try the guided demo"},
              "/explore": {"Explore the demo graph"}}
     for path in ("/", "/demo", "/check", "/start", "/use-cases", "/support", "/partners", "/explore"):
@@ -1055,6 +1078,8 @@ def test_one_name_for_each_way_in_across_the_site(client):
                 assert text.strip() in names[href], (path, href, text)
     for gone in ("Discuss your schema", "Get help with a question", "Explore the demo<", "Try it with your own files"):
         assert gone not in client.get("/").text, gone
+    for path in PUBLIC_PAGES + ["/consent/done", "/consent/done?admin_consent=True", "/llms.txt", "/docs.md", "/start.md", "/lovable.md"]:
+        assert "Connect to Claude" not in client.get(path).text, path
 
 
 # ------------------------------------------------------------------ n53: who stands behind it, /it and the FAQ --------
@@ -1148,8 +1173,10 @@ def test_the_old_demo_addresses_redirect_to_check(client):
 
 
 # ------------------------------------------------------------------ n58: /pricing, where the data goes, preview terms ---
-DATA_STAYS = ("Your data stays in your tenant: Krusgraph stores no table contents, the hosted service runs in the EU, "
-              "or run it in your own Azure.")
+# n66: the review of 30 October 2026: no "stays in your tenant" (names, counts and requested sample rows reach the AI client)
+DATA_STAYS = ("Krusgraph stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory "
+              "and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything "
+              "in your tenant.")
 
 
 def test_pricing_has_three_columns_without_amounts(client):
@@ -1210,3 +1237,100 @@ def test_no_page_promises_what_is_not_true(client, path):
     low = re.sub(r"\s+", " ", client.get(path).text.lower())
     for phrase in ("always free", "runs in your environment", "never leaves europe"):
         assert phrase not in low, (path, phrase)
+
+
+# ------------------------------------------------------------------ n66: the trust texts agree with the code ---------
+def test_the_dry_run_claim_matches_the_tool_signatures(client):
+    """The review of 30 October 2026: /terms, /, /it and /docs say that every creating tool but create_backend answers
+    with what it would create until dry_run=false. tool_status.NO_DRY_RUN names the exceptions and renders into the
+    pages; the signatures in server.py decide what it must say."""
+    import inspect
+    from fabric_backend import server, tool_status as ts
+    creating = [t for t in ts.STATUS if ts.STATUS[t].kind == ts.CREATES]
+    params = {t: inspect.signature(getattr(server, t)).parameters for t in creating}
+    assert {t for t in creating if "dry_run" not in params[t]} == set(ts.NO_DRY_RUN) == {"create_backend"}
+    assert all(params[t]["dry_run"].default is True for t in creating if t not in ts.NO_DRY_RUN)
+    for path, text in (("/terms", "every creating tool except <code>create_backend</code> answers with what it would create until it is "
+                                  "called with <code>dry_run=false</code>, and <code>create_backend</code>, which has no dry run,"),
+                       ("/", "The one tool without a dry run, <code>create_backend</code>, creates or updates only the GraphQL API you name."),
+                       ("/it", "Every creating tool except <code>create_backend</code> answers with what it would create until it is called "
+                               "with <code>dry_run=false</code>; <code>create_backend</code> has no dry run"),
+                       ("/docs", "Every creating tool except <code>create_backend</code> answers with what it would create until you pass "
+                                 "<code>dry_run=false</code>. <code>create_backend</code> creates or updates directly and has no dry run")):
+        assert text in client.get(path).text, path
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_it_and_docs_say_where_tokens_are_kept_as_exactly_as_privacy(client, monkeypatch, registration):
+    """Claude's tokens stay in memory; sign-ins from other MCP clients (client registration on) keep encrypted records
+    for the times /privacy gives, and /it and /docs say so in the same words and link there."""
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    it, docs, privacy = (client.get(p).text for p in ("/it", "/docs", "/privacy"))
+    assert "From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs." in it
+    assert "From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk or logs." in docs
+    for text in (" are kept encrypted in ", "at most 60 seconds", "at most 90 days", "never given to the client",
+                 'href="/privacy#sign-in-from-mcp-clients-other-than-claude"'):
+        assert (text in it) == bool(registration) and (text in docs) == bool(registration), (text, registration)
+    if registration:
+        assert 'id="sign-in-from-mcp-clients-other-than-claude"' in privacy and "at most 90 days" in privacy
+        assert "an Azure Table Storage table of ours" in it and "an Azure Table Storage table of ours" in docs and "an Azure Table Storage table of ours" in privacy
+    else:
+        assert "There is no database and no file storage." in docs
+    for page in (it, docs):
+        assert "held in memory only; there is no database" not in page and "Tokens</strong> are exchanged" not in page
+
+
+# ------------------------------------------------------------------ n68: the admin consent's return page ---------------
+def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers(client):
+    """n68: the consent link on /start names /consent/done as its redirect_uri (the OAuth callback answered "This sign-in
+    cannot continue"). The page reads Microsoft's own query string: granted, or the error code with the next step (/it);
+    opened directly it says so. Not indexed, not cached, nothing echoed unescaped."""
+    start = client.get("/start").text
+    assert ("adminconsent?client_id=cid-123&amp;redirect_uri=https%3A%2F%2Fkrusgraph.test%2Fconsent%2Fdone\">Grant admin consent in Entra</a>" in start)
+    assert 'href="/consent/done">krusgraph.test/consent/done</a>' in start
+    ok = client.get("/consent/done?admin_consent=True&tenant=00000000-0000-0000-0000-000000000001")
+    assert ok.status_code == 200 and ok.headers["cache-control"] == "no-store" and ok.headers["x-robots-tag"] == "noindex, nofollow"
+    assert "<h1>Admin consent granted for your organisation.</h1>" in ok.text and "Nothing more to do: your colleagues can now connect." in ok.text
+    assert 'content="noindex,nofollow"' in ok.text and "<code>00000000-0000-0000-0000-000000000001</code>" in ok.text and 'href="/start#step-3"' in ok.text
+    bad = client.get("/consent/done?error=access_denied&error_description=AADSTS65004%3A+User+declined+to+consent+%3Cb%3Ex&tenant=not-a-guid")
+    assert "<h1>Admin consent was not granted.</h1>" in bad.text and "<code>access_denied</code>" in bad.text
+    assert "AADSTS65004: User declined to consent &lt;b&gt;x" in bad.text and "<b>x" not in bad.text and "not-a-guid" not in bad.text
+    assert 'href="/it"' in bad.text and 'href="/start#step-1"' in bad.text and 'href="/support"' in bad.text
+    xss = client.get("/consent/done?error=%3Cscript%3Ealert(1)%3C/script%3E&admin_consent=%3Cimg%3E")
+    assert "<script>alert" not in xss.text and "<img>" not in xss.text and "Admin consent was not granted." in xss.text
+    plain = client.get("/consent/done").text
+    assert "Nothing to show yet." in plain and 'href="/start#step-1"' in plain
+    assert "/consent/done" not in client.get("/sitemap.xml").text and "/consent" not in client.get("/llms.txt").text
+    assert "Connected." not in ok.text
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_exists(client, monkeypatch, registration):
+    """n68: a Connect button in the hero and in the hub's "Your data in Fabric" card opens a chooser with the shortest way
+    per client: VS Code's and Cursor's install links (URL-encoded JSON, base64 JSON) and Lovable's address at /mcp/connect
+    only when client registration is on; Claude (copy /mcp, open its connectors page) always; /start is the long guide."""
+    import base64
+    import json
+    from urllib.parse import unquote
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    html = client.get("/").text
+    assert html.count("<details class=\"connect connect-pop\" data-connect>") == 1 and html.count("<details class=\"connect connect-inline\" data-connect>") == 1
+    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
+    assert '<a class="btn primary" href="/check">Check your files – no account</a>' in hero and "<summary" in hero and 'href="/start">Connect to Claude' not in hero
+    hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
+    assert "connect-inline" in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
+    pop = html.split("connect-pop", 1)[1].split("</details>", 1)[0]
+    assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/settings/connectors" rel="noopener"' in pop
+    assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop
+    if not registration:
+        assert "mcp/connect" not in html and "VS Code" not in pop and "Cursor" not in pop and "Lovable" not in pop
+        return
+    vs = re.search(r'href="(vscode:mcp/install\?[^"]+)"', pop).group(1)
+    assert json.loads(unquote(vs.split("?", 1)[1])) == {"name": "Krusgraph", "type": "http", "url": "https://krusgraph.test/mcp/connect"}
+    assert re.search(r'href="vscode-insiders:mcp/install\?[^"]+">Insiders</a>', pop)
+    cur = re.search(r'href="(cursor://anysphere\.cursor-deeplink/mcp/install\?name=Krusgraph&amp;config=[^"]+)"', pop).group(1)
+    assert json.loads(base64.b64decode(cur.split("config=", 1)[1])) == {"url": "https://krusgraph.test/mcp/connect"}
+    assert 'data-copy-text="https://krusgraph.test/mcp/connect"' in pop and "Connectors → Custom MCP" in pop and "Add &amp; authorize" in pop
+    start = client.get("/start").text
+    assert "Two addresses: <code>https://krusgraph.test/mcp</code> for Claude, and <code>https://krusgraph.test/mcp/connect</code> for clients that register themselves" in start
+    assert 'href="/#connect"' in start

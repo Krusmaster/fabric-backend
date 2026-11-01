@@ -5,6 +5,86 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
+  line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
+  status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got
+  here"), in the three examples and for the visitor's own files; a browser test reads the finding at 1280 px without
+  scrolling. One order runs through "A total that doubles": the engine reads one header row per amount finding from the
+  rows (its key, its amount, how many line rows point at it, what a join counts it as: `order_id 1`, 1 000, twice,
+  2 000) and the finding's text, Onto's "Why does this total come out twice?", the Power BI preview and the domain's
+  ODCS contract (a top-level `customProperties` entry, `amountLevel.<table>.<column>`) all repeat that row; the preview no
+  longer shows a second total of its own. Every download button on `/check` says what the file holds and its status
+  word from `tool_status` (the Power BI project, the app starter, the contract). `/lovable` is rewritten after the path
+  that ran on 30 October 2026: Krusgraph as a custom MCP connector in Lovable at `/mcp/connect` (plan, check, create),
+  the three portal steps (an app registration with a secret, Contributor on the workspace, introspection on the item:
+  the one with no API), then Lovable's Microsoft Fabric connector; its status words come from Lovable's two rows in
+  `tool_status.CLIENTS`. "Connect to Claude" is "Connect" everywhere (the footer, the session links, the closing card,
+  `/check`'s answer, `/use-cases`, the consent pages), pointing at the n68 chooser (`/#connect`, which opens it and
+  focuses its button); `/start` is "the set-up guide". Docs: the admin consent link on `/docs` carries
+  `redirect_uri=https://krusgraph.com/consent/done` like `/start`, and the Fabric IQ section answers "Why not just Fabric
+  IQ / the Fabric ontology?" with what Microsoft Learn says about filling an ontology item (by hand, from a semantic
+  model, with the ontology agent; links to Learn) and the one angle of `docs/FAQ-COMPETITION.md`: Krusgraph creates the
+  ontology item; the evidence step comes before it. `domains.draft` and `domains.contract` take an optional `extra`
+  (more top-level custom properties) for `/check`. `docs/SCOPES.md` was not touched: Docs and submission is n72's.
+- Round n71: the amount that is not there. A line table with a quantity (`order_items.quantity`) and no amount of its own,
+  pointing at a table that carries the price (`products.list_price`), gets the measure `Order amount` =
+  `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` in `semantic_model_draft` and
+  `create_semantic_model`, with a note on where the price comes from (a list price as it stands at query time, not
+  necessarily the price paid); the price column is not summed on its own (`summarizeBy: none`), and `data_dictionary`
+  and the ODCS contracts name the measure (`customProperties`). Names: quantity/qty/menge/antal and
+  price/list_price/unit_price/netpr (`fabric_backend/amounts.py`). A line that carries an amount (`net_amount`, SAP's
+  `VBAP.NETWR`) keeps it and gets no product; a price per unit no longer counts as a measure when a table's role is
+  decided, so a products table with a list price stays a dimension. The synthetic shop's products have a `list_price`
+  (the live shop's model had shown only a total quantity). The hosted `plan_backend` runs rule R5 over its open
+  connection, bounded: the first 200 distinct values of a candidate column, one counting query per candidate target,
+  at most 20 per call (on 30 October 2026 it had not found `orders.ship_to_id → addresses`, because R5 needed rows only
+  `validate_plan` read); the answer gains `counted_in_rows` and, for candidates it could not confirm or count,
+  `proposed` with the reason and the next step. Name, title and annotations of the tool are unchanged; the other tools
+  plan by names as before. The benchmark table is unchanged.
+- Round n69: the status words after the live runs of 30 October 2026, text only (no tool's name, title, annotations
+  or behaviour changed). `create_report` is "Experimental; created live on 30 October 2026 (shop_report_live,
+  shop_report), opened and reviewed in the Fabric portal by Gustav the same day" and, next to the offer, "created live;
+  reviewed in Fabric" (`LATER_LIVE`, `REVIEWED`). `create_backend`'s long form adds that `shop_api` was updated in
+  place again from Lovable and is consumed live by a Lovable app on 30 October 2026; `create_semantic_model`'s that
+  `shop_model` was updated in place from Lovable the same day. Lovable has a second row in `tool_status.CLIENTS`: via
+  MCP (/mcp/connect), Experimental, signed in with Entra through Krusgraph's OAuth (dynamic client registration) and ran
+  plan, check and creates on 30 October 2026; the /mcp/connect sentence names it with its date. The server's test
+  status sentence names the tools that have created items live since the run of 27 October instead of saying creating is
+  unit-tested only, and `semantic_model_draft`'s note no longer says the item is not yet created live. Docs: a 30 October
+  section in docs/LIVE-TEST.md (and a `create_report` row and a Lovable client row), `create_report` in docs/SCOPES.md,
+  the README's tool list and status, deploy/SUBMISSION.md row 5, and step 1 of docs/LOVABLE-END-TO-END.md no longer
+  blocks. The Fabric REST API was not called in this round.
+- Round n67: the TMDL writer never writes a document that holds only comments. On 30 October 2026 Power BI
+  Desktop 2.151 opened the shop project from /check but refused the SAP one with "InvalidLineType ... Document:
+  ./relationships, line 1": with no expressible relationship, `relationships.tmdl` had been one comment line. The file
+  is now left out when there is nothing to put in it, the rule (`has_object`) is applied to every part of the draft, and
+  `README.generated.md` says why. Composite keys (SAP's MANDT+VBELN) are listed in the summary as `not_expressible`
+  with the reason: one column per side, no calculated columns in Direct Lake, so the lakehouse needs a combined key
+  column (a gold view, `create_gold_views`) before the relationship can exist; the old "or a calculated column" advice
+  is gone. The zip's README and the model's README say to extract the whole zip before opening the `.pbip` (opening it
+  from inside the zip gives "definition.pbism is missing"). Tests: a TMDL document check over every generated document
+  for the shop, the SAP demo and Salesforce + ERP, and the zip from /check holds `.pbip`, `definition.pbism`, both
+  `.platform` files and the report folder for all three. The Fabric REST API was not called in this round; the SAP
+  draft after the change has not been opened in Power BI Desktop yet.
+- Round n66: three contradictions in the trust texts, found by an external review of the live site on 30 October
+  2026, text only. "Your data stays in your tenant" (home, /it, /pricing) is replaced by the same sentence on all
+  three pages: Krusgraph stores no table contents; names, counts and requested sample rows pass through in memory and
+  reach the AI client; EU hosting, or your own Azure to keep everything in your tenant ("stays in your tenant" is
+  now a banned phrase in tests). /it and /docs say about tokens exactly what /privacy says: Claude's in memory only;
+  other MCP clients' sign-ins encrypted in Table Storage for the times /privacy gives, linked. The dry-run sentence
+  on /terms, home, /it and /docs renders from `tool_status.NO_DRY_RUN` (create_backend has none), and a test holds it
+  to the signatures in server.py. `build_word` and `short` count a tool created live after the run (`LATER_LIVE`)
+  as created, so the hub and the docs no longer say "draft" beside "created live" for the ontology and the
+  silver notebooks; the docs' hand-written statuses render from tool_status. The Power BI project from /check was
+  opened in Power BI Desktop on 30 October 2026, and /check and its README say so. Anchor links in the docs
+  Markdown render as links.
+- Round n65: `deploy/krusgraph.sh --doctor` prints one table of the service's state (server and build, the
+  certificate's expiry, the Entra client secret's expiry as dates only, replicas, domain binding, Log Analytics,
+  budget), reads only; `--budget` creates a cost budget on the resource group with e-mail from two new keys,
+  `budget_amount` and `budget_email` (empty = nothing); `--backup` exports the registration table's consent records
+  to a git-ignored file, with the restore in `docs/OPERATIONS.md` section 8, and section 9 is the continuity
+  checklist. Unit-tested against a faked `az`, not run against Azure. `docs/NORDIC-PACK-SPIKE.md` writes down the
+  spike of 30 October 2026 on a Nordic ERP pack (Business Central first).
 - Round n60: `SECURITY.md` at the repository root (report to gustav@krusgraph.com, as in security.txt; only the latest
   version supported; no customer data stored; no fixed response time, no certification). Dependabot for pip and
   GitHub Actions. `.github/workflows/sbom.yml` builds a CycloneDX SBOM of `deploy/constraints.txt` on every push to

@@ -1,6 +1,7 @@
 // Round n52: where a first-time visitor's ways in sit on the screen. Prints JSON with the top and bottom (px from the
 // top of the page) of the start page's hero buttons and of /check's examples, at 1280 x 800 and 375 x 812, light and
-// dark, with and without reduced motion, plus what Tab reaches first on the start page. (13 Tabs since n58 added Pricing to the menu.)
+// dark, with and without reduced motion, plus what Tab reaches first on the start page. (13 Tabs since n58 added Pricing to the menu;
+// 18 since n68 put the Connect chooser between the hero's button and the replayed session, whose links come next.)
 const { chromium } = require('playwright');
 (async () => {
   const [base, exe] = process.argv.slice(2);
@@ -13,12 +14,12 @@ const { chromium } = require('playwright');
         const page = await ctx.newPage();
         const v = `${w}x${h}-${scheme}-${motion}`;
         await page.goto(base + '/', { waitUntil: 'load' });
-        out[`hero@${v}`] = await page.evaluate(() => [...document.querySelectorAll('.hero-ctas a')].map(a => {
+        out[`hero@${v}`] = await page.evaluate(() => [...document.querySelectorAll('.hero-ctas > a, .hero-ctas > details > summary')].map(a => {
           const r = a.getBoundingClientRect(); return { href: a.getAttribute('href'), text: a.textContent.trim(), top: r.top + scrollY, bottom: r.bottom + scrollY };
         }));
         if (v.endsWith('light-no-preference')) {
           const seen = [];
-          for (let i = 0; i < 13; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
+          for (let i = 0; i < 18; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
           out[`tab@${w}`] = seen;
         }
         await page.goto(base + '/check', { waitUntil: 'load' });

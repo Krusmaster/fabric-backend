@@ -60,6 +60,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 36 | `create_gold_views` | *"Create the gold notebook gold_shop. Dry run first."* | dry run: the notebook and the call; create: `kind: consent` naming `Notebook.ReadWrite.All` | — | | |
 | 37 | `export_item_definitions` | *"Export what you would create for demo_lh, schema shop, in Fabric's Git format."* | folders `demo_lh_api.GraphQLApi`, `demo_lh_model.SemanticModel`, `silver_shop.Notebook`, `drift_monitor_shop.Notebook`, `drift_monitor_shop_nightly.DataPipeline`, `gold_shop.Notebook`, `krusgraph-sql/`; the largest file named under `omitted` | 27 Oct | | |
 | 38 | `review_plan` | *"Keep this review as a file: confirm orders.ship_to_id → addresses.address_id as the ship-to address, reject audit_log → customers as log only, and run the checks."* Save the file; then add a column to `orders` in the lakehouse and ask *"Read back the review file and tell me what changed."* | first answer: 6 keys and 7 relationships, the ship-to relationship `accepted` with its reason, `audit_log` as an open question, every check `passed` with the time, no row values in the file; second answer: the new column under `since_previous`, the checks on `orders` and its relationships `stale`, the others `passed` with their first date, the decisions still there | 27 Oct (first answer only) | | |
+| 39 | `create_report` | *"Create the empty report shop_report on shop_model_live. Dry run first, then create."* | dry run: the call with `creationPayload.semanticModelReference`; create: status Succeeded, mode created, one blank page bound to the model; a second call with the same name answers `kind: already_exists` | 30 Oct (dry run, then created `shop_report_live`; `shop_report` from Lovable: section 6) | | |
 
 ## 2. Fixed after the 27 October run, unit-tested only
 
@@ -118,9 +119,12 @@ Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash
 | VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | works (the maintainer) | 27 October 2026 |
 | Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | works (the maintainer) | 27 October 2026 |
 | Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | works: Glama identified itself with its client ID metadata document; its connection test "Healthy" at 17:59 | 27 October 2026 |
+| Lovable (custom MCP) | add `https://krusgraph.com/mcp/connect` as a custom MCP connector in Lovable (OAuth), from a phone | Microsoft sign-in through Krusgraph's OAuth (dynamic client registration), then the tools in Lovable's chat | works: signed in with Entra and ran `plan_backend`, `validate_plan`, `create_backend`, `create_semantic_model` and `create_report` against `demo` (section 6) | 30 October 2026 |
 
 28 October 2026: VS Code, Cursor and Glama work through `/mcp/connect` (the rows above); they stay *Experimental* for
-now in `fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and the start page follow.
+now in `fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and the start page follow. 30 October 2026:
+Lovable too, as a custom MCP connector; it stays *Experimental* as well, with its own row in `CLIENTS` next to the row
+for the GraphQL API it reads.
 | Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
 | Deny | choose Deny on the page once | the client reports access denied | | |
 
@@ -170,6 +174,32 @@ What the site and the docs now give only as a status word, with the run behind i
   `orders.ship_to_id → addresses.address_id`). Fabric answered status Succeeded, mode created: 7 tables, 6 active and 1
   inactive relationship (`addresses.customer_id → customers`, which would close a cycle), Direct Lake, 4 measures and
   the date table `Calendar`. On 29 October 2026 Gustav refreshed (framed) both `shop_model_live` and `shop_model` in the Fabric portal, and the refresh succeeded. Afterwards he opened `shop_model_live` in the model view and confirmed that the relationships look right (7 tables plus `Calendar`, 6 active relationships, the inactive `addresses.customer_id → customers` dashed, 4 measures). No report or query has used the model. The site says "created live; reviewed in Fabric" next to the offer, as for `create_ontology`.
+
+### 30 October 2026: `create_report`, Lovable as an MCP client, two updates in place
+
+Everything below ran in the workspace `demo` (lakehouse `demo_lh`, schema `shop`, synthetic data), through the hosted
+connector or through Lovable as an MCP client.
+
+- **`create_report`.** The coordinator (Claude through the hosted connector) ran it with `dry_run=true` and then
+  `dry_run=false` against `shop_model_live`. Fabric answered status Succeeded, mode created: the report
+  `shop_report_live` (id `792145bf-8f5a-4ee2-86e7-20a1831d04f3`), one blank page bound to the model. Later the same day
+  Lovable, as an MCP client, created `shop_report` on `shop_model`. Gustav updated `shop_model`, opened `shop_report` in
+  the Fabric portal, added a visualisation (Calendar) and saw data. Status: *Experimental; created live on 30 October
+  2026 (shop_report_live, shop_report), opened and reviewed in the Fabric portal by Gustav the same day*; next to the
+  offer, "created live; reviewed in Fabric", as for `create_ontology` and `create_semantic_model`.
+- **`create_backend`.** `shop_api` was updated in place from Lovable on 30 October 2026, and a Lovable app reads the
+  API live: orders, customers and the ship-to address through `ship_to_id → addresses`. Creating a new API has still
+  not run live. The long form now adds "consumed live by a Lovable app on 30 October 2026".
+- **`create_semantic_model`.** `shop_model` was updated in place from Lovable on 30 October 2026 (after
+  `shop_model_live` was created on 29 October). The same day Power BI Desktop opened the shop project from `/check`;
+  the SAP project stopped on a TMDL error (a `relationships.tmdl` holding only comments), fixed by round n67 in
+  181452e and not opened in Power BI Desktop since.
+- **Lovable as a client.** Lovable connected to `https://krusgraph.com/mcp/connect` with an Entra sign-in through
+  Krusgraph's OAuth (dynamic client registration), from a phone, and ran `plan_backend`, `validate_plan`,
+  `create_backend`, `create_semantic_model` and `create_report`. It has a row of its own in
+  `fabric_backend/tool_status.CLIENTS` ("via MCP (/mcp/connect)", *Experimental*, works since 30 October 2026) next to
+  the row for the GraphQL API it reads through its own Fabric connector. The Entra app is a verified publisher since
+  the same day (`docs/SCOPES.md`).
 
 ## Databricks
 

@@ -1,0 +1,26 @@
+name: Feature
+description: Something the engine, a tool or the site should do.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem before the solution. No customer data, no customer names.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you were trying to do and where it stopped. Which tool, page or function.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help
+      description: What the tool or page should answer or do. An example on the synthetic shop schema is welcome.
+  - type: textarea
+    id: source
+    attributes:
+      label: Sources
+      description: If the request rests on how Fabric, Power BI, SAP or another system works, link the documentation that says so (Microsoft Learn, the vendor's own page). The repository cites sources for such rules.
