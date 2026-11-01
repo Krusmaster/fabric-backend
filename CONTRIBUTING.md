@@ -40,7 +40,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | n74 (the dependabot PRs 7–12, grouped monthly dependabot updates merged after green CI) |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n73 (docs/SCOPES.md: the consent link's return address /consent/done) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
 and set it back to "open" when you are done.
