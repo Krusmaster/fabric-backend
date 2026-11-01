@@ -5,6 +5,21 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n71: the amount that is not there. A line table with a quantity (`order_items.quantity`) and no amount of its own,
+  pointing at a table that carries the price (`products.list_price`), gets the measure `Order amount` =
+  `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` in `semantic_model_draft` and
+  `create_semantic_model`, with a note on where the price comes from (a list price as it stands at query time, not
+  necessarily the price paid); the price column is not summed on its own (`summarizeBy: none`), and `data_dictionary`
+  and the ODCS contracts name the measure (`customProperties`). Names: quantity/qty/menge/antal and
+  price/list_price/unit_price/netpr (`fabric_backend/amounts.py`). A line that carries an amount (`net_amount`, SAP's
+  `VBAP.NETWR`) keeps it and gets no product; a price per unit no longer counts as a measure when a table's role is
+  decided, so a products table with a list price stays a dimension. The synthetic shop's products have a `list_price`
+  (the live shop's model had shown only a total quantity). The hosted `plan_backend` runs rule R5 over its open
+  connection, bounded: the first 200 distinct values of a candidate column, one counting query per candidate target,
+  at most 20 per call (on 30 October 2026 it had not found `orders.ship_to_id → addresses`, because R5 needed rows only
+  `validate_plan` read); the answer gains `counted_in_rows` and, for candidates it could not confirm or count,
+  `proposed` with the reason and the next step. Name, title and annotations of the tool are unchanged; the other tools
+  plan by names as before. The benchmark table is unchanged.
 - Round n69: the status words after the live runs of 30 October 2026, text only (no tool's name, title, annotations
   or behaviour changed). `create_report` is "Experimental; created live on 30 October 2026 (shop_report_live,
   shop_report), opened and reviewed in the Fabric portal by Gustav the same day" and, next to the offer, "created live;
