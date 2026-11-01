@@ -10,6 +10,11 @@
 // n53: "Ask Onto" under the verdict: three to five questions picked from what the engine found, each answered here from
 // the engine's own result (its check and rule names), never sent anywhere; the doubled total and a missing key are
 // also marked on the map. No free text: a question box would have to send what is typed.
+// n73: the finding first. After a run the state line, the most important finding and the folded list come right under
+// the status line, before the map; the engine's steps are a <details> under the map ("How the engine got here"),
+// closed on every run. One example row runs through the example: the finding, Onto's answer, the Power BI preview and
+// the contract all name the header row the engine read (its key, its amount, its lines), never a number of their own.
+// Every download button says what the file holds and its status word from tool_status.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -71,6 +76,9 @@
     $("check-ask").hidden = true;
     $("check-pilot").hidden = true;
     $("check-steps").replaceChildren();
+    $("check-engine").open = false;                  // n73: the steps stay folded; the hop text names the step under way
+    $("check-all").hidden = true;
+    $("check-verdict").replaceChildren();
     result.hidden = true;
     if (!still) run.hidden = false;
     const show = (s) => { addStep(s); map.update(s); };

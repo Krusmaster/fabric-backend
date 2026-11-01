@@ -963,10 +963,15 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .check-ex.sage{background:var(--sage-soft)}.check-ex.sage em{color:var(--sage-ink)}
 .check-ex:hover{transform:translateY(-2px);border-color:var(--line-strong)}
 .check-status{font-weight:700;margin:18px 0 0}
-.check-run{padding-top:28px}
+.check-run{padding-top:28px;padding-bottom:8px}
 .check-run:focus{outline:none}
-.check-run-grid{display:grid;grid-template-columns:1fr;gap:20px}
-@media (min-width:1024px){.check-run-grid{grid-template-columns:minmax(280px,1fr) 1.7fr}}
+.check-map-col{margin-top:14px}
+.check-engine{margin:16px 0 0}
+.check-engine>summary{cursor:pointer;font-weight:700;padding:6px 0}
+.check-engine[open]>summary{margin-bottom:6px}
+.check-all[hidden]{display:none}
+.check-dl{white-space:normal;text-align:left;line-height:1.25}
+.check-dl .status-tag{margin:0;flex:0 0 auto}
 .check-build-head{margin-top:20px}
 .check-build-head[hidden]{display:none}
 .check-build-head .check-build-choices{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
@@ -992,7 +997,7 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 @keyframes check-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
 .check-step.in,.check-map .in{animation:check-in .35s ease both}
 @media (prefers-reduced-motion:reduce){.check-ex,.check-ex:hover{transition:none;transform:none}.check-step.in,.check-map .in{animation:none}}
-.check-result{padding-top:8px}
+.check-result{padding-top:0}
 .check-state{font-size:18px;margin:0 0 6px}
 .check-verdict ul{margin:0;padding-left:20px}
 .check-tables p{margin:2px 0;overflow-wrap:anywhere}

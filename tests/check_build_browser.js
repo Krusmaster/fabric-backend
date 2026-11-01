@@ -24,10 +24,12 @@ const { chromium } = require("playwright");
     o.build_shown = await page.evaluate(() => !document.getElementById("check-build-head").hidden && document.getElementById("check-build").hidden);
     const where = () => page.evaluate(() => {
       const r = (id) => document.getElementById(id).getBoundingClientRect();
-      const head = r("check-build-head"), map = r("check-map-summary"), steps = r("check-steps");
-      const order = ["check-steps", "check-map", "check-build-model", "check-build-app", "check-model"].map((id) => document.getElementById(id));
+      const head = r("check-build-head"), map = r("check-map-summary"), engine = r("check-engine"), verdict = r("check-verdict");
+      // n73: the finding, the folded list, the map with the two choices under it, then the engine's steps folded
+      const order = ["check-status", "check-verdict", "check-all", "check-map", "check-build-model", "check-build-app", "check-engine", "check-steps", "check-model"].map((id) => document.getElementById(id));
       return { in_map_col: !!document.getElementById("check-build-head").closest(".check-map-col"),
-               right_of_steps: head.left >= steps.right, below_map: head.top >= map.bottom, beside_steps: head.top < steps.bottom,
+               below_map: head.top >= map.bottom, verdict_above_map: verdict.bottom <= r("check-map").top, engine_below_choices: engine.top >= head.bottom,
+               engine_closed: !document.getElementById("check-engine").open,
                dom_order: order.every((n, i) => !i || order[i - 1].compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING) };
     });
     o.at_375 = await where();
@@ -77,6 +79,8 @@ const { chromium } = require("playwright");
       await page.click("#check-build-model");
       await until(() => !document.getElementById("check-model").hidden);
       o.shop_doubled = await page.evaluate(() => !!document.querySelector("#check-model .check-doubled"));
+      o.shop_doubled_text = await page.textContent("#check-model .check-doubled");
+      o.shop_download = await page.$$eval("#check-model a[download]", (n) => n.map((a) => a.textContent));
       await page.setInputFiles("#check-files", [
         { name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from(process.env.CHECK_ORDERS) },
         { name: "order_lines.csv", mimeType: "text/csv", buffer: Buffer.from(process.env.CHECK_LINES) }]);
