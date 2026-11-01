@@ -1,6 +1,6 @@
-"""The /use-cases page: three synthetic examples drawn as maps, the tasks a visitor starts from, and a short list of
-other industries (n59: the page was 5 800 words with ten industry sketches; reviewers found it too long, and the
-sketches' labels read as if the links were missing).
+"""The /use-cases page: three synthetic examples drawn as maps, the tasks a visitor starts from, and ten industries
+told as the customer's problem (n59: the page was 5 800 words with ten industry sketches; reviewers found it too long,
+and the sketches' labels read as if the links were missing; n68: the industries are back as problems, not tables).
 
 Each map is the engine's own run on the example, the same events /check draws (`browser_check.analyze`), embedded in
 the page as JSON and drawn by `static/map.js`, the renderer /check uses. Nothing on the page is typed by hand about a
@@ -18,7 +18,7 @@ from functools import lru_cache
 from .tool_status import create_api_status, phrase, task_status
 
 FOOTNOTE = "The examples are synthetic: invented tables and rows, not customer projects."
-WORD_CAP = 1000          # tests/test_use_cases.py keeps the page's main text near this
+WORD_CAP = 2200          # tests/test_use_cases.py keeps the page's main text under this (n68: 1 000 plus the ten industries at up to 120 words each)
 
 # (example on /check, anchor, heading, one or two sentences, button)
 EXAMPLES = [
@@ -36,17 +36,52 @@ EXAMPLES = [
      "Open Salesforce + ERP in /check"),
 ]
 
-# Other industries, one sentence each: the question an example there starts from. No logistics, warehouse or
-# supply-chain theme (the maintainer's brief).
-INDUSTRIES = [
-    ("saas", "SaaS and subscriptions", "Which account uses the service, and which one pays?"),
-    ("professional-services", "Professional services", "Which project hours are still unbilled?"),
-    ("aml", "Financial services: AML", "Trace a transaction through its account holders."),
-    ("financial-crime", "Financial crime prevention", "Bring a customer’s cases and screening hits into one view."),
-    ("pharma-research", "Pharmaceutical research", "A visit number is not always a unique key on its own."),
-    ("environment", "Environment and sustainability", "Which emission factor does an activity refer to?"),
-    ("property", "Property and real estate", "Which unit does a maintenance request belong to?"),
-    ("education", "Education", "What happens when a student takes the same course twice?"),
+# n68: the ten industries are back (they went in n59), told as the problem a customer brings rather than as table
+# sketches: a heading, the question in the customer's words, what they get, and the nearest runnable example on /check.
+# No "typical tables" and no map here: the maps are the three examples above. Each entry stays under
+# INDUSTRY_WORD_CAP words on the page (tests/test_use_cases.py). No logistics, warehouse or supply-chain theme.
+INDUSTRY_WORD_CAP = 120
+INDUSTRIES: list[dict] = [
+    {"slug": "retail", "name": "Retail and e-commerce", "example": "sample",
+     "problem": "Our order total in the sales report is twice what finance has, and a return never finds its order line.",
+     "get": "A map of customers, orders, lines, products and returns with the reason for every link; the order amount counted "
+            "once per order, not once per line; a return tied to the exact order line. What stays open is marked for you to decide."},
+    {"slug": "manufacturing", "name": "Manufacturing", "example": "sap",
+     "problem": "A work order points at an item, the bill of materials points at the same item twice, and nobody is sure which column means the parent.",
+     "get": "Each link with its reason, the two roles kept apart and marked for your check, and the orders, deliveries and invoices "
+            "that do not match counted before anyone builds a report on them."},
+    {"slug": "saas", "name": "SaaS and subscriptions", "example": "crm",
+     "problem": "Which account uses the service and which one pays? Our revenue per customer changes depending on who answers.",
+     "get": "The using account and the paying account as two links with their reasons, invoices and their lines counted once, "
+            "and a plan you can show finance before the model is built."},
+    {"slug": "professional-services", "name": "Professional services", "example": "sample",
+     "problem": "Which hours are still unbilled? Hours and invoices live in two tables and the join between them is a guess.",
+     "get": "Hours linked to their project and invoice with the reason, the hours with no invoice counted, and the invoice total "
+            "summed once, not once per time entry."},
+    {"slug": "aml", "name": "Financial services: AML", "example": "crm",
+     "problem": "Trace a transaction through its account holders when the same customer appears under two numbers in two systems.",
+     "get": "One map across customers, accounts, holders, transactions and alerts with each link explained; a link found in the "
+            "values rather than in the names is shown as a suggestion to confirm, never assumed."},
+    {"slug": "financial-crime", "name": "Financial crime prevention", "example": "crm",
+     "problem": "Fraud, sanctions and KYC keep separate cases for the same customer, and bringing them into one view is manual work every time.",
+     "get": "The customer at the centre with cases, alerts, screening hits and logins linked and explained; a reference that matches "
+            "no row is counted before the view is trusted."},
+    {"slug": "pharma-research", "name": "Pharmaceutical research", "example": "sap",
+     "problem": "A visit number repeats per subject, so results joined on it alone come out wrong.",
+     "get": "A key that needs two columns is named as such, the duplicates a single column would give are counted, and coded "
+            "columns are listed as open questions rather than linked by guess."},
+    {"slug": "environment", "name": "Environment and sustainability", "example": "sample",
+     "problem": "Which emission factor did this activity actually use? The report cannot show it.",
+     "get": "Each activity linked to the factor row behind it, meters to their site, purchases to supplier and site, every link "
+            "with its reason; a match by date range rather than by key is pointed out as work for a view, not hidden."},
+    {"slug": "property", "name": "Property and real estate", "example": "sample",
+     "problem": "Which unit does this maintenance request belong to, and who is the tenant right now?",
+     "get": "Property, unit, lease, tenant and request on one map with the reason for each link; the column that names a role "
+            "(reported by) marked as the weaker link and left for your check; nothing created until you ask."},
+    {"slug": "education", "name": "Education", "example": "sap",
+     "problem": "A student takes the same course twice, and the grade report counts one of them or both, depending on the join.",
+     "get": "The enrolment key that needs student, course and term together, the duplicates a shorter key would give counted in "
+            "your rows, and a plan the registrar can read before any dashboard."},
 ]
 
 # The three tasks a visitor starts from (the website brief of 26 October 2026): what they say, what they get and the
@@ -129,9 +164,27 @@ def examples_html() -> str:
     return "".join(out)
 
 
+def _example_title(kind: str) -> str:
+    return next(title for k, _a, title, _t, _b in EXAMPLES if k == kind)
+
+
 def industries_html() -> str:
+    """One card per industry: the heading, the problem in the customer's words, what they get, and the button to the
+    nearest runnable example on /check (synthetic data)."""
     e = html.escape
-    return "".join(f'<li id="{slug}"><strong>{e(name)}.</strong> {e(line)}</li>' for slug, name, line in INDUSTRIES)
+    return "".join(
+        f'<li class="card soft uc-ind" id="{e(i["slug"])}"><h3>{e(i["name"])}</h3>'
+        f'<p class="uc-task-q">“{e(i["problem"])}”</p>'
+        f'<p><strong>What you get.</strong> {e(i["get"])}</p>'
+        f'<p class="uc-ind-go"><a class="btn secondary small" href="/check?example={e(i["example"])}" data-try-like="{e(i["example"])}">Try a similar example</a>'
+        f'<span class="muted tiny">{e(_example_title(i["example"]))}, synthetic data</span></p></li>'
+        for i in INDUSTRIES)
+
+
+def industry_words(ind: dict) -> int:
+    """The words one industry puts on the page (heading, problem, what you get, the button and its note)."""
+    text = re.sub(r"<[^>]+>", " ", industries_html().split(f'id="{ind["slug"]}"', 1)[1].split("</li>", 1)[0])
+    return len(html.unescape(text).split())
 
 
 def outputs_html() -> str:
@@ -180,8 +233,10 @@ def markdown(product: str, origin: str, contact: str) -> str:
                 f"- Run it on your laptop: [{origin}/local]({origin}/local). Tools: {_tools(p)}. Status: {task_status(p['tools'])}.\n"]
     out.append("## What comes out\n")
     out += [f"- **{n}**: {w}{' (' + t + ')' if t else ''}" for n, w, t in OUTPUTS]
-    out.append("\n## Other industries\n")
-    out += [f"- **{name}.** {line}" for _s, name, line in INDUSTRIES]
+    out.append("\n## Industries: the problem a customer brings\n")
+    for i in INDUSTRIES:
+        out += [f"### {i['name']}\n", f"**“{i['problem']}”**\n", f"- **What you get.** {i['get']}",
+                f"- Try a similar example ({_example_title(i['example'])}, synthetic data): [{origin}/check?example={i['example']}]({origin}/check?example={i['example']})\n"]
     out.append(f"\nThe rules behind every key and relationship: [{origin}/docs#how-relationships-are-inferred]({origin}/docs#how-relationships-are-inferred). "
                f"What each tool builds from a plan: [{origin}/use-cases/build]({origin}/use-cases/build).")
     out.append(f"\n## For Fabric consultancies\n\n{CONSULTANCY_TEXT.format(product=product)} "

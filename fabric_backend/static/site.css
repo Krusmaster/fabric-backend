@@ -1187,7 +1187,12 @@ html[data-mascots=off] .check-guide-figure{display:none}
 .uc-map figcaption{margin-top:6px}
 .uc-ex-h{margin:8px 0 0}
 .uc-ex-finds{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:8px}
-.uc-other{margin:8px 0 0;padding-left:20px;display:grid;gap:6px}
+/* n68: the ten industries as problem cards */
+.uc-ind-list{list-style:none;margin:16px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:16px}
+.uc-ind{padding:18px 20px;min-width:0}
+.uc-ind h3{margin:0 0 6px}
+.uc-ind p{margin:6px 0}
+.uc-ind-go{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px!important}
 /* n63: domain_draft's domains on /check's map: a faint tint per domain from the soft tokens (they switch with the
    theme), a small name label above each table, interfaces between domains drawn thicker */
 .check-map .m-dom-0 rect,.check-dom-sw.m-dom-0{fill:var(--sage-soft);background:var(--sage-soft)}
