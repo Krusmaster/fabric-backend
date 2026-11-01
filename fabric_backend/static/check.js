@@ -440,6 +440,7 @@
       const shown = a.on_map && map && map.highlight(rel);
       return [el("p", null, el("strong", null, a.header + "." + a.column), " is an amount on ", code(a.header), ", and ", code(a.line),
           " has rows that point at each ", code(a.header), " row (", code(a.line + "." + a.line_columns.join(" + ")), " → ", code(a.header), "). Summed over the joined rows, each header amount is counted once per line."),
+        exampleRow(a),
         el("ul", { class: "check-kpis" },
           el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + a.line + ")")),
           el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + a.header + ")"))),
