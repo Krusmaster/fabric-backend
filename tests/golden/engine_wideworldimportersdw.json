@@ -898,7 +898,7 @@
    },
    "Order": {
     "role": "fact",
-    "why": "nothing points at it, 5 reference(s) out, measures 0.85; out 5, in 0, betweenness 0.0892, measure share 0.85"
+    "why": "nothing points at it, 5 reference(s) out, measures 0.77; out 5, in 0, betweenness 0.0892, measure share 0.77"
    },
    "Payment Method": {
     "role": "dimension",
@@ -910,15 +910,15 @@
    },
    "Sale": {
     "role": "fact",
-    "why": "nothing points at it, 6 reference(s) out, measures 0.86; out 6, in 0, betweenness 0.1213, measure share 0.86"
+    "why": "nothing points at it, 6 reference(s) out, measures 0.79; out 6, in 0, betweenness 0.1213, measure share 0.79"
    },
    "Stock Holding": {
     "role": "fact",
-    "why": "nothing points at it, 1 reference(s) out, measures 0.86; out 1, in 0, betweenness 0.0, measure share 0.86"
+    "why": "nothing points at it, 1 reference(s) out, measures 0.71; out 1, in 0, betweenness 0.0, measure share 0.71"
    },
    "Stock Item": {
     "role": "dimension",
-    "why": "5 reference(s) in, 0 out; out 0, in 5, betweenness 0.1844, measure share 0.53"
+    "why": "5 reference(s) in, 0 out; out 0, in 5, betweenness 0.1844, measure share 0.42"
    },
    "Supplier": {
     "role": "dimension",
@@ -954,8 +954,8 @@
   "sha256": "df019a719a48f7b25b6088ba1b23bdfaf98aa8fb127941fd264ca7dc63bd60b7"
  },
  "dictionary": {
-  "bytes": 39043,
-  "sha256": "66c26bac46df12d24d37863db03ef37fbc1ef0e6acf74137aa5e21d30699bdc2"
+  "bytes": 40960,
+  "sha256": "ae1bc44de1cbcbb5b1d965d571815835925c221c6d7b91a40b5a06f30a498edd"
  },
  "gold": {
   "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
@@ -1496,8 +1496,8 @@
   "Transaction Type": "SELECT TOP (10) [Transaction Type Key], [WWI Transaction Type ID], [Transaction Type], [Valid From], [Valid To], [Lineage Key] FROM [dbo].[Transaction Type]"
  },
  "semantic_model": {
-  "bytes": 121303,
-  "sha256": "f286d0c6828c75bc67ebf95cdb630bdb548758d7efd586e32408d11065bbd445"
+  "bytes": 124636,
+  "sha256": "9d87ebd5da19880a0d9c52a6fdc777d5209d906d364dca600c1240b93fab1159"
  },
  "silver": {
   "bytes": 38656,

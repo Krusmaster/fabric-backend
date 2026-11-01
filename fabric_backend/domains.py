@@ -419,6 +419,16 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
     doc = {"apiVersion": ODCS_VERSION, "kind": "DataContract", "id": f"krusgraph-{_slug(source or schema)}-{_slug(schema)}-{domain['slug']}",
            "name": domain["name"], "version": "0.1.0", "status": "draft", "domain": domain["name"],
            "dataProduct": domain["slug"], "description": desc, "schema": objects}
+    # the amount that is not there (amounts.py): the measure a semantic model gets from quantity × price, as a custom
+    # property of the contract, so the data product says how its order amount is computed and where the price comes from
+    from . import amounts as _amounts
+    oa = _amounts.order_amount_measures(p)             # the price may sit in another domain (products beside the orders): still named
+    custom = [{"property": f"measure.{_slug(m['name'])}", "value": m["expression"],
+               "description": f"{m['table']}.{m['column']} is a quantity and {m['table']} carries no amount; the price is {m['dimension']}.{m['price']} "
+                              f"({m['table']}.{m['via']} → {m['dimension']}, {m['rule']}). {m['price_note']}"} for m in oa["measures"] if m["table"] in mine]
+    custom += [{"property": f"amount.{_slug(x['line'])}", "value": ", ".join(x["amounts"]), "description": x["why"]} for x in oa["own_amounts"] if x["line"] in mine]
+    if custom:
+        doc["customProperties"] = custom
     lines = [f"# ODCS {ODCS_VERSION} draft from Krusgraph's plan: review before use. Nothing was created in Fabric."]
     lines += _yaml(doc)
     if dated:

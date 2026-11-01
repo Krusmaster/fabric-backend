@@ -145,8 +145,11 @@ def test_semantic_model_suggests_measures_with_the_reason_and_never_on_ids(shop_
     out = semantic_model.draft(shop_plan, INFO, "shop_model")
     measures = {m["name"]: m for m in out["summary"]["measures"]}
     # one row count per fact table, one sum per column summarizeBy sums; nothing on keys, references, ids or dimensions
-    assert set(measures) == {"Rows in orders", "Rows in order_items", "Rows in audit_log", "Total quantity"}
+    assert set(measures) == {"Rows in orders", "Rows in order_items", "Rows in audit_log", "Total quantity", "Order amount"}
     assert measures["Total quantity"]["expression"] == "SUM('order_items'[quantity])" and "summarizeBy: sum" in measures["Total quantity"]["why"]
+    # the amount that is not there: quantity on the line, list price on the product (tests/test_order_amount.py has the rest)
+    assert measures["Order amount"]["expression"] == "SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))"
+    assert "Total list_price" not in measures                                                     # a price is not summed on its own
     assert all(m["why"] for m in measures.values())
     items = out["parts"]["definition/tables/order_items.tmdl"]
     assert "\t/// Suggested by Krusgraph: order_items.quantity is a number" in items

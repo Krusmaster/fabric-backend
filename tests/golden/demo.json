@@ -12,7 +12,7 @@
    ]
   },
   "label": "Illustrative demo",
-  "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+  "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
   "name": "shop",
   "relationships": [
    {
@@ -218,6 +218,12 @@
       "linked": true,
       "name": "category_id",
       "type": "int"
+     },
+     {
+      "key": false,
+      "linked": false,
+      "name": "list_price",
+      "type": "double"
      }
     ],
     "key": [
@@ -361,10 +367,33 @@
  },
  "demo_validation": {
   "amount_levels": {
-   "findings": [],
+   "findings": [
+    {
+     "amount_columns": [
+      "list_price"
+     ],
+     "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
+     "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+     "header": "products",
+     "header_columns": [
+      "product_id"
+     ],
+     "line": "order_items",
+     "line_columns": [
+      "product_id"
+     ],
+     "rows_per_header": {
+      "avg_lines": 16.75,
+      "headers": 8,
+      "headers_in_table": 8,
+      "max_lines": 27
+     },
+     "rule": "R1"
+    }
+   ],
    "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. The counts are over the whole tables at the moment of the call.",
    "rule": "A number on the header table of a many-to-one relationship is repeated on every line row in a join of the two; summing it over the joined rows counts each header once per line.",
-   "summary": "no header table with an amount column that a line table points at"
+   "summary": "1 header amount(s) that a join with their line rows would repeat; 1 with more than one line per header in the data"
   },
   "computed": "on the synthetic demo data (fabric_backend.seed.rows) in an in-memory SQLite database, with the same checks validate_plan runs on a Fabric source",
   "keys": [
@@ -1036,6 +1065,34 @@
     },
     {
      "accepted": false,
+     "amount": {
+      "column": "list_price",
+      "header": "products",
+      "line": "order_items",
+      "line_columns": [
+       "product_id"
+      ],
+      "on_map": true,
+      "right": 1666.6,
+      "wrong": 22610.9
+     },
+     "can_accept": false,
+     "evidence": "SELECT SUM(h.[list_price]) AS total FROM [shop].[order_items] AS l JOIN [shop].[products] AS h ON l.[product_id] = h.[product_id]",
+     "id": "amt:order_items>products.list_price",
+     "kind": "amount_level",
+     "means": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+     "next": {
+      "sql": "SELECT SUM(h.[list_price]) AS total FROM [shop].[products] AS h WHERE EXISTS (SELECT 1 FROM [shop].[order_items] AS l WHERE l.[product_id] = h.[product_id])"
+     },
+     "next_text": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
+     "saw": "Summed over the joined order_items rows: 22 611; summed once per products row: 1 667. products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products).",
+     "severity": "warning",
+     "skipped": false,
+     "table": "products",
+     "title": "products.list_price would be summed once per order_items row"
+    },
+    {
+     "accepted": false,
      "can_accept": true,
      "evidence": "SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.[address_id]) AS matched, COUNT_BIG(DISTINCT s.[ship_to_id]) AS distinct_values FROM [shop].[orders] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [shop].[addresses]) AS t ON s.[ship_to_id] = t.[address_id] WHERE s.[ship_to_id] IS NOT NULL",
      "id": "sug:orders.ship_to_id>addresses",
@@ -1080,7 +1137,7 @@
     }
    ],
    "note": "Counts over the whole tables now. Accepting a suggestion is your decision; nothing here calls it verified.",
-   "open": 3,
+   "open": 4,
    "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
   },
   "host": "127.0.0.1",
@@ -1090,7 +1147,7 @@
    "keyless": [
     "audit_log"
    ],
-   "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
+   "mermaid": "erDiagram\n  customers {\n    customer_id int PK\n    name string\n    country string\n  }\n  categories {\n    id int PK\n    name string\n  }\n  products {\n    product_id int PK\n    name string\n    category_id int\n    list_price double\n  }\n  addresses {\n    address_id int PK\n    customer_id int\n    city string\n  }\n  orders {\n    order_id int PK\n    customer_id int\n    order_date date\n    ship_to_id int\n  }\n  order_items {\n    order_id int PK\n    line_no int PK\n    product_id int\n    quantity double\n  }\n  audit_log {\n    event string\n    customer_id int\n    happened_at timestamp\n  }\n  categories ||--o{ products : \"category_id R1\"\n  customers ||--o{ addresses : \"customer_id R1\"\n  customers ||--o{ orders : \"customer_id R1\"\n  orders ||--o{ order_items : \"order_id R1\"\n  products ||--o{ order_items : \"product_id R1\"\n  customers ||--o{ audit_log : \"customer_id R1\"",
    "name": "shop",
    "relationships": [
     {
@@ -1262,6 +1319,12 @@
        "linked": true,
        "name": "category_id",
        "type": "int"
+      },
+      {
+       "key": false,
+       "linked": false,
+       "name": "list_price",
+       "type": "double"
       }
      ],
      "key": [

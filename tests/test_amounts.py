@@ -78,8 +78,9 @@ def test_names_that_read_as_amounts_and_names_that_do_not():
     assert not amounts.looks_like_amount("order_amount", "nvarchar")
 
 
-def test_the_shop_has_no_header_amount_and_a_one_to_one_link_is_not_a_header():
-    assert amounts.check(seed.schema() and plan(seed.schema()))["findings"] == []
+def test_the_shop_has_one_header_amount_the_list_price_and_a_one_to_one_link_is_not_a_header():
+    found = amounts.check(plan(seed.schema()))["findings"]           # the orders carry no amount; the price sits on the product
+    assert [(f["header"], f["amount_columns"], f["line"]) for f in found] == [("products", ["list_price"], "order_items")]
     s = Schema(schema="x")
     s.tables["orders"] = Table("orders", [Column("order_id", "int"), Column("order_amount", "decimal")], schema="x")
     s.tables["order_extras"] = Table("order_extras", [Column("order_id", "int"), Column("note", "string")], schema="x")

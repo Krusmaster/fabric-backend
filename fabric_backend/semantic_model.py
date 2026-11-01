@@ -301,6 +301,18 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         dt = data_type(next(col.data_type for col in plan.schema[t].columns if col.name == c))
         measures.append({"table": t, "column": c, "name": mname, "expression": f"SUM({_dax_table(t)}[{_dax_column(c)}])",
                          "format": "#,##0" if dt == "int64" else "#,##0.00", "why": why})
+    # the amount that is not there (amounts.py): a line with a quantity and no amount, the price on the table it points at
+    from . import amounts as _amounts
+    order_amount = _amounts.order_amount_measures(plan, active, names)
+    consumed = {(m["dimension"], m["price"]) for m in order_amount["measures"]}
+    measures = [m for m in measures if (m["table"], m["column"]) not in consumed]   # no sum of a price that feeds the order amount
+    taken = {x["name"].lower() for x in measures} | {x.name.lower() for x in chosen} | {col.name.lower() for x in chosen for col in x.columns}
+    for m in order_amount["measures"]:
+        if m["name"].lower() in taken:
+            m["name"] = f"{m['name']} ({m['table']})"
+        taken.add(m["name"].lower())
+        measures.append(m)
+    feeds = {(d, c): next(m["name"] for m in order_amount["measures"] if (m["dimension"], m["price"]) == (d, c)) for d, c in consumed}
     by_table: dict[str, list[dict]] = {}
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
@@ -335,7 +347,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
             dt = data_type(c.data_type)
             is_key = len(key) == 1 and c.name == key[0]
             summarize = summarize_by(c.name, c.data_type, (t.name, c.name.lower()) in ref_cols or c.name in key)
-            if (t.name, c.name) in header_level:
+            if (t.name, c.name) in feeds:
+                summarize = "none"
+                lines.append(f"\t/// A price at the level of {t.name}, read by the measure {tmdl_name(feeds[(t.name, c.name)])} through RELATED. "
+                             f"Not summed by default: a sum of prices over the line rows would count each price once per line.")
+            elif (t.name, c.name) in header_level:
                 summarize = "none"
                 lines.append(f"\t/// An amount at the level of {t.name}; {', '.join(header_level[(t.name, c.name)])} has several rows per "
                              f"{t.name} row. Not summed by default: use the measure, never a sum over the line rows.")
@@ -450,11 +466,21 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                ""]
     readme += ["## Suggested measures", ""] + ([f"- `{m['name']}` = `{m['expression']}` on `{m['table']}`: {m['why']}." for m in measures]
                                               or ["- None: the plan has no fact table (a table that points at others and that nothing points at)."])
-    readme += ["", "## Amounts at header level", ""] + ([f"- `{t}.{c}`: an amount on `{t}`, which {', '.join(f'`{x}`' for x in ls)} has "
-                                                            f"several rows for; `summarizeBy: none` and a measure on `{t}` instead. Order amount and "
-                                                            "line amount are different levels: summed over the line rows it would count each "
-                                                            f"`{t}` row once per line." for (t, c), ls in header_level.items()]
+    readme += ["", "## Amounts at header level", ""] + ([(f"- `{t}.{c}`: a price on `{t}`, read by the measure `{feeds[(t, c)]}` through RELATED; "
+                                                             f"`summarizeBy: none` and no sum of its own (a sum of prices over the line rows would count "
+                                                             "each price once per line)." if (t, c) in feeds else
+                                                             f"- `{t}.{c}`: an amount on `{t}`, which {', '.join(f'`{x}`' for x in ls)} has "
+                                                             f"several rows for; `summarizeBy: none` and a measure on `{t}` instead. Order amount and "
+                                                             "line amount are different levels: summed over the line rows it would count each "
+                                                             f"`{t}` row once per line.") for (t, c), ls in header_level.items()]
                                                            or ["- None: no table that another one has several rows for carries an amount column."])
+    readme += ["", "## Order amount (quantity × price)", ""]
+    readme += [f"- `{m['name']}` = `{m['expression']}` on `{m['table']}`: {m['why']}" for m in order_amount["measures"]]
+    readme += [f"- `{x['line']}` keeps its own amount: {x['why']}." for x in order_amount["own_amounts"]]
+    readme += [f"- `{x['line']}.{x['quantity']}` × a price ({', '.join(x['prices'])}): not created, {x['why']}." for x in order_amount["not_created"]]
+    if not any(order_amount.values()):
+        readme.append("- None: no table has a quantity column with a price on a table it points at (names: quantity, qty, menge; price, "
+                      "list_price, unit_price, netpr), or the line carries an amount of its own.")
     readme += ["", "No measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get "
                "no sums; their numbers describe one row.", "", "## Date table", ""]
     if calendar:
@@ -493,6 +519,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                     "rule": r.rule, "why": not_expressible_why(plan, r)} for r in composite],
                "measures": [{k: m[k] for k in ("table", "name", "expression", "why")} for m in measures],
                "header_amounts": [{"table": t, "column": c, "lines": ls, "summarize_by": "none"} for (t, c), ls in header_level.items()],
+               "order_amount": {"measures": [{k: m[k] for k in ("table", "name", "expression", "dimension", "price", "via", "rule", "price_note")}
+                                             for m in order_amount["measures"]],
+                                "own_amounts": order_amount["own_amounts"], "not_created": order_amount["not_created"]},
                "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
                                "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}

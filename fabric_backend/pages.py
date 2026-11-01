@@ -617,7 +617,7 @@ def build_html() -> str:
     meas = "".join(f'<li><code>{e(x["table"])}</code> · {e(x["name"])}: <code>{e(x["expression"])}</code></li>' for x in m["measures"])
     ad = m["amount_demo"]
     amounts = (f'<p><strong>Header-level amounts:</strong> {e(m["amount_check"])}'
-               + (f' ({e(", ".join(f"{x['header']}.{c}" for x in m["header_amounts"] for c in x["amount_columns"]))})' if m["header_amounts"] else "")
+               + (f' ({e(", ".join(f"{x['table']}.{x['column']}" for x in m["header_amounts"]))})' if m["header_amounts"] else "")
                + f'. {e(m["amount_rule"])} In the synthetic example <code>{e(ad["line"])}</code> → <code>{e(ad["header"])}</code>, '
                f'<code>SUM({e(ad["header"])}.{e(ad["column"])})</code> over the joined lines gives {ad["before"]:g}; summed on '
                f'<code>{e(ad["header"])}</code> it gives {ad["after"]:g}, and the lines add up to {ad["lines_total"]:g}.</p>')

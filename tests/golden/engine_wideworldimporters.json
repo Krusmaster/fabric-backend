@@ -1,7 +1,7 @@
 {
  "analyze": {
-  "bytes": 34238,
-  "sha256": "d9fcdc1c96a72d194e54e2442cb64460cef2ccc7d65368c3929a147789b9c3cc"
+  "bytes": 34240,
+  "sha256": "010fc572627fdad6586352a6fd2303472d3486801d80e039cf4de86f8303a322"
  },
  "candidates": {
   "bytes": 27443,
@@ -13,8 +13,8 @@
   "sha256": "a030f68060776862481808241f798f07ded567e51490deff5cf79076dafd0c62"
  },
  "dictionary": {
-  "bytes": 80878,
-  "sha256": "30a7faacd15e70697478920fb9a23b55bd0d2ca1f4d9685d1a0f8e856905f925"
+  "bytes": 82154,
+  "sha256": "500d96c792062c8b18e3661fae6c975474a68126632cc65bcce503e7ecafccfb"
  },
  "gold": {
   "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
@@ -174,8 +174,8 @@
   "VehicleTemperatures": "SELECT TOP (10) [VehicleTemperatureID], [VehicleRegistration], [ChillerSensorNumber], [RecordedWhen], [Temperature], [FullSensorData], [IsCompressed], DATALENGTH([CompressedSensorData]) AS [CompressedSensorData (bytes)] FROM [dbo].[VehicleTemperatures]"
  },
  "semantic_model": {
-  "bytes": 255927,
-  "sha256": "f21f5d3178b752a937148fb036a3f28832aea0c82971408e6605a447054a3b8c"
+  "bytes": 259282,
+  "sha256": "1ce3b885e69cc06f82bfc1d43d7e4e05072959f2d21f863679b0c693663c0ec7"
  },
  "silver": {
   "bytes": 84215,
