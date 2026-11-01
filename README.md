@@ -398,6 +398,19 @@ REST route for either, and the connection card says so instead of pretending. Te
 can call Fabric public APIs"* is an admin task once per tenant. If you know a programmatic way for
 either, open an issue.
 
+## Evidence
+
+What is measured or recorded, and where; no claim beyond what these say.
+
+- **Benchmark** on four synthetic sets (shop, SAP-shaped, Salesforce-shaped + ERP, built traps) against an approximation
+  of Power BI's documented autodetect rules and dbt-style tests, with its limitations stated:
+  [examples/benchmark/README.md](examples/benchmark/README.md); `tests/test_benchmark.py` checks that a new run gives the
+  same table. Inference on eleven schemas from names alone: [docs/INFERENCE.md](docs/INFERENCE.md).
+- **Live test checklist** and the protocol behind every status word, with dates: [docs/LIVE-TEST.md](docs/LIVE-TEST.md).
+- **Status per tool**, rendered from `fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status.
+- **What is still missing** for the sales deck, the Marketplace listing and the connector application, and who takes it:
+  [docs/MISSING-EVIDENCE.md](docs/MISSING-EVIDENCE.md).
+
 ## Status
 
 Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
