@@ -526,11 +526,15 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md
     assert "22 tools" not in md and "for real" not in md
-    assert tools["create_backend"] == "Tested end to end (27 October 2026: update in place of shop_api with confirmed)"
+    assert tools["create_backend"] == ("Tested end to end (27 October 2026: update in place of shop_api with confirmed; updated in place again "
+                                       "from Lovable on 30 October 2026; consumed live by a Lovable app on 30 October 2026)")
+    assert tools["create_report"] == ("Experimental; created live on 30 October 2026 (shop_report_live, shop_report), opened and reviewed in "
+                                      "the Fabric portal by Gustav the same day")                   # n69
     assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
     assert tools["create_data_agent"] == "Available when enabled by the operator; tested end to end as a dry run"
     assert tools["create_semantic_model"] == ("Available when enabled by the operator; created live on 29 October 2026 "
-                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day")
+                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day; "
+                                              "shop_model updated in place from Lovable (experimental) on 30 October 2026")
     for tool in ("ontology_draft", "semantic_model_draft", "data_dictionary", "dbt_schema", "app_starter", "answer_query_draft",
                  "rayfin_connector", "export_item_definitions"):
         assert tools[tool] == "Tested end to end (a draft; creates nothing)", tool
@@ -873,8 +877,8 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026; they stay Experimental until a full "
-            "sign-in with each is confirmed") in start
+    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026 and Lovable was tried here on 30 October 2026; "
+            "they stay Experimental until a full sign-in with each is confirmed") in start
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_

@@ -380,7 +380,8 @@ def shop(monkeypatch):
 
 def test_tools_answer_on_the_shop_schema(shop, monkeypatch):
     out = json.loads(server.semantic_model_draft(*shop, name="shop_model", schema="shop"))
-    assert out["summary"]["tables"] == 7 and "definition/tables/orders.tmdl" in out["parts"] and "not yet created" in out["note"]
+    assert out["summary"]["tables"] == 7 and "definition/tables/orders.tmdl" in out["parts"]
+    assert "create_semantic_model creates the item from it (created live; reviewed in Fabric)" in out["note"]      # from tool_status (n69)
     assert 'Sql.Database("x.datawarehouse.fabric.microsoft.com", "shop_lh")' in out["parts"]["definition/expressions.tmdl"]
     out = json.loads(server.join_path(*shop, start="customers", end="categories", schema="shop"))
     assert out["paths"][0]["hops"] == 4 and out["paths"][0]["sql"].startswith("SELECT TOP (100)")

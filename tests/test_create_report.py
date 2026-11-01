@@ -71,7 +71,7 @@ def test_dry_run_shows_the_call_and_posts_nothing(fabric):
     assert "definition" not in out["rest"]["body"] and out["rest"]["delegated_scope"] == "Report.ReadWrite.All or Item.ReadWrite.All"
     assert out["report"]["pages"] == 1 and out["report"]["visuals"] == 0 and out["report"]["bound_to"] == {"semantic_model": "shop_model", "id": MODEL_ID}
     assert "blank page" in out["report"]["empty"] and any("Power BI Desktop" in s for s in out["after_creation"])
-    assert "Fabric portal" in out["after_creation"][0] and "Not yet run against a live workspace" in out["note"]
+    assert "Fabric portal" in out["after_creation"][0] and "On 30 October 2026 it created the report shop_report_live live" in out["note"]
 
 
 def test_model_given_as_an_id_is_used_as_is(fabric):

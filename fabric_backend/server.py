@@ -691,7 +691,7 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
     tables = sorted(keep, key=str.lower) if keep is not None else None
     out = _semantic_model.draft(p, info, name, tables)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
-                   + " An item from it is not yet created live (create_semantic_model). Open the "
+                   + " create_semantic_model creates the item from it (" + _tool_status.short("create_semantic_model") + "). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
                    "lists what to check first.")
     text = json.dumps(out, indent=2)
