@@ -15,7 +15,9 @@ How the split is made (round n56, after feedback from an architect with DDD expe
   and ties go to the lower community name, so the same schema always gives the same proposal; there is no randomness.
 - Honest about what it cannot place: a table without a key cannot carry a uniqueness promise and is "unassigned" (with
   the domain it points at, if any); a group below MIN_TABLES tables is "unassigned" too rather than a domain of one.
-- Names: SAP tables the pack recognises are named after their part of order-to-cash ("order-to-cash" itself when a
+- Names: a knowledge pack that names its tables' areas (the younium_salesforce pack: customers, subscriptions,
+  billing, product catalog, sales; round n72) names a domain after the area most of its tables are in, or the two
+  biggest; SAP tables the pack recognises are named after their part of order-to-cash ("order-to-cash" itself when a
   domain holds sales documents, deliveries and billing) (public SAP knowledge: sales
   documents, deliveries, billing, customer master, material master, organisation); otherwise the longest common
   name prefix of the domain's tables; otherwise the table the others point at most.
@@ -164,8 +166,28 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_") or "domain"
 
 
-def _name(tables: list[str], g: dict[str, dict[str, float]], into: dict[str, float], schema_prefix: int) -> tuple[str, str]:
-    areas: dict[str, int] = {}
+def pack_areas(match) -> dict[str, str]:
+    """{schema table: area} from a knowledge pack's match of the schema (sap_pack.Match), for the tables whose pack entry
+    names an area (the younium_salesforce pack: customers, subscriptions, billing, product catalog, sales). Round n72."""
+    if match is None:
+        return {}
+    from . import sap_pack
+    pack = sap_pack.load(match.pack)
+    return {t: pack["tables"][n]["area"] for t, n in match.tables.items() if pack["tables"][n].get("area")}
+
+
+def _name(tables: list[str], g: dict[str, dict[str, float]], into: dict[str, float], schema_prefix: int,
+          pack_area: dict[str, str] | None = None) -> tuple[str, str]:
+    if pack_area and sum(1 for t in tables if t in pack_area) * 2 > len(tables):
+        # a pack that names its tables' areas (round n72): the area most of the domain's tables are in, or the two biggest
+        areas: dict[str, int] = {}
+        for t in tables:
+            if t in pack_area:
+                areas[pack_area[t]] = areas.get(pack_area[t], 0) + 1
+        top = sorted(areas, key=lambda a: (-areas[a], a))
+        name = top[0] if len(top) == 1 or areas[top[1]] * 2 < areas[top[0]] else f"{top[0]} and {top[1]}"
+        return name, f"the knowledge pack's areas of the tables: {', '.join(f'{areas[a]} table(s) of {a}' for a in top)}"
+    areas = {}
     for t in tables:
         a = _SAP_AREA.get(_sap_base(t) or "")
         if a:
@@ -198,10 +220,11 @@ def _weight(rule: str, kind: str | None = None, check: dict | None = None) -> fl
 
 
 def propose(tables: list[dict], relationships: list[dict], validation: dict | None = None,
-            gamma: float = RESOLUTION) -> dict:
+            gamma: float = RESOLUTION, areas: dict[str, str] | None = None) -> dict:
     """Domains from plain data, the form both the plan and /check's result give:
     tables [{"name", "key": [cols]}], relationships [{"source", "source_cols", "target", "target_cols", "rule", "kind"?}],
-    validation: validate_plan's output (optional). Returns {"domains", "unassigned", "interfaces", "method"}."""
+    validation: validate_plan's output (optional), areas: {table: area} a knowledge pack gave (pack_areas), used for the
+    domains' names. Returns {"domains", "unassigned", "interfaces", "method"}."""
     checks = {(r["source"], tuple(c.lower() for c in r["columns"]), r["target"]): r for r in (validation or {}).get("relationships", [])}
     keyed = sorted((t["name"] for t in tables if t.get("key")), key=str.lower)
     keyless = sorted((t["name"] for t in tables if not t.get("key")), key=str.lower)
@@ -242,7 +265,7 @@ def propose(tables: list[dict], relationships: list[dict], validation: dict | No
                 unassigned.append({"table": t, "reason": "linked to no other table with a key" if not g[t]
                                    else f"a group of {len(comm)} table(s), below the {MIN_TABLES} a domain needs"})
             continue
-        name, why = _name(comm, g, into, schema_prefix)
+        name, why = _name(comm, g, into, schema_prefix, areas)
         domains.append({"name": name, "slug": _slug(name), "name_reason": why, "tables": comm})
     seen: dict[str, int] = {}
     for d in domains:                                     # two domains with one name get a number, in order
@@ -289,10 +312,21 @@ def _plan_data(p) -> tuple[list[dict], list[dict]]:
     return tables, rels
 
 
-def propose_plan(p, validation: dict | None = None, gamma: float = RESOLUTION) -> dict:
-    """Domains of a plan (infer.plan)."""
+def _plan_areas(p) -> dict[str, str]:
+    """The areas of the pack tables the plan recognised (plan.pack, written by infer._pack), when the pack names them."""
+    pack = getattr(p, "pack", None)
+    if not pack or not pack.get("tables"):
+        return {}
+    from . import sap_pack
+    known = sap_pack.load(pack["pack"])["tables"]
+    return {t: known[n]["area"] for t, n in pack["tables"].items() if n in known and known[n].get("area")}
+
+
+def propose_plan(p, validation: dict | None = None, gamma: float = RESOLUTION, areas: dict[str, str] | None = None) -> dict:
+    """Domains of a plan (infer.plan). The names come from the plan's pack when it names its tables' areas; `areas`
+    overrides that (pack_areas of a match the engine did not make itself)."""
     tables, rels = _plan_data(p)
-    return propose(tables, rels, validation, gamma)
+    return propose(tables, rels, validation, gamma, areas if areas is not None else _plan_areas(p))
 
 
 def propose_from_check(result: dict, gamma: float = RESOLUTION) -> dict:
@@ -440,9 +474,11 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
     return "\n".join(lines) + "\n"
 
 
-def draft(p, schema: str, source: str = "", validation: dict | None = None, gamma: float = RESOLUTION, extra=None) -> dict:
+def draft(p, schema: str, source: str = "", validation: dict | None = None, gamma: float = RESOLUTION, extra=None,
+          areas: dict[str, str] | None = None) -> dict:
     """The proposal plus one ODCS contract per domain: {"domains", "unassigned", "interfaces", "method", "contracts"}.
-    `extra`: more top-level customProperties per contract, a list or a function of the domain (n73: /check's amount notes)."""
-    out = propose_plan(p, validation, gamma)
+    `extra`: more top-level customProperties per contract, a list or a function of the domain (n73: /check's amount notes).
+    `areas`: {table: area} from a knowledge pack (pack_areas), for the domains' names (n72)."""
+    out = propose_plan(p, validation, gamma, areas)
     out["contracts"] = {d["slug"]: contract(p, d, out["interfaces"], schema, source, validation, extra) for d in out["domains"]}
     return out
