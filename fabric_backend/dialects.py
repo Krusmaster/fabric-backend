@@ -52,13 +52,14 @@ class Dialect:
     def view_comment(self, text: str) -> str:
         return f" COMMENT {self.literal(text)}" if self.comments and text else ""
 
-    def select(self, columns: str, rest: str, n: int | None = None) -> str:
-        """SELECT <columns> <rest>, limited to n rows in this dialect's syntax."""
+    def select(self, columns: str, rest: str, n: int | None = None, distinct: bool = False) -> str:
+        """SELECT [DISTINCT] <columns> <rest>, limited to n rows in this dialect's syntax (T-SQL: SELECT DISTINCT TOP (n))."""
+        d = "DISTINCT " if distinct else ""
         if n is None:
-            return f"SELECT {columns}{rest}"
+            return f"SELECT {d}{columns}{rest}"
         if self.limit_style == "top":
-            return f"SELECT TOP ({int(n)}) {columns}{rest}"
-        return f"SELECT {columns}{rest}\nLIMIT {int(n)}" if "\n" in rest else f"SELECT {columns}{rest} LIMIT {int(n)}"
+            return f"SELECT {d}TOP ({int(n)}) {columns}{rest}"
+        return f"SELECT {d}{columns}{rest}\nLIMIT {int(n)}" if "\n" in rest else f"SELECT {d}{columns}{rest} LIMIT {int(n)}"
 
     def with_catalog(self, catalog: str | None) -> "Dialect":
         return replace(self, catalog=catalog or None)
@@ -82,10 +83,23 @@ def of(execute) -> Dialect:
     return d if isinstance(d, Dialect) else TSQL
 
 
+_TOP = re.compile(r"SELECT(\s+DISTINCT)?\s+TOP\s*\(?\s*(\d+)\s*\)?\s+", re.I)
+
+
 def sqlite_sql(sql: str) -> str:
-    """The engine's T-SQL for SQLite: COUNT instead of COUNT_BIG and LIMIT instead of TOP."""
+    """The engine's T-SQL for SQLite: COUNT instead of COUNT_BIG and LIMIT instead of TOP, for the statement itself and
+    for a `SELECT [DISTINCT] TOP (n)` inside parentheses (the sampled inclusion check of R5): LIMIT goes where that
+    SELECT ends, at the closing parenthesis or the end of the text."""
     sql = sql.replace("COUNT_BIG(", "COUNT(")
-    m = re.match(r"^\s*SELECT\s+TOP\s*\(?\s*(\d+)\s*\)?\s+", sql, re.I)
-    if m:
-        sql = "SELECT " + sql[m.end():] + f"\nLIMIT {int(m.group(1))}"
+    while (m := _TOP.search(sql)) is not None:
+        depth, end = 0, len(sql)
+        for i in range(m.end(), len(sql)):
+            if sql[i] == "(":
+                depth += 1
+            elif sql[i] == ")":
+                if depth == 0:
+                    end = i
+                    break
+                depth -= 1
+        sql = sql[:m.start()] + "SELECT " + ("DISTINCT " if m.group(1) else "") + sql[m.end():end] + f"\nLIMIT {int(m.group(2))}" + sql[end:]
     return sql

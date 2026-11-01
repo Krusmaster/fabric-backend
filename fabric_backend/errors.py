@@ -7,7 +7,7 @@ quoted only after `scrub()`, which strips anything that looks like a bearer toke
 
 Kinds: sign_in, consent, no_access, not_found, capacity, source_not_ready, schema_not_found, table_not_found,
 column_not_found, sql_sign_in, timeout, unreachable, throttled, fabric_unavailable, unsupported, bad_input, server_config,
-fabric_error, sql_error, unexpected, feature_disabled, fabric_refused; and two the server's own tool wrapper answers with: rate_limited (limits.py, with
+fabric_error, sql_error, unexpected, feature_disabled, fabric_refused, already_exists; and two the server's own tool wrapper answers with: rate_limited (limits.py, with
 retry_after in seconds) and upgrade (entitlements.py, off unless KRUSGRAPH_ENTITLEMENTS=1).
 """
 from __future__ import annotations
@@ -46,6 +46,7 @@ HINTS = {
     "server_config": "This is a configuration problem on the connector itself, not with your account. Contact the operator.",
     "feature_disabled": "A Fabric administrator enables this item type in the admin portal's tenant settings; the token's permissions are not the problem.",
     "fabric_refused": "Fabric refused with an error code this server does not know; the answer quotes it. Check the token's permissions, the workspace role and the tenant settings.",
+    "already_exists": "An item of that name is already in the workspace and this tool never updates or deletes it. Choose another name, or open the existing item.",
     "fabric_error": "Check the message from Fabric above; list_sources and list_tables show what the account can see.",
     "sql_error": "Check the message from the SQL analytics endpoint above.",
     "unexpected": "Try again. If it keeps failing, report the kind and the message to the operator.",

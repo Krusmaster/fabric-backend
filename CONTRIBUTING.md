@@ -35,10 +35,10 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n59 (Website: /use-cases, tagline, security.txt) |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n61 (benchmark under examples/benchmark/) |
-| Deployment | `deploy/`, `Dockerfile` | open |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
+| Deployment | `deploy/`, `Dockerfile`, `.github/` | n74 (the dependabot PRs 7–12, grouped monthly dependabot updates merged after green CI) |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 
@@ -47,6 +47,15 @@ and set it back to "open" when you are done.
 
 Rounds are numbered nNN, and the number appears in the claim and release commits. Before a round claims, run
 `git log origin/main --oneline --grep "nNN claims"` and take the next number that has not been used.
+
+## Issues, pull requests and conduct
+
+- Issues use the forms in `.github/ISSUE_TEMPLATE/`: **Bug** (which example or which file, without customer data),
+  **Feature**, and **A wrong relationship** (table, column, the rule that was shown, what was right). A security problem
+  goes the way `docs/SECURITY.md` says, not into a public issue.
+- A pull request follows `.github/PULL_REQUEST_TEMPLATE.md`, which repeats the rules above as a checklist: the claim, an
+  own worktree, a green suite, no customer data, the sales-word test (`tests/test_site.py`, `SALES`), no deployment.
+- The code of conduct is the Contributor Covenant 2.1, `CODE_OF_CONDUCT.md`; reports go to hello@krusgraph.com.
 
 ## Verified, and how
 

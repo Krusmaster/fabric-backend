@@ -16,7 +16,7 @@ def seed_rows() -> dict[str, list[dict]]:
                        {"order_id": 200, "customer_id": 77, "order_date": datetime.date(2026, 10, 2), "ship_to_id": 1}]   # unknown customer
     data["order_items"] += [{"order_id": 200, "line_no": 1, "product_id": 1, "quantity": 1.0},           # its order goes to quarantine
                             {"order_id": 999, "line_no": 1, "product_id": 1, "quantity": 2.0}]           # no such order
-    data["products"] += [{"product_id": 9, "name": "Spare tube", "category_id": None}]                   # a NULL reference stays
+    data["products"] += [{"product_id": 9, "name": "Spare tube", "category_id": None, "list_price": 4.5}]  # a NULL reference stays
     data["audit_log"] += [{"event": "login", "customer_id": 55, "happened_at": datetime.datetime(2026, 10, 5, 12, 0)}]
     return data
 

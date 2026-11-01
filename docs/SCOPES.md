@@ -18,15 +18,16 @@ repository root.
 | | `GraphQLApi.Execute.All` | `query_graphql` |
 | | `Notebook.ReadWrite.All` | `create_silver_notebook`, `create_gold_views`, the notebook of `create_drift_monitor` (added 28 October 2026) |
 | | `DataPipeline.ReadWrite.All` | the pipeline of `create_drift_monitor` (added 28 October 2026) |
-| | `Item.ReadWrite.All` | `create_ontology`, `create_data_agent`, `create_semantic_model`, reading semantic model definitions (added 28 October 2026) |
+| | `Item.ReadWrite.All` | `create_ontology`, `create_data_agent`, `create_semantic_model`, `create_report`, reading semantic model definitions (added 28 October 2026) |
 | Azure SQL Database (`022907d3-0f1b-48f7-badc-1ba6abab6d66`) | `user_impersonation` | every tool that reads the SQL analytics endpoint (`list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, the drafts, `join_path`, `data_dictionary`, `dbt_schema`, `create_views`) |
 
 ## What each tool needs
 
 | Tool | Fabric REST operation(s) | Delegated permission | Have it? |
 | --- | --- | --- | --- |
-| `create_backend` | `graphQLApis` create / `updateDefinition` | `GraphQLApi.ReadWrite.All` | yes |
-| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026); created live on 29 October 2026 (`shop_model_live`), refreshed and reviewed in the Fabric portal by Gustav the same day |
+| `create_backend` | `graphQLApis` create / `updateDefinition` | `GraphQLApi.ReadWrite.All` | yes; `shop_api` updated in place on 27 October 2026 and again from Lovable on 30 October 2026 |
+| `create_semantic_model` | `semanticModels` create (`Items_CreateSemanticModel`), `updateDefinition` | `SemanticModel.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026); created live on 29 October 2026 (`shop_model_live`), refreshed and reviewed in the Fabric portal by Gustav the same day; `shop_model` updated in place from Lovable on 30 October 2026 |
+| `create_report` (dry run by default) | `reports` create (`Items_CreateReport`, `creationPayload.semanticModelReference`; no definition) | `Report.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (`Item.ReadWrite.All`, since 28 October 2026; `Report.ReadWrite.All` is not added); created live on 30 October 2026 (`shop_report_live`, then `shop_report` from Lovable), opened and reviewed in the Fabric portal by Gustav the same day |
 | `create_views` | none — T-SQL on the SQL analytics endpoint / warehouse | Azure SQL `user_impersonation` (have), plus the SQL right to create objects: Contributor on the workspace, or `CREATE VIEW` / `ALTER SCHEMA` granted on the endpoint | yes (scope); rights are per workspace |
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | yes (since 28 October 2026) |
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | yes (since 28 October 2026); also the tenant setting "Users can create Ontology (preview) items"; created live on 28 October 2026 (`shop_ontology`) once it was on, after HTTP 403 `FeatureNotAvailable` while it was off |

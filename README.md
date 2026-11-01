@@ -4,7 +4,7 @@
 
 - The proof: every key and link comes with the rule or source behind it, and is checked against your data.
 - The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
+- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. A second pack describes Younium subscription billing beside Salesforce (accounts and their External CRM Id, subscription versions, charges, invoices with lines, payments); its sources could not be opened from the session that wrote it and it is marked unverified throughout, and the engine does not apply it yet ([docs/YOUNIUM-SALESFORCE.md](docs/YOUNIUM-SALESFORCE.md)). The pack for the Nordic ERP systems is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
 Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
@@ -98,7 +98,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, thirty-seven tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, thirty-eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -120,19 +120,23 @@ same plan into the week's deliverables, all unit-tested and run against the demo
   ([docs/DOMAINS.md](docs/DOMAINS.md)). Unit tests only.
 - `plan_drift` — today's plan against an existing API for GraphQL item: what a `create_backend` with that name would change.
 
-Three more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
-would be created, each creating or updating in place under a name and never deleting; all unit-tested with Fabric
-mocked. On 27 October 2026 all three ran as dry runs against the demo lakehouse; creating with any of them is unit-tested only. The delegated permissions they need, against what the app has today, and
+Four more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
+would be created, each creating or updating in place under a name and never deleting (`create_report` only creates); all unit-tested with Fabric
+mocked. On 27 October 2026 the first three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day; `shop_model` updated in place from Lovable on 30 October 2026) and `create_report` created `shop_report_live` and `shop_report` live on 30 October 2026 (opened and reviewed in the Fabric portal the same day), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
-  `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (not granted today).
+  `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` (`Item.ReadWrite.All` granted since 28 October 2026).
 - `create_views` — `CREATE OR ALTER VIEW` in a schema of its own (`krusgraph`) on the SQL analytics endpoint or
   warehouse: a wide view per fact table, one per header table (`vw_orders`: each order with its customer and, once
   `orders.ship_to_id` is confirmed, its ship-to address; in the dry run of 27 October, not yet created live) and one per hard-to-read
   relationship; needs no new scope, only the SQL right to create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
-  data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (not granted today).
+  data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (granted since 28 October 2026).
+- `create_report` — an empty Power BI report (one blank page, no visuals) bound to an existing semantic model
+  (`POST /reports` with `creationPayload.semanticModelReference`); a report of that name is left alone, never updated or
+  deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`. Experimental; created live on 30 October 2026
+  (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day.
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
   backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
   app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
@@ -209,6 +213,7 @@ run against the demo workspace (synthetic shop data) on 26 and 27 October 2026):
 | R1 (column named after the table) | 0.8 | |
 | R2 (column with the target key's name) | 0.6 | |
 | R3 (composite key present), R4 (role prefix or abbreviation) | 0.5 | |
+| R5 (code or role column, values counted in the rows): no own weight, the default | 0.5 | 0.9 once validate_plan finds no orphans |
 
 Cost is 1/certainty; the shortest path counts hops, the safest path minimises cost, and when they differ `join_path`
 says why. Roles come from in/out degree, betweenness and the share of measure-like columns; subject areas from label
@@ -226,7 +231,8 @@ each user's token is validated (issuer per tenant, audience = the app, signature
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
 Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
 `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata, the counts from the checks, requested sample rows
-and query results pass through the server in memory only; there is no database. Each tool call leaves an anonymous
+and query results pass through the server in memory only and are not kept; Claude's tokens stay in memory, and the only
+stored records are the encrypted sign-in records of other MCP clients described below. Each tool call leaves an anonymous
 usage record, and `/privacy` says which technical logs the deployment keeps. MCP clients other than Claude (VS Code, Cursor, Glama)
 register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_CLIENT_REGISTRATION=1` serves them at
 `/mcp/connect` through Krusgraph's own authorization server at `/oauth` in front of Entra: Client ID Metadata Documents,
@@ -239,7 +245,10 @@ Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed)
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
 token-protected `/metrics` (off by default), `/health` for uptime checks, the client secret optionally from Azure Key Vault
 (`ENTRA_CLIENT_SECRET_KEYVAULT_URI`, set up by `deploy/krusgraph.sh --key-vault`), and a dormant paid-plan check
-(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)).
+(`KRUSGRAPH_ENTITLEMENTS`, off; [docs/PRICING-NOTES.md](docs/PRICING-NOTES.md)). For the person on duty,
+`deploy/krusgraph.sh --doctor` (one table of the service's state, reads only), `--budget` (a cost budget with e-mail)
+and `--backup` (the registration table's consent records to a file), with a continuity checklist, are sections 8
+and 9 of the same file.
 `PRODUCT_NAME`, `CONTACT_EMAIL` and the optional `COMPANY_ORGNR` fill the pages; `KRUSGRAPH_BUILD` (set by the deploy script to the image's source tag) is echoed on `/healthz` so a deploy can tell the new revision from the old one; `KRUSGRAPH_DEBUG_ERRORS=1` adds the exception class to tool error answers, for an operator debugging a case; `KRUSGRAPH_ONTOLOGY_WRITE` (deploy config `ontology_write`) is no longer read: `create_ontology` is always offered, dry run by default; `PARTNER_SIGNIN=1` shows a
 not-yet-wired partner sign-in button. `deploy/` has the Azure Container Apps deployment (`krusgraph.sh`,
 `--check`, `--update`, `--status`, `--key-vault`; exact image versions in `deploy/constraints.txt`; see `deploy/KRUSGRAPH-START.md`), the synthetic demo dataset
@@ -260,15 +269,16 @@ carries the rule that produced it, and you can overrule any of them.
 | K2 | `id`, `<table>_id`, `<singular>_id`, `<table>_key`, `<table>_code`, or an abbreviation of four letters or more (`cust_key`) | | R2 | same name as another table's single key (`werks` → plant); plain `id` never matches |
 | K3 | none → query only, nothing can point at it | | R3 | all columns of another table's composite key are present |
 | K4 | junction: the table starts with two or more reference columns (`film_actor`: `actor_id` + `film_id`) | | R4 | weaker match when R1/R2 find nothing: a role before the name (`manager_staff_id` → staff) or an abbreviation (`o_custkey` → customer) |
-| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | | |
+| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | R5 | only with rows (`plan(..., execute=...)`; plan_backend and `/check` do not pass them yet): a code column `<stem>_code`/`_no`/`_key` (`currency_code` → `currencies.code`, `ERP_Customer_No__c` → `customers.customer_no`) or a role name (`ship_to_id` → addresses, `created_by` → users), planned when every value is in the target's key, same type family, two or more distinct values and one table fits; otherwise `plan.proposed` with the reason |
 
 Names are compared without case, separators or a table-wide column prefix (`N_NATIONKEY` in `NATION` reads as
 `nationkey`), and `<X>Header` also answers to `<X>`. How well this works on Northwind, Chinook, TPC-H,
 AdventureWorks and Sakila, from names alone, is measured in [docs/INFERENCE.md](docs/INFERENCE.md).
 
 A column that could point at two tables (`user_id` with both `users` and `user` present) is
-reported under `plan.ambiguous` and not applied. A column no rule matches (`ship_to_id` in the demo schema) is
-simply left unlinked; `confirmed=[...]` is how you add it. Two columns pointing at the same table get fields
+reported under `plan.ambiguous` and not applied. A column no name rule matches (`ship_to_id` in the demo schema) is
+left unlinked by names alone; with the rows (R5) it is linked when its values say so, and `confirmed=[...]` adds it
+otherwise. Two columns pointing at the same table get fields
 named by column (`airport_by_origin_airport_id`). Anything the rules miss goes in `confirmed=[...]`
 and is applied first. An entry can name the two GraphQL fields too: `field_name` on the source and `reverse_name` on
 the target (`{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"],
@@ -388,6 +398,19 @@ REST route for either, and the connection card says so instead of pretending. Te
 can call Fabric public APIs"* is an admin task once per tenant. If you know a programmatic way for
 either, open an issue.
 
+## Evidence
+
+What is measured or recorded, and where; no claim beyond what these say.
+
+- **Benchmark** on four synthetic sets (shop, SAP-shaped, Salesforce-shaped + ERP, built traps) against an approximation
+  of Power BI's documented autodetect rules and dbt-style tests, with its limitations stated:
+  [examples/benchmark/README.md](examples/benchmark/README.md); `tests/test_benchmark.py` checks that a new run gives the
+  same table. Inference on eleven schemas from names alone: [docs/INFERENCE.md](docs/INFERENCE.md).
+- **Live test checklist** and the protocol behind every status word, with dates: [docs/LIVE-TEST.md](docs/LIVE-TEST.md).
+- **Status per tool**, rendered from `fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status.
+- **What is still missing** for the sales deck, the Marketplace listing and the connector application, and who takes it:
+  [docs/MISSING-EVIDENCE.md](docs/MISSING-EVIDENCE.md).
+
 ## Status
 
 Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
@@ -445,6 +468,17 @@ counted a relationship the API has under another field name as removed (it now k
 also holds the view `krusgraph.vw_order_items`, so `create_views` has created a view at some point, but no protocol of
 that run exists: creating with it stays Experimental.
 
+**28 to 30 October 2026: creating calls after the run** (the protocol per tool: `docs/LIVE-TEST.md`, section 6). On 28
+October, after the Entra app got `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All`,
+`create_silver_notebook` created `silver_shop`, `create_gold_views` `gold_shop`, `create_drift_monitor` (`schedule=false`)
+`drift_shop` and `drift_shop_nightly` (none run in Fabric), and `create_ontology` created `shop_ontology` once the
+tenant setting for ontology items was on (reviewed in the Fabric portal on 29 October). On 29 October
+`create_semantic_model` created `shop_model_live` (refreshed and reviewed in the portal the same day). On 30 October
+`create_report` created `shop_report_live` (dry run first, then `dry_run=false`) and, from Lovable as an MCP client
+signed in at `/mcp/connect`, `shop_report`; Gustav opened `shop_report` in the portal, added a visualisation and saw
+data. Lovable also updated `shop_api` and `shop_model` in place that day, and a Lovable app reads `shop_api` live
+(orders, customers, ship-to addresses). Creating a new API with `create_backend` has still not run live.
+
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and
 the three fixes that came out of it are in [issue #1](https://github.com/Krusmaster/fabric-backend/issues/1): a
@@ -453,7 +487,8 @@ of the definition is stored as *Enabled* — so all five are now always spelled 
 `npx rayfin up` in the same sandbox on 2026-10-22 ([issue #2](https://github.com/Krusmaster/fabric-backend/issues/2)):
 deploy accepted, composite keys and `@date` columns work, the four-hop chain resolves through the connector's GraphQL
 item. Reading through the Rayfin browser client was not tested (app auth needs `Item.Execute.All`). Lovable-side: the
-endpoint is consumed by Lovable's standard Fabric connector; nothing Lovable-specific is generated.
+endpoint is consumed by Lovable's standard Fabric connector (a Lovable app read `shop_api` live on 30 October 2026);
+nothing Lovable-specific is generated.
 
 ## Development
 
@@ -468,6 +503,13 @@ one boundary, with Fabric as the first adapter and the local ODBC, SQLite and fi
 `fabric_backend/static/` (fonts Fredoka and Nunito, SIL OFL, self-hosted). `/demo/plan.json` is `plan()` run on
 `fabric_backend.seed.schema()`, so the demo shows what the engine says. `/mascots` is an unlinked, `noindex`
 review page for the three figures. Screenshots used for the visual review are in `docs/screenshots/`.
+
+Contributing: the rules (claim an area, own worktree, green suite, no customer data, the sales-word test, commit
+identity) are in [CONTRIBUTING.md](CONTRIBUTING.md); the pull request template
+([.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)) repeats them as a checklist. Issues use the forms
+in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/): a bug (which example or file, without customer data), a feature,
+and "A wrong relationship" (table, column, the rule shown, what was right). The code of conduct is the Contributor
+Covenant 2.1: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), contact hello@krusgraph.com.
 
 For search engines and agents (`fabric_backend/discovery.py`, all public): `/sitemap.xml`, `/robots.txt`, `/llms.txt`
 with Markdown versions of the pages (`/docs.md`, `/start.md`, `/privacy.md`, `/lovable.md`), an MCP Server Card at
