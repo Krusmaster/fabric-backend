@@ -106,6 +106,8 @@ def _vars() -> dict[str, str]:
         # the MCP clients the site names as working with the hosted service, and the address for those that register
         "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
         "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
+        # n73: Lovable's two rows in tool_status.CLIENTS (as an MCP client, and reading the API), for /lovable
+        "LOVABLE_MCP_STATUS": _client_status("Lovable", "via MCP"), "LOVABLE_API_STATUS": _client_status("Lovable", "via the GraphQL API"),
         # n68: where Microsoft sends the admin after the consent on /start (CONSENT_PATH); the encoded form goes in the link
         "CONSENT_URL": "https://" + domain + CONSENT_PATH, "CONSENT_URL_ENC": quote("https://" + domain + CONSENT_PATH, safe=""),
         "REGISTRATION_WHERE": ("the server's memory (lost when it restarts)"
@@ -120,6 +122,13 @@ def _vars() -> dict[str, str]:
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
+
+
+def _client_status(name: str, where: str) -> str:
+    """One client row of tool_status.CLIENTS as a sentence: its status word, since when it works, and its note."""
+    from .tool_status import CLIENTS
+    c = next(c for c in CLIENTS if c.name == name and c.where.startswith(where))
+    return c.status + (f" (works since {c.works_since})" if c.works_since else "") + (f"; {c.note}" if c.note else "")
 
 
 def _registration_on() -> bool:
@@ -693,7 +702,7 @@ def render(path: str) -> str:
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
 DOCS_DESC = "Connect {{PRODUCT}} to Claude, explore and check a plan against your data, keep the review, build from it, and the status of each tool: what it changes and how far it has been tested."
-LOVABLE_DESC = "Prepare a GraphQL API in Microsoft Fabric with {{PRODUCT}} in Claude, then connect Lovable's Microsoft Fabric connector to it."
+LOVABLE_DESC = "Plan and create a GraphQL API in Microsoft Fabric from Lovable's chat with {{PRODUCT}} as a custom MCP connector, finish the three portal steps, then connect Lovable's Microsoft Fabric connector to it: the path that ran on 30 October 2026."
 
 
 def privacy_md() -> str:
@@ -724,7 +733,7 @@ def docs_md() -> str:
 
 
 def lovable_md() -> str:
-    return _fill(_read("LOVABLE.md"), escape=False)
+    return _fill(_conditional(_read("LOVABLE.md"), _vars()), escape=False)      # n73: step 1 depends on client registration
 
 
 LOCAL_DESC = "Run {{PRODUCT}} on your own machine against SQL Server or a Fabric SQL endpoint over ODBC: the same rules, no account with us, and exactly what leaves the machine."

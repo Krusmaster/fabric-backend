@@ -359,14 +359,27 @@ def test_start_md_keeps_the_permissions_table(client):
     assert "```\nhttps://krusgraph.test/mcp\n```" in t and "](https://krusgraph.test/docs)" in t
 
 
-def test_lovable_page_is_linked_and_makes_no_connector_claim(client):
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_lovable_page_follows_the_path_of_30_october(client, monkeypatch, registration):
+    """n73: /lovable is the way that worked on 30 October 2026 (docs/LOVABLE-END-TO-END.md): Krusgraph as a custom MCP
+    connector in Lovable at /mcp/connect (plan, check, create), the three portal steps (app registration, Contributor on
+    the workspace, introspection: the one with no API), then Lovable's Fabric connector. Status words from tool_status's
+    two Lovable rows; no screenshots; the /mcp/connect address only when client registration is on."""
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     assert 'href="/lovable"' in client.get("/").text                                      # footer
     assert 'href="/lovable"' in client.get("/docs").text
     html = client.get("/lovable").text
-    assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html
-    for step in ("Create the API with Krusgraph", "Turn on introspection in Fabric", "Add it in Lovable"):
-        assert step in html
-    assert "untested" in html and "dynamic client registration" in html
+    assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html and "https://docs.lovable.dev/integrations/custom-mcp" in html
+    for step in ("Plan, check and create the API from Lovable", "The three portal steps", "Connect Lovable", "Contributor", "Introspection", "has no API"):
+        assert step in html, step
+    mcp = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via MCP"))
+    api = next(c for c in ts.CLIENTS if c.name == "Lovable" and c.where.startswith("via the GraphQL"))
+    assert f"Lovable as an MCP client: {mcp.status} (works since {mcp.works_since}); {mcp.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
+    assert f"Lovable reading the API: {api.status}; {api.note}" in html.replace("&#x27;", "'").replace("&#39;", "'")
+    assert "dynamic client registration" in html and "untested" not in html and "<img" not in html.split("<main")[1]
+    assert ("https://krusgraph.test/mcp/connect" in html) is bool(registration)
+    if not registration:
+        assert "client registration switched off" in html and "continue at step 2" in html
 
 
 def test_server_card_is_public_and_follows_the_discovery_doc(client):

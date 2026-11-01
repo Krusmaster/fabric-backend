@@ -366,8 +366,10 @@ permissions as "unknown" with the portal path, because the Fabric API does not r
 
 ### Use with Lovable
 
-Lovable's Microsoft Fabric connector reads an existing API for GraphQL item. {{PRODUCT}} creates that item; after the
-two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
+Lovable meets {{PRODUCT}} twice. In Lovable's chat, {{PRODUCT}} is a custom MCP connector{{#IF CLIENT_REGISTRATION}} at `{{CONNECT_URL}}`{{/IF}} that plans,
+checks and creates the API for GraphQL item (Lovable as an MCP client: {{LOVABLE_MCP_STATUS}}). Then Lovable's own
+Microsoft Fabric connector reads that item with a service principal, after the introspection and permission steps above
+and an app registration in Entra ({{LOVABLE_API_STATUS}}). Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
 says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
 keeps the app's Entra secret on the server side. The whole chain, with who does each step and what still blocks, is in
 the repository's `docs/LOVABLE-END-TO-END.md`.

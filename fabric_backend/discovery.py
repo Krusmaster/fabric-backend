@@ -174,7 +174,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 - [Docs]({o}/docs.md): connecting, what it reads and passes through, reviewing and checking a plan, the thirty-six tools with what each changes and its test status, {p} beside Microsoft's Fabric MCP servers, how relationships are inferred, Fabric IQ ontology drafts, sources, cold start, the two manual steps
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
-- [Use with Lovable]({o}/lovable.md): create the API for GraphQL item with {p}, then connect Lovable's Fabric connector to it
+- [Use with Lovable]({o}/lovable.md): plan and create the API for GraphQL item from Lovable's chat with {p} as a custom MCP connector, finish the three portal steps, then connect Lovable's Fabric connector to it
 - [Run it locally]({o}/local.md): the same engine on your own machine over ODBC (SQL Server with Windows sign-in, or a Fabric SQL endpoint), and exactly what leaves the machine
 - [Use cases]({o}/use-cases.md): three tasks to start from (an undocumented lakehouse, a join to check, an app to build), then ten illustrative schemas from different industries (retail, manufacturing, SaaS, professional services, AML, financial crime prevention, pharmaceutical research, environment and sustainability, property, education): typical tables, the keys and links found in them with their rules, what you build
 - [For your IT department]({o}/it): the Entra app's delegated permissions in plain words, what is stored, where and for how long, that /check runs in the browser, how to revoke access, the MIT source, and who stands behind it
