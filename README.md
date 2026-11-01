@@ -491,6 +491,13 @@ one boundary, with Fabric as the first adapter and the local ODBC, SQLite and fi
 `fabric_backend.seed.schema()`, so the demo shows what the engine says. `/mascots` is an unlinked, `noindex`
 review page for the three figures. Screenshots used for the visual review are in `docs/screenshots/`.
 
+Contributing: the rules (claim an area, own worktree, green suite, no customer data, the sales-word test, commit
+identity) are in [CONTRIBUTING.md](CONTRIBUTING.md); the pull request template
+([.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)) repeats them as a checklist. Issues use the forms
+in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/): a bug (which example or file, without customer data), a feature,
+and "A wrong relationship" (table, column, the rule shown, what was right). The code of conduct is the Contributor
+Covenant 2.1: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md), contact hello@krusgraph.com.
+
 For search engines and agents (`fabric_backend/discovery.py`, all public): `/sitemap.xml`, `/robots.txt`, `/llms.txt`
 with Markdown versions of the pages (`/docs.md`, `/start.md`, `/privacy.md`, `/lovable.md`), an MCP Server Card at
 `/mcp/server-card`, an AI Catalog at `/.well-known/ai-catalog.json`, and `/.well-known/glama.json`, the file with which

@@ -48,6 +48,15 @@ and set it back to "open" when you are done.
 Rounds are numbered nNN, and the number appears in the claim and release commits. Before a round claims, run
 `git log origin/main --oneline --grep "nNN claims"` and take the next number that has not been used.
 
+## Issues, pull requests and conduct
+
+- Issues use the forms in `.github/ISSUE_TEMPLATE/`: **Bug** (which example or which file, without customer data),
+  **Feature**, and **A wrong relationship** (table, column, the rule that was shown, what was right). A security problem
+  goes the way `docs/SECURITY.md` says, not into a public issue.
+- A pull request follows `.github/PULL_REQUEST_TEMPLATE.md`, which repeats the rules above as a checklist: the claim, an
+  own worktree, a green suite, no customer data, the sales-word test (`tests/test_site.py`, `SALES`), no deployment.
+- The code of conduct is the Contributor Covenant 2.1, `CODE_OF_CONDUCT.md`; reports go to hello@krusgraph.com.
+
 ## Verified, and how
 
 When you state that something works, say where and when it was verified: unit tests, a local server, or the live
