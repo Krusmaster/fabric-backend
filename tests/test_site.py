@@ -1257,3 +1257,27 @@ def test_it_and_docs_say_where_tokens_are_kept_as_exactly_as_privacy(client, mon
         assert "There is no database and no file storage." in docs
     for page in (it, docs):
         assert "held in memory only; there is no database" not in page and "Tokens</strong> are exchanged" not in page
+
+
+# ------------------------------------------------------------------ n68: the admin consent's return page ---------------
+def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers(client):
+    """n68: the consent link on /start names /consent/done as its redirect_uri (the OAuth callback answered "This sign-in
+    cannot continue"). The page reads Microsoft's own query string: granted, or the error code with the next step (/it);
+    opened directly it says so. Not indexed, not cached, nothing echoed unescaped."""
+    start = client.get("/start").text
+    assert ("adminconsent?client_id=cid-123&amp;redirect_uri=https%3A%2F%2Fkrusgraph.test%2Fconsent%2Fdone\">Grant admin consent in Entra</a>" in start)
+    assert 'href="/consent/done">krusgraph.test/consent/done</a>' in start
+    ok = client.get("/consent/done?admin_consent=True&tenant=00000000-0000-0000-0000-000000000001")
+    assert ok.status_code == 200 and ok.headers["cache-control"] == "no-store" and ok.headers["x-robots-tag"] == "noindex, nofollow"
+    assert "<h1>Admin consent granted for your organisation.</h1>" in ok.text and "Nothing more to do: your colleagues can now connect." in ok.text
+    assert 'content="noindex,nofollow"' in ok.text and "<code>00000000-0000-0000-0000-000000000001</code>" in ok.text and 'href="/start#step-3"' in ok.text
+    bad = client.get("/consent/done?error=access_denied&error_description=AADSTS65004%3A+User+declined+to+consent+%3Cb%3Ex&tenant=not-a-guid")
+    assert "<h1>Admin consent was not granted.</h1>" in bad.text and "<code>access_denied</code>" in bad.text
+    assert "AADSTS65004: User declined to consent &lt;b&gt;x" in bad.text and "<b>x" not in bad.text and "not-a-guid" not in bad.text
+    assert 'href="/it"' in bad.text and 'href="/start#step-1"' in bad.text and 'href="/support"' in bad.text
+    xss = client.get("/consent/done?error=%3Cscript%3Ealert(1)%3C/script%3E&admin_consent=%3Cimg%3E")
+    assert "<script>alert" not in xss.text and "<img>" not in xss.text and "Admin consent was not granted." in xss.text
+    plain = client.get("/consent/done").text
+    assert "Nothing to show yet." in plain and 'href="/start#step-1"' in plain
+    assert "/consent/done" not in client.get("/sitemap.xml").text and "/consent" not in client.get("/llms.txt").text
+    assert "Connected." not in ok.text

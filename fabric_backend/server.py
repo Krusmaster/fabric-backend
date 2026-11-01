@@ -2025,6 +2025,14 @@ def build_app(host: str = "0.0.0.0"):
     page_route("/lovable", lovable_html)
     page_route("/local", local_html)
 
+    # n68: the return page of the admin consent link on /start; it depends on the query string, so it is not cached
+    from .pages import CONSENT_PATH, consent_done_html
+
+    async def consent_done(request):
+        headers = {"Cache-Control": "no-store", **PAGE_HEADERS, "X-Robots-Tag": "noindex, nofollow"}
+        return compressed(request, consent_done_html(request.query_params).encode("utf-8"), "text/html; charset=utf-8", headers)
+    app.router.routes.append(Route(CONSENT_PATH, consent_done))
+
     # The same content as Markdown, for /llms.txt and agents.
     def md_route(path: str, fn):
         async def handler(request):

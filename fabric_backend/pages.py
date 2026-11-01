@@ -9,6 +9,7 @@
     /local             the local server over ODBC, and exactly what leaves the machine
     /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
+    /consent/done      where Microsoft sends the admin after the consent link on /start (noindex; consent_done_html)
     /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
@@ -105,6 +106,8 @@ def _vars() -> dict[str, str]:
         # the MCP clients the site names as working with the hosted service, and the address for those that register
         "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
         "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
+        # n68: where Microsoft sends the admin after the consent on /start (CONSENT_PATH); the encoded form goes in the link
+        "CONSENT_URL": "https://" + domain + CONSENT_PATH, "CONSENT_URL_ENC": quote("https://" + domain + CONSENT_PATH, safe=""),
         "REGISTRATION_WHERE": ("the server's memory (lost when it restarts)"
                                if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip().lower() == "memory"
                                else "an Azure Table Storage table of ours in the service's Azure region"),
@@ -687,6 +690,64 @@ def use_cases_md() -> str:
     from .use_cases import markdown
     v = _vars()
     return markdown(v["PRODUCT"], site_url(), v["CONTACT"])
+
+
+# n68: the admin consent link on /start names this page as its redirect_uri, so Microsoft brings the admin back here
+# instead of to the OAuth callback (which answered "This sign-in cannot continue"). The page reads Microsoft's own
+# query string: admin_consent=True&tenant=<id> on success, error=<code>&error_description=<text> otherwise. Nothing is
+# stored; the values are shown escaped and cut short. The address must be registered as a Web redirect URI on the
+# Entra app before it works (otherwise Entra answers AADSTS50011 and never reaches it).
+CONSENT_PATH = "/consent/done"
+_GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def consent_done_html(params) -> str:
+    """The page after Microsoft's admin consent: granted, refused (with the code and the next step), or opened directly."""
+    v = _vars()
+    e = html.escape
+    p = e(v["PRODUCT"])
+    get = lambda k: str(params.get(k, "") or "")
+    granted = get("admin_consent").strip().lower() == "true"
+    code = re.sub(r"[^A-Za-z0-9_.-]", "", get("error"))[:60]
+    desc = " ".join(get("error_description").split())[:400]
+    tenant = get("tenant").strip()
+    tenant_line = f'<p class="muted tiny">Tenant: <code>{e(tenant)}</code>.</p>' if _GUID.match(tenant) else ""
+    if granted:
+        title, kicker, h1 = "Admin consent granted — {{PRODUCT}}", "Admin consent", f"Admin consent granted for your organisation."
+        body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
+<p>Each person adds {p} in Claude or another MCP client and signs in with their own Microsoft work account; every call runs with that person’s own Fabric permissions, and {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
+{tenant_line}
+<div class="ctas"><a class="btn primary" href="/start#step-3">Connect to Claude</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+        pose = "celebrate"
+    elif code or desc:
+        title, kicker, h1 = "Admin consent not granted — {{PRODUCT}}", "Admin consent", "Admin consent was not granted."
+        why = {"access_denied": "The person who opened the link declined, or is not an administrator who may consent to applications for the organisation.",
+               "invalid_client": f"Microsoft Entra did not recognise the {p} app in this tenant.",
+               "invalid_request": "Microsoft Entra could not use the request as sent.",
+               "interaction_required": "Microsoft Entra needs the administrator to sign in again, or with another account."}.get(code, "")
+        body = (f'<p class="lede">Microsoft Entra answered <code>{e(code) or "an error"}</code>.</p>'
+                + (f"<p>{e(desc)}</p>" if desc else "") + (f"<p>{why}</p>" if why else "") + f"""
+<h2 class="h3">Next step</h2>
+<ol>
+<li>Send <a href="/it">the page for your IT department</a> to an administrator of your Microsoft Entra tenant: it lists each permission {p} asks for and why, what is stored, and how to revoke the approval.</li>
+<li>The administrator opens <a href="/start#step-1">Grant admin consent in Entra</a> on the set-up page and signs in with the administrator account.</li>
+<li>If it fails again, <a href="/support">get help</a> with the code above; nothing about this attempt is kept on our side.</li>
+</ol>
+{tenant_line}
+<div class="ctas"><a class="btn primary" href="/it">For your IT department</a><a class="btn ghost" href="/start#step-1">Connect to Claude</a></div>""")
+        pose = "aside"
+    else:
+        title, kicker, h1 = "Admin consent — {{PRODUCT}}", "Admin consent", "Nothing to show yet."
+        body = f"""<p class="lede">This is where Microsoft Entra sends an administrator after the admin consent for {p}. Opened directly, there is nothing to report.</p>
+<p>The consent link, what it approves and the rest of the set-up are on <a href="/start#step-1">the set-up page</a>.</p>
+<div class="ctas"><a class="btn primary" href="/start#step-1">Connect to Claude</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+        pose = "look"
+    section = f"""<section class="wrap hero"><div class="hero-grid"><div>
+<span class="kicker">{kicker}</span><h1>{h1}</h1>
+{body}
+</div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="{pose}" data-label=""></span></div></div></section>"""
+    return _shell(title, "What happened after the admin consent for {{PRODUCT}} in Microsoft Entra, and the next step.", section,
+                  page="consent", nav="", noindex=True)
 
 
 def not_found_html(path: str) -> str:
