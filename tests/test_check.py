@@ -172,6 +172,15 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert ["Create it in your own Fabric", "/start", None] in r["ask"]["product"]["html_links"]
     assert r["contract"]["name"] == "customers.odcs.yaml" and "apiVersion: v3.2.0" in r["contract"]["text"] and "kind: DataContract" in r["contract"]["text"]
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
+    # n68: the domain buttons on Salesforce + ERP (two domains, no interface between them: the list once ended in "nullnullnull")
+    cd = r["crm_domains"]
+    assert "null" not in cd["before"]["list"] and cd["before"]["pressed"] == ["false", "false"] and cd["before"]["focus"] is False
+    assert cd["before"]["question"] == "These 3 tables hang together as Account. Package them as a data product?"
+    assert cd["one"]["pressed"] == ["false", "true"] and cd["one"]["focus"] is True and cd["one"]["on"] == 3 and cd["one"]["onEdges"] == 2
+    assert cd["one"]["opacities"] == ["0.22", "1"] and cd["one"]["transition"] == "0s", cd["one"]            # dimmed, still, under reduced motion
+    assert cd["one"]["question"] == "Package sales_orders as a data product?" and cd["one_links"] == ["sales_orders.odcs.yaml"]
+    assert cd["two"]["pressed"] == ["true", "true"] and cd["two"]["on"] == 6 and cd["two"]["opacities"] == ["1"]
+    assert cd["all"]["pressed"] == ["false", "false"] and cd["all"]["focus"] is False and cd["all"]["on"] == 0 and "null" not in cd["all"]["list"]
     # n55: the guided demo on /check, started from the address, four steps by keyboard, each marking the map
     assert [g["title"] for g in r["guide"]] == ["How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"]
     assert [g["lit"] for g in r["guide"][:3]] == [1, 1, 1] and "2,000" in r["guide"][1]["text"] and "ship_to_id" in r["guide"][2]["text"]

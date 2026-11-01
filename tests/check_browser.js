@@ -96,6 +96,24 @@ const { chromium } = require("playwright");
   await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
   await page.waitForTimeout(300);
   out.crm_suggested_edges = await page.evaluate(() => document.querySelectorAll("#check-map .m-sug").length);
+  // n68: the domains under the map are buttons: Enter on one keeps its tables and interfaces in colour and dims the rest
+  // (no transition under reduced motion), a second choice adds to it, the chosen domain names Onto's data-product
+  // question and its contract, "Show all" clears it; nothing in the list reads "null" (the el() bug of n63)
+  const domState = () => page.evaluate(() => ({
+    list: document.getElementById("check-domains").textContent, pressed: [...document.querySelectorAll(".check-dom")].map((b) => b.getAttribute("aria-pressed")),
+    focus: !!document.querySelector("#check-map svg.m-focus"), on: document.querySelectorAll("#check-map .m-node.m-on").length, onEdges: document.querySelectorAll("#check-map .m-edge-g.m-on").length,
+    opacities: [...new Set([...document.querySelectorAll("#check-map .m-node rect")].map((r) => getComputedStyle(r).opacity))].sort(),
+    transition: getComputedStyle(document.querySelector("#check-map .m-node rect")).transitionDuration,
+    question: (document.querySelector("[data-ask=product]") || {}).textContent }));
+  out.crm_domains = { before: await domState() };
+  await page.focus(".check-dom >> nth=1"); await page.keyboard.press("Enter");
+  out.crm_domains.one = await domState();
+  await page.click("[data-ask=product]");
+  out.crm_domains.one_links = await page.$$eval("#check-ask-answer a[download]", (n) => n.map((a) => a.getAttribute("download")));
+  await page.click(".check-dom >> nth=0");
+  out.crm_domains.two = await domState();
+  await page.click("#check-dom-all");
+  out.crm_domains.all = await domState();
   // n55: the guided demo: /check?example=sample&guide=1 runs the example with no click, and Onto leads four steps,
   // by keyboard, each marking the map; with the mascots off the same steps are text; it fits 375 px
   await page.setViewportSize({ width: 375, height: 800 });

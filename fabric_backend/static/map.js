@@ -48,6 +48,18 @@
       (d.interfaces || []).forEach((x) => { const g = lines[key(x.source, x.target, x.source_cols)]; if (g) g.classList.add("m-iface"); });
       return tint;
     };
+    // n68: focus on the chosen domains (their slugs): their tables, the relationships among them and their interfaces
+    // keep full colour, everything else is dimmed by CSS (svg.m-focus); an empty choice shows all again
+    this.focus = (d, slugs) => {
+      if (!svg) return;
+      const chosen = (d && d.domains || []).filter((x) => slugs && slugs.includes(x.slug));
+      if (!chosen.length) { svg.classList.remove("m-focus"); svg.querySelectorAll(".m-on").forEach((g) => g.classList.remove("m-on")); return; }
+      const tables = new Set(chosen.flatMap((x) => x.tables)), on = new Set(chosen.map((x) => x.slug));
+      svg.classList.add("m-focus");
+      for (const t in groups) groups[t].classList.toggle("m-on", tables.has(t));
+      const ifaces = new Set((d.interfaces || []).filter((x) => on.has(x.consumer) || on.has(x.provider)).map((x) => key(x.source, x.target, x.source_cols)));
+      for (const k in lines) { const [src, , dst] = k.split("|"); lines[k].classList.toggle("m-on", (tables.has(src) && tables.has(dst)) || ifaces.has(k)); }
+    };
     this.update = (s) => {
       if (s.step === "keys") {
         const n = s.tables.length;

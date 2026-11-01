@@ -221,12 +221,16 @@
   }
 
   // ------------------------------------------------------------------ drawing (textContent only: names come from files)
+  // a child that is null, undefined or false is left out (n68: a conditional child written as `cond ? node : null`),
+  // and fill() does the same for a node's replaceChildren, which would otherwise write the word "null" into the page
+  const kept = (k) => k != null && k !== false;
   function el(tag, attrs, ...kids) {
     const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs || {})) if (v != null) n.setAttribute(k, v);
-    for (const k of kids) if (k != null) n.append(k);
+    for (const [k, v] of Object.entries(attrs || {})) if (kept(v)) n.setAttribute(k, v);
+    for (const k of kids) if (kept(k)) n.append(k);
     return n;
   }
+  const fill = (node, ...kids) => node.replaceChildren(...kids.filter(kept));
   const code = (t) => el("code", null, t);
 
   function addStep(s) {
@@ -340,18 +344,40 @@
   // ------------------------------------------------------------------ n63: domains on the map
   // domain_draft's proposal from the worker's result (browser_check runs domains.draft on the same plan): with two
   // domains or more the map tints each domain's tables and labels them, and a list under the map says the same in words.
+  // n68: each domain in the list is a button: chosen (one or several), its tables and interfaces keep full colour on
+  // the map and the rest is dimmed; "Show all" clears the choice. The same choice names the domain Onto offers to
+  // package as a data product, and the contract that answer saves.
   const domainsOf = (r) => (r.domains && r.domains.domains) || [];
+  let picked = [];
   function domainsOn(r) {
     const box = $("check-domains"), ds = domainsOf(r);
+    picked = [];
     if (ds.length < 2) { box.hidden = true; box.replaceChildren(); return; }
     const tint = map ? map.domains(r.domains) : {};
     const name = (slug) => (ds.find((d) => d.slug === slug) || { name: slug }).name;
     const ifs = r.domains.interfaces || [];
-    box.replaceChildren(el("h4", null, "Proposed domains"),
-      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision."),
-      el("ul", { class: "check-dom-list" }, ...ds.map((d) => el("li", null,
+    const said = el("p", { class: "muted tiny check-dom-said", role: "status" });
+    const buttons = ds.map((d) => {
+      const b = el("button", { type: "button", class: "check-dom", "data-domain": d.slug, "aria-pressed": "false" },
         el("span", { class: "check-dom-sw m-dom-" + (tint[d.slug] != null ? tint[d.slug] : 0), "aria-hidden": "true" }),
-        el("strong", null, d.name), ": " + d.tables.join(", ")))),
+        el("strong", null, d.name), ": " + d.tables.join(", "));
+      b.addEventListener("click", () => choose(picked.includes(d.slug) ? picked.filter((x) => x !== d.slug) : picked.concat(d.slug)));
+      return b;
+    });
+    const all = el("button", { type: "button", class: "btn ghost small", id: "check-dom-all" }, "Show all");
+    all.addEventListener("click", () => choose([]));
+    function choose(slugs) {
+      picked = slugs;
+      buttons.forEach((b) => b.setAttribute("aria-pressed", String(picked.includes(b.dataset.domain))));
+      if (map) map.focus(r.domains, picked);
+      const names = picked.map(name);
+      said.textContent = names.length ? "On the map: " + names.join(" and ") + ", with the tables and interfaces of " + (names.length === 1 ? "that domain" : "those domains") + "; the rest is dimmed." : "";
+      ask(r);
+    }
+    fill(box, el("h4", null, "Proposed domains"),
+      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision. Choose one or more to see them on the map."),
+      el("ul", { class: "check-dom-list" }, ...buttons.map((b) => el("li", null, b))),
+      el("p", { class: "check-dom-actions" }, all), said,
       ifs.length ? el("p", { class: "tiny" }, el("strong", null, "Interfaces between them (the thicker lines): ")) : null,
       ifs.length ? el("ul", { class: "tiny check-dom-ifs" }, ...ifs.map((i) => el("li", null, code(i.source + "." + i.source_cols.join(" + ")), " → ", code(i.target),
         " (" + i.rule + "): " + name(i.consumer) + " uses the key of " + name(i.provider)))) : null,
@@ -406,8 +432,9 @@
         f && f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
         el("p", { class: "muted tiny" }, "The table is marked on the map."), f ? tags(f) : el("p", { class: "tiny check-tags" }, code("rule K3"))];
     } });
-    const product = domainsOf(r).find((d) => d.tables.length >= 2);
-    if (product) qs.push({ id: "product", q: "These " + product.tables.length + " tables hang together as " + product.name + ". Package them as a data product?", a: () => {
+    const chosen = domainsOf(r).find((d) => picked.includes(d.slug));               // n68: the domain chosen under the map, if any
+    const product = chosen || domainsOf(r).find((d) => d.tables.length >= 2);
+    if (product) qs.push({ id: "product", q: chosen ? "Package " + product.name + " as a data product?" : "These " + product.tables.length + " tables hang together as " + product.name + ". Package them as a data product?", a: () => {
       const yaml = (r.domains.contracts || {})[product.slug] || "";
       const rels = product.relationships || [], checks = product.checks || [];
       if (map) map.highlight({ table: product.tables[0] });
@@ -439,7 +466,7 @@
         listEl.querySelectorAll("button").forEach((o) => o.setAttribute("aria-expanded", "false"));
         if (open) { answer.hidden = true; answer.replaceChildren(); if (map) map.highlight(null); return; }
         b.setAttribute("aria-expanded", "true");
-        answer.replaceChildren(el("p", { class: "check-ask-said" }, x.q), ...x.a());
+        fill(answer, el("p", { class: "check-ask-said" }, x.q), ...x.a());
         answer.hidden = false;
       });
       return el("li", null, b);
