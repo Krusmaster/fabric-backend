@@ -42,7 +42,7 @@ PAGES = {
           "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
     "/check": ("check.html", "Check your files in the browser — {{PRODUCT}}",
                "Drop CSV or Excel exports, or paste a list of columns: see how the tables connect and what is wrong, with the rule behind each item. The files are read in your browser and never uploaded.", "check"),
-    "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
+    "/start": ("start.html", "Connect {{PRODUCT}} — the set-up guide",
                "What you need, admin approval in Microsoft Entra, and how to add {{PRODUCT}} as a custom connector in Claude.", "start"),
     "/support": ("support.html", "Get help with {{PRODUCT}}",
                  "How to get help with {{PRODUCT}}: email with the error, kind and hint from the tool's answer, report a bug or a plan that came out wrong on GitHub Issues, and the most common first errors.", "support"),
@@ -514,7 +514,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/#connect">Connect</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -779,7 +779,7 @@ def consent_done_html(params) -> str:
         body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
 <p>Each person adds {p} in Claude or another MCP client and signs in with their own Microsoft work account; every call runs with that person’s own Fabric permissions, and {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
 {tenant_line}
-<div class="ctas"><a class="btn primary" href="/start#step-3">Connect to Claude</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
         pose = "celebrate"
     elif code or desc:
         title, kicker, h1 = "Admin consent not granted — {{PRODUCT}}", "Admin consent", "Admin consent was not granted."
@@ -796,13 +796,13 @@ def consent_done_html(params) -> str:
 <li>If it fails again, <a href="/support">get help</a> with the code above; nothing about this attempt is kept on our side.</li>
 </ol>
 {tenant_line}
-<div class="ctas"><a class="btn primary" href="/it">For your IT department</a><a class="btn ghost" href="/start#step-1">Connect to Claude</a></div>""")
+<div class="ctas"><a class="btn primary" href="/it">For your IT department</a><a class="btn ghost" href="/start#step-1">The set-up guide</a></div>""")
         pose = "aside"
     else:
         title, kicker, h1 = "Admin consent — {{PRODUCT}}", "Admin consent", "Nothing to show yet."
         body = f"""<p class="lede">This is where Microsoft Entra sends an administrator after the admin consent for {p}. Opened directly, there is nothing to report.</p>
 <p>The consent link, what it approves and the rest of the set-up are on <a href="/start#step-1">the set-up page</a>.</p>
-<div class="ctas"><a class="btn primary" href="/start#step-1">Connect to Claude</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
         pose = "look"
     section = f"""<section class="wrap hero"><div class="hero-grid"><div>
 <span class="kicker">{kicker}</span><h1>{h1}</h1>

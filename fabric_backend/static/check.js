@@ -488,7 +488,7 @@
     } });
     qs.push({ id: "own", q: "Can I ask my own questions?", a: () => [
       el("p", null, el("strong", null, "Yes, in Claude."), " Connect " + $("check-ask").dataset.product + " to Claude and ask about your own lakehouse; the answers come with the same rules and are checked against the rows. Here on /check nothing leaves the browser, so there is no question box."),
-      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect to Claude"))] });
+      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/#connect" }, "Connect"))] });
     listEl.replaceChildren(...qs.map((x) => {
       const b = el("button", { type: "button", class: "check-ask-q", "aria-expanded": "false", "aria-controls": "check-ask-answer", "data-ask": x.id }, x.q);
       b.addEventListener("click", () => {

@@ -451,6 +451,12 @@
       d.addEventListener('keydown', function (e) { if (e.key === 'Escape' && d.open) { e.preventDefault(); d.open = false; d.querySelector('summary').focus(); } });
     });
     document.addEventListener('click', function (e) { if (!e.target.closest('details[data-connect]')) closeAll(null); });
+    // n73: every "Connect" link on the site points at #connect, the hero's chooser: opened on arrival, its button focused
+    // (after the load event: the browser's own jump to the fragment would otherwise take the focus back)
+    if (location.hash === '#connect') {
+      var openConnect = function () { choosers[0].open = true; choosers[0].querySelector('summary').focus(); };
+      if (document.readyState === 'complete') setTimeout(openConnect, 0); else window.addEventListener('load', function () { setTimeout(openConnect, 0); });
+    }
   }
 
   /* ------------------------------------------------------------------ start: one step at a time (all three without JS) */

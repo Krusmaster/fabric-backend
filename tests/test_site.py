@@ -68,7 +68,7 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
     assert usp == ["The proof.", "The errors before anyone sees them.", "SAP knowledge from public sources.", "One plan for what you build."]
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
-    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to Claude<' in html
+    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="#connect">Connect<' in html       # n73: the chooser
     assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
@@ -89,7 +89,7 @@ def test_home_introduces_the_developer_without_a_story(client):
 
 def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
     html = client.get("/start").text
-    assert "<h1>Connect Krusgraph to Claude</h1>" in html
+    assert "<h1>Connect Krusgraph</h1>" in html                                     # n73: "Connect", not "Connect to Claude"
     assert "https://krusgraph.test/mcp" in html
     assert "adminconsent?client_id=cid-123" in html
     assert "What will Krusgraph access?" in html and "GraphQLApi.ReadWrite.All" in html and "user_impersonation" in html
@@ -345,7 +345,7 @@ def test_llms_txt_follows_the_format_and_links_markdown(client):
 
 
 @pytest.mark.parametrize("path,needle", [("/docs.md", "## Tools"), ("/privacy.md", "Kruse Consulting AB"),
-                                         ("/start.md", "# Connect Krusgraph to Claude"), ("/lovable.md", "# Build a Lovable app on your Fabric tables"),
+                                         ("/start.md", "# Connect Krusgraph"), ("/lovable.md", "# Build a Lovable app on your Fabric tables"),
                                          ("/local.md", "# Run Krusgraph locally")])
 def test_markdown_versions(client, path, needle):
     r = client.get(path)
@@ -1035,7 +1035,7 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     assert "A replay of a session in Claude" in box and "You type in Claude" not in box
-    assert '<a href="/check">Check your files</a>' in box and '<a href="/start">Connect to Claude</a>' in box
+    assert '<a href="/check">Check your files</a>' in box and '<a href="#connect">Connect</a>' in box
     assert "<input" not in box and "29 October 2026" in box
 
 
@@ -1060,9 +1060,12 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
 
 def test_one_name_for_each_way_in_across_the_site(client):
     """n52: the start page had six ways in under four names. Buttons, the menu and the footer now use one name per
-    target on every page: /check "Check your files" (the hero adds "– no account"), /start "Connect to Claude", /support
-    "Get help", /partners "Try a pilot", /demo "Try the guided demo", /explore "Explore the demo graph"."""
-    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Connect to Claude", "Create it in your own Fabric"},   # the latter: /check's build step, named in browser_build.py's drafts
+    target on every page: /check "Check your files" (the hero adds "– no account"), /support "Get help", /partners "Try a
+    pilot", /demo "Try the guided demo", /explore "Explore the demo graph". n73: "Connect" everywhere (the footer, the
+    session links, the closing card, /check's answer), pointing at the n68 chooser (#connect on the start page); /start is
+    "the set-up guide" or, from /check's build step, "Create it in your own Fabric" (named in browser_build.py's drafts)."""
+    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Create it in your own Fabric", "The set-up guide", "the set-up guide"},
+             "/#connect": {"Connect"}, "#connect": {"Connect"},
              "/support": {"Get help"}, "/partners": {"Try a pilot"}, "/demo": {"Try the guided demo"},
              "/explore": {"Explore the demo graph"}}
     for path in ("/", "/demo", "/check", "/start", "/use-cases", "/support", "/partners", "/explore"):
@@ -1075,6 +1078,8 @@ def test_one_name_for_each_way_in_across_the_site(client):
                 assert text.strip() in names[href], (path, href, text)
     for gone in ("Discuss your schema", "Get help with a question", "Explore the demo<", "Try it with your own files"):
         assert gone not in client.get("/").text, gone
+    for path in PUBLIC_PAGES + ["/consent/done", "/consent/done?admin_consent=True", "/llms.txt", "/docs.md", "/start.md", "/lovable.md"]:
+        assert "Connect to Claude" not in client.get(path).text, path
 
 
 # ------------------------------------------------------------------ n53: who stands behind it, /it and the FAQ --------

@@ -157,7 +157,7 @@ def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report
     for w in (375, 1280):
         s = report["facts"][f"session@{w}"]
         assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
-        assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)
+        assert s["links"] == ["/check", "#connect"] and s["wide"] <= w and s["hidden"], (w, s)      # n73: "Connect" opens the chooser
         assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
 
 
@@ -182,9 +182,10 @@ def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
 
 
 def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
+    """n73: the session's second link is "Connect" (#connect, the chooser); /start is no longer among the first Tabs."""
     for w in (1280, 375):
         seen = first_visit[f"tab@{w}"]
-        assert "/check" in seen and seen.index("/check") < seen.index("/start"), (w, seen)
+        assert "/check" in seen and seen.index("/check") < seen.index("#connect"), (w, seen)
 
 
 def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
