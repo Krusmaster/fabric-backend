@@ -187,7 +187,7 @@ def hub_html() -> str:
     <span class="hub-link hub-link-src"></span>
     <div class="hub-group hub-build c-sage"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
     <span class="hub-link hub-link-build"></span>
-    <div class="hub-mid"><span class="hub-node"><span class="c-hub">{low}</span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
+    <div class="hub-mid"><span class="hub-node"><span class="c-hub c-hub-logo" role="img" aria-label="{p}">{_LOGO}<span class="c-hub-word">{low}</span></span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
     <div class="hub-group hub-where c-mustard"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
   <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
@@ -400,7 +400,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta property="og:description" content="{d}">
 <meta property="og:image" content="{og_image}">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: For Microsoft Fabric. Connected.">
+<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: For Microsoft Fabric.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{t}">
 <meta name="twitter:description" content="{d}">
@@ -428,7 +428,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap header-row">
     <a class="brand" href="/" aria-label="{html.escape(v['PRODUCT'])} home">
       {_LOGO}
-      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">For Microsoft Fabric. Connected.</span></span>
+      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">For Microsoft Fabric.</span></span>
     </a>
     <nav id="site-nav" class="site-nav" aria-label="Main">
       {nav_html}

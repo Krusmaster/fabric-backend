@@ -52,7 +52,7 @@ def test_nav_and_pages_are_linked(client):
     html = client.get("/").text
     for href in ("/docs", "/support", "/partners", "/check?example=sample&amp;guide=1", "/check", "/start", "/privacy", "https://github.com/Krusmaster/fabric-backend"):
         assert f'href="{href}"' in html, href
-    assert "For Microsoft Fabric. Connected." in html
+    assert '<span class="tagline">For Microsoft Fabric.</span>' in html and "Connected." not in html     # n68: the tagline
     assert 'href="/mascots"' not in html                                                 # review page is unlinked
 
 

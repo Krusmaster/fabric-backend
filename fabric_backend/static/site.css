@@ -855,6 +855,10 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .c-hub{position:relative;font-family:var(--font-head);font-weight:600;font-size:16px;background:var(--coral-soft);color:var(--ink);border:1.5px solid var(--coral-d);border-radius:999px;padding:6px 14px}
 .c-hub::before,.c-hub::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--coral-d);border:1.5px solid var(--card)}
 .c-hub::before{left:-6px}.c-hub::after{right:-6px}
+/* n68: the logo in the middle of the hub, in the same frame; the mark alone on a narrow screen */
+.c-hub-logo{display:inline-flex;align-items:center;gap:7px;padding:5px 14px 5px 9px;line-height:1}
+.c-hub-logo .logo-mark{width:26px;height:26px;flex:none}
+@media (max-width:719px){.c-hub-logo{padding:5px 9px}.c-hub-word{display:none}}
 @media (max-width:859px){
   /* one column, the product in the middle: data, what is built, the product, where you build; one line down the middle */
   .hub{grid-template-columns:minmax(0,1fr);grid-template-rows:none;row-gap:22px;max-width:420px}
