@@ -46,7 +46,7 @@
   function say(text) { status.textContent = text; }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
-  let booted = false, last = null, built = null, map = null;
+  let booted = false, last = null, lastResult = null, built = null, map = null;
   say("Loading the engine in this browser…");
   hop("Starting the Python runtime…");
   const boot = call({ kind: "boot" }).then((r) => {
@@ -63,6 +63,7 @@
     if (busy) return;
     busy = true;
     last = { kind, files: files || [], text: text || "" };
+    lastResult = null;
     built = null;
     resetBuild();
     hop(booted ? "Reading the input…" : "Loading the engine…");
@@ -93,6 +94,7 @@
       if (!r.ok) { landed(); say("The engine stopped: " + r.error); return; }
       if (still) { run.hidden = false; events.forEach(show); }
       landed();
+      lastResult = r.result;
       draw(r.result);
       if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
@@ -187,14 +189,33 @@
     return el("figure", { class: "check-chart" }, el("figcaption", null, el("strong", null, c.title), c.more ? " (largest eight; " + c.more + " more)" : ""), list);
   }
   const noRows = () => el("p", { class: "muted" }, "A list of columns has no rows, so there is nothing to count: the download below has the model, the preview needs files with rows.");
+  // n73: the total that doubles in the run's result, the same one Onto answers about: the amount finding whose sum over
+  // the lines is the larger (else the first), with the example row the engine read
+  const doubledFinding = (r) => { const a = (r ? r.findings : []).filter((f) => f.check === "amount_level" && f.amount); return a.find((f) => Number(f.amount.wrong) > Number(f.amount.right)) || a[0] || null; };
+  const times = (n) => n === 1 ? "once" : n === 2 ? "twice" : n + " times";
+  const rowsOf = (n, t) => n + " " + t + " row" + (n === 1 ? "" : "s");
+  // "For example order_id 1: 1,000 on its orders row; 2 order_lines rows point at it, so the join counts it twice: 2,000."
+  const exampleRow = (a) => a.example ? el("p", null, "For example ", code(a.example.key + " " + a.example.id), ": " + fmt(a.example.amount) + " on its " + a.header + " row; "
+    + rowsOf(a.example.lines, a.line) + " point at it, so the join counts it " + times(a.example.lines) + ": " + fmt(a.example.repeated) + ".") : null;
+  function doubledBlock(f, b) {
+    const a = f.amount, inModel = !!(b && b.report.doubled && b.report.doubled.column === a.header + "." + a.column);
+    return el("div", { class: "check-doubled" },
+      el("p", null, el("strong", null, "The total that doubles: " + a.header + "." + a.column)),
+      el("ul", { class: "check-kpis" }, el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + a.line + ")")),
+        el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + a.header + ")"))),
+      exampleRow(a),
+      el("p", { class: "muted tiny" }, "Summed over the " + a.line + " rows each " + a.header + " row counts once per line; summed on " + a.header + " it counts once. "
+        + (inModel ? "The model's measure sums it the right way." : a.on_map ? "The model sums it on " + a.header + "." : "The example's two tables (" + a.header + ", " + a.line + ") sit beside the shop's and are not in this model; the rule is the same there: an amount is summed on the table it belongs to.")));
+  }
   function drawModel(b) {
-    const r = b.report;
+    const r = b.report, dbl = doubledFinding(lastResult);
     const kids = [el("h3", { id: "check-model-h", tabindex: "-1" }, "A simple report from your rows"),
       el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
     if (!r.has_data) kids.push(noRows());
     else {
       kids.push(figures(r.measures));
-      if (r.doubled) kids.push(el("div", { class: "check-doubled" },
+      if (dbl) kids.push(doubledBlock(dbl, b));      // the run's own finding, so the preview and the finding show one order
+      else if (r.doubled) kids.push(el("div", { class: "check-doubled" },
         el("p", null, el("strong", null, "The total that doubles: " + r.doubled.column)),
         el("ul", { class: "check-kpis" }, el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + r.doubled.line + ")")),
           el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + r.doubled.header + ")"))),
@@ -409,8 +430,7 @@
     if (map) map.highlight(null);
     if (!r.tables.length) { box.hidden = true; return; }
     const tags = (f) => el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)));
-    const amounts = r.findings.filter((f) => f.check === "amount_level" && f.amount);
-    const doubled = amounts.find((f) => Number(f.amount.wrong) > Number(f.amount.right)) || amounts[0];
+    const doubled = doubledFinding(r);                 // the same finding the Power BI preview shows
     const keyless = r.tables.find((t) => !t.key.length);
     const qs = [];
     if (doubled) qs.push({ id: "total", q: "Why does this total come out twice?", a: () => {

@@ -354,7 +354,8 @@ def _quote(name: str) -> str:
     return "[" + name.replace("]", "]]") + "]"
 
 
-def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str = "", validation: dict | None = None) -> str:
+def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str = "", validation: dict | None = None,
+             extra=None) -> str:
     """One domain as an ODCS v3.2.0 data contract in YAML: each table with its columns and key, uniqueness of the key
     (duplicateValues mustBe 0), relationships as foreignKey, and an SQL rule counting orphans per relationship
     (mustBe 0). Freshness is left as a commented slaProperties block: the latency is the data owner's to agree."""
@@ -427,6 +428,7 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
                "description": f"{m['table']}.{m['column']} is a quantity and {m['table']} carries no amount; the price is {m['dimension']}.{m['price']} "
                               f"({m['table']}.{m['via']} → {m['dimension']}, {m['rule']}). {m['price_note']}"} for m in oa["measures"] if m["table"] in mine]
     custom += [{"property": f"amount.{_slug(x['line'])}", "value": ", ".join(x["amounts"]), "description": x["why"]} for x in oa["own_amounts"] if x["line"] in mine]
+    custom += list(extra(domain)) if callable(extra) else list(extra or [])   # n73: the caller's notes (the total that doubles, counted in the rows)
     if custom:
         doc["customProperties"] = custom
     lines = [f"# ODCS {ODCS_VERSION} draft from Krusgraph's plan: review before use. Nothing was created in Fabric."]
@@ -438,8 +440,9 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
     return "\n".join(lines) + "\n"
 
 
-def draft(p, schema: str, source: str = "", validation: dict | None = None, gamma: float = RESOLUTION) -> dict:
-    """The proposal plus one ODCS contract per domain: {"domains", "unassigned", "interfaces", "method", "contracts"}."""
+def draft(p, schema: str, source: str = "", validation: dict | None = None, gamma: float = RESOLUTION, extra=None) -> dict:
+    """The proposal plus one ODCS contract per domain: {"domains", "unassigned", "interfaces", "method", "contracts"}.
+    `extra`: more top-level customProperties per contract, a list or a function of the domain (n73: /check's amount notes)."""
     out = propose_plan(p, validation, gamma)
-    out["contracts"] = {d["slug"]: contract(p, d, out["interfaces"], schema, source, validation) for d in out["domains"]}
+    out["contracts"] = {d["slug"]: contract(p, d, out["interfaces"], schema, source, validation, extra) for d in out["domains"]}
     return out
