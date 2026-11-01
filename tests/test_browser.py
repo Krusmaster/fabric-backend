@@ -84,14 +84,26 @@ def test_the_theme_button_switches_and_the_choice_survives_a_reload(report):
 def test_the_home_buttons_and_a_visible_focus_ring(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        assert f[f"homeCtas@{v}"][:2] == ["/check", "/start"], v
+        assert f[f"homeCtas@{v}"][0] == "/check", v                      # n68: the Connect chooser follows it (a <details>, not a link)
+        for where in (".hero-ctas", ".hub-src"):
+            c = f[f"connect@{v}"][where]
+            assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
+            assert c["links"] == ["https://claude.ai/settings/connectors", "/start"] and c["copies"] == ["https://krusgraph.test/mcp"], (v, where, c)   # this server: no client registration
+            assert c["afterEscape"] == {"open": False, "focus": True}, (v, where, c)
     assert f["ctaFocusOutline"] not in ("none", "")
 
 
-def test_use_cases_tasks_first_and_details_by_keyboard(report):
+def test_use_cases_maps_are_drawn_and_marked_by_keyboard(report):
+    """n59: three maps drawn with /check's renderer at every width and theme, inside the screen; a finding marked by
+    keyboard and unmarked again; with reduced motion the maps are drawn at once."""
     f = report["facts"]
     assert f["useCaseTasks"] == 3
-    assert f["useCaseDetailsClosed"] is True and f["useCaseDetailsOpened"] is True
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        maps = f[f"ucMaps@{v}"]
+        assert len(maps) == 3 and all(m["nodes"] >= 6 and m["lines"] >= 4 and m["rules"] >= 4 and m["inside"] for m in maps), (v, maps)
+        assert maps[0]["dashed"] == 1 and maps[2]["dashed"] == 1, v                 # the shop's and the CRM's suggestion
+    assert f["useCaseMarked"] == {"pressed": "true", "lit": 1} and f["useCaseUnmarked"] == 0
+    assert f["ucMapMotion"]["drawn"] > 0 and f["ucMapMotion"]["moving"] == 0
 
 
 def test_sales_example_journey_at_phone_width(report):
@@ -145,7 +157,7 @@ def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report
     for w in (375, 1280):
         s = report["facts"][f"session@{w}"]
         assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
-        assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)
+        assert s["links"] == ["/check", "#connect"] and s["wide"] <= w and s["hidden"], (w, s)      # n73: "Connect" opens the chooser
         assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
 
 
@@ -161,17 +173,19 @@ def first_visit(site):
 def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
     """n52: on 29 October 2026 the start page's first button sat at y 1069 (1280 x 800) and 1411 (375 x 812). Now
     "Check your files – no account" and "Connect to Claude" come right after the lede, before the replayed session,
-    and both are wholly on the first screen at both sizes, light and dark, with and without reduced motion."""
+    and both are wholly on the first screen at both sizes, light and dark, with and without reduced motion. n68: the
+    second is the Connect chooser's button (one click per client; /start is the long guide, linked from the chooser)."""
     for v, ctas in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("hero@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), ("/start", "Connect to Claude")], v
+        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), (None, "Connect")], v
         assert all(c["bottom"] <= height for c in ctas), (v, ctas)
 
 
 def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
+    """n73: the session's second link is "Connect" (#connect, the chooser); /start is no longer among the first Tabs."""
     for w in (1280, 375):
         seen = first_visit[f"tab@{w}"]
-        assert "/check" in seen and seen.index("/check") < seen.index("/start"), (w, seen)
+        assert "/check" in seen and seen.index("/check") < seen.index("#connect"), (w, seen)
 
 
 def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):

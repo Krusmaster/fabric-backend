@@ -10,6 +10,11 @@ nothing on it is a made-up progress line.
 
 The server serves this package as a zip (`engine_zip`) built from its own files, so the browser runs the exact engine
 the hosted service and the CLI run: there is no second implementation to drift.
+
+n73: one example row runs through everything the page says about a total that doubles. For each amount finding the
+engine reads one header row from the rows (the one with the most lines; `_amount_examples`): its key, its amount, how
+many line rows point at it and what a join counts it as. The finding's text names it, Onto's answer, the Power BI
+preview and the domain's data contract (a custom property) repeat it, and none of them computes a number of its own.
 """
 from __future__ import annotations
 
@@ -179,15 +184,47 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                  f"{len(suggestions.get('candidates', []))} candidate column(s) ranked" + (f", {len(cands)} with 90% or more of their values in the target's key" if src.has_data else ""),
                  suggested=cands)
         t = time.perf_counter()
+        examples = _amount_examples(p, src, validation)           # n73: one header row per total that doubles
+        notes: dict[str, list[dict]] = {}
+        for (header, line, column), ex in examples.items():
+            lv = next((f for f in ((validation or {}).get("amount_levels") or {}).get("findings", [])
+                       if (f["header"], f["line"], f["amount_columns"][0]) == (header, line, column)), None)
+            synthetic = lv is None and src.kind == "sample"
+            wrong = right = None
+            if lv is not None:
+                from . import amounts
+                ba = amounts.before_after(p.schema.schema, lv, src.execute)
+                wrong, right = (ba or {}).get("summed_over_lines"), (ba or {}).get("summed_per_header")
+            elif synthetic:
+                wrong, right = ex["repeated"], ex["amount"]      # one order: the join's sum is its amount once per line
+            line_columns = lv["line_columns"] if lv is not None else ["order_id"]
+            note = _amount_note(header, line, line_columns, column, ex, wrong, right, synthetic)
+            for table in {header, line}:
+                notes.setdefault(table, []).append(note)
+        try:                                                       # n63: domains.draft, the same call domain_draft makes
+            dom = _domains(p, src, validation, notes)
+            step("domains", "domain_draft: proposed domains", t, f"{len(dom['domains'])} domain(s), {len(dom['interfaces'])} interface(s) between them"
+                 + (f", {len(dom['unassigned'])} table(s) unassigned" if dom["unassigned"] else ""), domains=dom)
+        except Exception as e:                                     # noqa: BLE001 - the rest of the result still shows
+            dom = None
+            step("domains", "domain_draft: proposed domains", t, f"could not run: {type(e).__name__}: {e}")
+        t = time.perf_counter()
         session = Session(src)
         found = session.findings(p, validation, suggestions)
         findings = [_finding(f) for f in found if f["severity"] in _SHOWN]
         sugg = [_finding(f) for f in found if f["severity"] not in _SHOWN]
+        for f in findings:                                         # n73: the finding names the example row it is about
+            a = f.get("amount")
+            ex = examples.get((a["header"], a["line"], a["column"])) if a else None
+            if ex:
+                a["example"] = ex
+                f["saw"] += (f" For example {ex['key']} {ex['id']}: {_amount_words(ex['amount'])} on its {a['header']} row; "
+                             f"{_rows(ex['lines'], a['line'])} point at it, so the join counts it {_times(ex['lines'])}: {_amount_words(ex['repeated'])}.")
         out = {"verdict": verdict(src, p, validation),
                "source": {"kind": src.kind, "label": src.label, "has_data": src.has_data, "notes": src.notes},
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
-               "findings": findings, "suggestions": sugg}
+               "findings": findings, "suggestions": sugg, "domains": dom}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -196,6 +233,125 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
             shutil.rmtree(folder, ignore_errors=True)
         if src.close:
             src.close()
+
+
+def _amount_examples(p, src, validation: dict | None) -> dict[tuple, dict]:
+    """n73: for each header amount a join would repeat, one header row read from the rows, keyed by (header, line,
+    column): {"key", "id", "amount", "lines", "repeated"}, the row with the most line rows (ties: the smallest key). On
+    the synthetic shop the example of seed.AMOUNT_DEMO (the finding demo_app adds) is read the same way, from its own
+    in-memory tables, under the key ("orders", "order_lines", "order_amount")."""
+    from . import amounts
+    out: dict[tuple, dict] = {}
+    if not src.has_data:
+        return out
+    levels = (validation or {}).get("amount_levels") or amounts.check(p)
+    for f in levels["findings"][:5]:
+        ex = _one_header_row(p.schema.schema, f, src.execute)
+        if ex:
+            out[(f["header"], f["line"], f["amount_columns"][0])] = ex
+    if src.kind == "sample":                                       # the same tables amounts.demo() runs, typed as its DDL says
+        from .dialects import sqlite_sql
+        from .infer import plan
+        from .schema import Column, Schema, Table
+        from .seed import AMOUNT_DEMO
+        con = sqlite3.connect(":memory:")
+        con.execute("ATTACH DATABASE ':memory:' AS demo")
+        schema = Schema(schema="demo")
+        for name, (ddl, data) in AMOUNT_DEMO.items():
+            con.execute(f"CREATE TABLE demo.[{name}] ({ddl})")
+            con.executemany(f"INSERT INTO demo.[{name}] VALUES ({','.join('?' * len(data[0]))})", data)
+            schema.tables[name] = Table(name, [Column(c.split()[0], c.split()[1].lower()) for c in ddl.split(", ")], schema="demo")
+
+        def execute(sql: str):
+            cur = con.execute(sqlite_sql(sql))
+            cols = [d[0] for d in cur.description]
+            return [dict(zip(cols, r)) for r in cur.fetchall()]
+        try:
+            for f in amounts.check(plan(schema))["findings"][:1]:
+                ex = _one_header_row("demo", f, execute)
+                if ex:
+                    out[(f["header"], f["line"], f["amount_columns"][0])] = ex
+        finally:
+            con.close()
+    return out
+
+
+def _one_header_row(schema: str, f: dict, execute) -> dict | None:
+    """The header row a join repeats most: key, amount, the number of line rows and the amount summed over them."""
+    from .dialects import of
+    d = of(execute)
+    col = f["amount_columns"][0]
+    on = " AND ".join(f"l.{d.quote(a)} = h.{d.quote(b)}" for a, b in zip(f["line_columns"], f["header_columns"]))
+    keys = ", ".join(f"h.{d.quote(k)}" for k in f["header_columns"])
+    sql = d.select(f"{keys}, h.{d.quote(col)} AS amount_value, {d.count}(*) AS line_rows, SUM(h.{d.quote(col)}) AS repeated_value",
+                   f" FROM {d.table(schema, f['line'])} AS l JOIN {d.table(schema, f['header'])} AS h ON {on} "
+                   f"GROUP BY {keys}, h.{d.quote(col)} ORDER BY {d.count}(*) DESC, {keys}", 1)
+    try:
+        rows = list(execute(sql))
+    except Exception:                                              # noqa: BLE001 - the finding stands without an example
+        return None
+    if not rows or rows[0].get("amount_value") is None:
+        return None
+    r = rows[0]
+    num = lambda v: int(float(v)) if float(v).is_integer() else round(float(v), 2)
+    return {"key": "+".join(f["header_columns"]), "id": " + ".join(str(r[k]) for k in f["header_columns"]),
+            "amount": num(r["amount_value"]), "lines": int(r["line_rows"]), "repeated": num(r["repeated_value"])}
+
+
+def _amount_words(v) -> str:
+    """1000.0 as 1 000, the way demo_app tells the example; 5.9 keeps its decimals (5.90)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return str(v)
+    return (f"{f:,.0f}" if f.is_integer() else f"{f:,.2f}").replace(",", " ")
+
+
+def _times(n: int) -> str:
+    return "once" if n == 1 else "twice" if n == 2 else f"{n} times"
+
+
+def _rows(n: int, table: str) -> str:
+    return f"{n} {table} row" + ("" if n == 1 else "s")
+
+
+def _amount_note(header: str, line: str, line_columns: list, column: str, ex: dict, wrong, right, synthetic: bool) -> dict:
+    """The contract's custom property for a total that doubles: what to sum where, and the example row counted in the rows."""
+    return {"property": f"amountLevel.{header}.{column}",
+            "value": f"sum {header}.{column} once per {header} row, never over {line} rows",
+            "description": (f"{header}.{column} is an amount on {header}, and {line} rows point at it ({line}.{'+'.join(line_columns)} → {header}); "
+                            f"a join counts it once per line. Counted in the rows: {ex['key']} {ex['id']} is {_amount_words(ex['amount'])} on its "
+                            f"{header} row and {_rows(ex['lines'], line)} point at it, so the join counts it {_times(ex['lines'])} "
+                            f"({_amount_words(ex['repeated'])}); over all rows {_amount_words(wrong)} against {_amount_words(right)} (amount_level)."
+                            + (" A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO): its orders and order_lines are not the shop's."
+                               if synthetic else ""))}
+
+
+def _domains(p, src, validation: dict | None, notes: dict[str, list[dict]] | None = None) -> dict:
+    """domains.draft on the plan, with each domain's contract (ODCS YAML) and the checks validate_plan made on its
+    tables and on the relationships they hold."""
+    from . import domains, tool_status as ts
+    schema = getattr(src.schema, "schema", None) or "dbo"
+    # n73: the amount notes go to every domain that holds the header or the line table (by name)
+    def extra(d):                                          # once per note, even when both its tables are in the domain
+        seen, out = set(), []
+        for t in d["tables"]:
+            for n in (notes or {}).get(t, []):
+                if n["property"] not in seen:
+                    seen.add(n["property"])
+                    out.append(n)
+        return out
+    out = domains.draft(p, schema, src.label, validation, extra=extra)
+    out["status"] = ts.label("domain_draft")             # the status word the page puts on the contract download
+    for d in out["domains"]:
+        mine = set(d["tables"])
+        d["keys"] = {t: list(p.keys.get(t, ([], ""))[0]) for t in d["tables"]}
+        d["relationships"] = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols,
+                               "rule": r.rule} for r in p.relationships if r.source in mine and r.target in mine]
+        d["checks"] = ([{"what": f"key of {k['table']}", "verdict": k["verdict"]} for k in (validation or {}).get("keys", []) if k.get("table") in mine]
+                       + [{"what": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}", "verdict": r["verdict"]}
+                          for r in (validation or {}).get("relationships", []) if r.get("source") in mine])
+    return out
 
 
 def _count(items: list[dict], key: str) -> dict[str, int]:

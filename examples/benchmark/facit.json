@@ -1,0 +1,1083 @@
+{
+ "_about": "Facit for examples/benchmark (round n61). Relationships that are right, and the traps planted in the synthetic rows. shop, crm and traps were written from the table meanings; sap follows the public SAP table relationships (sales order, delivery, billing, partners, addresses, document flow), which is also what the SAP pack encodes, so the sap row shows the pack applied, not a test of the pack.",
+ "shop": {
+  "relationships": [
+   {
+    "source": "products",
+    "source_cols": [
+     "category_id"
+    ],
+    "target": "categories",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "addresses",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "source": "orders",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "source": "orders",
+    "source_cols": [
+     "ship_to_id"
+    ],
+    "target": "addresses",
+    "target_cols": [
+     "address_id"
+    ]
+   },
+   {
+    "source": "order_items",
+    "source_cols": [
+     "order_id"
+    ],
+    "target": "orders",
+    "target_cols": [
+     "order_id"
+    ]
+   },
+   {
+    "source": "order_items",
+    "source_cols": [
+     "product_id"
+    ],
+    "target": "products",
+    "target_cols": [
+     "product_id"
+    ]
+   },
+   {
+    "source": "audit_log",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [],
+   "doubled": [],
+   "ambiguous": [
+    {
+     "column": "name",
+     "tables": [
+      "customers",
+      "categories",
+      "products"
+     ]
+    }
+   ]
+  }
+ },
+ "sap": {
+  "relationships": [
+   {
+    "source": "sap_vbap",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_vbak",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   {
+    "source": "sap_vbep",
+    "source_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ],
+    "target": "sap_vbap",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbak",
+    "source_cols": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_vbak",
+    "source_cols": [
+     "MANDT",
+     "VKORG"
+    ],
+    "target": "sap_tvko",
+    "target_cols": [
+     "MANDT",
+     "VKORG"
+    ]
+   },
+   {
+    "source": "sap_vbap",
+    "source_cols": [
+     "MANDT",
+     "MATNR"
+    ],
+    "target": "sap_mara",
+    "target_cols": [
+     "MANDT",
+     "MATNR"
+    ]
+   },
+   {
+    "source": "sap_makt",
+    "source_cols": [
+     "MANDT",
+     "MATNR"
+    ],
+    "target": "sap_mara",
+    "target_cols": [
+     "MANDT",
+     "MATNR"
+    ]
+   },
+   {
+    "source": "sap_tvko",
+    "source_cols": [
+     "MANDT",
+     "BUKRS"
+    ],
+    "target": "sap_t001",
+    "target_cols": [
+     "MANDT",
+     "BUKRS"
+    ]
+   },
+   {
+    "source": "sap_lips",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_likp",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   {
+    "source": "sap_lips",
+    "source_cols": [
+     "MANDT",
+     "VGBEL",
+     "VGPOS"
+    ],
+    "target": "sap_vbap",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_lips",
+    "source_cols": [
+     "MANDT",
+     "MATNR"
+    ],
+    "target": "sap_mara",
+    "target_cols": [
+     "MANDT",
+     "MATNR"
+    ]
+   },
+   {
+    "source": "sap_likp",
+    "source_cols": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_likp",
+    "source_cols": [
+     "MANDT",
+     "KUNAG"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_likp",
+    "source_cols": [
+     "MANDT",
+     "VKORG"
+    ],
+    "target": "sap_tvko",
+    "target_cols": [
+     "MANDT",
+     "VKORG"
+    ]
+   },
+   {
+    "source": "sap_vbrp",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_vbrk",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   {
+    "source": "sap_vbrp",
+    "source_cols": [
+     "MANDT",
+     "AUBEL",
+     "AUPOS"
+    ],
+    "target": "sap_vbap",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbrp",
+    "source_cols": [
+     "MANDT",
+     "VGBEL",
+     "VGPOS"
+    ],
+    "target": "sap_lips",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbrp",
+    "source_cols": [
+     "MANDT",
+     "MATNR"
+    ],
+    "target": "sap_mara",
+    "target_cols": [
+     "MANDT",
+     "MATNR"
+    ]
+   },
+   {
+    "source": "sap_vbrk",
+    "source_cols": [
+     "MANDT",
+     "KUNAG"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_vbrk",
+    "source_cols": [
+     "MANDT",
+     "KUNRG"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_vbrk",
+    "source_cols": [
+     "MANDT",
+     "VKORG"
+    ],
+    "target": "sap_tvko",
+    "target_cols": [
+     "MANDT",
+     "VKORG"
+    ]
+   },
+   {
+    "source": "sap_vbrk",
+    "source_cols": [
+     "MANDT",
+     "BUKRS"
+    ],
+    "target": "sap_t001",
+    "target_cols": [
+     "MANDT",
+     "BUKRS"
+    ]
+   },
+   {
+    "source": "sap_vbpa",
+    "source_cols": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_vbpa",
+    "source_cols": [
+     "MANDT",
+     "PARNR"
+    ],
+    "target": "sap_knvk",
+    "target_cols": [
+     "MANDT",
+     "PARNR"
+    ]
+   },
+   {
+    "source": "sap_knvk",
+    "source_cols": [
+     "MANDT",
+     "KUNNR"
+    ],
+    "target": "sap_kna1",
+    "target_cols": [
+     "MANDT",
+     "KUNNR"
+    ]
+   },
+   {
+    "source": "sap_kna1",
+    "source_cols": [
+     "MANDT",
+     "ADRNR"
+    ],
+    "target": "sap_adrc",
+    "target_cols": [
+     "CLIENT",
+     "ADDRNUMBER"
+    ]
+   },
+   {
+    "source": "sap_t001",
+    "source_cols": [
+     "MANDT",
+     "ADRNR"
+    ],
+    "target": "sap_adrc",
+    "target_cols": [
+     "CLIENT",
+     "ADDRNUMBER"
+    ]
+   },
+   {
+    "source": "sap_vbpa",
+    "source_cols": [
+     "MANDT",
+     "ADRNR"
+    ],
+    "target": "sap_adrc",
+    "target_cols": [
+     "CLIENT",
+     "ADDRNUMBER"
+    ]
+   },
+   {
+    "source": "sap_adr6",
+    "source_cols": [
+     "CLIENT",
+     "ADDRNUMBER",
+     "DATE_FROM"
+    ],
+    "target": "sap_adrc",
+    "target_cols": [
+     "CLIENT",
+     "ADDRNUMBER",
+     "DATE_FROM"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELV",
+     "POSNV"
+    ],
+    "target": "sap_vbap",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNN"
+    ],
+    "target": "sap_lips",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNN"
+    ],
+    "target": "sap_vbrp",
+    "target_cols": [
+     "MANDT",
+     "VBELN",
+     "POSNR"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_vbak",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_likp",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   },
+   {
+    "source": "sap_vbfa",
+    "source_cols": [
+     "MANDT",
+     "VBELN"
+    ],
+    "target": "sap_vbrk",
+    "target_cols": [
+     "MANDT",
+     "VBELN"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [
+    {
+     "source": "sap_vbap",
+     "source_cols": [
+      "MANDT",
+      "VBELN"
+     ],
+     "target": "sap_vbak",
+     "target_cols": [
+      "MANDT",
+      "VBELN"
+     ]
+    }
+   ],
+   "doubled": [
+    {
+     "header": "sap_vbak",
+     "column": "NETWR",
+     "line": "sap_vbap"
+    },
+    {
+     "header": "sap_vbrk",
+     "column": "NETWR",
+     "line": "sap_vbrp"
+    },
+    {
+     "header": "sap_vbrk",
+     "column": "MWSBK",
+     "line": "sap_vbrp"
+    },
+    {
+     "header": "sap_vbap",
+     "column": "NETWR",
+     "line": "sap_vbep"
+    }
+   ],
+   "ambiguous": [
+    {
+     "column": "MANDT",
+     "tables": [
+      "every table"
+     ]
+    },
+    {
+     "column": "VBELN",
+     "tables": [
+      "sap_vbak",
+      "sap_likp",
+      "sap_vbrk",
+      "..."
+     ]
+    },
+    {
+     "column": "NETWR",
+     "tables": [
+      "sap_vbak",
+      "sap_vbap",
+      "sap_vbrk",
+      "sap_vbrp"
+     ]
+    },
+    {
+     "column": "NAME1",
+     "tables": [
+      "sap_kna1",
+      "sap_knvk",
+      "sap_adrc"
+     ]
+    }
+   ]
+  }
+ },
+ "crm": {
+  "relationships": [
+   {
+    "source": "Contact",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "Account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "Opportunity",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "Account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "sales_orders",
+    "source_cols": [
+     "customer_no"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_no"
+    ]
+   },
+   {
+    "source": "sales_order_lines",
+    "source_cols": [
+     "sales_order_no"
+    ],
+    "target": "sales_orders",
+    "target_cols": [
+     "sales_order_no"
+    ]
+   },
+   {
+    "source": "Account",
+    "source_cols": [
+     "ERP_Customer_No__c"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_no"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [
+    {
+     "source": "Contact",
+     "source_cols": [
+      "AccountId"
+     ],
+     "target": "Account",
+     "target_cols": [
+      "Id"
+     ]
+    },
+    {
+     "source": "sales_orders",
+     "source_cols": [
+      "customer_no"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_no"
+     ]
+    }
+   ],
+   "doubled": [
+    {
+     "header": "sales_orders",
+     "column": "order_total",
+     "line": "sales_order_lines"
+    }
+   ],
+   "ambiguous": [
+    {
+     "column": "Id",
+     "tables": [
+      "Account",
+      "Contact",
+      "Opportunity"
+     ]
+    },
+    {
+     "column": "Name",
+     "tables": [
+      "Account",
+      "Opportunity",
+      "customers"
+     ]
+    }
+   ]
+  }
+ },
+ "traps": {
+  "relationships": [
+   {
+    "source": "customers",
+    "source_cols": [
+     "country_code"
+    ],
+    "target": "countries",
+    "target_cols": [
+     "code"
+    ]
+   },
+   {
+    "source": "invoices",
+    "source_cols": [
+     "customer_id"
+    ],
+    "target": "customers",
+    "target_cols": [
+     "customer_id"
+    ]
+   },
+   {
+    "source": "invoices",
+    "source_cols": [
+     "created_by"
+    ],
+    "target": "users",
+    "target_cols": [
+     "user_id"
+    ]
+   },
+   {
+    "source": "invoices",
+    "source_cols": [
+     "approved_by"
+    ],
+    "target": "users",
+    "target_cols": [
+     "user_id"
+    ]
+   },
+   {
+    "source": "invoices",
+    "source_cols": [
+     "currency_code"
+    ],
+    "target": "currencies",
+    "target_cols": [
+     "code"
+    ]
+   },
+   {
+    "source": "invoice_lines",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "invoices",
+    "target_cols": [
+     "invoice_id"
+    ]
+   },
+   {
+    "source": "invoice_lines",
+    "source_cols": [
+     "product_id"
+    ],
+    "target": "products",
+    "target_cols": [
+     "product_id"
+    ]
+   },
+   {
+    "source": "payments",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "invoices",
+    "target_cols": [
+     "invoice_id"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [
+    {
+     "source": "invoices",
+     "source_cols": [
+      "customer_id"
+     ],
+     "target": "customers",
+     "target_cols": [
+      "customer_id"
+     ]
+    },
+    {
+     "source": "invoice_lines",
+     "source_cols": [
+      "product_id"
+     ],
+     "target": "products",
+     "target_cols": [
+      "product_id"
+     ]
+    }
+   ],
+   "doubled": [
+    {
+     "header": "invoices",
+     "column": "invoice_total",
+     "line": "invoice_lines"
+    },
+    {
+     "header": "invoices",
+     "column": "invoice_total",
+     "line": "payments"
+    }
+   ],
+   "ambiguous": [
+    {
+     "column": "code",
+     "tables": [
+      "countries",
+      "currencies"
+     ]
+    },
+    {
+     "column": "name",
+     "tables": [
+      "users",
+      "countries",
+      "currencies",
+      "customers",
+      "products"
+     ]
+    }
+   ]
+  }
+ },
+ "younium": {
+  "_about": "Round n72: fabric_backend/younium_demo.py, 14 tables with the system prefixes younium_ and sf_. The relationships are the younium_salesforce pack's applied ones (15) and the three links by number the invoice lines carry in these rows (the pack lists them as unverified). The pack was written from sources the writing session could not open, and the rows from the pack: the row shows what the methods do on a schema only a pack can read, not that the pack is right about Younium. The engine does not apply this pack yet (infer._pack reads the SAP pack alone), so Krusgraph's row is the name rules and the row checks alone.",
+  "relationships": [
+   {
+    "source": "sf_contact",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "sf_opportunity",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "sf_opportunitylineitem",
+    "source_cols": [
+     "OpportunityId"
+    ],
+    "target": "sf_opportunity",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "younium_accounts",
+    "source_cols": [
+     "external_crm_id"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "younium_subscriptions",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscriptions",
+    "source_cols": [
+     "invoice_account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_versions",
+    "source_cols": [
+     "subscription_id"
+    ],
+    "target": "younium_subscriptions",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_charges",
+    "source_cols": [
+     "subscription_version_id"
+    ],
+    "target": "younium_subscription_versions",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_charges",
+    "source_cols": [
+     "charge_id"
+    ],
+    "target": "younium_charges",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_charges",
+    "source_cols": [
+     "charge_plan_id"
+    ],
+    "target": "younium_charge_plans",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_charge_plans",
+    "source_cols": [
+     "product_id"
+    ],
+    "target": "younium_products",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoices",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "younium_invoices",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_payments",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "younium_invoices",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_payments",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "charge_number"
+    ],
+    "target": "younium_charges",
+    "target_cols": [
+     "charge_number"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "subscription_number"
+    ],
+    "target": "younium_subscriptions",
+    "target_cols": [
+     "subscription_number"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "product_number"
+    ],
+    "target": "younium_products",
+    "target_cols": [
+     "product_number"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [
+    {
+     "source": "younium_accounts",
+     "source_cols": [
+      "external_crm_id"
+     ],
+     "target": "sf_account",
+     "target_cols": [
+      "Id"
+     ]
+    }
+   ],
+   "doubled": [
+    {
+     "header": "younium_invoices",
+     "column": "total_amount",
+     "line": "younium_invoice_lines"
+    },
+    {
+     "header": "sf_opportunity",
+     "column": "Amount",
+     "line": "sf_opportunitylineitem"
+    }
+   ],
+   "ambiguous": [
+    {
+     "column": "id",
+     "tables": [
+      "sf_account",
+      "sf_contact",
+      "sf_opportunity",
+      "sf_opportunitylineitem",
+      "younium_accounts",
+      "younium_charge_plans",
+      "younium_charges",
+      "younium_invoice_lines",
+      "younium_invoices",
+      "younium_payments",
+      "younium_products",
+      "younium_subscription_charges",
+      "younium_subscription_versions",
+      "younium_subscriptions"
+     ]
+    },
+    {
+     "column": "name",
+     "tables": [
+      "younium_accounts",
+      "younium_products",
+      "younium_charge_plans",
+      "younium_charges",
+      "sf_account",
+      "sf_opportunity"
+     ]
+    },
+    {
+     "column": "external_crm_id",
+     "tables": [
+      "younium_accounts",
+      "younium_subscriptions"
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -25,11 +25,30 @@ def test_sample_gives_map_findings_and_the_five_states():
     assert "%" not in r["verdict"]["headline"]["text"]
 
 
+def test_the_result_carries_domain_drafts_proposal_and_contracts():
+    """n63: /check's engine runs domains.draft on the same plan; the page draws it and offers each contract."""
+    from fabric_backend import domains
+    from fabric_backend.infer import plan
+    r = bc.analyze("sample")
+    d = r["domains"]
+    assert [(x["name"], x["tables"]) for x in d["domains"]] == [("customers", ["addresses", "customers", "order_items", "orders"]),
+                                                                 ("products", ["categories", "products"])]
+    src, _ = bc._source("sample", None, "")
+    pair = lambda xs: [(i["source"], i["target"]) for i in xs]     # the weights differ: here validate_plan's counts are given
+    assert pair(d["interfaces"]) == pair(domains.propose_plan(plan(src.schema))["interfaces"]) == [("order_items", "products")]
+    c = d["domains"][0]
+    assert c["keys"]["order_items"] == ["order_id", "line_no"] and all(x["source"] in c["tables"] and x["target"] in c["tables"] for x in c["relationships"])
+    assert {"what": "key of customers", "verdict": "unique in all 10 rows"} in c["checks"]
+    assert d["contracts"]["customers"].startswith("# ODCS v3.2.0") and "kind: DataContract" in d["contracts"]["customers"]
+    sap = bc.analyze("sap")["domains"]
+    assert [x["name"] for x in sap["domains"]] == ["order-to-cash", "customer master"] and "public SAP" in sap["domains"][0]["name_reason"]
+
+
 @pytest.mark.parametrize("kind", ["sample", "sap", "crm"])
 def test_the_examples_report_each_engine_step_with_its_time(kind):
     events = []
     r = bc.analyze(kind, emit=events.append)
-    assert [e["step"] for e in events] == ["read", "keys", "relationships", "validate", "suggest", "findings"]
+    assert [e["step"] for e in events] == ["read", "keys", "relationships", "validate", "suggest", "domains", "findings"]
     assert all(isinstance(e["ms"], int) and e["detail"] for e in events)
     assert events[1]["tables"] == r["tables"] and events[2]["relationships"] == r["relationships"]
     assert events[-1]["result"] == r and r["verdict"]["headline"]["title"] == "Enough to start"
@@ -132,17 +151,36 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert r["focused"] == "check-sample" and not r["overflow_375"] and not r["overflow_1280"]
     # n53: Ask Onto on the shop example: the questions come from what the engine found, the answers from its result
     assert r["ask_questions"] == ["Why does this total come out twice?", "What should I check first?", "Why is there no key on audit_log?",
+                                  "These 4 tables hang together as customers. Package them as a data product?",
                                   "How do I get this into Power BI?", "Can I ask my own questions?"], r["ask_questions"]
     total = r["ask"]["total"]["text"]
     assert "Summed over the joined lines (order_lines)" in total and "Summed once per header (orders)" in total
     assert "2,000" in total and "1,000" in total and "amount_level" in total
     assert "rule K3" in r["ask"]["key"]["text"] and r["ask"]["key"]["lit"] == 1
-    assert "Yes, in Claude." in r["ask"]["own"]["text"] and "Connect to Claude" in r["ask"]["own"]["text"]
+    assert "Yes, in Claude." in r["ask"]["own"]["text"] and "Connect" in r["ask"]["own"]["text"]
     assert all(a["expanded"] == "true" for a in r["ask"].values())
     assert r["ask_powerbi_focus"] == "check-model-h"
     assert not r["ask_requests"], r["ask_requests"]                   # answered from the result: no request at all
-    assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 5}
+    assert r["ask_plain"] == {"figure": "none", "list": "block", "n": 6}
+    # n63: the domains on the map, labelled (never colour alone) and tinted in both themes, and the data-product answer
+    d = r["domains"]
+    assert d["tinted"] == 6 and sorted(set(d["tags"])) == ["customers", "products"] and d["ifaces"] == 1, d
+    assert "Proposed domains" in d["list"] and "order_items.product_id → products" in d["list"], d["list"]
+    assert all(len(v) == 2 for v in r["domain_fill"].values()) and r["domain_fill"]["light"] != r["domain_fill"]["dark"], r["domain_fill"]
+    prod = r["ask"]["product"]["text"]
+    assert "A data product is a set of tables" in prod and "validate_plan counted" in prod and "unique in all" in prod and "[object" not in prod, prod
+    assert ["Create it in your own Fabric", "/start", None] in r["ask"]["product"]["html_links"]
+    assert r["contract"]["name"] == "customers.odcs.yaml" and "apiVersion: v3.2.0" in r["contract"]["text"] and "kind: DataContract" in r["contract"]["text"]
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
+    # n68: the domain buttons on Salesforce + ERP (two domains, no interface between them: the list once ended in "nullnullnull")
+    cd = r["crm_domains"]
+    assert "null" not in cd["before"]["list"] and cd["before"]["pressed"] == ["false", "false"] and cd["before"]["focus"] is False
+    assert cd["before"]["question"] == "These 3 tables hang together as Account. Package them as a data product?"
+    assert cd["one"]["pressed"] == ["false", "true"] and cd["one"]["focus"] is True and cd["one"]["on"] == 3 and cd["one"]["onEdges"] == 2
+    assert cd["one"]["opacities"] == ["0.22", "1"] and cd["one"]["transition"] == "0s", cd["one"]            # dimmed, still, under reduced motion
+    assert cd["one"]["question"] == "Package sales_orders as a data product?" and cd["one_links"] == ["sales_orders.odcs.yaml"]
+    assert cd["two"]["pressed"] == ["true", "true"] and cd["two"]["on"] == 6 and cd["two"]["opacities"] == ["1"]
+    assert cd["all"]["pressed"] == ["false", "false"] and cd["all"]["focus"] is False and cd["all"]["on"] == 0 and "null" not in cd["all"]["list"]
     # n55: the guided demo on /check, started from the address, four steps by keyboard, each marking the map
     assert [g["title"] for g in r["guide"]] == ["How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"]
     assert [g["lit"] for g in r["guide"][:3]] == [1, 1, 1] and "2,000" in r["guide"][1]["text"] and "ship_to_id" in r["guide"][2]["text"]
@@ -152,10 +190,30 @@ def test_in_a_browser_no_request_carries_the_files(site):
     for k, label in (("sample", "A total that doubles"), ("sap", "SAP sales tables"), ("crm", "Salesforce + ERP")):
         g = r["industries"][k]
         assert g["url"] == "/check?example=" + k and "Done: the example “" + label + "”" in g["status"] and g["guide"] is True, (k, g)
-    # n55: the map first, one line with the state and the count, every finding folded under it, a title marks the map
-    assert r["folded"] == {"open": False, "summary": "Show all 3 findings", "line": "Enough to start · 3 things to check", "order": True, "findingsInside": True}
+    # n73: the finding first: the state line, the most important finding and the folded list under the status line and
+    # before the map; the engine's steps folded under the map. Four findings since n71: the keyless audit_log, the
+    # suggestion, the synthetic total that doubles, and products.list_price over order_items
+    assert r["folded"] == {"open": False, "summary": "Show all 4 findings", "line": "Enough to start · 4 things to check", "order": True, "findingsInside": True}
+    fs = r["first_screen"]
+    assert (fs["width"], fs["height"]) == (1280, 720) and 0 <= fs["verdictTop"] and fs["topFindingBottom"] <= fs["height"], fs   # seen without scrolling at 1280 px
+    assert fs["mostImportant"].startswith("Most important: ") and fs["mapTop"] > fs["verdictBottom"], fs
+    e = r["engine"]
+    assert e["open"] is False and e["summary"] == "How the engine got here" and e["stepsInside"] and e["steps"] >= 7 and e["opened"] is True, e
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
+    # n73: one order through "A total that doubles": order_id 1, 1 000 on the order, 2 000 over its two lines, in the
+    # finding, in Onto's answer, in the Power BI preview and in the contract; every download button says what the file
+    # holds and its status word
+    so = r["same_order"]
+    for text in (so["finding"], total, so["preview"]):
+        assert "order_id 1" in text and "counts it twice" in text, text
+    assert "2,000" in so["preview"] and "1,000" in so["preview"] and "orders.order_amount" in so["preview"] and "not in this model" in so["preview"], so["preview"]
+    assert "1 000" in so["finding"] and "2 000" in so["finding"]
+    c = r["contract"]["text"]
+    assert "amountLevel.orders.order_amount" in c and "order_id 1 is 1 000 on its orders row" in c and "counts it twice (2 000)" in c, c[-900:]
+    assert so["labels"] == ["Download shop_model.zip: Power BI project (.pbip), the model with the plan's keys and relationships as checked in the rows and an empty report page " + ts.label("semantic_model_draft")], so["labels"]
+    assert ["Download customers.odcs.yaml: data contract (ODCS 3.2 YAML), schema, keys, relationships and the checks that passed, with the total that doubles " + ts.label("domain_draft"),
+            "#", "customers.odcs.yaml"] in r["ask"]["product"]["html_links"], r["ask"]["product"]["html_links"]
 
 
 def test_the_privacy_sentence_matches_what_the_page_sends(client):
@@ -188,7 +246,7 @@ def test_build_gives_a_power_bi_project_and_an_app_starter_from_the_same_plan(ki
     assert pbir["datasetReference"]["byPath"]["path"] == f"../{r['name']}_model.SemanticModel"
     assert f"{r['name']}_model.SemanticModel/definition/model.tmdl" in names and f"{r['name']}_model.SemanticModel/definition.pbism" in names
     readme = model.read("README.md").decode()
-    assert ts.label("semantic_model_draft") in readme and "Not yet tried: opening this project in Power BI Desktop" in readme
+    assert ts.label("semantic_model_draft") in readme and "Opened in Power BI Desktop on 30 October 2026" in readme
     app = zipfile.ZipFile(io.BytesIO(__import__("base64").b64decode(r["downloads"][f"{r['name']}_app.zip"])))
     assert "app/rayfin/connectors/data/schema.ts" in app.namelist() and "app/lovable-prompt.md" in app.namelist()
     assert r["status"] == {"model": ts.label("semantic_model_draft"), "report": "Draft only", "create_model": ts.short("create_semantic_model"),
@@ -203,7 +261,8 @@ def test_the_report_puts_the_right_total_beside_the_wrong_one_counted_in_the_row
     with_lines = {x[0] for x in lines}
     assert d["right"] == sum(o[3] for o in orders if o[0] in with_lines)
     assert d["wrong"] == sum(o[3] for o in orders for x in lines if x[0] == o[0]) and d["wrong"] > d["right"]
-    assert bb.build("sample")["report"]["doubled"] is None              # the shop plan has no header amount
+    d = bb.build("sample")["report"]["doubled"]                         # since n71 the shop's products carry a list price (n71)
+    assert (d["column"], d["header"], d["line"], d["right"]) == ("products.list_price", "products", "order_items", 1666.6) and d["wrong"] > d["right"]
 
 
 def test_build_from_files_and_from_a_columns_list():
@@ -211,6 +270,33 @@ def test_build_from_files_and_from_a_columns_list():
     assert r["app"]["list"]["rows"] and {m["name"]: m["value"] for m in r["report"]["measures"]}["Total amount"] == 30
     c = bb.build("columns", None, "orders.order_id\norders.customer_id\ncustomers.customer_id")
     assert not c["report"]["has_data"] and not c["report"]["measures"] and len(c["downloads"]) == 2
+
+
+def test_one_example_row_runs_through_the_finding_the_contract_and_the_preview():
+    """n73: the external review saw three totals in "A total that doubles": the finding's synthetic order (1 000 / 2 000),
+    the Power BI preview's list price and a contract with nothing about it. The engine now reads one header row per
+    amount finding from the rows (its key, its amount, its lines, what a join counts) and the finding, the domain's
+    contract and (in check.js) Onto's answer and the preview repeat it; no number is computed twice."""
+    r = bc.analyze("sample")
+    f = next(x for x in r["findings"] if x["check"] == "amount_level" and x["amount"]["wrong"] > x["amount"]["right"])
+    ex = f["amount"]["example"]
+    assert (f["amount"]["header"], f["amount"]["line"], f["amount"]["column"]) == ("orders", "order_lines", "order_amount")
+    assert ex == {"key": "order_id", "id": "1", "amount": 1000, "lines": 2, "repeated": 2000}
+    assert f["saw"].endswith("For example order_id 1: 1 000 on its orders row; 2 order_lines rows point at it, so the join counts it twice: 2 000.")
+    c = r["domains"]["contracts"]["customers"]
+    assert c.count("amountLevel.orders.order_amount") == 1 and "order_id 1 is 1 000 on its orders row and 2 order_lines rows point at it, so the join counts it twice (2 000)" in c
+    assert "A synthetic example beside these tables (fabric_backend.seed.AMOUNT_DEMO)" in c and r["domains"]["status"] == ts.label("domain_draft")
+    other = next(x for x in r["findings"] if x["check"] == "amount_level" and x["amount"]["column"] == "list_price")
+    assert other["amount"]["example"] == {"key": "product_id", "id": "4", "amount": 5.9, "lines": 27, "repeated": 159.3}
+    assert "amountLevel.products.list_price" in r["domains"]["contracts"]["products"] and "product_id 4 is 5.90 on its products row" in c
+    crm = bc.analyze("crm")
+    f = next(x for x in crm["findings"] if x["check"] == "amount_level")
+    assert f["amount"]["example"] == {"key": "sales_order_no", "id": "SO5001", "amount": 600, "lines": 3, "repeated": 1800}
+    assert "sales_order_no SO5001 is 600 on its sales_orders row and 3 sales_order_lines rows point at it, so the join counts it 3 times (1 800)" in crm["domains"]["contracts"]["sales_orders"]
+    assert "synthetic example" not in crm["domains"]["contracts"]["sales_orders"]
+    cols = bc.analyze("columns", text="orders.order_id\norders.order_amount\norder_lines.order_id\norder_lines.line_no")
+    f = next(x for x in cols["findings"] if x["check"] == "amount_level")
+    assert "example" not in f["amount"] and "amountLevel" not in "".join(cols["domains"]["contracts"].values())   # no rows, no example
 
 
 def test_the_browser_reads_an_api_definition_as_describe_backend_does():
@@ -232,7 +318,11 @@ def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client
     html = client.get("/check").text
     head = html[html.index('id="check-build-head"'):html.index('id="check-build-head"') + 1500]
     assert "Build a Power BI model" in head and "See it as an app" in head and "Go further with these tables" in head
-    assert html.index('id="check-map"') < html.index('id="check-build-head"') < html.index('id="check-result"')   # n51: in the map column
+    # n73: the state line and the findings before the map, the two choices in the map column, the engine's steps folded after it
+    assert (html.index('id="check-status"') < html.index('id="check-verdict"') < html.index('id="check-all"') < html.index('id="check-map"')
+            < html.index('id="check-build-head"') < html.index('id="check-engine"') < html.index('id="check-steps"') < html.index('id="check-result"'))
+    engine = html[html.index('<details class="check-engine"'):html.index("</details>", html.index('<details class="check-engine"'))]
+    assert "<summary>How the engine got here</summary>" in engine and " open" not in engine.split(">")[0]
     box = html[html.index('id="check-build"'):html.index("</section>", html.index('id="check-build"'))]
     assert 'href="/start">Create it in your own Fabric<' in box and box.count('href="/start"') == 1 and 'href="/support">Get help<' in box
     assert 'id="check-loading"' in html and 'data-mascot="onto"' in html.split('id="check-loading"')[1][:200]
@@ -257,16 +347,19 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["loading_after_result"] is False and o["build_shown"]
         assert "Draft only" in o["model_text"] and "Summed once per header (sales_orders)" in o["model_text"]
         assert "Summed over the joined lines (sales_order_lines)" in o["model_text"] and "14,400" in o["model_text"]
-        assert o["at_1280"] == {"in_map_col": True, "right_of_steps": True, "below_map": True, "beside_steps": True, "dom_order": True}, o
-        assert o["at_375"]["below_map"] and not o["at_375"]["right_of_steps"] and o["at_375"]["dom_order"], o
+        for w in ("at_1280", "at_375"):                              # n73: finding, folded list, map, the two choices, the folded steps
+            assert o[w] == {"in_map_col": True, "below_map": True, "verdict_above_map": True, "engine_below_choices": True, "engine_closed": True, "dom_order": True}, (w, o[w])
         assert 0 <= o["heading_top"] < 120, o["heading_top"]
         assert o["focus"] == "check-model-h" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
         assert o["requests_while_building"] == [], o["requests_while_building"]
-        assert o["app_rows"] > 0 and "Download crm_erp_app.zip" in o["app_text"]
+        assert o["app_rows"] > 0 and "Download crm_erp_app.zip: app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet " + ts.label("app_starter") in o["app_text"]
+        assert "Download crm_erp_model.zip: Power BI project (.pbip), the model with the plan's keys and relationships as checked in the rows and an empty report page " + ts.label("semantic_model_draft") in o["model_text"]
+        assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
         assert o["next_links"] == ["Create it in your own Fabric /start", "Get help /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
     o = r["reduce"]
-    assert o["shop_doubled"] is False                                  # the shop's orders have no amount: no comparison
+    assert o["shop_doubled"] is True                                   # n73: the example's order, the one the finding and Onto show
+    assert "orders.order_amount" in o["shop_doubled_text"] and "order_id 1" in o["shop_doubled_text"] and "2,000" in o["shop_doubled_text"] and "not in this model" in o["shop_doubled_text"]
     assert o["files_doubled"] == ["2,000Summed over the joined lines (order_lines)", "1,000Summed once per header (orders)"], o
 
 

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security
+    url: https://github.com/Krusmaster/fabric-backend/blob/main/docs/SECURITY.md
+    about: How to report a security problem. Not in a public issue.
+  - name: Support for the hosted service (krusgraph.com)
+    url: https://krusgraph.com/support
+    about: Questions about your own sign-in, workspace or tenant go here, not into a public issue.

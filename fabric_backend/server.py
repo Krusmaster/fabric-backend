@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-seven, from list_workspaces to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): thirty-eight, from list_workspaces to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -43,6 +43,8 @@ from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
 from .deploy import create_semantic_model as _create_semantic_model
+from .deploy import find_item as _find_item
+from . import report as _report
 from .platforms import fabric as _fabric
 
 try:
@@ -73,7 +75,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
     "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all but "
-    "create_backend answer with what they would create until dry_run=false. Creating a semantic model, ontology, data agent, notebook "
+    "create_backend answer with what they would create until dry_run=false. create_report adds an empty Power BI report (one blank page, no visuals) bound to an existing semantic model; a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
     "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
     "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -218,18 +220,24 @@ def _execute_factory(item: dict, sql_token: str):
     return _fabric.connect(item, sql_token, LOGIN_TIMEOUT, QUERY_TIMEOUT)
 
 
-def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx):
+R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # plan_backend's R5: the first 200 distinct values of a candidate column, at most 20 counting queries
+
+
+def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = False):
+    """The plan of a source. `rows`: R5 also counts the code and role columns the name rules left unlinked, over the
+    open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES (plan_backend); the other tools plan by names alone."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
     execute = _execute_factory(item, auth.sql(ctx))
     try:
         s = _fabric.PLATFORM.read_schema(execute, schema)
+        if len(s) == 0:
+            raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
+        p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES) if rows else make_plan(s, keys, confirmed)
     finally:
         getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
-    if len(s) == 0:
-        raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
-    return make_plan(s, keys, confirmed), item, headers
+    return p, item, headers
 
 
 # ------------------------------------------------------------------ tools --------------------
@@ -362,10 +370,12 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                  mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
     """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
-    source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R4), ambiguous
-    columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Changes nothing in Fabric.
-    validate_plan checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
-    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    source. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous
+    columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
+    the names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values
+    of a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan
+    checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
+    p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
@@ -689,7 +699,7 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
     tables = sorted(keep, key=str.lower) if keep is not None else None
     out = _semantic_model.draft(p, info, name, tables)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
-                   + " An item from it is not yet created live (create_semantic_model). Open the "
+                   + " create_semantic_model creates the item from it (" + _tool_status.short("create_semantic_model") + "). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "
                    "lists what to check first.")
     text = json.dumps(out, indent=2)
@@ -1050,6 +1060,53 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
         return text
     result = _create_semantic_model(body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
     return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
+
+
+@mcp.tool(title="Create an empty Power BI report on a semantic model (dry run by default)", annotations=WRITE)
+@safe
+def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, dry_run: _p.DryRun = True,
+                  ctx: Context = None) -> str:
+    """Creates an empty Power BI report item (one blank page, no visuals) bound to an existing semantic model, through
+    Fabric's creationPayload; no report definition is sent. Requires workspace, model and name; Report.ReadWrite.All or
+    Item.ReadWrite.All, Contributor on the workspace and read permission on the model. Returns JSON with the REST call
+    and the next steps; with dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false, and
+    only by adding one item: a report of that name is left as it is (kind already_exists), nothing is updated or
+    deleted. Errors: {error, kind, hint}."""
+    headers = _headers(ctx)
+    workspace_id = _workspace_id(workspace, headers)
+    if _GUID.match(model.strip()):
+        model_item = {"id": model.strip(), "displayName": model.strip()}
+    else:
+        model_item = find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
+        if not model_item:
+            return json.dumps({"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
+                               "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id. "
+                                       "create_semantic_model creates a model from the plan."}, indent=2)
+    existing = _find_item(workspace_id, name, headers, _report.ITEM_TYPE)
+    if existing:
+        return json.dumps({"error": f"a report named {name!r} already exists in workspace {workspace} (id {existing}); nothing was created.",
+                           "kind": "already_exists", "existing": {"id": existing, "name": name},
+                           "hint": "Choose another name, or open the existing report in the Fabric portal. This tool never updates or "
+                                   "deletes a report."}, indent=2)
+    body = _report.payload(name, model_item["id"], workspace_id, f"Created by Krusgraph on the semantic model {model_item['displayName']}")
+    out = {"dry_run": dry_run,
+           "report": {"name": name, "pages": 1, "visuals": 0, "bound_to": {"semantic_model": model_item["displayName"], "id": model_item["id"]},
+                      "empty": "The report has one blank page and no visuals; it is bound to the model, so its tables and measures are "
+                               "ready in the field list."},
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": body,
+                    "delegated_scope": _report.SCOPE, "spec": _report.SPEC},
+           "after_creation": ["Open the report in the Fabric portal (the workspace's item list) and add visuals from the model's tables "
+                              "and measures; or build it in Power BI Desktop connected live to the same semantic model.",
+                              "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
+                              "A report definition with pages and visuals (PBIR) is not sent by this version; export_item_definitions does "
+                              "not include reports."],
+           "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken). "
+                   + _tool_status.answer_note("create_report")
+                   + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
+    if dry_run:
+        return json.dumps(out, indent=2)
+    result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
+    return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}")
 
 
 @mcp.tool(title="Create or alter T-SQL views in a schema of their own (dry run by default)", annotations=WRITE)
@@ -1976,6 +2033,14 @@ def build_app(host: str = "0.0.0.0"):
     page_route("/lovable", lovable_html)
     page_route("/local", local_html)
 
+    # n68: the return page of the admin consent link on /start; it depends on the query string, so it is not cached
+    from .pages import CONSENT_PATH, consent_done_html
+
+    async def consent_done(request):
+        headers = {"Cache-Control": "no-store", **PAGE_HEADERS, "X-Robots-Tag": "noindex, nofollow"}
+        return compressed(request, consent_done_html(request.query_params).encode("utf-8"), "text/html; charset=utf-8", headers)
+    app.router.routes.append(Route(CONSENT_PATH, consent_done))
+
     # The same content as Markdown, for /llms.txt and agents.
     def md_route(path: str, fn):
         async def handler(request):
@@ -2108,6 +2173,10 @@ def build_app(host: str = "0.0.0.0"):
     async def robots(_request):
         return PlainTextResponse(discovery.robots_txt(), headers={"Cache-Control": "public, max-age=86400"})
     app.router.routes.append(Route("/robots.txt", robots))
+
+    async def security_txt(_request):
+        return PlainTextResponse(discovery.security_txt(), headers={"Cache-Control": "public, max-age=86400"})
+    app.router.routes.append(Route("/.well-known/security.txt", security_txt, methods=["GET", "HEAD"]))
 
     async def not_found(request, exc):
         """A styled 404 for browsers; plain text for everything else (the MCP endpoint itself is never a 404)."""

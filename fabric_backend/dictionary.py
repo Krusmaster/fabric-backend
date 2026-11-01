@@ -15,7 +15,7 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
     """The whole plan's document, or with `tables` (names) the part about those tables: their columns, keys and the
     relationships that touch them. Roles, subject areas and cycles are always the whole plan's, then filtered, so a
     table keeps the role it has in the schema (data_dictionary with tables=["orders"] once called orders isolated)."""
-    from . import graphs
+    from . import amounts as _amounts, graphs
     from .compact import sub_plan
     whole = plan
     a = graphs.analyze(whole, validation)
@@ -66,6 +66,14 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
         out += ["", "Joins that are not on the target's key (from the pack; a GraphQL API or semantic model built from the plan "
                 "does not carry them):", "", "| From | To | Kind | Join |", "| --- | --- | --- | --- |"]
         out += [f"| {_cell(r.source)} | {_cell(r.target)} | {r.kind} | {_cell(r.join_sql())} |" for r in plan.extended]
+    oa = _amounts.order_amount_measures(plan)          # the amount that is not there: quantity on the line, price on the dimension
+    if any(oa.values()):
+        out += ["", "## Order amount (quantity × price)", ""]
+        out += [f"- `{m['name']}` on {m['table']}: `{m['expression']}` (DAX, as semantic_model_draft writes it). {m['table']}.{m['column']} is a "
+                f"quantity and {m['table']} carries no amount; the price is {m['dimension']}.{m['price']}, reached through {m['table']}.{m['via']} "
+                f"({m['rule']}). {m['price_note']}" for m in oa["measures"]]
+        out += [f"- {x['line']}: {x['why']}." for x in oa["own_amounts"]]
+        out += [f"- {x['line']}.{x['quantity']} × a price ({', '.join(x['prices'])}): no measure, {x['why']}." for x in oa["not_created"]]
     out += ["", "## Tables without a key", ""]
     out += [f"- {t}: can be queried and can point at other tables; nothing can point at it. Give `keys` to change that." for t in plan.keyless] or ["None."]
     out += ["", "## Ambiguous columns", ""]

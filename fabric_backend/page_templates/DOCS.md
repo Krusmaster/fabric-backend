@@ -14,10 +14,10 @@ how far it has been tested.
 
 ## Why {{PRODUCT}}
 
-**Your data stays in Fabric.** {{PRODUCT}} reads your lakehouse, warehouse or SQL database where it is (lakehouses are
-tested end to end; the other sources are Experimental until a live run). It has no database of its own: plans come
-from table and column metadata, checks run as counting queries in Fabric, and the samples and query results you ask for
-pass through to your MCP client without being kept. What it creates is created in Fabric.
+**{{PRODUCT}} stores no table contents.** It reads your lakehouse, warehouse or SQL database where it is (lakehouses are
+tested end to end; the other sources are Experimental until a live run). Plans come from table and column metadata,
+checks run as counting queries in Fabric, and the samples and query results you ask for pass through to your MCP
+client without being kept. What it creates is created in Fabric.
 
 **Rules you can check, not guesses.** Keys and relationships come from documented rules ([K0–K5, R0–R4](#how-relationships-are-inferred))
 and, for SAP tables, a pack built from public SAP documentation (`sap_pack_draft`: Draft only, tested on a synthetic
@@ -30,16 +30,21 @@ because `create_backend` does not run it for you.
 
 **One reviewed plan, several Fabric items.** The same plan drafts the API for GraphQL, a Power BI semantic model, a
 Fabric IQ ontology, views, a data agent and silver notebooks, so they agree on how the tables relate. How far creating
-each one is tested differs: `create_backend` has been run live as an update of an existing API, `create_views` as a dry
-run, the semantic model and data agent as dry runs and only once the operator has enabled the permission, and the
-ontology and silver notebooks by unit tests only. Each tool's status is in the [tool reference](#test-status).
+each one has run live differs; the words below come from the same list as the [tool reference](#test-status):
+
+- the API for GraphQL: {{CREATE_API_STATUS}}
+- the views: {{SHORT_CREATE_VIEWS}}
+- the Power BI semantic model: {{SHORT_CREATE_SEMANTIC_MODEL}}
+- the Fabric IQ ontology: {{SHORT_CREATE_ONTOLOGY}}
+- the data agent: {{SHORT_CREATE_DATA_AGENT}}
+- the silver notebooks: {{SHORT_CREATE_SILVER_NOTEBOOK}}
 
 **Your Microsoft account and permissions.** On the hosted service you sign in with your work account, and {{PRODUCT}}
 acts with delegated permissions as you, so it sees only what your Fabric permissions allow. An app built on the API
 has its own identity and access settings; see [App access](#app-access) before you publish one.
 
-**Drafts first.** Every creating tool except `create_backend` answers with what it would create until you pass
-`dry_run=false`. `create_backend` creates or updates directly and has no dry run; use `plan_backend`, `validate_plan`
+**Drafts first.** Every creating tool except `{{NO_DRY_RUN_TOOLS}}` answers with what it would create until you pass
+`dry_run=false`. `{{NO_DRY_RUN_TOOLS}}` creates or updates directly and has no dry run; use `plan_backend`, `validate_plan`
 and, for an existing API, `plan_drift` first.
 
 **Open source.** MIT-licensed. Use the hosted service or run it yourself ([locally](/local), or in your own Azure
@@ -57,8 +62,9 @@ New to a Fabric lakehouse? Start by understanding how its tables fit together: c
 ### Connect
 
 1. **Your Entra admin grants consent once** for your organization:
-   [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
-   It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
+   [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}&redirect_uri={{CONSENT_URL_ENC}}).
+   It allows the connector to call Fabric and SQL as each signed-in user — nothing more. Microsoft then returns the admin
+   to [{{DOMAIN}}/consent/done](/consent/done), which says whether the consent was granted and, if not, what to do next.
 2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
    `{{MCP_URL}}`. Sign in with your Microsoft work account. {{#IF CLIENT_REGISTRATION}}VS Code, Cursor and other MCP clients
    that sign in on their own use `{{CONNECT_URL}}` instead ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and that is the client
@@ -298,7 +304,9 @@ would change); `create_views` the **wide T-SQL views** on the SQL analytics endp
 the permission, `create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
 `create_ontology` the **Fabric IQ ontology** with entity types, keys, relationship types and bindings, and
 `create_data_agent` the **data agent** with the plan as instructions and examples. Those four answer with a dry run
-first. Change the plan once (a confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and
+first; how far each has created live, in the words of the [tool reference](#test-status): the views ({{SHORT_CREATE_VIEWS}}),
+the semantic model ({{SHORT_CREATE_SEMANTIC_MODEL}}), the ontology ({{SHORT_CREATE_ONTOLOGY}}) and the data agent
+({{SHORT_CREATE_DATA_AGENT}}). Change the plan once (a confirmed relationship, a key) and every piece is rebuilt from it; `plan_drift` and
 `lineage` tell you what a change reaches. The pieces agree with each other because none of them was modelled by hand.
 
 From the same plan, further down the lakehouse: `silver_notebook_draft` writes de-duplicated silver tables with every
@@ -324,12 +332,29 @@ the rule behind every key and relationship. `ontology_draft` writes the plan in 
 
 Creating the item through the API needs the delegated scope `Item.ReadWrite.All` and Contributor on the workspace,
 and the workspace on a Fabric capacity (`POST /workspaces/{id}/ontologies`, `updateDefinition`; Microsoft's REST
-specification, read 26 October 2026). `create_ontology` does that with a dry run by default; the hosted app does not
-have the permission yet, so it answers `consent` naming the scope when asked to create. The portal route (Import ontology
+specification, read 26 October 2026). `create_ontology` does that with a dry run by default (creating the item: {{SHORT_CREATE_ONTOLOGY}});
+without the permission it answers `consent` naming the scope when asked to create. The portal route (Import ontology
 with the Turtle file) needs nothing beyond what you already have. Once an ontology exists, Fabric IQ's own pieces take
 over: the ontology agent and data agents use it as context, and the built-in graph can be materialised from its entity
 and relationship types. Ontology is in preview and its definition format can change; the draft follows the item's own
-definition as of 2026 and has been checked against recorded definitions, not yet live from {{PRODUCT}}.
+definition as of 2026, checked against recorded definitions and, through `create_ontology`, against Fabric itself
+({{SHORT_CREATE_ONTOLOGY}}).
+
+**Why not just Fabric IQ / the Fabric ontology?** The ontology (preview) item is where the plan lands. Microsoft Learn
+describes three ways to fill one: by hand, generated from an existing Power BI semantic model (which then already carries
+the relationships), or with the ontology agent, which "explores the workspace items you point it to", "samples a few rows
+per table", drafts entity types, relationships and bindings "grounded in the discovered evidence" and "runs structural and
+grounding checks on the draft" ([What is Fabric IQ?](https://learn.microsoft.com/en-us/fabric/iq/overview),
+[What is ontology (preview)?](https://learn.microsoft.com/en-us/fabric/iq/ontology/overview),
+[Use the ontology agent (preview)](https://learn.microsoft.com/en-us/fabric/iq/ontology/how-to-use-ontology-agent); read
+from the documentation's source repository on 1 November 2026). {{PRODUCT}} creates the ontology item; the evidence step
+comes before it: `plan_backend` names the rule behind every key and relationship, `validate_plan` counts duplicate key
+values, references with no matching row and the total that doubles against the rows, `suggest_relationships` checks
+candidates against the data, and you decide with `keys=` and `confirmed=`; [/check](/check) does the plan and the counting
+in the browser, with no account and no capacity. The same reviewed plan then becomes the ontology item (`create_ontology`:
+{{SHORT_CREATE_ONTOLOGY}}) and, from one plan, the API for GraphQL, the semantic model and the notebooks. {{PRODUCT}} does
+not replace the ontology item, its agent, its rules or its metrics, and the ontology agent's checks have not been compared
+with `validate_plan` on the same data: no such measurement exists.
 
 ### Two steps stay manual
 
@@ -358,8 +383,10 @@ permissions as "unknown" with the portal path, because the Fabric API does not r
 
 ### Use with Lovable
 
-Lovable's Microsoft Fabric connector reads an existing API for GraphQL item. {{PRODUCT}} creates that item; after the
-two manual steps above, Lovable connects to it. Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
+Lovable meets {{PRODUCT}} twice. In Lovable's chat, {{PRODUCT}} is a custom MCP connector{{#IF CLIENT_REGISTRATION}} at `{{CONNECT_URL}}`{{/IF}} that plans,
+checks and creates the API for GraphQL item (Lovable as an MCP client: {{LOVABLE_MCP_STATUS}}). Then Lovable's own
+Microsoft Fabric connector reads that item with a service principal, after the introspection and permission steps above
+and an app registration in Entra ({{LOVABLE_API_STATUS}}). Step by step: [Use {{PRODUCT}} with Lovable](/lovable). `app_readiness`
 says what is still missing on the API; `app_starter` gives the prompt, the queries and a Supabase edge function that
 keeps the app's Entra secret on the server side. The whole chain, with who does each step and what still blocks, is in
 the repository's `docs/LOVABLE-END-TO-END.md`.
@@ -442,6 +469,7 @@ unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries
 | `sap_pack_draft` | {{status}} | {{changes}} | which tables the SAP pack recognises (with or without a prefix such as `sap_`), their keys with `MANDT`, the order-to-cash relationships it applies with the public source of each, what it lists but does not apply (`VBFA` is many-to-many), what is missing, and the traps; optionally one export: Krusgraph keys/confirmed, Data API builder config, an extraction list with open-mirroring `keyColumns`, or dbt sources. See [SAP on Fabric](#sap-on-fabric) | `workspace`, `source`, `schema`, `keys`, `confirmed`, `variant`, `export` |
 | `plan_drift` | {{status}} | {{changes}} | today's plan against an existing API for GraphQL item: new tables and columns, columns the API still maps that are gone, relationships the plan no longer supports, and whether `create_backend` with that name would change anything | `workspace`, `source`, `api`, `schema`, `keys`, `confirmed`, `tables`, `writable` |
 | `create_semantic_model` | {{status}} | {{changes}} | creates a Power BI semantic model item from the TMDL draft (Direct Lake on the SQL analytics endpoint) or updates the one of that name in place; `dry_run=true` (default) returns the parts and the REST call only; needs `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` |
+| `create_report` | {{status}} | {{changes}} | creates an empty Power BI report item (one blank page, no visuals) bound to an existing semantic model through Fabric's `creationPayload`; no report definition is sent; a report of that name is left alone and the call answers `kind: already_exists`; `dry_run=true` (default) returns the REST call only; needs `Report.ReadWrite.All` or `Item.ReadWrite.All` and read permission on the model | `workspace`, `model`, `name`, `dry_run` |
 | `create_views` | {{status}} | {{changes}} | `CREATE OR ALTER VIEW` in a schema of its own (default `krusgraph`, created if missing) on the source's SQL analytics endpoint or warehouse: one wide view per fact table with its dimensions, one per header table (`vw_orders`: each order with its customer and, once `orders.ship_to_id` is confirmed, its ship-to address), one per hard-to-read relationship; `dry_run=true` returns the SQL; needs the SQL right to create objects (Contributor) | `workspace`, `source`, `schema`, `views_schema`, `keys`, `confirmed`, `dry_run` |
 | `create_data_agent` | {{status}} | {{changes}} | creates or updates a Fabric data agent through the staging REST API: the plan as instructions, the source as data source with the plan's tables selected, 5–10 question/T-SQL examples, then publishes; columns that look like personal data are left out of the instructions and the examples unless `show_personal_data=true` (the key stands in); `dry_run=true` returns instructions, examples and the calls; needs `Item.ReadWrite.All` | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `publish`, `show_personal_data`, `dry_run` |
 | `create_ontology` | {{status}} | {{changes}} | creates a Fabric IQ ontology (preview) item from the plan or updates the one of that name in place: entity types with keys and properties, relationship types and Direct Lake-style bindings in the item's generation-2 definition; `dry_run=true` (default) returns the parts and the REST call only; needs `Item.ReadWrite.All` and Contributor on the workspace (`POST /workspaces/{id}/ontologies`, `updateDefinition`; fabric-rest-api-specs read 26 October 2026) | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables`, `dry_run` |
@@ -520,8 +548,13 @@ and `suggest_relationships` check keys and references against the rows in Fabric
 the counts. `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
 for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
 Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
-after the request. Your tokens are exchanged on your behalf and held in memory only; there is no database and no file
-storage. Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
+after the request. From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk
+or logs.{{#IF CLIENT_REGISTRATION}} From an MCP client other than Claude (signing in through {{DOMAIN}}/oauth), the Microsoft
+tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until your client collects them (at most 60 seconds), and
+Microsoft's refresh token stays there encrypted for as long as your client keeps renewing its access, at most 90 days,
+and is never given to the client ([sign-in from MCP clients other than Claude](/privacy#sign-in-from-mcp-clients-other-than-claude));
+apart from those sign-in records there is no database and no file storage.{{/IF}}{{#IF NO_CLIENT_REGISTRATION}} There is no
+database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
 service writes technical logs. Details: [privacy policy](/privacy).
 
 **Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per

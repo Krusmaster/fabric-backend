@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with: { python-version: "3.12" }
       - run: pip install "cyclonedx-bom==7.6.0"
       - run: cyclonedx-py requirements deploy/constraints.txt --of JSON -o sbom.cdx.json
@@ -26,7 +26,7 @@ jobs:
           awk -v v="$tag" '/^## /{p = ($2 == v)} p' CHANGELOG.md > release-notes.md
           [ -s release-notes.md ] || { echo "::error::CHANGELOG.md has no '## $tag' section"; exit 1; }
           { echo "# Krusgraph v$tag"; echo; tail -n +2 release-notes.md; } >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom-${{ github.ref_name }}-${{ github.sha }}
           path: |

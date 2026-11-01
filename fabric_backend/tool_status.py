@@ -32,8 +32,9 @@ LIVE_RUN = ("list_workspaces", "list_sources", "list_tables", "sample_rows", "pl
 # a tool that ran only part of the way, with how far
 LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace has no model",
                    "create_backend": "as an update in place of shop_api with confirmed; no new item was created"}
-# Creating calls run live after that run, with dry_run=false against the same workspace (28 October 2026, after the
-# Entra app got Notebook.ReadWrite.All, DataPipeline.ReadWrite.All and Item.ReadWrite.All): what each one did.
+# Creating calls run live after that run, with dry_run=false against the same workspace (from 28 October 2026, after the
+# Entra app got Notebook.ReadWrite.All, DataPipeline.ReadWrite.All and Item.ReadWrite.All): what each one did, in the
+# order they first created something.
 LATER_LIVE = {
     "create_silver_notebook": "On 28 October 2026 it created the notebook silver_shop live against a Fabric workspace with "
                               "synthetic data; the notebook has not been run in Fabric.",
@@ -47,10 +48,18 @@ LATER_LIVE = {
                        "answered HTTP 403 FeatureNotAvailable. On 29 October 2026 Gustav reviewed the item in the Fabric portal.",
     "create_semantic_model": "On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace "
                              "with synthetic data (7 tables, 6 active and 1 inactive relationship, Direct Lake, 4 measures, "
-                             "the date table Calendar); the same day Gustav refreshed it and reviewed it in the Fabric portal.",
+                             "the date table Calendar); the same day Gustav refreshed it and reviewed it in the Fabric portal. On 30 October "
+                             "2026 shop_model was updated in place from Lovable (as an MCP client at /mcp/connect).",
+    "create_report": "On 30 October 2026 it created the report shop_report_live live against a Fabric workspace with synthetic data "
+                     "(dry run first, then dry_run=false; one blank page bound to shop_model_live; status Succeeded, mode created). "
+                     "Later that day Lovable (as an MCP client at /mcp/connect) created shop_report on shop_model; Gustav opened "
+                     "shop_report in the Fabric portal, added a visualisation (Calendar) and saw data.",
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
-REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026"}
+REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026", "create_report": "30 October 2026"}
+# The creating tools without a dry_run argument: they write on the call. The site's sentences about dry runs render from
+# this, and tests/test_site.py checks it against the tools' signatures in server.py.
+NO_DRY_RUN = ("create_backend",)
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
@@ -83,11 +92,12 @@ _RAW = {
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
     "list_tables": (HOSTED, READS, _NO, "unit tests"),
-    "plan_backend": (HOSTED, READS, _NO, "unit tests"),
+    "plan_backend": (HOSTED, READS, "nothing (counting queries for rule R5)", "unit tests"),
     "validate_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "sample_rows": (HOSTED, READS, _NO, "unit tests; the masking live since 27 October 2026"),
     "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only", False,
-                       " (27 October 2026: update in place of shop_api with confirmed)"),
+                       " (27 October 2026: update in place of shop_api with confirmed; updated in place again from Lovable on 30 October 2026; "
+                       "consumed live by a Lovable app on 30 October 2026)"),
     "describe_backend": (HOSTED, READS, _NO, "unit tests"),
     "query_graphql": (HOSTED, READS, _NO, "unit tests; with `question` live since 27 October 2026"),
     "rayfin_connector": (HOSTED, DRAFT, _NO, "unit tests"),
@@ -100,7 +110,11 @@ _RAW = {
     "sap_pack_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic SAP schema; no SAP system)"),
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
     "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 29 October 2026", False,
-                              "; created live on 29 October 2026 (shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day"),
+                              "; created live on 29 October 2026 (shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day; "
+                              "shop_model updated in place from Lovable (experimental) on 30 October 2026"),
+    "create_report": (HOSTED, CREATES, "creates one item; never updates or deletes",
+                      "unit tests with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); created live on 30 October 2026",
+                      False, "; created live on 30 October 2026 (shop_report_live, shop_report), opened and reviewed in the Fabric portal by Gustav the same day"),
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",
                      "unit tests; creating by unit tests only", True, "; creating them: Experimental"),
     "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
@@ -173,6 +187,8 @@ def short(name: str) -> str:
     dates and Fabric's answers) is on /docs#test-status. A tool whose item has been reviewed in Fabric says so instead."""
     if name in REVIEWED:
         return "created live; reviewed in Fabric"
+    if name in LATER_LIVE:
+        return "created live"
     if STATUS[name].kind == CREATES and build_word(name) == "draft":
         return "draft; deployment not yet verified"
     w = word(name)
@@ -221,7 +237,8 @@ def instructions_sentence() -> str:
     partly = "; ".join(f"{t} only {why.split(',')[0].split(';')[0]}" for t, why in LIVE_RUN_PARTLY.items())
     return (f"Test status: on {LIVE_RUN_DATE} every tool but {not_run_list().replace('`', '')} ran from Claude against a Fabric workspace "
             f"with synthetic data, read-only or as a draft, and {_listed(dry)} as dry runs" + (f" ({partly})" if partly else "")
-            + "; no new item was created, so creating a new one is unit-tested only (status per tool: /docs#test-status).")
+            + "; no new item was created that day. Since then " + _listed(LATER_LIVE)
+            + " have created items live against the same workspace (status per tool: /docs#test-status).")
 
 
 def create_api_status() -> str:
@@ -262,8 +279,9 @@ BUILDS = (("GraphQL API", "create_backend"), ("Power BI semantic model", "create
 
 # The clients, one row each (Gustav's brief of 28 October 2026): where each one reaches Krusgraph, its status word, and
 # since when it works. VS Code, Cursor and Glama signed in through client registration at /mcp/connect and ran tools on
-# 27 October 2026 (docs/LIVE-TEST.md); they stay Experimental for now. A client is named as working (the hub, the
-# /mcp/connect sentence) when it has a `works_since`.
+# 27 October 2026, Lovable on 30 October 2026 (docs/LIVE-TEST.md); they stay Experimental for now. A client is named as
+# working (the hub, the /mcp/connect sentence) when it has a `works_since`. Lovable has two rows: as an MCP client at
+# /mcp/connect, and as the app builder that reads the GraphQL API create_backend makes (the hub's last row).
 @dataclass(frozen=True)
 class ClientStatus:
     name: str
@@ -285,8 +303,12 @@ CLIENTS = (
                  CONNECT_NOTE),
     ClientStatus("Glama", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
                  CONNECT_NOTE + "; signed in with its client ID metadata document, connection test Healthy, 27 October 2026"),
-    ClientStatus("Lovable", "via the GraphQL API that create_backend makes (not an MCP client of Krusgraph)", "", "Experimental",
-                 note="Lovable's own Microsoft Fabric connector reads the API; the chain is in docs/LOVABLE-END-TO-END.md"),
+    ClientStatus("Lovable", "via the GraphQL API that create_backend makes", "", "Experimental",
+                 note="Lovable's own Microsoft Fabric connector reads the API; a Lovable app read shop_api live on 30 October 2026; "
+                      "the chain is in docs/LOVABLE-END-TO-END.md"),
+    ClientStatus("Lovable", "via MCP (/mcp/connect)", "/mcp/connect", "Experimental", "30 October 2026",
+                 "signed in and ran plan, check and creates on 30 October 2026 (Entra sign-in through Krusgraph's OAuth with dynamic "
+                 "client registration, from a phone: plan_backend, validate_plan, create_backend, create_semantic_model, create_report)"),
 )
 # derived, for the hub and the /mcp/connect sentence: the clients that have signed in and run tools
 CLIENTS_TESTED = {c.name: (c.path, c.works_since) for c in CLIENTS if c.works_since and c.path}
@@ -298,11 +320,11 @@ def source_word(tested: bool) -> str:
 
 
 def build_word(tool: str) -> str:
-    """"creates" only for what has been created live on the hosted service, "updates" for what has only been updated in
-    place there; "draft" for the rest, whose
-    tools ran live only as drafts or dry runs, or not yet."""
+    """"creates" only for what has been created live on the hosted service (in the live run or, LATER_LIVE, after it),
+    "updates" for what has only been updated in place there; "draft" for the rest, whose tools ran live only as drafts
+    or dry runs, or not yet."""
     s = STATUS[tool]
-    if s.kind == CREATES and s.live and not s.dry_run_only:
+    if s.kind == CREATES and (tool in LATER_LIVE or (s.live and not s.dry_run_only)):
         return "updates" if tool in LIVE_RUN_PARTLY else "creates"     # create_backend: live only as an update in place (n30)
     return "draft"
 
@@ -325,9 +347,11 @@ def connect_sentence() -> str:
     seen = clients_tested_at("/mcp/connect")
     if not seen:
         return "Experimental: " + CONNECT_NOTE + "; not tried with a client yet"
-    dates = list(dict.fromkeys(d for _, d in seen))
-    return (f"Experimental: {_listed([n for n, _ in seen])} were tried here on {_listed(dates)}; they stay Experimental "
-            "until a full sign-in with each is confirmed")
+    by_date: dict[str, list[str]] = {}
+    for n, d in seen:
+        by_date.setdefault(d, []).append(n)
+    tried = _listed(f"{_listed(names)} {'were' if len(names) > 1 else 'was'} tried here on {d}" for d, names in by_date.items())
+    return f"Experimental: {tried}; they stay Experimental until a full sign-in with each is confirmed"
 
 
 # ------------------------------------------------------------------ the overview of tools, functions and clients -------

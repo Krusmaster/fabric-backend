@@ -9,6 +9,7 @@
     /local             the local server over ODBC, and exactly what leaves the machine
     /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
+    /consent/done      where Microsoft sends the admin after the consent link on /start (noindex; consent_done_html)
     /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
@@ -41,7 +42,7 @@ PAGES = {
           "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
     "/check": ("check.html", "Check your files in the browser — {{PRODUCT}}",
                "Drop CSV or Excel exports, or paste a list of columns: see how the tables connect and what is wrong, with the rule behind each item. The files are read in your browser and never uploaded.", "check"),
-    "/start": ("start.html", "Connect to Claude — {{PRODUCT}}",
+    "/start": ("start.html", "Connect {{PRODUCT}} — the set-up guide",
                "What you need, admin approval in Microsoft Entra, and how to add {{PRODUCT}} as a custom connector in Claude.", "start"),
     "/support": ("support.html", "Get help with {{PRODUCT}}",
                  "How to get help with {{PRODUCT}}: email with the error, kind and hint from the tool's answer, report a bug or a plan that came out wrong on GitHub Issues, and the most common first errors.", "support"),
@@ -50,13 +51,15 @@ PAGES = {
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
-                   "Start from an undocumented lakehouse, a join to check or an app to build. Ten illustrative schemas show what {{PRODUCT}} proposes, where it can go wrong and what still needs your judgement.", "usecases"),
+                   "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
+    "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
+                         "What each {{PRODUCT}} tool returns for the synthetic shop plan: the API, views, ontology, semantic model and data agent, with each tool's test status.", "usecases"),
     "/it": ("it.html", "For your IT department — {{PRODUCT}}",
             "For a BI lead to forward to IT: the delegated permissions the {{PRODUCT}} Entra app asks for and why, what is stored where and for how long, how to revoke access, and who stands behind it.", ""),
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
                  "Check and the connector in Claude are free and open source (MIT); a pilot with named deliveries and ongoing work for a team are on request and invoiced. What is stored, permissions and how to buy.", "pricing"),
     "/terms": ("terms.html", "Preview terms — {{PRODUCT}}",
-               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric without dry_run=false and your own permissions.", ""),
+               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric unless you ask for it (a dry run first for every tool but create_backend) and only with your own permissions.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -89,6 +92,8 @@ def _vars() -> dict[str, str]:
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "TERMS_UPDATED": TERMS_UPDATED,
+        # the creating tools without a dry run, from tool_status (a test checks them against the signatures in server.py)
+        "NO_DRY_RUN_TOOLS": _listed(list(ts.NO_DRY_RUN)),
         "ASSET_V": asset_version(),
         "PARTNER_SIGNIN": "1" if os.environ.get("PARTNER_SIGNIN", "").strip() in {"1", "true", "yes"} else "",
         # the privacy page states what this deployment keeps: console logs in Log Analytics or nowhere, org hashes or none
@@ -101,6 +106,10 @@ def _vars() -> dict[str, str]:
         # the MCP clients the site names as working with the hosted service, and the address for those that register
         "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
         "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
+        # n73: Lovable's two rows in tool_status.CLIENTS (as an MCP client, and reading the API), for /lovable
+        "LOVABLE_MCP_STATUS": _client_status("Lovable", "via MCP"), "LOVABLE_API_STATUS": _client_status("Lovable", "via the GraphQL API"),
+        # n68: where Microsoft sends the admin after the consent on /start (CONSENT_PATH); the encoded form goes in the link
+        "CONSENT_URL": "https://" + domain + CONSENT_PATH, "CONSENT_URL_ENC": quote("https://" + domain + CONSENT_PATH, safe=""),
         "REGISTRATION_WHERE": ("the server's memory (lost when it restarts)"
                                if os.environ.get("KRUSGRAPH_REGISTRATION_STORE", "").strip().lower() == "memory"
                                else "an Azure Table Storage table of ours in the service's Azure region"),
@@ -113,6 +122,13 @@ def _vars() -> dict[str, str]:
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
+
+
+def _client_status(name: str, where: str) -> str:
+    """One client row of tool_status.CLIENTS as a sentence: its status word, since when it works, and its note."""
+    from .tool_status import CLIENTS
+    c = next(c for c in CLIENTS if c.name == name and c.where.startswith(where))
+    return c.status + (f" (works since {c.works_since})" if c.works_since else "") + (f"; {c.note}" if c.note else "")
 
 
 def _registration_on() -> bool:
@@ -141,13 +157,66 @@ def _connect_tested() -> str:
     return connect_sentence()
 
 
+# n68: one click per client. The deep links follow the clients' documented install links: VS Code's
+# `vscode:mcp/install?<url-encoded JSON {name,type,url}>` (and `vscode-insiders:` for Insiders), Cursor's
+# `cursor://anysphere.cursor-deeplink/mcp/install?name=<name>&config=<base64 JSON {url}>`; Claude and Lovable take the
+# address pasted in their own settings. Formats as written in the VS Code docs (Copilot: MCP servers, "URL handler") and
+# the Cursor docs (MCP: install links); they could not be re-read from this build (the docs hosts are not reachable from
+# it), so a check against those pages is part of the first live try. The clients that register themselves are offered
+# only when client registration is on (/mcp/connect exists then) and, for VS Code and Cursor, once tool_status records
+# them as signed in there (the hub's rule); Claude always.
+def connect_links() -> dict[str, str]:
+    import base64
+    import json
+    from urllib.parse import quote
+    v = _vars()
+    install = lambda scheme: scheme + ":mcp/install?" + quote(json.dumps({"name": v["PRODUCT"], "type": "http", "url": v["CONNECT_URL"]}, separators=(",", ":")), safe="")
+    return {"vscode": install("vscode"), "vscode_insiders": install("vscode-insiders"),
+            "cursor": "cursor://anysphere.cursor-deeplink/mcp/install?name=" + quote(v["PRODUCT"], safe="") + "&config="
+                      + base64.b64encode(json.dumps({"url": v["CONNECT_URL"]}, separators=(",", ":")).encode()).decode(),
+            "claude": "https://claude.ai/settings/connectors"}
+
+
+def connect_menu_html(where: str) -> str:
+    """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page) or "inline" (the hub's
+    "Your data in Fabric" card: the panel opens in place). A <details>, so it works without JavaScript; the copy buttons
+    need it (site.js)."""
+    v = _vars()
+    e = lambda x: html.escape(x, quote=True)
+    p, links = e(v["PRODUCT"]), connect_links()
+    mcp, connect = e(v["MCP_URL"]), e(v["CONNECT_URL"])
+    from .tool_status import clients_working
+    reg = _registration_on()
+    working = clients_working(reg)                 # VS Code and Cursor only once the hosted service has signed them in, as in the hub
+    items = []
+    if "VS Code" in working:
+        items.append(f'<div class="connect-item"><strong>VS Code</strong><span class="connect-row"><a class="btn primary small" href="{e(links["vscode"])}">Add to VS Code</a><a class="connect-alt" href="{e(links["vscode_insiders"])}">Insiders</a></span>'
+                     f'<span class="muted tiny">Opens VS Code, which asks before it adds the server at <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
+    if "Cursor" in working:
+        items.append(f'<div class="connect-item"><strong>Cursor</strong><span class="connect-row"><a class="btn primary small" href="{e(links["cursor"])}">Add to Cursor</a></span>'
+                     f'<span class="muted tiny">Opens Cursor’s install dialog for <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
+    items.append(f'<div class="connect-item"><strong>Claude</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button><a class="btn primary small" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a></span>'
+                 f'<span class="muted tiny"><code>{mcp}</code> · Settings → Connectors → Add custom connector, paste the URL and sign in with Microsoft.</span></div>')
+    if reg:
+        items.append(f'<div class="connect-item"><strong>Lovable</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{connect}">Copy URL</button></span>'
+                     f'<span class="muted tiny"><code>{connect}</code><br>Connectors → Custom MCP, paste the URL.<br>Add &amp; authorize, then sign in with Microsoft.</span></div>')
+    kind = "secondary" if where == "pop" else "secondary small"
+    return (f'<details class="connect connect-{where}" data-connect>\n'
+            f'<summary class="btn {kind}">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
+            f'<div class="connect-panel" role="group" aria-label="Add {p} to your client">\n<p class="connect-h">Add {p} to</p>\n{"".join(items)}\n'
+            f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions. Step by step, with the admin consent: <a href="/start">the set-up guide</a>.</p>\n'
+            f'</div>\n</details>')
+
+
 def hub_html() -> str:
     """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
     builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
     Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "updates"
     for what has only been updated in place there, "draft" for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
     in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
-    the visual is hidden from screen readers, which get the same as one paragraph."""
+    the visual is hidden from screen readers, which get the same as one paragraph. n68: the middle node is the logo (the
+    mark and the wordmark; the mark alone under 720 px) in the same faint coral frame, and the "Your data in Fabric" card
+    carries the Connect chooser (connect_menu_html), the one part of the visual screen readers do get."""
     from . import tool_status as ts
     v = _vars()
     p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
@@ -178,13 +247,13 @@ def hub_html() -> str:
     makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
     return f"""<section class="wrap connects" aria-label="What {p} connects">
   <p class="visually-hidden">{said}</p>
-  <div class="hub" aria-hidden="true">
-    <div class="hub-group hub-src c-coral"><p class="hub-h">Your data in Fabric</p><ul>{sources}</ul></div>
-    <span class="hub-link hub-link-src"></span>
-    <div class="hub-group hub-build c-sage"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
-    <span class="hub-link hub-link-build"></span>
-    <div class="hub-mid"><span class="hub-node"><span class="c-hub">{low}</span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
-    <div class="hub-group hub-where c-mustard"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
+  <div class="hub">
+    <div class="hub-group hub-src c-coral"><p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">{sources}</ul>{connect_menu_html("inline")}</div>
+    <span class="hub-link hub-link-src" aria-hidden="true"></span>
+    <div class="hub-group hub-build c-sage" aria-hidden="true"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
+    <span class="hub-link hub-link-build" aria-hidden="true"></span>
+    <div class="hub-mid" aria-hidden="true"><span class="hub-node"><span class="c-hub c-hub-logo" role="img" aria-label="{p}">{_LOGO}<span class="c-hub-word">{low}</span></span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
+    <div class="hub-group hub-where c-mustard" aria-hidden="true"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
   <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
 </section>"""
@@ -219,7 +288,7 @@ def _md_to_html(md: str) -> str:
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
+        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:|#)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
         s = re.sub(r"(?<![\"'>])(https://[^\s<]+[^\s<.,)])", r'<a href="\1">\1</a>', s)
         return s
 
@@ -396,7 +465,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta property="og:description" content="{d}">
 <meta property="og:image" content="{og_image}">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: Microsoft Fabric, connected.">
+<meta property="og:image:alt" content="{html.escape(v['PRODUCT'])}: For Microsoft Fabric.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{t}">
 <meta name="twitter:description" content="{d}">
@@ -424,7 +493,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
   <div class="wrap header-row">
     <a class="brand" href="/" aria-label="{html.escape(v['PRODUCT'])} home">
       {_LOGO}
-      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">Microsoft Fabric, connected.</span></span>
+      <span class="brand-text"><span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span><span class="tagline">For Microsoft Fabric.</span></span>
     </a>
     <nav id="site-nav" class="site-nav" aria-label="Main">
       {nav_html}
@@ -445,7 +514,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/start">Connect to Claude</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/#connect">Connect</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -557,7 +626,7 @@ def build_html() -> str:
     meas = "".join(f'<li><code>{e(x["table"])}</code> · {e(x["name"])}: <code>{e(x["expression"])}</code></li>' for x in m["measures"])
     ad = m["amount_demo"]
     amounts = (f'<p><strong>Header-level amounts:</strong> {e(m["amount_check"])}'
-               + (f' ({e(", ".join(f"{x['header']}.{c}" for x in m["header_amounts"] for c in x["amount_columns"]))})' if m["header_amounts"] else "")
+               + (f' ({e(", ".join(f"{x['table']}.{x['column']}" for x in m["header_amounts"]))})' if m["header_amounts"] else "")
                + f'. {e(m["amount_rule"])} In the synthetic example <code>{e(ad["line"])}</code> → <code>{e(ad["header"])}</code>, '
                f'<code>SUM({e(ad["header"])}.{e(ad["column"])})</code> over the joined lines gives {ad["before"]:g}; summed on '
                f'<code>{e(ad["header"])}</code> it gives {ad["after"]:g}, and the lines add up to {ad["lines_total"]:g}.</p>')
@@ -581,7 +650,7 @@ def build_html() -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub and the before/after example."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -616,7 +685,7 @@ def render(path: str) -> str:
     if "{{HOME_" in body:
         hv = _home_vars()
         body = re.sub(r"\{\{(HOME_\w+)\}\}", lambda m: hv.get(m.group(1), ""), body)
-    if "{{DEMO_" in body:                                                  # the build cards on /use-cases (n55)
+    if "{{DEMO_" in body:                                                  # the build cards on /use-cases/build (n55; their own page since n59)
         dv = {"DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     if "{{CHECK_" in body:
@@ -633,7 +702,7 @@ def render(path: str) -> str:
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
 DOCS_DESC = "Connect {{PRODUCT}} to Claude, explore and check a plan against your data, keep the review, build from it, and the status of each tool: what it changes and how far it has been tested."
-LOVABLE_DESC = "Prepare a GraphQL API in Microsoft Fabric with {{PRODUCT}} in Claude, then connect Lovable's Microsoft Fabric connector to it."
+LOVABLE_DESC = "Plan and create a GraphQL API in Microsoft Fabric from Lovable's chat with {{PRODUCT}} as a custom MCP connector, finish the three portal steps, then connect Lovable's Microsoft Fabric connector to it: the path that ran on 30 October 2026."
 
 
 def privacy_md() -> str:
@@ -664,7 +733,7 @@ def docs_md() -> str:
 
 
 def lovable_md() -> str:
-    return _fill(_read("LOVABLE.md"), escape=False)
+    return _fill(_conditional(_read("LOVABLE.md"), _vars()), escape=False)      # n73: step 1 depends on client registration
 
 
 LOCAL_DESC = "Run {{PRODUCT}} on your own machine against SQL Server or a Fabric SQL endpoint over ODBC: the same rules, no account with us, and exactly what leaves the machine."
@@ -683,6 +752,64 @@ def use_cases_md() -> str:
     from .use_cases import markdown
     v = _vars()
     return markdown(v["PRODUCT"], site_url(), v["CONTACT"])
+
+
+# n68: the admin consent link on /start names this page as its redirect_uri, so Microsoft brings the admin back here
+# instead of to the OAuth callback (which answered "This sign-in cannot continue"). The page reads Microsoft's own
+# query string: admin_consent=True&tenant=<id> on success, error=<code>&error_description=<text> otherwise. Nothing is
+# stored; the values are shown escaped and cut short. The address must be registered as a Web redirect URI on the
+# Entra app before it works (otherwise Entra answers AADSTS50011 and never reaches it).
+CONSENT_PATH = "/consent/done"
+_GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def consent_done_html(params) -> str:
+    """The page after Microsoft's admin consent: granted, refused (with the code and the next step), or opened directly."""
+    v = _vars()
+    e = html.escape
+    p = e(v["PRODUCT"])
+    get = lambda k: str(params.get(k, "") or "")
+    granted = get("admin_consent").strip().lower() == "true"
+    code = re.sub(r"[^A-Za-z0-9_.-]", "", get("error"))[:60]
+    desc = " ".join(get("error_description").split())[:400]
+    tenant = get("tenant").strip()
+    tenant_line = f'<p class="muted tiny">Tenant: <code>{e(tenant)}</code>.</p>' if _GUID.match(tenant) else ""
+    if granted:
+        title, kicker, h1 = "Admin consent granted — {{PRODUCT}}", "Admin consent", f"Admin consent granted for your organisation."
+        body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
+<p>Each person adds {p} in Claude or another MCP client and signs in with their own Microsoft work account; every call runs with that person’s own Fabric permissions, and {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
+{tenant_line}
+<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+        pose = "celebrate"
+    elif code or desc:
+        title, kicker, h1 = "Admin consent not granted — {{PRODUCT}}", "Admin consent", "Admin consent was not granted."
+        why = {"access_denied": "The person who opened the link declined, or is not an administrator who may consent to applications for the organisation.",
+               "invalid_client": f"Microsoft Entra did not recognise the {p} app in this tenant.",
+               "invalid_request": "Microsoft Entra could not use the request as sent.",
+               "interaction_required": "Microsoft Entra needs the administrator to sign in again, or with another account."}.get(code, "")
+        body = (f'<p class="lede">Microsoft Entra answered <code>{e(code) or "an error"}</code>.</p>'
+                + (f"<p>{e(desc)}</p>" if desc else "") + (f"<p>{why}</p>" if why else "") + f"""
+<h2 class="h3">Next step</h2>
+<ol>
+<li>Send <a href="/it">the page for your IT department</a> to an administrator of your Microsoft Entra tenant: it lists each permission {p} asks for and why, what is stored, and how to revoke the approval.</li>
+<li>The administrator opens <a href="/start#step-1">Grant admin consent in Entra</a> on the set-up page and signs in with the administrator account.</li>
+<li>If it fails again, <a href="/support">get help</a> with the code above; nothing about this attempt is kept on our side.</li>
+</ol>
+{tenant_line}
+<div class="ctas"><a class="btn primary" href="/it">For your IT department</a><a class="btn ghost" href="/start#step-1">The set-up guide</a></div>""")
+        pose = "aside"
+    else:
+        title, kicker, h1 = "Admin consent — {{PRODUCT}}", "Admin consent", "Nothing to show yet."
+        body = f"""<p class="lede">This is where Microsoft Entra sends an administrator after the admin consent for {p}. Opened directly, there is nothing to report.</p>
+<p>The consent link, what it approves and the rest of the set-up are on <a href="/start#step-1">the set-up page</a>.</p>
+<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+        pose = "look"
+    section = f"""<section class="wrap hero"><div class="hero-grid"><div>
+<span class="kicker">{kicker}</span><h1>{h1}</h1>
+{body}
+</div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="{pose}" data-label=""></span></div></div></section>"""
+    return _shell(title, "What happened after the admin consent for {{PRODUCT}} in Microsoft Entra, and the next step.", section,
+                  page="consent", nav="", noindex=True)
 
 
 def not_found_html(path: str) -> str:
