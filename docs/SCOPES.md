@@ -129,6 +129,16 @@ https://login.microsoftonline.com/organizations/adminconsent?client_id=<APP_ID>
 
 or for one tenant: `https://login.microsoftonline.com/<tenant id>/adminconsent?client_id=<APP_ID>`.
 
+The links on the site ([/start](https://krusgraph.com/start), step 1, and the Connect section of
+[/docs](https://krusgraph.com/docs)) add `redirect_uri=https://krusgraph.com/consent/done` (round n68 for /start, n73 for
+/docs): Microsoft sends the administrator back to that page with `admin_consent=True&tenant=<id>` when the consent was
+granted, or with `error=<code>&error_description=<text>` when it was not, and the page says which and what to do next
+(`fabric_backend/pages.py`, `consent_done_html`; not indexed, not cached, nothing stored). Microsoft Entra accepts a
+`redirect_uri` on the admin consent endpoint only when it is one of the app's registered redirect URIs, so
+`https://krusgraph.com/consent/done` has to be on the app's Web platform in the portal (Authentication → Web → Redirect
+URIs); `deploy/krusgraph.sh` does not add it, and `admin_consent_url()` in `fabric_backend/entra.py` still builds the
+link without a return address. Without the registration Microsoft shows its own error page instead of returning.
+
 After consent, users sign in again (Claude: Settings → Connectors → the connector → Reconnect) so the new token
 carries the scope. `deploy/krusgraph.sh --check` compares the registration against `REQUIRED_SCOPES` in
 `deploy/azure_containerapp.py`; add the new scope there in the same change so the check keeps passing.
