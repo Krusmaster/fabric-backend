@@ -40,7 +40,7 @@ jobs:
       # keyed on this file, where the versions are pinned
       - uses: actions/setup-python@v6
         with: { python-version: "3.12", cache: pip, cache-dependency-path: .github/workflows/ci.yml }
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "17" }
       - run: pip install "pyspark==4.0.1" requests pytest
       - run: python -c "import pyspark, requests; print(pyspark.__version__)"
