@@ -5,6 +5,7 @@ dbo,customers,country,varchar,3
 dbo,products,product_id,int,1
 dbo,products,name,varchar,2
 dbo,products,category_id,int,3
+dbo,products,list_price,decimal,4
 dbo,categories,id,int,1
 dbo,categories,name,varchar,2
 dbo,orders,order_id,int,1

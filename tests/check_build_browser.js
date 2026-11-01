@@ -71,7 +71,7 @@ const { chromium } = require("playwright");
       }));
     }
     if (motion === "reduce") {
-      // the shop example: no header amount, so no comparison; then the home page's two tables as files
+      // the shop example: its list price is a header amount (a comparison); then the home page's two tables as files
       await page.click("#check-sample");
       await until(() => document.documentElement.dataset.check === "done" && !document.getElementById("check-build-head").hidden);
       await page.click("#check-build-model");

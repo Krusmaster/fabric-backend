@@ -191,7 +191,8 @@ def test_in_a_browser_no_request_carries_the_files(site):
         g = r["industries"][k]
         assert g["url"] == "/check?example=" + k and "Done: the example “" + label + "”" in g["status"] and g["guide"] is True, (k, g)
     # n55: the map first, one line with the state and the count, every finding folded under it, a title marks the map
-    assert r["folded"] == {"open": False, "summary": "Show all 3 findings", "line": "Enough to start · 3 things to check", "order": True, "findingsInside": True}
+    # four since n71: the keyless audit_log, the suggestion, the synthetic total that doubles, and products.list_price over order_items
+    assert r["folded"] == {"open": False, "summary": "Show all 4 findings", "line": "Enough to start · 4 things to check", "order": True, "findingsInside": True}
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
 
@@ -241,7 +242,8 @@ def test_the_report_puts_the_right_total_beside_the_wrong_one_counted_in_the_row
     with_lines = {x[0] for x in lines}
     assert d["right"] == sum(o[3] for o in orders if o[0] in with_lines)
     assert d["wrong"] == sum(o[3] for o in orders for x in lines if x[0] == o[0]) and d["wrong"] > d["right"]
-    assert bb.build("sample")["report"]["doubled"] is None              # the shop plan has no header amount
+    d = bb.build("sample")["report"]["doubled"]                         # since n71 the shop's products carry a list price (n71)
+    assert (d["column"], d["header"], d["line"], d["right"]) == ("products.list_price", "products", "order_items", 1666.6) and d["wrong"] > d["right"]
 
 
 def test_build_from_files_and_from_a_columns_list():
@@ -304,7 +306,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert o["next_links"] == ["Create it in your own Fabric /start", "Get help /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
     o = r["reduce"]
-    assert o["shop_doubled"] is False                                  # the shop's orders have no amount: no comparison
+    assert o["shop_doubled"] is True                                   # products.list_price over order_items, since n71
     assert o["files_doubled"] == ["2,000Summed over the joined lines (order_lines)", "1,000Summed once per header (orders)"], o
 
 

@@ -42,7 +42,7 @@ const { chromium } = require("playwright");
   await page.click("#check-verdict [data-finding]");
   out.top_marks = await page.evaluate(() => ({ lit: document.querySelectorAll("#check-map .m-hl").length, pressed: document.querySelector("#check-verdict [data-finding]").getAttribute("aria-pressed") }));
   await page.click("#check-all-sum");
-  await page.click('#check-findings [data-finding] >> nth=1');
+  await page.click('#check-findings [data-finding]:has-text("audit_log")');   // the keyless table, whatever its place among the findings (n71)
   out.finding_marks = await page.evaluate(() => [...document.querySelectorAll("#check-map .m-hl")].map((g) => g.textContent));
   // n53: Ask Onto — the questions the result chose, each answered on the page, by keyboard, without a request
   const before = out.requests.length;
