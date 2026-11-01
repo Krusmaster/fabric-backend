@@ -38,7 +38,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n73 (the polish from the external review: /check finding first, one order through the example, export labels, /lovable, "Connect") |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
-| Deployment | `deploy/`, `Dockerfile` | open |
+| Deployment | `deploy/`, `Dockerfile`, `.github/` | n74 (the dependabot PRs 7–12, grouped monthly dependabot updates merged after green CI) |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | n72 (the Younium + Salesforce subscription billing pack) |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n72 (docs/YOUNIUM-SALESFORCE.md) |
 
