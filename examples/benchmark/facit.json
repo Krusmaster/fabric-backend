@@ -829,5 +829,255 @@
     }
    ]
   }
+ },
+ "younium": {
+  "_about": "Round n72: fabric_backend/younium_demo.py, 14 tables with the system prefixes younium_ and sf_. The relationships are the younium_salesforce pack's applied ones (15) and the three links by number the invoice lines carry in these rows (the pack lists them as unverified). The pack was written from sources the writing session could not open, and the rows from the pack: the row shows what the methods do on a schema only a pack can read, not that the pack is right about Younium. The engine does not apply this pack yet (infer._pack reads the SAP pack alone), so Krusgraph's row is the name rules and the row checks alone.",
+  "relationships": [
+   {
+    "source": "sf_contact",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "sf_opportunity",
+    "source_cols": [
+     "AccountId"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "sf_opportunitylineitem",
+    "source_cols": [
+     "OpportunityId"
+    ],
+    "target": "sf_opportunity",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "younium_accounts",
+    "source_cols": [
+     "external_crm_id"
+    ],
+    "target": "sf_account",
+    "target_cols": [
+     "Id"
+    ]
+   },
+   {
+    "source": "younium_subscriptions",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscriptions",
+    "source_cols": [
+     "invoice_account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_versions",
+    "source_cols": [
+     "subscription_id"
+    ],
+    "target": "younium_subscriptions",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_charges",
+    "source_cols": [
+     "subscription_version_id"
+    ],
+    "target": "younium_subscription_versions",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_subscription_charges",
+    "source_cols": [
+     "charge_id"
+    ],
+    "target": "younium_charges",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_charges",
+    "source_cols": [
+     "charge_plan_id"
+    ],
+    "target": "younium_charge_plans",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_charge_plans",
+    "source_cols": [
+     "product_id"
+    ],
+    "target": "younium_products",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoices",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "younium_invoices",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_payments",
+    "source_cols": [
+     "invoice_id"
+    ],
+    "target": "younium_invoices",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_payments",
+    "source_cols": [
+     "account_id"
+    ],
+    "target": "younium_accounts",
+    "target_cols": [
+     "id"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "charge_number"
+    ],
+    "target": "younium_charges",
+    "target_cols": [
+     "charge_number"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "subscription_number"
+    ],
+    "target": "younium_subscriptions",
+    "target_cols": [
+     "subscription_number"
+    ]
+   },
+   {
+    "source": "younium_invoice_lines",
+    "source_cols": [
+     "product_number"
+    ],
+    "target": "younium_products",
+    "target_cols": [
+     "product_number"
+    ]
+   }
+  ],
+  "traps": {
+   "orphans": [
+    {
+     "source": "younium_accounts",
+     "source_cols": [
+      "external_crm_id"
+     ],
+     "target": "sf_account",
+     "target_cols": [
+      "Id"
+     ]
+    }
+   ],
+   "doubled": [
+    {
+     "header": "younium_invoices",
+     "column": "total_amount",
+     "line": "younium_invoice_lines"
+    },
+    {
+     "header": "sf_opportunity",
+     "column": "Amount",
+     "line": "sf_opportunitylineitem"
+    }
+   ],
+   "ambiguous": [
+    {
+     "column": "id",
+     "tables": [
+      "sf_account",
+      "sf_contact",
+      "sf_opportunity",
+      "sf_opportunitylineitem",
+      "younium_accounts",
+      "younium_charge_plans",
+      "younium_charges",
+      "younium_invoice_lines",
+      "younium_invoices",
+      "younium_payments",
+      "younium_products",
+      "younium_subscription_charges",
+      "younium_subscription_versions",
+      "younium_subscriptions"
+     ]
+    },
+    {
+     "column": "name",
+     "tables": [
+      "younium_accounts",
+      "younium_products",
+      "younium_charge_plans",
+      "younium_charges",
+      "sf_account",
+      "sf_opportunity"
+     ]
+    },
+    {
+     "column": "external_crm_id",
+     "tables": [
+      "younium_accounts",
+      "younium_subscriptions"
+     ]
+    }
+   ]
+  }
  }
 }

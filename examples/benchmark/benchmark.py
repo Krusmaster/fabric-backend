@@ -1,6 +1,6 @@
 """Round n61: an honest comparison on the repository's synthetic data (examples/benchmark/README.md).
 
-Three ways to get relationships and their traps, on the same four synthetic datasets, scored against facit.json:
+Three ways to get relationships and their traps, on the same synthetic datasets (four since n61, a fifth since n72), scored against facit.json:
 
   krusgraph  plan() with the rows (rule R5 counts code and role columns; plan_backend and /check do not pass rows yet) + evidence.validate
              (validate_plan) + graphs.suggest (suggest_relationships), over in-memory SQLite. R5 proposals the rows did
@@ -30,7 +30,7 @@ from fabric_backend.dialects import of as dialect_of                            
 from fabric_backend.infer import plan as make_plan                                   # noqa: E402
 from fabric_backend.platforms.local import sample_source                             # noqa: E402
 
-DATASETS = ("shop", "sap", "crm", "traps")
+DATASETS = ("shop", "sap", "crm", "traps", "younium")
 
 
 def traps_tables() -> dict[str, tuple[list[str], list[tuple]]]:
@@ -60,6 +60,9 @@ def source(name: str):
         return sample_source()
     if name == "traps":
         return bc._sqlite_source("folder", "Synthetic invoices with known traps", "traps", traps_tables(), "synthetic")
+    if name == "younium":                  # round n72: Younium + Salesforce with system prefixes; only the younium_salesforce pack can read it
+        from fabric_backend import younium_demo
+        return bc._sqlite_source("folder", "Synthetic Younium + Salesforce tables (fabric_backend.younium_demo)", "billing", younium_demo.rows_for_check(), "synthetic")
     return bc._source({"sap": "sap", "crm": "crm"}[name], None, "")[0]
 
 

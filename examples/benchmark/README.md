@@ -1,7 +1,8 @@
-# Benchmark: relationships and their traps on the same synthetic data (rounds n61 and n62)
+# Benchmark: relationships and their traps on the same synthetic data (rounds n61, n62 and n72)
 
 First run on **30 October 2026** (round n61); run again the same day after round n62 added rule R5, Python 3.13.17,
-SQLite in memory, from the repository's commit at the time. No network, no
+SQLite in memory, from the repository's commit at the time. Round n72 (1 November 2026, Python 3.13.18) added the fifth
+set, **younium**; the four rows from before are unchanged by it. No network, no
 Fabric, no Azure: every number below is what `benchmark.py` measured, and `tests/test_benchmark.py` checks that a new
 run gives the same table.
 
@@ -20,7 +21,12 @@ python examples/benchmark/benchmark.py
 Datasets (all synthetic): **shop** (`fabric_backend/seed.py`, 7 tables), **sap** (`fabric_backend/sap_demo.py`, 17
 SAP-shaped tables), **crm** (Salesforce-shaped objects + an ERP, `fabric_backend/browser_check.py`), **traps**
 (`benchmark.py`, 8 invoice tables built for known traps: `code` in two unrelated tables, `name` everywhere, two
-roles to `users` whose names do not say users, a total that both lines and payments repeat, two orphans).
+roles to `users` whose names do not say users, a total that both lines and payments repeat, two orphans), **younium**
+(`fabric_backend/younium_demo.py`, round n72: 10 Younium-shaped and 4 Salesforce-shaped tables with the system prefixes
+`younium_` and `sf_`, 58 rows; the facit is the `younium_salesforce` pack's 15 applied relationships plus the three
+links by number the invoice lines carry in these rows; planted: a Younium account whose Salesforce id has 15
+characters against 18-character `sf_account.Id`, an invoice total over three lines, and the opportunity amount over
+its line items).
 
 `facit.json` lists the right relationships and the planted traps. A prediction is right when source table, column set
 and target table match. "Ambiguous columns fallen for" counts facit columns that appear in a wrong predicted
@@ -45,6 +51,9 @@ baselines did not change.
 | traps | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (8/8) | 1.0 (8/8) | 1.0 | 2/2 | 2/2 | 0/2 | 0 suggestion(s) to accept or reject |
 | traps | Approximation of documented autodetect rules | 0.27 (4/15) | 0.5 (4/8) | 0.5 | 0/2 | 0/2 | 2/2 | every created relationship to review (no rule or evidence given) |
 | traps | dbt-style tests, relationships declared by a person | 1.0 (8/8) | 1.0 (8/8) | 1.0 | 2/2 | 0/2 | 0/2 | 8 relationships declared by hand |
+| younium | Krusgraph (plan + validate_plan + suggest_relationships) | None (0/0) | 0.0 (0/18) | 0.94 | 0/1 | 0/2 | 0/3 | 50 suggestion(s) to accept or reject |
+| younium | Approximation of documented autodetect rules | 0.02 (3/121) | 0.17 (3/18) | 0.17 | 0/1 | 0/2 | 3/3 | every created relationship to review (no rule or evidence given) |
+| younium | dbt-style tests, relationships declared by a person | 1.0 (18/18) | 1.0 (18/18) | 1.0 | 1/1 | 0/2 | 0/3 | 18 relationships declared by hand |
 
 Krusgraph before R5 (round n61, plan by names only):
 
@@ -54,6 +63,18 @@ Krusgraph before R5 (round n61, plan by names only):
 | sap | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (34/34) | 1.0 (34/34) | 1.0 | 1/1 | 4/4 | 0/4 | 0 suggestion(s) to accept or reject |
 | crm | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.8 (4/5) | 1.0 | 2/2 | 1/1 | 0/2 | 1 suggestion(s) to accept or reject |
 | traps | Krusgraph (plan + validate_plan + suggest_relationships) | 1.0 (4/4) | 0.5 (4/8) | 0.75 | 2/2 | 2/2 | 0/2 | 2 suggestion(s) to accept or reject |
+
+**The younium row (round n72).** The engine does not read the `younium_salesforce` pack yet: `infer._pack` calls
+`sap_pack.match`, the SAP pack alone, so Krusgraph's row is the name rules and the row checks on a schema whose
+prefixed table names (`younium_accounts`, `sf_account`) the name rules cannot link; the plan has no relationship, and
+without one the doubled totals and the orphan are not counted either. The 50 suggestions from the rows reach 17 of
+the 18 facit links. Measured the same day with the pack applied through `sap_pack.plan_with` (the pack's keys and
+plain relationships given as keys and confirmed, what `sap_pack.match_any` in `infer._pack` would do): precision 1.0
+(15/15), recall 0.83 (15/18; the three links by number are listed in the pack as unverified and not applied), 1.0
+with suggestions, orphans 1/1, doubled totals 2/2, 0/3 ambiguous columns fallen for. That measurement is not in the
+table or `results.json`, which hold what the code does today. The pack itself was written from sources the writing
+session could not open and the rows from the pack (`docs/YOUNIUM-SALESFORCE.md`), so the row shows what a pack adds on
+such a schema, not that the pack is right about Younium.
 
 ## Where Krusgraph is better, equal, and worse
 
