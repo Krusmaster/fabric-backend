@@ -166,8 +166,9 @@
 
   const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
   const tag = (t) => el("span", { class: "status-tag" }, t);
-  function download(name, b64, label) {
-    const a = el("a", { class: "btn primary small", href: "#", download: name }, label);
+  // n73: a download button says what the file holds and carries its status word (tool_status) as a tag
+  function download(name, b64, label, status) {
+    const a = el("a", { class: "btn primary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
     a.addEventListener("click", (e) => {               // the zip was made in the worker; a Blob saves it, nothing is fetched
       const bin = atob(b64), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -225,7 +226,7 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
     kids.push(el("h3", null, "The model as a Power BI project"),
       el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project (.pbip), the model with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + " and an empty report page", b.status.model)),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
     panels.model.replaceChildren(...kids);
   }
@@ -245,7 +246,7 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
     kids.push(el("h3", null, "The app's starter code"),
       el("p", null, "Rayfin connector entities with the plan's keys and relationships, and a Lovable prompt, GraphQL queries and a Supabase edge function for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)));
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet", b.status.app_starter)));
     panels.app.replaceChildren(...kids);
   }
 
@@ -413,8 +414,8 @@
       (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
     box.hidden = false;
   }
-  function saveText(name, text, label) {             // the contract is written here; a Blob saves it, nothing is fetched
-    const a = el("a", { class: "btn secondary small", href: "#", download: name }, label);
+  function saveText(name, text, label, status) {     // the contract is written here; a Blob saves it, nothing is fetched
+    const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
     a.addEventListener("click", () => {
       const url = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
@@ -477,7 +478,7 @@
         checks.length ? el("ul", { class: "tiny" }, ...checks.map((c) => el("li", null, c.what + ": " + c.verdict)))
           : el("p", { class: "tiny" }, "No rows to count: a columns list gives the plan only."),
         el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
-        el("p", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "Download the contract (YAML)"),
+        el("p", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract (ODCS 3.2 YAML), schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : ""), r.domains.status),
           el("a", { class: "btn primary small", href: "/start" }, "Create it in your own Fabric"))];
     } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {

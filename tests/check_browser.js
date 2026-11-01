@@ -21,7 +21,7 @@ const { chromium } = require("playwright");
     { name: "customers.csv", mimeType: "text/csv", buffer: Buffer.from(`customer_id,name\n1,${MARK}\n2,b\n`) },
     { name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from("order_id,customer_id,amount\n1,1,10\n2,9,20\n") }]);
   await until(() => document.documentElement.dataset.check === "done");
-  out.files_text = await page.textContent("#check-result");
+  out.files_text = await page.textContent("#check-run");
   // the page itself cannot send anything: a fetch with the marker is refused by its CSP
   out.page_fetch = await page.evaluate(async (m) => { try { await fetch("/x?" + m, { method: "POST", body: m }); return "sent"; } catch (e) { return "blocked"; } }, MARK);
   out.after_requests = out.requests.length;
@@ -31,14 +31,26 @@ const { chromium } = require("playwright");
   out.focused = await page.evaluate(() => document.activeElement.id);
   await page.keyboard.press("Enter");
   await until(() => !!document.documentElement.dataset.checkMs);
-  out.sample_text = await page.textContent("#check-result");
+  out.sample_text = await page.textContent("#check-run");
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
-  // n55: the map first, then one line and the top finding; every finding folded under it; a title marks the map
+  // n73: the finding first. At 1280 x 720 the state line, the most important finding and the folded list stand right
+  // under the status line and before the map, on the screen without scrolling; the engine's steps are a closed
+  // <details> under the map, opened with Enter on its summary
   out.folded = await page.evaluate(() => {
     const y = (id) => document.getElementById(id).getBoundingClientRect().top + scrollY, all = document.getElementById("check-all");
     return { open: all.open, summary: document.getElementById("check-all-sum").textContent, line: document.querySelector("#check-verdict .check-state").textContent,
-             order: y("check-map") < y("check-verdict") && y("check-verdict") < y("check-all"), findingsInside: all.contains(document.getElementById("check-findings")) };
+             order: y("check-status") < y("check-verdict") && y("check-verdict") < y("check-all") && y("check-all") < y("check-map") && y("check-map") < y("check-engine"),
+             findingsInside: all.contains(document.getElementById("check-findings")) };
   });
+  out.first_screen = await page.evaluate(() => {
+    const r = (id) => document.getElementById(id).getBoundingClientRect(), v = r("check-verdict"), t = document.querySelector("#check-verdict .check-top").getBoundingClientRect();
+    return { width: innerWidth, height: innerHeight, verdictTop: Math.round(v.top), verdictBottom: Math.round(v.bottom), topFindingBottom: Math.round(t.bottom),
+             mostImportant: document.querySelector("#check-verdict .check-top").textContent, mapTop: Math.round(r("check-map").top) };
+  });
+  out.engine = await page.evaluate(() => { const d = document.getElementById("check-engine"); return { open: d.open, summary: d.querySelector("summary").textContent, steps: d.querySelectorAll("#check-steps li").length, stepsInside: d.contains(document.getElementById("check-steps")) }; });
+  await page.focus("#check-engine summary"); await page.keyboard.press("Enter");
+  out.engine.opened = await page.evaluate(() => document.getElementById("check-engine").open);
+  await page.focus("#check-engine summary"); await page.keyboard.press("Enter");
   await page.click("#check-verdict [data-finding]");
   out.top_marks = await page.evaluate(() => ({ lit: document.querySelectorAll("#check-map .m-hl").length, pressed: document.querySelector("#check-verdict [data-finding]").getAttribute("aria-pressed") }));
   await page.click("#check-all-sum");
@@ -71,6 +83,9 @@ const { chromium } = require("playwright");
   await page.click('[data-ask="powerbi"]');
   await until(() => !document.getElementById("check-model").hidden && document.getElementById("check-model").textContent.length > 0);
   out.ask_powerbi_focus = await page.evaluate(() => document.activeElement.id);
+  // n73: one order through the example: the finding, Onto's answer, the Power BI preview and the contract name the same row
+  out.same_order = { finding: await page.textContent('#check-findings li.sev-warning'), preview: await page.textContent("#check-model .check-doubled"),
+                     labels: await page.$$eval("#check-model a[download], #check-ask-answer a[download]", (n) => n.map((a) => a.textContent)) };
   out.ask_requests = out.requests.slice(before).filter((u) => !u.includes("/check/event"));
   await page.evaluate(() => window.Mascots.setEnabled(false));
   out.ask_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-ask-figure")).display,
@@ -91,7 +106,7 @@ const { chromium } = require("playwright");
   await page.click("#check-sap");
   await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs && document.body.textContent.includes("SAP pack"));
   out.steps_while_running = await page.evaluate(() => window.__stepsBeforeResult);
-  out.sap_text = await page.textContent("#check-result");
+  out.sap_text = await page.textContent("#check-run");
   await page.click("#check-crm");
   await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
   await page.waitForTimeout(300);
