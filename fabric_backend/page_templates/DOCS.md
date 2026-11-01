@@ -62,8 +62,9 @@ New to a Fabric lakehouse? Start by understanding how its tables fit together: c
 ### Connect
 
 1. **Your Entra admin grants consent once** for your organization:
-   [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}).
-   It allows the connector to call Fabric and SQL as each signed-in user — nothing more.
+   [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}&redirect_uri={{CONSENT_URL_ENC}}).
+   It allows the connector to call Fabric and SQL as each signed-in user — nothing more. Microsoft then returns the admin
+   to [{{DOMAIN}}/consent/done](/consent/done), which says whether the consent was granted and, if not, what to do next.
 2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
    `{{MCP_URL}}`. Sign in with your Microsoft work account. {{#IF CLIENT_REGISTRATION}}VS Code, Cursor and other MCP clients
    that sign in on their own use `{{CONNECT_URL}}` instead ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and that is the client
@@ -338,6 +339,22 @@ over: the ontology agent and data agents use it as context, and the built-in gra
 and relationship types. Ontology is in preview and its definition format can change; the draft follows the item's own
 definition as of 2026, checked against recorded definitions and, through `create_ontology`, against Fabric itself
 ({{SHORT_CREATE_ONTOLOGY}}).
+
+**Why not just Fabric IQ / the Fabric ontology?** The ontology (preview) item is where the plan lands. Microsoft Learn
+describes three ways to fill one: by hand, generated from an existing Power BI semantic model (which then already carries
+the relationships), or with the ontology agent, which "explores the workspace items you point it to", "samples a few rows
+per table", drafts entity types, relationships and bindings "grounded in the discovered evidence" and "runs structural and
+grounding checks on the draft" ([What is Fabric IQ?](https://learn.microsoft.com/en-us/fabric/iq/overview),
+[What is ontology (preview)?](https://learn.microsoft.com/en-us/fabric/iq/ontology/overview),
+[Use the ontology agent (preview)](https://learn.microsoft.com/en-us/fabric/iq/ontology/how-to-use-ontology-agent); read
+from the documentation's source repository on 1 November 2026). {{PRODUCT}} creates the ontology item; the evidence step
+comes before it: `plan_backend` names the rule behind every key and relationship, `validate_plan` counts duplicate key
+values, references with no matching row and the total that doubles against the rows, `suggest_relationships` checks
+candidates against the data, and you decide with `keys=` and `confirmed=`; [/check](/check) does the plan and the counting
+in the browser, with no account and no capacity. The same reviewed plan then becomes the ontology item (`create_ontology`:
+{{SHORT_CREATE_ONTOLOGY}}) and, from one plan, the API for GraphQL, the semantic model and the notebooks. {{PRODUCT}} does
+not replace the ontology item, its agent, its rules or its metrics, and the ontology agent's checks have not been compared
+with `validate_plan` on the same data: no such measurement exists.
 
 ### Two steps stay manual
 
