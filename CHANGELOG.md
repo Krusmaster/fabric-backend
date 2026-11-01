@@ -5,6 +5,27 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
+  line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
+  status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got
+  here"), in the three examples and for the visitor's own files; a browser test reads the finding at 1280 px without
+  scrolling. One order runs through "A total that doubles": the engine reads one header row per amount finding from the
+  rows (its key, its amount, how many line rows point at it, what a join counts it as: `order_id 1`, 1 000, twice,
+  2 000) and the finding's text, Onto's "Why does this total come out twice?", the Power BI preview and the domain's
+  ODCS contract (a top-level `customProperties` entry, `amountLevel.<table>.<column>`) all repeat that row; the preview no
+  longer shows a second total of its own. Every download button on `/check` says what the file holds and its status
+  word from `tool_status` (the Power BI project, the app starter, the contract). `/lovable` is rewritten after the path
+  that ran on 30 October 2026: Krusgraph as a custom MCP connector in Lovable at `/mcp/connect` (plan, check, create),
+  the three portal steps (an app registration with a secret, Contributor on the workspace, introspection on the item:
+  the one with no API), then Lovable's Microsoft Fabric connector; its status words come from Lovable's two rows in
+  `tool_status.CLIENTS`. "Connect to Claude" is "Connect" everywhere (the footer, the session links, the closing card,
+  `/check`'s answer, `/use-cases`, the consent pages), pointing at the n68 chooser (`/#connect`, which opens it and
+  focuses its button); `/start` is "the set-up guide". Docs: the admin consent link on `/docs` carries
+  `redirect_uri=https://krusgraph.com/consent/done` like `/start`, and the Fabric IQ section answers "Why not just Fabric
+  IQ / the Fabric ontology?" with what Microsoft Learn says about filling an ontology item (by hand, from a semantic
+  model, with the ontology agent; links to Learn) and the one angle of `docs/FAQ-COMPETITION.md`: Krusgraph creates the
+  ontology item; the evidence step comes before it. `domains.draft` and `domains.contract` take an optional `extra`
+  (more top-level custom properties) for `/check`. `docs/SCOPES.md` was not touched: Docs and submission is n72's.
 - Round n71: the amount that is not there. A line table with a quantity (`order_items.quantity`) and no amount of its own,
   pointing at a table that carries the price (`products.list_price`), gets the measure `Order amount` =
   `SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))` in `semantic_model_draft` and
