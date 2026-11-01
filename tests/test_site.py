@@ -792,9 +792,9 @@ def _hub(client):
     after_hero = '<section class="wrap connects"' + after_hero
     assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
-    visual = re.search(r'<div class="hub" aria-hidden="true">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)
-    groups = {re.search(r'<p class="hub-h">(.*?)</p>', g).group(1): re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
-              for g in re.findall(r'<div class="hub-group[^"]*">(.*?)</ul></div>', visual, re.S)}
+    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)   # n68: the first card carries the Connect chooser, so the visual as a whole is no longer aria-hidden
+    groups = {h: re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
+              for h, g in re.findall(r'<div class="hub-group[^"]*"[^>]*><p class="hub-h"[^>]*>(.*?)</p><ul[^>]*>(.*?)</ul>', visual, re.S)}
     said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
     return row, visual, groups, said
 
@@ -824,9 +824,12 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
                                                      '<span class="hub-tag hub-experimental">experimental</span>')]
-    assert '<span class="c-hub">krusgraph</span>' in visual and "one plan, the rule behind every relationship" in visual
+    assert '<span class="c-hub c-hub-logo" role="img" aria-label="Krusgraph">' in visual and '<span class="c-hub-word">krusgraph</span>' in visual   # n68: the logo in the middle
+    assert "one plan, the rule behind every relationship" in visual
     assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
-    assert not re.search(r"<(img|svg|picture|object|image)\b", row) and "logo" not in row.lower() and "data-mascot" not in row
+    assert re.findall(r'<svg class="([^"]+)"', row) == ["logo-mark"] and not re.search(r"<(img|picture|object|image)\b", row) and "data-mascot" not in row   # our mark only, no third-party logos
+    for part in ("hub-build c-sage\" aria-hidden=\"true\"", "hub-mid\" aria-hidden=\"true\"", "hub-where c-mustard\" aria-hidden=\"true\"", '<p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">'):
+        assert part in visual, part                                                    # the visual stays hidden from screen readers, the chooser does not
     plain = re.sub(r"<[^>]+>", " ", row)
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
@@ -1281,3 +1284,35 @@ def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers
     assert "Nothing to show yet." in plain and 'href="/start#step-1"' in plain
     assert "/consent/done" not in client.get("/sitemap.xml").text and "/consent" not in client.get("/llms.txt").text
     assert "Connected." not in ok.text
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_exists(client, monkeypatch, registration):
+    """n68: a Connect button in the hero and in the hub's "Your data in Fabric" card opens a chooser with the shortest way
+    per client: VS Code's and Cursor's install links (URL-encoded JSON, base64 JSON) and Lovable's address at /mcp/connect
+    only when client registration is on; Claude (copy /mcp, open its connectors page) always; /start is the long guide."""
+    import base64
+    import json
+    from urllib.parse import unquote
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    html = client.get("/").text
+    assert html.count("<details class=\"connect connect-pop\" data-connect>") == 1 and html.count("<details class=\"connect connect-inline\" data-connect>") == 1
+    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
+    assert '<a class="btn primary" href="/check">Check your files – no account</a>' in hero and "<summary" in hero and 'href="/start">Connect to Claude' not in hero
+    hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
+    assert "connect-inline" in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
+    pop = html.split("connect-pop", 1)[1].split("</details>", 1)[0]
+    assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/settings/connectors" rel="noopener"' in pop
+    assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop
+    if not registration:
+        assert "mcp/connect" not in html and "VS Code" not in pop and "Cursor" not in pop and "Lovable" not in pop
+        return
+    vs = re.search(r'href="(vscode:mcp/install\?[^"]+)"', pop).group(1)
+    assert json.loads(unquote(vs.split("?", 1)[1])) == {"name": "Krusgraph", "type": "http", "url": "https://krusgraph.test/mcp/connect"}
+    assert re.search(r'href="vscode-insiders:mcp/install\?[^"]+">Insiders</a>', pop)
+    cur = re.search(r'href="(cursor://anysphere\.cursor-deeplink/mcp/install\?name=Krusgraph&amp;config=[^"]+)"', pop).group(1)
+    assert json.loads(base64.b64decode(cur.split("config=", 1)[1])) == {"url": "https://krusgraph.test/mcp/connect"}
+    assert 'data-copy-text="https://krusgraph.test/mcp/connect"' in pop and "Connectors → Custom MCP" in pop and "Add &amp; authorize" in pop
+    start = client.get("/start").text
+    assert "Two addresses: <code>https://krusgraph.test/mcp</code> for Claude, and <code>https://krusgraph.test/mcp/connect</code> for clients that register themselves" in start
+    assert 'href="/#connect"' in start

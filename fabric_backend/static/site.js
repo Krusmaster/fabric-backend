@@ -430,15 +430,28 @@
   }
   function tableIcon(name, i) { return '<span class="t-ico c-' + colorOf(name, i) + '">' + ICON_TABLE + '</span>'; }
 
-  /* ------------------------------------------------------------------ copy buttons ([data-copy] names the element to copy) */
-  document.querySelectorAll('[data-copy]').forEach(function (b) {
+  /* ------------------------------------------------------------------ copy buttons ([data-copy] names the element to copy; n68: [data-copy-text] holds the text) */
+  document.querySelectorAll('[data-copy],[data-copy-text]').forEach(function (b) {
     b.addEventListener('click', function () {
-      var src = document.querySelector(b.getAttribute('data-copy')), text = src ? src.textContent.trim() : '', label = b.textContent;
+      var src = b.getAttribute('data-copy') ? document.querySelector(b.getAttribute('data-copy')) : null;
+      var text = b.getAttribute('data-copy-text') || (src ? src.textContent.trim() : ''), label = b.textContent;
       var done = function (ok) { b.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(function () { b.textContent = label; }, 1600); };
       if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
       else done(false);
     });
   });
+
+  /* ------------------------------------------------------------------ n68: the Connect chooser (a <details>; open and close work without JS) */
+  // Escape closes it and puts the focus back on its button; a click outside closes it; one open at a time.
+  var choosers = document.querySelectorAll('details[data-connect]');
+  if (choosers.length) {
+    var closeAll = function (except) { choosers.forEach(function (d) { if (d !== except) d.open = false; }); };
+    choosers.forEach(function (d) {
+      d.addEventListener('toggle', function () { if (d.open) closeAll(d); });
+      d.addEventListener('keydown', function (e) { if (e.key === 'Escape' && d.open) { e.preventDefault(); d.open = false; d.querySelector('summary').focus(); } });
+    });
+    document.addEventListener('click', function (e) { if (!e.target.closest('details[data-connect]')) closeAll(null); });
+  }
 
   /* ------------------------------------------------------------------ start: one step at a time (all three without JS) */
   var startPage = document.querySelector('[data-page=start]');

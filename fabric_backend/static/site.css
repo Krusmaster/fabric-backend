@@ -855,6 +855,29 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .c-hub{position:relative;font-family:var(--font-head);font-weight:600;font-size:16px;background:var(--coral-soft);color:var(--ink);border:1.5px solid var(--coral-d);border-radius:999px;padding:6px 14px}
 .c-hub::before,.c-hub::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--coral-d);border:1.5px solid var(--card)}
 .c-hub::before{left:-6px}.c-hub::after{right:-6px}
+/* n68: the Connect chooser: a <details> whose summary is a button; in the hero the panel opens over the page (centred
+   under the button from 760 px, in the flow of the row below it), in the hub's first card it opens in place */
+.connect{position:relative;display:inline-block;text-align:left;background:none;border:0;border-radius:0;padding:0;margin:0}
+.connect>summary{list-style:none;cursor:pointer;user-select:none;font-size:17px;font-weight:600;margin:0}
+.connect[open]>summary{margin-bottom:0}
+.connect-inline>summary{font-size:15px}
+.connect>summary::-webkit-details-marker{display:none}
+.connect-caret::before{content:"";display:inline-block;width:7px;height:7px;margin:0 0 3px 8px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s ease}
+.connect[open]>summary .connect-caret::before{transform:rotate(-135deg);margin-bottom:-2px}
+.connect-panel{margin-top:10px;background:var(--card);border:1.5px solid var(--line-strong);border-radius:16px;padding:14px 16px 12px;width:min(460px,calc(100vw - 32px));box-shadow:0 14px 34px rgba(27,27,31,.14)}
+.connect-h{margin:0 0 10px;font-family:var(--font-head);font-weight:600;font-size:17px}
+.connect-item{display:grid;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.connect-item strong{font-family:var(--font-head);font-size:16px}
+.connect-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.connect-alt{font-size:14px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.connect-item code{overflow-wrap:anywhere}
+.connect-foot{margin:8px 0 0;color:var(--muted)}
+@media (min-width:760px){.connect-pop .connect-panel{position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:30}}
+.connect-inline{display:block;margin-top:8px}
+.connect-inline .connect-panel{width:auto;box-shadow:none;margin-top:8px;padding:10px 12px 8px}
+.connect-inline .connect-h{font-size:15px;margin-bottom:6px}
+.connect-inline .connect-item strong{font-size:14.5px}
+@media (prefers-reduced-motion:reduce){.connect-caret::before{transition:none}}
 /* n68: the logo in the middle of the hub, in the same frame; the mark alone on a narrow screen */
 .c-hub-logo{display:inline-flex;align-items:center;gap:7px;padding:5px 14px 5px 9px;line-height:1}
 .c-hub-logo .logo-mark{width:26px;height:26px;flex:none}

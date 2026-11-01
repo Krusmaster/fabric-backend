@@ -84,7 +84,12 @@ def test_the_theme_button_switches_and_the_choice_survives_a_reload(report):
 def test_the_home_buttons_and_a_visible_focus_ring(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        assert f[f"homeCtas@{v}"][:2] == ["/check", "/start"], v
+        assert f[f"homeCtas@{v}"][0] == "/check", v                      # n68: the Connect chooser follows it (a <details>, not a link)
+        for where in (".hero-ctas", ".hub-src"):
+            c = f[f"connect@{v}"][where]
+            assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
+            assert c["links"] == ["https://claude.ai/settings/connectors", "/start"] and c["copies"] == ["https://krusgraph.test/mcp"], (v, where, c)   # this server: no client registration
+            assert c["afterEscape"] == {"open": False, "focus": True}, (v, where, c)
     assert f["ctaFocusOutline"] not in ("none", "")
 
 
@@ -168,10 +173,11 @@ def first_visit(site):
 def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
     """n52: on 29 October 2026 the start page's first button sat at y 1069 (1280 x 800) and 1411 (375 x 812). Now
     "Check your files – no account" and "Connect to Claude" come right after the lede, before the replayed session,
-    and both are wholly on the first screen at both sizes, light and dark, with and without reduced motion."""
+    and both are wholly on the first screen at both sizes, light and dark, with and without reduced motion. n68: the
+    second is the Connect chooser's button (one click per client; /start is the long guide, linked from the chooser)."""
     for v, ctas in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("hero@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), ("/start", "Connect to Claude")], v
+        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), (None, "Connect")], v
         assert all(c["bottom"] <= height for c in ctas), (v, ctas)
 
 

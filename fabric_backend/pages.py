@@ -148,13 +148,66 @@ def _connect_tested() -> str:
     return connect_sentence()
 
 
+# n68: one click per client. The deep links follow the clients' documented install links: VS Code's
+# `vscode:mcp/install?<url-encoded JSON {name,type,url}>` (and `vscode-insiders:` for Insiders), Cursor's
+# `cursor://anysphere.cursor-deeplink/mcp/install?name=<name>&config=<base64 JSON {url}>`; Claude and Lovable take the
+# address pasted in their own settings. Formats as written in the VS Code docs (Copilot: MCP servers, "URL handler") and
+# the Cursor docs (MCP: install links); they could not be re-read from this build (the docs hosts are not reachable from
+# it), so a check against those pages is part of the first live try. The clients that register themselves are offered
+# only when client registration is on (/mcp/connect exists then) and, for VS Code and Cursor, once tool_status records
+# them as signed in there (the hub's rule); Claude always.
+def connect_links() -> dict[str, str]:
+    import base64
+    import json
+    from urllib.parse import quote
+    v = _vars()
+    install = lambda scheme: scheme + ":mcp/install?" + quote(json.dumps({"name": v["PRODUCT"], "type": "http", "url": v["CONNECT_URL"]}, separators=(",", ":")), safe="")
+    return {"vscode": install("vscode"), "vscode_insiders": install("vscode-insiders"),
+            "cursor": "cursor://anysphere.cursor-deeplink/mcp/install?name=" + quote(v["PRODUCT"], safe="") + "&config="
+                      + base64.b64encode(json.dumps({"url": v["CONNECT_URL"]}, separators=(",", ":")).encode()).decode(),
+            "claude": "https://claude.ai/settings/connectors"}
+
+
+def connect_menu_html(where: str) -> str:
+    """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page) or "inline" (the hub's
+    "Your data in Fabric" card: the panel opens in place). A <details>, so it works without JavaScript; the copy buttons
+    need it (site.js)."""
+    v = _vars()
+    e = lambda x: html.escape(x, quote=True)
+    p, links = e(v["PRODUCT"]), connect_links()
+    mcp, connect = e(v["MCP_URL"]), e(v["CONNECT_URL"])
+    from .tool_status import clients_working
+    reg = _registration_on()
+    working = clients_working(reg)                 # VS Code and Cursor only once the hosted service has signed them in, as in the hub
+    items = []
+    if "VS Code" in working:
+        items.append(f'<div class="connect-item"><strong>VS Code</strong><span class="connect-row"><a class="btn primary small" href="{e(links["vscode"])}">Add to VS Code</a><a class="connect-alt" href="{e(links["vscode_insiders"])}">Insiders</a></span>'
+                     f'<span class="muted tiny">Opens VS Code, which asks before it adds the server at <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
+    if "Cursor" in working:
+        items.append(f'<div class="connect-item"><strong>Cursor</strong><span class="connect-row"><a class="btn primary small" href="{e(links["cursor"])}">Add to Cursor</a></span>'
+                     f'<span class="muted tiny">Opens Cursor’s install dialog for <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
+    items.append(f'<div class="connect-item"><strong>Claude</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button><a class="btn primary small" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a></span>'
+                 f'<span class="muted tiny"><code>{mcp}</code> · Settings → Connectors → Add custom connector, paste the URL and sign in with Microsoft.</span></div>')
+    if reg:
+        items.append(f'<div class="connect-item"><strong>Lovable</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{connect}">Copy URL</button></span>'
+                     f'<span class="muted tiny"><code>{connect}</code><br>Connectors → Custom MCP, paste the URL.<br>Add &amp; authorize, then sign in with Microsoft.</span></div>')
+    kind = "secondary" if where == "pop" else "secondary small"
+    return (f'<details class="connect connect-{where}" data-connect>\n'
+            f'<summary class="btn {kind}">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
+            f'<div class="connect-panel" role="group" aria-label="Add {p} to your client">\n<p class="connect-h">Add {p} to</p>\n{"".join(items)}\n'
+            f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions. Step by step, with the admin consent: <a href="/start">the set-up guide</a>.</p>\n'
+            f'</div>\n</details>')
+
+
 def hub_html() -> str:
     """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
     builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
     Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "updates"
     for what has only been updated in place there, "draft" for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
     in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
-    the visual is hidden from screen readers, which get the same as one paragraph."""
+    the visual is hidden from screen readers, which get the same as one paragraph. n68: the middle node is the logo (the
+    mark and the wordmark; the mark alone under 720 px) in the same faint coral frame, and the "Your data in Fabric" card
+    carries the Connect chooser (connect_menu_html), the one part of the visual screen readers do get."""
     from . import tool_status as ts
     v = _vars()
     p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
@@ -185,13 +238,13 @@ def hub_html() -> str:
     makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
     return f"""<section class="wrap connects" aria-label="What {p} connects">
   <p class="visually-hidden">{said}</p>
-  <div class="hub" aria-hidden="true">
-    <div class="hub-group hub-src c-coral"><p class="hub-h">Your data in Fabric</p><ul>{sources}</ul></div>
-    <span class="hub-link hub-link-src"></span>
-    <div class="hub-group hub-build c-sage"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
-    <span class="hub-link hub-link-build"></span>
-    <div class="hub-mid"><span class="hub-node"><span class="c-hub c-hub-logo" role="img" aria-label="{p}">{_LOGO}<span class="c-hub-word">{low}</span></span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
-    <div class="hub-group hub-where c-mustard"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
+  <div class="hub">
+    <div class="hub-group hub-src c-coral"><p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">{sources}</ul>{connect_menu_html("inline")}</div>
+    <span class="hub-link hub-link-src" aria-hidden="true"></span>
+    <div class="hub-group hub-build c-sage" aria-hidden="true"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
+    <span class="hub-link hub-link-build" aria-hidden="true"></span>
+    <div class="hub-mid" aria-hidden="true"><span class="hub-node"><span class="c-hub c-hub-logo" role="img" aria-label="{p}">{_LOGO}<span class="c-hub-word">{low}</span></span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
+    <div class="hub-group hub-where c-mustard" aria-hidden="true"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
   <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
 </section>"""
@@ -588,7 +641,7 @@ def build_html() -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub and the before/after example."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html()}
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
