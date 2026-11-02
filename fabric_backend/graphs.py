@@ -286,7 +286,7 @@ def ambiguity(plan: Plan, es: list[dict], active: list[dict], inactive: list[dic
     for e in inactive:
         path = _forest_path(active, e["source"], e["target"])
         cycle = path if path[-1] == e["source"] or path[0] == e["source"] else path + [e["source"]]
-        cycles.append({"tables": path, "closed_by": f"{e['source']}.{'+'.join(e['columns'])} -> {e['target']} ({e['rule']})"})
+        cycles.append({"tables": path, "closed_by": f"{e['source']}.{'+'.join(e['columns'])} -> {e['target']} ({plan.label(e['rule'])})"})
         for i in range(len(path)):
             for j in range(i + 1, len(path)):
                 pairs.add(tuple(sorted((path[i], path[j]))))

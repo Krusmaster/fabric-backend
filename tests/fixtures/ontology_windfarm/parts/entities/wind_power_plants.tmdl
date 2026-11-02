@@ -1,0 +1,70 @@
+/// A wind power plant (site) containing turbines and weather towers.
+entity wind_power_plants
+	lineageTag: 71ee9f34-58e2-49a1-8355-be595c108e67
+	backingTable: wind_power_plants
+	keyProperty: PlantId
+
+	/// Unique plant identifier.
+	property PlantId
+		dataType: string
+		lineageTag: c3c86746-adbf-4ea1-8515-85af37d90144
+
+		backingConfiguration
+			valueColumn: wind_power_plants.PlantId
+
+	/// Display name of the plant.
+	property PlantName
+		dataType: string
+		lineageTag: 684d9da6-3b51-4551-b71e-baf0eeccfbc6
+
+		backingConfiguration
+			valueColumn: wind_power_plants.PlantName
+
+	/// Type of the plant.
+	property Type
+		dataType: string
+		lineageTag: 0c534b17-db72-4c92-b025-6437cc37ad7f
+
+		backingConfiguration
+			valueColumn: wind_power_plants.Type
+
+	/// Capacity factor of the plant.
+	property CapacityFactor
+		dataType: double
+		lineageTag: 48a701fc-030c-49aa-b4db-8cacdc07ee6e
+
+		backingConfiguration
+			valueColumn: wind_power_plants.CapacityFactor
+
+	/// Location description of the plant.
+	property Location
+		dataType: string
+		lineageTag: 4ab04492-13e3-4792-963c-541e0bcb6b02
+
+		backingConfiguration
+			valueColumn: wind_power_plants.Location
+
+	/// Postal code of the plant location.
+	property ZipCode
+		dataType: int64
+		lineageTag: a555076c-743e-43d4-9cc7-b9774e4a7279
+
+		backingConfiguration
+			valueColumn: wind_power_plants.ZipCode
+
+	/// Latitude of the plant.
+	property Latitude
+		dataType: double
+		lineageTag: 85f1af47-9e73-4eff-8ab3-9cfad586a4bb
+
+		backingConfiguration
+			valueColumn: wind_power_plants.Latitude
+
+	/// Longitude of the plant.
+	property Longitude
+		dataType: double
+		lineageTag: 71348f94-f73e-4a92-8beb-7e9248991840
+
+		backingConfiguration
+			valueColumn: wind_power_plants.Longitude
+

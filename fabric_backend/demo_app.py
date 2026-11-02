@@ -121,7 +121,7 @@ def questions(p: Plan, analysis: dict, dialect: str, n: int = 5, execute=None) -
         if label and len(r.source_cols) == 1:
             on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
             add(f"count:{r.source}>{r.target}", f"How many {r.source} rows per {r.target}?",
-                f"{r.source}.{r.source_cols[0]} points at {r.target} (rule {r.rule}); {label} names each {r.target} row.",
+                f"{r.source}.{r.source_cols[0]} points at {r.target} (rule {p.label(r.rule)}); {label} names each {r.target} row.",
                 top(f"SELECT t.{qi(label)} AS {qi(label)}, COUNT(*) AS {qi('rows')}\nFROM {tn(r.source)} AS s\nJOIN {tn(r.target)} AS t ON {on}\nGROUP BY t.{qi(label)}\nORDER BY COUNT(*) DESC", ROW_CAP))
             break
     for r in rels:
@@ -130,7 +130,7 @@ def questions(p: Plan, analysis: dict, dialect: str, n: int = 5, execute=None) -
         if label and ms and len(r.source_cols) == 1:
             on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
             add(f"sum:{r.source}.{ms[0]}>{r.target}", f"Total {ms[0]} per {r.target}",
-                f"{ms[0]} is a number in {r.source} that is neither its key nor a reference; summed over the {r.rule} link to {r.target}.",
+                f"{ms[0]} is a number in {r.source} that is neither its key nor a reference; summed over the {p.label(r.rule)} link to {r.target}.",
                 top(f"SELECT t.{qi(label)} AS {qi(label)}, SUM(s.{qi(ms[0])}) AS {qi('total_' + ms[0])}\nFROM {tn(r.source)} AS s\nJOIN {tn(r.target)} AS t ON {on}\nGROUP BY t.{qi(label)}\nORDER BY SUM(s.{qi(ms[0])}) DESC", ROW_CAP))
             break
     none_tried, first_none = 0, None
@@ -215,6 +215,7 @@ class Session:
         self.confirmed: list[dict] = []
         self.keys: dict[str, list[str]] = {}
         self.skipped: list[str] = []
+        self.log: list[dict] = []                                 # n79: each accept and skip, with its time, for the evidence report
         self.started = time.time()
         self.step_entered: dict[int, float] = {1: self.started}
         self.current_step = 1
@@ -235,7 +236,7 @@ class Session:
         self.connect_error = None
         old = self.source
         self.source, self.confirmed, self.keys, self.skipped, self._cache = src, [], {}, [], None
-        self._validation = None
+        self._validation, self.log = None, []
         if old and old.close:
             try:
                 old.close()                                        # after the swap, so a request in flight sees the new source
@@ -268,6 +269,7 @@ class Session:
             raise ValueError("this finding has no accept action: it carries SQL to run yourself")
         if finding_id in self.skipped:
             self.skipped.remove(finding_id)
+        self._decided(f["title"], "accepted")
         self._cache = None
         return f
 
@@ -282,10 +284,16 @@ class Session:
                 self.keys.pop(t, None)
         if finding_id not in self.skipped:
             self.skipped.append(finding_id)
+        self._decided(f["title"] if f else finding_id, "skipped")
         self._cache = None
 
+    def _decided(self, what: str, decision: str) -> None:
+        """The decision with its time; the page asks for no name, so `by` stays unrecorded in the evidence report."""
+        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        self.log.append({"what": what, "decision": decision, "at": at, "note": "on the fabric-backend demo page"})
+
     def reset(self) -> None:
-        self.confirmed, self.keys, self.skipped, self._cache = [], {}, [], None
+        self.confirmed, self.keys, self.skipped, self._cache, self.log = [], {}, [], None, []
 
     # -- derived -----------------------------------------------------------------------------------------------------
     def findings(self, p: Plan, validation: dict | None, suggestions: dict | None) -> list[dict]:
@@ -299,7 +307,7 @@ class Session:
             cols = ", ".join(k["columns"])
             out.append({"id": f"key:{k['table']}", "kind": "key", "severity": "problem", "table": k["table"],
                         "title": f"Key of {k['table']} is not clean: {cols}",
-                        "saw": f"{k['rows']} rows, {k['distinct']} distinct values, {k['nulls']} NULLs (rule {k['rule']}).",
+                        "saw": f"{k['rows']} rows, {k['distinct']} distinct values, {k['nulls']} NULLs (rule {p.label(k['rule'])}).",
                         "means": "A GraphQL API, a semantic model or a join on this key would return the wrong row or several rows. The key the names suggest is not the key the data has.",
                         "next": {"sql": f"SELECT {', '.join(evidence.qi(c) for c in k['columns'])}, COUNT(*) AS n FROM {evidence.qi(schema)}.{evidence.qi(k['table'])} GROUP BY {', '.join(evidence.qi(c) for c in k['columns'])} HAVING COUNT(*) > 1"},
                         "next_text": "List the duplicated values with the SQL, then give the real key (a composite one, or another column) as `keys`.",
@@ -309,7 +317,7 @@ class Session:
                 continue
             out.append({"id": f"rel:{r['source']}.{'+'.join(r['columns'])}>{r['target']}", "kind": "relationship", "severity": "warning", "table": r["source"],
                         "title": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}: {r['orphans']} orphan(s)",
-                        "saw": f"{r['rows_with_value']} rows with a value, {r['orphans']} of them point at nothing in {r['target']} (rule {r['rule']}). {r['verdict']}.",
+                        "saw": f"{r['rows_with_value']} rows with a value, {r['orphans']} of them point at nothing in {r['target']} (rule {p.label(r['rule'])}). {r['verdict']}.",
                         "means": "Either the link is right and the data has gaps (deleted parents, loads out of order), or the column points at another table. Both are worth knowing before an app is built on it.",
                         "next": {"sql": f"SELECT s.* FROM {evidence.qi(schema)}.{evidence.qi(r['source'])} AS s LEFT JOIN {evidence.qi(schema)}.{evidence.qi(r['target'])} AS t ON " + " AND ".join(f"s.{evidence.qi(a)} = t.{evidence.qi(b)}" for a, b in zip(r['columns'], r['target_columns'])) + f" WHERE t.{evidence.qi(r['target_columns'][0])} IS NULL AND s.{evidence.qi(r['columns'][0])} IS NOT NULL"},
                         "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",
@@ -452,10 +460,14 @@ class Session:
         """name -> (content type, text)."""
         from .dbt import schema_yml
         from .dictionary import data_dictionary
+        from . import evidence_report
         src = self.source
+        rep = evidence_report.report(p, validation, decisions=self.log, source=src.label)
         name = {"sample": "shop", "folder": "data", "odbc": p.schema.schema, "columns": p.schema.schema}[src.kind]
         return {
             "dictionary.md": ("text/markdown; charset=utf-8", data_dictionary(p, src.label, p.schema.schema, validation)),
+            "evidence-report.md": ("text/markdown; charset=utf-8", evidence_report.markdown(rep)),        # n79: the pilot's hand-over
+            "evidence-report.json": ("application/json; charset=utf-8", evidence_report.to_json(rep)),
             "schema.yml": ("text/yaml; charset=utf-8", schema_yml(p, name, p.schema.schema)),
             "lovable-prompt.md": ("text/markdown; charset=utf-8", lovable_prompt(p, qs, src)),
             "plan.json": ("application/json; charset=utf-8", json.dumps(_plan_json(p, src, {"confirmed": self.confirmed}), indent=1)),

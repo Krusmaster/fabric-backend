@@ -33,6 +33,20 @@ const { chromium } = require("playwright");
   await page.keyboard.press("Enter");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-run");
+  // n79: the evidence report beside the build buttons, saved from a Blob like the contract
+  out.evidence = await page.evaluate(() => { const a = document.querySelector("#check-evidence a"); return a ? { text: a.textContent, download: a.getAttribute("download"), hidden: document.getElementById("check-evidence").hidden } : null; });
+  // n80: the RDF/XML for Ontology Playground, the second download there; its first bytes read from the Blob it saves
+  out.rdfxml = await page.evaluate(async () => {
+    const a = document.querySelectorAll("#check-evidence a")[1];
+    if (!a) return null;
+    let head = null;
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = (b) => { head = b; return orig.call(URL, b); };
+    a.addEventListener("click", (e) => e.preventDefault(), { once: true });
+    a.click();
+    URL.createObjectURL = orig;
+    return { text: a.textContent, download: a.getAttribute("download"), head: head ? (await head.text()).slice(0, 60) : null };
+  });
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
   // n73: the finding first. At 1280 x 720 the state line, the most important finding and the folded list stand right
   // under the status line and before the map, on the screen without scrolling; the engine's steps are a closed
@@ -161,6 +175,25 @@ const { chromium } = require("playwright");
     await until(() => !!document.documentElement.dataset.checkMs);
     out.industries[k] = { url: page.url().replace(base, ""), status: await page.textContent("#check-status"), guide: await page.evaluate(() => document.getElementById("check-guide").hidden) };
   }
+  // n78: the fourth example, Subscription billing (Younium + Salesforce), at 375 and 1280 px: four buttons without
+  // sideways scrolling, each inside the viewport, and the run done with the pack's relationships
+  out.billing = {};
+  for (const w of [375, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(base + "/check");
+    out.billing[w] = await page.evaluate(() => {
+      const bs = [...document.querySelectorAll(".check-examples .check-ex")];
+      return { ids: bs.map((b) => b.id), overflow: document.documentElement.scrollWidth > innerWidth, label: (document.getElementById("check-billing") || {}).textContent,
+               inside: bs.every((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; }) };
+    });
+    await page.click("#check-billing");
+    await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
+    out.billing[w].status = await page.textContent("#check-status");
+    out.billing[w].text = await page.textContent("#check-run");
+    out.billing[w].ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
+    out.billing[w].overflowAfter = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   // plain /check starts nothing by itself
   await page.goto(base + "/check");
   await page.waitForTimeout(500);

@@ -1,0 +1,15 @@
+rule SpeedLimit
+	statement: A turbine's instantaneous power output must not exceed its rated capacity.
+	lineageTag: 8f1c0e2a-1b2c-4d3e-9f8a-0a1b2c3d4e5f
+
+	ruleReferencedEntity wind_turbines
+		propertyScope: specific
+
+		ruleReferencedProperty Capacity
+
+		ruleReferencedProperty Power
+
+	ruleReferencedEntity wind_maintenance_requests
+
+	ruleReferencedRelationship 'Maintenance For Turbine'
+

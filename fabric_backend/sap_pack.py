@@ -12,6 +12,8 @@ pipeline's table list (exports.py). Nothing here connects to anything.
     problems(pack)                 -> what is inconsistent in it (the test runs this on every file)
     match(schema, "sap")           -> which tables of a schema the pack knows, their keys and the relationships it can
                                       apply, with what is missing; None when fewer than two tables match
+    match_any(schema)              -> the pack that recognises most tables, of those with a table of their own among
+                                      them (what the engine, infer._pack, reads)
 
 A table matches on its name without case, schema or a leading `sap_`/`raw_`/`stg_`/`bronze_` word (`VBAK`, `vbak`,
 `sap_vbak`, `bronze.SAP_VBAK`), and only when its key columns are there. When an extract has dropped the client
@@ -264,21 +266,35 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
 
 def match_any(schema, variant: str | None = None) -> Match | None:
     """The pack that recognises most of a schema's tables (sap, younium_salesforce, ...), or None when none recognises
-    two. Ties go to the pack named first in alphabetical order. The engine (infer._pack) calls match(schema) today, which
-    is the SAP pack alone; this is the one call it would make to read every pack (round n72, proposed)."""
+    two. Ties go to the pack named first in alphabetical order. The engine (infer._pack) calls this since round n78.
+
+    A pack counts only when at least one table it recognises has a name of the system's own: a pack table marked
+    `common_name` (ACCOUNTS, PRODUCTS, INVOICES, PAYMENTS, Salesforce's Account, Contact, Opportunity) is an ordinary word
+    another schema's table can carry with an `id` key, so tables of that kind alone never make a schema Younium or
+    Salesforce. Every SAP table name is SAP's own (none is marked), so a schema the SAP pack recognises is read as before.
+    match(schema, pack) asked for by name is not filtered."""
     best = None
     for name in available():
         m = match(schema, name, variant if name == "sap" else None)
-        if m is not None and (best is None or len(m.tables) > len(best.tables)):
+        if m is None or not distinctive(m):
+            continue
+        if best is None or len(m.tables) > len(best.tables):
             best = m
     return best
 
 
+def distinctive(m: Match) -> list[str]:
+    """The pack tables of a match whose names are the system's own (not marked common_name), sorted."""
+    tables = load(m.pack)["tables"]
+    return sorted(n for n in set(m.tables.values()) if not tables[n].get("common_name"))
+
+
 def plan_with(schema, pack: str, **kwargs):
     """infer.plan over the schema with a pack's keys and plain key relationships given as the caller's keys and
-    confirmed relationships: what the engine would plan once it reads the pack itself (match_any), without changing
-    the engine. The rules in the plan then read K1 and confirmed, not the pack's rule; relationships of kind unique or
-    valid_on and filtered ones are not passed (they would be plan.extended). Returns (plan, match)."""
+    confirmed relationships, for a pack named by the caller (the engine itself reads the pack through match_any since
+    round n78; this stays for comparing, and for a schema match_any would not take). The rules in the plan then read K1
+    and confirmed, not the pack's rule; relationships of kind unique or valid_on and filtered ones are not passed (they
+    would be plan.extended). Returns (plan, match)."""
     from .infer import plan
     m = match(schema, pack)
     if m is None:

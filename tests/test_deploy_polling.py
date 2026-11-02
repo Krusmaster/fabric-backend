@@ -60,7 +60,8 @@ def test_lost_sign_in_while_polling_is_reported_not_waited_out(monkeypatch):
 
 def test_operation_that_never_finishes_is_a_timeout(monkeypatch):
     result, n = run(monkeypatch, [Resp(200, {"status": "Running"})] * 5)
-    assert result == {"status": "Timeout", "mode": "created", "operation": "op-1"} and n == 5
+    assert result == {"status": "Timeout", "mode": "created", "operation": "op-1", "note": dep.WAIT_STOPPED.format(op="op-1")} and n == 5
+    assert "may still finish" in result["note"]                     # stopping the wait did not stop the operation (n81)
 
 
 def test_failed_operation_and_refused_create_keep_fabrics_answer(monkeypatch):

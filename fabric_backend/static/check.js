@@ -57,7 +57,7 @@
     return r;
   });
 
-  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", columns: "the list of columns" };
+  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", billing: "the example “Subscription billing”", columns: "the list of columns" };
 
   async function start(kind, files, text) {
     if (busy) return;
@@ -98,6 +98,7 @@
       draw(r.result);
       if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
+      evidence(r.result);
       ping("done");
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
@@ -137,6 +138,7 @@
   const choices = { model: $("check-build-model"), app: $("check-build-app") };
   function resetBuild() {
     $("check-build-head").hidden = true; $("check-build").hidden = true; $("check-build-next").hidden = true; $("check-build-status").textContent = "";
+    $("check-evidence").hidden = true; $("check-evidence").replaceChildren();
     for (const k in panels) { panels[k].hidden = true; panels[k].replaceChildren(); choices[k].setAttribute("aria-expanded", "false"); }
   }
   async function openBuild(which) {
@@ -245,8 +247,8 @@
     }
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
     kids.push(el("h3", null, "The app's starter code"),
-      el("p", null, "Rayfin connector entities with the plan's keys and relationships, and a Lovable prompt, GraphQL queries and a Supabase edge function for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet", b.status.app_starter)));
+      el("p", null, "Rayfin connector entities with the plan's keys and relationships, and an app starter for Lovable: a prompt, GraphQL queries and the server function that keeps the secrets out of the browser, for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter for Lovable and Rayfin connector entities from the same plan; the API itself does not exist yet", b.status.app_starter)));
     panels.app.replaceChildren(...kids);
   }
 
@@ -417,13 +419,29 @@
       (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
     box.hidden = false;
   }
-  function saveText(name, text, label, status) {     // the contract is written here; a Blob saves it, nothing is fetched
+  function saveText(name, text, label, status, type) {   // written here; a Blob saves it, nothing is fetched
     const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
     a.addEventListener("click", () => {
-      const url = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      const url = URL.createObjectURL(new Blob([text], { type: type || "application/yaml" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
     });
     return a;
+  }
+
+  // n79: the evidence report for a pilot's hand-over, written by the worker from the plan and validate_plan's counts
+  function evidence(r) {
+    const e = r.evidence_report, box = $("check-evidence");
+    box.replaceChildren();
+    if (!e || !r.tables.length) { box.hidden = true; return; }
+    box.append(saveText(e.name, e.markdown, "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
+      + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions; no row values", e.status, "text/markdown"));
+    // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
+    // there with a file import (there is no link that opens it there); n82: Gustav's try there, from tool_status
+    const o = r.ontology_rdfxml;
+    if (o) box.append(saveText(o.name, o.xml, "ontology for Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
+      + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. "
+      + "Open it in Ontology Playground with Import / Export, as a file import" + (o.tried ? ". " + o.tried : ""), o.status, "application/rdf+xml"));
+    box.hidden = false;
   }
 
   // ------------------------------------------------------------------ n53: Ask Onto
@@ -510,7 +528,7 @@
   // n55: /check?example=sample starts that example at once (the start page's "Try the guided demo", the industry
   // examples on /use-cases); &guide=1 adds Onto's four steps over the same run. /demo and /explore redirect here.
   const query = new URLSearchParams(location.search);
-  if (["sample", "sap", "crm"].includes(query.get("example"))) {
+  if (["sample", "sap", "crm", "billing"].includes(query.get("example"))) {
     guided = query.get("guide") === "1";
     if (guided) $("check-guide").hidden = false;
     start(query.get("example"));

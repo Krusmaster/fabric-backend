@@ -1,0 +1,34 @@
+model Model
+
+ref table wind_maintenance_requests
+ref table wind_maintenance_staff
+ref table wind_power_plants
+ref table wind_status_codes
+ref table wind_turbine_blade
+ref table wind_turbine_gearbox
+ref table wind_turbine_generator
+ref table wind_turbine_nacelle
+ref table wind_turbine_rotor
+ref table wind_turbine_telemetry_augmented_Mar2025
+ref table wind_turbines
+ref table wind_turbines2
+ref table wind_weather_tower_telemetry_augmented_Mar2025
+ref table wind_weather_towers
+
+ref entity mynamespace#wind_turbines2
+ref entity wind_maintenance_requests
+ref entity wind_maintenance_staff
+ref entity wind_power_plants
+ref entity wind_status_codes
+ref entity wind_turbine_blade
+ref entity wind_turbine_gearbox
+ref entity wind_turbine_generator
+ref entity wind_turbine_nacelle
+ref entity wind_turbine_rotor
+ref entity wind_turbines
+ref entity wind_weather_towers
+
+ref namespace default
+ref namespace mynamespace
+
+ref rule SpeedLimit

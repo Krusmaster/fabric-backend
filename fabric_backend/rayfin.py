@@ -107,13 +107,13 @@ def entity_ts(t: Table, plan: Plan, relationships: bool = True,
             if r.source == t.name and r.target in plan.keys:
                 tc = class_name(r.target)
                 fields = _fk_fields([prop_name(c) for c in r.source_cols], [prop_name(c) for c in r.target_cols])
-                rel_lines.append(f"  @one(() => {tc}, {fields}) {prop_name(r.field_name)}?: {tc};    // {'+'.join(r.source_cols)} -> {r.target} [{r.rule}]")
+                rel_lines.append(f"  @one(() => {tc}, {fields}) {prop_name(r.field_name)}?: {tc};    // {'+'.join(r.source_cols)} -> {r.target} [{plan.label(r.rule)}]")
                 decos_used.add("one")
                 imports.append(tc)
             elif r.target == t.name:
                 sc = class_name(r.source)
                 fields = _fk_fields([prop_name(c) for c in r.target_cols], [prop_name(c) for c in r.source_cols])
-                rel_lines.append(f"  @many(() => {sc}, {fields}) {prop_name(r.reverse_name)}?: {sc}[];    // {r.source}.{'+'.join(r.source_cols)} [{r.rule}]")
+                rel_lines.append(f"  @many(() => {sc}, {fields}) {prop_name(r.reverse_name)}?: {sc}[];    // {r.source}.{'+'.join(r.source_cols)} [{plan.label(r.rule)}]")
                 decos_used.add("many")
                 imports.append(sc)
     if role:
@@ -132,7 +132,7 @@ def entity_ts(t: Table, plan: Plan, relationships: bool = True,
     if keys:
         kcols, rule = keys
         src += ", primaryKey: [" + ", ".join(f"'{prop_name(k)}'" for k in kcols) + "]"
-        out.append(f"// key {'+'.join(kcols)} by rule {rule}" + ("  (by name — remove primaryKey if that is wrong)" if rule == "K2" else ""))
+        out.append(f"// key {'+'.join(kcols)} by rule {plan.label(rule)}" + ("  (by name — remove primaryKey if that is wrong)" if rule == "K2" else ""))
     else:
         out.append("// no key (rule K3): query only, no key-addressed operations")
     out.append(f"export class {cls} extends Source({{ {src} }}) {{")

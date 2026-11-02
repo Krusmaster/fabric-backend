@@ -1,0 +1,51 @@
+table wind_power_plants
+	lineageTag: e5618891-6941-4fe6-a163-71a94ca9cf90
+
+	column PlantId
+		dataType: string
+		lineageTag: b44f13a3-1bff-4f5d-b9d0-c197f1751869
+		sourceColumn: PlantId
+
+	column PlantName
+		dataType: string
+		lineageTag: 7426165b-3697-4802-a616-a7f0c3d62c6b
+		sourceColumn: PlantName
+
+	column Type
+		dataType: string
+		lineageTag: 24aeff25-1acd-46d7-bad9-424156b4824c
+		sourceColumn: Type
+
+	column CapacityFactor
+		dataType: double
+		lineageTag: 7958efda-d3aa-4518-b583-256e07f2a130
+		sourceColumn: CapacityFactor
+
+	column Location
+		dataType: string
+		lineageTag: 9265aa33-ab7f-4c61-be8d-d09633548e9a
+		sourceColumn: Location
+
+	column ZipCode
+		dataType: int64
+		formatString: 0
+		lineageTag: 997acfd2-ad08-4418-b83d-51607ad62792
+		sourceColumn: ZipCode
+
+	column Latitude
+		dataType: double
+		lineageTag: 95e190a6-8d6b-45c8-bdeb-bf86edffc4c3
+		sourceColumn: Latitude
+
+	column Longitude
+		dataType: double
+		lineageTag: 4883bf7c-721c-407d-865d-47f899c53285
+		sourceColumn: Longitude
+
+	partition wind_power_plants = entity
+		mode: directLake
+		source
+			entityName: wind_power_plants
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

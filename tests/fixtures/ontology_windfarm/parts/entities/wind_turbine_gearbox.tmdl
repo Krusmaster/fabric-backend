@@ -1,0 +1,54 @@
+/// A gearbox component installed on a wind turbine.
+entity wind_turbine_gearbox
+	lineageTag: b9eabb43-81ed-436c-a6ac-62f95a224069
+	backingTable: wind_turbine_gearbox
+	keyProperty: ComponentId
+
+	/// Identifier of the parent turbine.
+	property TurbineId
+		dataType: string
+		lineageTag: 12c79fef-04be-477a-afaa-6c60818a8fd1
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.TurbineId
+
+	/// Unique component identifier.
+	property ComponentId
+		dataType: string
+		lineageTag: b94433e5-49e6-4b82-847e-d62b7f5fcbbe
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.ComponentId
+
+	/// Component name (source column spelling preserved).
+	property ComponentNane
+		dataType: string
+		lineageTag: 097fd3d9-339d-4038-afb4-d57e56c448af
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.ComponentNane
+
+	/// Additional component details.
+	property ComponentDetails
+		dataType: string
+		lineageTag: 7a2fbd4c-1f55-46b0-bcfe-c31f9360d22d
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.ComponentDetails
+
+	/// Component serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: 33dd7165-e676-473b-9558-2ef1f6552080
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.SerialNumber
+
+	/// Manufacturer of the component.
+	property Manufacturer
+		dataType: string
+		lineageTag: ac06200a-0ab9-472b-9c0a-1d84342204a3
+
+		backingConfiguration
+			valueColumn: wind_turbine_gearbox.Manufacturer
+

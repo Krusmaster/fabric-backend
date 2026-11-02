@@ -6,3 +6,6 @@
    the pointer) cannot land on Allow. */
 .oauth .ctas button { animation: oauth-arm 1s step-end both; }
 @keyframes oauth-arm { from { pointer-events: none; opacity: .55; } to { pointer-events: auto; opacity: 1; } }
+/* n80: the note for the admin after a sign-in stopped for want of admin consent: plain text to select and copy */
+.oauth .oauth-note { width: 100%; box-sizing: border-box; font: inherit; font-size: .95rem; line-height: 1.45; padding: .75rem;
+  border: 1.5px solid var(--line-strong); border-radius: 10px; background: var(--card); color: var(--ink); resize: vertical; }

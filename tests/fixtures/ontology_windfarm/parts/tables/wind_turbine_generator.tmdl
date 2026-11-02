@@ -1,0 +1,40 @@
+table wind_turbine_generator
+	lineageTag: 431a3040-e282-4542-930f-98ad017e1d6b
+
+	column TurbineId
+		dataType: string
+		lineageTag: 7f6a49c7-f149-4632-ba1c-21973aa00c75
+		sourceColumn: TurbineId
+
+	column ComponentId
+		dataType: string
+		lineageTag: 3cb75e38-db89-45db-8165-2d464dc58696
+		sourceColumn: ComponentId
+
+	column ComponentNane
+		dataType: string
+		lineageTag: 8ae36ef6-2963-476f-9d4a-da0ac273935b
+		sourceColumn: ComponentNane
+
+	column ComponentDetails
+		dataType: string
+		lineageTag: 904f3f0e-dc33-48a8-a4ce-65120fcc675c
+		sourceColumn: ComponentDetails
+
+	column SerialNumber
+		dataType: string
+		lineageTag: d8191a01-3a7c-4b23-9bda-5d87a038e723
+		sourceColumn: SerialNumber
+
+	column Manufacturer
+		dataType: string
+		lineageTag: e284216c-21b2-4a5d-8c79-47dbee6d1fb7
+		sourceColumn: Manufacturer
+
+	partition wind_turbine_generator = entity
+		mode: directLake
+		source
+			entityName: wind_turbine_generator
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

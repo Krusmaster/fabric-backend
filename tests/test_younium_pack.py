@@ -1,8 +1,10 @@
 """Round n72: the younium_salesforce pack (fabric_backend/packs/younium_salesforce/) and its synthetic demo
 (fabric_backend/younium_demo.py). The pack's files are valid and consistent (tests/test_sap_pack.py checks every pack
 file against the schema), every claim names a source and says it is unverified, the loader reads the demo's tables with
-their system prefixes and camelCase or snake_case columns, and the planted traps are found. The engine does not read
-this pack yet (infer._pack calls sap_pack.match, the SAP pack alone); sap_pack.plan_with stands in for that here."""
+their system prefixes and camelCase or snake_case columns, and the planted traps are found. Since round n78 the engine
+reads the pack itself (infer._pack calls sap_pack.match_any); the tests at the end say that it does, that the plans of the
+other benchmark sets are the ones the SAP-only engine made, and that a few tables with the pack's ordinary names do not
+light it. The fixture `run` still plans through sap_pack.plan_with, the caller-side stand-in of round n72."""
 from __future__ import annotations
 
 import json
@@ -192,8 +194,11 @@ def test_domain_draft_names_the_domains_after_the_pack_areas(run):
     assert by["customers and sales"] == ["sf_account", "sf_contact", "sf_opportunity", "sf_opportunitylineitem"]
     assert out["unassigned"] == [] and any(i["source"] == "younium_accounts" and i["target"] == "sf_account" for i in out["interfaces"])
     assert all("knowledge pack's areas" in d["name_reason"] for d in out["domains"])
-    # without the areas the names fall back to the prefixes the tables share
-    assert {d["name"] for d in domains.propose_plan(p, validation)["domains"]} == {"younium", "younium 2", "sf_account"}
+    # since round n78 a plan carries plan.pack, so the proposal reads the areas from it unasked
+    assert {d["name"] for d in domains.propose_plan(p, validation)["domains"]} == set(by)
+    # without the pack in the plan the names fall back to the prefixes the tables share
+    bare, _ = sap_pack.plan_with(schema, "younium_salesforce", packs=False)
+    assert bare.pack is None and {d["name"] for d in domains.propose_plan(bare, validation)["domains"]} == {"younium", "younium 2", "sf_account"}
 
 
 def test_shop_and_sap_proposals_are_unchanged_by_the_areas():
@@ -227,3 +232,114 @@ def test_the_doc_names_the_sources_the_date_and_what_is_unverified():
                    "fabric_backend/younium_demo.py", "match_any"):
         assert needle in md, needle
     assert re.search(r"^## .*[Qq]uestions", md, re.M)
+
+
+# ---------------------------------------------------------------- the engine reads the pack (round n78)
+
+def _rels(p) -> set:
+    return {(r.source, tuple(r.source_cols), r.target, tuple(r.target_cols), r.rule) for r in p.relationships}
+
+
+def test_the_engine_plans_the_demo_with_the_pack(run):
+    schema, execute, via_caller, _, _ = run
+    p = plan(schema)
+    assert p.pack["pack"] == "younium_salesforce" and p.pack["rule"] == "SAP pack" and len(p.pack["tables"]) == 14
+    assert {t["id"] for t in p.pack["traps"]} >= {"salesforce_id_length", "sf_rollup_amounts", "amounts_on_lines", "subscription_versions"}
+    assert {(a["table"], a["column"]) for a in p.pack["amounts"]} >= {("younium_invoices", "TOTAL_AMOUNT"), ("sf_opportunity", "AMOUNT")}
+    # the same fifteen joins plan_with gave as the caller's, now with the pack's rule and its source on the note
+    assert {r[:4] for r in _rels(p)} == {r[:4] for r in _rels(via_caller)} and len(p.relationships) == 15
+    assert {r.rule for r in p.relationships} == {"SAP pack"} and all(r.note.startswith("younium_salesforce pack (") for r in p.relationships)
+    assert p.keys["younium_accounts"] == (["id"], "SAP pack") and p.keys["sf_account"] == (["Id"], "SAP pack")
+
+
+def test_validate_plan_shows_the_three_planted_traps_on_the_engine_plan(run):
+    schema, execute, *_ = run
+    v = evidence.validate(plan(schema), execute, max_items=200)
+    orphans = {(r["source"], tuple(r["columns"]), r["target"]): r["orphans"] for r in v["relationships"] if r.get("orphans")}
+    assert orphans == {("younium_accounts", ("external_crm_id",), "sf_account"): 1}         # the 15-character Salesforce id
+    doubled = {(f["header"], f["line"]) for f in v["amount_levels"]["findings"]
+               if isinstance(f["rows_per_header"], dict) and f["rows_per_header"]["max_lines"] > 1}
+    assert {("younium_invoices", "younium_invoice_lines"), ("sf_opportunity", "sf_opportunitylineitem")} <= doubled
+
+
+def _old_engine_plan(schema, monkeypatch, **kw):
+    """The plan as the engine made it before round n78, when infer._pack read the SAP pack alone (sap_pack.match)."""
+    with monkeypatch.context() as mp:
+        mp.setattr(sap_pack, "match_any", lambda s, variant=None: sap_pack.match(s))
+        return plan(schema, **kw)
+
+
+def _same(a, b):
+    assert a.keys == b.keys and _rels(a) == _rels(b) and [r.note for r in a.relationships] == [r.note for r in b.relationships]
+    assert a.pack == b.pack and a.ambiguous == b.ambiguous and a.keyless == b.keyless and len(a.extended) == len(b.extended)
+
+
+@pytest.mark.parametrize("name", ["shop", "sap", "crm", "traps"])
+def test_the_other_benchmark_sets_plan_as_before(name, monkeypatch):
+    import sys
+    sys.path.insert(0, str(ROOT / "examples" / "benchmark"))
+    import benchmark
+    src = benchmark.source(name)
+    try:
+        _same(plan(src.schema, execute=src.execute), _old_engine_plan(src.schema, monkeypatch, execute=src.execute))
+        assert (plan(src.schema).pack or {}).get("pack") == ("sap" if name == "sap" else None)
+    finally:
+        if getattr(src, "close", None):
+            src.close()
+
+
+def test_the_shop_and_sap_plans_are_the_ones_before(monkeypatch):
+    from tests import sap_support
+    for schema in [seed.schema("shop"), sap_support.schema(), sap_support.schema(style="prefix")]:
+        _same(plan(schema), _old_engine_plan(schema, monkeypatch))
+    assert plan(seed.schema("shop")).pack is None and plan(sap_support.schema()).pack["pack"] == "sap"
+
+
+def test_salesforce_objects_alone_do_not_light_the_pack():
+    """The crm set: Account, Contact and Opportunity are tables the pack knows, but every one is marked common_name."""
+    t = bc.crm_tables()
+    rows = [("crm", n, c, "nvarchar", i) for n, (cols, _) in t.items() for i, c in enumerate(cols, 1)]
+    schema = Schema.from_information_schema(rows, schema="crm")
+    assert set(sap_pack.match(schema, "younium_salesforce").tables.values()) == {"ACCOUNT", "CONTACT", "OPPORTUNITY"}
+    assert sap_pack.distinctive(sap_pack.match(schema, "younium_salesforce")) == []
+    assert sap_pack.match_any(schema) is None and plan(schema).pack is None
+
+
+def _generic(extra: dict | None = None) -> Schema:
+    """An ordinary billing schema of another system whose table names happen to be the pack's (accounts, products,
+    invoices, invoice_lines, payments, subscriptions, a Contact), each keyed by id."""
+    tables = {"accounts": ["id", "name", "country"], "products": ["id", "name", "price"],
+              "invoices": ["id", "account_id", "invoice_date", "total_amount"],
+              "invoice_lines": ["id", "invoice_id", "product_id", "amount"], "payments": ["id", "invoice_id", "account_id", "amount"],
+              "subscriptions": ["id", "account_id", "start_date"], "Contact": ["Id", "AccountId", "Email"], **(extra or {})}
+    rows = [("app", n, c, "int" if c == "id" or c.endswith("_id") else "nvarchar", i) for n, cols in tables.items() for i, c in enumerate(cols, 1)]
+    return Schema.from_information_schema(rows, schema="app")
+
+
+def test_a_few_tables_with_the_packs_ordinary_names_do_not_light_it():
+    schema = _generic()
+    m = sap_pack.match(schema, "younium_salesforce")
+    assert m is not None and len(m.tables) == 7 and sap_pack.distinctive(m) == []     # asked for by name, the pack reads them
+    assert sap_pack.match_any(schema) is None
+    p = plan(schema)
+    assert p.pack is None and "SAP pack" not in {r.rule for r in p.relationships} | {rule for _, rule in p.keys.values()}
+    no_pack = plan(schema, packs=False)
+    assert p.keys == no_pack.keys and _rels(p) == _rels(no_pack)
+    for two in (["accounts", "invoices"], ["invoices", "invoice_lines"], ["Contact", "accounts"]):
+        sub = Schema.from_information_schema([r for r in [("app", t.name, c.name, c.data_type, i) for t in schema for i, c in enumerate(t.columns, 1)]
+                                              if r[1] in two], schema="app")
+        assert sap_pack.match_any(sub) is None and plan(sub).pack is None, two
+
+
+def test_one_table_of_the_systems_own_lights_it():
+    """The boundary: with subscription_versions beside them, a table no other system names so, the pack is read."""
+    schema = _generic({"subscription_versions": ["id", "subscription_id", "version", "effective_start_date", "effective_end_date"]})
+    assert sap_pack.match_any(schema).pack == "younium_salesforce" and sap_pack.distinctive(sap_pack.match_any(schema)) == ["SUBSCRIPTION_VERSIONS"]
+    assert plan(schema).pack["pack"] == "younium_salesforce"
+
+
+def test_only_ordinary_names_are_marked_and_no_sap_table_is():
+    marked = {n for n, t in sap_pack.load("younium_salesforce")["tables"].items() if t.get("common_name")}
+    assert marked == {"ACCOUNTS", "PRODUCTS", "CHARGES", "SUBSCRIPTIONS", "SALES_ORDERS", "INVOICES", "INVOICE_LINES", "PAYMENTS",
+                      "ACCOUNT", "CONTACT", "OPPORTUNITY", "ORDER", "ORDERITEM", "CONTRACT"}
+    assert not any(t.get("common_name") for t in sap_pack.load("sap")["tables"].values())
