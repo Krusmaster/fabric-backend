@@ -52,9 +52,14 @@ DATES = ("date", "datetime", "datetime2", "timestamp", "smalldatetime", "datetim
 # column. A marker that cannot be tied to either is said under not_understood and no query is given.
 NEGATE = ("without", "with no", "no", "missing", "lacking", "lack", "lacks", "never", "not have", "do not have", "does not have",
           "don't have", "doesn't have", "did not", "didn't", "saknar", "saknas", "utan", "inte har", "har inte", "inte lagt",
-          "aldrig", "ingen", "inga", "inget")
+          "aldrig", "ingen", "inga", "inget",
+          # n88: the forms the live test of 2 November 2026 found missing, and their kin
+          "have not", "has not", "had not", "haven't", "hasn't", "hadn't", "do not", "does not", "don't", "doesn't",
+          "not placed", "not made", "not any", "not a single", "ej", "ej har", "har ej", "inte", "har aldrig", "aldrig har")
 _FILLER = {"a", "an", "any", "the", "single", "placed", "made", "have", "has", "had", "place", "make", "en", "ett", "någon", "några",
-           "nagon", "nagra", "har", "lagt", "gjort", "någon", "ens", "is", "are", "är", "som"}
+           "nagon", "nagra", "har", "lagt", "gjort", "någon", "ens", "is", "are", "är", "som", "got", "yet", "ever", "one", "even"}
+# n88: a negation word no marker took (a "not" before a verb, "n't" on a word not listed): never left out silently
+_NEGATION_WORD = re.compile(r"(?<![a-z0-9_åäö'])(?:not|never|inte|ej|aldrig)(?![a-z0-9_åäö'])|n't(?![a-z0-9_åäö])")
 # Where the T-SQL of a draft can run: no Krusgraph tool runs T-SQL (query_graphql runs GraphQL only).
 TSQL_RUNS_WHERE = ("No Krusgraph tool runs T-SQL. Run it in the Fabric portal's SQL query editor on the source's SQL analytics "
                    "endpoint (open the lakehouse or warehouse, then SQL analytics endpoint, New SQL query), or in SSMS, VS Code "
@@ -173,7 +178,7 @@ def _after(text: str, markers: tuple[str, ...]) -> list[list[str]]:
 
 def _negations(q: str, plan: Plan, tables: list[str], everything: list[str]) -> tuple[list[str], list[list[str]], list[str]]:
     """The tables and columns a negation marker applies to, and the markers that could not be tied to either."""
-    low, neg_tables, neg_cols, unread, spans = q.lower(), [], [], [], []
+    low, neg_tables, neg_cols, unread, spans = q.lower().replace("\u2019", "'"), [], [], [], []
     for m in sorted(NEGATE, key=len, reverse=True):                 # "with no" before "no", "do not have" before "not have"
         for hit in re.finditer(r"(?<![a-z0-9_åäö'])" + m.replace(" ", r"\s+") + r"(?![a-z0-9_åäö'])", low):
             if any(a <= hit.start() < b for a, b in spans):
@@ -199,6 +204,13 @@ def _negations(q: str, plan: Plan, tables: list[str], everything: list[str]) -> 
                 said = " ".join([m] + after[:3]).strip()
                 unread.append(f"'{said}': a negation that names no table or column of the plan, so it cannot be applied; "
                               "name the table that must have no rows (tables=) or the column that must be empty")
+    for hit in _NEGATION_WORD.finditer(low):                       # n88: what no marker took is said, never dropped
+        if not any(a <= hit.start() < b for a, b in spans):
+            said = " ".join(_words(low[max(0, hit.start() - 12):hit.end()])[-2:] + _words(low[hit.end():])[:3])
+            unread.append(f"'{said}': a negation the engine did not tie to a table or column, so no query is given (a "
+                          "query without it would answer the opposite); name the table that must have no rows, e.g. "
+                          "'customers without orders'")
+            spans.append((hit.start(), hit.end()))
     return neg_tables, neg_cols, unread
 
 
