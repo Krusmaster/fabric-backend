@@ -1149,6 +1149,7 @@ html[data-mascots=off] .check-ask-q{background:none;border:0;border-radius:0;pad
 .check-verdict{margin:4px 0 10px}
 .check-top{margin:0 0 8px}
 .two-paths{padding-top:8px}.two-paths h2{font-size:24px;margin:0 0 14px}.two-paths .card h3{font-size:20px}.two-paths .card .ctas{margin:10px 0 0}
+.assessment-answers li{margin:2px 0}
 .check-finding-link{font:inherit;font-weight:700;color:inherit;background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}
 .check-finding-link:hover,.check-finding-link[aria-pressed=true]{color:var(--coral-ink)}
 .check-all{margin:6px 0 18px}

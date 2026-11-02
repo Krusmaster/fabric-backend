@@ -47,7 +47,7 @@ PAGES = {
     "/support": ("support.html", "Get help with {{PRODUCT}}",
                  "How to get help with {{PRODUCT}}: email with the error, kind and hint from the tool's answer, report a bug or a plan that came out wrong on GitHub Issues, and the most common first errors.", "support"),
     "/partners": ("partners.html", "Try a pilot — {{PRODUCT}}",
-                  "Bring one schema and one question: a {{PRODUCT}} pilot reviews the relationships with you and builds one chosen result. Kruse Consulting AB; not affiliated with Microsoft.", "partners"),
+                  "Bring one number your team cannot agree on: a first assessment says what it would take, a {{PRODUCT}} pilot explains the number with the counts behind it and leaves a reviewed model. Kruse Consulting AB; not affiliated with Microsoft.", "partners"),
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
@@ -648,6 +648,16 @@ def build_html() -> str:
     return "".join(cards)
 
 
+def partners_vars() -> dict[str, str]:
+    """n75: the illustrative delivery on /partners repeats the synthetic order of the demo (seed.AMOUNT_DEMO), read from
+    the engine's own run of it: the order's amount, what a join over its lines counts it as, and how many lines it has."""
+    from .amounts import demo
+    from .demo_app import _amount
+    d = demo()
+    return {"DEMO_ORDER_AMOUNT": _amount(d["after"]), "DEMO_ORDER_DOUBLED": _amount(d["before"]),
+            "DEMO_ORDER_LINES": str(d["finding"]["rows_per_header"]["max_lines"])}
+
+
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub and the before/after example."""
     return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
@@ -686,7 +696,9 @@ def render(path: str) -> str:
         hv = _home_vars()
         body = re.sub(r"\{\{(HOME_\w+)\}\}", lambda m: hv.get(m.group(1), ""), body)
     if "{{DEMO_" in body:                                                  # the build cards on /use-cases/build (n55; their own page since n59)
-        dv = {"DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()}
+        dv = {"DEMO_BUILD": build_html(), "DEMO_PATH": build_path_html()} if "{{DEMO_BUILD" in body or "{{DEMO_PATH" in body else {}
+        if "{{DEMO_ORDER_" in body:                                        # n75: the synthetic order on /partners
+            dv.update(partners_vars())
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     if "{{CHECK_" in body:
         cv = check_vars()

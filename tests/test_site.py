@@ -142,7 +142,7 @@ def test_support_page_is_a_help_page_without_contributions(client):
 
 def test_partner_sign_in_button_only_with_flag(client, monkeypatch):
     html = client.get("/partners").text
-    assert "Bring one schema and one question." in html and 'href="/partners/workspace"' in html and "Discuss your schema" in html
+    assert "Bring one number your team cannot agree on." in html and 'href="/partners/workspace"' in html and "Ask for a first assessment" in html
     assert "No customer data is needed" in html and "SLA" not in html                    # no price, duration or guarantee promised
     assert "never data" not in html and "not a partner programme or a certification, and it is not affiliated with Microsoft" in html
     assert "Continue with Microsoft" not in html
@@ -1220,10 +1220,32 @@ def test_terms_are_marked_as_a_preview_and_invent_nothing(client):
 
 
 def test_the_pilot_page_shows_the_example_and_the_scope(client):
+    """n75: a first assessment (one question, one data area, a reference; one of five answers) apart from the pilot
+    (one number the team cannot agree on; the deliveries, the acceptance criteria, the customer's part, the price
+    sentence without an amount), and an illustrative delivery on synthetic data whose figures are the engine's own run
+    of seed.AMOUNT_DEMO (amounts.demo), not typed into the page."""
+    from fabric_backend.amounts import demo
+    from fabric_backend.demo_app import _amount
     html = client.get("/partners").text
-    for text in ("Why does order value differ between two reports?", "The order amount is repeated when orders are joined to order lines.",
-                 "How should returns be treated?", "What is not included", "an assessment with a clear end", 'href="/pricing"'):
+    for text in ("Why does the order value differ between two reports?", "The order amount is repeated when orders are joined to order lines.",
+                 "Returns and cancellations", "What is not included", "a clear end either way", 'href="/pricing"',
+                 'id="first-assessment">First assessment', "one question, one data area and what you compare the number with",
+                 "<strong>ready to start</strong>", "<strong>a business question must be decided</strong>", "<strong>material missing</strong>",
+                 "<strong>access missing</strong>", "<strong>not supported</strong>",
+                 'id="pilot"', "bring one number your team cannot agree on", "the explanation of the number", "a reviewed model",
+                 "the hand-over", "Accepted when", "the number is explained with evidence", "every relationship in the plan has a rule or a decision behind it",
+                 "the model opens in Power BI Desktop and refreshes in Fabric", "One data owner with read access",
+                 "<strong>Price:</strong> Quoted after a 30-minute scoping call; invoiced.",
+                 'id="example">Illustrative delivery on synthetic data', "Not a customer case"):
         assert text in html, text
+    d = demo()
+    assert (f"summed over the joined lines the example order comes out at {_amount(d['before'])}; summed once on the order, "
+            f"{_amount(d['after'])}, which is what its lines add up to.") in html
+    assert f"({d['finding']['rows_per_header']['max_lines']} lines on one order)" in html
+    assert "Bring one schema and one question." not in html and "Discuss your schema" not in html
+    assert not re.search(r"(€|\$|\bSEK\s*\d|\d\s*(SEK|EUR|kr)\b|per month|/month|per day|per hour)", html, re.I)   # no amounts
+    pricing = client.get("/pricing").text
+    assert "Quoted after a 30-minute scoping call; invoiced." in pricing and 'href="/partners#first-assessment"' in pricing
 
 
 def test_the_home_page_offers_two_paths_after_the_demo(client):

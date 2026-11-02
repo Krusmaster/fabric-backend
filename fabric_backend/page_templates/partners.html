@@ -3,10 +3,10 @@
   <div class="hero-grid">
     <div>
       <p class="eyebrow">Try a pilot</p>
-      <h1>Bring one schema and one question.</h1>
-      <p class="lede">We’ll start with the tables behind a question your team needs to answer. The pilot will focus on reviewing the relationships and deciding whether the result is useful for your project.</p>
+      <h1>Bring one number your team cannot agree on.</h1>
+      <p class="lede">A first assessment tells you what it would take. A pilot explains the number with the counts behind it and leaves a reviewed model and the decisions in writing.</p>
       <div class="ctas">
-        <a class="btn primary" href="mailto:{{CONTACT}}?subject=Pilot%20with%20{{PRODUCT_URL}}">Discuss your schema</a>
+        <a class="btn primary" href="mailto:{{CONTACT}}?subject=First%20assessment%20with%20{{PRODUCT_URL}}">Ask for a first assessment</a>
         {{#IF PARTNER_SIGNIN}}<button type="button" class="btn secondary" aria-disabled="true" aria-describedby="signin-note">Continue with Microsoft</button>{{/IF}}
         <a class="btn ghost" href="/partners/workspace">See a sample pilot</a>
       </div>
@@ -15,27 +15,46 @@
     <div class="hero-figure" aria-hidden="true"><span data-mascot="builder" data-pose="rest" data-idle="bounce" data-label=""></span><span data-mascot="thinker" data-pose="rest" data-label=""></span></div>
   </div>
 </section>
-<section class="wrap" style="padding-top:0">
-  <p class="muted" style="max-width:64ch">A pilot is a bounded first assignment. The typical starting point: a report whose total does not add up, such as order value in order-to-cash. <a href="/pricing">Pricing and how to buy</a>.</p>
-  <div class="grid-2">
-    <div class="card soft"><h2 class="h3">What you bring</h2><ul class="muted plain-list"><li>one question, in your own words</li><li>one bounded data area, such as the orders and invoices behind a monthly figure</li><li>a reference figure or report to check against</li><li>one person from the business who owns the question and knows what an order, a customer or an amount means</li><li>read access: a read-only sign-in, an export of the tables (Excel or CSV), or to begin with only the column names</li></ul><p class="muted tiny">No customer data is needed for a first conversation; the column names are enough to start.</p></div>
-    <div class="card soft"><h2 class="h3">What you get</h2><ul class="muted plain-list"><li>a reviewed basis and documented decisions</li><li>the plan: how the tables connect, with the rule behind each link</li><li>a check against the data (keys, references, amounts at the wrong level)</li><li>a semantic model built from the reviewed plan</li><li>drafts, such as a data contract or a domain proposal, marked as drafts</li></ul></div>
-    <div class="card soft"><h2 class="h3">What is not included</h2><ul class="muted plain-list"><li>an open-ended implementation or a migration</li><li>data areas beyond the one agreed</li><li>running or operating your reports or pipelines</li><li>deciding your business definitions for you: your person decides, we document</li></ul></div>
-    <div class="card soft"><h2 class="h3">If the material is not enough</h2><p class="muted">You get an assessment with a clear end instead of an open-ended implementation: what was checked, what is missing (knowledge, material or access, or something not supported yet) and who can supply it.</p></div>
+<section class="wrap" style="padding-top:0" aria-labelledby="first-assessment">
+  <div class="card soft">
+    <h2 class="h3" id="first-assessment">First assessment</h2>
+    <p class="muted" style="max-width:64ch">You describe one question, one data area and what you compare the number with: a report, a figure from finance, last month’s total. No customer data is needed; the column names are enough to start.</p>
+    <p class="muted" style="max-width:64ch">We answer with one of five words, the same five states the engine gives on <a href="/check">/check</a>:</p>
+    <ul class="muted plain-list assessment-answers">
+      <li><strong>ready to start</strong></li>
+      <li><strong>a business question must be decided</strong>, and by whom</li>
+      <li><strong>material missing</strong>: what, and who can supply it</li>
+      <li><strong>access missing</strong>: which sign-in or export</li>
+      <li><strong>not supported</strong>: what the engine does not read yet</li>
+    </ul>
+    <p class="muted" style="max-width:64ch">The assessment has a clear end either way: what was checked, what is missing and who can supply it. It is not the start of an open-ended implementation.</p>
   </div>
+</section>
+<section class="wrap" style="padding-top:0" aria-labelledby="pilot">
+  <h2 id="pilot" style="font-size:26px">The pilot: bring one number your team cannot agree on</h2>
+  <p class="muted" style="max-width:64ch">A bounded assignment around one number, such as the order value in order-to-cash. <a href="/pricing">Pricing and how to buy</a>.</p>
+  <div class="grid-2">
+    <div class="card soft"><h3 class="h3">What you get</h3><ul class="muted plain-list"><li>the plan: how the tables connect, with the rule behind each link</li><li>the checks against the rows: keys, references, amounts at the wrong level</li><li>the explanation of the number: where the two figures part ways, with the counts</li><li>a reviewed model, built from the plan you agreed on</li><li>a data contract and a domain proposal, delivered as drafts and marked as drafts</li><li>the hand-over: the decisions in writing and the plan file to run again</li></ul></div>
+    <div class="card soft"><h3 class="h3">Accepted when</h3><ul class="muted plain-list"><li>the number is explained with evidence: the counts that show where the figures part ways</li><li>every relationship in the plan has a rule or a decision behind it</li><li>the model opens in Power BI Desktop and refreshes in Fabric</li></ul></div>
+    <div class="card soft"><h3 class="h3">What you bring</h3><p class="muted">One data owner with read access: a person who knows what an order, a customer or an amount means, and a read-only sign-in, an export of the tables (Excel or CSV) or, to begin with, the column names.</p></div>
+    <div class="card soft"><h3 class="h3">What is not included</h3><ul class="muted plain-list"><li>an open-ended implementation or a migration</li><li>data areas beyond the one agreed</li><li>running or operating your reports or pipelines</li><li>deciding your business definitions for you: your person decides, we document</li></ul></div>
+  </div>
+  <p class="muted pilot-price" id="price" style="margin-top:16px;max-width:64ch"><strong>Price:</strong> Quoted after a 30-minute scoping call; invoiced.</p>
   <div class="card" style="margin-top:20px">
-    <h2 class="h3" id="example">An example delivery</h2>
-    <p class="muted tiny">Synthetic data: the shop schema used in the demo. Not a customer case.</p>
+    <h2 class="h3" id="example">Illustrative delivery on synthetic data</h2>
+    <p class="muted tiny">The shop schema of the demo and the synthetic order its example shows ({{DEMO_ORDER_LINES}} lines on one order). Not a customer case.</p>
     <div class="table-wrap" tabindex="0"><table class="pilot-example">
       <tbody>
-        <tr><th scope="row">The question</th><td>Why does order value differ between two reports?</td></tr>
+        <tr><th scope="row">The customer’s question</th><td>Why does the order value differ between two reports?</td></tr>
         <tr><th scope="row">What was found</th><td>The order amount is repeated when orders are joined to order lines.</td></tr>
-        <tr><th scope="row">The check</th><td>The sum is compared with an agreed reference.</td></tr>
-        <tr><th scope="row">The customer’s decision</th><td>The team confirms which definition of order value applies.</td></tr>
-        <tr><th scope="row">Open question</th><td>How should returns be treated?</td></tr>
-        <tr><th scope="row">The result</th><td>A reviewed basis and documented decisions to build on.</td></tr>
+        <tr><th scope="row">The check</th><td>Counted against the reference: summed over the joined lines the example order comes out at {{DEMO_ORDER_DOUBLED}}; summed once on the order, {{DEMO_ORDER_AMOUNT}}, which is what its lines add up to.</td></tr>
+        <tr><th scope="row">The decision</th><td>The team decides which definition of order value applies: the amount on the order, or the sum of its lines.</td></tr>
+        <tr><th scope="row">Open question</th><td>Returns and cancellations: whether they reduce the order value, and where they are recorded.</td></tr>
+        <tr><th scope="row">The delivery</th><td>The plan with the rule behind each link, both counts, the decision in writing, the model from the reviewed plan, the contract as a draft, the hand-over.</td></tr>
+        <tr><th scope="row">Accepted when</th><td>The number is explained with the two counts; every relationship has a rule or a decision; the model opens in Power BI Desktop and refreshes in Fabric.</td></tr>
       </tbody>
     </table></div>
+    <p class="muted tiny" style="margin:10px 0 0">The same order runs through <a href="/check?example=sample&amp;guide=1">the guided demo</a>: the finding, the two sums and the Power BI preview.</p>
   </div>
   <div class="card" style="margin-top:20px">
     <h2 style="font-size:26px">How a pilot could run</h2>
