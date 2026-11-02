@@ -5,6 +5,16 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n85: the evidence report downloaded on `/check` carries the decisions taken on the page (the guided demo's
+  Accept and Reject): what, the decision, the browser's time and "by: not recorded", the latest choice when it changes,
+  as of each download. They stay in the browser (nothing is sent or saved) and a new run starts without them. An
+  accepted relationship is "accepted, not checked in the rows": it is not added to the relationships or the checks.
+  Without a decision the report is the same as before. The four example buttons' descriptions fit on two lines at
+  375 px, 1000 px (where the four sit in one row) and 1280 px; "Subscription billing" reads "Younium + Salesforce
+  invoices". Browser tests in `tests/test_check_decisions.py`. `docs/LIVE-TEST.md` records the run of 2 November 2026
+  (build `src-69aa8afa445e6c97`): `validate_plan`, `lineage`, and `create_ontology` creating and updating
+  `shop_ontology_n81`, round n81's path against real Fabric without throttling; `Retry-After` and 429 tried only
+  against fake answers.
 - Round n84 (Deployment): the Dependabot PRs of November merged one at a time on green CI, `main` checked after each:
   actions/checkout v5 → v7 (its breaking change, no checkout of a fork's PR under `pull_request_target` or
   `workflow_run`, does not apply to these workflows), and opentelemetry-api 1.45.2, pydantic 2.14.2 and pydantic-core

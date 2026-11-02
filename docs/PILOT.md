@@ -56,7 +56,9 @@ write-up of what the engine got right, what it left unlinked, and what they had 
    The evidence report is the draft of that record (`fabric_backend/evidence_report.py`: the download on `/check`, or
    `evidence-report.md` beside `dictionary.md` from `fabric-backend demo`): every key and relationship with its rule,
    every check with its counts or "not checked", the open questions, the decisions with who and when, and the created
-   item ids you add; no row values. It is marked Draft until the person who hands it over has read and signed it.
+   item ids you add; no row values. On `/check` the decisions are the ones taken on the page (the guided demo's Accept
+   and Reject), with the browser's time and "by: not recorded"; they stay in the browser, and an accepted relationship
+   is listed as not checked. It is marked Draft until the person who hands it over has read and signed it.
 
 ## Not included
 
