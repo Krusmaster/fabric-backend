@@ -77,3 +77,14 @@ def test_the_menu_by_keyboard(report, note, width):
     assert r["afterEscape"] == {"open": False, "focus": True} or r["afterEscape2"] == {"open": False, "focus": True}, (r["afterEscape"], r["afterEscape2"])
     cd = report["consent" + width]
     assert cd["clip"] == pages.FIRST_QUESTION and cd["wide"] <= int(width) and cd["next"].startswith("Next step")
+
+
+@pytest.mark.parametrize("width", ["375", "1280"])
+def test_the_hub_node_by_keyboard(report, width):
+    """n91: with all four clients, too, the hub has no Connect button; Tab on from the hero's Connect reaches the hub's
+    node, a link named for the guide with a visible focus ring, and Enter on it opens /start."""
+    r = report[width]
+    assert r["hubChoosers"] == 0
+    assert r["hub"] == {"tag": "A", "href": "/start", "name": "Connect Krusgraph to Claude: the guide", "node": True,
+                        "ring": r["hub"].get("ring"), "landed": "/start"}, r["hub"]
+    assert r["hub"]["ring"] not in ("none", "", None)

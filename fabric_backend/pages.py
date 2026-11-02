@@ -236,8 +236,8 @@ def admin_note() -> str:
 
 
 def connect_menu_html(where: str) -> str:
-    """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page) or "inline" (the hub's
-    "Your data in Fabric" card: the panel opens in place). A <details>, so it works without JavaScript; the copy buttons
+    """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page; n91: the hub's
+    inline chooser is gone, the hub's node links to /start instead). A <details>, so it works without JavaScript; the copy buttons
     need it (site.js). n80, Gustav's brief of 2 November 2026: Claude first and open (its connectors page, the address
     to copy, a first question to copy), Lovable under it, the other clients folded at the bottom (VS Code, then Cursor),
     and the admin line last, with a note to copy for the admin. No address is printed: each copy button holds the one
@@ -272,14 +272,16 @@ def connect_menu_html(where: str) -> str:
                      f'<span class="muted tiny">{cap("Cursor", "opens Cursor’s install dialog; then you sign in with Microsoft.")}</span></div>')
     if other:
         items.append(f'<details class="connect-other"><summary>Other clients<span class="connect-caret" aria-hidden="true"></span></summary>{"".join(other)}</details>')
-    kind = "secondary" if where == "pop" else "secondary small"
     return (f'<details class="connect connect-{where}" data-connect>\n'
-            f'<summary class="btn {kind}">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
+            f'<summary class="btn secondary">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
             f'<div class="connect-panel" role="group" aria-label="Add {p} to your client">\n<p class="connect-h">Add {p} to</p>\n{"".join(items)}\n'
             f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions.'
             f'<span class="connect-row"><button type="button" class="btn ghost small connect-admin" data-copy-text="{e(admin_note())}">Copy a note to your admin</button>'
             f'<span>Step by step: <a href="/start">the set-up guide</a>.</span></span></p>\n'
             f'</div>\n</details>')
+
+
+HUB_LINK = "Connect {p} to Claude: the guide"     # n91: the name of the hub's node, a link to /start
 
 
 def hub_html() -> str:
@@ -289,8 +291,9 @@ def hub_html() -> str:
     for what has only been updated in place there, "draft" for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
     in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
     the visual is hidden from screen readers, which get the same as one paragraph. n68: the middle node is the logo (the
-    mark and the wordmark; the mark alone under 720 px) in the same faint coral frame, and the "Your data in Fabric" card
-    carries the Connect chooser (connect_menu_html), the one part of the visual screen readers do get."""
+    mark and the wordmark; the mark alone under 720 px) in the same faint coral frame. n91 (Gustav's decision of 2 November
+    2026): no Connect chooser in the "Your data in Fabric" card (the hero's stays); the node in the middle is a link to
+    /start, the set-up guide, and the one part of the visual screen readers and the keyboard get, named for where it leads."""
     from . import tool_status as ts
     v = _vars()
     p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
@@ -322,11 +325,11 @@ def hub_html() -> str:
     return f"""<section class="wrap connects" aria-label="What {p} connects">
   <p class="visually-hidden">{said}</p>
   <div class="hub">
-    <div class="hub-group hub-src c-coral"><p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">{sources}</ul>{connect_menu_html("inline")}</div>
+    <div class="hub-group hub-src c-coral"><p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">{sources}</ul></div>
     <span class="hub-link hub-link-src" aria-hidden="true"></span>
     <div class="hub-group hub-build c-sage" aria-hidden="true"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
     <span class="hub-link hub-link-build" aria-hidden="true"></span>
-    <div class="hub-mid" aria-hidden="true"><span class="hub-node"><span class="c-hub c-hub-logo" role="img" aria-label="{p}">{_LOGO}<span class="c-hub-word">{low}</span></span><i class="hub-end"></i></span><span class="hub-sub">one plan, the rule behind every relationship</span></div>
+    <div class="hub-mid"><span class="hub-node"><a class="c-hub c-hub-logo hub-go" href="/start" aria-label="{HUB_LINK.format(p=p)}">{_LOGO}<span class="c-hub-word" aria-hidden="true">{low}</span></a><i class="hub-end" aria-hidden="true"></i></span><span class="hub-sub" aria-hidden="true">one plan, the rule behind every relationship</span></div>
     <div class="hub-group hub-where c-mustard" aria-hidden="true"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
   <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>

@@ -813,7 +813,7 @@ def _hub(client):
     after_hero = '<section class="wrap connects"' + after_hero
     assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
-    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)   # n68: the first card carries the Connect chooser, so the visual as a whole is no longer aria-hidden
+    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)   # n91: the node links to /start, so the visual as a whole is not aria-hidden
     groups = {h: re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
               for h, g in re.findall(r'<div class="hub-group[^"]*"[^>]*><p class="hub-h"[^>]*>(.*?)</p><ul[^>]*>(.*?)</ul>', visual, re.S)}
     said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
@@ -844,12 +844,14 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                      "data agent": "draft", "silver notebooks": "creates"}        # the live test of 27 October 2026 and LATER_LIVE (n66)
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]   # n82: Tested end to end
-    assert '<span class="c-hub c-hub-logo" role="img" aria-label="Krusgraph">' in visual and '<span class="c-hub-word">krusgraph</span>' in visual   # n68: the logo in the middle
+    assert '<a class="c-hub c-hub-logo hub-go" href="/start" aria-label="Connect Krusgraph to Claude: the guide">' in visual   # n68: the logo in the middle; n91: a link to the guide
+    assert '<span class="c-hub-word" aria-hidden="true">krusgraph</span>' in visual
     assert "one plan, the rule behind every relationship" in visual
     assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
     assert re.findall(r'<svg class="([^"]+)"', row) == ["logo-mark"] and not re.search(r"<(img|picture|object|image)\b", row) and "data-mascot" not in row   # our mark only, no third-party logos
-    for part in ("hub-build c-sage\" aria-hidden=\"true\"", "hub-mid\" aria-hidden=\"true\"", "hub-where c-mustard\" aria-hidden=\"true\"", '<p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">'):
-        assert part in visual, part                                                    # the visual stays hidden from screen readers, the chooser does not
+    for part in ("hub-build c-sage\" aria-hidden=\"true\"", '<span class="hub-sub" aria-hidden="true">', '<i class="hub-end" aria-hidden="true">',
+                 "hub-where c-mustard\" aria-hidden=\"true\"", '<p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">'):
+        assert part in visual, part                                                    # the visual stays hidden from screen readers, the node's link does not
     plain = re.sub(r"<[^>]+>", " ", row)
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
@@ -862,6 +864,37 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
         assert part in said, part
     assert ('<p class="muted tiny connects-note">Independent product, not made by Microsoft, '
             'Anthropic or Lovable.</p>') in row
+
+
+@pytest.mark.parametrize("registration", ["", "1"])
+def test_the_hub_has_no_connect_button_and_its_node_links_to_the_guide(client, monkeypatch, registration):
+    """n91 (Gustav's decision of 2 November 2026): no Connect button in the hub's "Your data in Fabric" card; the hero's
+    chooser (#connect) stays, and so do the links to /#connect. The node in the middle (the mark and the word) is a link to
+    /start, the whole node is the link, it is named for where it leads, and it is the hub's one stop on the keyboard: no
+    aria-hidden around it, no tabindex taking it out. The inline mode's CSS is gone; the node looks the same at rest."""
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
+    html = client.get("/").text
+    row, visual, _, _ = _hub(client)
+    assert "<details" not in row and "data-connect" not in row and "<summary" not in row and ">Connect<" not in row
+    assert "connect-inline" not in html and 'connect_menu_html("inline")' not in (Path(__file__).resolve().parents[1] / "fabric_backend/pages.py").read_text()
+    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</details>", 1)[0]
+    assert '<details class="connect connect-pop" data-connect>' in hero and '<summary class="btn secondary">Connect' in hero
+    focusable = re.findall(r"<(a|button|summary|input|select|textarea)\b([^>]*)>", visual)
+    assert len(focusable) == 1 and focusable[0][0] == "a", focusable                 # the node, and nothing else in the hub
+    node = re.search(r'<span class="hub-node">(.*?)</span><span class="hub-sub"', visual, re.S).group(1)
+    link = re.fullmatch(r'<a class="c-hub c-hub-logo hub-go" href="/start" aria-label="([^"]+)">(.*?)</a><i class="hub-end" aria-hidden="true"></i>', node, re.S)
+    assert link and link.group(1) == "Connect Krusgraph to Claude: the guide", node    # the mark and the word inside the one link
+    assert '<svg class="logo-mark"' in link.group(2) and ">krusgraph</span>" in link.group(2)
+    assert "tabindex" not in node and "role=" not in node
+    before = visual.split("<a ", 1)[0]
+    opened = len(re.findall(r"<(div|span)\b", before)) - len(re.findall(r"</(div|span)>", before))
+    ancestors = re.findall(r"<(?:div|span)\b[^>]*>", before)[-opened:]
+    assert ancestors == ['<div class="hub-mid">', '<span class="hub-node">'] and not any("aria-hidden" in a for a in ancestors), ancestors
+    css = (Path(__file__).resolve().parents[1] / "fabric_backend/static/site.css").read_text()
+    assert "connect-inline" not in css
+    rest = re.search(r"a\.hub-go\{([^}]*)\}", css).group(1)
+    assert "text-decoration:none" in rest and "color:var(--ink)" in rest and not re.search(r"(^|;)(padding|border|margin|font|width|height|display)[a-z-]*:", rest), rest
+    assert re.search(r"a\.hub-go:hover\{[^}]*box-shadow", css) and re.search(r"a\.hub-go:focus-visible\{", css)
 
 
 def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in(client, monkeypatch):
@@ -1375,7 +1408,7 @@ def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers
 
 @pytest.mark.parametrize("registration", ["", "1"])
 def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_exists(client, monkeypatch, registration):
-    """n68: a Connect button in the hero and in the hub's "Your data in Fabric" card opens a chooser with the shortest way
+    """n68: a Connect button in the hero (n91: the hero's only) opens a chooser with the shortest way
     per client: VS Code's and Cursor's install links (URL-encoded JSON, base64 JSON) and Lovable's address at /mcp/connect
     only when client registration is on; Claude (copy /mcp, open its connectors page) always; /start is the long guide."""
     import base64
@@ -1383,11 +1416,11 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     from urllib.parse import unquote
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     html = client.get("/").text
-    assert html.count("<details class=\"connect connect-pop\" data-connect>") == 1 and html.count("<details class=\"connect connect-inline\" data-connect>") == 1
+    assert html.count("<details class=\"connect connect-pop\" data-connect>") == 1 and html.count("data-connect") == 1 and "connect-inline" not in html
     hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
     assert '<a class="btn primary" href="/check">Check your files – no account</a>' in hero and "<summary" in hero and 'href="/start">Connect to Claude' not in hero
     hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
-    assert "connect-inline" in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
+    assert "<details" not in hub and "Connect" not in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
     pop = html.split("connect-pop", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
     assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/customize/connectors" rel="noopener"' in pop
     assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop

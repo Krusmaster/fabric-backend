@@ -52,11 +52,11 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
       }
       if (path === '/') {
         facts[`homeCtas@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.hero .ctas a')].map(a => a.getAttribute('href')));
-        // n68: the Connect chooser beside the first button and in the hub's first card: opened by keyboard, its panel on
-        // the screen, its links the clients' install links, Escape closes it and returns the focus; no horizontal scroll
+        // n68: the Connect chooser beside the first button (n91: the hero's only; the hub has none): opened by keyboard, its
+        // panel on the screen, its links the clients' install links, Escape closes it and returns the focus; no horizontal scroll
         facts[`connect@${vname}`] = await (async () => {
           const out = {};
-          for (const where of ['.hero-ctas', '.hub-src']) {
+          for (const where of ['.hero-ctas']) {
             await page.focus(where + ' summary'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
             out[where] = await page.evaluate((w) => {
               const d = document.querySelector(w + ' details'), r = d.querySelector('.connect-panel').getBoundingClientRect();
@@ -94,6 +94,46 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
                    lines: [...document.querySelectorAll('.hub .hub-link')].filter(e => getComputedStyle(e).display !== 'none').length,
                    srText: sr && getComputedStyle(sr).display !== 'none' ? sr.textContent.length : 0 };
         });
+        // n91: the hub's node is a link to /start: the same at rest, a ring on hover, the focus outline on Tab, and nothing in
+        // the hub moves or runs out of the screen at rest, on hover or on focus; no Connect button left in the hub
+        facts[`hubNode@${vname}`] = await (async () => {
+          const boxes = () => page.evaluate(() => [...document.querySelectorAll('.hub .hub-group, .hub .hub-mid, .hub .hub-go, .hub .hub-sub')]
+            .map(e => { const r = e.getBoundingClientRect(); return [r.left + scrollX, r.top + scrollY, r.width, r.height].map(Math.round).join(','); }));   // page coordinates: Tab may scroll
+          const look = () => page.evaluate(() => { const a = document.querySelector('.hub a.hub-go'), s = getComputedStyle(a);
+            return { shadow: s.boxShadow, outline: s.outlineStyle, border: s.borderColor, bg: s.backgroundColor, color: s.color, cursor: s.cursor }; });
+          await page.$eval('.hub', e => e.scrollIntoView({ block: 'center', behavior: 'instant' })); await page.waitForTimeout(100);   // the mouse needs it on the screen (the site scrolls smoothly)
+          await page.mouse.move(0, 0); await page.evaluate(() => document.activeElement && document.activeElement.blur());
+          const out = await page.evaluate(() => {
+            const a = document.querySelector('.hub a.hub-go'), r = a.getBoundingClientRect(), mid = document.querySelector('.hub-mid');
+            const hidden = []; for (let e = a; e; e = e.parentElement) if (e.getAttribute('aria-hidden') === 'true') hidden.push(e.className);
+            return { href: a.getAttribute('href'), name: a.getAttribute('aria-label'), inside: r.left >= 0 && r.right <= window.innerWidth,
+                     hasMark: !!a.querySelector('svg.logo-mark'), hiddenAround: hidden, tabIndex: a.tabIndex,
+                     connectInHub: document.querySelectorAll('.hub details, .hub summary, .hub [data-connect]').length,
+                     choosers: document.querySelectorAll('details[data-connect]').length, wide: document.documentElement.scrollWidth,
+                     links: [...document.querySelectorAll('.hub a, .hub button')].length, centred: (() => {
+                       const m = mid.getBoundingClientRect(), s = document.querySelector('.hub-src').getBoundingClientRect(), b = document.querySelector('.hub-build').getBoundingClientRect();
+                       return Math.abs((m.top + m.bottom) / 2 - (s.top + b.bottom) / 2) <= 2; })() };
+          });
+          out.rest = await look(); const atRest = await boxes();
+          await page.waitForTimeout(400); out.stillAfterWait = JSON.stringify(await boxes()) === JSON.stringify(atRest);
+          const nb = await page.$eval('.hub a.hub-go', a => { const r = a.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
+          await page.mouse.move(nb[0], nb[1]); await page.waitForTimeout(250);
+          out.hover = await look(); out.stillOnHover = JSON.stringify(await boxes()) === JSON.stringify(atRest);
+          out.hitIsLink = await page.evaluate(([x, y]) => !!(document.elementFromPoint(x, y) || document.body).closest('a.hub-go'), nb);
+          await page.mouse.move(0, 0); await page.waitForTimeout(250);
+          out.backToRest = JSON.stringify(await look()) === JSON.stringify(out.rest);
+          // by keyboard: from the hero's Connect button, Tab until the focus is in the hub
+          await page.focus('.hero-ctas summary');
+          let reached = null;
+          for (let i = 0; i < 80 && !reached; i++) {
+            await page.keyboard.press('Tab');
+            reached = await page.evaluate(() => { const a = document.activeElement; return a && a.closest('.hub') ? a.className : null; });
+          }
+          out.tabbedTo = reached;
+          out.focus = await look(); out.stillOnFocus = JSON.stringify(await boxes()) === JSON.stringify(atRest);
+          await page.evaluate(() => document.activeElement.blur());
+          return out;
+        })();
       }
       await page.close();
     }

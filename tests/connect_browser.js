@@ -1,7 +1,8 @@
 // n80: the Connect menu in a browser, with client registration on (all four clients), at 375 and 1280 px.
 // Usage: node tests/connect_browser.js <base url> [chromium path]. Prints one JSON object the Python test asserts on.
 // Everything by keyboard: Tab to the hero's Connect, Enter opens it; the Tab order through the panel; Enter on
-// "Other clients"; each copy button pressed with the keyboard and the clipboard read back; Escape closes.
+// "Other clients"; each copy button pressed with the keyboard and the clipboard read back; Escape closes. n91: then Tab on
+// to the hub, which has no Connect button: its node is a link to /start, opened with Enter.
 const { chromium } = require('playwright');
 const base = process.argv[2];
 const exe = process.argv[3];
@@ -77,6 +78,23 @@ const exe = process.argv[3];
     if (!r.afterEscape.open) { await page.keyboard.press('Enter'); await page.waitForTimeout(100); }
     await page.keyboard.press('Escape');
     r.afterEscape2 = await page.evaluate(() => ({ open: document.querySelector('.hero-ctas details').open, focus: document.activeElement === document.querySelector('.hero-ctas summary') }));
+    // n91: past the hero, the hub has no Connect button of its own: Tab from the closed chooser reaches the hub's node,
+    // a link named for the guide, and Enter on it opens /start
+    if (await page.evaluate(() => document.querySelector('.hero-ctas details').open)) { await page.keyboard.press('Escape'); }
+    await page.focus('.hero-ctas summary');
+    let hub = null;
+    for (let i = 0; i < 80 && !hub; i++) {
+      await page.keyboard.press('Tab');
+      hub = await page.evaluate(() => { const a = document.activeElement; return a && a.closest('.hub')
+        ? { tag: a.tagName, href: a.getAttribute('href'), name: a.getAttribute('aria-label'), node: a.matches('.hub-mid a.hub-go'),
+            ring: getComputedStyle(a).outlineStyle } : null; });
+    }
+    r.hub = hub || {};
+    r.hubChoosers = await page.evaluate(() => document.querySelectorAll('.hub details, .hub summary, .hub [data-connect]').length);
+    if (hub) {
+      await Promise.all([page.waitForURL('**/start', { timeout: 5000 }).catch(() => {}), page.keyboard.press('Enter')]);
+      r.hub.landed = new URL(page.url()).pathname;
+    }
     out[width] = r;
     // /consent/done after a granted consent: the next step, and its copy button
     await page.goto(base + '/consent/done?admin_consent=True', { waitUntil: 'networkidle' });

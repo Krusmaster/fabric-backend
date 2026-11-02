@@ -85,7 +85,7 @@ def test_the_home_buttons_and_a_visible_focus_ring(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
         assert f[f"homeCtas@{v}"][0] == "/check", v                      # n68: the Connect chooser follows it (a <details>, not a link)
-        for where in (".hero-ctas", ".hub-src"):
+        for where in (".hero-ctas",):                                    # n91: the hub has no Connect button
             c = f[f"connect@{v}"][where]
             assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
             assert c["links"] == ["https://claude.ai/customize/connectors", "/start"], (v, where, c)   # this server: no client registration
@@ -141,6 +141,27 @@ def test_home_entry_old_anchors_and_the_hub_under_the_hero(report):
         assert c["srText"] > 300, v
         wide = v.startswith(("1440", "1280"))
         assert c["sideBySide"] is wide and c["stacked"] is not wide and c["lines"] == (2 if wide else 0), (v, c)
+
+
+def test_the_hub_node_links_to_the_guide_and_nothing_moves(report):
+    """n91 (Gustav's decision of 2 November 2026): the hub has no Connect button, the hero's chooser stays; the node in the
+    middle links to /start under the name "Connect Krusgraph to Claude: the guide", the whole node is the link, and it is
+    reached by Tab from the hero's Connect. At 375 and 1280 px (and the other widths) nothing runs out of the screen, the
+    product stays centred between the cards on the left, and nothing in the hub moves at rest, on hover or on focus; the
+    node looks the same at rest, shows a ring on hover and the focus outline on Tab."""
+    f = report["facts"]
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        n, w = f[f"hubNode@{v}"], int(v.split("-")[0])
+        assert n["href"] == "/start" and n["name"] == "Connect Krusgraph to Claude: the guide" and n["hasMark"], (v, n)
+        assert n["connectInHub"] == 0 and n["choosers"] == 1 and n["links"] == 1, (v, n)          # the hero's chooser only
+        assert n["hiddenAround"] == [] and n["tabIndex"] == 0 and n["tabbedTo"] == "c-hub c-hub-logo hub-go", (v, n)
+        assert n["inside"] and n["wide"] <= w and n["hitIsLink"], (v, n)
+        assert n["stillAfterWait"] and n["stillOnHover"] and n["stillOnFocus"], (v, n)
+        assert n["rest"]["shadow"] == "none" and n["rest"]["outline"] == "none" and n["rest"]["cursor"] == "pointer", (v, n)
+        assert n["hover"]["shadow"] != "none" and n["hover"]["bg"] == n["rest"]["bg"] and n["backToRest"], (v, n)
+        assert n["focus"]["outline"] not in ("none", ""), (v, n)
+        if v.startswith(("1440", "1280")):
+            assert n["centred"], (v, n)                                    # side by side: the product between data and what is built
 
 
 def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_motion(report):

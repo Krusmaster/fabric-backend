@@ -856,11 +856,10 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .c-hub::before,.c-hub::after{content:"";position:absolute;top:50%;width:9px;height:9px;margin-top:-4.5px;border-radius:50%;background:var(--coral-d);border:1.5px solid var(--card)}
 .c-hub::before{left:-6px}.c-hub::after{right:-6px}
 /* n68: the Connect chooser: a <details> whose summary is a button; in the hero the panel opens over the page (centred
-   under the button from 760 px, in the flow of the row below it), in the hub's first card it opens in place */
+   under the button from 760 px, in the flow of the row below it); n91: the hero's only, the hub has none */
 .connect{position:relative;display:inline-block;text-align:left;background:none;border:0;border-radius:0;padding:0;margin:0}
 .connect>summary{list-style:none;cursor:pointer;user-select:none;font-size:17px;font-weight:600;margin:0}
 .connect[open]>summary{margin-bottom:0}
-.connect-inline>summary{font-size:15px}
 .connect>summary::-webkit-details-marker{display:none}
 .connect-caret::before{content:"";display:inline-block;width:7px;height:7px;margin:0 0 3px 8px;border:solid currentColor;border-width:0 2px 2px 0;transform:rotate(45deg);transition:transform .15s ease}
 .connect[open]>summary .connect-caret::before{transform:rotate(-135deg);margin-bottom:-2px}
@@ -887,15 +886,18 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .consent-question{margin:12px 0;padding:10px 16px;border-left:4px solid var(--line-strong);background:var(--card);border-radius:0 10px 10px 0;font-size:17px}
 .consent-question p{margin:0}
 @media (min-width:760px){.connect-pop .connect-panel{position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:30}}
-.connect-inline{display:block;margin-top:8px}
-.connect-inline .connect-panel{width:auto;box-shadow:none;margin-top:8px;padding:10px 12px 8px}
-.connect-inline .connect-h{font-size:15px;margin-bottom:6px}
-.connect-inline .connect-item strong{font-size:14.5px}
 @media (prefers-reduced-motion:reduce){.connect-caret::before{transition:none}}
 /* n68: the logo in the middle of the hub, in the same frame; the mark alone on a narrow screen */
 .c-hub-logo{display:inline-flex;align-items:center;gap:7px;padding:5px 14px 5px 9px;line-height:1}
 .c-hub-logo .logo-mark{width:26px;height:26px;flex:none}
 @media (max-width:719px){.c-hub-logo{padding:5px 9px}.c-hub-word{display:none}}
+/* n91: the node is a link to /start: at rest exactly as before; on hover a coral ring and a darker frame (a shadow, so
+   nothing moves); on keyboard focus the site's focus outline, round like the frame */
+a.hub-go{color:var(--ink);text-decoration:none;cursor:pointer;transition:box-shadow .15s ease,border-color .15s ease}
+a.hub-go:hover{color:var(--ink);border-color:var(--coral-ink);box-shadow:0 0 0 3px var(--coral)}
+a.hub-go:hover .c-hub-word{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:3px}
+a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
+@media (prefers-reduced-motion:reduce){a.hub-go{transition:none}}
 @media (max-width:859px){
   /* one column, the product in the middle: data, what is built, the product, where you build; one line down the middle */
   .hub{grid-template-columns:minmax(0,1fr);grid-template-rows:none;row-gap:22px;max-width:420px}
