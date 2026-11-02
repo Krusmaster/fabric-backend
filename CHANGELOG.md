@@ -5,6 +5,17 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n80: a simpler Connect menu (Claude first and open with one large button, Copy URL and a first question to copy
+  that only reads; Lovable under it; VS Code and Cursor folded under *Other clients*; the admin line last with a note to
+  copy for the admin: the consent link, what is approved, `/it`). No address is printed; each copy button holds its
+  client's. `/consent/done` gives one next step, Connect and the question. At `/mcp/connect`, a sign-in Entra stops for
+  want of admin consent shows a page that says so, with the same note, instead of an unexplained error in the client.
+  Gustav verified on 2 November 2026 that the *Add to VS Code* and *Add to Cursor* buttons work in their clients
+  (`tool_status.CLIENTS`, `docs/LIVE-TEST.md`). `/check` says "app starter for Lovable" without the word Supabase (the
+  zip is unchanged). `ontology.ontology_rdfxml`: the plan as RDF/XML for Microsoft's Ontology Playground, which reads
+  RDF/XML and not Turtle, written after its RDF/XML subset at commit 7bf7acb (MIT), with its validation rules ported to
+  `tests/playground_rdf.py` and one official catalogue file as a fixture; a Draft download on `/check`, opened in the
+  Playground with a file import; no new MCP tool. Not tried in the Playground app itself.
 - Round n79: the pack's own name where a person reads the rule (Subscription billing on `/check`, the data dictionary,
   the Power BI README, the contracts, the Rayfin comments say *Younium + Salesforce pack*; the `rule` fields of the
   answers keep `SAP pack`, and the SAP texts are unchanged). Masking goes through the pack the engine reads, so the
