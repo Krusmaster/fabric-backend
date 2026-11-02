@@ -5613,7 +5613,7 @@
      "name": "krusgraph.vw_orders"
     }
    ],
-   "note": "Edges come from each object's own definition (GraphQL API, semantic model, view) or, for a data agent, from its definition text; `certain: false` marks a match by name only. Unit-tested. Tested end to end on 27 October 2026 against a Fabric workspace with synthetic data.",
+   "note": "Edges come from each object's own definition (GraphQL API, semantic model, view) or, for a data agent, from its definition text; `certain: false` marks a match by name only. Unit-tested. Tested end to end on 27 October 2026 against a Fabric workspace with synthetic data. Last run live on 2 November 2026 (build src-69aa8afa445e6c97) against the same workspace: 7 tables and 7 objects, none skipped.",
    "skipped": [],
    "source": {
     "id": "aaaaaaaa-0000-0000-0000-000000000001",
@@ -5944,7 +5944,7 @@
      "name": "krusgraph.vw_orders"
     }
    ],
-   "note": "Edges come from each object's own definition (GraphQL API, semantic model, view) or, for a data agent, from its definition text; `certain: false` marks a match by name only. Unit-tested. Tested end to end on 27 October 2026 against a Fabric workspace with synthetic data.",
+   "note": "Edges come from each object's own definition (GraphQL API, semantic model, view) or, for a data agent, from its definition text; `certain: false` marks a match by name only. Unit-tested. Tested end to end on 27 October 2026 against a Fabric workspace with synthetic data. Last run live on 2 November 2026 (build src-69aa8afa445e6c97) against the same workspace: 7 tables and 7 objects, none skipped.",
    "skipped": [],
    "source": {
     "id": "aaaaaaaa-0000-0000-0000-000000000001",

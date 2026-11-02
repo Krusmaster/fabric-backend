@@ -67,6 +67,13 @@ LATER_LIVE_ANSWER = {
                      "data (one blank page bound to shop_model_live; status Succeeded, mode created); a report made the same "
                      "way was opened in the Fabric portal, given a visual and showed data.",
 }
+# n88: a later live run of a tool that ran on LIVE_RUN_DATE, as docs/LIVE-TEST.md records it: `said` goes into the tool's
+# own answer, `evidence` is the words of docs/LIVE-TEST.md that record it (tests/test_n88_live_notes.py checks both).
+LATEST_LIVE = {
+    "lineage": {"said": "Last run live on 2 November 2026 (build src-69aa8afa445e6c97) against the same workspace: 7 tables "
+                        "and 7 objects, none skipped.",
+                "evidence": "**`lineage`**: 7 tables and 7 objects, none skipped."},
+}
 # n87: creating tools whose creating has no recorded run, with what docs/LIVE-TEST.md does record.
 CREATE_RECORD = {
     "create_views": "creating has no recorded live run (docs/LIVE-TEST.md, row 20), although the demo lakehouse holds the view "
@@ -254,9 +261,10 @@ def answer_note(name: str) -> str:
     if s.dry_run_only:
         return f"The dry run was tested end to end on {LIVE_RUN_DATE} {where}; " + CREATE_RECORD.get(
             name, "creating has no recorded live run (docs/LIVE-TEST.md).")
+    latest = (" " + LATEST_LIVE[name]["said"]) if name in LATEST_LIVE else ""
     if s.kind == DRAFT:
-        return f"This tool's call was tested end to end on {LIVE_RUN_DATE} {where} as a draft; it creates nothing."
-    return f"Tested end to end on {LIVE_RUN_DATE} {where}."
+        return f"This tool's call was tested end to end on {LIVE_RUN_DATE} {where} as a draft; it creates nothing." + latest
+    return f"Tested end to end on {LIVE_RUN_DATE} {where}." + latest
 
 
 def instructions_sentence() -> str:
