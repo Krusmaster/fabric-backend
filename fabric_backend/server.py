@@ -1055,6 +1055,44 @@ def _finish_create(out: dict, result: dict, scope: str, where: str) -> str:
     return json.dumps(out, indent=2, default=str)
 
 
+def _model_replacement(workspace_id: str, name: str, parts: dict[str, str], headers: dict) -> dict | None:
+    """n87: a semantic model of this name exists: an update replaces its whole definition. What it has that the new
+    definition lacks (tables, relationships, measures), read with getDefinition; if it cannot be read, that is said."""
+    from . import model_compare as _mc
+    try:
+        item = find_item_by_name(workspace_id, name, headers, ("SemanticModel",))
+    except Exception:                                                      # noqa: BLE001 - the dry run still answers
+        return None
+    if not item:
+        return None
+    said = (f"A semantic model named {name!r} exists in the workspace; with dry_run=false its whole definition is replaced "
+            "(updateDefinition), so what it has and this definition lacks disappears from it")
+    try:
+        old = _mc.from_tmdl(_item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL"))
+    except Exception as e:                                                 # noqa: BLE001
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        return {"existing": True, "id": item["id"], "said": said + ". Its definition could not be read"
+                + (f" (HTTP {status}" + ("; reading it needs " + MODEL_READ_SCOPE + ")" if status in (401, 403) else ")") if status else "")
+                + ", so what would disappear is not listed; compare_semantic_model with tmdl shows the model's contents."}
+    new = _mc.from_tmdl(parts)
+
+    def rel(r):
+        return f"{r['from_table']}.{r['from_column']} -> {r['to_table']}.{r['to_column']}"
+    new_rels = {rel(r) for r in new["relationships"]}
+    new_measures = {f"{t}[{m}]" for t, tt in new["tables"].items() for m in (tt.get("measures") or {})}
+    gone_tables = sorted(t for t in old["tables"] if t not in new["tables"])
+    gone_rels = sorted(rel(r) for r in old["relationships"] if rel(r) not in new_rels)
+    gone_measures = sorted(f"{t}[{m}]" for t, tt in old["tables"].items() for m in (tt.get("measures") or {})
+                           if f"{t}[{m}]" not in new_measures)
+    if gone_tables or gone_rels or gone_measures:
+        said += (f": {len(gone_tables)} table(s), {len(gone_rels)} relationship(s) and {len(gone_measures)} measure(s) listed below. "
+                 "Use another name to keep it, or pass the tables it has")
+    else:
+        said += "; nothing it has is missing from this definition"
+    return {"existing": True, "id": item["id"], "said": said + ".", "tables_gone": gone_tables, "relationships_gone": gone_rels,
+            "measures_gone": gone_measures}
+
+
 @mcp.tool(title="Create or update a Power BI semantic model (dry run by default)", annotations=WRITE)
 @safe
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
@@ -1069,7 +1107,9 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     check_tables(p.schema, tables)
     draft = _semantic_model.draft(p, info, name, tables)
     body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
-    out = {"summary": draft["summary"], "dry_run": dry_run,
+    replaces = _model_replacement(info["workspace_id"], name, draft["parts"], _headers(ctx))
+    out = {"replaces": replaces} if replaces else {}
+    out |= {"summary": draft["summary"], "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels",
                     "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels/{{id}}/updateDefinition",
                     "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All", "parts": [x["path"] for x in body["definition"]["parts"]]},
@@ -1583,6 +1623,7 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
     lakehouse = info["item_kind"] == "Lakehouse"
     files: dict[str, str] = {}
     entries, notes, skipped = [], [], []
+    existing_api = None
 
     def add(tool: str, item_type: str, body: dict, what: str) -> None:
         folder = _gx.folder(body["displayName"], item_type)
@@ -1599,7 +1640,22 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
             continue
         if tool == "create_backend":
             source_id, source_type = source_for(info["workspace_id"], {"type": info["item_kind"], "id": info["item_id"]}, _headers(ctx))
-            env = definition(p, names[tool], info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
+            api_plan = p
+            found = _existing_api(info["workspace_id"], names[tool], _headers(ctx))
+            if found:                     # n87: an API of this name exists: keep its names, and say what the files would drop
+                api_plan, kept = _drift.keep_api_names(p, found[1], confirmed)
+                lost = _relationships_lost(found, names[tool], api_plan, source_id, source_type, writable, tables, confirmed)
+                existing_api = {"name": names[tool], "names_kept_from_api": kept, "relationships_lost": lost,
+                                "keep_with_confirmed": _drift.keep_entries(lost) if lost else []}
+                if lost:
+                    notes.append(f"{names[tool]} exists in the workspace, and syncing these files would remove {len(lost)} relationship(s) "
+                                 f"it has today ({', '.join(r.get('table', '') + '.' + r.get('field', '') for r in lost)}); create_backend "
+                                 "would stop with would_remove. To keep them, export again with confirmed=keep_with_confirmed (under "
+                                 "existing_api).")
+                elif kept:
+                    notes.append(f"{names[tool]} exists in the workspace: the files keep its field names for the same relationships "
+                                 "(names_kept_from_api under existing_api).")
+            env = definition(api_plan, names[tool], info["workspace_id"], source_id, source_type, writable=writable, tables=tables)
             add(tool, "GraphQLApi", env, f"the API for GraphQL over {info['item_name']}.{schema} with the plan's relationships")
         elif tool == "create_semantic_model":
             draft = _semantic_model.draft(p, info, names[tool], tables)
@@ -1647,6 +1703,8 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
            "items": entries, "skipped": skipped, "how": _gx.HOW, "notes": notes, "files": files, "sources": _gx.SOURCES,
            "note": "Unit-tested: the files are the parts the creating tools send to the REST APIs, in the Git layout; not yet synced into a "
                    "workspace through Fabric's Git integration. " + _tool_status.answer_note("export_item_definitions")}
+    if existing_api:
+        out["existing_api"] = existing_api
     text = json.dumps(out, indent=2)
     if len(text) > MAX_RESULT_CHARS:
         out["omitted"] = []

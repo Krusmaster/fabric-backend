@@ -3647,6 +3647,10 @@
    [
     "GET",
     "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ]
   ],
   "tool": "create_semantic_model"
@@ -3822,6 +3826,10 @@
    [
     "GET",
     "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ],
    [
     "GET",
@@ -5255,6 +5263,10 @@
    [
     "GET",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
    ],
    [
     "GET",

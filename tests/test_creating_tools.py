@@ -95,7 +95,10 @@ def test_create_semantic_model_posts_then_updates_in_place(shop, monkeypatch):
     monkeypatch.setattr(requests, "post", lambda url, **k: calls.append((url, k.get("json"))) or Resp(200, None))
     out = json.loads(server.create_semantic_model(*shop, name="shop_model", schema="shop", dry_run=False))
     assert out["result"] == {"status": "Succeeded", "mode": "updated", "id": "sm-1"}
-    assert calls[0][0].endswith("/semanticModels/sm-1/updateDefinition") and set(calls[0][1]) == {"definition"}
+    # n87: the existing model's definition is read first (read-only), so the answer can say what the update replaces
+    assert calls[0][0].endswith("/semanticModels/sm-1/getDefinition?format=TMDL") and out["replaces"]["existing"] is True
+    update = [c for c in calls if c[0].endswith("/semanticModels/sm-1/updateDefinition")]
+    assert len(update) == 1 and set(update[0][1]) == {"definition"}
 
 
 def test_create_semantic_model_403_is_consent_and_404_is_not_found(shop, monkeypatch):
