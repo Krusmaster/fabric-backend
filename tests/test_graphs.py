@@ -280,7 +280,9 @@ def shop(monkeypatch):
     return "Sales", "shop_lh"
 
 
-def test_analyze_schema_tool_runs_no_data_queries(shop, monkeypatch):
+def test_analyze_schema_tool_runs_only_r5s_bounded_counting(shop, monkeypatch):
+    """n87: analyze_schema plans as plan_backend does, so its only data queries are R5's counting ones (at most 20); an
+    endpoint that answers nothing leaves R5 unsupported and the six relationships by name."""
     ran = []
 
     def factory(item, tok):
@@ -290,7 +292,8 @@ def test_analyze_schema_tool_runs_no_data_queries(shop, monkeypatch):
         return execute
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.analyze_schema(*shop, schema="shop"))
-    assert ran == [] and out["roles"]["order_items"]["role"] == "fact" and out["summary"].startswith("7 tables, 6 with keys")
+    assert 0 < len(ran) <= server.R5_MAX_QUERIES and all("with_value" in q for q in ran)
+    assert out["roles"]["order_items"]["role"] == "fact" and out["summary"].startswith("7 tables, 6 with keys")
     assert "weights" not in out and out["centrality"]["top"][0]["table"] == "customers" and len(out["active_relationships"]) == 6   # the tool answer leaves the constant weights and the per-table maps out (graphs.analyze keeps them)
 
 
@@ -306,8 +309,10 @@ def test_suggest_relationships_tool_counts_against_the_source(shop, monkeypatch)
         return run
     monkeypatch.setattr(server, "_execute_factory", factory)
     out = json.loads(server.suggest_relationships(*shop, schema="shop", check=3))
-    assert out["checked_against_data"] == 3 and out["candidates"][0]["target"] == "addresses" and out["candidates"][0]["evidence"]["inclusion"] == 1.0
-    assert sum(1 for s in ran if s.startswith("SELECT COUNT_BIG")) == 3 and ran[-1] == "closed"
+    # n87: the plan counts R5 first (one more query); this SQLite stand-in cannot run its TOP, so R5 proposes the link
+    # and it stays the first candidate here (tests/test_n87_r5_everywhere.py has the endpoint where R5 applies it)
+    assert out["candidates"][0]["target"] == "addresses" and out["candidates"][0]["evidence"]["inclusion"] == 1.0
+    assert out["checked_against_data"] == 3 and sum(1 for s in ran if s.startswith("SELECT COUNT_BIG")) == 3 + 1 and ran[-1] == "closed"
     assert "3 checked against the data" in out["summary"]
 
 

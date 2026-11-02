@@ -220,12 +220,40 @@ def _execute_factory(item: dict, sql_token: str):
     return _fabric.connect(item, sql_token, LOGIN_TIMEOUT, QUERY_TIMEOUT)
 
 
-R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # plan_backend's R5: the first 200 distinct values of a candidate column, at most 20 counting queries
+R5_SAMPLE, R5_MAX_QUERIES = 200, 20        # R5: the first 200 distinct values of a candidate column, at most 20 counting queries
 
 
-def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = False):
-    """The plan of a source. `rows`: R5 also counts the code and role columns the name rules left unlinked, over the
-    open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES (plan_backend); the other tools plan by names alone."""
+def _hosted_plan(s, keys, confirmed, execute):
+    """The one way the hosted tools make a plan (n87): the names rules and R5, which counts the code and role columns
+    the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
+    builds on the plan sees the same relationships as plan_backend. Nothing is kept between calls: the counting runs
+    again on every call, over the connection the call opened and closes."""
+    return make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES)
+
+
+def _within_call(execute):
+    """The connection with its answers remembered for this call only, so two plans in one call (review_plan's plan and
+    its base) count R5 once. Dropped when the call ends."""
+    seen: dict = {}
+
+    def run(sql, *a, **k):
+        if a or k:
+            return execute(sql, *a, **k)
+        if sql not in seen:
+            seen[sql] = list(execute(sql))
+        return seen[sql]
+    for name in ("close", "source_item", "dialect"):
+        if hasattr(execute, name):
+            try:
+                setattr(run, name, getattr(execute, name))
+            except AttributeError:
+                pass
+    return run
+
+
+def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True):
+    """The plan of a source, R5 included (_hosted_plan), over a connection that does not outlive the call. `rows` is
+    kept for callers that still pass it; every plan counts R5."""
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
@@ -234,7 +262,7 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: 
         s = _fabric.PLATFORM.read_schema(execute, schema)
         if len(s) == 0:
             raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
-        p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES) if rows else make_plan(s, keys, confirmed)
+        p = _hosted_plan(s, keys, confirmed, execute)
     finally:
         getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
     return p, item, headers
@@ -416,7 +444,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
     try:
-        p = make_plan(s, keys, confirmed)
+        p = _hosted_plan(s, keys, confirmed, execute)
         out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
         label = _privacy.label_of(getattr(execute, "source_item", None))
     finally:
@@ -444,7 +472,8 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     k, c = _review.merge_arguments(_review.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
     s, execute = _connected(workspace, source, schema, ctx)
     try:
-        p, base = make_plan(s, k, c), make_plan(s)
+        counted = _within_call(execute)
+        p, base = _hosted_plan(s, k, c, counted), _hosted_plan(s, None, None, counted)
         keep = _compact.match_tables(p.schema, tables)
         checks = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))) if validate else None
     finally:
@@ -743,7 +772,7 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
     execute = None
     if check_data:
         s, execute = _connected(workspace, source, schema, ctx)
-        p = make_plan(s, keys, confirmed)
+        p = _hosted_plan(s, keys, confirmed, execute)
         headers = _headers(ctx)
     else:
         p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
@@ -840,7 +869,7 @@ def suggest_relationships(workspace: _p.Workspace, source: _p.Source, schema: _p
     nothing. Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
-        p = make_plan(s, keys, confirmed)
+        p = _hosted_plan(s, keys, confirmed, execute)
         out = _graphs.suggest(p, execute, check=max(0, min(int(check), 100)))
     finally:
         getattr(execute, "close", lambda: None)()
@@ -859,7 +888,7 @@ def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schem
     if validate:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
-            p = make_plan(s, keys, confirmed)
+            p = _hosted_plan(s, keys, confirmed, execute)
             checked = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
         finally:
             getattr(execute, "close", lambda: None)()
@@ -898,7 +927,7 @@ def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
-            p = make_plan(s, None, confirmed)
+            p = _hosted_plan(s, None, confirmed, execute)
             validation = _evidence.validate(p, execute)
         finally:
             getattr(execute, "close", lambda: None)()
@@ -1121,7 +1150,7 @@ def create_views(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
-        p = make_plan(s, keys, confirmed)
+        p = _hosted_plan(s, keys, confirmed, execute)
         stmts = _views.statements(p, views_schema)
         out = {"summary": p.summary(), "schema": views_schema, "dry_run": dry_run, "schema_sql": stmts["schema_sql"], "views": stmts["views"],
                "note": "Views are allowed on a lakehouse SQL analytics endpoint, a warehouse and the endpoints of mirrored and SQL "

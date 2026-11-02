@@ -85,14 +85,24 @@ def test_plan_drift_sees_no_drift_for_the_same_relationship_under_the_apis_name(
     assert out["names_kept_from_api"][0]["field"] == "orders"
 
 
+def _same(body: dict) -> dict:
+    """The definition with each object's relationships in field order: R5's relationship comes after the names rules'
+    in the plan, a confirmed one where it was given; Fabric reads them as a set."""
+    body = json.loads(json.dumps(body))
+    for ds in body["datasources"]:
+        for o in ds["objects"]:
+            o["relationships"] = sorted(o.get("relationships", []), key=lambda r: r["field"])
+    return body
+
+
 def test_keep_with_confirmed_carries_both_field_names_and_following_it_changes_nothing(fabric):
-    stopped = json.loads(server.create_backend(**SRC, name="shop_api"))
-    assert stopped["kind"] == "would_remove" and not fabric.created
-    assert stopped["keep_with_confirmed"] == [LIVE_NAMES]
+    # n87: every tool plans with R5, so orders.ship_to_id -> addresses is in the plan without confirmed; the update keeps
+    # the API's two field names for it instead of stopping with would_remove, and changes nothing the API has
+    out = json.loads(server.create_backend(**SRC, name="shop_api"))
+    assert out["result"]["status"] == "Succeeded" and _same(_written(fabric)) == _same(decode({"definition": _live_api_definition()}))
+    assert [(k["table"], k["field"]) for k in out["names_kept_from_api"]] == [("shop.orders", "address"), ("shop.addresses", "orders")]
     drift = json.loads(server.plan_drift(**SRC, api="shop_api"))
-    assert drift["keep_with_confirmed"] == [LIVE_NAMES]
-    out = json.loads(server.create_backend(**SRC, name="shop_api", confirmed=drift["keep_with_confirmed"]))
-    assert out["result"]["status"] == "Succeeded" and _written(fabric) == decode({"definition": _live_api_definition()})
+    assert drift["would_change"] is False and not drift.get("keep_with_confirmed")
 
 
 def test_a_name_given_in_confirmed_wins_and_a_rename_is_still_a_removal(fabric):

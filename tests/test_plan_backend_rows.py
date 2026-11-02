@@ -1,7 +1,8 @@
 """Hosted plan_backend and R5 (round n71). On 30 October 2026 the hosted plan_backend did not find orders.ship_to_id ->
 addresses although rule R5 existed, because R5 needs rows and only validate_plan and suggest_relationships read them.
 plan_backend now runs R5 over its open connection, bounded: the first 200 distinct values of a candidate column, one
-counting query per candidate target, at most 20 per call. The other tools plan by names, as before."""
+counting query per candidate target, at most 20 per call. Since n87 every tool that builds on the plan does the same
+(server._hosted_plan); tests/test_n87_r5_everywhere.py covers them all."""
 import json
 import sys
 from pathlib import Path
@@ -30,14 +31,16 @@ def test_plan_backend_finds_ship_to_id_in_the_rows_with_one_bounded_query(fabric
     assert "orders.ship_to_id -> addresses [R5]" in " ".join(short["relationships"]) and short["counted_in_rows"]["queries"] == 1
 
 
-def test_the_other_tools_still_plan_by_names(fabric):
+def test_the_other_tools_plan_with_r5_too(fabric):
+    """n87: the semantic model draft and the data dictionary see the relationship plan_backend sees, each counting it in
+    its own call (nothing is kept between calls)."""
     from fabric_backend import server
     before = len(_counting(fabric.odbc.log))
     draft = json.loads(server.semantic_model_draft(**SRC))
-    assert len(_counting(fabric.odbc.log)) == before                     # no counting query: the draft plans by names
-    assert "orders.ship_to_id" not in draft["parts"].get("definition/relationships.tmdl", "")
-    dd = json.loads(server.data_dictionary(**SRC))
-    assert len(_counting(fabric.odbc.log)) == before and "R5" not in dd["summary"]
+    assert len(_counting(fabric.odbc.log)) == before + 1
+    assert "ship_to_id" in draft["parts"].get("definition/relationships.tmdl", "")
+    dd = server.data_dictionary(**SRC)
+    assert len(_counting(fabric.odbc.log)) == before + 2 and "addresses.address_id (R5)" in dd
 
 
 def test_a_candidate_that_cannot_be_counted_is_proposed_with_the_next_step(fabric, monkeypatch):
