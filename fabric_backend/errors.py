@@ -24,7 +24,7 @@ _HEADERISH = re.compile(r"(?i)(authorization|x-fabric-sql-token|client_secret|se
 MAX = 300
 
 HINTS = {
-    "sign_in": "Sign in again in your MCP client (in Claude: Settings → Connectors → the connector → Reconnect). The sign-in has expired or was rejected.",
+    "sign_in": "Sign in again in your MCP client (in Claude: Customize → Connectors → Yours → Reconnect). The sign-in has expired or was rejected.",
     "consent": "An administrator of your Microsoft Entra organisation has to grant consent once, then sign in again.",
     "mfa": "Your organisation requires multi-factor authentication for this app. Sign in again in your MCP client and complete it.",
     "no_access": "The signed-in account cannot open it. Ask for access to the workspace (Viewer is enough to plan, Contributor to create), then try again.",
