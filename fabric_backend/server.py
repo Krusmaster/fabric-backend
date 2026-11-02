@@ -1196,6 +1196,8 @@ def create_views(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
                "note": "Views are allowed on a lakehouse SQL analytics endpoint, a warehouse and the endpoints of mirrored and SQL "
                        "database items (read-only data, writable T-SQL objects). Unit-tested on SQLite and against the shop schema. "
                        + _tool_status.answer_note("create_views")}
+        if stmts["personal_left_out"]:
+            out["personal_data"] = _views_personal(stmts)
         if dry_run or not stmts["views"]:
             if not stmts["views"]:
                 out["note"] = "No fact table (two or more references out, none in) and no hard-to-read relationship in the plan: nothing to create. " + out["note"]
@@ -1213,6 +1215,13 @@ def create_views(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
         return json.dumps(out, indent=2, default=str)
     finally:
         getattr(execute, "close", lambda: None)()
+
+
+def _views_personal(stmts: dict) -> dict:
+    """What the views leave out by the privacy rules, said the way the other tools say it (n87)."""
+    return {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in stmts["personal_left_out"]],
+            "notice": "left out of every view by name (privacy rules, as in sample_rows, the drafted queries and the gold views); "
+                      "the keys stay. create_views has no show_personal_data: add such a column to a view by hand where you need it."}
 
 
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
@@ -1672,6 +1681,8 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
             files[f"krusgraph-sql/{views_schema}-views.sql"] = "\n".join(sql)
             entries.append({"tool": tool, "type": "T-SQL", "folder": "krusgraph-sql", "what": f"{len(stmts['views'])} view(s) in schema {views_schema}, "
                             "as a script (not a Fabric item)"})
+            if stmts["personal_left_out"]:
+                notes.append("The views leave out " + ", ".join(_views_personal(stmts)["left_out"]) + " by the privacy rules, as create_views does.")
         elif tool == "create_silver_notebook":
             spec = _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data)
             add(tool, "Notebook", _notebook.envelope(names[tool], _silver_mod.notebook_source(spec),

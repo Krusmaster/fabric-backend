@@ -275,6 +275,12 @@ def _understand(question: str, plan: Plan, tables: list[str]) -> dict:
                     break
             if unread:
                 break
+    asked_column = None                                       # "which city ...": the column the answer is about
+    for words in _after(q, ("which", "what", "vilken", "vilka", "vilket")):
+        col = words and _phrase_column(words[:2], plan, tables)
+        if col and not _phrase_table(words[:1], tables):
+            asked_column = list(col)
+            break
     measure = None
     if aggregate in ("sum", "avg"):
         said = set(_norm(w) for w in _words(q))
@@ -305,7 +311,7 @@ def _understand(question: str, plan: Plan, tables: list[str]) -> dict:
             "columns_named": mentioned, "not_used": unused, "count_assumed": assumed_count,
             "without": without, "without_columns": without_columns, "with": [],
             "subject": _first_named(q, tables, without) if (without or without_columns) else None, "unread": unread,
-            "value_asked": aggregate in ("sum", "avg") and measure is None and _has(q, VALUE)}
+            "value_asked": aggregate in ("sum", "avg") and measure is None and _has(q, VALUE), "asked_column": asked_column}
 
 
 def _label(plan: Plan, t: str) -> str:
@@ -461,7 +467,21 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
     measure = level = None
     root_key = plan.keys.get(root, ([], ""))[0]
     if u["aggregate"]:
-        if u["group_table"]:
+        asked = u.get("asked_column")
+        if u["group_table"] and asked and asked[0] == u["group_table"] and asked[1] not in plan.keys.get(asked[0], ([], ""))[0]:
+            g, c = asked                                      # "which city has the most orders": one group per city
+            if allowed(g, c):
+                select.append(f"{alias[g]}.{qi(c)}")
+                group.append(f"{alias[g]}.{qi(c)}")
+            else:
+                key_cols = plan.keys.get(g, ([], ""))[0]
+                select += [f"{alias[g]}.{qi(k)}" for k in key_cols]
+                group += [f"{alias[g]}.{qi(k)}" for k in key_cols]
+                f = personal[(g, c)]
+                assumptions.append(f"{g}.{c} looks like personal data ({f['rule']}: {f['what']}) and is left out, so the question is not "
+                                   f"answered per {c}: grouped by {g}'s key {', '.join(key_cols)} instead (one row per {g} row, not per "
+                                   f"{c}); show_personal_data=true groups by {c}")
+        elif u["group_table"]:
             g = u["group_table"]                              # the root itself too: one group per root row
             key_cols = plan.keys.get(g, ([], ""))[0]
             cols = list(dict.fromkeys(key_cols + [c for c in [_label(plan, g)] if c in key_cols or allowed(g, c)]))
@@ -624,7 +644,15 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
                  f"aggregations {{ {agg} }} }} }} }}")
         notes = ["groups come back unordered and without a limit: sort and cut them in the client (Fabric's aggregations have no top N)"]
         if u["group_table"] and u["group_table"] != root:
-            notes.append(f"grouped by the reference column ({', '.join(group_fields)}), not by {u['group_table']}'s name; the T-SQL returns the name")
+            g = u["group_table"]
+            label, key = _label(plan, g), plan.keys.get(g, ([], ""))[0]
+            if label in key:
+                tail = f"the T-SQL returns {', '.join(key)} too"
+            elif (g, label) in answer.get("_personal", {}):
+                tail = f"the T-SQL returns {', '.join(key)} only ({g}.{label}: personal data, left out)"
+            else:
+                tail = f"the T-SQL also returns {g}.{label}"
+            notes.append(f"grouped by {', '.join(group_fields)}; {tail}")
         return {"query": query, "notes": notes}
     # a list: walk the relationship fields along the join tree
     children: dict[str, list[dict]] = {}

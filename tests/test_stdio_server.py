@@ -125,7 +125,8 @@ def test_local_create_views_dry_run_then_apply(local_shop_with_rows):
     out = json.loads(mcp_server.create_views(schema="shop", confirmed=confirmed, dry_run=False))
     assert out["result"] == {"status": "Succeeded", "views": 3, "schema": "krusgraph"} and len(execute.ran) == 4
     assert execute("SELECT COUNT(*) AS n FROM [vw_order_items]")[0]["n"] == 134
-    assert execute("SELECT COUNT(*) AS n FROM [vw_orders] WHERE [addresses_city] IS NOT NULL AND [customers_name] IS NOT NULL")[0]["n"] == 60
+    assert execute("SELECT COUNT(*) AS n FROM [vw_orders] WHERE [addresses_address_id] IS NOT NULL AND [customers_country] IS NOT NULL")[0]["n"] == 60
+    assert "customers.name (P1" in " ".join(out.get("personal_data", {}).get("left_out", [])) or "[customers_name]" not in json.dumps(out)
 
 
 def test_semantic_model_draft_reads_kind_and_schema_flag_from_the_environment(local_shop_with_rows, monkeypatch):

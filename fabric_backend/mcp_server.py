@@ -425,6 +425,10 @@ def create_views(schema: str = "dbo", views_schema: str = "krusgraph", keys: dic
                 raise PlanInputError(f"views_schema {views_schema!r} is the source schema; the views need a schema of their own")
         stmts = _views.statements(p, views_schema, _dialect())
         out = {"summary": p.summary(), "schema": views_schema, "dry_run": dry_run, "schema_sql": stmts["schema_sql"], "views": stmts["views"]}
+        if stmts["personal_left_out"]:                           # n87: the same privacy rule as the hosted create_views
+            out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in stmts["personal_left_out"]],
+                                    "notice": "left out of every view by name (privacy rules); the keys stay. Add such a column to a "
+                                              "view by hand where you need it."}
         if dry_run or not stmts["views"]:
             if not stmts["views"]:
                 out["note"] = "No fact table and no hard-to-read relationship in the plan: nothing to create."

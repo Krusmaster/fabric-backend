@@ -1820,13 +1820,19 @@
  {
   "answer": {
    "dry_run": true,
+   "personal_data": {
+    "left_out": [
+     "customers.name (P1: a person's name)"
+    ],
+    "notice": "left out of every view by name (privacy rules); the keys stay. Add such a column to a view by hand where you need it."
+   },
    "schema": "krusgraph",
    "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
    "summary": "7 tables, 6 with keys, 6 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
    "views": [
     {
      "name": "vw_order_items",
-     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
      "tables": [
       "order_items",
       "orders",
@@ -1838,7 +1844,7 @@
     },
     {
      "name": "vw_orders",
-     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
      "tables": [
       "orders",
       "customers"
@@ -1873,6 +1879,12 @@
     }
    ],
    "dry_run": false,
+   "personal_data": {
+    "left_out": [
+     "customers.name (P1: a person's name)"
+    ],
+    "notice": "left out of every view by name (privacy rules); the keys stay. Add such a column to a view by hand where you need it."
+   },
    "result": {
     "schema": "krusgraph",
     "status": "Succeeded",
@@ -1884,7 +1896,7 @@
    "views": [
     {
      "name": "vw_order_items",
-     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
      "tables": [
       "order_items",
       "orders",
@@ -1896,7 +1908,7 @@
     },
     {
      "name": "vw_orders",
-     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
+     "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]",
      "tables": [
       "orders",
       "customers"
@@ -2169,8 +2181,8 @@
   ],
   "ddl": [
    "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
-   "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[name] AS [customers_name],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
-   "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[name] AS [customers_name],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]"
+   "CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[line_no] AS [line_no],\n    f.[product_id] AS [product_id],\n    f.[quantity] AS [quantity],\n    d1.[order_id] AS [orders_order_id],\n    d1.[customer_id] AS [orders_customer_id],\n    d1.[order_date] AS [orders_order_date],\n    d1.[ship_to_id] AS [orders_ship_to_id],\n    d2.[product_id] AS [products_product_id],\n    d2.[name] AS [products_name],\n    d2.[category_id] AS [products_category_id],\n    d2.[list_price] AS [products_list_price],\n    d3.[customer_id] AS [customers_customer_id],\n    d3.[country] AS [customers_country],\n    d4.[id] AS [categories_id],\n    d4.[name] AS [categories_name]\nFROM [shop].[order_items] AS f\n    LEFT JOIN [shop].[orders] AS d1 ON f.[order_id] = d1.[order_id]\n    LEFT JOIN [shop].[products] AS d2 ON f.[product_id] = d2.[product_id]\n    LEFT JOIN [shop].[customers] AS d3 ON d1.[customer_id] = d3.[customer_id]\n    LEFT JOIN [shop].[categories] AS d4 ON d2.[category_id] = d4.[id]",
+   "CREATE OR ALTER VIEW [krusgraph].[vw_orders] AS\nSELECT\n    f.[order_id] AS [order_id],\n    f.[customer_id] AS [customer_id],\n    f.[order_date] AS [order_date],\n    f.[ship_to_id] AS [ship_to_id],\n    d1.[customer_id] AS [customers_customer_id],\n    d1.[country] AS [customers_country]\nFROM [shop].[orders] AS f\n    LEFT JOIN [shop].[customers] AS d1 ON f.[customer_id] = d1.[customer_id]"
   ]
  }
 ]

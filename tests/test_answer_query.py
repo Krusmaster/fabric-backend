@@ -154,7 +154,7 @@ def test_graphql_explains_what_it_cannot_do():
     assert "groupBy" in g["not_possible"]
     g = answers.draft(p, "How many orders per customer?", ["orders", "customers"], description(p), "shop_api")["graphql"]
     assert g["query"] == "query { orders { groupBy(fields: [customer_id]) { fields { customer_id } aggregations { count(field: order_id) } } } }"
-    assert any("not by customers's name" in n or "not by customers" in n for n in g["notes"])
+    assert any("grouped by customer_id" in n and "personal data, left out" in n for n in g["notes"])   # n87: says what the T-SQL returns
 
 
 def test_bad_tables_are_refused():
@@ -186,8 +186,8 @@ def test_tokens_an_agent_reads_with_and_without_the_suggestion():
     assert measured == MEASURED, measured
 
 
-MEASURED = {"How many orders per customer?": (4873, 1529), "Total quantity per category": (5591, 1512),    # +22: products.list_price (n71)
-            "De 10 senaste ordrarna med kund": (4873, 1319)}          # docs/NOTEBOOKS.md quotes these
+MEASURED = {"How many orders per customer?": (4873, 1531), "Total quantity per category": (5591, 1512),    # +22: products.list_price (n71)
+            "De 10 senaste ordrarna med kund": (4873, 1319)}          # docs/NOTEBOOKS.md quotes these; +2 in n87 (the note says what the T-SQL returns)
 
 
 # ------------------------------------------------------------------ the tools ------------------------------------

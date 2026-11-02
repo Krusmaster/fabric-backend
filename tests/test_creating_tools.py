@@ -144,7 +144,8 @@ def test_views_sql_only_touches_the_views_schema_and_runs_on_the_seed_rows():
     assert wide["tables"] == ["order_items", "orders", "products", "addresses", "customers", "categories"]
     assert wide["sql"].startswith("CREATE OR ALTER VIEW [krusgraph].[vw_order_items] AS\nSELECT\n    f.[order_id] AS [order_id]")
     assert "LEFT JOIN [shop].[customers] AS d4 ON d1.[customer_id] = d4.[customer_id]" in wide["sql"]
-    assert "d5.[name] AS [categories_name]" in wide["sql"] and "d4.[name] AS [customers_name]" in wide["sql"]
+    assert "d5.[name] AS [categories_name]" in wide["sql"] and "[customers_name]" not in wide["sql"]   # n87: customers.name is P1, left out
+    assert [x["column"] for x in st["personal_left_out"]] == ["city", "name"]
     for v in st["views"]:
         assert "DROP" not in v["sql"].upper() and v["sql"].count("CREATE OR ALTER VIEW [krusgraph].") == 1
         assert re.findall(r"CREATE OR ALTER VIEW \[(\w+)\]", v["sql"]) == ["krusgraph"]
@@ -152,7 +153,7 @@ def test_views_sql_only_touches_the_views_schema_and_runs_on_the_seed_rows():
     for v in st["views"]:
         con.execute(for_sqlite(v["sql"]))
     assert con.execute("SELECT COUNT(*) FROM [vw_order_items]").fetchone()[0] == 134
-    assert con.execute("SELECT COUNT(*) FROM [vw_order_items] WHERE [customers_name] IS NULL").fetchone()[0] == 0
+    assert con.execute("SELECT COUNT(*) FROM [vw_order_items] WHERE [customers_country] IS NULL").fetchone()[0] == 0
     assert con.execute("SELECT COUNT(*) FROM [vw_orders_ship_to]").fetchone()[0] == 60
     # the header view: one row per order, with the customer who placed it and the address it was shipped to
     header = st["views"][1]
@@ -160,9 +161,9 @@ def test_views_sql_only_touches_the_views_schema_and_runs_on_the_seed_rows():
     assert "LEFT JOIN [shop].[addresses] AS d1 ON f.[ship_to_id] = d1.[address_id]" in header["sql"]
     assert "LEFT JOIN [shop].[customers] AS d2 ON f.[customer_id] = d2.[customer_id]" in header["sql"]   # the orderer, not the address's
     assert con.execute("SELECT COUNT(*) FROM [vw_orders]").fetchone()[0] == 60
-    assert con.execute("SELECT COUNT(*) FROM [vw_orders] WHERE [addresses_city] IS NULL OR [customers_name] IS NULL").fetchone()[0] == 0
-    assert con.execute("SELECT [addresses_city] FROM [vw_orders] WHERE [order_id] = 103").fetchone()[0] == next(
-        a[2] for a in seed.rows()["addresses"] if a[0] == next(o[3] for o in seed.rows()["orders"] if o[0] == 103))
+    assert con.execute("SELECT COUNT(*) FROM [vw_orders] WHERE [addresses_address_id] IS NULL OR [customers_country] IS NULL").fetchone()[0] == 0
+    assert con.execute("SELECT [addresses_address_id] FROM [vw_orders] WHERE [order_id] = 103").fetchone()[0] == next(
+        o[3] for o in seed.rows()["orders"] if o[0] == 103)                               # addresses.city (P5) is left out, its key stays
     # without the confirmed link the header view still has its customer, and no address
     plain = {v["name"]: v for v in views.statements(plan(seed.schema("shop")))["views"]}
     assert set(plain) == {"vw_order_items", "vw_orders"} and plain["vw_orders"]["tables"] == ["orders", "customers"]
@@ -400,7 +401,8 @@ def test_app_starter_uses_the_api_definition_names():
     desc = server.describe_definition(decode(definition(p, "shop_api", WS, "ep", "SqlAnalyticsEndpoint")))
     s = app_starter.starter(desc, f"https://api.fabric.microsoft.com/v1/workspaces/{WS}/graphqlapis/x/graphql", "shop_api", WS)
     assert len(s["queries"]) == 5 and len({q["query"].split("(")[0] for q in s["queries"]}) == 5     # five different root types
-    assert any("customer { customer_id name country }" in q["query"] for q in s["queries"])             # the field names are the API's
+    assert any("customer { customer_id country }" in q["query"] for q in s["queries"])                  # the field names are the API's; name is P1 (n87)
+    assert not any(" name country" in q["query"] for q in s["queries"]) and "customers.name (P1" in " ".join(s["personal_data"]["left_out"])
     assert "ship_to → addresses (ManyToOne)" in s["lovable_prompt"]
     assert all(q["query"].startswith("query { ") and "(first: 10) { items {" in q["query"] for q in s["queries"])
     prompt = s["lovable_prompt"]

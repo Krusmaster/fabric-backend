@@ -1290,12 +1290,84 @@
   "sha256": "a2f4d28eafcb6c730487139e9ae7881ceb9f37c8aa4af0cab277421878eeadfa"
  },
  "views": {
+  "personal_left_out": [
+   {
+    "column": "Address",
+    "rule": "P5",
+    "table": "Customer",
+    "what": "an address",
+    "why": "the column name 'Address' names an address"
+   },
+   {
+    "column": "City",
+    "rule": "P5",
+    "table": "Customer",
+    "what": "an address",
+    "why": "'City' in 'Customer', a table of addresses or people, is part of an address"
+   },
+   {
+    "column": "Email",
+    "rule": "P2",
+    "table": "Customer",
+    "what": "an e-mail address",
+    "why": "the column name 'Email' names an e-mail address"
+   },
+   {
+    "column": "Fax",
+    "rule": "P3",
+    "table": "Customer",
+    "what": "a telephone number",
+    "why": "the column name 'Fax' names a telephone number"
+   },
+   {
+    "column": "FirstName",
+    "rule": "P1",
+    "table": "Customer",
+    "what": "a person's name",
+    "why": "the column name 'FirstName' names part of a person's name"
+   },
+   {
+    "column": "LastName",
+    "rule": "P1",
+    "table": "Customer",
+    "what": "a person's name",
+    "why": "the column name 'LastName' names part of a person's name"
+   },
+   {
+    "column": "Phone",
+    "rule": "P3",
+    "table": "Customer",
+    "what": "a telephone number",
+    "why": "the column name 'Phone' names a telephone number"
+   },
+   {
+    "column": "PostalCode",
+    "rule": "P5",
+    "table": "Customer",
+    "what": "an address",
+    "why": "the column name 'PostalCode' names an address"
+   },
+   {
+    "column": "BillingAddress",
+    "rule": "P5",
+    "table": "Invoice",
+    "what": "an address",
+    "why": "the column name 'BillingAddress' names an address"
+   },
+   {
+    "column": "BillingPostalCode",
+    "rule": "P5",
+    "table": "Invoice",
+    "what": "an address",
+    "why": "the column name 'BillingPostalCode' names an address"
+   }
+  ],
   "schema": "krusgraph",
   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
   "views": [
    {
     "name": "vw_InvoiceLine",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_InvoiceLine] AS\nSELECT\n    f.[InvoiceLineId] AS [InvoiceLineId],\n    f.[InvoiceId] AS [InvoiceId],\n    f.[TrackId] AS [TrackId],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    d1.[InvoiceId] AS [Invoice_InvoiceId],\n    d1.[CustomerId] AS [Invoice_CustomerId],\n    d1.[InvoiceDate] AS [Invoice_InvoiceDate],\n    d1.[BillingAddress] AS [Invoice_BillingAddress],\n    d1.[BillingCity] AS [Invoice_BillingCity],\n    d1.[BillingState] AS [Invoice_BillingState],\n    d1.[BillingCountry] AS [Invoice_BillingCountry],\n    d1.[BillingPostalCode] AS [Invoice_BillingPostalCode],\n    d1.[Total] AS [Invoice_Total],\n    d2.[TrackId] AS [Track_TrackId],\n    d2.[Name] AS [Track_Name],\n    d2.[AlbumId] AS [Track_AlbumId],\n    d2.[MediaTypeId] AS [Track_MediaTypeId],\n    d2.[GenreId] AS [Track_GenreId],\n    d2.[Composer] AS [Track_Composer],\n    d2.[Milliseconds] AS [Track_Milliseconds],\n    d2.[Bytes] AS [Track_Bytes],\n    d2.[UnitPrice] AS [Track_UnitPrice],\n    d3.[CustomerId] AS [Customer_CustomerId],\n    d3.[FirstName] AS [Customer_FirstName],\n    d3.[LastName] AS [Customer_LastName],\n    d3.[Company] AS [Customer_Company],\n    d3.[Address] AS [Customer_Address],\n    d3.[City] AS [Customer_City],\n    d3.[State] AS [Customer_State],\n    d3.[Country] AS [Customer_Country],\n    d3.[PostalCode] AS [Customer_PostalCode],\n    d3.[Phone] AS [Customer_Phone],\n    d3.[Fax] AS [Customer_Fax],\n    d3.[Email] AS [Customer_Email],\n    d3.[SupportRepId] AS [Customer_SupportRepId],\n    d4.[AlbumId] AS [Album_AlbumId],\n    d4.[Title] AS [Album_Title],\n    d4.[ArtistId] AS [Album_ArtistId],\n    d5.[GenreId] AS [Genre_GenreId],\n    d5.[Name] AS [Genre_Name],\n    d6.[MediaTypeId] AS [MediaType_MediaTypeId],\n    d6.[Name] AS [MediaType_Name],\n    d7.[ArtistId] AS [Artist_ArtistId],\n    d7.[Name] AS [Artist_Name]\nFROM [dbo].[InvoiceLine] AS f\n    LEFT JOIN [dbo].[Invoice] AS d1 ON f.[InvoiceId] = d1.[InvoiceId]\n    LEFT JOIN [dbo].[Track] AS d2 ON f.[TrackId] = d2.[TrackId]\n    LEFT JOIN [dbo].[Customer] AS d3 ON d1.[CustomerId] = d3.[CustomerId]\n    LEFT JOIN [dbo].[Album] AS d4 ON d2.[AlbumId] = d4.[AlbumId]\n    LEFT JOIN [dbo].[Genre] AS d5 ON d2.[GenreId] = d5.[GenreId]\n    LEFT JOIN [dbo].[MediaType] AS d6 ON d2.[MediaTypeId] = d6.[MediaTypeId]\n    LEFT JOIN [dbo].[Artist] AS d7 ON d4.[ArtistId] = d7.[ArtistId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_InvoiceLine] AS\nSELECT\n    f.[InvoiceLineId] AS [InvoiceLineId],\n    f.[InvoiceId] AS [InvoiceId],\n    f.[TrackId] AS [TrackId],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    d1.[InvoiceId] AS [Invoice_InvoiceId],\n    d1.[CustomerId] AS [Invoice_CustomerId],\n    d1.[InvoiceDate] AS [Invoice_InvoiceDate],\n    d1.[BillingCity] AS [Invoice_BillingCity],\n    d1.[BillingState] AS [Invoice_BillingState],\n    d1.[BillingCountry] AS [Invoice_BillingCountry],\n    d1.[Total] AS [Invoice_Total],\n    d2.[TrackId] AS [Track_TrackId],\n    d2.[Name] AS [Track_Name],\n    d2.[AlbumId] AS [Track_AlbumId],\n    d2.[MediaTypeId] AS [Track_MediaTypeId],\n    d2.[GenreId] AS [Track_GenreId],\n    d2.[Composer] AS [Track_Composer],\n    d2.[Milliseconds] AS [Track_Milliseconds],\n    d2.[Bytes] AS [Track_Bytes],\n    d2.[UnitPrice] AS [Track_UnitPrice],\n    d3.[CustomerId] AS [Customer_CustomerId],\n    d3.[Company] AS [Customer_Company],\n    d3.[State] AS [Customer_State],\n    d3.[Country] AS [Customer_Country],\n    d3.[SupportRepId] AS [Customer_SupportRepId],\n    d4.[AlbumId] AS [Album_AlbumId],\n    d4.[Title] AS [Album_Title],\n    d4.[ArtistId] AS [Album_ArtistId],\n    d5.[GenreId] AS [Genre_GenreId],\n    d5.[Name] AS [Genre_Name],\n    d6.[MediaTypeId] AS [MediaType_MediaTypeId],\n    d6.[Name] AS [MediaType_Name],\n    d7.[ArtistId] AS [Artist_ArtistId],\n    d7.[Name] AS [Artist_Name]\nFROM [dbo].[InvoiceLine] AS f\n    LEFT JOIN [dbo].[Invoice] AS d1 ON f.[InvoiceId] = d1.[InvoiceId]\n    LEFT JOIN [dbo].[Track] AS d2 ON f.[TrackId] = d2.[TrackId]\n    LEFT JOIN [dbo].[Customer] AS d3 ON d1.[CustomerId] = d3.[CustomerId]\n    LEFT JOIN [dbo].[Album] AS d4 ON d2.[AlbumId] = d4.[AlbumId]\n    LEFT JOIN [dbo].[Genre] AS d5 ON d2.[GenreId] = d5.[GenreId]\n    LEFT JOIN [dbo].[MediaType] AS d6 ON d2.[MediaTypeId] = d6.[MediaTypeId]\n    LEFT JOIN [dbo].[Artist] AS d7 ON d4.[ArtistId] = d7.[ArtistId]",
     "tables": [
      "InvoiceLine",
      "Invoice",
@@ -1324,7 +1396,7 @@
    },
    {
     "name": "vw_Invoice",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Invoice] AS\nSELECT\n    f.[InvoiceId] AS [InvoiceId],\n    f.[CustomerId] AS [CustomerId],\n    f.[InvoiceDate] AS [InvoiceDate],\n    f.[BillingAddress] AS [BillingAddress],\n    f.[BillingCity] AS [BillingCity],\n    f.[BillingState] AS [BillingState],\n    f.[BillingCountry] AS [BillingCountry],\n    f.[BillingPostalCode] AS [BillingPostalCode],\n    f.[Total] AS [Total],\n    d1.[CustomerId] AS [Customer_CustomerId],\n    d1.[FirstName] AS [Customer_FirstName],\n    d1.[LastName] AS [Customer_LastName],\n    d1.[Company] AS [Customer_Company],\n    d1.[Address] AS [Customer_Address],\n    d1.[City] AS [Customer_City],\n    d1.[State] AS [Customer_State],\n    d1.[Country] AS [Customer_Country],\n    d1.[PostalCode] AS [Customer_PostalCode],\n    d1.[Phone] AS [Customer_Phone],\n    d1.[Fax] AS [Customer_Fax],\n    d1.[Email] AS [Customer_Email],\n    d1.[SupportRepId] AS [Customer_SupportRepId]\nFROM [dbo].[Invoice] AS f\n    LEFT JOIN [dbo].[Customer] AS d1 ON f.[CustomerId] = d1.[CustomerId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Invoice] AS\nSELECT\n    f.[InvoiceId] AS [InvoiceId],\n    f.[CustomerId] AS [CustomerId],\n    f.[InvoiceDate] AS [InvoiceDate],\n    f.[BillingCity] AS [BillingCity],\n    f.[BillingState] AS [BillingState],\n    f.[BillingCountry] AS [BillingCountry],\n    f.[Total] AS [Total],\n    d1.[CustomerId] AS [Customer_CustomerId],\n    d1.[Company] AS [Customer_Company],\n    d1.[State] AS [Customer_State],\n    d1.[Country] AS [Customer_Country],\n    d1.[SupportRepId] AS [Customer_SupportRepId]\nFROM [dbo].[Invoice] AS f\n    LEFT JOIN [dbo].[Customer] AS d1 ON f.[CustomerId] = d1.[CustomerId]",
     "tables": [
      "Invoice",
      "Customer"

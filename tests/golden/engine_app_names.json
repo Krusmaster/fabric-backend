@@ -976,12 +976,28 @@
   "sha256": "468ed299ca5a007b8232f8acf16bebbfe6be4ab5e1e6ce4da01e57725a27cc3b"
  },
  "views": {
+  "personal_left_out": [
+   {
+    "column": "FullName",
+    "rule": "P1",
+    "table": "employees",
+    "what": "a person's name",
+    "why": "the column name 'FullName' names part of a person's name"
+   },
+   {
+    "column": "CustomerName",
+    "rule": "P1",
+    "table": "tbl_customers",
+    "what": "a person's name",
+    "why": "'CustomerName' in 'tbl_customers', a table that holds people, is a person's name"
+   }
+  ],
   "schema": "krusgraph",
   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
   "views": [
    {
     "name": "vw_tbl_order_lines",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_order_lines] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[LineNo] AS [LineNo],\n    f.[ProdId] AS [ProdId],\n    f.[Qty] AS [Qty],\n    d1.[ProductId] AS [products_ProductId],\n    d1.[ProductName] AS [products_ProductName],\n    d1.[CatId] AS [products_CatId],\n    d2.[OrderId] AS [tbl_orders_OrderId],\n    d2.[CustId] AS [tbl_orders_CustId],\n    d2.[EmpId] AS [tbl_orders_EmpId],\n    d2.[OrderDate] AS [tbl_orders_OrderDate],\n    d2.[TotalAmount] AS [tbl_orders_TotalAmount],\n    d3.[CategoryId] AS [categories_CategoryId],\n    d3.[CategoryName] AS [categories_CategoryName],\n    d4.[EmployeeId] AS [employees_EmployeeId],\n    d4.[FullName] AS [employees_FullName],\n    d4.[DeptId] AS [employees_DeptId],\n    d4.[ManagerId] AS [employees_ManagerId],\n    d5.[CustomerId] AS [tbl_customers_CustomerId],\n    d5.[CustomerName] AS [tbl_customers_CustomerName],\n    d5.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d6.[DepartmentId] AS [departments_DepartmentId],\n    d6.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_order_lines] AS f\n    LEFT JOIN [dbo].[products] AS d1 ON f.[ProdId] = d1.[ProductId]\n    LEFT JOIN [dbo].[tbl_orders] AS d2 ON f.[OrderId] = d2.[OrderId]\n    LEFT JOIN [dbo].[categories] AS d3 ON d1.[CatId] = d3.[CategoryId]\n    LEFT JOIN [dbo].[employees] AS d4 ON d2.[EmpId] = d4.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d5 ON d2.[CustId] = d5.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d6 ON d4.[DeptId] = d6.[DepartmentId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_order_lines] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[LineNo] AS [LineNo],\n    f.[ProdId] AS [ProdId],\n    f.[Qty] AS [Qty],\n    d1.[ProductId] AS [products_ProductId],\n    d1.[ProductName] AS [products_ProductName],\n    d1.[CatId] AS [products_CatId],\n    d2.[OrderId] AS [tbl_orders_OrderId],\n    d2.[CustId] AS [tbl_orders_CustId],\n    d2.[EmpId] AS [tbl_orders_EmpId],\n    d2.[OrderDate] AS [tbl_orders_OrderDate],\n    d2.[TotalAmount] AS [tbl_orders_TotalAmount],\n    d3.[CategoryId] AS [categories_CategoryId],\n    d3.[CategoryName] AS [categories_CategoryName],\n    d4.[EmployeeId] AS [employees_EmployeeId],\n    d4.[DeptId] AS [employees_DeptId],\n    d4.[ManagerId] AS [employees_ManagerId],\n    d5.[CustomerId] AS [tbl_customers_CustomerId],\n    d5.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d6.[DepartmentId] AS [departments_DepartmentId],\n    d6.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_order_lines] AS f\n    LEFT JOIN [dbo].[products] AS d1 ON f.[ProdId] = d1.[ProductId]\n    LEFT JOIN [dbo].[tbl_orders] AS d2 ON f.[OrderId] = d2.[OrderId]\n    LEFT JOIN [dbo].[categories] AS d3 ON d1.[CatId] = d3.[CategoryId]\n    LEFT JOIN [dbo].[employees] AS d4 ON d2.[EmpId] = d4.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d5 ON d2.[CustId] = d5.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d6 ON d4.[DeptId] = d6.[DepartmentId]",
     "tables": [
      "tbl_order_lines",
      "products",
@@ -995,7 +1011,7 @@
    },
    {
     "name": "vw_tbl_orders",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[CustId] AS [CustId],\n    f.[EmpId] AS [EmpId],\n    f.[OrderDate] AS [OrderDate],\n    f.[TotalAmount] AS [TotalAmount],\n    d1.[EmployeeId] AS [employees_EmployeeId],\n    d1.[FullName] AS [employees_FullName],\n    d1.[DeptId] AS [employees_DeptId],\n    d1.[ManagerId] AS [employees_ManagerId],\n    d2.[CustomerId] AS [tbl_customers_CustomerId],\n    d2.[CustomerName] AS [tbl_customers_CustomerName],\n    d2.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d3.[DepartmentId] AS [departments_DepartmentId],\n    d3.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_orders] AS f\n    LEFT JOIN [dbo].[employees] AS d1 ON f.[EmpId] = d1.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d2 ON f.[CustId] = d2.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d3 ON d1.[DeptId] = d3.[DepartmentId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders] AS\nSELECT\n    f.[OrderId] AS [OrderId],\n    f.[CustId] AS [CustId],\n    f.[EmpId] AS [EmpId],\n    f.[OrderDate] AS [OrderDate],\n    f.[TotalAmount] AS [TotalAmount],\n    d1.[EmployeeId] AS [employees_EmployeeId],\n    d1.[DeptId] AS [employees_DeptId],\n    d1.[ManagerId] AS [employees_ManagerId],\n    d2.[CustomerId] AS [tbl_customers_CustomerId],\n    d2.[AcctMgrId] AS [tbl_customers_AcctMgrId],\n    d3.[DepartmentId] AS [departments_DepartmentId],\n    d3.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[tbl_orders] AS f\n    LEFT JOIN [dbo].[employees] AS d1 ON f.[EmpId] = d1.[EmployeeId]\n    LEFT JOIN [dbo].[tbl_customers] AS d2 ON f.[CustId] = d2.[CustomerId]\n    LEFT JOIN [dbo].[departments] AS d3 ON d1.[DeptId] = d3.[DepartmentId]",
     "tables": [
      "tbl_orders",
      "employees",
@@ -1006,7 +1022,7 @@
    },
    {
     "name": "vw_employees_department",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_employees_department] AS\nSELECT\n    s.[EmployeeId] AS [EmployeeId],\n    s.[FullName] AS [FullName],\n    s.[DeptId] AS [DeptId],\n    s.[ManagerId] AS [ManagerId],\n    t.[DepartmentId] AS [departments_DepartmentId],\n    t.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[employees] AS s\n    LEFT JOIN [dbo].[departments] AS t ON s.[DeptId] = t.[DepartmentId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_employees_department] AS\nSELECT\n    s.[EmployeeId] AS [EmployeeId],\n    s.[DeptId] AS [DeptId],\n    s.[ManagerId] AS [ManagerId],\n    t.[DepartmentId] AS [departments_DepartmentId],\n    t.[DepartmentName] AS [departments_DepartmentName]\nFROM [dbo].[employees] AS s\n    LEFT JOIN [dbo].[departments] AS t ON s.[DeptId] = t.[DepartmentId]",
     "tables": [
      "employees",
      "departments"
@@ -1015,7 +1031,7 @@
    },
    {
     "name": "vw_tbl_orders_cust",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_cust] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[CustomerId] AS [tbl_customers_CustomerId],\n    t.[CustomerName] AS [tbl_customers_CustomerName],\n    t.[AcctMgrId] AS [tbl_customers_AcctMgrId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[tbl_customers] AS t ON s.[CustId] = t.[CustomerId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_cust] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[CustomerId] AS [tbl_customers_CustomerId],\n    t.[AcctMgrId] AS [tbl_customers_AcctMgrId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[tbl_customers] AS t ON s.[CustId] = t.[CustomerId]",
     "tables": [
      "tbl_orders",
      "tbl_customers"
@@ -1024,7 +1040,7 @@
    },
    {
     "name": "vw_tbl_orders_employee",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_employee] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[EmployeeId] AS [employees_EmployeeId],\n    t.[FullName] AS [employees_FullName],\n    t.[DeptId] AS [employees_DeptId],\n    t.[ManagerId] AS [employees_ManagerId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[employees] AS t ON s.[EmpId] = t.[EmployeeId]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_tbl_orders_employee] AS\nSELECT\n    s.[OrderId] AS [OrderId],\n    s.[CustId] AS [CustId],\n    s.[EmpId] AS [EmpId],\n    s.[OrderDate] AS [OrderDate],\n    s.[TotalAmount] AS [TotalAmount],\n    t.[EmployeeId] AS [employees_EmployeeId],\n    t.[DeptId] AS [employees_DeptId],\n    t.[ManagerId] AS [employees_ManagerId]\nFROM [dbo].[tbl_orders] AS s\n    LEFT JOIN [dbo].[employees] AS t ON s.[EmpId] = t.[EmployeeId]",
     "tables": [
      "tbl_orders",
      "employees"

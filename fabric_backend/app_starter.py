@@ -19,8 +19,25 @@ SECRETS = ("ENTRA_TENANT_ID", "ENTRA_CLIENT_ID", "ENTRA_CLIENT_SECRET", "FABRIC_
 DELEGATED_SCOPE = "https://analysis.windows.net/powerbi/api/GraphQLApi.Execute.All"
 
 
+def _table_of(t: dict) -> str:
+    return str(t.get("source") or t.get("type") or "").split(".")[-1]
+
+
+def personal_fields(description: dict) -> dict[str, dict]:
+    """"<table>.<field>" -> the privacy rule, for the API's fields privacy.py flags by name (n87)."""
+    from . import privacy
+    out = {}
+    for t in description.get("types", []):
+        for f in t.get("fields", []):
+            hit = privacy.classify(_table_of(t), f)
+            if hit:
+                out[f"{_table_of(t)}.{f}"] = hit
+    return out
+
+
 def _pick_fields(t: dict, n: int = 4) -> list[str]:
-    return [f for f in t.get("fields", []) if not f.startswith("_")][:n]
+    from . import privacy
+    return [f for f in t.get("fields", []) if not f.startswith("_") and not privacy.classify(_table_of(t), f)][:n]
 
 
 def queries(description: dict, n: int = 5) -> list[dict]:
@@ -176,6 +193,7 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
         model_lines.append(f"- {t['type']} (query `{t['query_field']}`, {'by key, ' if t.get('by_key') else ''}{'writable' if t.get('writable') else 'read-only'}): "
                            f"fields {', '.join(t.get('fields', []))}" + (f"; relationships: {rels}" if rels else ""))
     qs = queries(description)
+    personal = personal_fields(description)
     facts = [t for t in types if sum(1 for r in t.get("relationships", []) if r.get("cardinality") == "ManyToOne") >= 2]
     views = ([f"a list/detail page for {f['type']} with its related records expanded" for f in facts]
              or [f"a list/detail page for {t['type']}" for t in types[:2]])
@@ -189,6 +207,8 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
         "the token exchange server-side and never put a client secret in the browser. Endpoint and example queries below.", "",
         f"Endpoint: {endpoint}", "", "Example queries that show the relationships:", *[f"```graphql\n{q['query']}\n```" for q in qs],
         "", "Read-only: the API exposes no create/update/delete operations unless the type above says writable.", "",
+        *([f"Personal data: {', '.join(personal)} look like personal data by name (Krusgraph's privacy rules); the example queries "
+           "leave them out. Show them only on pages whose users may see them.", ""] if personal else []),
         f"Backend: create the Supabase edge function `{FUNCTION_NAME}` with exactly this source and call it from the pages through "
         f"`src/lib/fabric.ts` below. The secrets {', '.join(SECRETS)} are Supabase secrets; ask me to add them, do not put values in code.",
         "", f"```ts\n{back['edge_function']['source']}```", "", f"```ts\n{back['frontend']['source']}```"])
@@ -210,5 +230,10 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
         "Deploy the edge function, then try the five queries through it; the field names come from describe_backend, so they match the API",
         "app_readiness lists what is still missing on the API side",
     ]
-    return {"lovable_prompt": prompt, "connection": connection, "queries": qs, "checklist": checklist, "backend": back,
-            "note": "Generated from the API's definition; unit-tested. " + answer_note("app_starter")}
+    out = {"lovable_prompt": prompt, "connection": connection, "queries": qs, "checklist": checklist, "backend": back,
+           "note": "Generated from the API's definition; unit-tested. " + answer_note("app_starter")}
+    if personal:
+        out["personal_data"] = {"left_out": [f"{k} ({v['rule']}: {v['what']})" for k, v in personal.items()],
+                                "notice": "left out of the example queries by name (privacy rules, as in sample_rows and the drafted "
+                                          "queries); the data model in the prompt still names the fields, without values."}
+    return out

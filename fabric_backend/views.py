@@ -111,12 +111,14 @@ def _unique(names: list[str]) -> list[str]:
     return out
 
 
-def wide_view_sql(plan: Plan, fact: str, target: str, dialect: Dialect = TSQL, why: str = "") -> tuple[str, list[str]]:
+def wide_view_sql(plan: Plan, fact: str, target: str, dialect: Dialect = TSQL, why: str = "",
+                  hidden: set[tuple[str, str]] = frozenset()) -> tuple[str, list[str]]:
+    """`hidden`: (table, column) left out of the view, the columns privacy.py flags (n87)."""
     schema = plan.schema.schema
     qi = dialect.quote
     chain = dimension_chain(plan, fact)
-    cols = [f"f.{qi(c)}" for c in plan.schema[fact].column_names]
-    aliases = list(plan.schema[fact].column_names)
+    cols = [f"f.{qi(c)}" for c in plan.schema[fact].column_names if (fact, c) not in hidden]
+    aliases = [c for c in plan.schema[fact].column_names if (fact, c) not in hidden]
     joins = []
     tables = [fact]
     for src_alias, r, tgt_alias in chain:
@@ -124,6 +126,8 @@ def wide_view_sql(plan: Plan, fact: str, target: str, dialect: Dialect = TSQL, w
         joins.append(f"    LEFT JOIN {dialect.table(schema, r.target)} AS {tgt_alias} ON {on}")
         tables.append(r.target)
         for c in plan.schema[r.target].column_names:
+            if (r.target, c) in hidden:
+                continue
             cols.append(f"{tgt_alias}.{qi(c)}")
             aliases.append(f"{r.target}_{c}")
     aliases = _unique(aliases)
@@ -145,12 +149,13 @@ def hard_relationships(plan: Plan) -> list[Relationship]:
     return out
 
 
-def relationship_view_sql(plan: Plan, r: Relationship, target: str, dialect: Dialect = TSQL, why: str = "") -> str:
+def relationship_view_sql(plan: Plan, r: Relationship, target: str, dialect: Dialect = TSQL, why: str = "",
+                          hidden: set[tuple[str, str]] = frozenset()) -> str:
     schema = plan.schema.schema
     qi = dialect.quote
     on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
-    s_cols = [f"s.{qi(c)} AS {qi(c)}" for c in plan.schema[r.source].column_names]
-    t_cols = [f"t.{qi(c)} AS {qi(f'{r.target}_{c}')}" for c in plan.schema[r.target].column_names]
+    s_cols = [f"s.{qi(c)} AS {qi(c)}" for c in plan.schema[r.source].column_names if (r.source, c) not in hidden]
+    t_cols = [f"t.{qi(c)} AS {qi(f'{r.target}_{c}')}" for c in plan.schema[r.target].column_names if (r.target, c) not in hidden]
     name = f"vw_{r.source}_{r.field_name}"
     return (f"{dialect.create_view} {dialect.table(target, name)}{dialect.view_comment(why)} AS\nSELECT\n    "
             + ",\n    ".join(_dedupe(s_cols + t_cols, dialect))
@@ -162,32 +167,38 @@ def _dedupe(cols: list[str], dialect: Dialect = TSQL) -> list[str]:
     return [c.rsplit(" AS ", 1)[0] + " AS " + dialect.quote(n) for c, n in zip(cols, names)]
 
 
-def statements(plan: Plan, target: str = DEFAULT_SCHEMA, dialect: Dialect = TSQL) -> dict:
-    """{"schema": <sql>, "views": [{"name", "sql", "why", "tables"}]} — the fact views first, then one per hard link.
-    T-SQL by default; another dialect (dialects.py) gives that platform's CREATE VIEW, with the reason as its comment
-    where the dialect has view comments."""
+def statements(plan: Plan, target: str = DEFAULT_SCHEMA, dialect: Dialect = TSQL, show_personal_data: bool = False) -> dict:
+    """{"schema": <sql>, "views": [{"name", "sql", "why", "tables"}], "personal_left_out": [...]} — the fact views first,
+    then one per hard link. T-SQL by default; another dialect (dialects.py) gives that platform's CREATE VIEW, with the
+    reason as its comment where the dialect has view comments. The columns privacy.py flags are left out of every view
+    (n87: the same rule as sample_rows, the drafted queries and the gold views) unless show_personal_data."""
+    from . import privacy
+    flagged = {} if show_personal_data else privacy.personal_columns(plan.schema)
+    hidden = set(flagged)
     views = []
     for fact in fact_tables(plan):
-        sql, tables = wide_view_sql(plan, fact, target)
+        sql, tables = wide_view_sql(plan, fact, target, hidden=hidden)
         why = f"{fact} is a fact table ({len(tables) - 1} dimensions joined in through the plan's relationships)"
         if dialect is not TSQL:
-            sql, _ = wide_view_sql(plan, fact, target, dialect, why)
+            sql, _ = wide_view_sql(plan, fact, target, dialect, why, hidden=hidden)
         views.append({"name": f"vw_{fact}", "sql": sql, "tables": tables, "why": why})
     for header, lines in header_tables(plan):
-        sql, tables = wide_view_sql(plan, header, target)
+        sql, tables = wide_view_sql(plan, header, target, hidden=hidden)
         why = (f"{header} is a header table: {lines} holds its lines; one row per {header} row, with its "
                f"{len(tables) - 1} dimension(s) joined in")
         if dialect is not TSQL:
-            sql, _ = wide_view_sql(plan, header, target, dialect, why)
+            sql, _ = wide_view_sql(plan, header, target, dialect, why, hidden=hidden)
         views.append({"name": f"vw_{header}", "sql": sql, "tables": tables, "why": why})
     for r in hard_relationships(plan):
         reason = {"R2": "the column has the target key's name, not the target's name", "R3": "the link spans several columns",
                   "R4": "the column abbreviates or role-prefixes the target", "confirmed": "the link was given by hand, the names do not show it"
                   }.get(r.rule, f"the column names a role ({r.field_name}), not the table")
         why = f"{r.source}.{'+'.join(r.source_cols)} -> {r.target} ({r.rule}): {reason}"
-        views.append({"name": f"vw_{r.source}_{r.field_name}", "sql": relationship_view_sql(plan, r, target, dialect, why),
+        views.append({"name": f"vw_{r.source}_{r.field_name}", "sql": relationship_view_sql(plan, r, target, dialect, why, hidden),
                       "tables": [r.source, r.target], "why": why})
-    return {"schema": target, "schema_sql": schema_sql(target, dialect), "views": views}
+    in_views = {t for v in views for t in v["tables"]}
+    left_out = [f for f in privacy.findings(flagged) if f["table"] in in_views]
+    return {"schema": target, "schema_sql": schema_sql(target, dialect), "views": views, "personal_left_out": left_out}
 
 
 def apply(stmts: dict, run, log: list[dict] | None = None) -> list[dict]:

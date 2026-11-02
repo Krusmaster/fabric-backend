@@ -1510,12 +1510,154 @@
   "sha256": "874f56db8ccd1da1d76aaec351d900b1d03916b81f49191f1f4d9f08ea5e2e0f"
  },
  "views": {
+  "personal_left_out": [
+   {
+    "column": "Address",
+    "rule": "P5",
+    "table": "Customers",
+    "what": "an address",
+    "why": "the column name 'Address' names an address"
+   },
+   {
+    "column": "City",
+    "rule": "P5",
+    "table": "Customers",
+    "what": "an address",
+    "why": "'City' in 'Customers', a table of addresses or people, is part of an address"
+   },
+   {
+    "column": "ContactName",
+    "rule": "P1",
+    "table": "Customers",
+    "what": "a person's name",
+    "why": "the column name 'ContactName' names a person (a customer, user, employee or contact) by name"
+   },
+   {
+    "column": "Fax",
+    "rule": "P3",
+    "table": "Customers",
+    "what": "a telephone number",
+    "why": "the column name 'Fax' names a telephone number"
+   },
+   {
+    "column": "Phone",
+    "rule": "P3",
+    "table": "Customers",
+    "what": "a telephone number",
+    "why": "the column name 'Phone' names a telephone number"
+   },
+   {
+    "column": "PostalCode",
+    "rule": "P5",
+    "table": "Customers",
+    "what": "an address",
+    "why": "the column name 'PostalCode' names an address"
+   },
+   {
+    "column": "Address",
+    "rule": "P5",
+    "table": "Employees",
+    "what": "an address",
+    "why": "the column name 'Address' names an address"
+   },
+   {
+    "column": "BirthDate",
+    "rule": "P6",
+    "table": "Employees",
+    "what": "a birth date",
+    "why": "the column name 'BirthDate' names a birth date"
+   },
+   {
+    "column": "City",
+    "rule": "P5",
+    "table": "Employees",
+    "what": "an address",
+    "why": "'City' in 'Employees', a table of addresses or people, is part of an address"
+   },
+   {
+    "column": "FirstName",
+    "rule": "P1",
+    "table": "Employees",
+    "what": "a person's name",
+    "why": "the column name 'FirstName' names part of a person's name"
+   },
+   {
+    "column": "HomePhone",
+    "rule": "P3",
+    "table": "Employees",
+    "what": "a telephone number",
+    "why": "the column name 'HomePhone' names a telephone number"
+   },
+   {
+    "column": "LastName",
+    "rule": "P1",
+    "table": "Employees",
+    "what": "a person's name",
+    "why": "the column name 'LastName' names part of a person's name"
+   },
+   {
+    "column": "PostalCode",
+    "rule": "P5",
+    "table": "Employees",
+    "what": "an address",
+    "why": "the column name 'PostalCode' names an address"
+   },
+   {
+    "column": "ShipAddress",
+    "rule": "P5",
+    "table": "Orders",
+    "what": "an address",
+    "why": "the column name 'ShipAddress' names an address"
+   },
+   {
+    "column": "ShipPostalCode",
+    "rule": "P5",
+    "table": "Orders",
+    "what": "an address",
+    "why": "the column name 'ShipPostalCode' names an address"
+   },
+   {
+    "column": "Address",
+    "rule": "P5",
+    "table": "Suppliers",
+    "what": "an address",
+    "why": "the column name 'Address' names an address"
+   },
+   {
+    "column": "ContactName",
+    "rule": "P1",
+    "table": "Suppliers",
+    "what": "a person's name",
+    "why": "the column name 'ContactName' names a person (a customer, user, employee or contact) by name"
+   },
+   {
+    "column": "Fax",
+    "rule": "P3",
+    "table": "Suppliers",
+    "what": "a telephone number",
+    "why": "the column name 'Fax' names a telephone number"
+   },
+   {
+    "column": "Phone",
+    "rule": "P3",
+    "table": "Suppliers",
+    "what": "a telephone number",
+    "why": "the column name 'Phone' names a telephone number"
+   },
+   {
+    "column": "PostalCode",
+    "rule": "P5",
+    "table": "Suppliers",
+    "what": "an address",
+    "why": "the column name 'PostalCode' names an address"
+   }
+  ],
   "schema": "krusgraph",
   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
   "views": [
    {
     "name": "vw_Order Details",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Order Details] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[ProductID] AS [ProductID],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    f.[Discount] AS [Discount],\n    d1.[OrderID] AS [Orders_OrderID],\n    d1.[CustomerID] AS [Orders_CustomerID],\n    d1.[EmployeeID] AS [Orders_EmployeeID],\n    d1.[OrderDate] AS [Orders_OrderDate],\n    d1.[RequiredDate] AS [Orders_RequiredDate],\n    d1.[ShippedDate] AS [Orders_ShippedDate],\n    d1.[ShipVia] AS [Orders_ShipVia],\n    d1.[Freight] AS [Orders_Freight],\n    d1.[ShipName] AS [Orders_ShipName],\n    d1.[ShipAddress] AS [Orders_ShipAddress],\n    d1.[ShipCity] AS [Orders_ShipCity],\n    d1.[ShipRegion] AS [Orders_ShipRegion],\n    d1.[ShipPostalCode] AS [Orders_ShipPostalCode],\n    d1.[ShipCountry] AS [Orders_ShipCountry],\n    d2.[ProductID] AS [Products_ProductID],\n    d2.[ProductName] AS [Products_ProductName],\n    d2.[SupplierID] AS [Products_SupplierID],\n    d2.[CategoryID] AS [Products_CategoryID],\n    d2.[QuantityPerUnit] AS [Products_QuantityPerUnit],\n    d2.[UnitPrice] AS [Products_UnitPrice],\n    d2.[UnitsInStock] AS [Products_UnitsInStock],\n    d2.[UnitsOnOrder] AS [Products_UnitsOnOrder],\n    d2.[ReorderLevel] AS [Products_ReorderLevel],\n    d2.[Discontinued] AS [Products_Discontinued],\n    d3.[CustomerID] AS [Customers_CustomerID],\n    d3.[CompanyName] AS [Customers_CompanyName],\n    d3.[ContactName] AS [Customers_ContactName],\n    d3.[ContactTitle] AS [Customers_ContactTitle],\n    d3.[Address] AS [Customers_Address],\n    d3.[City] AS [Customers_City],\n    d3.[Region] AS [Customers_Region],\n    d3.[PostalCode] AS [Customers_PostalCode],\n    d3.[Country] AS [Customers_Country],\n    d3.[Phone] AS [Customers_Phone],\n    d3.[Fax] AS [Customers_Fax],\n    d4.[EmployeeID] AS [Employees_EmployeeID],\n    d4.[LastName] AS [Employees_LastName],\n    d4.[FirstName] AS [Employees_FirstName],\n    d4.[Title] AS [Employees_Title],\n    d4.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d4.[BirthDate] AS [Employees_BirthDate],\n    d4.[HireDate] AS [Employees_HireDate],\n    d4.[Address] AS [Employees_Address],\n    d4.[City] AS [Employees_City],\n    d4.[Region] AS [Employees_Region],\n    d4.[PostalCode] AS [Employees_PostalCode],\n    d4.[Country] AS [Employees_Country],\n    d4.[HomePhone] AS [Employees_HomePhone],\n    d4.[Extension] AS [Employees_Extension],\n    d4.[Photo] AS [Employees_Photo],\n    d4.[Notes] AS [Employees_Notes],\n    d4.[ReportsTo] AS [Employees_ReportsTo],\n    d4.[PhotoPath] AS [Employees_PhotoPath],\n    d5.[CategoryID] AS [Categories_CategoryID],\n    d5.[CategoryName] AS [Categories_CategoryName],\n    d5.[Description] AS [Categories_Description],\n    d5.[Picture] AS [Categories_Picture],\n    d6.[SupplierID] AS [Suppliers_SupplierID],\n    d6.[CompanyName] AS [Suppliers_CompanyName],\n    d6.[ContactName] AS [Suppliers_ContactName],\n    d6.[ContactTitle] AS [Suppliers_ContactTitle],\n    d6.[Address] AS [Suppliers_Address],\n    d6.[City] AS [Suppliers_City],\n    d6.[Region] AS [Suppliers_Region],\n    d6.[PostalCode] AS [Suppliers_PostalCode],\n    d6.[Country] AS [Suppliers_Country],\n    d6.[Phone] AS [Suppliers_Phone],\n    d6.[Fax] AS [Suppliers_Fax],\n    d6.[HomePage] AS [Suppliers_HomePage]\nFROM [dbo].[Order Details] AS f\n    LEFT JOIN [dbo].[Orders] AS d1 ON f.[OrderID] = d1.[OrderID]\n    LEFT JOIN [dbo].[Products] AS d2 ON f.[ProductID] = d2.[ProductID]\n    LEFT JOIN [dbo].[Customers] AS d3 ON d1.[CustomerID] = d3.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d4 ON d1.[EmployeeID] = d4.[EmployeeID]\n    LEFT JOIN [dbo].[Categories] AS d5 ON d2.[CategoryID] = d5.[CategoryID]\n    LEFT JOIN [dbo].[Suppliers] AS d6 ON d2.[SupplierID] = d6.[SupplierID]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Order Details] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[ProductID] AS [ProductID],\n    f.[UnitPrice] AS [UnitPrice],\n    f.[Quantity] AS [Quantity],\n    f.[Discount] AS [Discount],\n    d1.[OrderID] AS [Orders_OrderID],\n    d1.[CustomerID] AS [Orders_CustomerID],\n    d1.[EmployeeID] AS [Orders_EmployeeID],\n    d1.[OrderDate] AS [Orders_OrderDate],\n    d1.[RequiredDate] AS [Orders_RequiredDate],\n    d1.[ShippedDate] AS [Orders_ShippedDate],\n    d1.[ShipVia] AS [Orders_ShipVia],\n    d1.[Freight] AS [Orders_Freight],\n    d1.[ShipName] AS [Orders_ShipName],\n    d1.[ShipCity] AS [Orders_ShipCity],\n    d1.[ShipRegion] AS [Orders_ShipRegion],\n    d1.[ShipCountry] AS [Orders_ShipCountry],\n    d2.[ProductID] AS [Products_ProductID],\n    d2.[ProductName] AS [Products_ProductName],\n    d2.[SupplierID] AS [Products_SupplierID],\n    d2.[CategoryID] AS [Products_CategoryID],\n    d2.[QuantityPerUnit] AS [Products_QuantityPerUnit],\n    d2.[UnitPrice] AS [Products_UnitPrice],\n    d2.[UnitsInStock] AS [Products_UnitsInStock],\n    d2.[UnitsOnOrder] AS [Products_UnitsOnOrder],\n    d2.[ReorderLevel] AS [Products_ReorderLevel],\n    d2.[Discontinued] AS [Products_Discontinued],\n    d3.[CustomerID] AS [Customers_CustomerID],\n    d3.[CompanyName] AS [Customers_CompanyName],\n    d3.[ContactTitle] AS [Customers_ContactTitle],\n    d3.[Region] AS [Customers_Region],\n    d3.[Country] AS [Customers_Country],\n    d4.[EmployeeID] AS [Employees_EmployeeID],\n    d4.[Title] AS [Employees_Title],\n    d4.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d4.[HireDate] AS [Employees_HireDate],\n    d4.[Region] AS [Employees_Region],\n    d4.[Country] AS [Employees_Country],\n    d4.[Extension] AS [Employees_Extension],\n    d4.[Photo] AS [Employees_Photo],\n    d4.[Notes] AS [Employees_Notes],\n    d4.[ReportsTo] AS [Employees_ReportsTo],\n    d4.[PhotoPath] AS [Employees_PhotoPath],\n    d5.[CategoryID] AS [Categories_CategoryID],\n    d5.[CategoryName] AS [Categories_CategoryName],\n    d5.[Description] AS [Categories_Description],\n    d5.[Picture] AS [Categories_Picture],\n    d6.[SupplierID] AS [Suppliers_SupplierID],\n    d6.[CompanyName] AS [Suppliers_CompanyName],\n    d6.[ContactTitle] AS [Suppliers_ContactTitle],\n    d6.[City] AS [Suppliers_City],\n    d6.[Region] AS [Suppliers_Region],\n    d6.[Country] AS [Suppliers_Country],\n    d6.[HomePage] AS [Suppliers_HomePage]\nFROM [dbo].[Order Details] AS f\n    LEFT JOIN [dbo].[Orders] AS d1 ON f.[OrderID] = d1.[OrderID]\n    LEFT JOIN [dbo].[Products] AS d2 ON f.[ProductID] = d2.[ProductID]\n    LEFT JOIN [dbo].[Customers] AS d3 ON d1.[CustomerID] = d3.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d4 ON d1.[EmployeeID] = d4.[EmployeeID]\n    LEFT JOIN [dbo].[Categories] AS d5 ON d2.[CategoryID] = d5.[CategoryID]\n    LEFT JOIN [dbo].[Suppliers] AS d6 ON d2.[SupplierID] = d6.[SupplierID]",
     "tables": [
      "Order Details",
      "Orders",
@@ -1529,7 +1671,7 @@
    },
    {
     "name": "vw_EmployeeTerritories",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_EmployeeTerritories] AS\nSELECT\n    f.[EmployeeID] AS [EmployeeID],\n    f.[TerritoryID] AS [TerritoryID],\n    d1.[EmployeeID] AS [Employees_EmployeeID],\n    d1.[LastName] AS [Employees_LastName],\n    d1.[FirstName] AS [Employees_FirstName],\n    d1.[Title] AS [Employees_Title],\n    d1.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d1.[BirthDate] AS [Employees_BirthDate],\n    d1.[HireDate] AS [Employees_HireDate],\n    d1.[Address] AS [Employees_Address],\n    d1.[City] AS [Employees_City],\n    d1.[Region] AS [Employees_Region],\n    d1.[PostalCode] AS [Employees_PostalCode],\n    d1.[Country] AS [Employees_Country],\n    d1.[HomePhone] AS [Employees_HomePhone],\n    d1.[Extension] AS [Employees_Extension],\n    d1.[Photo] AS [Employees_Photo],\n    d1.[Notes] AS [Employees_Notes],\n    d1.[ReportsTo] AS [Employees_ReportsTo],\n    d1.[PhotoPath] AS [Employees_PhotoPath],\n    d2.[TerritoryID] AS [Territories_TerritoryID],\n    d2.[TerritoryDescription] AS [Territories_TerritoryDescription],\n    d2.[RegionID] AS [Territories_RegionID],\n    d3.[RegionID] AS [Region_RegionID],\n    d3.[RegionDescription] AS [Region_RegionDescription]\nFROM [dbo].[EmployeeTerritories] AS f\n    LEFT JOIN [dbo].[Employees] AS d1 ON f.[EmployeeID] = d1.[EmployeeID]\n    LEFT JOIN [dbo].[Territories] AS d2 ON f.[TerritoryID] = d2.[TerritoryID]\n    LEFT JOIN [dbo].[Region] AS d3 ON d2.[RegionID] = d3.[RegionID]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_EmployeeTerritories] AS\nSELECT\n    f.[EmployeeID] AS [EmployeeID],\n    f.[TerritoryID] AS [TerritoryID],\n    d1.[EmployeeID] AS [Employees_EmployeeID],\n    d1.[Title] AS [Employees_Title],\n    d1.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d1.[HireDate] AS [Employees_HireDate],\n    d1.[Region] AS [Employees_Region],\n    d1.[Country] AS [Employees_Country],\n    d1.[Extension] AS [Employees_Extension],\n    d1.[Photo] AS [Employees_Photo],\n    d1.[Notes] AS [Employees_Notes],\n    d1.[ReportsTo] AS [Employees_ReportsTo],\n    d1.[PhotoPath] AS [Employees_PhotoPath],\n    d2.[TerritoryID] AS [Territories_TerritoryID],\n    d2.[TerritoryDescription] AS [Territories_TerritoryDescription],\n    d2.[RegionID] AS [Territories_RegionID],\n    d3.[RegionID] AS [Region_RegionID],\n    d3.[RegionDescription] AS [Region_RegionDescription]\nFROM [dbo].[EmployeeTerritories] AS f\n    LEFT JOIN [dbo].[Employees] AS d1 ON f.[EmployeeID] = d1.[EmployeeID]\n    LEFT JOIN [dbo].[Territories] AS d2 ON f.[TerritoryID] = d2.[TerritoryID]\n    LEFT JOIN [dbo].[Region] AS d3 ON d2.[RegionID] = d3.[RegionID]",
     "tables": [
      "EmployeeTerritories",
      "Employees",
@@ -1540,7 +1682,7 @@
    },
    {
     "name": "vw_Orders",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orders] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[CustomerID] AS [CustomerID],\n    f.[EmployeeID] AS [EmployeeID],\n    f.[OrderDate] AS [OrderDate],\n    f.[RequiredDate] AS [RequiredDate],\n    f.[ShippedDate] AS [ShippedDate],\n    f.[ShipVia] AS [ShipVia],\n    f.[Freight] AS [Freight],\n    f.[ShipName] AS [ShipName],\n    f.[ShipAddress] AS [ShipAddress],\n    f.[ShipCity] AS [ShipCity],\n    f.[ShipRegion] AS [ShipRegion],\n    f.[ShipPostalCode] AS [ShipPostalCode],\n    f.[ShipCountry] AS [ShipCountry],\n    d1.[CustomerID] AS [Customers_CustomerID],\n    d1.[CompanyName] AS [Customers_CompanyName],\n    d1.[ContactName] AS [Customers_ContactName],\n    d1.[ContactTitle] AS [Customers_ContactTitle],\n    d1.[Address] AS [Customers_Address],\n    d1.[City] AS [Customers_City],\n    d1.[Region] AS [Customers_Region],\n    d1.[PostalCode] AS [Customers_PostalCode],\n    d1.[Country] AS [Customers_Country],\n    d1.[Phone] AS [Customers_Phone],\n    d1.[Fax] AS [Customers_Fax],\n    d2.[EmployeeID] AS [Employees_EmployeeID],\n    d2.[LastName] AS [Employees_LastName],\n    d2.[FirstName] AS [Employees_FirstName],\n    d2.[Title] AS [Employees_Title],\n    d2.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d2.[BirthDate] AS [Employees_BirthDate],\n    d2.[HireDate] AS [Employees_HireDate],\n    d2.[Address] AS [Employees_Address],\n    d2.[City] AS [Employees_City],\n    d2.[Region] AS [Employees_Region],\n    d2.[PostalCode] AS [Employees_PostalCode],\n    d2.[Country] AS [Employees_Country],\n    d2.[HomePhone] AS [Employees_HomePhone],\n    d2.[Extension] AS [Employees_Extension],\n    d2.[Photo] AS [Employees_Photo],\n    d2.[Notes] AS [Employees_Notes],\n    d2.[ReportsTo] AS [Employees_ReportsTo],\n    d2.[PhotoPath] AS [Employees_PhotoPath]\nFROM [dbo].[Orders] AS f\n    LEFT JOIN [dbo].[Customers] AS d1 ON f.[CustomerID] = d1.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d2 ON f.[EmployeeID] = d2.[EmployeeID]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_Orders] AS\nSELECT\n    f.[OrderID] AS [OrderID],\n    f.[CustomerID] AS [CustomerID],\n    f.[EmployeeID] AS [EmployeeID],\n    f.[OrderDate] AS [OrderDate],\n    f.[RequiredDate] AS [RequiredDate],\n    f.[ShippedDate] AS [ShippedDate],\n    f.[ShipVia] AS [ShipVia],\n    f.[Freight] AS [Freight],\n    f.[ShipName] AS [ShipName],\n    f.[ShipCity] AS [ShipCity],\n    f.[ShipRegion] AS [ShipRegion],\n    f.[ShipCountry] AS [ShipCountry],\n    d1.[CustomerID] AS [Customers_CustomerID],\n    d1.[CompanyName] AS [Customers_CompanyName],\n    d1.[ContactTitle] AS [Customers_ContactTitle],\n    d1.[Region] AS [Customers_Region],\n    d1.[Country] AS [Customers_Country],\n    d2.[EmployeeID] AS [Employees_EmployeeID],\n    d2.[Title] AS [Employees_Title],\n    d2.[TitleOfCourtesy] AS [Employees_TitleOfCourtesy],\n    d2.[HireDate] AS [Employees_HireDate],\n    d2.[Region] AS [Employees_Region],\n    d2.[Country] AS [Employees_Country],\n    d2.[Extension] AS [Employees_Extension],\n    d2.[Photo] AS [Employees_Photo],\n    d2.[Notes] AS [Employees_Notes],\n    d2.[ReportsTo] AS [Employees_ReportsTo],\n    d2.[PhotoPath] AS [Employees_PhotoPath]\nFROM [dbo].[Orders] AS f\n    LEFT JOIN [dbo].[Customers] AS d1 ON f.[CustomerID] = d1.[CustomerID]\n    LEFT JOIN [dbo].[Employees] AS d2 ON f.[EmployeeID] = d2.[EmployeeID]",
     "tables": [
      "Orders",
      "Customers",

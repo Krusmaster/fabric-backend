@@ -2191,12 +2191,105 @@
   "sha256": "4f547ce98f8e7c4a4400a14b13852dc5672b0fd7ea612318bc3bc7716d63d39d"
  },
  "views": {
+  "personal_left_out": [
+   {
+    "column": "first_name",
+    "rule": "P1",
+    "table": "actor",
+    "what": "a person's name",
+    "why": "the column name 'first_name' names part of a person's name"
+   },
+   {
+    "column": "last_name",
+    "rule": "P1",
+    "table": "actor",
+    "what": "a person's name",
+    "why": "the column name 'last_name' names part of a person's name"
+   },
+   {
+    "column": "address",
+    "rule": "P5",
+    "table": "address",
+    "what": "an address",
+    "why": "the column name 'address' names an address"
+   },
+   {
+    "column": "address2",
+    "rule": "P5",
+    "table": "address",
+    "what": "an address",
+    "why": "the column name 'address2' names an address"
+   },
+   {
+    "column": "phone",
+    "rule": "P3",
+    "table": "address",
+    "what": "a telephone number",
+    "why": "the column name 'phone' names a telephone number"
+   },
+   {
+    "column": "postal_code",
+    "rule": "P5",
+    "table": "address",
+    "what": "an address",
+    "why": "the column name 'postal_code' names an address"
+   },
+   {
+    "column": "email",
+    "rule": "P2",
+    "table": "customer",
+    "what": "an e-mail address",
+    "why": "the column name 'email' names an e-mail address"
+   },
+   {
+    "column": "first_name",
+    "rule": "P1",
+    "table": "customer",
+    "what": "a person's name",
+    "why": "the column name 'first_name' names part of a person's name"
+   },
+   {
+    "column": "last_name",
+    "rule": "P1",
+    "table": "customer",
+    "what": "a person's name",
+    "why": "the column name 'last_name' names part of a person's name"
+   },
+   {
+    "column": "email",
+    "rule": "P2",
+    "table": "staff",
+    "what": "an e-mail address",
+    "why": "the column name 'email' names an e-mail address"
+   },
+   {
+    "column": "first_name",
+    "rule": "P1",
+    "table": "staff",
+    "what": "a person's name",
+    "why": "the column name 'first_name' names part of a person's name"
+   },
+   {
+    "column": "last_name",
+    "rule": "P1",
+    "table": "staff",
+    "what": "a person's name",
+    "why": "the column name 'last_name' names part of a person's name"
+   },
+   {
+    "column": "username",
+    "rule": "P1",
+    "table": "staff",
+    "what": "a person's name",
+    "why": "the column name 'username' names a person (a customer, user, employee or contact) by name"
+   }
+  ],
   "schema": "krusgraph",
   "schema_sql": "IF NOT EXISTS (SELECT 1 FROM sys.schemas WHERE name = 'krusgraph') EXEC('CREATE SCHEMA [krusgraph]')",
   "views": [
    {
     "name": "vw_film_actor",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_film_actor] AS\nSELECT\n    f.[actor_id] AS [actor_id],\n    f.[film_id] AS [film_id],\n    f.[last_update] AS [last_update],\n    d1.[actor_id] AS [actor_actor_id],\n    d1.[first_name] AS [actor_first_name],\n    d1.[last_name] AS [actor_last_name],\n    d1.[last_update] AS [actor_last_update],\n    d2.[film_id] AS [film_film_id],\n    d2.[title] AS [film_title],\n    d2.[description] AS [film_description],\n    d2.[release_year] AS [film_release_year],\n    d2.[language_id] AS [film_language_id],\n    d2.[original_language_id] AS [film_original_language_id],\n    d2.[rental_duration] AS [film_rental_duration],\n    d2.[rental_rate] AS [film_rental_rate],\n    d2.[length] AS [film_length],\n    d2.[replacement_cost] AS [film_replacement_cost],\n    d2.[rating] AS [film_rating],\n    d2.[special_features] AS [film_special_features],\n    d2.[last_update] AS [film_last_update],\n    d3.[language_id] AS [language_language_id],\n    d3.[name] AS [language_name],\n    d3.[last_update] AS [language_last_update]\nFROM [dbo].[film_actor] AS f\n    LEFT JOIN [dbo].[actor] AS d1 ON f.[actor_id] = d1.[actor_id]\n    LEFT JOIN [dbo].[film] AS d2 ON f.[film_id] = d2.[film_id]\n    LEFT JOIN [dbo].[language] AS d3 ON d2.[language_id] = d3.[language_id]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_film_actor] AS\nSELECT\n    f.[actor_id] AS [actor_id],\n    f.[film_id] AS [film_id],\n    f.[last_update] AS [last_update],\n    d1.[actor_id] AS [actor_actor_id],\n    d1.[last_update] AS [actor_last_update],\n    d2.[film_id] AS [film_film_id],\n    d2.[title] AS [film_title],\n    d2.[description] AS [film_description],\n    d2.[release_year] AS [film_release_year],\n    d2.[language_id] AS [film_language_id],\n    d2.[original_language_id] AS [film_original_language_id],\n    d2.[rental_duration] AS [film_rental_duration],\n    d2.[rental_rate] AS [film_rental_rate],\n    d2.[length] AS [film_length],\n    d2.[replacement_cost] AS [film_replacement_cost],\n    d2.[rating] AS [film_rating],\n    d2.[special_features] AS [film_special_features],\n    d2.[last_update] AS [film_last_update],\n    d3.[language_id] AS [language_language_id],\n    d3.[name] AS [language_name],\n    d3.[last_update] AS [language_last_update]\nFROM [dbo].[film_actor] AS f\n    LEFT JOIN [dbo].[actor] AS d1 ON f.[actor_id] = d1.[actor_id]\n    LEFT JOIN [dbo].[film] AS d2 ON f.[film_id] = d2.[film_id]\n    LEFT JOIN [dbo].[language] AS d3 ON d2.[language_id] = d3.[language_id]",
     "tables": [
      "film_actor",
      "actor",
@@ -2218,7 +2311,7 @@
    },
    {
     "name": "vw_payment",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_payment] AS\nSELECT\n    f.[payment_id] AS [payment_id],\n    f.[customer_id] AS [customer_id],\n    f.[staff_id] AS [staff_id],\n    f.[rental_id] AS [rental_id],\n    f.[amount] AS [amount],\n    f.[payment_date] AS [payment_date],\n    f.[last_update] AS [last_update],\n    d1.[customer_id] AS [customer_customer_id],\n    d1.[store_id] AS [customer_store_id],\n    d1.[first_name] AS [customer_first_name],\n    d1.[last_name] AS [customer_last_name],\n    d1.[email] AS [customer_email],\n    d1.[address_id] AS [customer_address_id],\n    d1.[active] AS [customer_active],\n    d1.[create_date] AS [customer_create_date],\n    d1.[last_update] AS [customer_last_update],\n    d2.[rental_id] AS [rental_rental_id],\n    d2.[rental_date] AS [rental_rental_date],\n    d2.[inventory_id] AS [rental_inventory_id],\n    d2.[customer_id] AS [rental_customer_id],\n    d2.[return_date] AS [rental_return_date],\n    d2.[staff_id] AS [rental_staff_id],\n    d2.[last_update] AS [rental_last_update],\n    d3.[staff_id] AS [staff_staff_id],\n    d3.[first_name] AS [staff_first_name],\n    d3.[last_name] AS [staff_last_name],\n    d3.[address_id] AS [staff_address_id],\n    d3.[picture] AS [staff_picture],\n    d3.[email] AS [staff_email],\n    d3.[store_id] AS [staff_store_id],\n    d3.[active] AS [staff_active],\n    d3.[username] AS [staff_username],\n    d3.[password] AS [staff_password],\n    d3.[last_update] AS [staff_last_update],\n    d4.[address_id] AS [address_address_id],\n    d4.[address] AS [address_address],\n    d4.[address2] AS [address_address2],\n    d4.[district] AS [address_district],\n    d4.[city_id] AS [address_city_id],\n    d4.[postal_code] AS [address_postal_code],\n    d4.[phone] AS [address_phone],\n    d4.[last_update] AS [address_last_update],\n    d5.[store_id] AS [store_store_id],\n    d5.[manager_staff_id] AS [store_manager_staff_id],\n    d5.[address_id] AS [store_address_id],\n    d5.[last_update] AS [store_last_update],\n    d6.[inventory_id] AS [inventory_inventory_id],\n    d6.[film_id] AS [inventory_film_id],\n    d6.[store_id] AS [inventory_store_id],\n    d6.[last_update] AS [inventory_last_update],\n    d7.[city_id] AS [city_city_id],\n    d7.[city] AS [city_city],\n    d7.[country_id] AS [city_country_id],\n    d7.[last_update] AS [city_last_update],\n    d8.[film_id] AS [film_film_id],\n    d8.[title] AS [film_title],\n    d8.[description] AS [film_description],\n    d8.[release_year] AS [film_release_year],\n    d8.[language_id] AS [film_language_id],\n    d8.[original_language_id] AS [film_original_language_id],\n    d8.[rental_duration] AS [film_rental_duration],\n    d8.[rental_rate] AS [film_rental_rate],\n    d8.[length] AS [film_length],\n    d8.[replacement_cost] AS [film_replacement_cost],\n    d8.[rating] AS [film_rating],\n    d8.[special_features] AS [film_special_features],\n    d8.[last_update] AS [film_last_update],\n    d9.[country_id] AS [country_country_id],\n    d9.[country] AS [country_country],\n    d9.[last_update] AS [country_last_update],\n    d10.[language_id] AS [language_language_id],\n    d10.[name] AS [language_name],\n    d10.[last_update] AS [language_last_update]\nFROM [dbo].[payment] AS f\n    LEFT JOIN [dbo].[customer] AS d1 ON f.[customer_id] = d1.[customer_id]\n    LEFT JOIN [dbo].[rental] AS d2 ON f.[rental_id] = d2.[rental_id]\n    LEFT JOIN [dbo].[staff] AS d3 ON f.[staff_id] = d3.[staff_id]\n    LEFT JOIN [dbo].[address] AS d4 ON d1.[address_id] = d4.[address_id]\n    LEFT JOIN [dbo].[store] AS d5 ON d1.[store_id] = d5.[store_id]\n    LEFT JOIN [dbo].[inventory] AS d6 ON d2.[inventory_id] = d6.[inventory_id]\n    LEFT JOIN [dbo].[city] AS d7 ON d4.[city_id] = d7.[city_id]\n    LEFT JOIN [dbo].[film] AS d8 ON d6.[film_id] = d8.[film_id]\n    LEFT JOIN [dbo].[country] AS d9 ON d7.[country_id] = d9.[country_id]\n    LEFT JOIN [dbo].[language] AS d10 ON d8.[language_id] = d10.[language_id]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_payment] AS\nSELECT\n    f.[payment_id] AS [payment_id],\n    f.[customer_id] AS [customer_id],\n    f.[staff_id] AS [staff_id],\n    f.[rental_id] AS [rental_id],\n    f.[amount] AS [amount],\n    f.[payment_date] AS [payment_date],\n    f.[last_update] AS [last_update],\n    d1.[customer_id] AS [customer_customer_id],\n    d1.[store_id] AS [customer_store_id],\n    d1.[address_id] AS [customer_address_id],\n    d1.[active] AS [customer_active],\n    d1.[create_date] AS [customer_create_date],\n    d1.[last_update] AS [customer_last_update],\n    d2.[rental_id] AS [rental_rental_id],\n    d2.[rental_date] AS [rental_rental_date],\n    d2.[inventory_id] AS [rental_inventory_id],\n    d2.[customer_id] AS [rental_customer_id],\n    d2.[return_date] AS [rental_return_date],\n    d2.[staff_id] AS [rental_staff_id],\n    d2.[last_update] AS [rental_last_update],\n    d3.[staff_id] AS [staff_staff_id],\n    d3.[address_id] AS [staff_address_id],\n    d3.[picture] AS [staff_picture],\n    d3.[store_id] AS [staff_store_id],\n    d3.[active] AS [staff_active],\n    d3.[password] AS [staff_password],\n    d3.[last_update] AS [staff_last_update],\n    d4.[address_id] AS [address_address_id],\n    d4.[district] AS [address_district],\n    d4.[city_id] AS [address_city_id],\n    d4.[last_update] AS [address_last_update],\n    d5.[store_id] AS [store_store_id],\n    d5.[manager_staff_id] AS [store_manager_staff_id],\n    d5.[address_id] AS [store_address_id],\n    d5.[last_update] AS [store_last_update],\n    d6.[inventory_id] AS [inventory_inventory_id],\n    d6.[film_id] AS [inventory_film_id],\n    d6.[store_id] AS [inventory_store_id],\n    d6.[last_update] AS [inventory_last_update],\n    d7.[city_id] AS [city_city_id],\n    d7.[city] AS [city_city],\n    d7.[country_id] AS [city_country_id],\n    d7.[last_update] AS [city_last_update],\n    d8.[film_id] AS [film_film_id],\n    d8.[title] AS [film_title],\n    d8.[description] AS [film_description],\n    d8.[release_year] AS [film_release_year],\n    d8.[language_id] AS [film_language_id],\n    d8.[original_language_id] AS [film_original_language_id],\n    d8.[rental_duration] AS [film_rental_duration],\n    d8.[rental_rate] AS [film_rental_rate],\n    d8.[length] AS [film_length],\n    d8.[replacement_cost] AS [film_replacement_cost],\n    d8.[rating] AS [film_rating],\n    d8.[special_features] AS [film_special_features],\n    d8.[last_update] AS [film_last_update],\n    d9.[country_id] AS [country_country_id],\n    d9.[country] AS [country_country],\n    d9.[last_update] AS [country_last_update],\n    d10.[language_id] AS [language_language_id],\n    d10.[name] AS [language_name],\n    d10.[last_update] AS [language_last_update]\nFROM [dbo].[payment] AS f\n    LEFT JOIN [dbo].[customer] AS d1 ON f.[customer_id] = d1.[customer_id]\n    LEFT JOIN [dbo].[rental] AS d2 ON f.[rental_id] = d2.[rental_id]\n    LEFT JOIN [dbo].[staff] AS d3 ON f.[staff_id] = d3.[staff_id]\n    LEFT JOIN [dbo].[address] AS d4 ON d1.[address_id] = d4.[address_id]\n    LEFT JOIN [dbo].[store] AS d5 ON d1.[store_id] = d5.[store_id]\n    LEFT JOIN [dbo].[inventory] AS d6 ON d2.[inventory_id] = d6.[inventory_id]\n    LEFT JOIN [dbo].[city] AS d7 ON d4.[city_id] = d7.[city_id]\n    LEFT JOIN [dbo].[film] AS d8 ON d6.[film_id] = d8.[film_id]\n    LEFT JOIN [dbo].[country] AS d9 ON d7.[country_id] = d9.[country_id]\n    LEFT JOIN [dbo].[language] AS d10 ON d8.[language_id] = d10.[language_id]",
     "tables": [
      "payment",
      "customer",
@@ -2245,7 +2338,7 @@
    },
    {
     "name": "vw_store_manager_staff",
-    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_store_manager_staff] AS\nSELECT\n    s.[store_id] AS [store_id],\n    s.[manager_staff_id] AS [manager_staff_id],\n    s.[address_id] AS [address_id],\n    s.[last_update] AS [last_update],\n    t.[staff_id] AS [staff_staff_id],\n    t.[first_name] AS [staff_first_name],\n    t.[last_name] AS [staff_last_name],\n    t.[address_id] AS [staff_address_id],\n    t.[picture] AS [staff_picture],\n    t.[email] AS [staff_email],\n    t.[store_id] AS [staff_store_id],\n    t.[active] AS [staff_active],\n    t.[username] AS [staff_username],\n    t.[password] AS [staff_password],\n    t.[last_update] AS [staff_last_update]\nFROM [dbo].[store] AS s\n    LEFT JOIN [dbo].[staff] AS t ON s.[manager_staff_id] = t.[staff_id]",
+    "sql": "CREATE OR ALTER VIEW [krusgraph].[vw_store_manager_staff] AS\nSELECT\n    s.[store_id] AS [store_id],\n    s.[manager_staff_id] AS [manager_staff_id],\n    s.[address_id] AS [address_id],\n    s.[last_update] AS [last_update],\n    t.[staff_id] AS [staff_staff_id],\n    t.[address_id] AS [staff_address_id],\n    t.[picture] AS [staff_picture],\n    t.[store_id] AS [staff_store_id],\n    t.[active] AS [staff_active],\n    t.[password] AS [staff_password],\n    t.[last_update] AS [staff_last_update]\nFROM [dbo].[store] AS s\n    LEFT JOIN [dbo].[staff] AS t ON s.[manager_staff_id] = t.[staff_id]",
     "tables": [
      "store",
      "staff"
