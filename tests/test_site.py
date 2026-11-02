@@ -2,6 +2,9 @@
 import json
 from pathlib import Path
 import re
+import os
+import sys
+import subprocess
 
 import pytest
 
@@ -1275,6 +1278,11 @@ def test_the_docs_say_how_much_the_hosted_tools_count_from_the_code(client):
     assert f"(the first {server.R5_SAMPLE} distinct values per candidate, at most {server.R5_MAX_QUERIES} counting queries;" in docs
     assert docs.count(f"(default {default})") == 1 and f"(default {default}; the summary says when fewer than the plan has were checked)" in docs
     assert "counted_in_rows" in docs and "over the whole table" in docs
+    # without the server module loaded (the local demo, a page rendered on its own) the values come from server.py's source
+    out = subprocess.run([sys.executable, "-c", "import sys; from fabric_backend import pages; assert 'fabric_backend.server' not in sys.modules; "
+                          "print(pages._counting_limits())"], capture_output=True, text=True, cwd=ROOT, env={**os.environ, "ENTRA_CLIENT_ID": "", "ENTRA_CLIENT_SECRET": ""})
+    assert out.returncode == 0, out.stderr[-500:]
+    assert out.stdout.strip() == str({"R5_SAMPLE": str(server.R5_SAMPLE), "R5_MAX_QUERIES": str(server.R5_MAX_QUERIES), "VALIDATE_MAX_ITEMS": str(default)})
 
 
 def test_check_leads_to_the_pilot_once(client):

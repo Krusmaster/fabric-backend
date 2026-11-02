@@ -129,11 +129,28 @@ def _vars() -> dict[str, str]:
 def _counting_limits() -> dict[str, str]:
     """plan_backend's R5 reads the first R5_SAMPLE distinct values of a candidate column with at most R5_MAX_QUERIES
     counting queries; validate_plan checks up to max_items keys and relationships (its default). From server.py, so the
-    docs cannot drift from the code."""
+    docs cannot drift from the code: the loaded module when the server runs, else its source (importing server.py
+    needs the Entra settings, and the pages also render on the local demo and in tests without them)."""
+    import ast
     import inspect
-    from . import server
-    return {"R5_SAMPLE": str(server.R5_SAMPLE), "R5_MAX_QUERIES": str(server.R5_MAX_QUERIES),
-            "VALIDATE_MAX_ITEMS": str(inspect.signature(server.validate_plan).parameters["max_items"].default)}
+    import sys
+    server = sys.modules.get("fabric_backend.server")
+    if server is not None:
+        return {"R5_SAMPLE": str(server.R5_SAMPLE), "R5_MAX_QUERIES": str(server.R5_MAX_QUERIES),
+                "VALIDATE_MAX_ITEMS": str(inspect.signature(server.validate_plan).parameters["max_items"].default)}
+    tree = ast.parse((HERE / "server.py").read_text(encoding="utf-8"))
+    out: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Tuple):      # R5_SAMPLE, R5_MAX_QUERIES = 200, 20
+            for name, value in zip(node.targets[0].elts, node.value.elts):
+                if name.id in ("R5_SAMPLE", "R5_MAX_QUERIES"):
+                    out[name.id] = str(ast.literal_eval(value))
+        if isinstance(node, ast.FunctionDef) and node.name == "validate_plan":
+            args = node.args
+            defaults = dict(zip([a.arg for a in args.args][len(args.args) - len(args.defaults):], args.defaults))
+            out["VALIDATE_MAX_ITEMS"] = str(ast.literal_eval(defaults["max_items"]))
+    assert set(out) == {"R5_SAMPLE", "R5_MAX_QUERIES", "VALIDATE_MAX_ITEMS"}, out
+    return out
 
 
 def _client_status(name: str, where: str) -> str:
