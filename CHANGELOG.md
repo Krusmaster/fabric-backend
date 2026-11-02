@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n82: by Gustav's decision of 2 November 2026 VS Code and Cursor (verified by him) and Lovable (its flow ran live
+  on 30 October 2026, `docs/LOVABLE-END-TO-END.md`) are **Tested end to end** in `tool_status.CLIENTS`, with the date in
+  their notes; the Connect menu, the hub, /docs, /start, /lovable and the llms files follow, and "Experimental:" is gone
+  from the three menu items. Claude Code and Glama are unchanged. Gustav opened an RDF/XML file from `/check` in
+  Microsoft's Ontology Playground the same day, with a good result (`docs/LIVE-TEST.md`; one sentence at the download);
+  the file stays Draft. `docs/REFRESH-ROTATION.md` with `tests/test_refresh_rotation.py`: an investigation of Glama's
+  sign-out (a refresh token sent twice ends the whole line; what a deployment does to the lines and the key; the causes
+  ranked; an overlap window proposed, not implemented). `tests/test_pack_label.py` freezes the evidence report's clock.
 - Round n80: a simpler Connect menu (Claude first and open with one large button, Copy URL and a first question to copy
   that only reads; Lovable under it; VS Code and Cursor folded under *Other clients*; the admin line last with a note to
   copy for the admin: the consent link, what is approved, `/it`). No address is printed; each copy button holds its

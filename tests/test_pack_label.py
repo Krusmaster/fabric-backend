@@ -59,6 +59,15 @@ def test_subscription_billing_on_check_never_says_sap_pack():
 
 @pytest.mark.parametrize("kind", ["sap", "sample", "crm"])
 def test_the_other_examples_read_as_before(kind, monkeypatch):
+    # n82: the evidence report carries its time to the second; frozen, so two runs that straddle a second still compare
+    from datetime import datetime as real
+    from fabric_backend import evidence_report
+
+    class Frozen(real):
+        @classmethod
+        def now(cls, tz=None):
+            return real(2026, 11, 2, 12, 0, 0, tzinfo=tz)
+    monkeypatch.setattr(evidence_report, "datetime", Frozen)
     now = _strip(bc.analyze(kind))
     monkeypatch.setattr(infer, "rule_label", lambda rule, pack=None: rule)            # the text before round n79
     assert now == _strip(bc.analyze(kind))
