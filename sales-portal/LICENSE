@@ -1,0 +1,13 @@
+All rights reserved, Kruse Consulting AB
+
+Copyright (c) 2026 Kruse Consulting AB. All rights reserved.
+
+This repository (krusgraph-sales: the specification, database files, seed data,
+prompts and documents of Kruse Consulting's internal sales portal for Krusgraph)
+is proprietary and confidential. No part of it may be copied, distributed,
+published, modified or used outside Kruse Consulting AB without prior written
+permission from Kruse Consulting AB.
+
+The product Krusgraph and its engine fabric-backend are licensed separately
+(MIT, https://github.com/Krusmaster/fabric-backend); nothing in this repository
+changes that licence.
