@@ -7,7 +7,9 @@ signed in. The workspace id is not written here; the protocol of a run stays out
 "27 Oct" marks the rows that passed on 27 October 2026 (from Claude through the hosted build `src-df29c45febaec4b0`,
 main 5adace8: 30 tools read-only, as drafts or as dry runs, then one creating call, `create_backend` updating `shop_api`
 in place, with the maintainer's approval); "26 Oct" the 14 steps of the day before. The rows filled in with
-2 November 2026 ran through the hosted build `src-69aa8afa445e6c97` (section 6, *2 November 2026: round n81's path*).
+2 November 2026 ran through the hosted build `src-69aa8afa445e6c97` (section 6, *2 November 2026: round n81's path*),
+except row 6's result, which comes from the second run that day, after round n87's deployment (section 6, *2 November
+2026: after round n87*).
 The status words follow from this file through `fabric_backend/tool_status.py` (section 5).
 
 ## 0. The service answers
@@ -26,9 +28,9 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 1 | `list_workspaces` | *"Which Fabric workspaces can I see?"* | `demo` among them, with its capacity | 26, 27 Oct | | |
 | 2 | `list_sources` | *"List the data sources in the demo workspace."* | `demo_lh` (Lakehouse) and the API `shop_api` | 26, 27 Oct | | |
 | 3 | `list_tables` | *"Which tables and columns are in demo_lh, schema shop?"* | 7 tables: customers, categories, products, addresses, orders, order_items, audit_log, with types | 27 Oct | | |
-| 4 | `plan_backend` | *"Plan a backend over demo_lh, schema shop."* | 7 tables, 6 with keys, 6 relationships (all R1); `audit_log` without a key; `order_items` keyed `order_id + line_no` (K5) | 26, 27 Oct | | |
+| 4 | `plan_backend` | *"Plan a backend over demo_lh, schema shop."* | 7 tables, 6 with keys, 7 relationships (6 R1, and `orders.ship_to_id → addresses.address_id` by R5, counted in the rows); `audit_log` without a key; `order_items` keyed `order_id + line_no` (K5) | 26, 27 Oct (6 relationships, before R5) | | |
 | 5 | `sample_rows` | *"Show me five rows of customers in demo_lh, schema shop."* | 5 rows; `name` shows `***` with a `personal_data` notice (rule P1) and the parameter `show_personal_data`; the lakehouse's sensitivity label id if it has one | 26 Oct (before masking), 27 Oct (masked) | | |
-| 6 | `validate_plan` | *"Check the plan against the data."* | 6 of 6 keys unique, 6 of 6 relationships hold without orphans | 26, 27 Oct | ✓ 6 of 6 keys unique, 6 of 6 relationships without orphans | 2 November 2026 |
+| 6 | `validate_plan` | *"Check the plan against the data."* | 6 of 6 keys unique, 7 of 7 relationships hold without orphans (R5's `ship_to_id` among them) | 26, 27 Oct, 2 Nov with build `src-69aa8afa445e6c97` (6 of 6 relationships, before R5 reached validate_plan) | ✓ 6 of 6 keys unique, 7 of 7 relationships without orphans; on schema `dbo` 17 of 17 keys and 32 of 34 relationships | 2 November 2026 |
 | 7 | `create_backend` | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `mode: updated`, the endpoint; nothing dropped (see section 3) | 27 Oct (`Succeeded`, `updated`, after `would_remove`; see sections 2 and 3) | | |
 | 8 | `describe_backend` | *"What can I query in shop_api?"* | the types of the seven tables with fields and relationship names | 26, 27 Oct | | |
 | 9 | `query_graphql` | *"Using shop_api, list five orders with their customer."* | 5 orders, each with its customer object; a mutation asked for is refused | 26, 27 Oct | | |
@@ -47,7 +49,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 22 | `create_ontology` | *"Create the ontology shop_ontology. Dry run first."* | dry run: the parts and the call; create: the item `shop_ontology`, or `kind: feature_disabled` quoting `FeatureNotAvailable` while "Users can create Ontology (preview) items" is off in the tenant (section 6) | 28 Oct (dry run; created after the tenant setting: section 6) | with `dry_run=false`: created `shop_ontology_n81` (status Succeeded, mode created; the id from the operation's result), then updated it (mode updated); a dry run that day is not recorded | 2 November 2026 |
 | 23 | `app_starter` | *"Give me the starter pack for an app on shop_api."* | a Lovable prompt, five queries, the Supabase edge function | 26 Oct (prompt and queries), 27 Oct | | |
 | 24 | `app_readiness` | *"What does shop_api still need before an app can use it?"* | introspection on or off (one probe), the types without a key, permissions reported as unknown with the portal path | 27 Oct | | |
-| 25 | `analyze_schema` | *"Read demo_lh, schema shop, as a graph."* | 3 fact tables (orders, order_items, audit_log), 4 dimensions, 6 relationships active at once, no cycles | 26, 27 Oct | | |
+| 25 | `analyze_schema` | *"Read demo_lh, schema shop, as a graph."* | 3 fact tables (orders, order_items, audit_log), 4 dimensions, 7 relationships of which 6 are active at once and 1 inactive, 1 cycle (orders → addresses → customers ← orders, through R5's `ship_to_id`) | 26, 27 Oct (6 relationships, no cycles, before R5) | | |
 | 26 | `lineage` | *"What builds on the tables in demo_lh, schema shop?"* | `shop_api` on the seven tables; the views on the SQL endpoint (`krusgraph.vw_order_items` is there already); an item that could not be read is listed with Fabric's `error`, its `reason` and a `hint` | 27 Oct (`shop_api` skipped: see section 2) | 7 tables and 7 objects, none skipped | 2 November 2026 |
 | 27 | `suggest_relationships` | *"Which columns look like references but are in no relationship? Check the best against the data."* | `orders.ship_to_id → addresses.address_id` first, holding for every value | 26, 27 Oct | | |
 | 28 | `silver_notebook_draft` | *"Draft the silver notebook for demo_lh, schema shop."* | steps for 7 tables in schema `silver`, quarantine `krusgraph_quarantine`, `customers.name` and `addresses.city` masked in quarantine | 27 Oct | | |
@@ -84,9 +86,10 @@ is run and written down.
 
 ## 3. Before the next `create_backend shop_api`
 
-`shop_api` carries `orders.ship_to_id → addresses.address_id`, which the plan does not infer, as the fields
-`orders.address` and `addresses.orders`. The next `create_backend` with the name `shop_api` must pass the relationship,
-or it is dropped (the tool then stops with `kind: would_remove`, nothing is written, and `keep_with_confirmed` gives the
+`shop_api` carries `orders.ship_to_id → addresses.address_id` as the fields `orders.address` and `addresses.orders`.
+Since round n87 every tool plans with rule R5, which finds this relationship by counting the rows, so the plan has it
+and an update keeps the API's names for it. Should R5 not count it (the 20 counting queries of a call used up), the
+next `create_backend` with the name `shop_api` must pass the relationship, or it is dropped (the tool then stops with `kind: would_remove`, nothing is written, and `keep_with_confirmed` gives the
 entry with both names). Since the fix of finding 7 the entry needs no field names: an update keeps the names the API
 has for the same relationship, and the answer lists them under `names_kept_from_api`.
 
@@ -243,6 +246,19 @@ lakehouse `demo_lh` and the schema `shop` (synthetic data; rows 6, 22 and 26 of 
 That is round n81's way of waiting for a long-running Fabric operation (`deploy.py`: the 202, polling the operation,
 the created item's id from `GET /operations/{id}/result`) run against real Fabric, without throttling. `Retry-After`
 and the answer 429 have been tried only against fake answers in the unit tests, not against Fabric.
+
+### 2 November 2026: after round n87
+
+Later on 2 November 2026, after round n87 was deployed (every tool plans with R5), against the same workspace and
+lakehouse (synthetic data):
+
+- **`validate_plan`** on schema `shop`: 6 of 6 keys unique and 7 of 7 relationships without orphans.
+- **`validate_plan`** on schema `dbo`: 17 of 17 keys unique and 32 of 34 relationships without orphans.
+- **`join_path`** from `orders` to `addresses`: the direct step through `ship_to_id`, rule R5.
+
+The same run found that a negation such as *"customers who have not placed any orders"* still gave a plain join and
+that `amount_levels` said "about 1 times too large" where every header has one line; both are fixed in round n88 and
+covered by unit tests only, not yet run live.
 
 ## Databricks
 

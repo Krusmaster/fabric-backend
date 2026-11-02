@@ -73,6 +73,13 @@ LATEST_LIVE = {
     "lineage": {"said": "Last run live on 2 November 2026 (build src-69aa8afa445e6c97) against the same workspace: 7 tables "
                         "and 7 objects, none skipped.",
                 "evidence": "**`lineage`**: 7 tables and 7 objects, none skipped."},
+    "validate_plan": {"said": "Last run live on 2 November 2026, after round n87's deployment, against the same workspace: on "
+                              "schema shop 6 of 6 keys unique and 7 of 7 relationships without orphans; on schema dbo 17 of 17 "
+                              "keys and 32 of 34 relationships.",
+                      "evidence": "**`validate_plan`** on schema `shop`: 6 of 6 keys unique and 7 of 7 relationships without orphans."},
+    "join_path": {"said": "Last run live on 2 November 2026, after round n87's deployment: orders to addresses took the direct "
+                          "step through ship_to_id, rule R5.",
+                  "evidence": "**`join_path`** from `orders` to `addresses`: the direct step through `ship_to_id`, rule R5."},
 }
 # n87: creating tools whose creating has no recorded run, with what docs/LIVE-TEST.md does record.
 CREATE_RECORD = {

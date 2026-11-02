@@ -5,6 +5,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n88: a negation such as "customers who have not placed any orders" or "haven't placed an order" gives an
+  anti-join (NOT EXISTS), and a "not", "n't", "never", "inte", "ej" or "aldrig" no marker ties to a table gives no query
+  and says so; `amount_levels` says no row is repeated today where every header has one line; lineage's note names
+  the live run of 2 November 2026; `/privacy` says that the tools that build on the plan run rule R5's counting queries
+  (at most 20 per call, only counts, nothing kept between calls); `docs/LIVE-TEST.md` rows 4, 6 and 25 expect 7
+  relationships, with the results of 2 November 2026 after round n87. Unit-tested on synthetic data; not deployed.
+- Round n87: the ten findings of the live review of 2 November 2026 (negation, R5 in every plan-based tool, the
+  counting query SQL Server refused, per X, value columns, silent replacements, personal data, contradicting notes,
+  small errors, the operation result in lineage). Unit-tested on synthetic data and fake answers.
 - Round n85: the evidence report downloaded on `/check` carries the decisions taken on the page (the guided demo's
   Accept and Reject): what, the decision, the browser's time and "by: not recorded", the latest choice when it changes,
   as of each download. They stay in the browser (nothing is sent or saved) and a new run starts without them. An
