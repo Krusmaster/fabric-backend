@@ -308,6 +308,7 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
     """What the pack recognises in a plan's schema and what it lacks, read-only; optionally one export of the plan.
     The answer behind the sap_pack_draft tool."""
     from .infer import PlanInputError
+    from . import pack_manifest
     if export not in EXPORTS:
         raise PlanInputError(f"export: {export!r} is not one of {', '.join(EXPORTS)}")
     p = load("sap")
@@ -318,7 +319,7 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
         near = [t.name for t in plan.schema if table_name(t.name) in p["tables"]]
         return {"summary": "no SAP tables recognised (the pack needs two or more of its tables with their key columns); the plan "
                            "is the name rules' alone" + (f". Names the pack knows but without their key columns: {', '.join(near)}" if near else ""),
-                "pack_tables": sorted(p["tables"]), "modules": p["modules"]}
+                "pack_tables": sorted(p["tables"]), "modules": p["modules"], "pack_manifest": pack_manifest.header("sap")}
     srcs = lambda ids: [{"title": p["sources"][i]["title"], "url": p["sources"][i]["url"], "fetched": p["sources"][i]["fetched"]} for i in ids]
     tables = [{"table": t, "pack_table": n, "level": p["tables"][n]["level"], "en": p["tables"][n]["en"], "de": p["tables"][n]["de"],
                "key": m.keys[t], **({"note": p["tables"][n]["note"]} if p["tables"][n].get("note") else {}),
@@ -339,7 +340,8 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
            "missing_columns": m.missing_columns, "client_dropped": m.client_dropped,
            "amounts": amounts(m),
            "traps": [{"title": t["title"], "text": t["text"]} for t in p["traps"]],
-           "next": "validate_plan checks keys and relationships against the rows; validate_plan's amount_levels names the header amounts a join repeats."}
+           "next": "validate_plan checks keys and relationships against the rows; validate_plan's amount_levels names the header amounts a join repeats.",
+           "pack_manifest": pack_manifest.header("sap")}          # n77: id, version and review status of packs/sap/manifest.yaml
     if export != "none":
         from . import exports
         if export == "krusgraph":

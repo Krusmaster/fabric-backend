@@ -5,6 +5,20 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n77: one manifest per knowledge pack, `fabric_backend/packs/<pack>/manifest.yaml` (`sap`, `younium_salesforce`), in one
+  shape for every pack and checked by `packs/manifest.schema.json`: id, version, title, source systems, scope, sharing
+  (public-synthetic), sources with `accessed` and `verified` (false wherever the pack's files say the page was not read),
+  entities with their key candidates and sources, candidate relationships with the rule, the sources and which of
+  `validate_plan`'s checks can confirm them (referential integrity, cardinality, amount level), traps with the check that
+  shows them, the fixture module and the benchmark facit, and `review_status` with `reviewed_by`/`reviewed_at` empty until
+  the maintainer has reviewed it. The loader `fabric_backend/pack_manifest.py` derives the four claim sections from the
+  module files and `tests/test_pack_manifest.py` checks that every rule in the files has a row in the manifest and the
+  other way round, that the fixtures build and the pack recognises every fixture table, and that the facit of
+  `examples/benchmark` and the manifest's candidate relationships agree (the three links by number of the younium set
+  are candidates listed as not applied). `sap_pack_draft` answers with a `pack_manifest` field (id, version, review
+  status), read without a YAML library; nothing else in a tool's answer changes. `docs/PACKS.md` describes the format,
+  how a pack is added (public sources, synthetic fixtures, never customer data), the review step, and what a pack is
+  beside a connector and a finished analysis. The benchmark table is unchanged.
 - Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
   line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
   status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got
