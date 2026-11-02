@@ -1,0 +1,56 @@
+table wind_turbines
+	lineageTag: 3f211e0f-7033-46d1-9d58-37fb9aa1ae9d
+
+	column TurbineId
+		dataType: string
+		lineageTag: 1ab367bf-04b2-4fa8-b946-9e563194a5fd
+		sourceColumn: TurbineId
+
+	column PlantId
+		dataType: string
+		lineageTag: c4f3f546-8001-40d0-9e90-3ffde9b8c497
+		sourceColumn: PlantId
+
+	column TurbineName
+		dataType: string
+		lineageTag: 6aa08915-6f73-4d59-86ab-1329682e0567
+		sourceColumn: TurbineName
+
+	column Axis
+		dataType: string
+		lineageTag: 3d98f115-5bc3-469e-93a7-8312cd9e341d
+		sourceColumn: Axis
+
+	column TurbineStatus
+		dataType: string
+		lineageTag: 6db28ef8-354f-4652-b53a-a1581907934b
+		sourceColumn: TurbineStatus
+
+	column Capacity
+		dataType: double
+		lineageTag: a8b850f1-3cd2-4c53-aecf-ba02ae84db41
+		sourceColumn: Capacity
+
+	column HubHeight
+		dataType: int64
+		formatString: 0
+		lineageTag: a8860641-1594-4664-bbf1-6d4636f54d18
+		sourceColumn: HubHeight
+
+	column SerialNumber
+		dataType: string
+		lineageTag: 76241d5d-7c78-4449-85c0-ccd909aedfb1
+		sourceColumn: SerialNumber
+
+	column Manufacturer
+		dataType: string
+		lineageTag: 83aede3a-74d4-49a8-bb0a-15865bfc0918
+		sourceColumn: Manufacturer
+
+	partition wind_turbines = entity
+		mode: directLake
+		source
+			entityName: wind_turbines
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

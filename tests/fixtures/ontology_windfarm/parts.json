@@ -1,0 +1,186 @@
+{
+  "source": {
+    "repository": "github.com/microsoft/mcp",
+    "commit": "7257a94355dd63ba4f1ba43fc5ae5dfcd1a7203d",
+    "file": "tools/Fabric.Mcp.Tools.Docs/src/Resources/item-definitions/ontology-definition.md",
+    "section": "Full WindFarm ontology definition example",
+    "licence": "MIT"
+  },
+  "parts": [
+    {
+      "path": "tables/wind_maintenance_requests.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "97a86e24f5ee5167317cdfee4b50cd44f17aa040df3a3e2c2b9e407ed427b5aa"
+    },
+    {
+      "path": "tables/wind_maintenance_staff.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "62a6682c46dbe5932924a1ee6af7b0c3bf50af4bde046a2f55f17e768f24e5b1"
+    },
+    {
+      "path": "tables/wind_power_plants.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "ed76e5edcaa29e7273a528bda209773c5709be52c35785767899845a2fc15d51"
+    },
+    {
+      "path": "tables/wind_status_codes.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "4d2509b96536966bb27d92f5929fe8cdc93b84c49d81bb368f0ad109f9229757"
+    },
+    {
+      "path": "tables/wind_turbine_blade.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "2ac51a88d8f1ff091ed5af45ce9f27fa5d80be7d908cc6d6aa0d163c17a50dc7"
+    },
+    {
+      "path": "tables/wind_turbine_gearbox.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "b5e5cdb2edf37e99780a8a4be668002a9109d511d4618aabb92a9a20ab6fc2a2"
+    },
+    {
+      "path": "tables/wind_turbine_generator.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "2ff1845e3bad4f9e7c1ea3b7bea2bc7e73f50a0dc440a5ea0cba511bcfdd509d"
+    },
+    {
+      "path": "tables/wind_turbine_nacelle.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "3a0001d793353901158b5db5a3ae0ac59d1755b836a6896456c8d6b54d4cd132"
+    },
+    {
+      "path": "tables/wind_turbine_rotor.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "fd6cdd8615f0ffa93bc419e0d1f5ac780416d517e875735091daeef8573e7bb5"
+    },
+    {
+      "path": "tables/wind_turbine_telemetry_augmented_Mar2025.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "0cfd3a65a812548f369cb873db2044e1690e574e4d756e346a3c2ce79c692c6e"
+    },
+    {
+      "path": "tables/wind_turbines.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "eb6ec3e89d2eb95272702eb1a9e6e64e321738388a158301c423a476a8f1d019"
+    },
+    {
+      "path": "tables/wind_turbines2.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "eb8f65b16ecda05505fd281b14cd2cf0ef6314306d0b285423491584a574d2c7"
+    },
+    {
+      "path": "tables/wind_weather_tower_telemetry_augmented_Mar2025.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "5f78f55aa1f15b690de3e0ceb3809121df1b26d8b935271dbf445f666052fad9"
+    },
+    {
+      "path": "tables/wind_weather_towers.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "e419ba16fb903857cadea4cab145acfc8825f5964ddd87e48f8cf4b0163a9515"
+    },
+    {
+      "path": "relationships.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "b27ace81795b374e5d64195a9fbbdb98d8222000d2e33db205300d2654d37ffa"
+    },
+    {
+      "path": "expressions.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "feb229ffc016b3aa21b90a326f0b7602a4d467927fd7108a4b51b684f722186d"
+    },
+    {
+      "path": "entities/mynamespace#wind_turbines2.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "727b2280a10f2e188ef9d513f31378ac47e098be54a8ff49ae0751554cda6d58"
+    },
+    {
+      "path": "entities/wind_maintenance_requests.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "9405a865befacbb8a586b3ef740dc6b0567d0c348df4c1a70c18cd644ba5a575"
+    },
+    {
+      "path": "entities/wind_maintenance_staff.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "c8824fbb60166f5bd526fc7d8c6285fbb3897d9543ff77b233293de49e2fd717"
+    },
+    {
+      "path": "entities/wind_power_plants.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "7067467f4f20f518fd41e828c4c912ef8ff781fed06f6dc2f6a169b2fa771d8f"
+    },
+    {
+      "path": "entities/wind_status_codes.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "ff84708fcd2d931922af7b18c558a18e2f983749e2d152017eafc45d2082e889"
+    },
+    {
+      "path": "entities/wind_turbine_blade.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "b91d6debac88630a7e0633a18a6fb184f2e2d37f16feb4dedcce1eb328343cf8"
+    },
+    {
+      "path": "entities/wind_turbine_gearbox.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "9f6161be779765f35352b518616f60f14227c35eadb84c57dda01b700fe888da"
+    },
+    {
+      "path": "entities/wind_turbine_generator.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "7633228c1dd456aa145646dba08d8945699a42cd26c886b7e7cd8bd59b7a409d"
+    },
+    {
+      "path": "entities/wind_turbine_nacelle.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "a7a7d15edbb74cdf5863f8c789eb18a55c45c2f8566c90a3315e272699f95c47"
+    },
+    {
+      "path": "entities/wind_turbine_rotor.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "02b5078fd4d85fac94d2ce62ec572a877675bcf5a1d61502c635b67fa3016a67"
+    },
+    {
+      "path": "entities/wind_turbines.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "a269056e8a039b529af439eb73b4d379eb8d27bbef3a4a2ab77f7cb75208ad23"
+    },
+    {
+      "path": "entities/wind_weather_towers.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "6c36a3c1c5f1e08e145048af97677e9cc71c5c39342cad3788c48d3eb77f8b6b"
+    },
+    {
+      "path": "entityRelationships.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "411be4371033417fab4870e134fffd112abf628793c6a9fa49783ea60d68b1f0"
+    },
+    {
+      "path": "namespaces/mynamespace.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "12bc19525547dcb9e02ffb19a9e45896164d7f9422f5ee5933086cb8321805f2"
+    },
+    {
+      "path": "namespaces/default.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "8b8c218721d8403ea8f2b504ae984dbc038a87e764cc448db4332cb10f33cb7e"
+    },
+    {
+      "path": "rules/SpeedLimit.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "9ca45b7fb987309bfa927ddb36e77499cd51ecbf35a0b59e87685edf39bf9a01"
+    },
+    {
+      "path": "model.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "1791f189014c2b5e8601cd295113f05e44d005fe993603aba52cc7914bf9eab5"
+    },
+    {
+      "path": "database.tmdl",
+      "payloadType": "InlineBase64",
+      "sha256": "cb951471004a790ecad5b42c78153dac185f0190a5919c18c19be44ada249e2b"
+    },
+    {
+      "path": ".platform",
+      "payloadType": "InlineBase64",
+      "sha256": "a42c785aa5a428b0ca5554fb5ec3ccec24b3eeb03720c01c6aaa0093510a46f7"
+    }
+  ]
+}

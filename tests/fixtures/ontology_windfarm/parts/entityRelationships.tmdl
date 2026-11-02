@@ -1,0 +1,80 @@
+entityRelationship 'Status Code For Plant'
+	lineageTag: 3263594c-7ef0-4a8d-8ec8-7f62221adbd2
+	fromEntity: wind_status_codes
+	toEntity: wind_power_plants
+
+	backingConfiguration
+		relationship: rel_statuscode_plant
+
+entityRelationship 'Blade On Turbine'
+	lineageTag: b1829fc6-33f6-4448-8bb1-9f61d65bcc44
+	fromEntity: wind_turbine_blade
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_blade_turbine
+
+entityRelationship 'Gearbox On Turbine'
+	lineageTag: 2834c457-7a14-40e4-93b3-0b2623fb05ff
+	fromEntity: wind_turbine_gearbox
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_gearbox_turbine
+
+entityRelationship 'Generator On Turbine'
+	lineageTag: 863fe37e-0ac1-444c-b089-ebb7c91fc5a0
+	fromEntity: wind_turbine_generator
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_generator_turbine
+
+entityRelationship 'Nacelle On Turbine'
+	lineageTag: e041501d-bb91-4f10-a415-95482b11b244
+	fromEntity: wind_turbine_nacelle
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_nacelle_turbine
+
+entityRelationship 'Rotor On Turbine'
+	lineageTag: c05c293c-64b0-4701-9345-15422b21d9e7
+	fromEntity: wind_turbine_rotor
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_rotor_turbine
+
+entityRelationship 'Weather Tower In Plant'
+	lineageTag: e70132d4-acdb-486b-b1d2-8bd6c3ac522c
+	fromEntity: wind_weather_towers
+	toEntity: wind_power_plants
+
+	backingConfiguration
+		relationship: rel_weathertower_plant
+
+entityRelationship 'Turbine In Plant'
+	lineageTag: fef6ed0b-dfd6-46f0-b8f9-895d750dcc28
+	fromEntity: wind_turbines
+	toEntity: wind_power_plants
+
+	backingConfiguration
+		relationship: rel_turbine_plant
+
+entityRelationship 'Maintenance For Turbine'
+	lineageTag: 67c8e27d-2a31-4f30-9674-edd6537bb304
+	fromEntity: wind_maintenance_requests
+	toEntity: wind_turbines
+
+	backingConfiguration
+		relationship: rel_maintenance_turbine
+
+entityRelationship 'Assigned Staff'
+	lineageTag: 7316506c-69e4-43b7-8363-496cbb040ba5
+	fromEntity: wind_maintenance_requests
+	toEntity: wind_maintenance_staff
+
+	backingConfiguration
+		relationship: rel_maintenance_staff
+

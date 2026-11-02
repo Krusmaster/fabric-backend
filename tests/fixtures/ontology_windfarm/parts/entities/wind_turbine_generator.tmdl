@@ -1,0 +1,54 @@
+/// A generator component installed on a wind turbine.
+entity wind_turbine_generator
+	lineageTag: 31d1520b-07d7-474c-a726-e3aef311e122
+	backingTable: wind_turbine_generator
+	keyProperty: ComponentId
+
+	/// Identifier of the parent turbine.
+	property TurbineId
+		dataType: string
+		lineageTag: 32ebfbe6-ed48-4c3b-9fef-14efa0fac41d
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.TurbineId
+
+	/// Unique component identifier.
+	property ComponentId
+		dataType: string
+		lineageTag: fa00bcba-bc13-474d-a84b-f9abdaae001a
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.ComponentId
+
+	/// Component name (source column spelling preserved).
+	property ComponentNane
+		dataType: string
+		lineageTag: bd08af0f-12ff-4b7a-bb0b-b382ad49c1a0
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.ComponentNane
+
+	/// Additional component details.
+	property ComponentDetails
+		dataType: string
+		lineageTag: f407b534-8b3c-4d21-a775-c2f05c768e53
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.ComponentDetails
+
+	/// Component serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: 46f1c530-8ce1-432e-9921-1948ed02dd18
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.SerialNumber
+
+	/// Manufacturer of the component.
+	property Manufacturer
+		dataType: string
+		lineageTag: 4aec3714-f933-49c4-98c3-9dfc0415702a
+
+		backingConfiguration
+			valueColumn: wind_turbine_generator.Manufacturer
+

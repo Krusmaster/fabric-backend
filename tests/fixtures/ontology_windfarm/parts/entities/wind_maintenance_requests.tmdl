@@ -1,0 +1,110 @@
+/// A maintenance work order raised against a wind turbine.
+entity wind_maintenance_requests
+	lineageTag: 0e02196b-6c0f-43da-8467-1f26fd8e0c97
+	backingTable: wind_maintenance_requests
+	keyProperty: WorkorderId
+
+	/// Unique work order identifier.
+	property WorkorderId
+		dataType: string
+		lineageTag: ec381043-1779-4c79-9073-1856a7eda1fd
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.WorkorderId
+
+	/// Identifier of the turbine the work order targets.
+	property TurbineId
+		dataType: string
+		lineageTag: ea3c6940-b3a9-4c99-8665-d434b50a1c9f
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.TurbineId
+
+	/// Category of the work order.
+	property WorkOrderType
+		dataType: int64
+		lineageTag: 16d40931-4259-46e8-adbf-3d7a545ca0c8
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.WorkOrderType
+
+	/// Current status code of the work order.
+	property Status
+		dataType: int64
+		lineageTag: 9132641a-4020-45e8-804c-be77f1c91881
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.Status
+
+	/// Priority level of the work order.
+	property Priority
+		dataType: int64
+		lineageTag: dc299be0-9fe7-4780-9a22-64e8fb6d099f
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.Priority
+
+	/// Date the work order was created.
+	property OrderDate
+		dataType: dateTime
+		lineageTag: 32b829f3-464d-4bc6-b6e3-a8b6f08a1a39
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.OrderDate
+
+	/// Date the work order was last updated.
+	property LastUpdatedDate
+		dataType: dateTime
+		lineageTag: 9b9f2744-bab1-49e1-b1d6-11313b27353d
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.LastUpdatedDate
+
+	/// Estimated start date of the work.
+	property EstimatedStartDate
+		dataType: dateTime
+		lineageTag: 76a46acb-b5c6-4138-b582-4a88dbc4fed1
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.EstimatedStartDate
+
+	/// Committed completion date.
+	property CommitmentDate
+		dataType: dateTime
+		lineageTag: cc27bf22-e793-4419-b1a0-6686c6058ec9
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.CommitmentDate
+
+	/// Estimated labour hours for the work.
+	property EstimatedLabourHours
+		dataType: int64
+		lineageTag: 4a838457-1d3e-4dac-b251-735ae71d603c
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.EstimatedLabourHours
+
+	/// Actual labour hours spent.
+	property ActualLabourHours
+		dataType: int64
+		lineageTag: e3c8cc41-d8ee-49a2-8c2e-5d7e7a563b1c
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.ActualLabourHours
+
+	/// Date the work was actually completed.
+	property ActualEndDate
+		dataType: dateTime
+		lineageTag: 2dab2e8a-260e-4bc4-8a3b-7d66002f3f6a
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.ActualEndDate
+
+	/// Identifier of the staff member assigned to the work order.
+	property AssignedTo
+		dataType: int64
+		lineageTag: 34953e66-52da-4930-a05d-02bd37d4dedb
+
+		backingConfiguration
+			valueColumn: wind_maintenance_requests.AssignedTo
+

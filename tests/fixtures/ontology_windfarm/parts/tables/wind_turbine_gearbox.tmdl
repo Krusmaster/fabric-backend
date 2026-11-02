@@ -1,0 +1,40 @@
+table wind_turbine_gearbox
+	lineageTag: 95814088-58dc-419e-a62c-ba03f1fc7dac
+
+	column TurbineId
+		dataType: string
+		lineageTag: 9b9d9f20-24e2-478a-8baf-aa851c26aca9
+		sourceColumn: TurbineId
+
+	column ComponentId
+		dataType: string
+		lineageTag: 5f41c819-40a5-495f-98a3-b846f56a799e
+		sourceColumn: ComponentId
+
+	column ComponentNane
+		dataType: string
+		lineageTag: c3518b6f-12c1-43b5-aebd-ea133c81c07e
+		sourceColumn: ComponentNane
+
+	column ComponentDetails
+		dataType: string
+		lineageTag: 88c90aa0-cf2a-4f2e-870b-0a0f1fb5bb51
+		sourceColumn: ComponentDetails
+
+	column SerialNumber
+		dataType: string
+		lineageTag: a6b798ce-6c6f-4ad7-ad1f-6eb75ad8d4bc
+		sourceColumn: SerialNumber
+
+	column Manufacturer
+		dataType: string
+		lineageTag: 1b2215f0-4ac8-4a8e-b954-a8a6fe211e32
+		sourceColumn: Manufacturer
+
+	partition wind_turbine_gearbox = entity
+		mode: directLake
+		source
+			entityName: wind_turbine_gearbox
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

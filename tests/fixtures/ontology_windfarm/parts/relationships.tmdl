@@ -1,0 +1,48 @@
+relationship rel_weathertelemetry_tower
+	fromColumn: wind_weather_tower_telemetry_augmented_Mar2025.TowerId
+	toColumn: wind_weather_towers.TowerId
+
+relationship rel_statuscode_plant
+	fromColumn: wind_status_codes.PlantId
+	toColumn: wind_power_plants.PlantId
+
+relationship rel_turbinetelemetry_turbine
+	fromColumn: wind_turbine_telemetry_augmented_Mar2025.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_blade_turbine
+	fromColumn: wind_turbine_blade.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_gearbox_turbine
+	fromColumn: wind_turbine_gearbox.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_generator_turbine
+	fromColumn: wind_turbine_generator.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_nacelle_turbine
+	fromColumn: wind_turbine_nacelle.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_rotor_turbine
+	fromColumn: wind_turbine_rotor.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_weathertower_plant
+	fromColumn: wind_weather_towers.PlantId
+	toColumn: wind_power_plants.PlantId
+
+relationship rel_turbine_plant
+	fromColumn: wind_turbines.PlantId
+	toColumn: wind_power_plants.PlantId
+
+relationship rel_maintenance_turbine
+	fromColumn: wind_maintenance_requests.TurbineId
+	toColumn: wind_turbines.TurbineId
+
+relationship rel_maintenance_staff
+	fromColumn: wind_maintenance_requests.AssignedTo
+	toColumn: wind_maintenance_staff.Id
+

@@ -1,0 +1,62 @@
+/// A member of the maintenance staff.
+entity wind_maintenance_staff
+	lineageTag: 6b72b920-cb66-48b0-aa07-21dc6c35ed52
+	backingTable: wind_maintenance_staff
+	keyProperty: Id
+
+	/// Unique staff identifier.
+	property Id
+		dataType: int64
+		lineageTag: fdac576d-2323-4fa3-bd80-0b38239e16c1
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.Id
+
+	/// Full name of the staff member.
+	property Name
+		dataType: string
+		lineageTag: 11de963b-4754-4639-a715-4c857501cd2b
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.Name
+
+	/// Email address.
+	property Email
+		dataType: string
+		lineageTag: 65bba4a8-2708-4048-9a9a-0c22695bbd55
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.Email
+
+	/// Contact phone number.
+	property Phone
+		dataType: string
+		lineageTag: b26535fd-1234-42bf-bec4-99f85094b431
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.Phone
+
+	/// Date the staff member joined.
+	property JoinedSince
+		dataType: dateTime
+		lineageTag: 75dc9719-7d25-4115-867f-6800abf881b2
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.JoinedSince
+
+	/// Name of the staff member's manager.
+	property Manager
+		dataType: string
+		lineageTag: 356f964d-9f58-4e66-b851-ba107e78bd3a
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.Manager
+
+	/// Work order type the staff member is responsible for.
+	property WorkOrderTypeResponsible
+		dataType: int64
+		lineageTag: 47381c18-ef8d-4faf-b0e6-de324ca022ed
+
+		backingConfiguration
+			valueColumn: wind_maintenance_staff.WorkOrderTypeResponsible
+

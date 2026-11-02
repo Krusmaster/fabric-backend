@@ -1,0 +1,31 @@
+table wind_weather_towers
+	lineageTag: f0b61bea-5706-4cbb-9605-2080270cd3ac
+
+	column TowerId
+		dataType: string
+		lineageTag: e3ed5a60-1984-4d5e-8a66-860a2e87c33b
+		sourceColumn: TowerId
+
+	column PlantId
+		dataType: string
+		lineageTag: 4313eaee-6820-483d-a5c3-4086115158a5
+		sourceColumn: PlantId
+
+	column Name
+		dataType: string
+		lineageTag: dfb2b9e8-272b-41db-9448-cc55d3004473
+		sourceColumn: Name
+
+	column Height_m
+		dataType: int64
+		formatString: 0
+		lineageTag: 0e429f43-a9ca-4c97-b937-438651ed9a67
+		sourceColumn: Height_m
+
+	partition wind_weather_towers = entity
+		mode: directLake
+		source
+			entityName: wind_weather_towers
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+
