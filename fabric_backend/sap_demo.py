@@ -8,7 +8,8 @@ refuses a `where` that names this demo).
 
 The traps are planted, and EXPECTED says what each check should find:
 - two clients: client 200 has an order numbered like one in client 100, and the same customer number;
-- order 0000000001 has three items, so VBAK.NETWR summed over VBAP rows comes out three times too large;
+- order 0000000001 has three items, so its VBAK.NETWR summed over its VBAP rows counts three times; the other orders have
+  one item each, so over all orders the join gives 1 950 against 750 summed once per order (2.6 times, not three);
 - an item of an order that does not exist (VBAP 0000000009): an orphan the check must report;
 - a payer that differs from the sold-to party, a ship-to on the delivery, a document address in VBPA;
 - the document flow from the order to its delivery (J) and its invoice (M);
