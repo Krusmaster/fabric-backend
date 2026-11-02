@@ -60,7 +60,11 @@ dropped shortly before they expire.
 When you sign in from an MCP client other than Claude, the service obtains the Microsoft tokens for that sign-in
 itself and hands the access token to your client. Until your client collects them (at most 60 seconds) they are kept
 encrypted; Microsoft's refresh token stays encrypted with the service for as long as your client keeps renewing its
-access, at most 90 days, and is never given to the client. Details below.
+access, at most 90 days, and is never given to the client. Each time your client renews its access, the answer it gets
+(a Microsoft access token and the service's next refresh token) is also kept encrypted with the sign-in for up to 60
+seconds, so that a client which lost the answer and asks again gets the same one instead of being signed out. This
+happens at every renewal, also long after the first sign-in. After those 60 seconds the copy is never used again; it
+stays encrypted until the next renewal overwrites it or the sign-in ends. Details below.
 {{/IF}}
 ## What we process
 
@@ -69,7 +73,7 @@ access, at most 90 days, and is never given to the client. Details below.
 | Your access tokens | to call Fabric and SQL as you | in memory only, until shortly before they expire; never written to disk or logs |
 | Workspace, item, table and column names, and item definitions | to build the plan, the draft or the definition you asked for | only for the duration of the request |
 | Counts from the checks, sample rows and query results you request | returned to your MCP client | not stored |
-{{#IF CLIENT_REGISTRATION}}| Sign-in records for MCP clients other than Claude: a sign-in in progress (the client's address, its redirect address and its request); the Microsoft tokens of a finished sign-in, encrypted; Microsoft's refresh token, encrypted, with a hash of the refresh token your client holds | signing in from VS Code, Cursor and other MCP clients through {{DOMAIN}}/mcp/connect | in {{REGISTRATION_WHERE}}: 10 minutes, 60 seconds, and at most 90 days, each deleted once used |
+{{#IF CLIENT_REGISTRATION}}| Sign-in records for MCP clients other than Claude: a sign-in in progress (the client's address, its redirect address and its request); the Microsoft tokens of a finished sign-in, encrypted; Microsoft's refresh token, encrypted, with a hash of the refresh token your client holds; after each renewal, the answer your client got (a Microsoft access token and the next refresh token), encrypted, with a hash of the refresh token it replaced | signing in from VS Code, Cursor and other MCP clients through {{DOMAIN}}/mcp/connect; answering a client's repeated renewal request the same way | in {{REGISTRATION_WHERE}}: 10 minutes, 60 seconds, and at most 90 days, each deleted once used; the answer to a renewal is used for at most 60 seconds and overwritten at the next renewal |
 | Your approval of an MCP client that receives the answer at a web address: a keyed hash of your user and organisation ids (not the ids themselves), the client's address, name and redirect address, and the date | not asking you again at every sign-in | the same place, 180 days |
 | A cookie in your browser on {{DOMAIN}} with the same keyed hash, signed; and two short-lived cookies that protect the approval form and the sign-in | recognising your earlier approval; stopping forged approvals | 180 days, and 10 minutes, in your browser |
 | The IP address of a sign-in request, as a salted hash | limits on sign-in attempts per network | in memory only, about an hour; never written anywhere |
@@ -145,4 +149,4 @@ about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and,
 sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: 2026-10-28.
+**Changes.** We date every change to this page. Last updated: 2026-11-02.

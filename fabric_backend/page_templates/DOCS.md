@@ -556,7 +556,8 @@ after the request. From Claude, your tokens are exchanged on your behalf and hel
 or logs.{{#IF CLIENT_REGISTRATION}} From an MCP client other than Claude (signing in through {{DOMAIN}}/oauth), the Microsoft
 tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until your client collects them (at most 60 seconds), and
 Microsoft's refresh token stays there encrypted for as long as your client keeps renewing its access, at most 90 days,
-and is never given to the client ([sign-in from MCP clients other than Claude](/privacy#sign-in-from-mcp-clients-other-than-claude));
+and is never given to the client; after each renewal the answer given (an access token and the next refresh token)
+is kept there encrypted too, used for at most 60 seconds to answer the client again if it asks again ([sign-in from MCP clients other than Claude](/privacy#sign-in-from-mcp-clients-other-than-claude));
 apart from those sign-in records there is no database and no file storage.{{/IF}}{{#IF NO_CLIENT_REGISTRATION}} There is no
 database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
 service writes technical logs. Details: [privacy policy](/privacy).
