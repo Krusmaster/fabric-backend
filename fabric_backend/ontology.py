@@ -11,6 +11,8 @@ the rule behind every key and link, so this module writes the plan out in the th
                      types, properties, relationships, with the rule in each description; bindings are then done in
                      the portal, following bindings())
   bindings()         the binding checklist: entity → table, key column, property → column, relationship → columns
+  ontology_rdfxml()  the same schema as RDF/XML for Microsoft's Ontology Playground, whose Import reads RDF/XML and not
+                     Turtle (n80; a file import there, schema only)
 
 Grounding: the generation-2 skeleton (model, database, namespaces, .platform) is the official REST example; the
 entity, table, relationship and expression syntax follows what the item's own getDefinition returns for a
@@ -272,6 +274,115 @@ def ontology_ttl(plan: Plan, name: str, schema: str = "dbo", tables: list[str] |
     return "\n".join(out)
 
 
+# ---------------------------------------------------------------- RDF/XML for Microsoft's Ontology Playground (n80)
+# Ontology Playground (https://github.com/microsoft/Ontology-Playground) imports RDF/XML only, not Turtle. Written in
+# Python after its RDF/XML subset as of commit 7bf7acb427424ce68f917fa26f484fb06ca42051: src/lib/rdf/serializer.ts (the
+# element shapes), docs/external-rdf-generators.md (what its importer reads) and docs/rdf-export-profiles.md (the
+# 8 MiB limit, no DOCTYPE). Copyright (c) Microsoft Corporation, MIT licence
+# (https://github.com/microsoft/Ontology-Playground/blob/7bf7acb427424ce68f917fa26f484fb06ca42051/LICENSE; the text is
+# also in tests/fixtures/rdf/LICENSE-Ontology-Playground.txt). Differences from serializer.ts, after the generator
+# guide: no xml:base (every IRI is absolute), the metadata namespace below bound to `ont:`, no icons or colours.
+PLAYGROUND_NS = "https://microsoft.github.io/Ontology-Playground/ns/metadata#"
+RDFXML_MAX_BYTES = 8 * 1024 * 1024            # the Playground's limit for an RDF source (MAX_RDF_SOURCE_BYTES)
+_XML_FORBIDDEN = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff￾￿]")
+
+
+def _xml(s: str) -> str:
+    """Text or an attribute value as XML: the characters XML 1.0 forbids dropped, the five specials escaped."""
+    s = _XML_FORBIDDEN.sub("", str(s))
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;").replace("'", "&apos;")
+
+
+def graph_id(iri: str) -> str:
+    """The id the Playground gives a class or an object property: the IRI's local name (after the last `#`, else the
+    last `/`) with only its first character lower-cased (external-rdf-generators.md, "Entities")."""
+    local = iri[iri.rfind("#") + 1:] if "#" in iri else iri[iri.rfind("/") + 1:]
+    return local[:1].lower() + local[1:]
+
+
+def ontology_rdfxml(plan: Plan, name: str, schema: str = "dbo", tables: list[str] | None = None, base: str = "") -> str:
+    """The plan as RDF/XML for Ontology Playground's Import (a file import): an `owl:Class` with `rdfs:label` per table,
+    an `owl:DatatypeProperty` per column with exactly one domain and an XSD range (`ont:isIdentifier` on a single string
+    or integer key, as Fabric IQ takes it), an `owl:ObjectProperty` with domain and range per relationship
+    (`ont:cardinality`), the table, key and rule in each `rdfs:comment`. Root `rdf:RDF`, no DOCTYPE, no xml:base, absolute
+    IRIs only. Ids are made unique after the Playground's own rule (first letter lower-cased), across classes and
+    relationships, so its importer never has to number them. Schema only: no rows, no bindings."""
+    check_tables(plan.schema, tables)
+    wanted = {x.lower() for x in tables} if tables else None
+    model = _model(plan, wanted)
+    if not model:
+        raise ValueError("the ontology would be empty: no tables")
+    ns = (base or f"urn:krusgraph:ontology:{_ident(name)}").rstrip("#") + "#"
+    rule = plan.label if hasattr(plan, "label") else (lambda r: r)
+    graph_ids: set[str] = set()
+    iris: set[str] = set()
+
+    def mint(local: str, in_graph: bool) -> str:
+        """`local`, or `local_2`, `local_3`... until its IRI, and for a class or relationship its graph id, is free."""
+        cand, n = local, 2
+        while ns + cand in iris or (in_graph and graph_id(ns + cand) in graph_ids):
+            cand, n = f"{local}_{n}", n + 1
+        iris.add(ns + cand)
+        if in_graph:
+            graph_ids.add(graph_id(ns + cand))
+        return ns + cand
+
+    classes = {t.name: mint(entity_name(t.name), True) for t, *_ in model}
+    out = ['<?xml version="1.0" encoding="UTF-8"?>',
+           "<rdf:RDF",
+           '    xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"',
+           '    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"',
+           '    xmlns:owl="http://www.w3.org/2002/07/owl#"',
+           '    xmlns:xsd="http://www.w3.org/2001/XMLSchema#"',
+           f'    xmlns:ont="{PLAYGROUND_NS}">',
+           "",
+           f'    <owl:Ontology rdf:about="{_xml(ns[:-1])}">',
+           f"        <rdfs:label>{_xml(name)}</rdfs:label>",
+           "        <rdfs:comment>Draft generated by Krusgraph from inferred keys and relationships; every description names "
+           "the rule (K0-K5, R0-R4). Review before use.</rdfs:comment>",
+           "    </owl:Ontology>", ""]
+    for t, key, cols, krule in model:
+        keytxt = f"key {'+'.join(cols)} ({rule(krule)})" if cols else "no key (K3)"
+        out += [f'    <owl:Class rdf:about="{_xml(classes[t.name])}">',
+                f"        <rdfs:label>{_xml(classes[t.name][len(ns):])}</rdfs:label>",
+                f"        <rdfs:comment>{_xml(f'Table {schema}.{t.name}; {keytxt}.')}</rdfs:comment>",
+                "    </owl:Class>", ""]
+    for t, key, cols, krule in model:
+        cls = classes[t.name]
+        for c in t.columns:
+            iri = mint(f"{cls[len(ns):]}__{_ident(c.name)}", False)
+            comment = f"Column {c.name} ({c.data_type})" + ("; key." if c.name in cols else ".")
+            out += [f'    <owl:DatatypeProperty rdf:about="{_xml(iri)}">',
+                    f"        <rdfs:label>{_xml(c.name)}</rdfs:label>",
+                    f'        <rdfs:domain rdf:resource="{_xml(cls)}"/>',
+                    f'        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#{_XSD[prop_type(c.data_type)[0]][4:]}"/>',
+                    f"        <rdfs:comment>{_xml(comment)}</rdfs:comment>"]
+            if key and c.name == key:
+                out.append("        <ont:isIdentifier>true</ont:isIdentifier>")
+            out += ["    </owl:DatatypeProperty>", ""]
+    keys = {t.name: {c.lower() for c in cols} for t, _, cols, _ in model}
+    for r in plan.relationships:
+        if r.source not in classes or r.target not in classes:
+            continue
+        iri = mint(_entity_relationship_name(r, plan), True)
+        one = keys[r.source] and {c.lower() for c in r.source_cols} == keys[r.source]      # the source's own key: 1:1
+        comment = f"{r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)} by rule {rule(r.rule)}."
+        out += [f'    <owl:ObjectProperty rdf:about="{_xml(iri)}">',
+                f"        <rdfs:label>{_xml(iri[len(ns):])}</rdfs:label>",
+                f'        <rdfs:domain rdf:resource="{_xml(classes[r.source])}"/>',
+                f'        <rdfs:range rdf:resource="{_xml(classes[r.target])}"/>',
+                f"        <rdfs:comment>{_xml(comment)}</rdfs:comment>",
+                f"        <ont:cardinality>{'one-to-one' if one else 'many-to-one'}</ont:cardinality>",
+                "    </owl:ObjectProperty>", ""]
+    out.append("</rdf:RDF>")
+    text = "\n".join(out) + "\n"
+    size = len(text.encode("utf-8"))
+    if size > RDFXML_MAX_BYTES:
+        raise ValueError(f"the RDF/XML is {size:,} bytes; Ontology Playground reads at most {RDFXML_MAX_BYTES:,} (8 MiB). "
+                         "Use tables= to export part of the plan.")
+    return text
+
+
 def ontology_files(plan: Plan, name: str, *, workspace_id: str, item_id: str, item_name: str, item_kind: str = "Lakehouse",
                    schema: str = "dbo", sql_endpoint: str = "", tables: list[str] | None = None) -> dict[str, str]:
     """Everything as files under ontology/<name>/: the definition parts, the TTL, the bindings and a README."""
@@ -280,6 +391,7 @@ def ontology_files(plan: Plan, name: str, *, workspace_id: str, item_id: str, it
     folder = f"ontology/{_ident(name)}"
     files = {f"{folder}/definition/{p}": text for p, text in parts.items()}
     files[f"{folder}/{_ident(name)}.ttl"] = ontology_ttl(plan, name, schema, tables)
+    files[f"{folder}/{_ident(name)}.rdf"] = ontology_rdfxml(plan, name, schema, tables)
     files[f"{folder}/bindings.json"] = json.dumps(bindings(plan, item_name, schema, tables), indent=2) + "\n"
     files[f"{folder}/README.generated.md"] = _readme(name, summary(plan, tables), workspace_id)
     return files
@@ -299,6 +411,8 @@ Two ways in:
    (delegated scope `Item.ReadWrite.All`, Contributor on the workspace), or commit it through Git integration.
 2. **Portal:** create an empty ontology item, *Import ontology* with the `.ttl` file (entity types, properties,
    relationships), then bind each entity type to its table following `bindings.json`.
+3. **Ontology Playground:** the `.rdf` file is the same schema as RDF/XML, for Microsoft's Ontology Playground
+   (Import / Export, file import); a draft to look at and edit there, not a Fabric item.
 
 To review before trusting:
 
