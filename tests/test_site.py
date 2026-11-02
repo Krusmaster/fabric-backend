@@ -1226,6 +1226,21 @@ def test_the_pilot_page_shows_the_example_and_the_scope(client):
         assert text in html, text
 
 
+def test_the_home_page_offers_two_paths_after_the_demo(client):
+    """n75: after the demo card, "Try it yourself" (/check and the Connect chooser) and "Get help with one number"
+    (/partners), one sentence each, with the site's one name per target."""
+    html = client.get("/").text
+    assert html.index('id="demo"') < html.index('id="paths"') < html.index('id="how"')
+    paths = html[html.index('id="paths"'):html.index("</section>", html.index('id="paths"'))]
+    assert "<h3>Try it yourself</h3>" in paths and "<h3>Get help with one number</h3>" in paths
+    assert 'href="/check">Check your files</a>' in paths and 'href="#connect">Connect</a>' in paths and 'href="/partners">Try a pilot</a>' in paths
+    for card in re.findall(r'<div class="card soft">(.*?)</div>', paths, re.S):
+        sentences = [x for x in re.split(r"(?<=[.!?])\s+", re.sub(r"<[^>]+>", "", re.search(r'<p class="muted">(.*?)</p>', card).group(1))) if x]
+        assert len(sentences) == 1, sentences
+    for word in ("guarantee", "always", "any schema", "minutes"):
+        assert word not in paths.lower(), word
+
+
 def test_check_leads_to_the_pilot_once(client):
     html = client.get("/check").text
     assert html.count('id="check-pilot"') == 1 and "Have a similar question in your own data?" in html
