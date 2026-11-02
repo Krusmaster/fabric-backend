@@ -197,6 +197,29 @@ def _amount(v) -> str:
         return _cell(v)
 
 
+def _ratio(over_lines, per_header) -> str:
+    """n89: what the two counted sums say about each other, from the sums themselves (1 950 against 750: 2.6 times);
+    never a factor from the lines per header, which is not the ratio of the sums when headers have different numbers
+    of lines."""
+    try:
+        b, a = float(over_lines), float(per_header)
+    except (TypeError, ValueError):
+        return ""
+    if a <= 0 or b < 0:
+        return ""
+    if b == a:
+        return "; the join gives the same sum"
+    r = b / a
+    return f"; the join gives {'' if abs(r - round(r, 2)) < 1e-9 else 'about '}{round(r, 2):g} times the sum per header"
+
+
+def _lead(explanation: str) -> str:
+    """The explanation up to its rule, as one sentence: n88's text names the rule after "The relationship", which is cut
+    with it."""
+    lead = explanation.split(" (rule")[0]
+    return (lead[: -len(" The relationship")] if lead.endswith(". The relationship") else lead).rstrip(".") + "."
+
+
 def _cell(v) -> str:
     if v is None:
         return ""
@@ -434,7 +457,8 @@ class Session:
             out.append({"id": f"amt:{f['line']}>{f['header']}.{col}", "kind": "amount_level", "severity": "warning", "table": f["header"],
                         "title": f"{f['header']}.{col} would be summed once per {f['line']} row",
                         "saw": (f"Summed over the joined {f['line']} rows: {_amount(before.get('summed_over_lines'))}; summed once per {f['header']} row: "
-                                f"{_amount(before.get('summed_per_header'))}. " if ba else "") + f["explanation"].split(" (rule")[0] + ".",
+                                f"{_amount(before.get('summed_per_header'))}"
+                                f"{_ratio(before.get('summed_over_lines'), before.get('summed_per_header'))}. " if ba else "") + _lead(f["explanation"]),
                         "means": f["explanation"], "next": {"sql": after[1]},
                         "next_text": f["do_instead"], "evidence": after[0],
                         # n53: /check's "Ask Onto" points at this relationship on the map and shows both sums

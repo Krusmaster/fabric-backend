@@ -47,20 +47,24 @@ def test_the_header_amount_is_found_from_names_with_the_rule_and_unknown_rows_pe
 
 def test_with_rows_the_lines_per_header_are_counted():
     [f] = amounts.check(plan(demo_schema()), demo_execute())["findings"]
-    assert f["rows_per_header"] == {"headers": 1, "avg_lines": 2.0, "max_lines": 2, "headers_in_table": 1}
-    assert "2 rows for each row of orders" in f["explanation"] and "about 2 times too large" in f["explanation"]
+    assert f["rows_per_header"] == {"headers": 1, "avg_lines": 2.0, "min_lines": 2, "max_lines": 2, "headers_in_table": 1}
+    # n89: every referenced order has two lines, so the factor is exact (A total that doubles: 2 000 against 1 000)
+    assert "2 rows for each row of orders" in f["explanation"] and "comes out 2 times too large" in f["explanation"]
+    assert "about" not in f["explanation"]
     assert "(1 referenced header value(s), 1 of them in orders)" in f["explanation"]
 
 
 def test_an_orphan_line_is_a_referenced_header_value_that_the_header_table_does_not_hold():
     [f] = amounts.check(plan(demo_schema()), demo_execute([(9, 1, 50.0)]))["findings"]
-    assert f["rows_per_header"] == {"headers": 2, "avg_lines": 1.5, "max_lines": 2, "headers_in_table": 1}
+    assert f["rows_per_header"] == {"headers": 2, "avg_lines": 1.5, "min_lines": 1, "max_lines": 2, "headers_in_table": 1}
     assert "(2 referenced header value(s), 1 of them in orders)" in f["explanation"]
+    assert "times too large" not in f["explanation"] and "between 1 and 2 order_lines rows each" in f["explanation"]
 
 
 def test_before_2000_after_1000():
     d = amounts.demo()
     assert (d["before"], d["after"], d["lines_total"]) == (2000.0, 1000.0, 1000.0)
+    assert "comes out 2 times too large" in d["finding"]["explanation"]          # n89: 2 000 against 1 000, exact
     assert d["explanation"] == "order amount and line amount are different levels"
 
 

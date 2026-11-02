@@ -373,7 +373,7 @@
       "list_price"
      ],
      "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
-     "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+     "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows counts each products row once per order_items row and comes out too large; by how much depends on the amounts, because the products rows have between 13 and 27 order_items rows each, and the average number of rows is not the ratio of the two sums. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
      "header": "products",
      "header_columns": [
       "product_id"
@@ -386,7 +386,8 @@
       "avg_lines": 16.75,
       "headers": 8,
       "headers_in_table": 8,
-      "max_lines": 27
+      "max_lines": 27,
+      "min_lines": 13
      },
      "rule": "R1"
     }
@@ -1066,7 +1067,8 @@
        "avg_lines": 2.0,
        "headers": 1,
        "headers_in_table": 1,
-       "max_lines": 2
+       "max_lines": 2,
+       "min_lines": 2
       },
       "wrong": 2000.0
      },
@@ -1074,7 +1076,7 @@
      "evidence": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[order_lines] AS l JOIN [demo].[orders] AS h ON l.[order_id] = h.[order_id]",
      "id": "amt:demo",
      "kind": "amount_level",
-     "means": "orders.order_amount is an amount on orders, and order_lines has 2 rows for each row of orders on average and up to 2 (1 referenced header value(s), 1 of them in orders) (rule R1: order_lines.order_id → orders.order_id). In a join of the two, each orders amount is repeated on every order_lines row, so SUM(orders.order_amount) over the joined rows comes out about 2 times too large. Sum it on orders itself, or sum an amount of order_lines instead: order amount and line amount are different levels.",
+     "means": "orders.order_amount is an amount on orders, and order_lines has 2 rows for each row of orders on average and up to 2 (1 referenced header value(s), 1 of them in orders) (rule R1: order_lines.order_id → orders.order_id). In a join of the two, each orders amount is repeated on every order_lines row, so SUM(orders.order_amount) over the joined rows comes out 2 times too large. Sum it on orders itself, or sum an amount of order_lines instead: order amount and line amount are different levels.",
      "next": {
       "sql": "SELECT SUM(h.[order_amount]) AS total FROM [demo].[orders] AS h WHERE EXISTS (SELECT 1 FROM [demo].[order_lines] AS l WHERE l.[order_id] = h.[order_id])"
      },
@@ -1100,7 +1102,8 @@
        "avg_lines": 16.75,
        "headers": 8,
        "headers_in_table": 8,
-       "max_lines": 27
+       "max_lines": 27,
+       "min_lines": 13
       },
       "wrong": 22610.9
      },
@@ -1108,12 +1111,12 @@
      "evidence": "SELECT SUM(h.[list_price]) AS total FROM [shop].[order_items] AS l JOIN [shop].[products] AS h ON l.[product_id] = h.[product_id]",
      "id": "amt:order_items>products.list_price",
      "kind": "amount_level",
-     "means": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+     "means": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows counts each products row once per order_items row and comes out too large; by how much depends on the amounts, because the products rows have between 13 and 27 order_items rows each, and the average number of rows is not the ratio of the two sums. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
      "next": {
       "sql": "SELECT SUM(h.[list_price]) AS total FROM [shop].[products] AS h WHERE EXISTS (SELECT 1 FROM [shop].[order_items] AS l WHERE l.[product_id] = h.[product_id])"
      },
      "next_text": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
-     "saw": "Summed over the joined order_items rows: 22 611; summed once per products row: 1 667. products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products).",
+     "saw": "Summed over the joined order_items rows: 22 611; summed once per products row: 1 667; the join gives about 13.57 times the sum per header. products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products).",
      "severity": "warning",
      "skipped": false,
      "table": "products",

@@ -981,7 +981,7 @@
        "list_price"
       ],
       "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
-      "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+      "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows counts each products row once per order_items row and comes out too large; by how much depends on the amounts, because the products rows have between 13 and 27 order_items rows each, and the average number of rows is not the ratio of the two sums. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
       "header": "products",
       "header_columns": [
        "product_id"
@@ -994,7 +994,8 @@
        "avg_lines": 16.75,
        "headers": 8,
        "headers_in_table": 8,
-       "max_lines": 27
+       "max_lines": 27,
+       "min_lines": 13
       },
       "rule": "R1"
      }
@@ -1205,7 +1206,7 @@
        "list_price"
       ],
       "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
-      "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows comes out about 16.75 times too large. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+      "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows counts each products row once per order_items row and comes out too large; by how much depends on the amounts, because the products rows have between 13 and 27 order_items rows each, and the average number of rows is not the ratio of the two sums. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
       "header": "products",
       "header_columns": [
        "product_id"
@@ -1218,7 +1219,8 @@
        "avg_lines": 16.75,
        "headers": 8,
        "headers_in_table": 8,
-       "max_lines": 27
+       "max_lines": 27,
+       "min_lines": 13
       },
       "rule": "R1"
      }

@@ -104,7 +104,7 @@ def report(plan, validation: dict | None = None, decisions: list[dict] | None = 
         doubled = per.get("max_lines", 0) > 1
         checks.append({"check": "amount_level", "what": what,
                        "result": f"up to {per['max_lines']} {f['line']} rows per {f['header']} row" + ("; a join repeats the amount" if doubled else ""),
-                       "counts": {k: per[k] for k in ("headers", "avg_lines", "max_lines") if k in per},
+                       "counts": {k: per[k] for k in ("headers", "avg_lines", "min_lines", "max_lines") if k in per},
                        "read": f"all rows of {f['line']}", "passed": not doubled})
         if doubled:
             questions.append(f"{what}: summed over the joined rows it counts each {f['header']} row once per {f['line']} row. Sum it on {f['header']}.")

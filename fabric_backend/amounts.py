@@ -215,8 +215,8 @@ def columns(plan: Plan) -> set[tuple[str, str]]:
 
 def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Dialect = TSQL,
                          header: str | None = None, header_cols: list[str] | None = None) -> str:
-    """Header values the line rows reference, how many of them the header table holds, average and largest number of
-    line rows per referenced value: read-only."""
+    """Header values the line rows reference, how many of them the header table holds, average, smallest and largest
+    number of line rows per referenced value: read-only."""
     q = dialect.quote
     cs = ", ".join(q(c) for c in cols)
     not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in cols)
@@ -227,9 +227,9 @@ def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Diale
         on = " AND ".join(f"h.{q(b)} = g.{q(a)}" for a, b in zip(cols, header_cols))
         flagged = (f"(SELECT g.n, CASE WHEN EXISTS (SELECT 1 FROM {dialect.table(schema, header)} AS h WHERE {on}) "
                    f"THEN 1 ELSE 0 END AS in_header FROM {grouped}) AS f")
-        return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * f.n) AS avg_lines, MAX(f.n) AS max_lines, "
+        return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * f.n) AS avg_lines, MIN(f.n) AS min_lines, MAX(f.n) AS max_lines, "
                 f"SUM(f.in_header) AS headers_in_table FROM {flagged}")
-    return f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MAX(n) AS max_lines FROM {grouped}"
+    return f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MIN(n) AS min_lines, MAX(n) AS max_lines FROM {grouped}"
 
 
 def readable_count_error(e: BaseException) -> str:
@@ -258,7 +258,14 @@ def _explain(f: dict, counts: dict | None, label=None) -> str:
         many = (f"{line} has {avg} rows for each row of {header} on average and up to {counts['max_lines']} "
                 f"({counts['headers']} referenced header value(s)"
                 + (f", {counts['headers_in_table']} of them in {header})" if "headers_in_table" in counts else ")"))
-        size = f"so SUM({header}.{first}) over the joined rows comes out about {avg} times too large"
+        if counts.get("min_lines") == counts["max_lines"] > 1:           # n89: every header has n lines: the factor is exact
+            size = f"so SUM({header}.{first}) over the joined rows comes out {counts['max_lines']} times too large"
+        else:                                                            # n89: the average of lines is not the ratio of the sums
+            spread = (f", because the {header} rows have between {counts['min_lines']} and {counts['max_lines']} {line} rows each"
+                      if counts.get("min_lines") else "")
+            size = (f"so SUM({header}.{first}) over the joined rows counts each {header} row once per {line} row and comes out "
+                    f"too large; by how much depends on the amounts{spread}, and the average number of rows is not the ratio "
+                    f"of the two sums")
         if counts["max_lines"] <= 1:                                     # n88: one line per header today: nothing doubles yet
             return (f"{header}.{', '.join(cols)} {'is an amount' if len(cols) == 1 else 'are amounts'} on {header}. In the data "
                     f"no row is repeated today: {line} has at most one row for each row of {header} ({counts['headers']} "
@@ -289,6 +296,8 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
                 avg = row.get("avg_lines")
                 counts = {"headers": int(row.get("headers") or 0), "avg_lines": round(float(avg), 2) if avg is not None else 0,
                           "max_lines": int(row.get("max_lines") or 0)}
+                if row.get("min_lines") is not None:                     # n89: equal to max_lines, the factor is exact
+                    counts["min_lines"] = int(row["min_lines"])
                 if row.get("headers_in_table") is not None:
                     counts["headers_in_table"] = int(row["headers_in_table"])
             except Exception as e:                                       # noqa: BLE001 - one failed count never hides the finding
