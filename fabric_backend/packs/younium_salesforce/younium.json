@@ -57,7 +57,7 @@
     {"name": "ACCOUNTS", "common_name": true, "level": "master", "area": "customers", "en": "Younium accounts (the customers that are billed)", "sv": "Younium-konton (kunderna som faktureras)",
      "key": ["ID"], "unique_keys": [["ACCOUNT_NUMBER"]], "currency_columns": ["CURRENCY"],
      "note": "ID is a GUID; ACCOUNT_NUMBER is the number people use. EXTERNAL_CRM_ID holds the Salesforce Account Id when the Salesforce connector created or linked the account (a fixed mapping); EXTERNAL_ERP_ID the account's id in the ERP. CURRENCY is the account's currency: amounts of its subscriptions and invoices are in it. Field names after the API's camelCase (accountNumber, externalCrmId): a landing in snake case is read the same.",
-     "personal": [{"column": "INVOICE_EMAIL", "rule": "P2"}, {"column": "PHONE", "rule": "P3"}],
+     "personal": [{"column": "NAME", "rule": "P1"}, {"column": "INVOICE_EMAIL", "rule": "P2"}, {"column": "PHONE", "rule": "P3"}],
      "sources": ["younium_api_v2", "younium_sf_integration"]},
     {"name": "PRODUCTS", "common_name": true, "level": "master", "area": "product catalog", "en": "Products (what is sold; each has one or more charge plans)", "sv": "Produkter (det som säljs; var och en har en eller flera avgiftsplaner)",
      "key": ["ID"], "unique_keys": [["PRODUCT_NUMBER"]],

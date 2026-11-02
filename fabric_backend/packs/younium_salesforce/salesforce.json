@@ -36,7 +36,7 @@
     {"name": "ACCOUNT", "common_name": true, "level": "master", "area": "customers", "en": "Salesforce Account (a company, or a person in orgs with person accounts)", "sv": "Salesforce-konto (ett företag, eller en person där personkonton används)",
      "key": ["ID"], "delta": ["SYSTEM_MODSTAMP"],
      "note": "ID has 18 characters through the API. The Younium connector sends Accounts to Younium and writes this ID into the Younium account's External CRM Id. PARENT_ID names the parent account in a hierarchy. In an org with person accounts an Account row can be a person (IS_PERSON_ACCOUNT), and its name is then personal data.",
-     "personal": [{"column": "PHONE", "rule": "P3"}, {"column": "BILLING_STREET", "rule": "P5"}, {"column": "SHIPPING_STREET", "rule": "P5"}],
+     "personal": [{"column": "NAME", "rule": "P1"}, {"column": "PHONE", "rule": "P3"}, {"column": "BILLING_STREET", "rule": "P5"}, {"column": "SHIPPING_STREET", "rule": "P5"}],
      "sources": ["sf_object_reference"]},
     {"name": "CONTACT", "common_name": true, "level": "partner", "area": "customers", "en": "Contact (a person at an account)", "sv": "Kontakt (en person hos ett konto)",
      "key": ["ID"], "delta": ["SYSTEM_MODSTAMP"],
