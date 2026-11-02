@@ -1,6 +1,7 @@
 """The public site: every page, the static files, the demo plan and the honesty rules the pages must keep."""
 import json
 from pathlib import Path
+import html as _html
 import re
 import os
 import sys
@@ -1361,6 +1362,11 @@ def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers
     assert "Nothing to show yet." in plain and 'href="/start#step-1"' in plain
     assert "/consent/done" not in client.get("/sitemap.xml").text and "/consent" not in client.get("/llms.txt").text
     assert "Connected." not in ok.text
+    # n80: one next step after the consent: Connect, and the first question to paste, with a button that copies it
+    from fabric_backend import pages
+    nxt = ok.text.split('id="next"', 1)[1]
+    assert nxt.startswith(">Next step: connect, then ask a first question</h2>") and f"<p>{pages.FIRST_QUESTION}</p>" in nxt
+    assert '<a class="btn primary" href="/#connect">Connect</a>' in nxt and f'data-copy-text="{pages.FIRST_QUESTION}">Copy the question</button>' in nxt
 
 
 @pytest.mark.parametrize("registration", ["", "1"])
@@ -1378,9 +1384,23 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     assert '<a class="btn primary" href="/check">Check your files – no account</a>' in hero and "<summary" in hero and 'href="/start">Connect to Claude' not in hero
     hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
     assert "connect-inline" in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
-    pop = html.split("connect-pop", 1)[1].split("</details>", 1)[0]
+    pop = html.split("connect-pop", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
     assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/settings/connectors" rel="noopener"' in pop
     assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop
+    # n80: Claude first, open, with one large button, Copy URL beside it and a first question to copy; the admin line
+    # last, with a note to copy; no address printed anywhere in the panel, every one inside a copy button or a link
+    from fabric_backend import pages
+    claude = pop.split('<div class="connect-item connect-claude">', 1)[1].split("</div>", 1)[0]
+    assert re.search(r'<a class="btn primary connect-main" href="https://claude.ai/settings/connectors" rel="noopener">Open Claude’s connectors</a>'
+                     r'<button type="button" class="btn secondary small" data-copy-text="https://krusgraph.test/mcp">Copy URL</button>', claude)
+    assert f'data-copy-text="{pages.FIRST_QUESTION}">Copy a first question</button>' in claude and "it only reads" in claude
+    shown = re.sub(r"<[^>]+>", " ", re.sub(r'(data-copy-text|href)="[^"]*"', "", pop))
+    assert "krusgraph.test" not in shown and "<code>" not in pop and "https://" not in shown, shown
+    foot = pop.split('<p class="tiny connect-foot">', 1)[1]
+    assert foot.startswith("Your admin approves Krusgraph once; every call runs with your own Fabric permissions.")
+    note = _html.unescape(re.search(r'data-copy-text="([^"]+)">Copy a note to your admin</button>', foot).group(1))
+    assert note == pages.admin_note() and "<details" not in foot
+    assert pop.index("connect-claude") < pop.index("connect-foot")
     if not registration:
         assert "mcp/connect" not in html and "VS Code" not in pop and "Cursor" not in pop and "Lovable" not in pop
         return
@@ -1390,6 +1410,30 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     cur = re.search(r'href="(cursor://anysphere\.cursor-deeplink/mcp/install\?name=Krusgraph&amp;config=[^"]+)"', pop).group(1)
     assert json.loads(base64.b64decode(cur.split("config=", 1)[1])) == {"url": "https://krusgraph.test/mcp/connect"}
     assert 'data-copy-text="https://krusgraph.test/mcp/connect"' in pop and "Connectors → Custom MCP" in pop and "Add &amp; authorize" in pop
+    # n80: the order: Claude, Lovable, then "Other clients" closed (VS Code, Cursor last), then the admin line
+    order = [pop.index(x) for x in ("connect-claude", "<strong>Lovable</strong>", '<details class="connect-other"><summary>Other clients',
+                                    "<strong>VS Code</strong>", "<strong>Cursor</strong>", "connect-foot")]
+    assert order == sorted(order), order
+    assert '<details class="connect-other" open' not in pop
     start = client.get("/start").text
     assert "Two addresses: <code>https://krusgraph.test/mcp</code> for Claude, and <code>https://krusgraph.test/mcp/connect</code> for clients that register themselves" in start
     assert 'href="/#connect"' in start
+
+
+def test_the_first_question_only_reads_and_needs_no_workspace_name():
+    """n80: the question the Connect menu and /consent/done offer leads the client to list_workspaces (no arguments; the
+    server's instructions start there), list_sources, plan_backend and validate_plan, and every one of them only reads:
+    read-only in its MCP annotations and READS in tool_status."""
+    import inspect
+    from fabric_backend import pages, tool_status as ts
+    tools = {t.name: t for t in server.mcp._tool_manager.list_tools()} if hasattr(server.mcp, "_tool_manager") else None
+    for name in pages.FIRST_QUESTION_TOOLS:
+        assert ts.STATUS[name].kind == ts.READS and ts.STATUS[name].changes.startswith("nothing"), name
+        if tools is not None:
+            assert tools[name].annotations.read_only_hint is True, name
+    params = [p for p in inspect.signature(server.list_workspaces).parameters if p != "ctx"]
+    assert params == [] and "Takes no arguments" in server.list_workspaces.__doc__
+    assert "Start with list_workspaces" in server.mcp.instructions
+    q = pages.FIRST_QUESTION
+    assert "workspaces" in q and "lakehouse I choose" in q and "check the links against the rows" in q
+    assert not any(w in q.lower() for w in ("create", "build", "deploy", "write"))

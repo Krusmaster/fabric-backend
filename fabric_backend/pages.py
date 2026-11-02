@@ -206,10 +206,41 @@ def connect_links() -> dict[str, str]:
             "claude": "https://claude.ai/settings/connectors"}
 
 
+# n80: the first question the Connect menu offers to copy: read-only, and it needs no workspace name (list_workspaces
+# takes no arguments, and the server's instructions start there); the tools it leads to are FIRST_QUESTION_TOOLS, all of
+# them reading (tests/test_site.py checks both against server.py and tool_status).
+FIRST_QUESTION = ("List my Fabric workspaces, then map how the tables in the lakehouse I choose connect, and check the "
+                  "links against the rows.")
+FIRST_QUESTION_TOOLS = ("list_workspaces", "list_sources", "plan_backend", "validate_plan")
+
+
+def consent_link() -> str:
+    """The admin consent link of /start's step 1, with /consent/done as where Microsoft brings the admin back."""
+    v = _vars()
+    return ("https://login.microsoftonline.com/organizations/adminconsent?client_id=" + v["CLIENT_ID"]
+            + "&redirect_uri=" + v["CONSENT_URL_ENC"])
+
+
+def admin_note() -> str:
+    """n80: the note a person copies to their admin (the Connect menu, and the page after a sign-in that stopped for want
+    of admin consent): the consent link, what is approved, and /it. Copying sends nothing."""
+    v = _vars()
+    p = v["PRODUCT"]
+    return (f"Hi, could you approve {p} for our Microsoft Entra tenant? It connects Claude and other AI clients to Microsoft "
+            f"Fabric, so we can map and check our lakehouse tables.\n\n"
+            f"Admin consent link (sign in with an administrator account): {consent_link()}\n\n"
+            f"What you approve: delegated Fabric permissions only. Every call runs as the signed-in person, with that "
+            f"person's own Fabric rights; the app asks for no application permissions.\n\n"
+            f"Each permission and why, what is stored, and how to revoke it: {site_url()}/it")
+
+
 def connect_menu_html(where: str) -> str:
     """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page) or "inline" (the hub's
     "Your data in Fabric" card: the panel opens in place). A <details>, so it works without JavaScript; the copy buttons
-    need it (site.js)."""
+    need it (site.js). n80, Gustav's brief of 2 November 2026: Claude first and open (its connectors page, the address
+    to copy, a first question to copy), Lovable under it, the other clients folded at the bottom (VS Code, then Cursor),
+    and the admin line last, with a note to copy for the admin. No address is printed: each copy button holds the one
+    its client needs."""
     v = _vars()
     e = lambda x: html.escape(x, quote=True)
     p, links = e(v["PRODUCT"]), connect_links()
@@ -217,23 +248,31 @@ def connect_menu_html(where: str) -> str:
     from .tool_status import clients_working
     reg = _registration_on()
     working = clients_working(reg)                 # VS Code and Cursor only once the hosted service has signed them in, as in the hub
-    items = []
-    if "VS Code" in working:
-        items.append(f'<div class="connect-item"><strong>VS Code</strong><span class="connect-row"><a class="btn primary small" href="{e(links["vscode"])}">Add to VS Code</a><a class="connect-alt" href="{e(links["vscode_insiders"])}">Insiders</a></span>'
-                     f'<span class="muted tiny">Opens VS Code, which asks before it adds the server at <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
-    if "Cursor" in working:
-        items.append(f'<div class="connect-item"><strong>Cursor</strong><span class="connect-row"><a class="btn primary small" href="{e(links["cursor"])}">Add to Cursor</a></span>'
-                     f'<span class="muted tiny">Opens Cursor’s install dialog for <code>{connect}</code>; then you sign in with Microsoft.</span></div>')
-    items.append(f'<div class="connect-item"><strong>Claude</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button><a class="btn primary small" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a></span>'
-                 f'<span class="muted tiny"><code>{mcp}</code> · Settings → Connectors → Add custom connector, paste the URL and sign in with Microsoft.</span></div>')
+    items = [f'<div class="connect-item connect-claude"><strong>Claude</strong>'
+             f'<span class="connect-row"><a class="btn primary connect-main" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a>'
+             f'<button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button></span>'
+             f'<span class="muted tiny">Add custom connector, paste the URL and sign in with Microsoft.</span>'
+             f'<span class="connect-row"><button type="button" class="btn ghost small" data-copy-text="{e(FIRST_QUESTION)}">Copy a first question</button></span>'
+             f'<span class="muted tiny">Paste it in a new chat; it only reads.</span></div>']
     if reg:
         items.append(f'<div class="connect-item"><strong>Lovable</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{connect}">Copy URL</button></span>'
-                     f'<span class="muted tiny"><code>{connect}</code><br>Connectors → Custom MCP, paste the URL.<br>Add &amp; authorize, then sign in with Microsoft.</span></div>')
+                     f'<span class="muted tiny">Experimental: paste it under Connectors → Custom MCP, then Add &amp; authorize and sign in with Microsoft.</span></div>')
+    other = []
+    if "VS Code" in working:
+        other.append(f'<div class="connect-item"><strong>VS Code</strong><span class="connect-row"><a class="btn primary small" href="{e(links["vscode"])}">Add to VS Code</a><a class="connect-alt" href="{e(links["vscode_insiders"])}">Insiders</a></span>'
+                     f'<span class="muted tiny">Experimental: opens VS Code, which asks before it adds the server; then you sign in with Microsoft.</span></div>')
+    if "Cursor" in working:
+        other.append(f'<div class="connect-item"><strong>Cursor</strong><span class="connect-row"><a class="btn primary small" href="{e(links["cursor"])}">Add to Cursor</a></span>'
+                     f'<span class="muted tiny">Experimental: opens Cursor’s install dialog; then you sign in with Microsoft.</span></div>')
+    if other:
+        items.append(f'<details class="connect-other"><summary>Other clients<span class="connect-caret" aria-hidden="true"></span></summary>{"".join(other)}</details>')
     kind = "secondary" if where == "pop" else "secondary small"
     return (f'<details class="connect connect-{where}" data-connect>\n'
             f'<summary class="btn {kind}">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
             f'<div class="connect-panel" role="group" aria-label="Add {p} to your client">\n<p class="connect-h">Add {p} to</p>\n{"".join(items)}\n'
-            f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions. Step by step, with the admin consent: <a href="/start">the set-up guide</a>.</p>\n'
+            f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions.'
+            f'<span class="connect-row"><button type="button" class="btn ghost small connect-admin" data-copy-text="{e(admin_note())}">Copy a note to your admin</button>'
+            f'<span>Step by step: <a href="/start">the set-up guide</a>.</span></span></p>\n'
             f'</div>\n</details>')
 
 
@@ -817,10 +856,14 @@ def consent_done_html(params) -> str:
     tenant_line = f'<p class="muted tiny">Tenant: <code>{e(tenant)}</code>.</p>' if _GUID.match(tenant) else ""
     if granted:
         title, kicker, h1 = "Admin consent granted — {{PRODUCT}}", "Admin consent", f"Admin consent granted for your organisation."
+        q = e(FIRST_QUESTION)
         body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
-<p>Each person adds {p} in Claude or another MCP client and signs in with their own Microsoft work account; every call runs with that person’s own Fabric permissions, and {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
-{tenant_line}
-<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+<h2 class="h3" id="next">Next step: connect, then ask a first question</h2>
+<p>Open Connect, add {p} to Claude and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>
+<blockquote class="consent-question"><p>{q}</p></blockquote>
+<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><button type="button" class="btn secondary" data-copy-text="{q}">Copy the question</button></div>
+<p class="muted">Each person signs in with their own account, and every call runs with that person’s own Fabric permissions; {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
+{tenant_line}"""
         pose = "celebrate"
     elif code or desc:
         title, kicker, h1 = "Admin consent not granted — {{PRODUCT}}", "Admin consent", "Admin consent was not granted."

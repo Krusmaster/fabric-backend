@@ -570,9 +570,9 @@ def test_entra_errors_and_refused_tenants_reach_the_client_as_errors(env, monkey
         page = c.get("/oauth/authorize", params=authorize_params(VSCODE, "http://127.0.0.1:33418/", pkce()[1])).text
         loc = approve(c, page).headers["location"]
         state = parse_qs(urlsplit(loc).query)["state"][0]
-        r = c.get("/oauth/callback?" + urlencode({"state": state, "error": "consent_required", "error_description": "AADSTS65001: admin consent"}))
+        r = c.get("/oauth/callback?" + urlencode({"state": state, "error": "invalid_request", "error_description": "AADSTS50011: redirect"}))
         q = parse_qs(urlsplit(r.headers["location"]).query)
-        assert q["error"] == ["access_denied"] and "AADSTS65001" in q["error_description"][0]
+        assert q["error"] == ["server_error"] and "AADSTS50011" in q["error_description"][0]
     monkeypatch.setattr(server.auth._validator.cfg, "allowed_tenants", {"only-another-tenant"})
     try:
         with client(env=env) as c:
@@ -1146,3 +1146,34 @@ def test_a_slow_name_lookup_is_cut_off_and_fetches_are_bounded(monkeypatch):
             break
         time.sleep(0.05)
     assert reg._lookup_slots._value == reg.FETCH_SLOTS
+
+
+@pytest.mark.parametrize("error, description", [("consent_required", "AADSTS65001: The user or administrator has not consented"),
+                                                ("access_denied", "AADSTS65004: User declined to consent to access the app."),
+                                                ("access_denied", "AADSTS90094: The grant requires admin permission.")])
+def test_a_sign_in_stopped_for_want_of_admin_consent_says_so_with_the_note_for_the_admin(env, error, description):
+    """n80: instead of an unexplained error in the client, a page that says the organisation has not approved the app,
+    the note for the admin (as on the Connect menu: the consent link, what is approved, /it) and a link that hands the
+    error to the client so it stops waiting."""
+    import html as _html
+    from fabric_backend import pages
+    with client(env=env) as c:
+        page = c.get("/oauth/authorize", params=authorize_params(VSCODE, "http://127.0.0.1:33418/", pkce()[1])).text
+        loc = approve(c, page).headers["location"]
+        state = parse_qs(urlsplit(loc).query)["state"][0]
+        r = c.get("/oauth/callback?" + urlencode({"state": state, "error": error, "error_description": description}))
+        assert r.status_code == 200 and r.headers["cache-control"] == "no-store" and "script-src" not in r.headers["content-security-policy"]
+        assert "has not approved" in r.text and "Nothing was shared." in r.text and description.split(":")[0] in r.text
+        note = pages.admin_note()
+        assert _html.escape(note) in r.text and "adminconsent?client_id=" in note and note.endswith("/it")
+        back = _html.unescape(re.search(r'<a class="btn secondary" href="([^"]+)">Back to Visual Studio Code</a>', r.text).group(1))
+        q = parse_qs(urlsplit(back).query)
+        assert back.startswith("http://127.0.0.1:33418/") and q["error"] == ["access_denied"] and q["state"] == ["client-state-1"]
+        assert c.get("/oauth/callback?" + urlencode({"state": state, "error": error})).status_code == 400     # the state is used once
+
+
+def test_which_entra_answers_count_as_missing_admin_consent():
+    assert flow.needs_admin_consent("invalid_grant", "AADSTS65001: The user or administrator has not consented to use the application")
+    assert flow.needs_admin_consent("consent_required") and flow.needs_admin_consent("access_denied", "AADSTS90095: admin consent requested")
+    assert not flow.needs_admin_consent("access_denied", "AADSTS50105: The signed in user is not assigned to a role")
+    assert not flow.needs_admin_consent("invalid_client", "AADSTS7000215: Invalid client secret")

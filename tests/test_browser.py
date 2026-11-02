@@ -88,7 +88,8 @@ def test_the_home_buttons_and_a_visible_focus_ring(report):
         for where in (".hero-ctas", ".hub-src"):
             c = f[f"connect@{v}"][where]
             assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
-            assert c["links"] == ["https://claude.ai/settings/connectors", "/start"] and c["copies"] == ["https://krusgraph.test/mcp"], (v, where, c)   # this server: no client registration
+            assert c["links"] == ["https://claude.ai/settings/connectors", "/start"], (v, where, c)   # this server: no client registration
+            assert c["copies"][:2] == ["https://krusgraph.test/mcp", pages.FIRST_QUESTION] and len(c["copies"]) == 3 and "/it" in c["copies"][2], (v, where, c)   # n80
             assert c["afterEscape"] == {"open": False, "focus": True}, (v, where, c)
     assert f["ctaFocusOutline"] not in ("none", "")
 

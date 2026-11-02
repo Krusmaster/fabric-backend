@@ -872,6 +872,20 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .connect-alt{font-size:14px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
 .connect-item code{overflow-wrap:anywhere}
 .connect-foot{margin:8px 0 0;color:var(--muted)}
+/* n80: Claude first with one large button, the other clients folded at the bottom, the admin note in the last line */
+.connect-claude{border-top:0;padding-top:0}
+.connect-main{flex:1 1 auto;padding:12px 18px;font-size:16.5px}
+.connect-other{background:none;border:0;border-top:1px solid var(--line);border-radius:0;padding:10px 0 0;margin:2px 0 0}
+.connect-other>summary{list-style:none;font-size:15px;font-weight:600;color:var(--ink)}
+.connect-other>summary::-webkit-details-marker{display:none}
+.connect-other[open]>summary{margin-bottom:0}
+.connect-other[open]>summary .connect-caret::before{transform:rotate(-135deg);margin-bottom:-2px}
+.connect-other .connect-item:first-of-type{margin-top:8px}
+.connect-foot{border-top:1px solid var(--line);padding-top:10px}
+.connect-foot .connect-row{margin-top:8px;gap:6px 12px}
+.connect-admin{padding:6px 12px;font-size:14px}
+.consent-question{margin:12px 0;padding:10px 16px;border-left:4px solid var(--line-strong);background:var(--card);border-radius:0 10px 10px 0;font-size:17px}
+.consent-question p{margin:0}
 @media (min-width:760px){.connect-pop .connect-panel{position:absolute;top:100%;left:50%;transform:translateX(-50%);z-index:30}}
 .connect-inline{display:block;margin-top:8px}
 .connect-inline .connect-panel{width:auto;box-shadow:none;margin-top:8px;padding:10px 12px 8px}
