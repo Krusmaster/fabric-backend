@@ -43,6 +43,18 @@ _WORD = re.compile(r"[a-z0-9_åäöüß]+")
 LABELS = ("name", "title", "label", "description", "namn", "benamning", "beskrivning", "displayname", "fullname")
 NUMERIC = ("int", "bigint", "smallint", "tinyint", "decimal", "numeric", "float", "real", "double", "money", "smallmoney", "long", "short")
 DATES = ("date", "datetime", "datetime2", "timestamp", "smalldatetime", "datetimeoffset")
+# n87: a negation on a relationship or a column ("customers without orders", "kunder som saknar adress"). The table or
+# column after the marker (after a few filler words) is the one that must not exist: NOT EXISTS for a table, IS NULL for a
+# column. A marker that cannot be tied to either is said under not_understood and no query is given.
+NEGATE = ("without", "with no", "no", "missing", "lacking", "lack", "lacks", "never", "not have", "do not have", "does not have",
+          "don't have", "doesn't have", "did not", "didn't", "saknar", "saknas", "utan", "inte har", "har inte", "inte lagt",
+          "aldrig", "ingen", "inga", "inget")
+_FILLER = {"a", "an", "any", "the", "single", "placed", "made", "have", "has", "had", "place", "make", "en", "ett", "någon", "några",
+           "nagon", "nagra", "har", "lagt", "gjort", "någon", "ens", "is", "are", "är", "som"}
+# Where the T-SQL of a draft can run: no Krusgraph tool runs T-SQL (query_graphql runs GraphQL only).
+TSQL_RUNS_WHERE = ("No Krusgraph tool runs T-SQL. Run it in the Fabric portal's SQL query editor on the source's SQL analytics "
+                   "endpoint (open the lakehouse or warehouse, then SQL analytics endpoint, New SQL query), or in SSMS, VS Code "
+                   "(mssql) or another SQL client connected to that endpoint.")
 
 
 def _type(t, col: str) -> str:
@@ -114,9 +126,50 @@ def _after(text: str, markers: tuple[str, ...]) -> list[list[str]]:
     return out
 
 
+def _negations(q: str, plan: Plan, tables: list[str], everything: list[str]) -> tuple[list[str], list[list[str]], list[str]]:
+    """The tables and columns a negation marker applies to, and the markers that could not be tied to either."""
+    low, neg_tables, neg_cols, unread, spans = q.lower(), [], [], [], []
+    for m in sorted(NEGATE, key=len, reverse=True):                 # "with no" before "no", "do not have" before "not have"
+        for hit in re.finditer(r"(?<![a-z0-9_åäö'])" + m.replace(" ", r"\s+") + r"(?![a-z0-9_åäö'])", low):
+            if any(a <= hit.start() < b for a, b in spans):
+                continue
+            spans.append((hit.start(), hit.end()))
+            after = _words(low[hit.end():])
+            i = 0
+            while i < len(after) and i < 4 and after[i] in _FILLER:
+                i += 1
+            rest = after[i:i + 3]
+            t = rest and (_phrase_table(rest, tables) or _phrase_table(rest, everything))
+            col = None if t else (rest and _phrase_column(rest, plan, tables))
+            if not t and not col and m in ("missing", "saknas"):    # "where the address is missing", "adress saknas"
+                before = [w for w in _words(low[:hit.start()]) if w not in _FILLER][-2:]
+                t = before and (_phrase_table(before[-1:], tables) or _phrase_table(before[-1:], everything))
+            if t:
+                if t not in neg_tables:
+                    neg_tables.append(t)
+            elif col:
+                if list(col) not in neg_cols:
+                    neg_cols.append(list(col))
+            else:
+                said = " ".join([m] + after[:3]).strip()
+                unread.append(f"'{said}': a negation that names no table or column of the plan, so it cannot be applied; "
+                              "name the table that must have no rows (tables=) or the column that must be empty")
+    return neg_tables, neg_cols, unread
+
+
+def _first_named(q: str, tables: list[str], exclude: list[str]) -> str | None:
+    ws = _words(q)
+    for i in range(len(ws)):
+        t = _phrase_table(ws[i:i + 2], tables)
+        if t and t not in exclude:
+            return t
+    return None
+
+
 def understand(question: str, plan: Plan, tables: list[str]) -> dict:
     q = " " + question.lower() + " "
     everything = [t.name for t in plan.schema]
+    without, without_columns, unread = _negations(q, plan, tables, everything)
     aggregate = "count" if _has(q, COUNT) else "avg" if _has(q, AVG) else "sum" if _has(q, SUM) else None
     if aggregate is None and _has(q, MOST):
         aggregate = "count"                                   # "which customers have the most orders": a count per customer
@@ -135,7 +188,7 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
     if aggregate == "count":
         for words in _after(q, COUNT + MOST):
             hit = words and (_phrase_table(words, tables) or _phrase_table(words, everything))
-            if hit:
+            if hit and hit not in without:
                 counted = hit
                 break
     group_table = group_column = None
@@ -147,7 +200,7 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
                 group_column = col
                 break
             hit = _phrase_table(rest, tables) or _phrase_table(rest, everything)
-            if hit and hit != counted:                        # "how many orders per order" cannot group orders by themselves
+            if hit and hit != counted and hit not in without:                        # "how many orders per order" cannot group orders by themselves
                 group_table = hit
                 break
         if group_table or group_column:
@@ -163,8 +216,8 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
             if measure:
                 break
     if aggregate and not (group_table or group_column):
-        rest = [t for t in tables if t != counted]
-        if counted and rest:
+        rest = [t for t in tables if t != counted and t not in without]
+        if counted and rest and not without:
             group_table = rest[0]                             # "the most orders" with customers and orders: per customer
     assumed_count = False
     if aggregate is None and (group_table or group_column):
@@ -176,9 +229,12 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
         if col and list(col) not in mentioned:
             mentioned.append(list(col))
     unused = [n for n in re.findall(r"\b\d+(?:[.,]\d+)?\b", q) if not (top is not None and n == str(top))]
+    mentioned = [c for c in mentioned if c not in without_columns]
     return {"aggregate": aggregate, "top": top, "latest": _has(q, LATEST), "group_table": group_table,
             "group_column": list(group_column) if group_column else None, "counted": counted, "measure": list(measure) if measure else None,
-            "columns_named": mentioned, "not_used": unused, "count_assumed": assumed_count}
+            "columns_named": mentioned, "not_used": unused, "count_assumed": assumed_count,
+            "without": without, "without_columns": without_columns, "with": [],
+            "subject": _first_named(q, tables, without) if (without or without_columns) else None, "unread": unread}
 
 
 def _label(plan: Plan, t: str) -> str:
@@ -249,17 +305,53 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         u["group_column"] = None                              # never grouped by: its values would be the answer
         if plan.keys.get(t):                                  # group by the row the personal column belongs to, by its key
             u["group_table"] = t
-    involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x]))
-    root = u["counted"] or _grain(plan, involved)
-    steps, alias, fans_out = _join_tree(plan, root, [t for t in involved if t != root])
     schema = plan.schema.schema
+    if u["unread"]:                                           # a negation that names nothing: no query, never another question
+        return {"understood": u, "root": None, "tables": tables, "measure": None, "path": [], "sql": None, "assumptions": [],
+                "_steps": [], "personal_left_out": left_out, "_personal": personal, "not_understood": list(u["unread"])}
+    involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x] + u["without"]
+                                  + [c[0] for c in u["without_columns"]]))
+    negation = bool(u["without"] or u["without_columns"])
+    root = u["counted"] or (u["subject"] if negation else None) or _grain(plan, [t for t in involved if t not in u["without"]] or involved)
+    conditions: list[str] = []
+    joined = [t for t in involved if t != root and t not in u["without"]]
+    if negation:                                              # "customers with orders but no address": orders is a condition too
+        from .graphs import safest_path
+        for t in list(joined):
+            if t == u["group_table"] or t in [c[0] for c in u["without_columns"] + u["columns_named"]]:
+                continue
+            path = safest_path(plan, root, t)
+            if path is not None and not all(s["forward"] for s in path):
+                joined.remove(t)
+                u["with"].append(t)
+    steps, alias, fans_out = _join_tree(plan, root, joined)
     assumptions = []
-    joins = []
-    for s in steps:
+
+    def on(s, a, b):
         r = s["rel"]
         left, right = (r.source_cols, r.target_cols) if s["forward"] else (r.target_cols, r.source_cols)
-        on = " AND ".join(f"{alias[s['from']]}.{qi(a)} = {alias[s['to']]}.{qi(b)}" for a, b in zip(left, right))
-        joins.append(f"JOIN {qi(schema)}.{qi(s['to'])} AS {alias[s['to']]} ON {on}")
+        return " AND ".join(f"{a}.{qi(x)} = {b}.{qi(y)}" for x, y in zip(left, right))
+    joins = [f"JOIN {qi(schema)}.{qi(s['to'])} AS {alias[s['to']]} ON {on(s, alias[s['from']], alias[s['to']])}" for s in steps]
+    if negation or u["with"]:
+        from .graphs import safest_path
+        for k, (t, exists) in enumerate([(t, True) for t in u["with"]] + [(t, False) for t in u["without"]], start=1):
+            path = safest_path(plan, root, t)
+            if path is None:
+                raise PlanInputError(f"tables: no chain of relationships connects {root} and {t}; join_path suggests the missing one")
+            names = [f"n{k}_{i}" for i in range(len(path))]
+            inner = f"SELECT 1 FROM {qi(schema)}.{qi(path[0]['to'])} AS {names[0]}"
+            inner += "".join(f" JOIN {qi(schema)}.{qi(s['to'])} AS {names[i]} ON {on(s, names[i - 1], names[i])}"
+                             for i, s in enumerate(path) if i)
+            inner += f" WHERE {on(path[0], 't0', names[0])}"
+            conditions.append(f"{'' if exists else 'NOT '}EXISTS ({inner})")
+            via = " -> ".join([root] + [s["to"] for s in path])
+            rules = ", ".join(s["rule"] for s in path)
+            assumptions.append(f"only {root} rows {'with' if exists else 'without'} a matching {t} row "
+                               f"({'EXISTS' if exists else 'NOT EXISTS'} over {via}, {rules})")
+        for t, c in u["without_columns"]:
+            conditions.append(f"{alias[t]}.{qi(c)} IS NULL")
+            assumptions.append(f"only rows where {t}.{c} is empty (IS NULL)")
+    where = ("\nWHERE " + "\n  AND ".join(conditions)) if conditions else ""
     select, group, order = [], [], []
     measure = level = None
     root_key = plan.keys.get(root, ([], ""))[0]
@@ -309,7 +401,7 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         order.append(f"{qi(name)} DESC")
     else:
         select += [f"t0.{qi(c)}" for c in plan.schema[root].column_names if allowed(root, c)]
-        for t in involved:
+        for t in joined:
             if t != root:
                 cols = [c for tt, c in u["columns_named"] if tt == t] or [_label(plan, t)]
                 cols = [c for c in cols if allowed(t, c)] or plan.keys.get(t, ([], ""))[0][:1]
@@ -339,12 +431,12 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
             names_in.append(f"{e} AS {n}" if n not in [x.split(" AS ")[-1] for x in names_in] else f"{e} AS {qi('c' + str(i))}")
         sql = (("SELECT " + (f"TOP ({top}) " if top else "")) + ", ".join([f"x.{c}" for c in outer] + [select[-1]])
                + "\nFROM (SELECT DISTINCT " + ", ".join(names_in) + f"\n      FROM {qi(schema)}.{qi(root)} AS t0"
-               + "".join("\n      " + j for j in joins) + ") AS x"
+               + "".join("\n      " + j for j in joins) + where.replace("\n", "\n      ") + ") AS x"
                + (("\nGROUP BY " + ", ".join(f"x.{c}" for c in outer)) if outer else "")
                + (("\nORDER BY " + ", ".join(order)) if order and group else ""))
     else:
         sql = (("SELECT " + (f"TOP ({top}) " if top else "")) + ", ".join(select) + f"\nFROM {qi(schema)}.{qi(root)} AS t0"
-               + "".join("\n" + j for j in joins) + (("\nGROUP BY " + ", ".join(group)) if group else "")
+               + "".join("\n" + j for j in joins) + where + (("\nGROUP BY " + ", ".join(group)) if group else "")
                + (("\nORDER BY " + ", ".join(order)) if order and (group or not u["aggregate"]) else ""))
     if not u["aggregate"] and not u["top"]:
         assumptions.append("no number of rows asked for: the first 100")
@@ -358,9 +450,11 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
     if u["not_used"]:
         assumptions.append(f"not applied: {', '.join(u['not_used'])} — conditions (dates, amounts, filters) are not read from the "
                            "question; add a WHERE to the query")
+    not_understood = [f"{n}: a condition (date, amount or filter) in the question that the query does not apply; add a WHERE"
+                      for n in u["not_used"]]
     return {"understood": u, "root": root, "tables": involved, "measure": measure,
             "path": [{k: v for k, v in s.items() if k not in ("rel", "cost")} for s in steps], "sql": sql, "assumptions": assumptions,
-            "_steps": steps, "personal_left_out": left_out, "_personal": personal}
+            "_steps": steps, "personal_left_out": left_out, "_personal": personal, "not_understood": not_understood}
 
 
 def _types_by_table(description: dict) -> dict[str, dict]:
@@ -371,6 +465,15 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
     """The GraphQL query for an answer from tsql(), against the API described by describe_definition()."""
     types = _types_by_table(description)
     u, root = answer["understood"], answer["root"]
+    if answer.get("sql") is None:
+        return {"not_possible": "the question was not fully understood (see not_understood), so no query is given"}
+    if u.get("without") or u.get("with") or u.get("without_columns"):
+        cond = ", ".join([f"no {t}" for t in u.get("without", [])] + [f"with {t}" for t in u.get("with", [])]
+                         + [f"empty {t}.{c}" for t, c in u.get("without_columns", [])])
+        return {"not_possible": f"Fabric's API for GraphQL filters a type by its own fields only; it cannot ask for {root} rows "
+                                f"by whether related rows exist ({cond}: an anti-join or semi-join, NOT EXISTS / EXISTS). This "
+                                "question has no GraphQL form on this API, and a list without that condition would answer a "
+                                "different question; the T-SQL answers it"}
     rt = types.get(root.lower())
     if rt is None:
         return {"not_possible": f"the API has no type for {root}; describe_backend lists what it exposes"}
@@ -451,15 +554,20 @@ def draft(plan: Plan, question: str, tables: list[str], description: dict | None
           show_personal_data: bool = False) -> dict:
     from . import privacy
     a = tsql(plan, question, tables, show_personal_data)
-    understood = {k: v for k, v in a["understood"].items() if v not in (None, False, [])}     # only what was read
+    understood = {k: v for k, v in a["understood"].items() if v not in (None, False, []) and k not in ("unread", "subject")}   # only what was read
     out = {"question": question, "understood": understood, "tables": a["tables"], "starts_at": a["root"],
            "path": a["path"], "tsql": a["sql"], "assumptions": a["assumptions"]}
+    if a["not_understood"]:
+        out["not_understood"] = a["not_understood"]
     if description is not None:
         g = graphql(plan, description, a)
         out["graphql"] = dict(g, api=api)
     if a["personal_left_out"]:
         out["personal_data"] = {"left_out": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in a["personal_left_out"]],
                                 "notice": f"left out by name (privacy rules); the key stands in where the table has one. {privacy.PARAMETER}=true includes them."}
+    if a["sql"] is None:
+        out["runs"] = "nothing: no query is given for a question that was not fully understood; rephrase what not_understood names"
+        return out
     out["runs"] = ("nothing: the T-SQL runs on the source's SQL analytics endpoint or a warehouse" +
                    ("; query_graphql with question= and tables= runs the GraphQL version" if description is not None else ""))
     return out

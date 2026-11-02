@@ -1835,9 +1835,15 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
             return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
                                "hint": "list_sources lists the GraphQL APIs in a workspace."}, indent=2)
         draft = _answers.draft(p, question, tables, describe_definition(_graphql_definition(workspace_id, api_id, headers)), api)
+        if draft.get("not_understood"):                   # never run an answer to a different question
+            return json.dumps({"error": "Part of the question was not understood, so nothing was run: " + "; ".join(draft["not_understood"]),
+                               "kind": "not_understood", "not_understood": draft["not_understood"], "understood": draft["understood"],
+                               "hint": "Rephrase without it, or take the T-SQL from answer_query_draft and add the condition. "
+                                       + _answers.TSQL_RUNS_WHERE, "tsql": draft["tsql"]}, indent=2)
         if not draft["graphql"].get("query"):
             return json.dumps({"error": f"This question has no GraphQL form on {api!r}: {draft['graphql'].get('not_possible')}",
-                               "kind": "unsupported", "hint": "Run the T-SQL below on the SQL analytics endpoint instead.", "tsql": draft["tsql"]}, indent=2)
+                               "kind": "unsupported", "understood": draft["understood"],
+                               "hint": "Nothing was run. " + _answers.TSQL_RUNS_WHERE, "tsql": draft["tsql"]}, indent=2)
         query = draft["graphql"]["query"]
         suggestion = {"question": question, "query": query, "understood": draft["understood"], "path": draft["path"],
                       "assumptions": draft["assumptions"], "notes": draft["graphql"].get("notes", [])}
