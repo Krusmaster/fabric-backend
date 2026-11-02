@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n84 (Deployment): the Dependabot PRs of November merged one at a time on green CI, `main` checked after each:
+  actions/checkout v5 → v7 (its breaking change, no checkout of a fork's PR under `pull_request_target` or
+  `workflow_run`, does not apply to these workflows), and opentelemetry-api 1.45.2, pydantic 2.14.2 and pydantic-core
+  2.50.2 in `deploy/constraints.txt` (the image), with `THIRD_PARTY_NOTICES.md` regenerated (#16; #15, the same three
+  pins from the `/deploy` entry of `dependabot.yml`, closed as a duplicate). A new CI job, `notices`,
+  runs `tools/third_party_notices.py --check --from-installed`: a stale `THIRD_PARTY_NOTICES.md` or an AGPL/SSPL
+  dependency, now in the extras too, stops the build; `--from-installed` names a package's home page the way PyPI does,
+  so both modes write the same file.
 - Round n82: by Gustav's decision of 2 November 2026 VS Code and Cursor (verified by him) and Lovable (its flow ran live
   on 30 October 2026, `docs/LOVABLE-END-TO-END.md`) are **Tested end to end** in `tool_status.CLIENTS`, with the date in
   their notes; the Connect menu, the hub, /docs, /start, /lovable and the llms files follow, and "Experimental:" is gone

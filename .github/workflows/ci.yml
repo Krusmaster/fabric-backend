@@ -45,3 +45,20 @@ jobs:
       - run: pip install "pyspark==4.0.1" requests pytest
       - run: python -c "import pyspark, requests; print(pyspark.__version__)"
       - run: python -m pytest -q -rs --noconftest tests/test_spark_notebooks.py
+  notices:
+    # THIRD_PARTY_NOTICES.md is generated from the pins (tools/third_party_notices.py): the job fails when the file is
+    # stale or a dependency is under the AGPL or the SSPL (CONTRIBUTING.md, "Reusing external code"). --from-installed
+    # reads the metadata of what pip just installed from the same pins instead of PyPI's JSON API, so a slow or
+    # unreachable pypi.org cannot turn it red on its own. A Dependabot pip PR is red here until the file is regenerated.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            deploy/constraints.txt
+            pyproject.toml
+      - run: pip install -c deploy/constraints.txt -e ".[server,test,databricks]"
+      - run: python tools/third_party_notices.py --check --from-installed

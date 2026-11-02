@@ -66,3 +66,38 @@ def test_contributing_carries_the_rules_for_reusing_external_code():
     section = text[text.index("## Reusing external code"):text.index("## Issues, pull requests and conduct")]
     for phrase in ("pinned commit", "AGPL", "SSPL", "cannot be verified", "THIRD_PARTY_NOTICES.md", "tools/third_party_notices.py"):
         assert phrase in section, phrase
+
+
+def test_ci_runs_the_check_from_the_installed_packages():
+    """Round n84: CI's notices job fails on a stale file or an AGPL/SSPL dependency, without asking PyPI's JSON API."""
+    import yaml
+    ci = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8"))
+    runs = [s.get("run", "") for s in ci["jobs"]["notices"]["steps"]]
+    install = next(r for r in runs if r.startswith("pip install"))
+    assert "-c deploy/constraints.txt" in install and all(x in install for x in ("server", "test", "databricks")), install
+    assert "python tools/third_party_notices.py --check --from-installed" in runs, runs
+
+
+def test_installed_metadata_names_the_home_page_the_way_pypi_does(monkeypatch):
+    """PyPI's JSON lists Home-page among the project URLs as "Homepage"; --from-installed must pick the same home."""
+    from importlib import metadata
+    from email.message import Message
+
+    md = Message()
+    md["Name"], md["Version"], md["License"] = "pyyaml", "6.0.3", "MIT"
+    md["Home-page"] = "https://pyyaml.org/"
+    md["Project-URL"] = "Source Code, https://github.com/yaml/pyyaml"
+
+    class Dist:
+        version, metadata = "6.0.3", md
+    monkeypatch.setattr(metadata, "distribution", lambda name: Dist())
+    info = tpn.installed("pyyaml", "6.0.3")
+    assert tpn.home_of(info) == "https://pyyaml.org/", info
+
+
+def test_a_refused_licence_in_an_extra_stops_the_script(monkeypatch):
+    import pytest
+    monkeypatch.setattr(tpn, "installed", lambda name, version: {"license_expression": "AGPL-3.0-only" if name == "pytest" else "MIT",
+                                                                  "classifiers": [], "license_files": [], "project_urls": {}})
+    with pytest.raises(SystemExit, match="pytest .*AGPL"):
+        tpn.build(from_installed=True)

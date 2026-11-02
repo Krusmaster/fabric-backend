@@ -5,6 +5,9 @@
     python tools/third_party_notices.py --check    # exit 1 when the committed file differs from what would be written (for CI)
     python tools/third_party_notices.py --from-installed   # read the metadata of the packages installed here instead of PyPI
 
+CI runs `--check --from-installed` (the `notices` job in .github/workflows/ci.yml) after installing the pins with the
+`server`, `test` and `databricks` extras, so the check needs nothing from PyPI beyond the install itself.
+
 What it reads, per package: the licence (the `License-Expression` field, else a short `License` field, else the
 licence classifiers), the licence files the package ships, and its home page. Nothing is guessed: a package whose
 metadata states no licence is written as "not stated in metadata", and the row says so. The text outside the tables
@@ -114,6 +117,10 @@ def installed(name: str, version: str | None) -> dict:
     for u in md.get_all("Project-URL") or []:
         k, _, v = u.partition(",")
         urls[k.strip()] = v.strip()
+    # PyPI's JSON puts the Home-page field among the project URLs as "Homepage"; doing the same here makes
+    # --from-installed write the same file as a run against PyPI (PyYAML names both pyyaml.org and its GitHub source)
+    if md.get("Home-page") and "Homepage" not in urls:
+        urls["Homepage"] = md.get("Home-page")
     return {"license_expression": md.get("License-Expression", ""), "license": md.get("License", ""),
             "classifiers": md.get_all("Classifier") or [], "license_files": md.get_all("License-File") or [],
             "project_urls": urls, "home_page": md.get("Home-page", ""), "summary": md.get("Summary", ""), "version": dist.version}
@@ -205,10 +212,13 @@ def build(from_installed: bool) -> str:
     lines.append(EXTRAS_HEAD.rstrip("\n"))
     for name in sorted(unpinned):
         info = installed(name, None) if from_installed else fetch(PYPI_LATEST.format(name=name))
+        lic = licence_from(info)
+        if any(bad in lic.upper() for bad in REFUSED):
+            raise SystemExit(f"{name} (extra {', '.join(unpinned[name])}) is under {lic}: not accepted (CONTRIBUTING.md, Reusing external code)")
         files = ", ".join(f"`{f}`" for f in (info.get("license_files") or [])) or "—"
         home = home_of(info)
         home_cell = f"[{re.sub(r'^https?://', '', home).rstrip('/')}]({home})" if home else "—"
-        lines.append(f"| [{name}](https://pypi.org/project/{name}/) | {', '.join(unpinned[name])} | {licence_from(info)} | {files} | {home_cell} |")
+        lines.append(f"| [{name}](https://pypi.org/project/{name}/) | {', '.join(unpinned[name])} | {lic} | {files} | {home_cell} |")
     lines.append(VENDORED)
     return "\n".join(lines).rstrip() + "\n"
 
