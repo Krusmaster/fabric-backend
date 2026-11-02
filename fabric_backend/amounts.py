@@ -259,6 +259,13 @@ def _explain(f: dict, counts: dict | None, label=None) -> str:
                 f"({counts['headers']} referenced header value(s)"
                 + (f", {counts['headers_in_table']} of them in {header})" if "headers_in_table" in counts else ")"))
         size = f"so SUM({header}.{first}) over the joined rows comes out about {avg} times too large"
+        if counts["max_lines"] <= 1:                                     # n88: one line per header today: nothing doubles yet
+            return (f"{header}.{', '.join(cols)} {'is an amount' if len(cols) == 1 else 'are amounts'} on {header}. In the data "
+                    f"no row is repeated today: {line} has at most one row for each row of {header} ({counts['headers']} "
+                    f"referenced header value(s)" + (f", {counts['headers_in_table']} of them in {header})" if "headers_in_table" in counts else ")")
+                    + f", so SUM({header}.{first}) over a join of the two is correct today. The relationship (rule "
+                    f"{(label or str)(f['rule'])}: {link}) allows several {line} rows per {header} row, so the sum can come out "
+                    f"too large as soon as there are. Sum it on {header} itself, or sum an amount of {line} instead: {LEVELS}.")
     else:
         many = f"{line} can have several rows for each row of {header} (rows per {header} row: unknown until the data is counted)"
         size = f"so SUM({header}.{first}) over the joined rows counts each {header} row once per {line} row"
