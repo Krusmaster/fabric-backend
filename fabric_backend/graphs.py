@@ -132,7 +132,10 @@ _AUDIT = ("modified", "created", "updated", "rowguid", "last_update", "lastupdat
 
 
 def measure_share(plan: Plan, table: str, ref_cols: set[str]) -> float:
-    """Among the columns that are neither key nor reference nor audit stamps, the share that are numbers or dates."""
+    """Among the columns that are neither key nor reference nor audit stamps, the share that are numbers or dates. A price
+    per unit (list_price, NETPR; amounts.is_price) is an attribute of the row it describes, not a measure: a products
+    table with a list price stays a dimension."""
+    from .amounts import is_price
     from .semantic_model import data_type
     t = plan.schema[table]
     key = {c.lower() for c in plan.keys.get(table, ([], ""))[0]}
@@ -140,7 +143,7 @@ def measure_share(plan: Plan, table: str, ref_cols: set[str]) -> float:
             and not any(a in c.name.lower() for a in _AUDIT)]
     if not rest:
         return 0.0
-    return round(sum(1 for c in rest if data_type(c.data_type) in MEASURE_TYPES) / len(rest), 2)
+    return round(sum(1 for c in rest if data_type(c.data_type) in MEASURE_TYPES and not is_price(c.name, c.data_type)) / len(rest), 2)
 
 
 def roles(plan: Plan, es: list[dict], bc: dict[str, float]) -> dict[str, dict]:

@@ -148,7 +148,7 @@ def _cell(v):
 def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
     """A Power BI project: <name>.pbip, the semantic model folder with the draft's parts, and an empty report bound to
     it by path (definition.pbir byPath). The layout of a project as Power BI Desktop saves it (PBIP, report in the
-    PBIR-legacy report.json); not yet opened in Power BI Desktop by us."""
+    PBIR-legacy report.json); the shop project from /check was opened in Power BI Desktop on 30 October 2026."""
     sm, rp = f"{name}.SemanticModel", f"{name}.Report"
     platform = lambda kind: json.dumps({"$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
                                         "metadata": {"type": kind, "displayName": name},
@@ -172,7 +172,12 @@ def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
         "", "Before it shows data: Direct Lake reads Delta tables in Fabric, so the tables must be in a lakehouse first, and",
         f"`{sm}/definition/expressions.tmdl` must name its SQL analytics endpoint and lakehouse (now placeholders).",
         "Create it in your own Fabric (krusgraph.com/start) does that with create_semantic_model.", "",
-        "Not yet tried: opening this project in Power BI Desktop. If it does not open, tell us (krusgraph.com/support).", ""])
+        f"Extract the whole zip first, then open `{name}.pbip` from the extracted folder. Opening the .pbip from inside the zip extracts",
+        "that one file only, and Power BI Desktop stops with \"definition.pbism is missing\".", "",
+        "Opened in Power BI Desktop on 30 October 2026 (the shop project from /check): the empty report page opens, and the data shows",
+        "once the tables are in a Fabric lakehouse. The same day the SAP example stopped with a TMDL format error on a relationships.tmdl",
+        "that held only a comment; a document with nothing to put in it is no longer written (README.generated.md in the model folder",
+        "says what the plan found instead). If it does not open for you, tell us (krusgraph.com/support).", ""])
     return out
 
 

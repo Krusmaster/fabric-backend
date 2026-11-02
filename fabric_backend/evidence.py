@@ -75,10 +75,18 @@ def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
             f"FROM (SELECT {matches} AS n FROM {_t(schema, r.source, dialect)} AS s WHERE {' AND '.join(has_value)}) AS m")
 
 
-def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL) -> str:
+def inclusion_sql(schema: str, source: str, column: str, target: str, key: str, dialect: Dialect = TSQL,
+                  sample: int | None = None) -> str:
     """Inclusion check for a candidate relationship: how many non-NULL values of source.column exist in target.key,
-    and how many distinct values the column has. One counting statement, read-only."""
+    and how many distinct values the column has. One counting statement, read-only. With `sample`, the first `sample`
+    distinct values of the column stand for all of them (plan_backend's R5): with_value then equals distinct_values, and
+    a column with more distinct values than the sample is only partly checked."""
     q, count = dialect.quote, dialect.count
+    if sample:
+        values = dialect.select(q(column), f" FROM {_t(schema, source, dialect)} WHERE {q(column)} IS NOT NULL", int(sample), distinct=True)
+        return (f"SELECT {count}(*) AS with_value, {count}(t.{q(key)}) AS matched, {count}(DISTINCT s.{q(column)}) AS distinct_values "
+                f"FROM ({values}) AS s LEFT JOIN (SELECT DISTINCT {q(key)} FROM {_t(schema, target, dialect)}) AS t "
+                f"ON s.{q(column)} = t.{q(key)}")
     return (f"SELECT {count}(*) AS with_value, {count}(t.{q(key)}) AS matched, {count}(DISTINCT s.{q(column)}) AS distinct_values "
             f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN (SELECT DISTINCT {q(key)} FROM {_t(schema, target, dialect)}) AS t "
             f"ON s.{q(column)} = t.{q(key)} WHERE s.{q(column)} IS NOT NULL")

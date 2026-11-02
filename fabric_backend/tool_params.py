@@ -87,6 +87,10 @@ OntologyName = Annotated[str, _name("ontology item", "shop_ontology")]
 ModelDraftName = Annotated[str, _d('Name of the semantic model in the draft. Default "semantic_model". Example: '
                                    '"shop_model".')]
 ModelName = Annotated[str, _name("semantic model item", "shop_model")]
+ReportModel = Annotated[str, _d('Semantic model the report is bound to, name or id (as create_semantic_model named it). '
+                                'Example: "shop_model".')]
+ReportName = Annotated[str, _d('Display name of the report; a report of this name in the workspace is left alone and the call '
+                               'refused. Example: "shop_report".')]
 CompareModel = Annotated[str, _d('Existing semantic model in the workspace, by name or id. Default "" (only with '
                                  'tmdl). Example: "Sales model".')]
 CheckData = Annotated[bool, _d('true counts the plan\'s keys and relationships and the model\'s extra links against the '

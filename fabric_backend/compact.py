@@ -85,6 +85,10 @@ def plan_summary(p: Plan, suggested_keys: list[dict], scope_note: str = "") -> d
     }
     if p.extended:
         out["extended_relationships"] = [f"{r.source} -> {r.target} ({r.kind}, {r.rule}): {r.join_sql()}" for r in p.extended]
+    if p.proposed:                                     # R5 candidates the rows did not support, or that were not counted: never applied
+        out["proposed"] = [f"{x['source']}.{'+'.join(x['source_cols'])} -> {x['target']} [{x['rule']}, proposed]: {x['reason']}" for x in p.proposed]
+    if p.counted:
+        out["counted_in_rows"] = p.counted
     return out
 
 
@@ -109,6 +113,10 @@ def plan_full(p: Plan, suggested_keys: list[dict], mermaid: bool = True) -> dict
     }
     if p.synonyms:
         out["synonyms"] = p.synonyms
+    if p.proposed:                                     # R5 candidates the rows did not support, or that were not counted: never applied
+        out["proposed"] = p.proposed
+    if p.counted:
+        out["counted_in_rows"] = p.counted
     if p.extended:                                     # only with a knowledge pack: other answers are unchanged
         out["extended_relationships"] = [_extended(r) for r in p.extended]
     if p.pack:

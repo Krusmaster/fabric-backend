@@ -1,0 +1,62 @@
+name: A wrong relationship
+description: The engine planned, proposed or missed a key or a relationship that is wrong for your tables.
+title: "[relationship] "
+labels: ["inference"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful report there is: every rule (K0–K5, R0–R5) is listed in `docs/INFERENCE.md`, and a
+        wrong result on real naming is how the rules get better. No customer data: table and column *names* are
+        enough; no row values. If the names themselves are confidential, rename them consistently (e.g. `Kund` →
+        `T1`, keep the suffixes) and say so.
+  - type: input
+    id: table
+    attributes:
+      label: Table
+      description: The source table (the one holding the reference column).
+    validations:
+      required: true
+  - type: input
+    id: column
+    attributes:
+      label: Column(s)
+      description: The column, or columns for a composite key or relationship.
+    validations:
+      required: true
+  - type: input
+    id: rule
+    attributes:
+      label: The rule that was shown
+      description: What the answer said behind the key or link (K0–K5, R0–R5, a pack's source, or "proposed" / "ambiguous" / "unlinked").
+    validations:
+      required: true
+  - type: textarea
+    id: got
+    attributes:
+      label: What the engine said
+      description: The planned or proposed target table and column, or "nothing" if it was missed.
+    validations:
+      required: true
+  - type: textarea
+    id: right
+    attributes:
+      label: What was right
+      description: The target table and column the relationship should point at, and how you know (a declared foreign key, the application's documentation, the people who own the data).
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where
+      options:
+        - "krusgraph.com/check (names from CSV / Excel / a columns list)"
+        - "plan_backend / validate_plan / suggest_relationships (the hosted connector)"
+        - "the local server or the library (plan())"
+    validations:
+      required: true
+  - type: input
+    id: naming
+    attributes:
+      label: Naming style
+      description: "English or another language, a prefix convention, SAP-style short names, a specific application (name it if it is public software)."

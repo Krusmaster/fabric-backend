@@ -30,6 +30,7 @@ EXPECTED = {
     "registry": "krusgraphtest", "identity": "krusgraph-pull", "product_name": "Krusgraph",
     "contact_email": "hello@krusgraph.com", "company_orgnr": "556000-0000", "include_www": True, "min_replicas": 1,
     "ontology_write": True, "key_vault": "kv-krusgraph-test", "log_retention_days": 30, "log_analytics_workspace": "",
+    "budget_amount": 0, "budget_email": "",
 }
 
 

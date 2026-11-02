@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/Krusmaster/fabric-backend/fabric_backend/packs/pack.schema.json",
   "title": "Krusgraph knowledge pack",
-  "description": "Tables, keys and relationships of a known source system, with a source per claim. Independent of how the data arrives (mirroring, Databricks, Data API builder, a pipeline).",
+  "description": "Tables, keys and relationships of a known source system, with a source per claim. Independent of how the data arrives (mirroring, Databricks, Data API builder, a pipeline). Packs: sap (SAP ERP), younium_salesforce (Younium subscription billing beside Salesforce).",
   "type": "object",
   "required": [
     "pack",
@@ -165,7 +165,6 @@
           "name",
           "level",
           "en",
-          "de",
           "key",
           "sources"
         ],
@@ -179,19 +178,22 @@
               "header",
               "item",
               "schedule_line",
+              "version",
               "master",
               "text",
               "organization",
               "status",
               "partner",
               "document_flow"
-            ]
+            ],
+            "description": "version: one row per version of a header (a Younium subscription version); the header's amounts and dates are read from the version valid on a date, never summed over versions."
           },
           "en": {
             "type": "string"
           },
           "de": {
-            "type": "string"
+            "type": "string",
+            "description": "A German name, for packs of systems documented in German (SAP). Optional."
           },
           "key": {
             "$ref": "#/definitions/columns"
@@ -265,6 +267,15 @@
                 }
               }
             }
+          },
+          "sv": {
+            "type": "string",
+            "description": "A Swedish name, for packs of systems documented in Swedish (Younium). Optional."
+          },
+          "area": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The part of the business the table belongs to, in the system's own words (customers, subscriptions, billing, product catalog, sales). The domain proposal (domains.py) names a proposed domain after the areas of the pack tables in it, as it names SAP domains after their part of order-to-cash."
           }
         }
       }
