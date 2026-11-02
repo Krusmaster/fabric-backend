@@ -172,8 +172,12 @@ class Plan:
                          "were not counted) — see plan.proposed")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
-                         f"public sources (rule \"{self.pack['rule']}\"), to be checked with validate_plan — see plan.pack")
+                         f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")
         return "\n".join(lines)
+
+    def label(self, rule: str) -> str:
+        """The rule as a person reads it: the pack's own name for the pack rule (rule_label)."""
+        return rule_label(rule, self.pack)
 
     def mermaid(self) -> str:
         out = ["erDiagram"]
@@ -184,7 +188,7 @@ class Plan:
                 out.append(f"    {_m(c)} {_m(_type_word(t, c))}{mark}")
             out.append("  }")
         for r in self.relationships:
-            out.append(f'  {_m(r.target)} ||--o{{ {_m(r.source)} : "{"+".join(r.source_cols)} {r.rule}"')
+            out.append(f'  {_m(r.target)} ||--o{{ {_m(r.source)} : "{"+".join(r.source_cols)} {self.label(r.rule)}"')
         return "\n".join(out)
 
 
@@ -261,6 +265,22 @@ PACK_RULES = {PACK_RULE: "keys and relationships of tables a knowledge pack desc
                          "VBRK…; packs/younium_salesforce/ since round n78), recognised with or without a prefix; each "
                          "relationship names its pack and public source; name rules add nothing between two such tables"}
 _CLIENT = ("MANDT", "RCLNT")
+
+
+def rule_label(rule: str, pack=None) -> str:
+    """The rule as a person reads it (n79). A plan's relationships and keys carry PACK_RULE ("SAP pack") for every pack,
+    and the MCP answers keep that value in their `rule` fields; where the rule is written for a person (the /check map
+    and findings, the data dictionary, the Power BI README, the data contracts) a pack other than SAP is named by its own
+    rule label, "Younium + Salesforce pack". `pack` is plan.pack (or the pack's name); SAP and every other rule read as
+    before."""
+    name = pack.get("pack") if isinstance(pack, dict) else pack
+    if rule != PACK_RULE or not name or name == "sap":
+        return rule
+    from . import sap_pack
+    try:
+        return sap_pack.load(name)["rule"]
+    except KeyError:
+        return rule
 _HISTORY = re.compile(r"^(start|validfrom|effective)|from$")
 _MIN_ABBREVIATION = 4
 

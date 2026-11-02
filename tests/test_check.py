@@ -107,7 +107,7 @@ def test_the_subscription_billing_example_is_read_through_the_younium_salesforce
     """n78: the fourth example, fabric_backend.younium_demo's rows; the engine reads the pack itself, so the plan has
     the pack's 15 relationships and validate_plan shows the planted 15-character Salesforce id and both doubled totals."""
     r = bc.analyze("billing")
-    assert len(r["tables"]) == 14 and len(r["relationships"]) == 15 and {x["rule"] for x in r["relationships"]} == {"SAP pack"}
+    assert len(r["tables"]) == 14 and len(r["relationships"]) == 15 and {x["rule"] for x in r["relationships"]} == {"Younium + Salesforce pack"}   # n79: by its own name
     assert r["coverage"]["complete"] and r["coverage"]["relationships"] == 15
     titles = [f["title"] for f in r["findings"]]
     assert "younium_accounts.external_crm_id → sf_account: 1 orphan(s)" in titles
@@ -258,7 +258,7 @@ def test_in_a_browser_no_request_carries_the_files(site):
         assert bl["ids"] == ["check-sample", "check-sap", "check-crm", "check-billing"] and bl["inside"] and not bl["overflow"], (w, bl)
         assert "Subscription billing" in bl["label"] and "Younium + Salesforce" in bl["label"] and "Synthetic Data" in bl["label"]
         assert "Done: the example “Subscription billing”" in bl["status"] and not bl["overflowAfter"], (w, bl["status"])
-        assert "SAP pack" in bl["text"] and "external_crm_id" in bl["text"] and bl["ms"] > 0, w
+        assert "Younium + Salesforce pack" in bl["text"] and "SAP pack" not in bl["text"] and "external_crm_id" in bl["text"] and bl["ms"] > 0, w   # n79
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
     # n73: one order through "A total that doubles": order_id 1, 1 000 on the order, 2 000 over its two lines, in the
     # finding, in Onto's answer, in the Power BI preview and in the contract; every download button says what the file

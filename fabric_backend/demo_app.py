@@ -121,7 +121,7 @@ def questions(p: Plan, analysis: dict, dialect: str, n: int = 5, execute=None) -
         if label and len(r.source_cols) == 1:
             on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
             add(f"count:{r.source}>{r.target}", f"How many {r.source} rows per {r.target}?",
-                f"{r.source}.{r.source_cols[0]} points at {r.target} (rule {r.rule}); {label} names each {r.target} row.",
+                f"{r.source}.{r.source_cols[0]} points at {r.target} (rule {p.label(r.rule)}); {label} names each {r.target} row.",
                 top(f"SELECT t.{qi(label)} AS {qi(label)}, COUNT(*) AS {qi('rows')}\nFROM {tn(r.source)} AS s\nJOIN {tn(r.target)} AS t ON {on}\nGROUP BY t.{qi(label)}\nORDER BY COUNT(*) DESC", ROW_CAP))
             break
     for r in rels:
@@ -130,7 +130,7 @@ def questions(p: Plan, analysis: dict, dialect: str, n: int = 5, execute=None) -
         if label and ms and len(r.source_cols) == 1:
             on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
             add(f"sum:{r.source}.{ms[0]}>{r.target}", f"Total {ms[0]} per {r.target}",
-                f"{ms[0]} is a number in {r.source} that is neither its key nor a reference; summed over the {r.rule} link to {r.target}.",
+                f"{ms[0]} is a number in {r.source} that is neither its key nor a reference; summed over the {p.label(r.rule)} link to {r.target}.",
                 top(f"SELECT t.{qi(label)} AS {qi(label)}, SUM(s.{qi(ms[0])}) AS {qi('total_' + ms[0])}\nFROM {tn(r.source)} AS s\nJOIN {tn(r.target)} AS t ON {on}\nGROUP BY t.{qi(label)}\nORDER BY SUM(s.{qi(ms[0])}) DESC", ROW_CAP))
             break
     none_tried, first_none = 0, None
@@ -299,7 +299,7 @@ class Session:
             cols = ", ".join(k["columns"])
             out.append({"id": f"key:{k['table']}", "kind": "key", "severity": "problem", "table": k["table"],
                         "title": f"Key of {k['table']} is not clean: {cols}",
-                        "saw": f"{k['rows']} rows, {k['distinct']} distinct values, {k['nulls']} NULLs (rule {k['rule']}).",
+                        "saw": f"{k['rows']} rows, {k['distinct']} distinct values, {k['nulls']} NULLs (rule {p.label(k['rule'])}).",
                         "means": "A GraphQL API, a semantic model or a join on this key would return the wrong row or several rows. The key the names suggest is not the key the data has.",
                         "next": {"sql": f"SELECT {', '.join(evidence.qi(c) for c in k['columns'])}, COUNT(*) AS n FROM {evidence.qi(schema)}.{evidence.qi(k['table'])} GROUP BY {', '.join(evidence.qi(c) for c in k['columns'])} HAVING COUNT(*) > 1"},
                         "next_text": "List the duplicated values with the SQL, then give the real key (a composite one, or another column) as `keys`.",
@@ -309,7 +309,7 @@ class Session:
                 continue
             out.append({"id": f"rel:{r['source']}.{'+'.join(r['columns'])}>{r['target']}", "kind": "relationship", "severity": "warning", "table": r["source"],
                         "title": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}: {r['orphans']} orphan(s)",
-                        "saw": f"{r['rows_with_value']} rows with a value, {r['orphans']} of them point at nothing in {r['target']} (rule {r['rule']}). {r['verdict']}.",
+                        "saw": f"{r['rows_with_value']} rows with a value, {r['orphans']} of them point at nothing in {r['target']} (rule {p.label(r['rule'])}). {r['verdict']}.",
                         "means": "Either the link is right and the data has gaps (deleted parents, loads out of order), or the column points at another table. Both are worth knowing before an app is built on it.",
                         "next": {"sql": f"SELECT s.* FROM {evidence.qi(schema)}.{evidence.qi(r['source'])} AS s LEFT JOIN {evidence.qi(schema)}.{evidence.qi(r['target'])} AS t ON " + " AND ".join(f"s.{evidence.qi(a)} = t.{evidence.qi(b)}" for a, b in zip(r['columns'], r['target_columns'])) + f" WHERE t.{evidence.qi(r['target_columns'][0])} IS NULL AND s.{evidence.qi(r['columns'][0])} IS NOT NULL"},
                         "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",

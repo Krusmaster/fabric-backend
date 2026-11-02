@@ -28,7 +28,7 @@ import zipfile
 from pathlib import Path
 
 KINDS = ("sample", "sap", "crm", "billing", "files", "columns")
-_RULE = re.compile(r"\brule ([KR]\d|SAP pack|confirmed)\b")
+_RULE = re.compile(r"\brule ([KR]\d|confirmed|[A-Z][A-Za-z0-9 +]*? pack)\b")     # a pack by its own name (n79)
 _SHOWN = {"problem", "warning", "question", "info"}            # suggestions are listed apart: they are not something wrong
 
 
@@ -222,10 +222,10 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
              notes=src.notes[:20])
         t = time.perf_counter()
         p = plan(src.schema)
-        tables = [{"name": x.name, "key": p.keys.get(x.name, ([], ""))[0], "key_rule": p.keys.get(x.name, ([], "K3"))[1] or "K3",
+        tables = [{"name": x.name, "key": p.keys.get(x.name, ([], ""))[0], "key_rule": p.label(p.keys.get(x.name, ([], "K3"))[1] or "K3"),
                    "columns": x.column_names} for x in p.schema]
-        rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": r.rule}
-                for r in p.relationships]
+        rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": p.label(r.rule)}
+                for r in p.relationships]                                  # the page shows the rule: a pack by its own name (n79)
         ms_plan = round((time.perf_counter() - t) * 1000)
         by_rule = lambda items, key: ", ".join(f"{k} {n}" for k, n in sorted(_count(items, key).items()))
         send({"step": "keys", "title": "Keys (rules K0–K5)", "ms": ms_plan, "tables": tables,
@@ -420,11 +420,13 @@ def _domains(p, src, validation: dict | None, notes: dict[str, list[dict]] | Non
         return out
     out = domains.draft(p, schema, src.label, validation, extra=extra)
     out["status"] = ts.label("domain_draft")             # the status word the page puts on the contract download
+    for i in out["interfaces"]:                          # the panel prints the interface's rule: the pack by its own name (n79)
+        i["rule"] = p.label(i["rule"])
     for d in out["domains"]:
         mine = set(d["tables"])
         d["keys"] = {t: list(p.keys.get(t, ([], ""))[0]) for t in d["tables"]}
         d["relationships"] = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols,
-                               "rule": r.rule} for r in p.relationships if r.source in mine and r.target in mine]
+                               "rule": p.label(r.rule)} for r in p.relationships if r.source in mine and r.target in mine]
         d["checks"] = ([{"what": f"key of {k['table']}", "verdict": k["verdict"]} for k in (validation or {}).get("keys", []) if k.get("table") in mine]
                        + [{"what": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}", "verdict": r["verdict"]}
                           for r in (validation or {}).get("relationships", []) if r.get("source") in mine])
