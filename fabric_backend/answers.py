@@ -21,6 +21,7 @@ as a connection with items), the way app_starter writes them.
 """
 from __future__ import annotations
 
+import contextvars
 import re
 
 from .evidence import qi
@@ -86,6 +87,43 @@ def _phrase_table(words: list[str], candidates: list[str]) -> str | None:
     return _table_for(words[0], candidates) if words else None
 
 
+# n87: the names a knowledge pack gives its tables ("Customer master, general data" for SAP's KNA1, "Sales document,
+# header" for VBAK), read for the duration of one understand() call so "per customer" finds sap_kna1.
+_PACK_NAMES: contextvars.ContextVar[dict] = contextvars.ContextVar("pack_names", default={})
+_GENERIC = {"master", "general", "data", "document", "documents", "header", "items", "item", "the", "of", "and"}
+_PACK_ALIASES = {"sales": ("order", "sales order"), "purchasing": ("purchase order",), "billing": ("invoice", "bill"),
+                 "supplier": ("vendor",)}
+
+
+def _pack_names(plan: Plan) -> dict[str, set[str]]:
+    """table -> the normalised words a pack's own name for it answers to; header tables only for document words."""
+    pack = getattr(plan, "pack", None) or {}
+    out: dict[str, set[str]] = {}
+    if not pack.get("tables"):
+        return out
+    try:
+        from . import sap_pack
+    except ImportError:  # pragma: no cover
+        return out
+    for table, name in pack["tables"].items():
+        try:
+            en = (sap_pack.table_info(name) or {}).get("en") or ""
+        except Exception:  # noqa: BLE001 - a table another pack knows
+            continue
+        head, _, part = en.lower().partition(",")
+        words = [w for w in _words(head) if w not in _GENERIC]
+        if not words:
+            continue
+        line = "item" in part
+        forms = set()
+        if "document" not in head or not line:                  # "Sales document, items" is not "the order"
+            forms |= {_norm(words[0])} | {_norm(x) for x in _singulars(words[0])}
+            for alias in _PACK_ALIASES.get(words[0], ()):
+                forms.add(_norm(alias.replace(" ", "")))
+        out[table] = forms
+    return out
+
+
 def _table_for(word: str, candidates: list[str]) -> str | None:
     w = _norm(word)
     forms = {_norm(x) for x in _singulars(word.lower().translate(_TRANSLIT))} | {w}
@@ -94,6 +132,10 @@ def _table_for(word: str, candidates: list[str]) -> str | None:
         forms.add(_norm(syn))
     for t in candidates:
         if w == _norm(t) or forms & (_bases(t) | _canon_bases(t)):
+            return t
+    named = _PACK_NAMES.get()
+    for t in candidates:
+        if forms & named.get(t, set()):
             return t
     return None
 
@@ -167,6 +209,18 @@ def _first_named(q: str, tables: list[str], exclude: list[str]) -> str | None:
 
 
 def understand(question: str, plan: Plan, tables: list[str]) -> dict:
+    token = _PACK_NAMES.set(_pack_names(plan))
+    try:
+        return _understand(question, plan, tables)
+    finally:
+        _PACK_NAMES.reset(token)
+
+
+# "per X" and its Swedish forms: a marker whose X must be found, or the question is not answered (never one total instead).
+_PER = ("per", "for each", "for every", "för varje", "for varje", "för var", "fördelat på", "fordelat pa", "grouped by", "grupperat på")
+
+
+def _understand(question: str, plan: Plan, tables: list[str]) -> dict:
     q = " " + question.lower() + " "
     everything = [t.name for t in plan.schema]
     without, without_columns, unread = _negations(q, plan, tables, everything)
@@ -205,6 +259,17 @@ def understand(question: str, plan: Plan, tables: list[str]) -> dict:
                 break
         if group_table or group_column:
             break
+    if not (group_table or group_column):
+        for m in _PER:
+            for words in _after(q, (m,)):
+                said = [w for w in words if not w.isdigit()][:2]
+                if said and not any(w in _FILLER for w in said[:1]):
+                    unread.append(f"'{m} {' '.join(said)}': no table or column of the plan is named {' '.join(said)!r}, so the "
+                                  "grouping cannot be applied and one total would answer a different question; add the table "
+                                  "to tables= or name its column")
+                    break
+            if unread:
+                break
     measure = None
     if aggregate in ("sum", "avg"):
         said = set(_norm(w) for w in _words(q))
