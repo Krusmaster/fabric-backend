@@ -215,6 +215,7 @@ class Session:
         self.confirmed: list[dict] = []
         self.keys: dict[str, list[str]] = {}
         self.skipped: list[str] = []
+        self.log: list[dict] = []                                 # n79: each accept and skip, with its time, for the evidence report
         self.started = time.time()
         self.step_entered: dict[int, float] = {1: self.started}
         self.current_step = 1
@@ -235,7 +236,7 @@ class Session:
         self.connect_error = None
         old = self.source
         self.source, self.confirmed, self.keys, self.skipped, self._cache = src, [], {}, [], None
-        self._validation = None
+        self._validation, self.log = None, []
         if old and old.close:
             try:
                 old.close()                                        # after the swap, so a request in flight sees the new source
@@ -268,6 +269,7 @@ class Session:
             raise ValueError("this finding has no accept action: it carries SQL to run yourself")
         if finding_id in self.skipped:
             self.skipped.remove(finding_id)
+        self._decided(f["title"], "accepted")
         self._cache = None
         return f
 
@@ -282,10 +284,16 @@ class Session:
                 self.keys.pop(t, None)
         if finding_id not in self.skipped:
             self.skipped.append(finding_id)
+        self._decided(f["title"] if f else finding_id, "skipped")
         self._cache = None
 
+    def _decided(self, what: str, decision: str) -> None:
+        """The decision with its time; the page asks for no name, so `by` stays unrecorded in the evidence report."""
+        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        self.log.append({"what": what, "decision": decision, "at": at, "note": "on the fabric-backend demo page"})
+
     def reset(self) -> None:
-        self.confirmed, self.keys, self.skipped, self._cache = [], {}, [], None
+        self.confirmed, self.keys, self.skipped, self._cache, self.log = [], {}, [], None, []
 
     # -- derived -----------------------------------------------------------------------------------------------------
     def findings(self, p: Plan, validation: dict | None, suggestions: dict | None) -> list[dict]:
@@ -452,10 +460,14 @@ class Session:
         """name -> (content type, text)."""
         from .dbt import schema_yml
         from .dictionary import data_dictionary
+        from . import evidence_report
         src = self.source
+        rep = evidence_report.report(p, validation, decisions=self.log, source=src.label)
         name = {"sample": "shop", "folder": "data", "odbc": p.schema.schema, "columns": p.schema.schema}[src.kind]
         return {
             "dictionary.md": ("text/markdown; charset=utf-8", data_dictionary(p, src.label, p.schema.schema, validation)),
+            "evidence-report.md": ("text/markdown; charset=utf-8", evidence_report.markdown(rep)),        # n79: the pilot's hand-over
+            "evidence-report.json": ("application/json; charset=utf-8", evidence_report.to_json(rep)),
             "schema.yml": ("text/yaml; charset=utf-8", schema_yml(p, name, p.schema.schema)),
             "lovable-prompt.md": ("text/markdown; charset=utf-8", lovable_prompt(p, qs, src)),
             "plan.json": ("application/json; charset=utf-8", json.dumps(_plan_json(p, src, {"confirmed": self.confirmed}), indent=1)),

@@ -98,6 +98,7 @@
       draw(r.result);
       if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
+      evidence(r.result);
       ping("done");
       const ms = Math.round(performance.now());
       document.documentElement.dataset.checkMs = String(ms);
@@ -137,6 +138,7 @@
   const choices = { model: $("check-build-model"), app: $("check-build-app") };
   function resetBuild() {
     $("check-build-head").hidden = true; $("check-build").hidden = true; $("check-build-next").hidden = true; $("check-build-status").textContent = "";
+    $("check-evidence").hidden = true; $("check-evidence").replaceChildren();
     for (const k in panels) { panels[k].hidden = true; panels[k].replaceChildren(); choices[k].setAttribute("aria-expanded", "false"); }
   }
   async function openBuild(which) {
@@ -417,13 +419,23 @@
       (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
     box.hidden = false;
   }
-  function saveText(name, text, label, status) {     // the contract is written here; a Blob saves it, nothing is fetched
+  function saveText(name, text, label, status, type) {   // written here; a Blob saves it, nothing is fetched
     const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
     a.addEventListener("click", () => {
-      const url = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      const url = URL.createObjectURL(new Blob([text], { type: type || "application/yaml" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
     });
     return a;
+  }
+
+  // n79: the evidence report for a pilot's hand-over, written by the worker from the plan and validate_plan's counts
+  function evidence(r) {
+    const e = r.evidence_report, box = $("check-evidence");
+    box.replaceChildren();
+    if (!e || !r.tables.length) { box.hidden = true; return; }
+    box.append(saveText(e.name, e.markdown, "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
+      + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions; no row values", e.status, "text/markdown"));
+    box.hidden = false;
   }
 
   // ------------------------------------------------------------------ n53: Ask Onto

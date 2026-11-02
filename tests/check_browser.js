@@ -33,6 +33,8 @@ const { chromium } = require("playwright");
   await page.keyboard.press("Enter");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-run");
+  // n79: the evidence report beside the build buttons, saved from a Blob like the contract
+  out.evidence = await page.evaluate(() => { const a = document.querySelector("#check-evidence a"); return a ? { text: a.textContent, download: a.getAttribute("download"), hidden: document.getElementById("check-evidence").hidden } : null; });
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
   // n73: the finding first. At 1280 x 720 the state line, the most important finding and the folded list stand right
   // under the status line and before the map, on the screen without scrolling; the engine's steps are a closed

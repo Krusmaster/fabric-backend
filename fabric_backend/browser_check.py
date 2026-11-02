@@ -301,7 +301,8 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "source": {"kind": src.kind, "label": src.label, "has_data": src.has_data, "notes": src.notes},
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
-               "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data)}
+               "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data),
+               "evidence_report": _evidence_report(p, src, validation, kind)}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -310,6 +311,19 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
             shutil.rmtree(folder, ignore_errors=True)
         if src.close:
             src.close()
+
+
+NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing"}   # the downloads' file names
+
+
+def _evidence_report(p, src, validation: dict | None, kind: str) -> dict:
+    """n79: the evidence report of this run as a Markdown file for the page to save (evidence_report.py): the plan and
+    validate_plan's counts only, so none of the example rows the findings quote is in it."""
+    from . import evidence_report, tool_status as ts
+    base = NAMES.get(kind) or re.sub(r"\W+", "_", getattr(src.schema, "schema", "") or "data")
+    rep = evidence_report.report(p, validation, source=src.label)
+    return {"name": f"{base}_evidence_report.md", "markdown": evidence_report.markdown(rep), "status": ts.EVIDENCE_REPORT,
+            "summary": rep["summary"]}
 
 
 def _amount_examples(p, src, validation: dict | None) -> dict[tuple, dict]:

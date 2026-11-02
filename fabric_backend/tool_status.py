@@ -171,6 +171,9 @@ def label(name: str) -> str:
 
 
 WORDS = ("Tested end to end", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
+# n79: the evidence report (evidence_report.py) is a file, not a tool: /check and fabric-backend demo offer it with this
+# status; the person who hands it over reads and signs it off.
+EVIDENCE_REPORT = "Draft"
 
 
 def phrase(name: str) -> str:

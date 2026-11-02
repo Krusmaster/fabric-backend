@@ -252,6 +252,10 @@ def test_in_a_browser_no_request_carries_the_files(site):
     e = r["engine"]
     assert e["open"] is False and e["summary"] == "How the engine got here" and e["stepsInside"] and e["steps"] >= 7 and e["opened"] is True, e
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}
+    # n79: the evidence report as a download that says what it holds, with the status Draft
+    ev = r["evidence"]
+    assert ev and not ev["hidden"] and ev["download"] == "shop_evidence_report.md", ev
+    assert ev["text"].startswith("Download shop_evidence_report.md: evidence report for a hand-over (Markdown): source, time and engine version") and "no row values" in ev["text"] and ev["text"].endswith("Draft"), ev
     # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
     for w in ("375", "1280"):
         bl = r["billing"][w]

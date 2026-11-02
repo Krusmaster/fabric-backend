@@ -616,6 +616,14 @@
     "name": "dictionary.md"
    },
    {
+    "href": "/export/evidence-report.md",
+    "name": "evidence-report.md"
+   },
+   {
+    "href": "/export/evidence-report.json",
+    "name": "evidence-report.json"
+   },
+   {
     "href": "/export/schema.yml",
     "name": "schema.yml"
    },
@@ -1014,6 +1022,14 @@
    {
     "href": "/export/dictionary.md",
     "name": "dictionary.md"
+   },
+   {
+    "href": "/export/evidence-report.md",
+    "name": "evidence-report.md"
+   },
+   {
+    "href": "/export/evidence-report.json",
+    "name": "evidence-report.json"
    },
    {
     "href": "/export/schema.yml",
