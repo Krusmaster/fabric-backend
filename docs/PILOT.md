@@ -53,6 +53,10 @@ write-up of what the engine got right, what it left unlinked, and what they had 
    composite keys and `confirmed=[...]` for the links the rules could not make. Record the decisions.
 4. **Build** (session 2): `create_backend` with the agreed overrides, the two portal steps, three queries from
    Claude that answer real questions. Hand over the plan file, the record and the write-up a week later.
+   The evidence report is the draft of that record (`fabric_backend/evidence_report.py`: the download on `/check`, or
+   `evidence-report.md` beside `dictionary.md` from `fabric-backend demo`): every key and relationship with its rule,
+   every check with its counts or "not checked", the open questions, the decisions with who and when, and the created
+   item ids you add; no row values. It is marked Draft until the person who hands it over has read and signed it.
 
 ## Not included
 

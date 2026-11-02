@@ -38,7 +38,8 @@ from the pack, so a run on them shows that the tools work on such tables, never 
 `PRODUCT2`, `ORDER` → `ACCOUNT`, `CONTRACT` and `OPPORTUNITY`, `ORDERITEM` → `ORDER`, `PRICEBOOKENTRY` and `PRODUCT2`,
 `CONTRACT` → `ACCOUNT`. Amounts: `OPPORTUNITY.AMOUNT` and `ORDER.TOTAL_AMOUNT` at header level (sums of their lines'
 `TOTAL_PRICE`), `TOTAL_PRICE` at line level, `UNIT_PRICE` a price. Personal data is named on `CONTACT` (names, e-mail,
-telephone, address, birth date) and on `ACCOUNT` (telephone, addresses).
+telephone, address, birth date), on `ACCOUNT` (name, telephone, addresses) and on Younium's `ACCOUNTS` (name, invoice
+e-mail, telephone); since round n79 `sample_rows` and the drafted queries mask them through the pack as they mask SAP's.
 
 Table names are the objects' API names in upper case; columns are compared without case or underscores, so `AccountId`
 and `account_id` both read as the pack's `ACCOUNT_ID`. A system prefix in front of a table name (`younium_accounts`,
@@ -78,7 +79,9 @@ and `account_id` both read as the pack's `ACCOUNT_ID`. A system prefix in front 
   place of `sap_pack.match(schema)`: the pack that recognises most of a schema's tables, SAP or this one. A schema it
   recognises gets the pack's keys and applied relationships in the plan, with the rule `SAP pack` (one rule for every
   pack, so the answers keep their shape) and the pack's name, module and public source on each relationship's note
-  (`younium_salesforce pack (younium): source: ...`); `plan.pack` carries the pack's name, tables, amounts and traps as
+  (`younium_salesforce pack (younium): source: ...`). Where a person reads the rule (the `/check` map, panel and
+  findings, the data dictionary, the Power BI README, the contracts) it says *Younium + Salesforce pack* since round
+  n79; the `rule` fields of the answers stay `SAP pack`. `plan.pack` carries the pack's name, tables, amounts and traps as
   it does for SAP. `plan_backend`, `/check`, `domain_draft` and the drafts built from a plan therefore plan
   `younium_subscriptions.account_id -> younium_accounts` through the prefix, and `validate_plan` checks the joins and
   feeds *the total that doubles* with the pack's amounts.

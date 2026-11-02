@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n79: the pack's own name where a person reads the rule (Subscription billing on `/check`, the data dictionary,
+  the Power BI README, the contracts, the Rayfin comments say *Younium + Salesforce pack*; the `rule` fields of the
+  answers keep `SAP pack`, and the SAP texts are unchanged). Masking goes through the pack the engine reads, so the
+  Younium + Salesforce pack's personal columns (Contact's and the accounts' names, e-mail and telephone numbers) are
+  masked like SAP's; the account names were added to the pack. The evidence report
+  (`fabric_backend/evidence_report.py`), a pilot's hand-over as JSON and Markdown from the plan and validate_plan's
+  counts, with "not checked" for whatever was not counted and no row values: a Draft download on `/check` and
+  `evidence-report.md`/`.json` from `fabric-backend demo`; no new MCP tool.
 - Round n78: the engine reads the Younium + Salesforce pack. `infer._pack` calls `sap_pack.match_any`, so a schema the
   pack recognises gets its keys and applied relationships with the rule `SAP pack` (one rule for every pack) and the
   pack's name and source on each note, and `plan.pack` carries its tables, amounts and traps. The pack's ordinary table
