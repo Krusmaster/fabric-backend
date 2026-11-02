@@ -7,7 +7,9 @@ Five kinds of record, all small, all with an expiry except consent:
             client redeems it, so a code works once
   used      that a code was redeemed, so a second attempt revokes what the first one got; 10 minutes
   family    a refresh token's line: the hash of the current refresh token and the Entra refresh token, encrypted;
-            replaced at every refresh (rotation), deleted when an old one comes back or Entra refuses
+            replaced at every refresh (rotation), deleted when an old one comes back or Entra refuses. Since n83 also
+            the hash of the refresh token the last rotation used and the answer it gave (an access token and the new
+            refresh token), encrypted, used for 60 seconds to answer a retry and overwritten at the next rotation
   consent   that a user (a keyed hash of tenant and object id, never the ids) approved a client for one redirect
             address; 180 days, or until the operator deletes it or the server's key changes
 Nothing else: no names, no e-mail, no IP addresses, no tokens in clear.

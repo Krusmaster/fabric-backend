@@ -289,12 +289,18 @@ def test_vs_code_signs_in_with_its_metadata_document_on_a_random_loopback_port(e
         assert r.status_code == 200 and '"serverInfo"' in r.text
         assert c.post("/mcp", json=INIT, headers={**ACCEPT, "Authorization": f"Bearer {body['access_token']}"}).status_code == 200
 
-        # refresh rotates; the old refresh token then ends the whole line
+        # refresh rotates; inside the window (n83) the old refresh token gets the same answer again, after it the old
+        # refresh token ends the whole line (tests/test_refresh_rotation.py has the cases)
         r1 = c.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": body["refresh_token"], "client_id": VSCODE})
         assert r1.status_code == 200 and r1.json()["refresh_token"] != body["refresh_token"]
         assert mcp_call(c, r1.json()["access_token"]).status_code == 200
+        retry = c.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": body["refresh_token"], "client_id": VSCODE})
+        assert retry.status_code == 200 and retry.json() == {**r1.json(), "expires_in": retry.json()["expires_in"]}
+        real_now = time.time
+        env["monkeypatch"].setattr(flow, "_now", lambda: real_now() + flow.REFRESH_OVERLAP + 1)
         replay = c.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": body["refresh_token"], "client_id": VSCODE})
         assert replay.status_code == 400 and replay.json()["error"] == "invalid_grant"
+        env["monkeypatch"].setattr(flow, "_now", real_now)
         after = c.post("/oauth/token", data={"grant_type": "refresh_token", "refresh_token": r1.json()["refresh_token"], "client_id": VSCODE})
         assert after.status_code == 400 and after.json()["error"] == "invalid_grant"
 

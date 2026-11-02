@@ -39,6 +39,15 @@ def needs_admin_consent(error: str, description: str = "") -> bool:
     return error == "consent_required" or any(c in f"{error} {description}" for c in ADMIN_CONSENT_CODES)
 
 
+# n83: how long, after a rotation, the refresh token just used still gets the answer that rotation gave (a client's
+# retry after a lost answer, or two requests at once); docs/REFRESH-ROTATION.md
+REFRESH_OVERLAP = 60
+
+
+def _now() -> float:
+    return time.time()
+
+
 HANDLER_THREADS = 8                     # threads for this layer's endpoints, apart from the pool the MCP tools use
 
 
@@ -500,6 +509,57 @@ signed in). {memory}</p>
         reg.log("token_issued", client=self._client_label(client_id), grant="authorization_code")
         return self._answer(tokens, rec["family"] if secret else None, secret)
 
+    # n83: the overlap window on the rotation (docs/REFRESH-ROTATION.md). At each rotation the line keeps the hash of
+    # the secret just used (prev_hash), until when it counts (prev_until) and the answer just given (prev_answer). The
+    # answer is sealed twice: with a key derived from the old secret, which the server never stores, and with the
+    # server's key, whose associated data names the line, prev_hash and prev_until, so the end of the window cannot be
+    # moved without the seal failing. After prev_until it is never opened, and the next rotation overwrites it.
+    @staticmethod
+    def _answer_key(secret: str) -> bytes:
+        return hmac.new(secret.encode(), b"krusgraph refresh overlap answer", hashlib.sha256).digest()
+
+    def _seal_answer(self, family: str, old_secret: str, prev_hash: str, prev_until: int, answer: dict) -> str:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        nonce = secrets.token_bytes(12)
+        inner = reg.b64u(nonce + AESGCM(self._answer_key(old_secret)).encrypt(nonce, json.dumps(answer).encode(), family.encode()))
+        return self.keys.seal(f"family-answer:{family}:{prev_hash}:{prev_until}", {"a": inner})
+
+    def _replay(self, family: str, rec: dict, secret: str, client_id: str, when: str):
+        """The answer the line's last rotation gave, when `secret` is the one that rotation used, the window is still
+        open and the client is the line's own; None otherwise (nothing is opened then)."""
+        prev_hash, prev_until = rec.get("prev_hash"), rec.get("prev_until")
+        if not (isinstance(prev_hash, str) and isinstance(prev_until, int) and rec.get("prev_answer")):
+            return None                                           # a line written before n83, or never rotated
+        if _now() >= prev_until:
+            return None
+        if not hmac.compare_digest(rec.get("client_id", "").encode(), client_id.encode()) or \
+                not hmac.compare_digest(prev_hash, reg.sha256_hex(secret)):
+            return None
+        outer = self.keys.open(f"family-answer:{family}:{prev_hash}:{prev_until}", rec["prev_answer"])
+        if not outer:
+            return None
+        from cryptography.exceptions import InvalidTag
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+        try:
+            raw = reg.unb64u(outer["a"])
+            answer = json.loads(AESGCM(self._answer_key(secret)).decrypt(raw[:12], raw[12:], family.encode()))
+        except (InvalidTag, ValueError, TypeError, KeyError):
+            return None
+        if not hmac.compare_digest(reg.sha256_hex(answer.get("secret", "")), rec.get("hash", "")):
+            return None                                           # the line has moved on since: not the current answer
+        reg.log("refresh_replayed", client=self._client_label(client_id), when=when)
+        return self._answer({"access_token": answer["access_token"], "expires_at": answer["expires_at"]}, family, answer["secret"])
+
+    def _settled_by_another(self, family: str, secret: str, client_id: str, etag: str, when: str):
+        """After a lost race (an ETag conflict, or Entra refusing a refresh token another request has just redeemed):
+        read the line again. Returns (answer or None, moved): the other request's answer when it rotated from the
+        same secret inside the window, and whether the line changed since this request read it."""
+        again = self.store.get("family", family)
+        if not again:
+            return None, True
+        rec, now_etag = again
+        return self._replay(family, rec, secret, client_id, when), now_etag != etag
+
     def _refresh(self, form: dict, client_id: str, err):
         presented = form.get("refresh_token") or ""
         family, _, secret = presented.partition(".")
@@ -511,6 +571,9 @@ signed in). {memory}</p>
         rec, etag = found
         if not hmac.compare_digest(rec.get("client_id", "").encode(), client_id.encode()) or \
                 not hmac.compare_digest(rec.get("hash", ""), reg.sha256_hex(secret)):
+            replayed = self._replay(family, rec, secret, client_id, "retry")
+            if replayed:                                          # a retry inside the window: the same answer again
+                return replayed
             self.store.delete("family", family)          # an old or stolen token: the whole line ends here
             reg.log("refresh_reused", client=self._client_label(client_id))
             return err("invalid_grant", "the refresh token was already used or belongs to another client; sign in again")
@@ -524,6 +587,11 @@ signed in). {memory}</p>
         except EntraError as e:
             if e.code not in ENTRA_ERRORS_FINAL:                 # an outage: keep the line, the client tries again
                 return err("temporarily_unavailable", f"Microsoft Entra did not answer as expected ({e.code}); try again", 503)
+            replayed, moved = self._settled_by_another(family, secret, client_id, etag, "entra_refused")
+            if replayed:                                          # another request renewed it from the same secret
+                return replayed
+            if moved:                                             # renewed or ended by someone else: not ours to delete
+                return err("invalid_grant", "the refresh token was used by another request at the same moment; sign in again")
             self.store.delete("family", family)
             return err("invalid_grant", f"Microsoft Entra did not renew the sign-in ({e.code}); sign in again")
         except TokenError as e:
@@ -533,13 +601,22 @@ signed in). {memory}</p>
             self.store.delete("family", family)
             return err("invalid_grant", "the renewed token is for another user; sign in again")
         new_secret = secrets.token_urlsafe(32)
+        now = _now()
         until = int(rec.get("until") or time.time() + reg.FAMILY_TTL)
+        expires_at = int(tokens.get("expires_at") or now + int(tokens.get("expires_in") or 3600))
+        prev_hash, prev_until = reg.sha256_hex(secret), int(now) + REFRESH_OVERLAP
         updated = {**rec, "hash": reg.sha256_hex(new_secret),
-                   "rt": self.keys.seal("family:" + family, {"rt": tokens.get("refresh_token") or inner["rt"]})}
+                   "rt": self.keys.seal("family:" + family, {"rt": tokens.get("refresh_token") or inner["rt"]}),
+                   "prev_hash": prev_hash, "prev_until": prev_until,          # replaces the previous rotation's, if any
+                   "prev_answer": self._seal_answer(family, secret, prev_hash, prev_until, {
+                       "access_token": tokens["access_token"], "expires_at": expires_at, "secret": new_secret})}
         if not self.store.replace("family", family, updated, etag, ttl=max(60, until - int(time.time()))):
+            replayed, _ = self._settled_by_another(family, secret, client_id, etag, "conflict")
+            if replayed:                                          # the other request rotated from the same secret
+                return replayed
             return err("invalid_grant", "the refresh token was used by another request at the same moment; sign in again")
         reg.log("token_issued", client=self._client_label(client_id), grant="refresh_token")
-        return self._answer(tokens, family, new_secret)
+        return self._answer({**tokens, "expires_at": expires_at}, family, new_secret)
 
     def register(self, request, body):
         if self.register_limiter.check(client_ip(request), None):
