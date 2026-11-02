@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n89: `amount_levels` writes a factor only when it is true. The counting query also returns `min_lines`; where
+  every referenced header has the same number of lines (`min_lines` = `max_lines` > 1) the sum "comes out n times too
+  large", exactly; otherwise no factor, because the average number of lines is not the ratio of the sums (the SAP
+  example said "about 1.5 times" beside 1 950 against 750). `/check` shows the ratio from the two counted sums;
+  `validate_plan` still sums nothing. Unit-tested on synthetic data; not deployed.
 - Round n88: a negation such as "customers who have not placed any orders" or "haven't placed an order" gives an
   anti-join (NOT EXISTS), and a "not", "n't", "never", "inte", "ej" or "aldrig" no marker ties to a table gives no query
   and says so; `amount_levels` says no row is repeated today where every header has one line; lineage's note names
