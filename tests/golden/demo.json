@@ -1046,6 +1046,12 @@
       ],
       "on_map": false,
       "right": 1000.0,
+      "rows_per_header": {
+       "avg_lines": 2.0,
+       "headers": 1,
+       "headers_in_table": 1,
+       "max_lines": 2
+      },
       "wrong": 2000.0
      },
      "can_accept": false,
@@ -1074,6 +1080,12 @@
       ],
       "on_map": true,
       "right": 1666.6,
+      "rows_per_header": {
+       "avg_lines": 16.75,
+       "headers": 8,
+       "headers_in_table": 8,
+       "max_lines": 27
+      },
       "wrong": 22610.9
      },
      "can_accept": false,
@@ -1094,6 +1106,10 @@
     {
      "accepted": false,
      "can_accept": true,
+     "counted": {
+      "distinct_values": 15,
+      "rows_with_value": 60
+     },
      "evidence": "SELECT COUNT_BIG(*) AS with_value, COUNT_BIG(t.[address_id]) AS matched, COUNT_BIG(DISTINCT s.[ship_to_id]) AS distinct_values FROM [shop].[orders] AS s LEFT JOIN (SELECT DISTINCT [address_id] FROM [shop].[addresses]) AS t ON s.[ship_to_id] = t.[address_id] WHERE s.[ship_to_id] IS NOT NULL",
      "id": "sug:orders.ship_to_id>addresses",
      "kind": "suggestion",
@@ -1121,6 +1137,10 @@
     {
      "accepted": false,
      "can_accept": false,
+     "counted": {
+      "columns": 3,
+      "rows": 40
+     },
      "evidence": "names only",
      "id": "nokey:audit_log",
      "kind": "keyless",

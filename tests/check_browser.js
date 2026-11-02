@@ -22,6 +22,7 @@ const { chromium } = require("playwright");
     { name: "orders.csv", mimeType: "text/csv", buffer: Buffer.from("order_id,customer_id,amount\n1,1,10\n2,9,20\n") }]);
   await until(() => document.documentElement.dataset.check === "done");
   out.files_text = await page.textContent("#check-run");
+  out.files_coverage = await page.textContent("#check-coverage");
   // the page itself cannot send anything: a fetch with the marker is refused by its CSP
   out.page_fetch = await page.evaluate(async (m) => { try { await fetch("/x?" + m, { method: "POST", body: m }); return "sent"; } catch (e) { return "blocked"; } }, MARK);
   out.after_requests = out.requests.length;
@@ -47,6 +48,11 @@ const { chromium } = require("playwright");
     return { width: innerWidth, height: innerHeight, verdictTop: Math.round(v.top), verdictBottom: Math.round(v.bottom), topFindingBottom: Math.round(t.bottom),
              mostImportant: document.querySelector("#check-verdict .check-top").textContent, mapTop: Math.round(r("check-map").top) };
   });
+  // n75: the coverage line under the state, on the first screen with the finding, and a `checked` line per card
+  out.coverage = await page.evaluate(() => ({ line: document.getElementById("check-coverage").textContent,
+    onFirstScreen: document.getElementById("check-coverage").getBoundingClientRect().bottom <= innerHeight,
+    cards: document.querySelectorAll("#check-all .check-finding").length,
+    checked: [...document.querySelectorAll("#check-all .check-finding .check-checked")].map((p) => p.textContent) }));
   out.engine = await page.evaluate(() => { const d = document.getElementById("check-engine"); return { open: d.open, summary: d.querySelector("summary").textContent, steps: d.querySelectorAll("#check-steps li").length, stepsInside: d.contains(document.getElementById("check-steps")) }; });
   await page.focus("#check-engine summary"); await page.keyboard.press("Enter");
   out.engine.opened = await page.evaluate(() => document.getElementById("check-engine").open);

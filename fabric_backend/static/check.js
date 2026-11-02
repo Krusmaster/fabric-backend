@@ -295,7 +295,9 @@
     $("check-verdict").replaceChildren(
       el("p", { class: "check-state check-" + r.verdict.headline.state }, el("strong", null, r.verdict.headline.title),
         " · " + (n ? n + (n === 1 ? " thing" : " things") + " to check" : "nothing to check")),
-      top ? el("p", { class: "check-top" }, el("span", { class: "muted" }, "Most important: "), findingButton(top, "check-finding-link")) : el("p", { class: "muted" }, r.verdict.headline.text));
+      top ? el("p", { class: "check-top" }, el("span", { class: "muted" }, "Most important: "), findingButton(top, "check-finding-link")) : el("p", { class: "muted" }, r.verdict.headline.text),
+      // n75: how much the run counted in the rows, from the result itself (never a fixed sentence)
+      r.coverage && r.coverage.text ? el("p", { class: "muted tiny check-coverage", id: "check-coverage" }, r.coverage.text) : null);
     $("check-all").hidden = !r.tables.length && !n;
     $("check-all").open = false;
     $("check-all-sum").textContent = "Show all " + n + (n === 1 ? " finding" : " findings");
@@ -306,6 +308,7 @@
       el("p", { class: "check-finding-title" }, el("strong", null, findingButton(f, "check-finding-link"))),
       el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)), " ", f.severity),
       el("p", null, f.saw), el("p", { class: "muted" }, f.means), f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
+      f.checked ? el("p", { class: "muted tiny check-checked" }, f.checked) : null,           // n75: what the check read
       f.sql ? el("details", null, el("summary", null, "SQL to look for yourself"), el("pre", null, f.sql)) : null));
     $("check-findings").replaceChildren(...(r.findings.length ? list(r.findings) : [el("li", null, r.tables.length ? "Nothing the engine counts as wrong or unclear." : "Nothing could be read.")]));
     $("check-suggestions-h").hidden = !r.suggestions.length;

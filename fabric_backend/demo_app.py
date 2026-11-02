@@ -348,7 +348,8 @@ class Session:
                         "means": ("Every value exists in the target key and there are enough distinct values for that to mean something: " + s.get("why", "names and types fit.")
                                   if strength == "strong" else "Most values exist in the target key; a few do not. Likely a link with gaps, possibly a coincidence. " + s.get("why", "")),
                         "next": {"confirmed": s["confirmed"]}, "next_text": "Accept to add it as a confirmed relationship; Skip to leave the column alone. Accepted is your decision, not a verified fact.",
-                        "evidence": evidence.inclusion_sql(schema, s["source"], s["source_cols"][0], s["target"], s["target_cols"][0]), "strength": strength})
+                        "evidence": evidence.inclusion_sql(schema, s["source"], s["source_cols"][0], s["target"], s["target_cols"][0]), "strength": strength,
+                        "counted": {"rows_with_value": ev["rows_with_value"], "distinct_values": ev.get("distinct_values")}})   # n75: what the check read
         for c in self.confirmed:                                   # decided earlier on this page: stays visible under "decided"
             fid = f"sug:{c['source']}.{c['source_cols'][0]}>{c['target']}"
             if any(f["id"] == fid or f["id"] == f"amb:{c['source']}.{c['source_cols'][0]}>{c['target']}" for f in out):
@@ -377,7 +378,7 @@ class Session:
         for t in p.keyless:
             if any(f["table"] == t and f["kind"] == "composite_key" for f in out) or t in accepted_keys:
                 continue
-            cands = []
+            cands, rows, columns_counted = [], None, 0
             if self.source.has_data:
                 for c in p.schema[t].columns[:6]:
                     try:
@@ -385,8 +386,10 @@ class Session:
                     except Exception:                              # noqa: BLE001
                         continue
                     n, nulls, distinct = evidence._int(row.get("n")), evidence._int(row.get("nulls")), evidence._int(row.get("distinct_keys"))
+                    rows, columns_counted = n, columns_counted + 1               # n75: the rows the count read, for the finding
                     if n and nulls == 0 and distinct == n:
                         cands.append(c.name)
+            counted = {"rows": rows, "columns": columns_counted} if self.source.has_data else None
             if cands:
                 for c in cands[:2]:
                     out.append({"id": f"nokey:{t}.{c}", "kind": "key_candidate", "severity": "suggestion", "table": t,
@@ -394,13 +397,13 @@ class Session:
                                 "saw": f"No column is named like a key (rule K3). Counting {c}: every row has a value and no two rows share one.",
                                 "means": "A unique column can serve as the key even if its name does not say so. The engine does not take that step alone.",
                                 "next": {"keys": {t: [c]}}, "next_text": f"Accept to use {c} as the key of {t}.",
-                                "evidence": evidence.key_sql(schema, t, [c])})
+                                "evidence": evidence.key_sql(schema, t, [c]), "counted": counted})
             else:
                 out.append({"id": f"nokey:{t}", "kind": "keyless", "severity": "info", "table": t,
                             "title": f"{t} has no key", "saw": "No column is named like a key (rule K3)" + (", and none of the first six columns is unique." if self.source.has_data else "."),
                             "means": "The table can be listed and can point at others, but nothing can point at it. Logs and event tables are often like this, and that is fine.",
                             "next": {"sql": f"SELECT COUNT(*) AS n, COUNT(DISTINCT {evidence.qi(p.schema[t].column_names[0])}) AS distinct_first FROM {evidence.qi(schema)}.{evidence.qi(t)}"},
-                            "next_text": "If it does have a key, give it as `keys`.", "evidence": "names only"})
+                            "next_text": "If it does have a key, give it as `keys`.", "evidence": "names only", "counted": counted})
         for f in out:
             f["skipped"] = f["id"] in self.skipped
             f["accepted"] = ("confirmed" in f.get("next", {}) and (f["next"]["confirmed"]["source"], tuple(x.lower() for x in f["next"]["confirmed"]["source_cols"]), f["next"]["confirmed"]["target"]) in confirmed) \
@@ -428,7 +431,8 @@ class Session:
                         "next_text": f["do_instead"], "evidence": after[0],
                         # n53: /check's "Ask Onto" points at this relationship on the map and shows both sums
                         "amount": {"header": f["header"], "line": f["line"], "line_columns": f["line_columns"], "column": col,
-                                   "wrong": before.get("summed_over_lines"), "right": before.get("summed_per_header"), "on_map": True}})
+                                   "wrong": before.get("summed_over_lines"), "right": before.get("summed_per_header"), "on_map": True,
+                                   "rows_per_header": f.get("rows_per_header") if ba else None}})   # n75: what the count read
         if self.source.kind == "sample":
             d = amounts.demo()
             out.append({"id": "amt:demo", "kind": "amount_level", "severity": "warning", "table": "orders (synthetic example)",
@@ -440,7 +444,8 @@ class Session:
                                      "This example is two extra synthetic tables (fabric_backend.seed.AMOUNT_DEMO), not part of the shop's map.",
                         "evidence": d["sql_before"],
                         "amount": {"header": d["finding"]["header"], "line": d["finding"]["line"], "line_columns": d["finding"]["line_columns"],
-                                   "column": d["finding"]["amount_columns"][0], "wrong": d["before"], "right": d["after"], "on_map": False}})
+                                   "column": d["finding"]["amount_columns"][0], "wrong": d["before"], "right": d["after"], "on_map": False,
+                                   "rows_per_header": d["finding"].get("rows_per_header")}})
         return out
 
     def exports(self, p: Plan, validation: dict | None, qs: list[dict]) -> dict[str, tuple[str, str]]:

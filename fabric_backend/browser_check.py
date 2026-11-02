@@ -102,10 +102,83 @@ def _source(kind: str, files: list | None, text: str):
     return src, folder
 
 
-def _finding(f: dict) -> dict:
+def _finding(f: dict, validation: dict | None = None, has_data: bool = True) -> dict:
     return {"severity": f["severity"], "check": f["kind"], "rules": sorted(set(_RULE.findall(f.get("saw", "") + " " + f.get("title", "")))),
             "table": f["table"], "title": f["title"], "saw": f["saw"], "means": f["means"], "next": f.get("next_text", ""),
-            "sql": f.get("next", {}).get("sql", ""), "link": _link(f), "amount": f.get("amount")}
+            "sql": f.get("next", {}).get("sql", ""), "link": _link(f), "amount": f.get("amount"),
+            "checked": _checked(f, validation, has_data)}
+
+
+def _n(n, word: str) -> str:
+    return f"{n} {word}" + ("" if n == 1 else "s")
+
+
+def _checked(f: dict, validation: dict | None, has_data: bool) -> str:
+    """n75: how much of the rows the finding's check read, in the finding's own words, from the counts the engine
+    returned (validate_plan's per key and per relationship, suggest_relationships' per candidate, the keyless count).
+    Every count is over the whole table at the moment of the run; nothing here is assumed or hard-coded."""
+    if not has_data:
+        return "Not counted: a list of columns has no rows, so this rests on the names alone."
+    v = validation or {}
+    rows_of = {k["table"]: k["rows"] for k in v.get("keys", [])}
+    kind, table = f["kind"], f["table"]
+
+    def whole(source: str, with_value) -> str:
+        n = rows_of.get(source)
+        if n is not None:
+            return f"Checked on all {_n(n, 'row')} of {source}: {with_value} with a value."
+        return f"Checked on every row of {source} with a value: {with_value}."
+    if kind == "key":
+        k = next((k for k in v.get("keys", []) if k["table"] == table), None)
+        return f"Checked on all {_n(k['rows'], 'row')} of {table}." if k else "Not counted."
+    if kind == "relationship":
+        link = _link(f) or {}
+        r = next((r for r in v.get("relationships", []) if r["source"] == link.get("source") and r["target"] == link.get("target")
+                  and list(r["columns"]) == list(link.get("source_cols", []))), None)
+        return whole(r["source"], r["rows_with_value"]) if r else "Not counted."
+    if kind == "amount_level":
+        a = f.get("amount") or {}
+        rp = a.get("rows_per_header")
+        if not isinstance(rp, dict):
+            return "Not counted: the two sums could not be run on these rows."
+        if not a.get("on_map"):
+            return (f"Counted on all rows of the example's two tables: {_n(rp['headers'], a['header'] + ' row')} with "
+                    f"{_n(rp['max_lines'], a['line'] + ' row')}.")
+        return (f"Counted on all rows of {a['header']} and {a['line']}: {_n(rp['headers'], a['header'] + ' row')} with {a['line']} rows, "
+                f"at most {rp['max_lines']} each.")
+    if kind == "suggestion":
+        c = f.get("counted")
+        if not c:
+            return "Counted with the plan's relationships above once accepted."
+        link = _link(f) or {}
+        return whole(link.get("source", table), c["rows_with_value"])
+    if kind == "ambiguous":
+        return "Not counted: the name fits more than one table, and the engine does not count between targets; your decision is applied first."
+    if kind == "composite_key":
+        return "Not counted yet: accept it and the check counts whether it is unique."
+    if kind in ("key_candidate", "keyless"):
+        c = f.get("counted") or {}
+        if c.get("rows") is not None:
+            return f"Checked on all {_n(c['rows'], 'row')} of {table}: the first {_n(c['columns'], 'column')}."
+        return "Not counted."
+    return "Not counted."
+
+
+def _coverage(p, validation: dict | None, has_data: bool) -> dict:
+    """n75: how much of the plan the run counted in the rows, for the line under the state: every key and relationship
+    (validate_plan's default is enough for most schemas) or how many of them, from the result itself."""
+    keys, rels = len(p.keys), len(p.relationships) + len(getattr(p, "extended", []))
+    if not has_data:
+        return {"counted": False, "complete": False, "keys": 0, "keys_total": keys, "relationships": 0, "relationships_total": rels,
+                "text": "Nothing counted: a list of columns has no rows, so the plan is by names alone."}
+    if validation is None:
+        return {"counted": False, "complete": False, "keys": 0, "keys_total": keys, "relationships": 0, "relationships_total": rels,
+                "text": "Nothing counted: the check could not run on these rows (How the engine got here says why)."}
+    ck, cr = len(validation.get("keys", [])), len(validation.get("relationships", []))
+    complete = ck == keys and cr == rels
+    text = (f"Counted in the rows: all {_n(ck, 'key')} and all {_n(cr, 'relationship')} of the plan, each over the whole table."
+            if complete else f"Counted in the rows: {ck} of {_n(keys, 'key')} and {cr} of {_n(rels, 'relationship')}; the rest were not counted in this run.")
+    return {"counted": True, "complete": complete, "keys": ck, "keys_total": keys, "relationships": cr, "relationships_total": rels, "text": text}
 
 
 def _link(f: dict) -> dict | None:
@@ -211,8 +284,8 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
         t = time.perf_counter()
         session = Session(src)
         found = session.findings(p, validation, suggestions)
-        findings = [_finding(f) for f in found if f["severity"] in _SHOWN]
-        sugg = [_finding(f) for f in found if f["severity"] not in _SHOWN]
+        findings = [_finding(f, validation, src.has_data) for f in found if f["severity"] in _SHOWN]
+        sugg = [_finding(f, validation, src.has_data) for f in found if f["severity"] not in _SHOWN]
         for f in findings:                                         # n73: the finding names the example row it is about
             a = f.get("amount")
             ex = examples.get((a["header"], a["line"], a["column"])) if a else None
@@ -224,7 +297,7 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "source": {"kind": src.kind, "label": src.label, "has_data": src.has_data, "notes": src.notes},
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
-               "findings": findings, "suggestions": sugg, "domains": dom}
+               "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data)}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out

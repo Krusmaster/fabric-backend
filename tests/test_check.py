@@ -1,5 +1,6 @@
 """n38: /check, the engine in the visitor's browser (Pyodide) on files that are never uploaded."""
 import io
+import re
 import json
 import os
 import subprocess
@@ -23,6 +24,39 @@ def test_sample_gives_map_findings_and_the_five_states():
     assert "amount_level" in checks and "keyless" in checks
     assert any("K3" in f["rules"] for f in r["findings"])
     assert "%" not in r["verdict"]["headline"]["text"]
+
+
+def test_every_finding_says_how_much_of_the_rows_it_checked():
+    """n75: each finding carries a `checked` line read from the engine's own counts (validate_plan's rows per key and
+    rows with a value per relationship, suggest_relationships' rows, the keyless count, the rows per header of an amount),
+    and the result a `coverage` line for the run: every key and relationship, or how many of them; a columns list
+    says nothing was counted."""
+    from fabric_backend import evidence
+    from fabric_backend.infer import plan
+    r = bc.analyze("sample")
+    assert r["coverage"] == {"counted": True, "complete": True, "keys": 6, "keys_total": 6, "relationships": 6, "relationships_total": 6,
+                             "text": "Counted in the rows: all 6 keys and all 6 relationships of the plan, each over the whole table."}
+    by = {f["title"]: f["checked"] for f in r["findings"] + r["suggestions"]}
+    src, _ = bc._source("sample", None, "")
+    try:
+        v = evidence.validate(plan(src.schema), src.execute)
+    finally:
+        src.close()
+    rows = {k["table"]: k["rows"] for k in v["keys"]}
+    assert by["audit_log has no key"].startswith("Checked on all ") and by["audit_log has no key"].endswith(" rows of audit_log: the first 3 columns.")
+    assert by["Suggested: orders.ship_to_id → addresses.address_id"] == f"Checked on all {rows['orders']} rows of orders: {rows['orders']} with a value."
+    lp = next(f for f in v["amount_levels"]["findings"] if f["header"] == "products")["rows_per_header"]
+    assert by["products.list_price would be summed once per order_items row"] == \
+        f"Counted on all rows of products and order_items: {lp['headers']} products rows with order_items rows, at most {lp['max_lines']} each."
+    assert by["The total that doubles: order amount and line amount are different levels"] == \
+        "Counted on all rows of the example's two tables: 1 orders row with 2 order_lines rows."
+    for text in by.values():
+        assert not re.search(r"\b(?:all|every)\b.*\b(?:every|all)\b", text) or "whole" not in text    # one claim per line
+    crm = bc.analyze("crm")
+    assert crm["coverage"]["complete"] and all(f["checked"].startswith(("Checked on all ", "Counted on all rows of ")) for f in crm["findings"])
+    cols = bc.analyze("columns", text="orders.order_id\norders.customer_id\ncustomers.customer_id\naudit_log.x")
+    assert cols["coverage"]["counted"] is False and cols["coverage"]["text"].startswith("Nothing counted: a list of columns has no rows")
+    assert all(f["checked"] == "Not counted: a list of columns has no rows, so this rests on the names alone." for f in cols["findings"] + cols["suggestions"])
 
 
 def test_the_result_carries_domain_drafts_proposal_and_contracts():
@@ -157,6 +191,10 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert "Summed over the joined lines (order_lines)" in total and "Summed once per header (orders)" in total
     assert "2,000" in total and "1,000" in total and "amount_level" in total
     assert "rule K3" in r["ask"]["key"]["text"] and r["ask"]["key"]["lit"] == 1
+    # n75: the coverage line under the state and a `checked` line on every finding card, from the result
+    assert r["coverage"]["line"] == "Counted in the rows: all 6 keys and all 6 relationships of the plan, each over the whole table."
+    assert r["coverage"]["onFirstScreen"] and r["coverage"]["cards"] >= 4 and all(c.startswith(("Checked on all ", "Counted on all rows of ")) for c in r["coverage"]["checked"]), r["coverage"]
+    assert r["files_coverage"].startswith("Counted in the rows: all 2 keys and all 1 relationship of the plan") and "Checked on all 2 rows of orders: 2 with a value." in r["files_text"]
     assert "Yes, in Claude." in r["ask"]["own"]["text"] and "Connect" in r["ask"]["own"]["text"]
     assert all(a["expanded"] == "true" for a in r["ask"].values())
     assert r["ask_powerbi_focus"] == "check-model-h"
