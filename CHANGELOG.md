@@ -13,6 +13,16 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   runs `tools/third_party_notices.py --check --from-installed`: a stale `THIRD_PARTY_NOTICES.md` or an AGPL/SSPL
   dependency, now in the extras too, stops the build; `--from-installed` names a package's home page the way PyPI does,
   so both modes write the same file.
+- Round n83: a 60-second overlap window on the refresh-token rotation at `/mcp/connect` (`Layer._refresh`, the
+  proposal of `docs/REFRESH-ROTATION.md`): the refresh token just replaced, from the same client id, gets the same
+  answer again (no Entra call, no new rotation, `refresh_replayed` in the log), so a client's retry after a lost answer
+  no longer signs the user out; after the window, reuse ends the line as before. An ETag conflict, and a final Entra
+  refusal on a line another request has just renewed, answer with that request's answer instead of signing out or
+  deleting the line. The answer is kept encrypted in the line (with the server's key and a key derived from the
+  replaced token) and never opened after the window. The consequence, said in /privacy, `docs/CLIENT-REGISTRATION.md`,
+  `docs/TRUST.md`, `docs/RISK-REGISTER.md` (R9) and `docs/REFRESH-ROTATION.md`: a stolen old refresh token used within
+  60 seconds is not detected, and an encrypted access token now sits in the row after every refresh. Claude's path
+  through `/mcp` is unchanged. Tested against a mocked Entra and store only; not deployed.
 - Round n82: by Gustav's decision of 2 November 2026 VS Code and Cursor (verified by him) and Lovable (its flow ran live
   on 30 October 2026, `docs/LOVABLE-END-TO-END.md`) are **Tested end to end** in `tool_status.CLIENTS`, with the date in
   their notes; the Connect menu, the hub, /docs, /start, /lovable and the llms files follow, and "Experimental:" is gone

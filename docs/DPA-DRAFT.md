@@ -38,7 +38,7 @@ with `dry_run=false`, creates or updates items in the controller's Fabric worksp
 | The signed-in person's access token and the tokens exchanged on their behalf | the person's identity claims (object id, tenant id, name, e-mail as Entra issues them) | the controller's users | in memory until shortly before expiry; never written | `fabric_backend/entra.py`, `docs/SECURITY.md` |
 | Rate-limit counters | salted SHA-256 hashes of the user's object id and the tenant id | the controller's users | in memory, per replica | `fabric_backend/limits.py` |
 | Usage record per tool call | none about the person; optionally a salted hash of the tenant id | — | as the log retention setting says (30 to 730 days) or not stored | `fabric_backend/usage.py`, `deploy/azure_containerapp.py` |
-| Sign-in records for MCP clients other than Claude | the client's address, the Microsoft tokens of the sign-in (encrypted), Microsoft's refresh token (encrypted) | the controller's users who sign in from such a client | 10 minutes, 60 seconds, at most 90 days; deleted once used | `fabric_backend/registration_store.py`, `PRIVACY.md` |
+| Sign-in records for MCP clients other than Claude | the client's address, the Microsoft tokens of the sign-in (encrypted), Microsoft's refresh token (encrypted), after each renewal the answer given (a Microsoft access token and the next refresh token, encrypted) | the controller's users who sign in from such a client | 10 minutes, 60 seconds, at most 90 days; deleted once used; the answer to a renewal used for at most 60 seconds and overwritten at the next renewal | `fabric_backend/registration_store.py`, `PRIVACY.md` |
 
 The controller's Fabric tenant and the controller's own Entra sign-in logs are the controller's; the processor holds no
 copy.

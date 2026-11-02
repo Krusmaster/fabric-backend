@@ -113,7 +113,9 @@ two minutes before it expires. The server stores nothing on disk and never write
    `/mcp/connect`; every client shares that Entra app, so Krusgraph's own consent page per client (name, domain,
    redirect address) is the control against the confused deputy. It holds Entra's tokens encrypted for 60 seconds
    and Entra's refresh tokens encrypted for up to 90 days in Azure Table Storage, under one key of its own
-   (`KRUSGRAPH_REGISTRATION_KEY`). The access token a client gets is Entra's, so the server cannot tell which client
+   (`KRUSGRAPH_REGISTRATION_KEY`); since n83, after each refresh, also the answer it gave, encrypted, used for 60
+   seconds so that a retry gets the same answer. A stolen old refresh token used within those 60 seconds is not
+   detected (`docs/REFRESH-ROTATION.md`). The access token a client gets is Entra's, so the server cannot tell which client
    holds it or revoke one before it expires; loopback addresses can be claimed by any local program (the page warns).
    The full list of remaining risks is in `docs/CLIENT-REGISTRATION.md`. On at krusgraph.com since 27 October 2026
    (Glama, VS Code and Cursor signed in that day); off by default elsewhere.

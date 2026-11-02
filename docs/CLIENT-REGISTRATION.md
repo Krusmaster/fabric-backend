@@ -112,7 +112,9 @@ in both modes; tests lock it), and `https://<domain>/mcp/connect` names Krusgrap
 6. `POST /oauth/token`: for the code, the same client id, the same redirect address and the PKCE verifier, the client
    gets Entra's access token for this app (the same kind Claude holds) and a refresh token of this server's own. Entra's
    refresh token stays with the server, encrypted. A second use of a code revokes what the first got. Each refresh
-   rotates the token; an old one coming back ends the whole line.
+   rotates the token; an old one coming back ends the whole line, except that the token just replaced, from the same
+   client id within 60 seconds, gets the same answer again (n83, a retry after a lost answer;
+   `docs/REFRESH-ROTATION.md`).
 7. Next time, an approval for an **https** redirect address is remembered (180 days) and the page is skipped, but
    only for the same client, the same redirect address and the same client name, and the account that signs in at
    Entra must be the one that approved; otherwise the page is shown for that account. An approval for a program on
@@ -140,7 +142,7 @@ on eight threads of their own, apart from the threads the MCP tools use at `/mcp
 | txn | a sign-in on its way through Entra: the client's request, the Entra PKCE verifier, the browser binding's hash | 10 minutes, taken once |
 | code | Krusgraph's code: client, redirect, PKCE challenge, the user hash, Entra's tokens encrypted (AES-GCM) | 60 seconds, taken once |
 | used | that a code or a consent form was used | 10 minutes |
-| family | a refresh line: client, user hash, the hash of the current refresh token, Entra's refresh token encrypted | at most 90 days |
+| family | a refresh line: client, user hash, the hash of the current refresh token, Entra's refresh token encrypted; since n83 also the hash of the refresh token the last rotation replaced, the end of its window, and the answer that rotation gave (Entra's access token, its expiry and the new refresh token), encrypted with the server's key and a key derived from the replaced token | at most 90 days; the answer is used for at most 60 seconds and overwritten at the next rotation |
 | consent | user hash, client id, client name, the https redirect address, date (none for loopback addresses) | 180 days |
 
 No names, e-mail addresses, IP addresses or tokens in clear. The store is Azure Table Storage (one table, the
@@ -191,6 +193,16 @@ character, and the approval buttons armed after a second.
 - **A token says nothing about the client.** The access token is Entra's, for this app; the server cannot tell which
   client holds it and cannot revoke one client's access token before it expires (about an hour). Refresh lines can be
   ended: by the user's administrator in Entra, or by a new server key.
+- **The overlap window (n83).** Rotation detects a stolen refresh token when it and the owner's copy are both used.
+  Since n83 the token just replaced still gets the same answer for 60 seconds, from the same client id, so a retry
+  after a lost answer does not sign the user out. The consequence: a stolen old refresh token used within 60 seconds
+  of the owner's refresh is not detected. It gets the same tokens the owner just got (an access token that lasts about
+  an hour and the current refresh token), no new branch, and the line is not ended. Client ids are public (VS Code's
+  is a URL), so requiring the same client id does not stop a thief. Outside the window detection is as before: a
+  token presented more than 60 seconds after it was replaced ends the line. At rest the row holds one more encrypted
+  access token, and it does so after every refresh, not only at the first sign-in; after its 60 seconds it is not
+  opened again and stays until the next refresh overwrites it or the line ends. Tested against a mocked Entra and
+  store only (`tests/test_refresh_rotation.py`).
 - **Loopback impersonation.** Any program on the user's computer can use VS Code's client id and listen on a loopback
   port. The page warns ("Continue only if you started this sign-in … just now") and is shown at every sign-in to a
   local program; a user who clicks Allow for a program they did not start gives it a token. The specification accepts

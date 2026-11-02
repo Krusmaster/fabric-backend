@@ -1,6 +1,7 @@
 # Riskregister (internt)
 
-Åtta riskhypoteser för Krusgraph, skrivna 2 november 2026 (runda n76) från vad repot innehåller. Varje "befintlig
+Åtta riskhypoteser för Krusgraph, skrivna 2 november 2026 (runda n76) från vad repot innehåller, och en nionde (R9)
+tillagd samma dag i runda n83 med överlappsfönstret i refresh-rotationen. Varje "befintlig
 kontroll" pekar på en fil eller funktion i repot som belägg; en kontroll som bara finns i huvudet på någon står inte
 här. Sannolikhet och konsekvensgrad är **ej bedömt** överallt där inget underlag finns i repot (ingen incident, ingen
 kund, ingen mätning), och de fylls inte i för att en rad ska se grön ut. Ägare för allt är Gustav. Nästa granskning är
@@ -140,6 +141,22 @@ saknas.
 | Åtgärd | Regel för säljsamtal: ett nytt system blir ett pack (data) eller sägs nej till; ingen kundgren i motorn. Skriv regeln i `docs/PILOT.md` när nästa pilot tar form. |
 | Ägare | Gustav |
 | Nästa granskning | Efter den första piloten. |
+
+## R9 En stulen gammal refresh-token används inom överlappsfönstret
+
+| Fält | Innehåll |
+| --- | --- |
+| Typ | Produktrisk |
+| Orsak | Sedan n83 får den refresh-token som just ersattes samma svar igen i 60 sekunder, från samma klient-id, så att ett omförsök efter ett förlorat svar inte loggar ut användaren (`docs/REFRESH-ROTATION.md`). Klient-id:n är publika (VS Codes är en URL), så kravet på samma klient-id stoppar inte en tjuv. |
+| Händelse | Någon som har kommit över en refresh-token (en logg hos klienten, en kopierad konfigurationsfil, en angripare på användarens dator) använder den inom 60 sekunder efter ägarens förnyelse och får samma access-token (giltig ungefär en timme) och den aktuella refresh-token. **Det upptäcks inte**: linjen avslutas inte och ingen `refresh_reused` loggas, bara `refresh_replayed`, som ser ut som ett vanligt omförsök. |
+| Konsekvens | Tjuven kan anropa Fabric som användaren, med användarens behörigheter, och förnya vidare. Upptäckten kommer först när någon av dem visar en token mer än 60 sekunder efter att den ersattes; då avslutas linjen som förut. |
+| Område | MCP tools and errors (klientregistreringen, `registration_flow.py` `Layer._refresh`), Docs (`docs/CLIENT-REGISTRATION.md`, `docs/TRUST.md`, `docs/REFRESH-ROTATION.md`, /privacy). |
+| Sannolikhet | Ej bedömt. Ingen incident; fönstret är bara provat mot ett falskt Entra och en falsk lagring (`tests/test_refresh_rotation.py`). |
+| Konsekvensgrad | Ej bedömt; samma som en stulen refresh-token utan fönster, men utan upptäckt de första 60 sekunderna. |
+| Befintliga kontroller | Rotationen är kvar och återanvändning efter fönstret, eller mer än en rotation bakåt, avslutar linjen (`tests/test_refresh_rotation.py`, `test_after_the_window_the_old_token_ends_the_line_as_before`, `test_the_window_reaches_one_rotation_back_only`); fel klient-id får aldrig det sparade svaret och avslutar linjen (`test_another_client_id_never_gets_the_stored_answer_and_still_ends_the_line`); det sparade svaret är krypterat både med serverns nyckel och med en nyckel härledd ur den ersatta token, som tabellen inte har, och fönstrets slut ingår i det som förseglingen skyddar, så det öppnas aldrig efter fönstret (`test_after_the_window_the_stored_answer_is_never_opened_and_the_next_rotation_replaces_it`); ingen token i klartext i tabell eller logg (`test_no_token_in_clear_in_the_table_or_the_log`); en administratör kan dra tillbaka appen i Entra, vilket stoppar varje förnyelse. Claudes väg via `/mcp` berörs inte (`test_claude_s_path_through_mcp_is_unchanged_by_the_window`). |
+| Åtgärd | Läs loggarna efter driftsättning: `refresh_replayed` med `when` (`retry`, `conflict`, `entra_refused`) per klient. Många omspelningar från en klient som inte borde göra omförsök är ett skäl att korta fönstret eller ta bort det. |
+| Ägare | Gustav |
+| Nästa granskning | När Log Analytics behåller konsolraderna och en vecka av `refresh_replayed` kan läsas, eller vid nästa versionstagg. |
 
 ## Hur registret hålls levande
 

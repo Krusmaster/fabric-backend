@@ -1,9 +1,10 @@
 # Refresh-token rotation at /mcp/connect, and Glama's sign-out of 2 November 2026
 
-Round n82, an investigation: no code was changed. The tests that back each statement are in
-`tests/test_refresh_rotation.py`; they run against fake answers only (the mocked Entra and store of
-`tests/test_client_registration.py`, the fake `az` of `tests/test_azure_deployment.py`). No Azure, Entra, DNS or Fabric
-call was made, and no log was read: the logs are the maintainer's to read (the commands are at the end).
+Round n82 was an investigation (no code changed); round n83 (2 November 2026) implemented its proposal, the overlap
+window, in `Layer._refresh`. The tests that back each statement are in `tests/test_refresh_rotation.py`; they run
+against fake answers only (the mocked Entra and store of `tests/test_client_registration.py`, the fake `az` of
+`tests/test_azure_deployment.py`). No Azure, Entra, DNS or Fabric call was made, nothing was deployed, and no log was
+read: the logs are the maintainer's to read (the commands are at the end).
 
 ## What happened
 
@@ -12,7 +13,7 @@ section 4). On 2 November 2026, around 07:16 UTC, it changed to "Missing credent
 server ended this connection" (reported by Gustav). Glama's first message is Glama's own: it holds no usable access
 token, which is what a client says when a refresh was refused and it dropped its credentials.
 
-## How the rotation works today
+## How the rotation works (n83)
 
 `fabric_backend/registration_flow.py`, `Layer._refresh`, with the store in `fabric_backend/registration_store.py`:
 
@@ -21,38 +22,67 @@ token, which is what a client says when a refresh was refused and it dropped its
   sealed with the server's key (AES-GCM, `registration.Keys`). It lives at most 90 days from the first sign-in.
 - A refresh reads the line and its ETag, checks client id and hash, calls Entra with Entra's refresh token, checks the
   new access token, then replaces the line with a new secret's hash, on the condition that the ETag is unchanged.
-- A secret that does not match the stored hash deletes the line: "an old or stolen token, the whole line ends here".
-  An ETag conflict answers `invalid_grant` ("used by another request at the same moment") and leaves the line. A final
-  Entra answer (`invalid_grant`, `interaction_required` and others in `ENTRA_ERRORS_FINAL`) deletes the line; any other
-  Entra error is a 503 and the line stays. A store error is a 503.
+- **The overlap window** (`REFRESH_OVERLAP`, 60 seconds). The same write keeps `prev_hash` (the SHA-256 of the secret
+  just used), `prev_until` (now + 60 s) and `prev_answer`: Entra's access token, its expiry and the new secret, sealed
+  twice, first with a key derived from the secret just used (HMAC-SHA256 keyed with that secret, which the table does
+  not hold; its hash is a different value) and then with the server's key, whose associated data names the line,
+  `prev_hash` and `prev_until`. Moving `prev_until` in the table therefore breaks the seal. Each rotation overwrites the
+  three fields; a line written before n83 has none of them and works as before until its next rotation adds them.
+- A secret that matches `prev_hash` before `prev_until`, from the line's own client id, gets `prev_answer` again: no
+  Entra call, no write, no new branch, and `krusgraph.client_registration.refresh_replayed` with `when: retry` in the
+  log. The answer is given only if its new secret is still the line's current one, so the window reaches one rotation
+  back, never two.
+- Any other secret that does not match, that secret after `prev_until`, or any secret from another client id deletes
+  the line: "an old or stolen token, the whole line ends here" (`refresh_reused`), as before n83. The stored answer is
+  not opened in these cases.
+- An ETag conflict reads the line again: if the other request rotated from the same secret, this request answers with
+  the other's answer (`when: conflict`); otherwise `invalid_grant` ("used by another request at the same moment") and
+  the line stays.
+- A final Entra answer (`invalid_grant`, `interaction_required` and others in `ENTRA_ERRORS_FINAL`) reads the line
+  again before deleting it. If its ETag has moved, another request renewed (or ended) it: the request answers as for a
+  conflict (the other's answer when it rotated from the same secret, `when: entra_refused`, else `invalid_grant`) and
+  does not delete the line. If the ETag is unchanged the line is deleted, as before. Any other Entra error is a 503 and
+  the line stays. A store error is a 503.
 
 ## Answers, with the test behind each
 
-**The same refresh token twice, one after the other (a retry after a lost answer).** The whole line dies. The first
-request rotates RT1 to RT2 and answers; if that answer is lost (a cut connection, a replica that stops, a client that
-times out during a cold start and tries again), the retry with RT1 no longer matches, the line is deleted, and RT2,
-which the client never saw, is dead too. The client must sign in again.
-`test_a_retry_with_the_old_token_after_a_lost_answer_ends_the_whole_line`,
-`test_the_same_token_twice_in_quick_succession_ends_the_line_when_the_first_has_rotated`.
+**The same refresh token twice, one after the other (a retry after a lost answer).** Inside 60 seconds the retry gets
+the same answer, and the token it carries (RT2) goes on. Before n83 this ended the whole line.
+`test_a_retry_with_the_old_token_after_a_lost_answer_gets_the_same_answer_again`,
+`test_the_same_token_twice_in_quick_succession_gets_one_answer_and_the_line_lives`. After 60 seconds it ends the line
+as before: `test_after_the_window_the_old_token_ends_the_line_as_before`; two rotations back ends it at once:
+`test_the_window_reaches_one_rotation_back_only`.
 
-**The same refresh token twice, in parallel (both read before either writes).** It depends on Entra:
+**The same refresh token twice, in parallel (both read before either writes).**
 
-- If Entra accepts its refresh token a second time, one request wins the conditional write and the other gets
-  `invalid_grant` without deleting the line. The winner's token works. A client that keeps the loser's error and drops
-  the winner's token is signed out although the line is alive.
-  `test_parallel_with_an_entra_that_accepts_its_refresh_token_twice_one_wins_and_the_line_survives`.
-- If Entra redeems its refresh token once, the loser's Entra call is refused with `invalid_grant`, a final answer, and
-  the loser deletes the line, killing the winner's fresh token as well: both fail and the line is dead.
-  `test_parallel_with_an_entra_that_takes_its_refresh_token_once_both_fail_and_the_line_dies`.
+- If Entra accepts its refresh token a second time, one request wins the conditional write; the other reads the line
+  again and answers with the winner's answer. Both hold the same tokens and the line lives.
+  `test_parallel_with_an_entra_that_accepts_its_refresh_token_twice_the_loser_gets_the_winner_s_answer`.
+- If Entra redeems its refresh token once, the loser's Entra call is refused; the loser reads the line again, sees the
+  moved ETag and answers with the winner's answer instead of deleting the line.
+  `test_parallel_with_an_entra_that_takes_its_refresh_token_once_the_line_is_not_deleted`; a line that moved for
+  another reason is not deleted either: `test_an_entra_refusal_after_someone_else_changed_the_line_does_not_delete_it`.
   Which of the two Microsoft Entra does for this app was not verified here.
+- **Still open:** with an Entra that redeems once, if the loser's refusal comes back before the winner has written the
+  line, the loser sees an unchanged ETag and deletes the line, and the winner's write then fails. The window narrows
+  this race to the time between Entra's answer and the table write; it does not close it.
 
-**A store failure between Entra's answer and our write.** 503, and RT1 still matches; but Entra's new refresh token
-was not kept, so the retry sends Entra the one it has just redeemed. With an Entra that accepts it, the line renews;
-with one that does not, it dies. `test_a_store_failure_while_writing_the_rotation_is_a_503_and_the_retry_depends_on_entra`.
+**A store failure between Entra's answer and our write.** Not covered by the window, since nothing was written: 503,
+and RT1 still matches; Entra's new refresh token was not kept, so the retry sends Entra the one it has just redeemed.
+With an Entra that accepts it, the line renews; with one that does not, it dies.
+`test_a_store_failure_while_writing_the_rotation_is_a_503_and_the_retry_depends_on_entra`.
 
-**An Entra refusal and an Entra outage.** A refusal (its refresh token expired or revoked, a password change, a
-sign-in frequency policy, consent withdrawn) ends the line; an outage keeps it.
+**An Entra refusal and an Entra outage.** A refusal on a line nobody else touched (its refresh token expired or revoked,
+a password change, a sign-in frequency policy, consent withdrawn) ends the line; an outage keeps it.
 `test_an_entra_refusal_ends_the_line_and_an_outage_does_not`.
+
+**What the window must not give away.** Another client id never gets the stored answer and still ends the line
+(`test_another_client_id_never_gets_the_stored_answer_and_still_ends_the_line`); no token in clear in the table or the
+log, and the server's key alone does not open the stored answer (`test_no_token_in_clear_in_the_table_or_the_log`);
+after the window the stored answer is not opened, a stretched `prev_until` breaks the seal, and the next rotation
+overwrites it (`test_after_the_window_the_stored_answer_is_never_opened_and_the_next_rotation_replaces_it`); rows
+without the new fields work (`test_a_line_written_before_the_window_still_works`); Claude's path through `/mcp` is
+unchanged (`test_claude_s_path_through_mcp_is_unchanged_by_the_window`).
 
 **A deployment: the rows and the key.**
 
@@ -82,7 +112,9 @@ which adds the admin-consent page to the callback and does not touch `/oauth/tok
 not `/oauth/token`; it matters only if it was deployed, and then through the new revision (the lost-answer case), not
 through its code. Deployments are not in git: whether one ran near 07:16 UTC is in Azure.
 
-## Causes, ranked
+## Causes, ranked (n82)
+
+Since n83 the window answers causes 1 and 2 (except the race left open above); 3, 4 and 5 are unchanged.
 
 1. **Reuse detection after a lost answer or a double send** (most likely). The mechanism is proven by the tests; that
    it happened is not. It fits "The server ended this connection" and a client that then says it has no token. Triggers
@@ -102,32 +134,32 @@ through its code. Deployments are not in git: whether one ran near 07:16 UTC is 
 5. **Lost rows.** Ruled out for the hosted service by the code: Table Storage, a purge that touches only expired rows.
    It would need someone deleting the table or its rows.
 
-## Proposal for Gustav (not implemented)
+## The overlap window (n82's proposal, implemented in n83)
 
-An overlap window on the rotation, 60 seconds, as a change to `Layer._refresh` with tests:
-
-- At each rotation keep, in the line, the hash of the secret just used (`prev_hash`), until when it counts
-  (`prev_until`, now + 60 s), and the answer just given, sealed with the server's key like Entra's token already is
-  (`prev_answer`: access token, expiry, new secret).
-- A secret that matches `prev_hash` before `prev_until`, from the same client id: answer `prev_answer` again. No Entra
-  call, no new rotation, no new branch of the line; log `refresh_replayed`. After the window, reuse ends the line as
-  today.
-- An ETag conflict: read the line again; if the other request rotated from the same secret, answer its `prev_answer`
-  instead of `invalid_grant`.
-- An Entra refusal: before deleting, read the line again; if its ETag has moved since this request read it, another
-  request has rotated it, so answer as for a conflict instead of deleting the line someone else just renewed.
-
-That covers causes 1 and 2 and the store failure. Two smaller steps beside it: `min_replicas` 1 removes the cold starts
-that make clients retry (it costs one replica always on), and `log_analytics_workspace` keeps the console lines, so
-the next case can be answered from logs.
+n82 proposed the window as described under *How the rotation works (n83)*; n83 implemented it as proposed, with one
+addition (the stored answer is also sealed with a key derived from the replaced secret) and one correction: the
+proposal said the window covers the store failure, and it does not (above). Two smaller steps beside it remain
+proposals: `min_replicas` 1 removes the cold starts that make clients retry (it costs one replica always on), and
+`log_analytics_workspace` keeps the console lines, so the next case can be answered from logs.
 
 **Security consequence.** Rotation exists so that a stolen refresh token is detected when the thief or the owner uses
-it a second time. With the window, a stolen old token used within 60 seconds of the owner's refresh is not detected:
-it gets the same tokens the owner just got (an access token that lasts about an hour and the current refresh token),
-not a new branch, and only with the client id the line belongs to. Outside the window detection is as today. The cost
-at rest is one more sealed access token per line for 60 seconds. Rotation itself stays, as the MCP authorization
-specification requires for public clients (`docs/CLIENT-REGISTRATION.md`). Without a window, a dropped answer signs
-the user out, which is what the tests show today.
+it a second time. With the window, **a stolen old refresh token used within 60 seconds of the owner's refresh is not
+detected**: it gets the same tokens the owner just got (an access token that lasts about an hour and the current
+refresh token), not a new branch, and the line is not ended; the log shows `refresh_replayed`, which looks like an
+ordinary retry. The same client id is required, but client ids are public (VS Code's is a URL), so that does not stop
+a thief. Outside the window detection is as before: a token presented more than 60 seconds after it was replaced ends
+the line. Rotation itself stays, as the MCP authorization specification requires for public clients
+(`docs/CLIENT-REGISTRATION.md`). Recorded as R9 in `docs/RISK-REGISTER.md`.
+
+**At rest.** Every line that has been refreshed holds one more encrypted access token (and the encrypted current refresh
+token), at every refresh, not only at the first sign-in: this is outside what was collected before n83 (the code's
+60 seconds and Entra's refresh token). It is usable for at most 60 seconds; after that it is never opened, and it stays
+in the row, encrypted, until the next refresh overwrites it or the line ends (at most 90 days). /privacy,
+`docs/CLIENT-REGISTRATION.md`, `docs/TRUST.md` and `docs/DPA-DRAFT.md` say so.
+
+**Not verified.** Everything above is tested against a mocked Entra and an in-memory store. How Microsoft Entra treats
+a refresh token sent twice, how Table Storage behaves under two replicas racing, and whether Glama's sign-out had the
+cause the window addresses are not verified; nothing was deployed.
 
 ## For Gustav: reading the logs (by hand; nothing here was run)
 
@@ -150,4 +182,5 @@ ContainerAppConsoleLogs_CL
 ```
 
 Then Entra's sign-in log (Microsoft Entra admin center, Sign-in logs, non-interactive, filtered to the app) for
-07:00–07:30 UTC. Whatever the cause, Glama's line is gone now: Glama signs in again from its connector.
+07:00–07:30 UTC. Whatever the cause, Glama's line is gone now: Glama signs in again from its connector. After deployment,
+`refresh_replayed` with its `when` field shows how often the window is used and by which client.
