@@ -222,6 +222,8 @@ def rest_items(workspace: str, headers: dict) -> list[dict]:
 
 def _definition_response(url: str, headers: dict):
     import requests
+    import importlib
+    _deploy = importlib.import_module(__package__ + ".deploy")      # the module (the package also exports a function named deploy)
     from .deploy import FABRIC, wait_operation
     r = requests.post(url, headers=headers, timeout=60)
     status = getattr(r, "status_code", 200)
@@ -233,7 +235,9 @@ def _definition_response(url: str, headers: dict):
             why = ": ".join(str(x) for x in (err.get("errorCode"), err.get("message")) if x)
             why = why or (f"HTTP {result['http']} while waiting for it" if result.get("http") else "")
             raise RuntimeError(f"reading the definition did not finish: {result.get('status')}" + (f" ({why})" if why else ""))
-        r = requests.get(f"{FABRIC}/v1/operations/{op}/result", headers=headers, timeout=60)
+        # n87: the result is a read, sent as deploy.py sends reads (round n81): a 429 or 503 is asked again after
+        # Retry-After (or a short backoff) within a budget; every other answer comes back as it is
+        r = _deploy.send("get", f"{FABRIC}/v1/operations/{op}/result", headers, write=False, budget=_deploy.Budget(60), timeout=60)
         status = getattr(r, "status_code", 200)
     if status >= 400:
         r.raise_for_status()
