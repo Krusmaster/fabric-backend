@@ -39,7 +39,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | n74 (the dependabot PRs 7–12, grouped monthly dependabot updates merged after green CI) |
-| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | n77 (a manifest per pack, `packs/<name>/manifest.yaml`, its JSON Schema and loader, the cross-check test, `docs/PACKS.md`) |
+| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n76 (trust, risk and licences: docs/RISK-REGISTER.md, docs/TRUST.md, docs/ISO27001-SELF-ASSESSMENT.md, THIRD_PARTY_NOTICES.md with its script in tools/, the "Reusing external code" section here, docs/ECOSYSTEM-WATCHLIST.md, docs/COMPANION-MCP.md) |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
