@@ -220,13 +220,33 @@ def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Diale
     q = dialect.quote
     cs = ", ".join(q(c) for c in cols)
     not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in cols)
-    found = ""
+    grouped = f"(SELECT {cs}, {dialect.count}(*) AS n FROM {dialect.table(schema, line)} WHERE {not_null} GROUP BY {cs}) AS g"
     if header and header_cols:
+        # n87: the EXISTS is worked out per group first and summed one level up; SQL Server refuses an aggregate over a
+        # subquery (error 130), which is what the SUM(CASE WHEN EXISTS ...) of earlier rounds was
         on = " AND ".join(f"h.{q(b)} = g.{q(a)}" for a, b in zip(cols, header_cols))
-        found = (f", SUM(CASE WHEN EXISTS (SELECT 1 FROM {dialect.table(schema, header)} AS h WHERE {on}) "
-                 f"THEN 1 ELSE 0 END) AS headers_in_table")
-    return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MAX(n) AS max_lines{found} "
-            f"FROM (SELECT {cs}, {dialect.count}(*) AS n FROM {dialect.table(schema, line)} WHERE {not_null} GROUP BY {cs}) AS g")
+        flagged = (f"(SELECT g.n, CASE WHEN EXISTS (SELECT 1 FROM {dialect.table(schema, header)} AS h WHERE {on}) "
+                   f"THEN 1 ELSE 0 END AS in_header FROM {grouped}) AS f")
+        return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * f.n) AS avg_lines, MAX(f.n) AS max_lines, "
+                f"SUM(f.in_header) AS headers_in_table FROM {flagged}")
+    return f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MAX(n) AS max_lines FROM {grouped}"
+
+
+def readable_count_error(e: BaseException) -> str:
+    """A failed counting query in plain words: the endpoint's own message without the driver's prefixes, SQLSTATE and
+    call name, with SQL Server's error number when there is one."""
+    import re
+    text = str(e).strip()
+    wrapped = re.match(r"^\(\s*'[0-9A-Z]{5}'\s*,\s*['\"](.*)['\"]\s*\)$", text, re.S)     # pyodbc: ('42000', '[42000] [...]...')
+    if wrapped:
+        text = wrapped.group(1)
+    text = re.sub(r"\(SQL\w+\)", "", re.sub(r"\[[^\]]*\]", "", text))                  # driver prefixes, the call name
+    code = re.search(r"\((\d{2,6})\)", text)
+    msg = " ".join(re.sub(r"\(\d{2,6}\)", "", text).split()).strip(" .;")
+    code = code.group(1) if code else ""
+    msg = msg[:300]
+    return ("the SQL endpoint refused the counting query" + (f" (SQL Server error {code})" if code else "")
+            + (f": {msg}" if msg else "") + "; the rows per header are not known")
 
 
 def _explain(f: dict, counts: dict | None, label=None) -> str:
@@ -265,14 +285,24 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
                 if row.get("headers_in_table") is not None:
                     counts["headers_in_table"] = int(row["headers_in_table"])
             except Exception as e:                                       # noqa: BLE001 - one failed count never hides the finding
-                f["count_error"] = f"{type(e).__name__}: {e}"
+                f["count_error"] = readable_count_error(e)
         f["rows_per_header"] = counts if counts and counts["headers"] else "unknown"
         f["explanation"] = _explain(f, counts, plan.label)
         f["do_instead"] = (f"Aggregate {', '.join(f['amount_columns'])} on {f['header']} (one row per {f['header']}) and join the "
                            f"result, or sum a {f['line']} amount; never SUM({f['header']}.{f['amount_columns'][0]}) over {f['line']} rows.")
     repeated = [f for f in found if isinstance(f["rows_per_header"], dict) and f["rows_per_header"]["max_lines"] > 1]
-    summary = (f"{len(found)} header amount(s) that a join with their line rows would repeat"
-               + (f"; {len(repeated)} with more than one line per header in the data" if execute is not None else "; rows per header unknown (no rows counted)")
+    failed = [f for f in found if "count_error" in f]
+    counted_ok = [f for f in found if isinstance(f["rows_per_header"], dict)]
+    if execute is None:
+        counts = "; rows per header unknown (no rows counted)"
+    elif failed and not counted_ok:                                  # never a 0 for counts that did not run
+        counts = (f"; {len(failed)} could not be counted, so whether a header has more than one line in the data is not "
+                  f"known ({failed[0]['count_error']})")
+    else:
+        counts = (f"; {len(repeated)} of {len(counted_ok)} counted with more than one line per header in the data"
+                  + (f"; {len(failed)} could not be counted ({failed[0]['count_error']})" if failed else "")
+                  if failed else f"; {len(repeated)} with more than one line per header in the data")
+    summary = (f"{len(found)} header amount(s) that a join with their line rows would repeat" + counts
                if found else "no header table with an amount column that a line table points at")
     return {"summary": summary, "rule": RULE, "findings": found,
             "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. "
