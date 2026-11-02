@@ -272,6 +272,10 @@
             "type": "string",
             "description": "A Swedish name, for packs of systems documented in Swedish (Younium). Optional."
           },
+          "common_name": {
+            "type": "boolean",
+            "description": "The table's name is an ordinary word that another system's table can carry too (ACCOUNTS, INVOICES, Contact). sap_pack.match_any, which the engine calls, takes a pack only when at least one of the tables it recognises is not marked so: a schema with a few tables called accounts, products and invoices is not read as Younium. Absent means false (every SAP table name is the system's own)."
+          },
           "area": {
             "type": "string",
             "minLength": 1,
