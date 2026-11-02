@@ -19,6 +19,21 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   status), read without a YAML library; nothing else in a tool's answer changes. `docs/PACKS.md` describes the format,
   how a pack is added (public sources, synthetic fixtures, never customer data), the review step, and what a pack is
   beside a connector and a finished analysis. The benchmark table is unchanged.
+- Round n75: the sales path's last P1 items and the coverage lines. The home page offers two paths after the demo card:
+  "Try it yourself" (`/check` and the Connect chooser) and "Get help with one number" (`/partners`), one sentence each and
+  no new promise. `/partners` separates the first assessment (you describe one question, one data area and what the
+  number is compared with; the answer is one of five words: ready to start, a business question must be decided, material
+  missing, access missing, not supported) from the pilot ("Bring one number your team cannot agree on": the plan, the
+  checks, the explanation of the number, a reviewed model, the contract and the hand-over; accepted when the number is
+  explained with evidence, every relationship has a rule or a decision and the model opens in Power BI Desktop and
+  refreshes in Fabric; the customer's part is one data owner with read access; "Quoted after a 30-minute scoping call;
+  invoiced.", no amounts), and shows an illustrative delivery on synthetic data whose figures are the engine's own run
+  of `seed.AMOUNT_DEMO` (`amounts.demo`), not typed into the page; `/pricing` carries the same price sentence. Coverage:
+  every finding card on `/check` says how much of the rows its check read, from the result itself ("Checked on all 60
+  rows of orders: 60 with a value", "Counted on all rows of products and order_items: …", "Not counted: a list of columns
+  has no rows"), a line under the state says whether every key and relationship of the plan was counted, and the docs'
+  `plan_backend` and `validate_plan` sentences carry R5's sample and query budget and `validate_plan`'s default
+  `max_items` read from `server.py`. The Fabric IQ FAQ n73 put on `/docs` was checked and left as it is.
 - Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
   line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
   status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got
