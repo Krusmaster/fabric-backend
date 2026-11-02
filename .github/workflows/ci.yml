@@ -23,7 +23,7 @@ jobs:
       # of this job (25.9 MB in 9 minutes on 26 October 2026, while the browsers downloaded in 6 seconds).
       - run: npm install --no-save "playwright@$PLAYWRIGHT_VERSION"
       - id: browsers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with: { path: ~/.cache/ms-playwright, key: "playwright-${{ runner.os }}-${{ env.PLAYWRIGHT_VERSION }}" }
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: npx playwright install chromium
