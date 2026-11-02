@@ -38,7 +38,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n75 (the two paths on the home page, first assessment vs pilot and an illustrative delivery on /partners, the coverage lines on /check and in the docs, the Fabric IQ FAQ check) |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
-| Deployment | `deploy/`, `Dockerfile`, `.github/` | n74 (the dependabot PRs 7–12, grouped monthly dependabot updates merged after green CI) |
+| Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n76 (trust, risk and licences: docs/RISK-REGISTER.md, docs/TRUST.md, docs/ISO27001-SELF-ASSESSMENT.md, THIRD_PARTY_NOTICES.md with its script in tools/, the "Reusing external code" section here, docs/ECOSYSTEM-WATCHLIST.md, docs/COMPANION-MCP.md) |
 
