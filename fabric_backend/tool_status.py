@@ -299,14 +299,18 @@ class ClientStatus:
 
 
 CONNECT_NOTE = "client registration is switched on at krusgraph.com since 27 October 2026"
+# n80: the one-click buttons on the site's Connect menu, checked by Gustav on 2 November 2026: each button works in its
+# client. Only that: the button, not a new sign-in or run through it.
+BUTTONS_VERIFIED = "2 November 2026"
+BUTTON_NOTE = "the {button} button on the site's Connect menu works in {client} (verified by Gustav on " + BUTTONS_VERIFIED + ")"
 CLIENTS = (
     ClientStatus("Claude", "hosted, via /mcp (the connector)", "/mcp", "Tested end to end", "26 October 2026",
                  "the live runs of 26 and 27 October 2026"),
     ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
-                 CONNECT_NOTE),
+                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to VS Code", client="VS Code")),
     ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE + "; not tried yet"),
     ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
-                 CONNECT_NOTE),
+                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to Cursor", client="Cursor")),
     ClientStatus("Glama", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
                  CONNECT_NOTE + "; signed in with its client ID metadata document, connection test Healthy, 27 October 2026"),
     ClientStatus("Lovable", "via the GraphQL API that create_backend makes", "", "Experimental",

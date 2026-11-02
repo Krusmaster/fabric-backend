@@ -119,12 +119,16 @@ Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash
 | VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | works (the maintainer) | 27 October 2026 |
 | Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | works (the maintainer) | 27 October 2026 |
 | Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | works: Glama identified itself with its client ID metadata document; its connection test "Healthy" at 17:59 | 27 October 2026 |
+| VS Code: the *Add to VS Code* button | the button on the site's Connect menu (*Other clients*) | VS Code opens and offers to add the server | works in VS Code (Gustav) | 2 November 2026 |
+| Cursor: the *Add to Cursor* button | the button on the site's Connect menu (*Other clients*) | Cursor opens its install dialog for the server | works in Cursor (Gustav) | 2 November 2026 |
 | Lovable (custom MCP) | add `https://krusgraph.com/mcp/connect` as a custom MCP connector in Lovable (OAuth), from a phone | Microsoft sign-in through Krusgraph's OAuth (dynamic client registration), then the tools in Lovable's chat | works: signed in with Entra and ran `plan_backend`, `validate_plan`, `create_backend`, `create_semantic_model` and `create_report` against `demo` (section 6) | 30 October 2026 |
 
 28 October 2026: VS Code, Cursor and Glama work through `/mcp/connect` (the rows above); they stay *Experimental* for
 now in `fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and the start page follow. 30 October 2026:
 Lovable too, as a custom MCP connector; it stays *Experimental* as well, with its own row in `CLIENTS` next to the row
-for the GraphQL API it reads.
+for the GraphQL API it reads. 2 November 2026: Gustav verified that the *Add to VS Code* and *Add to Cursor* buttons on the
+site's Connect menu work in their clients (the two rows above); that is all the rows say, and `tool_status.CLIENTS`
+carries the same sentence in both clients' notes.
 | Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
 | Deny | choose Deny on the page once | the client reports access denied | | |
 
