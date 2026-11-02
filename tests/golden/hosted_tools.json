@@ -6328,11 +6328,11 @@
  {
   "answer": {
    "assumptions": [
-    "no count, sum or average named: the rows are counted per group"
+    "no value column: none of order_items, categories has an amount, and summing order_items.quantity would add up items, not value. Offered instead, and labelled as such: quantity × products.list_price per order_items row (through order_items.product_id → products, R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one."
    ],
    "graphql": {
     "api": "shop_api",
-    "not_possible": "Fabric's API for GraphQL groups only by a table's own columns, and categories is more than one many-to-one step from order_items; the T-SQL answers it"
+    "not_possible": "the value is computed (quantity × a price on another table), and Fabric's GraphQL aggregations sum one column of one type; the T-SQL answers it"
    },
    "path": [
     {
@@ -6363,13 +6363,18 @@
    "starts_at": "order_items",
    "tables": [
     "order_items",
-    "categories"
+    "categories",
+    "products"
    ],
-   "tsql": "SELECT t2.[id], t2.[name], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[products] AS t1 ON t0.[product_id] = t1.[product_id]\nJOIN [shop].[categories] AS t2 ON t1.[category_id] = t2.[id]\nGROUP BY t2.[id], t2.[name]\nORDER BY [order_items_count] DESC",
+   "tsql": "SELECT t2.[id], t2.[name], SUM(t0.[quantity] * t1.[list_price]) AS [order_amount_from_quantity_x_list_price]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[products] AS t1 ON t0.[product_id] = t1.[product_id]\nJOIN [shop].[categories] AS t2 ON t1.[category_id] = t2.[id]\nGROUP BY t2.[id], t2.[name]\nORDER BY [order_amount_from_quantity_x_list_price] DESC",
    "understood": {
-    "aggregate": "count",
-    "count_assumed": true,
+    "aggregate": "sum",
     "group_table": "categories"
+   },
+   "value_column": {
+    "found": false,
+    "offered": "quantity × products.list_price (quantity × price, computed: not a stored value)",
+    "said": "no value column: none of order_items, categories has an amount, and summing order_items.quantity would add up items, not value. Offered instead, and labelled as such: quantity × products.list_price per order_items row (through order_items.product_id → products, R1). The price comes from products.list_price, one row per products, as it stands at query time: a list price, not the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one."
    }
   },
   "args": {

@@ -35,6 +35,9 @@ SUM = ("total\\w*", "sum", "sums", "summa\\w*", "sammanlag\\w*")
 AVG = ("average\\w*", "mean", "genomsnitt\\w*", "snitt\\w*", "medel\\w*")
 MOST = ("most", "flest", "fewest", "minst")
 LATEST = ("latest", "newest", "most recent", "senaste", "nyaste")
+# n87: a value is asked for ("order value", "revenue", "ordervärde", "omsättning"): a quantity is not one
+VALUE = ("value\\w*", "worth", "revenue\\w*", "amount\\w*", "turnover", "\\w*värde\\w*", "\\w*varde\\w*", "belopp\\w*",
+         "omsättning\\w*", "omsattning\\w*", "intäkt\\w*", "intakt\\w*", "försäljning\\w*", "forsaljning\\w*")
 GROUP = ("for each", "for every", "per", "by", "för varje", "for varje", "för var", "efter", "fördelat på", "fordelat pa", "grouped by", "grupperat på")
 _RANK = (r"top|topp|first|första|forsta|largest|biggest|highest|most|flest|största|storsta|högsta|hogsta|which|what|vilka|vilken|show|visa|"
          r"list|lista|latest|newest|senaste|nyaste")
@@ -225,6 +228,8 @@ def _understand(question: str, plan: Plan, tables: list[str]) -> dict:
     everything = [t.name for t in plan.schema]
     without, without_columns, unread = _negations(q, plan, tables, everything)
     aggregate = "count" if _has(q, COUNT) else "avg" if _has(q, AVG) else "sum" if _has(q, SUM) else None
+    if aggregate is None and _has(q, VALUE) and any(_has(q, (m,)) for m in GROUP):
+        aggregate = "sum"                                     # "revenue per category": a value per group is a sum, not a count
     if aggregate is None and _has(q, MOST):
         aggregate = "count"                                   # "which customers have the most orders": a count per customer
     top = None
@@ -299,7 +304,8 @@ def _understand(question: str, plan: Plan, tables: list[str]) -> dict:
             "group_column": list(group_column) if group_column else None, "counted": counted, "measure": list(measure) if measure else None,
             "columns_named": mentioned, "not_used": unused, "count_assumed": assumed_count,
             "without": without, "without_columns": without_columns, "with": [],
-            "subject": _first_named(q, tables, without) if (without or without_columns) else None, "unread": unread}
+            "subject": _first_named(q, tables, without) if (without or without_columns) else None, "unread": unread,
+            "value_asked": aggregate in ("sum", "avg") and measure is None and _has(q, VALUE)}
 
 
 def _label(plan: Plan, t: str) -> str:
@@ -347,6 +353,31 @@ def _personal(plan: Plan, show: bool) -> dict[tuple[str, str], dict]:
     return {} if show else privacy.personal_columns(plan.schema)
 
 
+def _value_source(plan: Plan, tables: list[str], u: dict) -> dict:
+    """Where the value a question asks for comes from: an amount column of the given tables ({"amount": [t, c]}), else
+    quantity × a price the plan reaches (amounts.order_amount_measures: {"table", "column", "dimension", "price", ...}),
+    else {"not_found": why}. A quantity is never summed as a value."""
+    from . import amounts
+    pack_amounts = {a["column"].lower() for a in ((getattr(plan, "pack", None) or {}).get("amounts") or []) if isinstance(a, dict) and a.get("column")}
+    line_first = sorted(tables, key=lambda t: 0 if t == _grain(plan, tables) else 1)
+    for t in line_first:
+        for c in plan.schema[t].column_names:
+            typ = _type(plan.schema[t], c)
+            if typ in NUMERIC and (amounts.looks_like_amount(c, typ) or c.lower() in pack_amounts):
+                return {"amount": (t, c)}
+    for m in amounts.order_amount_measures(plan)["measures"]:
+        if m["table"] in tables:
+            said = (f"no value column: none of {', '.join(tables)} has an amount, and summing {m['table']}.{m['column']} would add "
+                    f"up items, not value. Offered instead, and labelled as such: {m['column']} × {m['dimension']}.{m['price']} "
+                    f"per {m['table']} row (through {m['table']}.{m['via']} → {m['dimension']}, {m['rule']}). {m['price_note']}")
+            said = said.replace("a list price, not necessarily the price paid", "a list price, not the price paid")
+            return {"table": m["table"], "column": m["column"], "dimension": m["dimension"], "price": m["price"], "via": m["via"],
+                    "rule": m["rule"], "name": m["name"], "said": said,
+                    "offered": f"{m['column']} × {m['dimension']}.{m['price']} (quantity × price, computed: not a stored value)"}
+    return {"not_found": f"no value column: none of {', '.join(tables)} has an amount, and no price is in reach to multiply a "
+                         "quantity by; summing a quantity would answer a different question. Name the column to sum"}
+
+
 def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool = False) -> dict:
     names = {t.name.lower(): t.name for t in plan.schema}
     missing = [t for t in tables if t.lower() not in names]
@@ -371,13 +402,22 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
         if plan.keys.get(t):                                  # group by the row the personal column belongs to, by its key
             u["group_table"] = t
     schema = plan.schema.schema
+    value = _value_source(plan, tables, u) if u.get("value_asked") else None
+    if value and value.get("not_found"):
+        u["unread"].append(value["not_found"])
     if u["unread"]:                                           # a negation that names nothing: no query, never another question
         return {"understood": u, "root": None, "tables": tables, "measure": None, "path": [], "sql": None, "assumptions": [],
                 "_steps": [], "personal_left_out": left_out, "_personal": personal, "not_understood": list(u["unread"])}
     involved = list(dict.fromkeys(tables + [x for x in (u["group_table"], u["counted"]) if x] + u["without"]
                                   + [c[0] for c in u["without_columns"]]))
     negation = bool(u["without"] or u["without_columns"])
-    root = u["counted"] or (u["subject"] if negation else None) or _grain(plan, [t for t in involved if t not in u["without"]] or involved)
+    computed = value if value and value.get("price") else None
+    if value and value.get("amount"):
+        u["measure"] = list(value["amount"])
+    if computed:
+        involved = list(dict.fromkeys(involved + [computed["table"], computed["dimension"]]))
+    root = (computed["table"] if computed and not u["counted"] else None) or u["counted"] or (u["subject"] if negation else None) \
+        or _grain(plan, [t for t in involved if t not in u["without"]] or involved)
     conditions: list[str] = []
     joined = [t for t in involved if t != root and t not in u["without"]]
     if negation:                                              # "customers with orders but no address": orders is a condition too
@@ -439,6 +479,13 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
                 assumptions.append(f"the path goes one-to-many, so each {root} row is counted once (DISTINCT on its key)")
             else:
                 expr = "COUNT_BIG(*)"
+        elif computed:
+            line, qty, dim, price = computed["table"], computed["column"], computed["dimension"], computed["price"]
+            measure = [line, qty]
+            name = "order_amount_from_quantity_x_" + price if computed["name"] == "Order amount" else f"{line}_amount_from_quantity_x_{price}"
+            inner = f"{alias[line]}.{qi(qty)} * {alias[dim]}.{qi(price)}"
+            expr = f"SUM({inner})" if u["aggregate"] == "sum" else f"AVG(CAST({inner} AS float))"
+            assumptions.insert(0, computed["said"])
         else:
             if u["measure"]:
                 mt, mc = u["measure"]
@@ -519,7 +566,9 @@ def tsql(plan: Plan, question: str, tables: list[str], show_personal_data: bool 
                       for n in u["not_used"]]
     return {"understood": u, "root": root, "tables": involved, "measure": measure,
             "path": [{k: v for k, v in s.items() if k not in ("rel", "cost")} for s in steps], "sql": sql, "assumptions": assumptions,
-            "_steps": steps, "personal_left_out": left_out, "_personal": personal, "not_understood": not_understood}
+            "_steps": steps, "personal_left_out": left_out, "_personal": personal, "not_understood": not_understood,
+            "value_column": ({"found": False, "said": computed["said"], "offered": computed["offered"]} if computed else
+                             {"found": True, "column": ".".join(value["amount"])} if value and value.get("amount") else None)}
 
 
 def _types_by_table(description: dict) -> dict[str, dict]:
@@ -539,6 +588,9 @@ def graphql(plan: Plan, description: dict, answer: dict) -> dict:
                                 f"by whether related rows exist ({cond}: an anti-join or semi-join, NOT EXISTS / EXISTS). This "
                                 "question has no GraphQL form on this API, and a list without that condition would answer a "
                                 "different question; the T-SQL answers it"}
+    if (answer.get("value_column") or {}).get("found") is False:
+        return {"not_possible": "the value is computed (quantity × a price on another table), and Fabric's GraphQL aggregations "
+                                "sum one column of one type; the T-SQL answers it"}
     rt = types.get(root.lower())
     if rt is None:
         return {"not_possible": f"the API has no type for {root}; describe_backend lists what it exposes"}
@@ -619,8 +671,11 @@ def draft(plan: Plan, question: str, tables: list[str], description: dict | None
           show_personal_data: bool = False) -> dict:
     from . import privacy
     a = tsql(plan, question, tables, show_personal_data)
-    understood = {k: v for k, v in a["understood"].items() if v not in (None, False, []) and k not in ("unread", "subject")}   # only what was read
-    out = {"question": question, "understood": understood, "tables": a["tables"], "starts_at": a["root"],
+    understood = {k: v for k, v in a["understood"].items() if v not in (None, False, []) and k not in ("unread", "subject", "value_asked")}   # only what was read
+    out = {"question": question}
+    if a.get("value_column") and not a["value_column"]["found"]:
+        out["value_column"] = a["value_column"]                                    # said first: no value column, what is offered
+    out |= {"understood": understood, "tables": a["tables"], "starts_at": a["root"],
            "path": a["path"], "tsql": a["sql"], "assumptions": a["assumptions"]}
     if a["not_understood"]:
         out["not_understood"] = a["not_understood"]
