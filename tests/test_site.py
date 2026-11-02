@@ -588,7 +588,10 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
     """The text review of 26 October: no "every tool" (most tools are not live-tested), no "Nothing stored" (tokens,
     usage records and logs exist). Cursor is named as working only where the hosted service signs it in: with client
     registration off, only as a client that cannot sign in; with it on (live test of 27 October 2026), in a sentence
-    that sends it to /mcp/connect, gives the date it was tested, says what Krusgraph does not accept, or in the hub."""
+    that sends it to /mcp/connect, gives the date it was tested, says what Krusgraph does not accept, or in the hub.
+    n82: Cursor is Tested end to end (Gustav's decision of 2 November 2026), and the Connect menu's "Add to Cursor" item,
+    shown only once tool_status records Cursor as signed in, no longer needs "Experimental:" before it; nor does the home
+    page's "connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" (pages._clients_sentence, the same rule)."""
     from fabric_backend.discovery import PUBLIC_PAGES
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     paths = PUBLIC_PAGES + ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md",
@@ -606,7 +609,7 @@ def test_no_page_claims_every_tool_nothing_stored_or_cursor_as_a_working_client(
                 assert re.search(r"can(?:no|’|')t|not registered|not supported", sentence), (path, sentence)
             else:
                 assert re.search(r"can(?:no|’|')t|not registered|not supported|mcp/connect|27 October 2026|does not accept|"
-                                 r"Where you build|Experimental|Anysphere|/oauth", sentence), (path, sentence)
+                                 r"Where you build|Experimental|Anysphere|/oauth|Add to Cursor|to Microsoft Fabric through MCP", sentence), (path, sentence)
 
 
 
@@ -640,8 +643,9 @@ def test_privacy_and_docs_say_exactly_what_is_read_about_personal_data_and_label
 # ------------------------------------------------------------------ creating is not tested end to end (n12 follow-up) ----
 
 _CREATE_CLAIMS = [
-    # "tested end to end" said of the GraphQL API or the SQL views as things created, without "dry run" or "querying"
-    re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|in place|\n\n|\|)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
+    # "tested end to end" said of the GraphQL API or the SQL views as things created, without "dry run" or "querying";
+    # a table row ends the search, in Markdown (|) and in HTML (</tr>; n82: Lovable's client rows are Tested end to end)
+    re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|in place|\n\n|\||</tr>)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
     # create_backend or create_views with the status word and no dry run
     re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run|\(27 October 2026: update in place))"),
     # create_backend said to have created something, or to have run live
@@ -839,8 +843,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "creates", "views": "draft",
                      "data agent": "draft", "silver notebooks": "creates"}        # the live test of 27 October 2026 and LATER_LIVE (n66)
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
-                                         ("Lovable", '<span class="hub-via">via the GraphQL API</span>'
-                                                     '<span class="hub-tag hub-experimental">experimental</span>')]
+                                         ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]   # n82: Tested end to end
     assert '<span class="c-hub c-hub-logo" role="img" aria-label="Krusgraph">' in visual and '<span class="c-hub-word">krusgraph</span>' in visual   # n68: the logo in the middle
     assert "one plan, the rule behind every relationship" in visual
     assert visual.count('class="hub-link ') == 2                                        # the lines on the left; the right one is the hub's
@@ -855,7 +858,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
                  "it creates the Power BI semantic model, Fabric IQ ontology and silver notebooks; it updates an existing GraphQL API (creating a new one is experimental)",
                  "views and data agent are drafts so far",
                  "Claude connects to Krusgraph through MCP",
-                 "Lovable (experimental) uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
+                 "Lovable uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
         assert part in said, part
     assert ('<p class="muted tiny connects-note">Independent product, not made by Microsoft, '
             'Anthropic or Lovable.</p>') in row
@@ -868,9 +871,9 @@ def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     row, visual, groups, said = _hub(client)
     assert [n for n, _ in groups["Where you build"]] == ["Claude", "VS Code", "Cursor", "Lovable"]
-    assert "Claude, VS Code (experimental) and Cursor (experimental) connect to Krusgraph through MCP" in said
-    assert dict(groups["Where you build"])["Cursor"].endswith('<span class="hub-tag hub-experimental">experimental</span>')
-    assert "experimental" not in dict(groups["Where you build"])["Claude"]
+    assert "Claude, VS Code and Cursor connect to Krusgraph through MCP" in said        # n82: Gustav's decision of 2 November 2026
+    for name in ("Claude", "VS Code", "Cursor", "Lovable"):                             # no Experimental tag on any of them
+        assert "experimental" not in dict(groups["Where you build"])[name], name
     assert "Independent product, not made by Microsoft, Anthropic, Anysphere or Lovable.</p>" in row
     monkeypatch.delitem(ts.CLIENTS_TESTED, "Cursor")                                     # not recorded as tested: not named
     row, visual, groups, said = _hub(client)
@@ -897,8 +900,9 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
     start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
-    assert ("Experimental: VS Code, Cursor and Glama were tried here on 27 October 2026 and Lovable was tried here on 30 October 2026; "
-            "they stay Experimental until a full sign-in with each is confirmed") in start
+    assert ("Tested end to end: VS Code and Cursor signed in and ran tools here on 27 October 2026 and Lovable on 30 October 2026 "
+            "(status set by Gustav on 2 November 2026); Experimental: Glama was tried here on 27 October 2026; it stays Experimental "
+            "until a full sign-in is confirmed") in start                     # n82: Gustav's decision of 2 November 2026
     assert 'id="other-mcp-clients"' in docs and "https://krusgraph.test/mcp/connect" in docs
     for client_ in ("VS Code", "Cursor", "Glama", "Claude Code"):
         assert client_ in docs, client_
@@ -906,7 +910,7 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     assert "streamable HTTP at `https://krusgraph.test/mcp/connect`" in llms and "docs.md#other-mcp-clients" in llms
     assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
     home = client.get("/").text
-    assert "Krusgraph connects Claude (and, Experimental, VS Code and Cursor) to Microsoft Fabric through MCP" in home
+    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home      # n82: no Experimental
 
 
 def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):

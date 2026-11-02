@@ -177,6 +177,9 @@ EVIDENCE_REPORT = "Draft"
 # n80: the ontology as RDF/XML for Microsoft's Ontology Playground (ontology.ontology_rdfxml), a file on /check, not a tool:
 # a draft to open there with a file import; nothing is created in Fabric.
 ONTOLOGY_RDFXML = "Draft"
+# n82: Gustav opened an RDF/XML file from /check in Microsoft's Ontology Playground on 2 November 2026, with a good result
+# (docs/LIVE-TEST.md, section 6). Only that: the file stays Draft, and no partnership with Microsoft is claimed.
+ONTOLOGY_RDFXML_TRIED = "Gustav tried a file from /check there on 2 November 2026, with a good result"
 
 
 def phrase(name: str) -> str:
@@ -285,7 +288,8 @@ BUILDS = (("GraphQL API", "create_backend"), ("Power BI semantic model", "create
 
 # The clients, one row each (Gustav's brief of 28 October 2026): where each one reaches Krusgraph, its status word, and
 # since when it works. VS Code, Cursor and Glama signed in through client registration at /mcp/connect and ran tools on
-# 27 October 2026, Lovable on 30 October 2026 (docs/LIVE-TEST.md); they stay Experimental for now. A client is named as
+# 27 October 2026, Lovable on 30 October 2026 (docs/LIVE-TEST.md). n82: by Gustav's decision of 2 November 2026
+# (CLIENTS_DECIDED) VS Code, Cursor and Lovable are Tested end to end; Glama and Claude Code stay Experimental. A client is named as
 # working (the hub, the /mcp/connect sentence) when it has a `works_since`. Lovable has two rows: as an MCP client at
 # /mcp/connect, and as the app builder that reads the GraphQL API create_backend makes (the hub's last row).
 @dataclass(frozen=True)
@@ -303,22 +307,28 @@ CONNECT_NOTE = "client registration is switched on at krusgraph.com since 27 Oct
 # client. Only that: the button, not a new sign-in or run through it.
 BUTTONS_VERIFIED = "2 November 2026"
 BUTTON_NOTE = "the {button} button on the site's Connect menu works in {client} (verified by Gustav on " + BUTTONS_VERIFIED + ")"
+# n82: Gustav decided on 2 November 2026 that VS Code and Cursor are no longer marked Experimental (he verified them; their
+# sign-in and tool runs at /mcp/connect were on 27 October 2026), and neither is Lovable, whose flow ran live on
+# 30 October 2026 (docs/LOVABLE-END-TO-END.md). Claude Code (not tried) and Glama are unchanged.
+CLIENTS_DECIDED = "2 November 2026"
+DECIDED_NOTE = "status set by Gustav on " + CLIENTS_DECIDED
 CLIENTS = (
     ClientStatus("Claude", "hosted, via /mcp (the connector)", "/mcp", "Tested end to end", "26 October 2026",
                  "the live runs of 26 and 27 October 2026"),
-    ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
-                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to VS Code", client="VS Code")),
+    ClientStatus("VS Code", "hosted, via /mcp/connect", "/mcp/connect", "Tested end to end", "27 October 2026",
+                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to VS Code", client="VS Code") + "; " + DECIDED_NOTE),
     ClientStatus("Claude Code", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", note=CONNECT_NOTE + "; not tried yet"),
-    ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
-                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to Cursor", client="Cursor")),
+    ClientStatus("Cursor", "hosted, via /mcp/connect", "/mcp/connect", "Tested end to end", "27 October 2026",
+                 CONNECT_NOTE + "; " + BUTTON_NOTE.format(button="Add to Cursor", client="Cursor") + "; " + DECIDED_NOTE),
     ClientStatus("Glama", "hosted, via /mcp/connect", "/mcp/connect", "Experimental", "27 October 2026",
                  CONNECT_NOTE + "; signed in with its client ID metadata document, connection test Healthy, 27 October 2026"),
-    ClientStatus("Lovable", "via the GraphQL API that create_backend makes", "", "Experimental",
+    ClientStatus("Lovable", "via the GraphQL API that create_backend makes", "", "Tested end to end",
                  note="Lovable's own Microsoft Fabric connector reads the API; a Lovable app read shop_api live on 30 October 2026; "
-                      "the chain is in docs/LOVABLE-END-TO-END.md"),
-    ClientStatus("Lovable", "via MCP (/mcp/connect)", "/mcp/connect", "Experimental", "30 October 2026",
+                      "the chain is in docs/LOVABLE-END-TO-END.md; " + DECIDED_NOTE),
+    ClientStatus("Lovable", "via MCP (/mcp/connect)", "/mcp/connect", "Tested end to end", "30 October 2026",
                  "signed in and ran plan, check and creates on 30 October 2026 (Entra sign-in through Krusgraph's OAuth with dynamic "
-                 "client registration, from a phone: plan_backend, validate_plan, create_backend, create_semantic_model, create_report)"),
+                 "client registration, from a phone: plan_backend, validate_plan, create_backend, create_semantic_model, create_report); "
+                 + DECIDED_NOTE),
 )
 # derived, for the hub and the /mcp/connect sentence: the clients that have signed in and run tools
 CLIENTS_TESTED = {c.name: (c.path, c.works_since) for c in CLIENTS if c.works_since and c.path}
@@ -352,16 +362,29 @@ def clients_working(registration_on: bool) -> list[str]:
 
 
 def connect_sentence() -> str:
-    """What the site says about /mcp/connect: Experimental, with the clients that have been tried there. The word comes
-    first so the sentence cannot read as tested end to end before a full sign-in with each client is confirmed (n30)."""
+    """What the site says about /mcp/connect: the clients that have been tried there, each under its own status word from
+    CLIENTS. The word comes first, so a client cannot read as tested end to end before its row says so (n30); n82: VS Code,
+    Cursor and Lovable are Tested end to end by Gustav's decision of 2 November 2026, Glama stays Experimental."""
     seen = clients_tested_at("/mcp/connect")
     if not seen:
         return "Experimental: " + CONNECT_NOTE + "; not tried with a client yet"
-    by_date: dict[str, list[str]] = {}
-    for n, d in seen:
-        by_date.setdefault(d, []).append(n)
-    tried = _listed(f"{_listed(names)} {'were' if len(names) > 1 else 'was'} tried here on {d}" for d, names in by_date.items())
-    return f"Experimental: {tried}; they stay Experimental until a full sign-in with each is confirmed"
+    status = {c.name: c.status for c in CLIENTS if c.path == "/mcp/connect"}
+
+    def by_date(pairs, verb):
+        groups: dict[str, list[str]] = {}
+        for n, d in pairs:
+            groups.setdefault(d, []).append(n)
+        return _listed(f"{_listed(names)} {verb + ' here ' if i == 0 else ''}on {d}" for i, (d, names) in enumerate(groups.items()))
+    tested = [(n, d) for n, d in seen if status.get(n) == "Tested end to end"]
+    other = [(n, d) for n, d in seen if status.get(n) != "Tested end to end"]
+    parts = []
+    if tested:
+        parts.append(f"Tested end to end: {by_date(tested, 'signed in and ran tools')} ({DECIDED_NOTE})")
+    if other:
+        many = len(other) > 1
+        parts.append(f"Experimental: {by_date(other, 'were tried' if many else 'was tried')}; "
+                     f"{'they stay' if many else 'it stays'} Experimental until a full sign-in {'with each ' if many else ''}is confirmed")
+    return "; ".join(parts)
 
 
 # ------------------------------------------------------------------ the overview of tools, functions and clients -------

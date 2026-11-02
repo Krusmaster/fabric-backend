@@ -436,11 +436,11 @@
     box.append(saveText(e.name, e.markdown, "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
       + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions; no row values", e.status, "text/markdown"));
     // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
-    // there with a file import (there is no link that opens it there)
+    // there with a file import (there is no link that opens it there); n82: Gustav's try there, from tool_status
     const o = r.ontology_rdfxml;
     if (o) box.append(saveText(o.name, o.xml, "ontology for Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
       + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. "
-      + "Open it in Ontology Playground with Import / Export, as a file import", o.status, "application/rdf+xml"));
+      + "Open it in Ontology Playground with Import / Export, as a file import" + (o.tried ? ". " + o.tried : ""), o.status, "application/rdf+xml"));
     box.hidden = false;
   }
 

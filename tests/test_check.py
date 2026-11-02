@@ -260,7 +260,8 @@ def test_in_a_browser_no_request_carries_the_files(site):
     rd = r["rdfxml"]
     assert rd and rd["download"] == "shop_ontology.rdf" and rd["head"].startswith('<?xml version="1.0" encoding="UTF-8"?>\n<rdf:RDF'), rd
     assert rd["text"] == ("Download shop_ontology.rdf: ontology for Microsoft's Ontology Playground (RDF/XML): 7 entity types with their columns and "
-                          "6 relationships, the rule in each description; no row values. Open it in Ontology Playground with Import / Export, as a file import Draft"), rd
+                          "6 relationships, the rule in each description; no row values. Open it in Ontology Playground with Import / Export, as a file import. "
+                          "Gustav tried a file from /check there on 2 November 2026, with a good result Draft"), rd
     # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
     for w in ("375", "1280"):
         bl = r["billing"][w]

@@ -170,7 +170,8 @@ def _listed(names: list[str]) -> str:
 
 
 def _clients_sentence() -> str:
-    """"Claude", or "Claude (and, Experimental, VS Code and Cursor)" once client registration is on
+    """"Claude", or "Claude, VS Code and Cursor" once client registration is on (n82; "(and, Experimental, ...)" for a
+    client whose row is Experimental)
     (tool_status.clients_working); a client not tested end to end is never named as plainly as Claude (n30)."""
     from .tool_status import CLIENTS, clients_working
     status = {c.name: c.status for c in CLIENTS}
@@ -245,9 +246,14 @@ def connect_menu_html(where: str) -> str:
     e = lambda x: html.escape(x, quote=True)
     p, links = e(v["PRODUCT"]), connect_links()
     mcp, connect = e(v["MCP_URL"]), e(v["CONNECT_URL"])
-    from .tool_status import clients_working
+    from .tool_status import CLIENTS, clients_working
     reg = _registration_on()
     working = clients_working(reg)                 # VS Code and Cursor only once the hosted service has signed them in, as in the hub
+    # n82: "Experimental: " only before a client whose MCP row in tool_status.CLIENTS says so (Gustav's decision of
+    # 2 November 2026: VS Code, Cursor and Lovable are Tested end to end)
+    word = {c.name: c.status for c in CLIENTS if c.path}
+    exp = lambda c: "" if word.get(c) == "Tested end to end" else "Experimental: "
+    cap = lambda c, text: exp(c) + (text if exp(c) else text[0].upper() + text[1:])
     items = [f'<div class="connect-item connect-claude"><strong>Claude</strong>'
              f'<span class="connect-row"><a class="btn primary connect-main" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a>'
              f'<button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button></span>'
@@ -256,14 +262,14 @@ def connect_menu_html(where: str) -> str:
              f'<span class="muted tiny">Paste it in a new chat; it only reads.</span></div>']
     if reg:
         items.append(f'<div class="connect-item"><strong>Lovable</strong><span class="connect-row"><button type="button" class="btn secondary small" data-copy-text="{connect}">Copy URL</button></span>'
-                     f'<span class="muted tiny">Experimental: paste it under Connectors → Custom MCP, then Add &amp; authorize and sign in with Microsoft.</span></div>')
+                     f'<span class="muted tiny">{cap("Lovable", "paste it under Connectors → Custom MCP, then Add &amp; authorize and sign in with Microsoft.")}</span></div>')
     other = []
     if "VS Code" in working:
         other.append(f'<div class="connect-item"><strong>VS Code</strong><span class="connect-row"><a class="btn primary small" href="{e(links["vscode"])}">Add to VS Code</a><a class="connect-alt" href="{e(links["vscode_insiders"])}">Insiders</a></span>'
-                     f'<span class="muted tiny">Experimental: opens VS Code, which asks before it adds the server; then you sign in with Microsoft.</span></div>')
+                     f'<span class="muted tiny">{cap("VS Code", "opens VS Code, which asks before it adds the server; then you sign in with Microsoft.")}</span></div>')
     if "Cursor" in working:
         other.append(f'<div class="connect-item"><strong>Cursor</strong><span class="connect-row"><a class="btn primary small" href="{e(links["cursor"])}">Add to Cursor</a></span>'
-                     f'<span class="muted tiny">Experimental: opens Cursor’s install dialog; then you sign in with Microsoft.</span></div>')
+                     f'<span class="muted tiny">{cap("Cursor", "opens Cursor’s install dialog; then you sign in with Microsoft.")}</span></div>')
     if other:
         items.append(f'<details class="connect-other"><summary>Other clients<span class="connect-caret" aria-hidden="true"></span></summary>{"".join(other)}</details>')
     kind = "secondary" if where == "pop" else "secondary small"

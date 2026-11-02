@@ -19,11 +19,15 @@ def test_every_tool_once_every_word_a_status_word_and_the_clients_of_the_brief()
         assert md.count(f"| `{t}` | {ts.label(t)} | {ts.where(t)} |") == 1, t
     assert ts.overview_words() <= set(ts.WORDS)
     clients = [(c.name, c.status, c.path) for c in ts.CLIENTS]
-    assert clients == [("Claude", "Tested end to end", "/mcp"), ("VS Code", "Experimental", "/mcp/connect"),
-                       ("Claude Code", "Experimental", "/mcp/connect"), ("Cursor", "Experimental", "/mcp/connect"),
-                       ("Glama", "Experimental", "/mcp/connect"), ("Lovable", "Experimental", ""),
-                       ("Lovable", "Experimental", "/mcp/connect")]            # two rows: the GraphQL API, and MCP since 30 October 2026 (n69)
-    # working (signed in and ran tools) is named on the site; the status word stays Experimental for /mcp/connect
+    assert clients == [("Claude", "Tested end to end", "/mcp"), ("VS Code", "Tested end to end", "/mcp/connect"),
+                       ("Claude Code", "Experimental", "/mcp/connect"), ("Cursor", "Tested end to end", "/mcp/connect"),
+                       ("Glama", "Experimental", "/mcp/connect"), ("Lovable", "Tested end to end", ""),
+                       ("Lovable", "Tested end to end", "/mcp/connect")]       # two rows: the GraphQL API, and MCP since 30 October 2026 (n69)
+    # n82: VS Code, Cursor and Lovable Tested end to end by Gustav's decision of 2 November 2026, with the date in their notes;
+    # Claude Code and Glama unchanged
+    for c in ts.CLIENTS:
+        assert (ts.DECIDED_NOTE in c.note) is (c.name in ("VS Code", "Cursor", "Lovable")), c.name
+    # working (signed in and ran tools) is named on the site
     assert set(ts.CLIENTS_TESTED) == {"Claude", "VS Code", "Cursor", "Glama", "Lovable"}
     assert ts.CLIENTS_TESTED["Lovable"] == ("/mcp/connect", "30 October 2026")
     assert "%" not in md
