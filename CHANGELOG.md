@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n90: Claude's connectors page moved to Customize. The Connect button opens
+  `https://claude.ai/customize/connectors` instead of `https://claude.ai/settings/connectors`, which now only says that
+  Connectors moved; the instructions say Customize → Connectors → Add → Add custom connector, and for a new sign-in
+  Customize → Connectors → Yours → Reconnect. Tried in Claude on the web on 2 November 2026; instructions for other
+  clients unchanged. Unit-tested; not deployed.
 - Round n89: `amount_levels` writes a factor only when it is true. The counting query also returns `min_lines`; where
   every referenced header has the same number of lines (`min_lines` = `max_lines` > 1) the sum "comes out n times too
   large", exactly; otherwise no factor, because the average number of lines is not the ratio of the sums (the SAP

@@ -86,8 +86,8 @@ The agent can then say *"give me a GraphQL API over orders, customers and produc
 
 ## Remote server (Krusgraph: Claude, VS Code, Cursor and other MCP clients)
 
-The hosted instance is `https://krusgraph.com/mcp`. Add it in Claude under Settings → Connectors → Add custom
-connector and sign in with your Microsoft work account; your Entra admin consents once
+The hosted instance is `https://krusgraph.com/mcp`. Add it in Claude under Customize → Connectors → Add → Add
+custom connector and sign in with your Microsoft work account; your Entra admin consents once
 (https://krusgraph.com/start has the steps, https://krusgraph.com/docs the details). VS Code, Cursor and other MCP
 clients that register themselves use `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
 the client, then the Microsoft sign-in (https://krusgraph.com/docs#other-mcp-clients; tested on 27 October 2026 with

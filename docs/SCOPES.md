@@ -139,7 +139,7 @@ granted, or with `error=<code>&error_description=<text>` when it was not, and th
 URIs); `deploy/krusgraph.sh` does not add it, and `admin_consent_url()` in `fabric_backend/entra.py` still builds the
 link without a return address. Without the registration Microsoft shows its own error page instead of returning.
 
-After consent, users sign in again (Claude: Settings → Connectors → the connector → Reconnect) so the new token
+After consent, users sign in again (Claude: Customize → Connectors → Yours → Reconnect) so the new token
 carries the scope. `deploy/krusgraph.sh --check` compares the registration against `REQUIRED_SCOPES` in
 `deploy/azure_containerapp.py`; add the new scope there in the same change so the check keeps passing.
 
