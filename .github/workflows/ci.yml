@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     env: { PLAYWRIGHT_VERSION: "1.49.1" }
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # pip's cache (downloaded wheels) is kept per Python version and the hash of the pins; pip still installs every run
       - uses: actions/setup-python@v7
         with:
@@ -35,7 +35,7 @@ jobs:
     # local Spark, so the tests write parquet. The import check fails the job instead of letting the tests skip.
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # pyspark comes as a 434 MB source package that pip builds into a wheel each time; the cache keeps the built wheel,
       # keyed on this file, where the versions are pinned
       - uses: actions/setup-python@v7
