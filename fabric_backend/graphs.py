@@ -536,7 +536,7 @@ def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
             cand["evidence"] = {"rows_with_value": with_value, "matched": matched, "distinct_values": distinct,
                                 "inclusion": round(matched / with_value, 4) if with_value else None,
                                 "verdict": ("every value exists in the target key" if with_value and matched == with_value else
-                                            "no rows with a value" if not with_value else f"{with_value - matched} value(s) not in the target key")}
+                                            "no rows with a value" if not with_value else f"{with_value - matched} row(s) whose value is not in the target key")}
         if execute is not None:
             cand["final_score"] = round(cand["score"] + EVIDENCE_WEIGHT * evidence_strength(cand.get("evidence")), 2)
     if execute is not None:

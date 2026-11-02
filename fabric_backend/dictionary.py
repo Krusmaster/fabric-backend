@@ -52,9 +52,14 @@ def data_dictionary(plan: Plan, source: str, schema: str, validation: dict | Non
                        f"{_cell(', '.join(refs.get((t.name, c.name), [])))} |  |")
         out.append("")
     out += ["## Keys", "", "| Table | Columns | Rule | Meaning |", "| --- | --- | --- | --- |"]
+    said: set[str] = set()                                              # n87: each rule's meaning once, not on every key
     for t in plan.schema:
         cols, rule = plan.keys.get(t.name, ([], "K3"))
-        out.append(f"| {_cell(t.name)} | {_cell('+'.join(cols)) or '—'} | {L(rule)} | {_cell({**RULES, **PACK_RULES}.get(rule, ''))} |")
+        meaning = {**RULES, **PACK_RULES}.get(rule, "")
+        if meaning and rule in said:
+            meaning = f"as above ({L(rule)})"
+        said.add(rule)
+        out.append(f"| {_cell(t.name)} | {_cell('+'.join(cols)) or '—'} | {L(rule)} | {_cell(meaning)} |")
     out += ["", "## Relationships", ""]
     if plan.relationships:
         out += ["| From | Columns | To | Columns | Rule | Field on from / on to |", "| --- | --- | --- | --- | --- | --- |"]

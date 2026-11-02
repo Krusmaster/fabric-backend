@@ -954,8 +954,8 @@
   "sha256": "df019a719a48f7b25b6088ba1b23bdfaf98aa8fb127941fd264ca7dc63bd60b7"
  },
  "dictionary": {
-  "bytes": 40960,
-  "sha256": "ae1bc44de1cbcbb5b1d965d571815835925c221c6d7b91a40b5a06f30a498edd"
+  "bytes": 33953,
+  "sha256": "ed93ec94e12fe59b0744f929300004f6f2206f8e0f74f7ff8fbc8b5052e34b9d"
  },
  "gold": {
   "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."

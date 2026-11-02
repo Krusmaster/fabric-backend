@@ -56,7 +56,7 @@
      "inclusion": 0.5833,
      "matched": 35,
      "rows_with_value": 60,
-     "verdict": "25 value(s) not in the target key"
+     "verdict": "25 row(s) whose value is not in the target key"
     },
     "final_score": 3.0,
     "name_basis": "",
@@ -95,7 +95,7 @@
      "inclusion": 0.5,
      "matched": 30,
      "rows_with_value": 60,
-     "verdict": "30 value(s) not in the target key"
+     "verdict": "30 row(s) whose value is not in the target key"
     },
     "final_score": 2.5,
     "name_basis": "",
@@ -134,7 +134,7 @@
      "inclusion": 0.1333,
      "matched": 8,
      "rows_with_value": 60,
-     "verdict": "52 value(s) not in the target key"
+     "verdict": "52 row(s) whose value is not in the target key"
     },
     "final_score": 1.9,
     "name_basis": "",

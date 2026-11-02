@@ -498,7 +498,8 @@ def sample_rows(workspace: _p.Workspace, source: _p.Source, table: _p.SampleTabl
         if t is None:
             return json.dumps({"error": f"no table {table!r} in schema {schema!r} of {source!r}",
                                "kind": "table_not_found", "hint": "list_tables shows the tables in a schema."}, indent=2)
-        n = max(1, min(int(n), 20))
+        asked = int(n)
+        n = max(1, min(asked, 20))
         types = {c.name: c.data_type for c in t.columns}           # binary as its size, CLR types as text (as the local server does)
         rows = execute(_evidence.sample_sql(schema, t.name, t.column_names, n, types))
     finally:
@@ -507,8 +508,12 @@ def sample_rows(workspace: _p.Workspace, source: _p.Source, table: _p.SampleTabl
     def short(v):
         v = v if isinstance(v, (int, float, bool)) or v is None else str(v)
         return v[:200] + "…" if isinstance(v, str) and len(v) > 200 else v
-    return json.dumps(_privacy_rows(t.name, t.column_names, [{k: short(v) for k, v in r.items()} for r in rows], s, show_personal_data,
-                                    getattr(execute, "source_item", None)), indent=2, default=str)
+    out = _privacy_rows(t.name, t.column_names, [{k: short(v) for k, v in r.items()} for r in rows], s, show_personal_data,
+                        getattr(execute, "source_item", None))
+    if asked != n:                                                          # n87: never cut without a word
+        out["limited"] = (f"{asked} rows were asked for; sample_rows returns 1 to 20 rows, so {n} were read. "
+                          "validate_plan counts every row without returning any.")
+    return json.dumps(out, indent=2, default=str)
 
 
 def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show: bool, item: dict | None = None) -> dict:
@@ -1957,7 +1962,8 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
         item = find_item_by_name(workspace, api, headers, ("GraphQLApi",))
         api_id = item["id"] if item else None
     if not api_id:
-        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}"})
+        return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
+                           "hint": "list_sources lists the GraphQL APIs in a workspace (by name or id)."}, indent=2)
     r = requests.post(f"{FABRIC}/v1/workspaces/{workspace}/graphqlapis/{api_id}/graphql", headers=headers,
                       json={"query": query, "variables": variables or {}}, timeout=100)
     status = getattr(r, "status_code", 200)
@@ -1967,6 +1973,11 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
         body = r.json()
     except ValueError:
         body = {"http": r.status_code, "text": r.text[:2000]}
+    if isinstance(body, dict) and body.get("errors") and not body.get("data"):     # n87: Fabric refused the query: say it in words
+        said = "; ".join(str(e.get("message", e)) if isinstance(e, dict) else str(e) for e in body["errors"][:5])
+        body = {"error": f"Fabric's API for GraphQL refused the query: {said}", "kind": "invalid_query",
+                "hint": "describe_backend lists the API's types, fields and relationships by their exact names; fix the query "
+                        "with those.", **body}
     if suggestion is not None:
         body = {"suggested": suggestion, "result": body}
     return _bounded(body, MAX_RESULT_CHARS)
