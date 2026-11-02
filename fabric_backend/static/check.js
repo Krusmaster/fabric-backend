@@ -15,6 +15,10 @@
 // closed on every run. One example row runs through the example: the finding, Onto's answer, the Power BI preview and
 // the contract all name the header row the engine read (its key, its amount, its lines), never a number of their own.
 // Every download button says what the file holds and its status word from tool_status.
+// n85: the decisions taken on this page (the guided demo's Accept and Reject) go into the evidence report when it is
+// downloaded, each with what, the decision, the browser's time and "by: not recorded". They stay in this browser:
+// nothing is sent or saved, and a new run starts without them. Accepting a suggestion checks nothing: the report says
+// "not checked" beside it, and the relationship stays out of the plan's relationships and the checks.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -47,6 +51,7 @@
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
   let booted = false, last = null, lastResult = null, built = null, map = null;
+  const decisions = new Map();                       // n85: what -> the latest decision on this page; memory only, never sent or stored
   say("Loading the engine in this browser…");
   hop("Starting the Python runtime…");
   const boot = call({ kind: "boot" }).then((r) => {
@@ -65,6 +70,7 @@
     last = { kind, files: files || [], text: text || "" };
     lastResult = null;
     built = null;
+    decisions.clear();                               // n85: a decision belongs to the run it was taken on
     resetBuild();
     hop(booted ? "Reading the input…" : "Loading the engine…");
     document.documentElement.dataset.check = "running";
@@ -346,9 +352,14 @@
     } });
     if (sug) steps.push({ title: "A suggestion to decide on", at: sug.link, body: () => {
       const said = el("p", { class: "check-guide-said", role: "status" });
-      const decide = (yes) => { said.textContent = yes ? "Accepted on this page. In Claude, the review keeps your decision and its reason." : "Rejected on this page: the column stays unlinked."; };
+      const what = "suggested relationship " + sug.link.source + "." + sug.link.source_cols.join("+") + " -> " + sug.link.target;
+      const tell = (d) => { said.textContent = !d ? "" : d.decision === "accepted"
+        ? "Accepted on this page. In Claude, the review keeps your decision and its reason. The evidence report lists it as accepted and not checked: accepting counts nothing in the rows."
+        : "Rejected on this page: the column stays unlinked. The evidence report lists the decision."; };
+      const decide = (yes) => tell(decideOn(what, yes ? "accepted" : "rejected"));
       const yes = el("button", { type: "button", class: "btn secondary small" }, "Accept"), no = el("button", { type: "button", class: "btn ghost small" }, "Reject");
       yes.addEventListener("click", () => decide(true)); no.addEventListener("click", () => decide(false));
+      tell(decisions.get(what));                     // back on this step: the latest choice is still shown
       return [el("p", null, code(sug.link.source + "." + sug.link.source_cols.join(" + ")), " names no table, so no naming rule links it. The values point at ", code(sug.link.target), ": the dashed line."),
         el("p", null, sug.saw), el("p", { class: "muted" }, sug.means || "What it means is your decision: a delivery address, or something else?"),
         el("p", { class: "ctas" }, yes, no), said];
@@ -421,11 +432,34 @@
   }
   function saveText(name, text, label, status, type) {   // written here; a Blob saves it, nothing is fetched
     const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
-    a.addEventListener("click", () => {
-      const url = URL.createObjectURL(new Blob([text], { type: type || "application/yaml" }));
+    a.addEventListener("click", () => {                  // n85: a function is called at each click, so the file is as of now
+      const url = URL.createObjectURL(new Blob([typeof text === "function" ? text() : text], { type: type || "application/yaml" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
     });
     return a;
+  }
+
+  // n85: the decisions taken on this page (`decisions`, declared at the top), latest choice per item
+  function decideOn(what, decision) {
+    const d = { what, decision, at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") };
+    decisions.delete(what); decisions.set(what, d);
+    return d;
+  }
+  // The worker's report says "None recorded." under Decisions; with decisions taken here that section becomes their
+  // table (evidence_report.markdown's columns) and the summary counts them. Without any, the report is the worker's, as is.
+  const NONE = "## Decisions\n\nNone recorded.";
+  function withDecisions(md) {
+    if (!decisions.size) return md;
+    const cell = (x) => String(x).replace(/\|/g, "\\|").replace(/\n/g, " ");
+    const said = (d) => d.decision === "accepted" ? "accepted, not checked in the rows" : "rejected, the column stays unlinked";
+    const accepted = [...decisions.values()].some((d) => d.decision === "accepted");
+    const block = ["## Decisions", "",
+      "Taken on /check in this browser, which sent and saved none of them; the time is the browser's clock."
+        + (accepted ? " An accepted relationship is not checked: accepting it counts nothing in the rows, and it is not among the relationships or the checks above." : ""), "",
+      "| What | Decision | By | When |", "| --- | --- | --- | --- |",
+      ...[...decisions.values()].map((d) => "| " + cell(d.what) + " | " + said(d) + " | not recorded | " + cell(d.at) + " |")].join("\n");
+    const out = md.includes(NONE) ? md.replace(NONE, () => block) : md.replace(/\n*$/, "\n\n" + block + "\n");
+    return out.replace(/^(- \d+ open question\(s\), )0 decision\(s\)/m, (_, head) => head + decisions.size + " decision(s)");
   }
 
   // n79: the evidence report for a pilot's hand-over, written by the worker from the plan and validate_plan's counts
@@ -433,8 +467,8 @@
     const e = r.evidence_report, box = $("check-evidence");
     box.replaceChildren();
     if (!e || !r.tables.length) { box.hidden = true; return; }
-    box.append(saveText(e.name, e.markdown, "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
-      + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions; no row values", e.status, "text/markdown"));
+    box.append(saveText(e.name, () => withDecisions(e.markdown), "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
+      + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions, the decisions taken on this page; no row values", e.status, "text/markdown"));
     // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
     // there with a file import (there is no link that opens it there); n82: Gustav's try there, from tool_status
     const o = r.ontology_rdfxml;
