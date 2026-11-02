@@ -947,12 +947,12 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 #check-files:focus-visible+label{outline:3px solid var(--focus);outline-offset:-6px;border-radius:var(--radius)}
 .check-box textarea{width:100%;box-sizing:border-box;font:14px/1.5 var(--mono);background:var(--card-2);color:var(--ink);border:1px solid var(--line-strong);border-radius:var(--radius-s);padding:10px;resize:vertical}
 .check-private{max-width:68ch;margin:16px auto 0;font-size:15px}
-.check-examples{display:grid;grid-template-columns:1fr;gap:8px;margin:14px 0 18px}
-@media (max-width:759px){.check-ex{padding:8px 12px}}
+.check-examples{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:14px 0 18px}
+@media (max-width:759px){.check-ex{padding:8px 10px}.check-ex strong{font-size:16px}.check-ex span{font-size:13.5px;line-height:1.35}.check-ex em{margin-top:4px}}
 .check-engine-size{max-width:68ch;margin:6px auto 0;font-size:14px;text-align:left}
 .check-engine-size summary{cursor:pointer}
 .hero-ctas{justify-content:center;margin:18px 0 26px}
-@media (min-width:760px){.check-examples{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1000px){.check-examples{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .check-ex-h{grid-column:1/-1;margin:0;font-weight:700}
 .check-ex{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;font:inherit;color:var(--ink);border:1px solid transparent;border-radius:var(--radius-s);padding:14px 16px;cursor:pointer;transition:transform .15s ease}
 .check-ex strong{font:600 18px/1.25 var(--font-head)}
@@ -961,6 +961,7 @@ td.num,.sp-table td.num{text-align:right;font-variant-numeric:tabular-nums;white
 .check-ex.coral{background:var(--coral-soft)}.check-ex.coral em{color:var(--coral-ink)}
 .check-ex.lav{background:var(--lav-soft)}.check-ex.lav em{color:var(--lav-ink)}
 .check-ex.sage{background:var(--sage-soft)}.check-ex.sage em{color:var(--sage-ink)}
+.check-ex.mustard{background:var(--mustard-soft)}.check-ex.mustard em{color:var(--mustard-ink)}
 .check-ex:hover{transform:translateY(-2px);border-color:var(--line-strong)}
 .check-status{font-weight:700;margin:18px 0 0}
 .check-run{padding-top:28px;padding-bottom:8px}

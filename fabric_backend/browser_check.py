@@ -1,9 +1,9 @@
 """What /check runs in the visitor's browser (Pyodide): the same engine as the 20-minute demo, on files that never leave it.
 
-The page hands the files it was given (name and bytes), a pasted columns list, or the name of one of three synthetic
-examples to `analyze`. Files are written to Pyodide's in-memory file system and read with the local adapter's own
-`folder_source` (CSV and .xlsx, the same code as `fabric-backend demo`); a columns list goes through `pasted_source`.
-Then the engine's steps run one after the other, and each one is reported to `emit` as it finishes, with what it found
+The page hands the files it was given (name and bytes), a pasted columns list, or the name of one of four synthetic
+examples to `analyze` (the shop, SAP, Salesforce + ERP, and since n78 Younium + Salesforce subscription billing). Files
+are written to Pyodide's in-memory file system and read with the local adapter's own `folder_source` (CSV and .xlsx,
+the same code as `fabric-backend demo`); a columns list goes through `pasted_source`. Then the engine's steps run one after the other, and each one is reported to `emit` as it finishes, with what it found
 and how long it took: the plan (keys K0–K5, relationships R0–R4), validate_plan's counts, suggest_relationships, and
 the findings and five states of step 1 from `demo_app.Session`, unchanged. The page draws those events as they come;
 nothing on it is a made-up progress line.
@@ -27,7 +27,7 @@ import time
 import zipfile
 from pathlib import Path
 
-KINDS = ("sample", "sap", "crm", "files", "columns")
+KINDS = ("sample", "sap", "crm", "billing", "files", "columns")
 _RULE = re.compile(r"\brule ([KR]\d|SAP pack|confirmed)\b")
 _SHOWN = {"problem", "warning", "question", "info"}            # suggestions are listed apart: they are not something wrong
 
@@ -86,6 +86,10 @@ def _source(kind: str, files: list | None, text: str):
     if kind == "crm":
         return _sqlite_source("folder", "Synthetic Salesforce + ERP tables", "crm", crm_tables(),
                               "Synthetic Salesforce-shaped objects and ERP tables: invented accounts, contacts and orders, no real company."), None
+    if kind == "billing":                                         # n78: the engine reads the Younium + Salesforce pack
+        from . import younium_demo
+        return _sqlite_source("folder", "Synthetic Younium + Salesforce tables (fabric_backend.younium_demo)", "billing", younium_demo.rows_for_check(),
+                              "Synthetic Younium- and Salesforce-shaped rows from fabric_backend.younium_demo: invented accounts and invoices, no tenant or org."), None
     if kind == "columns":
         return pasted_source(text or ""), None
     folder = Path(tempfile.mkdtemp(prefix="check-"))                # in the browser: Pyodide's memory, nothing on a disk

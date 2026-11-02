@@ -57,7 +57,7 @@
     return r;
   });
 
-  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", columns: "the list of columns" };
+  const LABELS = { sample: "the example “A total that doubles”", sap: "the example “SAP sales tables”", crm: "the example “Salesforce + ERP”", billing: "the example “Subscription billing”", columns: "the list of columns" };
 
   async function start(kind, files, text) {
     if (busy) return;
@@ -510,7 +510,7 @@
   // n55: /check?example=sample starts that example at once (the start page's "Try the guided demo", the industry
   // examples on /use-cases); &guide=1 adds Onto's four steps over the same run. /demo and /explore redirect here.
   const query = new URLSearchParams(location.search);
-  if (["sample", "sap", "crm"].includes(query.get("example"))) {
+  if (["sample", "sap", "crm", "billing"].includes(query.get("example"))) {
     guided = query.get("guide") === "1";
     if (guided) $("check-guide").hidden = false;
     start(query.get("example"));

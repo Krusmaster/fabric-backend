@@ -29,7 +29,7 @@ WORKSPACE = "<workspace id>"
 
 
 def _name(src) -> str:
-    base = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp"}.get(getattr(src, "_kind", ""), "") or re.sub(r"\W+", "_", src.schema.schema or "data")
+    base = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing"}.get(getattr(src, "_kind", ""), "") or re.sub(r"\W+", "_", src.schema.schema or "data")
     return (base.strip("_") or "data")[:40]
 
 

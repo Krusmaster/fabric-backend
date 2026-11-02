@@ -1167,7 +1167,7 @@ def test_the_old_demo_addresses_redirect_to_check(client):
     hero = re.search(r'<section class="hero">.*?</section>', home, re.S).group(0)
     assert 'href="/check?example=sample&amp;guide=1"' in hero and "Try the guided demo" in hero
     js = client.get("/static/check.js").text
-    assert 'guided = query.get("guide") === "1"' in js and '["sample", "sap", "crm"].includes(query.get("example"))' in js
+    assert 'guided = query.get("guide") === "1"' in js and '["sample", "sap", "crm", "billing"].includes(query.get("example"))' in js
     for step in ("How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"):
         assert step in js, step
     check = client.get("/check").text

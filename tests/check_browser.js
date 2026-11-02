@@ -161,6 +161,25 @@ const { chromium } = require("playwright");
     await until(() => !!document.documentElement.dataset.checkMs);
     out.industries[k] = { url: page.url().replace(base, ""), status: await page.textContent("#check-status"), guide: await page.evaluate(() => document.getElementById("check-guide").hidden) };
   }
+  // n78: the fourth example, Subscription billing (Younium + Salesforce), at 375 and 1280 px: four buttons without
+  // sideways scrolling, each inside the viewport, and the run done with the pack's relationships
+  out.billing = {};
+  for (const w of [375, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(base + "/check");
+    out.billing[w] = await page.evaluate(() => {
+      const bs = [...document.querySelectorAll(".check-examples .check-ex")];
+      return { ids: bs.map((b) => b.id), overflow: document.documentElement.scrollWidth > innerWidth, label: (document.getElementById("check-billing") || {}).textContent,
+               inside: bs.every((b) => { const r = b.getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth; }) };
+    });
+    await page.click("#check-billing");
+    await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
+    out.billing[w].status = await page.textContent("#check-status");
+    out.billing[w].text = await page.textContent("#check-run");
+    out.billing[w].ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
+    out.billing[w].overflowAfter = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
   // plain /check starts nothing by itself
   await page.goto(base + "/check");
   await page.waitForTimeout(500);

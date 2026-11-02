@@ -190,9 +190,9 @@ def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
 
 def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
     """n52: at 375 x 812 the examples sat at y 1078, below the drop box and the privacy note. Now the heading and all
-    three examples are on the first screen, and the privacy sentence is still next to the drop box."""
+    three examples are on the first screen (four since n78), and the privacy sentence is still next to the drop box."""
     for v, e in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("examples@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert e["heading"]["bottom"] <= height and len(e["buttons"]) == 3, v
+        assert e["heading"]["bottom"] <= height and len(e["buttons"]) == 4, v
         assert all(b["bottom"] <= height for b in e["buttons"]), (v, e["buttons"])
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v

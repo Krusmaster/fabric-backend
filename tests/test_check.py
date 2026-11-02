@@ -78,7 +78,7 @@ def test_the_result_carries_domain_drafts_proposal_and_contracts():
     assert [x["name"] for x in sap["domains"]] == ["order-to-cash", "customer master"] and "public SAP" in sap["domains"][0]["name_reason"]
 
 
-@pytest.mark.parametrize("kind", ["sample", "sap", "crm"])
+@pytest.mark.parametrize("kind", ["sample", "sap", "crm", "billing"])
 def test_the_examples_report_each_engine_step_with_its_time(kind):
     events = []
     r = bc.analyze(kind, emit=events.append)
@@ -101,6 +101,19 @@ def test_the_sap_example_uses_the_pack_and_the_synthetic_demo():
     r = bc.analyze("sap")
     assert {x["rule"] for x in r["relationships"]} == {"SAP pack"} and len(r["tables"]) == 17
     assert any(f["check"] == "relationship" and "orphan" in f["title"] for f in r["findings"])
+
+
+def test_the_subscription_billing_example_is_read_through_the_younium_salesforce_pack():
+    """n78: the fourth example, fabric_backend.younium_demo's rows; the engine reads the pack itself, so the plan has
+    the pack's 15 relationships and validate_plan shows the planted 15-character Salesforce id and both doubled totals."""
+    r = bc.analyze("billing")
+    assert len(r["tables"]) == 14 and len(r["relationships"]) == 15 and {x["rule"] for x in r["relationships"]} == {"SAP pack"}
+    assert r["coverage"]["complete"] and r["coverage"]["relationships"] == 15
+    titles = [f["title"] for f in r["findings"]]
+    assert "younium_accounts.external_crm_id → sf_account: 1 orphan(s)" in titles
+    assert "sf_opportunity.Amount would be summed once per sf_opportunitylineitem row" in titles
+    assert any(t.startswith("younium_invoices.") and t.endswith("once per younium_invoice_lines row") for t in titles)
+    assert "synthetic" in r["source"]["label"].lower() or "Synthetic" in str(r["source"])
 
 
 def test_files_are_read_with_the_demo_adapter_and_orphans_are_found():
@@ -143,7 +156,8 @@ def test_check_page_policy_worker_and_files(client):
     r = client.get("/check")
     csp = r.headers["content-security-policy"]
     assert "connect-src 'none'" in csp and "worker-src 'self'" in csp and "form-action 'none'" in csp
-    assert r.text.count("Synthetic Data") == 3 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
+    assert r.text.count("Synthetic Data") == 4 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
+    assert "Subscription billing" in r.text and 'data-example="billing"' in r.text                                 # n78
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1]
     assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
     assert "http://" not in r.text.split("<main")[1].split("</main>")[0].replace("http://www.w3.org", "")
@@ -238,6 +252,13 @@ def test_in_a_browser_no_request_carries_the_files(site):
     e = r["engine"]
     assert e["open"] is False and e["summary"] == "How the engine got here" and e["stepsInside"] and e["steps"] >= 7 and e["opened"] is True, e
     assert r["top_marks"] == {"lit": 1, "pressed": "true"}
+    # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
+    for w in ("375", "1280"):
+        bl = r["billing"][w]
+        assert bl["ids"] == ["check-sample", "check-sap", "check-crm", "check-billing"] and bl["inside"] and not bl["overflow"], (w, bl)
+        assert "Subscription billing" in bl["label"] and "Younium + Salesforce" in bl["label"] and "Synthetic Data" in bl["label"]
+        assert "Done: the example “Subscription billing”" in bl["status"] and not bl["overflowAfter"], (w, bl["status"])
+        assert "SAP pack" in bl["text"] and "external_crm_id" in bl["text"] and bl["ms"] > 0, w
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
     # n73: one order through "A total that doubles": order_id 1, 1 000 on the order, 2 000 over its two lines, in the
     # finding, in Onto's answer, in the Power BI preview and in the contract; every download button says what the file
