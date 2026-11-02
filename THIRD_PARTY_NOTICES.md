@@ -34,10 +34,10 @@ CI installs the same pins. Versions are exact.
 | [jsonschema](https://pypi.org/project/jsonschema/4.26.0/) | 4.26.0 | MIT | `COPYING` | [github.com/python-jsonschema/jsonschema](https://github.com/python-jsonschema/jsonschema) |
 | [mcp-types](https://pypi.org/project/mcp-types/2.3.0/) | 2.3.0 | MIT | `LICENSE` | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
 | [mcp](https://pypi.org/project/mcp/2.3.0/) | 2.3.0 | MIT | `LICENSE` | [modelcontextprotocol.io](https://modelcontextprotocol.io) |
-| [opentelemetry-api](https://pypi.org/project/opentelemetry-api/1.45.1/) | 1.45.1 | Apache-2.0 | `LICENSE` | [github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api](https://github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api) |
+| [opentelemetry-api](https://pypi.org/project/opentelemetry-api/1.45.2/) | 1.45.2 | Apache-2.0 | `LICENSE` | [github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api](https://github.com/open-telemetry/opentelemetry-python/tree/main/opentelemetry-api) |
 | [pycparser](https://pypi.org/project/pycparser/3.12/) | 3.12 | BSD-3-Clause | `LICENSE` | [github.com/eliben/pycparser](https://github.com/eliben/pycparser) |
-| [pydantic](https://pypi.org/project/pydantic/2.14.1/) | 2.14.1 | MIT | `LICENSE` | [github.com/pydantic/pydantic](https://github.com/pydantic/pydantic) |
-| [pydantic-core](https://pypi.org/project/pydantic-core/2.50.1/) | 2.50.1 | MIT | `LICENSE` | [github.com/pydantic](https://github.com/pydantic) |
+| [pydantic](https://pypi.org/project/pydantic/2.14.2/) | 2.14.2 | MIT | `LICENSE` | [github.com/pydantic/pydantic](https://github.com/pydantic/pydantic) |
+| [pydantic-core](https://pypi.org/project/pydantic-core/2.50.2/) | 2.50.2 | MIT | `LICENSE` | [github.com/pydantic](https://github.com/pydantic) |
 | [pyjwt](https://pypi.org/project/pyjwt/2.15.1/) | 2.15.1 | MIT | `LICENSE`, `AUTHORS.rst` | [github.com/jpadilla/pyjwt](https://github.com/jpadilla/pyjwt) |
 | [pyodbc](https://pypi.org/project/pyodbc/5.3.0/) | 5.3.0 | MIT | `LICENSE.txt` | [github.com/mkleehammer/pyodbc](https://github.com/mkleehammer/pyodbc) |
 | [python-multipart](https://pypi.org/project/python-multipart/0.0.32/) | 0.0.32 | Apache-2.0 | `LICENSE.txt` | [github.com/Kludex/python-multipart](https://github.com/Kludex/python-multipart) |
