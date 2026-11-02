@@ -6,12 +6,12 @@ from .infer import plan, Plan, Relationship, check_tables
 from .graphql import definition, decode, valid_item_name
 from .deploy import deploy, connection_card, endpoint_url, source_for, find_item_by_name, _headers
 from .rayfin import rayfin_files, write_rayfin
-from .ontology import ontology_files, ontology_parts, ontology_ttl
+from .ontology import ontology_files, ontology_parts, ontology_rdfxml, ontology_ttl
 from .sqlserver import plan_sql_server, LocalPlan
 
 __all__ = ["Schema", "Table", "Column", "plan", "Plan", "Relationship", "definition", "decode",
            "valid_item_name", "deploy", "connection_card", "endpoint_url", "create", "plan_from",
-           "rayfin_files", "write_rayfin", "ontology_files", "ontology_parts", "ontology_ttl",
+           "rayfin_files", "write_rayfin", "ontology_files", "ontology_parts", "ontology_ttl", "ontology_rdfxml",
            "plan_sql_server", "LocalPlan"]
 __version__ = "0.8.0"
 

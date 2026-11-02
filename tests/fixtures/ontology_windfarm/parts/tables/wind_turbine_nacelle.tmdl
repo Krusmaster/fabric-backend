@@ -1,0 +1,40 @@
+table wind_turbine_nacelle
+	lineageTag: bda94659-a9af-43db-bb12-65f17418755b
+
+	column TurbineId
+		dataType: string
+		lineageTag: 74716ba6-330b-47ae-8a6a-a6ac043011af
+		sourceColumn: TurbineId
+
+	column ComponentId
+		dataType: string
+		lineageTag: 1152f425-d18f-442f-8fe8-85a8a36c1c97
+		sourceColumn: ComponentId
+
+	column ComponentNane
+		dataType: string
+		lineageTag: 165f9e70-c11f-4def-8017-d5d1516a0a6b
+		sourceColumn: ComponentNane
+
+	column ComponentDetails
+		dataType: string
+		lineageTag: 1cc8102d-47d6-463e-9e29-4c920c4d028d
+		sourceColumn: ComponentDetails
+
+	column SerialNumber
+		dataType: string
+		lineageTag: fe16e33f-4d3e-498c-943f-18db9ca6f044
+		sourceColumn: SerialNumber
+
+	column Manufacturer
+		dataType: string
+		lineageTag: 269046c9-50cf-4def-b61e-880d68c77fa8
+		sourceColumn: Manufacturer
+
+	partition wind_turbine_nacelle = entity
+		mode: directLake
+		source
+			entityName: wind_turbine_nacelle
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

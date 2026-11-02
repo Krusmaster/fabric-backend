@@ -38,7 +38,8 @@ from the pack, so a run on them shows that the tools work on such tables, never 
 `PRODUCT2`, `ORDER` → `ACCOUNT`, `CONTRACT` and `OPPORTUNITY`, `ORDERITEM` → `ORDER`, `PRICEBOOKENTRY` and `PRODUCT2`,
 `CONTRACT` → `ACCOUNT`. Amounts: `OPPORTUNITY.AMOUNT` and `ORDER.TOTAL_AMOUNT` at header level (sums of their lines'
 `TOTAL_PRICE`), `TOTAL_PRICE` at line level, `UNIT_PRICE` a price. Personal data is named on `CONTACT` (names, e-mail,
-telephone, address, birth date) and on `ACCOUNT` (telephone, addresses).
+telephone, address, birth date), on `ACCOUNT` (name, telephone, addresses) and on Younium's `ACCOUNTS` (name, invoice
+e-mail, telephone); since round n79 `sample_rows` and the drafted queries mask them through the pack as they mask SAP's.
 
 Table names are the objects' API names in upper case; columns are compared without case or underscores, so `AccountId`
 and `account_id` both read as the pack's `ACCOUNT_ID`. A system prefix in front of a table name (`younium_accounts`,
@@ -70,27 +71,43 @@ and `account_id` both read as the pack's `ACCOUNT_ID`. A system prefix in front 
   beside posted ones, table names in Fabric are the integrator's choice, the Salesforce product is reached through the
   price book entry, and a currency column exists only in a multi-currency org.
 
-## How it is used today, and what the engine lacks
+## How the engine reads it (round n78)
 
 - `sap_pack.load("younium_salesforce")`, `sap_pack.problems(...)`, `sap_pack.match(schema, "younium_salesforce")`: the
   pack's view of a schema (tables, keys, applied and listed relationships, missing tables), as for SAP.
-- `sap_pack.match_any(schema)`: the pack that recognises most of a schema's tables, SAP or this one.
+- **The engine reads the pack.** Since round n78 (2 November 2026) `infer._pack` calls `sap_pack.match_any(schema)` in
+  place of `sap_pack.match(schema)`: the pack that recognises most of a schema's tables, SAP or this one. A schema it
+  recognises gets the pack's keys and applied relationships in the plan, with the rule `SAP pack` (one rule for every
+  pack, so the answers keep their shape) and the pack's name, module and public source on each relationship's note
+  (`younium_salesforce pack (younium): source: ...`). Where a person reads the rule (the `/check` map, panel and
+  findings, the data dictionary, the Power BI README, the contracts) it says *Younium + Salesforce pack* since round
+  n79; the `rule` fields of the answers stay `SAP pack`. `plan.pack` carries the pack's name, tables, amounts and traps as
+  it does for SAP. `plan_backend`, `/check`, `domain_draft` and the drafts built from a plan therefore plan
+  `younium_subscriptions.account_id -> younium_accounts` through the prefix, and `validate_plan` checks the joins and
+  feeds *the total that doubles* with the pack's amounts.
+- **When the pack counts.** Many of the pack's table names are ordinary words (`ACCOUNTS`, `PRODUCTS`, `CHARGES`,
+  `SUBSCRIPTIONS`, `SALES_ORDERS`, `INVOICES`, `INVOICE_LINES`, `PAYMENTS`; Salesforce's `ACCOUNT`, `CONTACT`,
+  `OPPORTUNITY`, `ORDER`, `ORDERITEM`, `CONTRACT`), and another system's tables can carry them with an `id` key. Those
+  tables are marked `common_name` in the pack files, and `match_any` takes the pack only when at least one table it
+  recognises is not marked: `CHARGE_PLANS`, `SUBSCRIPTION_VERSIONS`, `SUBSCRIPTION_CHARGES`, `OPPORTUNITYLINEITEM`,
+  `PRODUCT2` or `PRICEBOOKENTRY`. A schema of accounts, products, invoices, invoice lines, payments and a Contact is
+  planned by the name rules as before; so is the `/check` CRM example (Account, Contact, Opportunity beside an ERP).
+  No SAP table is marked, so a schema the SAP pack recognises gets exactly the plan it got before, and no Salesforce or
+  Younium table shares a name with an SAP table. `tests/test_younium_pack.py` compares the plans of the benchmark's
+  shop, sap, crm and traps sets, and of the SAP test schemas, with the plans of the engine that read the SAP pack
+  alone, and checks the tables of ordinary names alone.
 - `sap_pack.plan_with(schema, "younium_salesforce")`: `infer.plan` with the pack's keys and plain relationships given
-  as the caller's keys and confirmed relationships. It stands in for the engine until the engine reads the pack.
-- **The engine does not read the pack yet.** `infer._pack` calls `sap_pack.match(schema)`, which is the SAP pack alone;
-  `plan_backend`, `/check`, `sap_pack_draft` and `domain_draft` therefore plan Younium and Salesforce tables by the
-  name rules, which cannot link `younium_subscriptions.account_id` to `younium_accounts` through the prefix. The change
-  this pack needs, for the Engine area to make: in `infer._pack`, `m = sap_pack.match_any(schema)` in place of
-  `sap_pack.match(schema)`, and the rule label read from the pack (`p["rule"]`) in place of the constant `PACK_RULE`
-  where the plan reports it (or kept as `SAP pack` for both, with the pack's name in the note, which is what
-  `plan_with` shows today). With that one call, `plan.pack` carries the pack's name, tables, amounts and traps as it
-  does for SAP, `sap_pack.amounts` feeds *the total that doubles*, and the domain proposal names the domains after
-  the pack's areas (`domains._plan_areas`). A schema the SAP pack recognises gets exactly the plan it gets today:
-  `match_any` returns the pack with most matches, and no Salesforce or Younium table shares a name with an SAP table.
-  Measured on the demo with `plan_with` (1 November 2026, SQLite): 15 of 15 relationships right, the orphan and both
-  doubled totals found; see `examples/benchmark/README.md`.
-- The domain proposal (`fabric_backend/domains.py`) names a domain after the pack's areas when it has them: on the
-  demo, *billing* (invoices, invoice lines, payments, with the accounts and the subscriptions), *product catalog and
+  as the caller's keys and confirmed relationships, for a pack named by the caller; it stood in for the engine in round
+  n72 and stays for comparing, and for a schema `match_any` does not take.
+- Measured by the engine on the demo (2 November 2026, SQLite, `examples/benchmark/README.md`): 15 of 15 planned
+  relationships right, recall 15 of 18 (the three links by number the invoice lines carry are listed by the pack as
+  unverified and not applied), and `validate_plan` shows the three planted traps: the 15-character Salesforce id as the
+  one orphan of `younium_accounts.external_crm_id -> sf_account` (the count says one row points at nothing; that the
+  reason is 15 against 18 characters is the pack's trap `salesforce_id_length` in `plan.pack`), the invoice total over
+  its three lines and the opportunity amount over its line items. The rows were written from the pack, so this shows
+  what the pack adds on such a schema, not that the pack is right about Younium.
+- The domain proposal (`fabric_backend/domains.py`) names a domain after the pack's areas when it has them (read
+  from `plan.pack` since round n78): on the demo, *billing* (invoices, invoice lines, payments, with the accounts and the subscriptions), *product catalog and
   subscriptions* (products, charge plans, charges, subscription versions and charges) and *customers and sales* (the
   four Salesforce tables). The split itself is the deterministic community detection it always was; only the names
   are new.
@@ -103,8 +120,8 @@ invoice INV-1001 with three lines (the header total doubles), three versions of 
 EUR beside accounts in SEK, a usage charge, a draft invoice, a subscription billed to another account. `EXPECTED` in
 the module says what each check finds; `tests/test_younium_pack.py` runs them in SQLite. `write_csv(folder)` writes the
 CSVs, `_types.json` and a PySpark notebook for a lakehouse (nothing here connects to Fabric), and `rows_for_check()`
-gives the rows in the shape `browser_check._sqlite_source` takes, so a `/check` example can be added by the Website area
-in a later round without changing the demo. `examples/benchmark/` has the demo as its fifth set.
+gives the rows in the shape `browser_check._sqlite_source` takes, so `/check` has it as the example *Subscription billing*
+(round n78) without a change to the demo. `examples/benchmark/` has the demo as its fifth set.
 
 ## Sources, with dates, and what is unverified
 
@@ -161,5 +178,5 @@ will then need its assertion turned around.
    version valid on the date), so the semantic model's measure matches Younium's reports?
 8. **Names in Fabric.** camelCase, snake_case, or Younium's labels; with or without a system prefix.
 
-Nothing in this round deploys or calls Azure, Entra, DNS or Fabric; the `/check` example for the pack is a Website
-change for a later round.
+Nothing in round n72 or n78 deploys or calls Azure, Entra, DNS or Fabric; the `/check` example for the pack came in
+round n78.

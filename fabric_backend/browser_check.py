@@ -1,9 +1,9 @@
 """What /check runs in the visitor's browser (Pyodide): the same engine as the 20-minute demo, on files that never leave it.
 
-The page hands the files it was given (name and bytes), a pasted columns list, or the name of one of three synthetic
-examples to `analyze`. Files are written to Pyodide's in-memory file system and read with the local adapter's own
-`folder_source` (CSV and .xlsx, the same code as `fabric-backend demo`); a columns list goes through `pasted_source`.
-Then the engine's steps run one after the other, and each one is reported to `emit` as it finishes, with what it found
+The page hands the files it was given (name and bytes), a pasted columns list, or the name of one of four synthetic
+examples to `analyze` (the shop, SAP, Salesforce + ERP, and since n78 Younium + Salesforce subscription billing). Files
+are written to Pyodide's in-memory file system and read with the local adapter's own `folder_source` (CSV and .xlsx,
+the same code as `fabric-backend demo`); a columns list goes through `pasted_source`. Then the engine's steps run one after the other, and each one is reported to `emit` as it finishes, with what it found
 and how long it took: the plan (keys K0–K5, relationships R0–R4), validate_plan's counts, suggest_relationships, and
 the findings and five states of step 1 from `demo_app.Session`, unchanged. The page draws those events as they come;
 nothing on it is a made-up progress line.
@@ -27,8 +27,8 @@ import time
 import zipfile
 from pathlib import Path
 
-KINDS = ("sample", "sap", "crm", "files", "columns")
-_RULE = re.compile(r"\brule ([KR]\d|SAP pack|confirmed)\b")
+KINDS = ("sample", "sap", "crm", "billing", "files", "columns")
+_RULE = re.compile(r"\brule ([KR]\d|confirmed|[A-Z][A-Za-z0-9 +]*? pack)\b")     # a pack by its own name (n79)
 _SHOWN = {"problem", "warning", "question", "info"}            # suggestions are listed apart: they are not something wrong
 
 
@@ -86,6 +86,10 @@ def _source(kind: str, files: list | None, text: str):
     if kind == "crm":
         return _sqlite_source("folder", "Synthetic Salesforce + ERP tables", "crm", crm_tables(),
                               "Synthetic Salesforce-shaped objects and ERP tables: invented accounts, contacts and orders, no real company."), None
+    if kind == "billing":                                         # n78: the engine reads the Younium + Salesforce pack
+        from . import younium_demo
+        return _sqlite_source("folder", "Synthetic Younium + Salesforce tables (fabric_backend.younium_demo)", "billing", younium_demo.rows_for_check(),
+                              "Synthetic Younium- and Salesforce-shaped rows from fabric_backend.younium_demo: invented accounts and invoices, no tenant or org."), None
     if kind == "columns":
         return pasted_source(text or ""), None
     folder = Path(tempfile.mkdtemp(prefix="check-"))                # in the browser: Pyodide's memory, nothing on a disk
@@ -218,10 +222,10 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
              notes=src.notes[:20])
         t = time.perf_counter()
         p = plan(src.schema)
-        tables = [{"name": x.name, "key": p.keys.get(x.name, ([], ""))[0], "key_rule": p.keys.get(x.name, ([], "K3"))[1] or "K3",
+        tables = [{"name": x.name, "key": p.keys.get(x.name, ([], ""))[0], "key_rule": p.label(p.keys.get(x.name, ([], "K3"))[1] or "K3"),
                    "columns": x.column_names} for x in p.schema]
-        rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": r.rule}
-                for r in p.relationships]
+        rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": p.label(r.rule)}
+                for r in p.relationships]                                  # the page shows the rule: a pack by its own name (n79)
         ms_plan = round((time.perf_counter() - t) * 1000)
         by_rule = lambda items, key: ", ".join(f"{k} {n}" for k, n in sorted(_count(items, key).items()))
         send({"step": "keys", "title": "Keys (rules K0–K5)", "ms": ms_plan, "tables": tables,
@@ -297,7 +301,8 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "source": {"kind": src.kind, "label": src.label, "has_data": src.has_data, "notes": src.notes},
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
-               "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data)}
+               "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data),
+               "evidence_report": _evidence_report(p, src, validation, kind), "ontology_rdfxml": _ontology_rdfxml(p, src, kind)}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -306,6 +311,33 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
             shutil.rmtree(folder, ignore_errors=True)
         if src.close:
             src.close()
+
+
+NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing"}   # the downloads' file names
+
+
+def _evidence_report(p, src, validation: dict | None, kind: str) -> dict:
+    """n79: the evidence report of this run as a Markdown file for the page to save (evidence_report.py): the plan and
+    validate_plan's counts only, so none of the example rows the findings quote is in it."""
+    from . import evidence_report, tool_status as ts
+    base = NAMES.get(kind) or re.sub(r"\W+", "_", getattr(src.schema, "schema", "") or "data")
+    rep = evidence_report.report(p, validation, source=src.label)
+    return {"name": f"{base}_evidence_report.md", "markdown": evidence_report.markdown(rep), "status": ts.EVIDENCE_REPORT,
+            "summary": rep["summary"]}
+
+
+def _ontology_rdfxml(p, src, kind: str) -> dict | None:
+    """n80: the plan as RDF/XML for Microsoft's Ontology Playground (ontology.ontology_rdfxml), a file for the page to
+    save: entity types, their columns and the relationships with the rule in each description, no rows. None when there
+    is nothing to write or the file would pass the Playground's 8 MiB."""
+    from . import ontology, tool_status as ts
+    base = NAMES.get(kind) or re.sub(r"\W+", "_", getattr(src.schema, "schema", "") or "data")
+    try:
+        xml = ontology.ontology_rdfxml(p, base, getattr(src.schema, "schema", "") or "dbo")
+    except ValueError:
+        return None
+    return {"name": f"{base}_ontology.rdf", "xml": xml, "status": ts.ONTOLOGY_RDFXML,
+            "tried": ts.ONTOLOGY_RDFXML_TRIED, "entity_types": xml.count("<owl:Class "), "relationship_types": xml.count("<owl:ObjectProperty ")}
 
 
 def _amount_examples(p, src, validation: dict | None) -> dict[tuple, dict]:
@@ -416,11 +448,13 @@ def _domains(p, src, validation: dict | None, notes: dict[str, list[dict]] | Non
         return out
     out = domains.draft(p, schema, src.label, validation, extra=extra)
     out["status"] = ts.label("domain_draft")             # the status word the page puts on the contract download
+    for i in out["interfaces"]:                          # the panel prints the interface's rule: the pack by its own name (n79)
+        i["rule"] = p.label(i["rule"])
     for d in out["domains"]:
         mine = set(d["tables"])
         d["keys"] = {t: list(p.keys.get(t, ([], ""))[0]) for t in d["tables"]}
         d["relationships"] = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols,
-                               "rule": r.rule} for r in p.relationships if r.source in mine and r.target in mine]
+                               "rule": p.label(r.rule)} for r in p.relationships if r.source in mine and r.target in mine]
         d["checks"] = ([{"what": f"key of {k['table']}", "verdict": k["verdict"]} for k in (validation or {}).get("keys", []) if k.get("table") in mine]
                        + [{"what": f"{r['source']}.{'+'.join(r['columns'])} → {r['target']}", "verdict": r["verdict"]}
                           for r in (validation or {}).get("relationships", []) if r.get("source") in mine])

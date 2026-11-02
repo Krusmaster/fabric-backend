@@ -229,7 +229,7 @@ def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Diale
             f"FROM (SELECT {cs}, {dialect.count}(*) AS n FROM {dialect.table(schema, line)} WHERE {not_null} GROUP BY {cs}) AS g")
 
 
-def _explain(f: dict, counts: dict | None) -> str:
+def _explain(f: dict, counts: dict | None, label=None) -> str:
     line, header, cols = f["line"], f["header"], f["amount_columns"]
     first = cols[0]
     link = f"{line}.{'+'.join(f['line_columns'])} → {header}.{'+'.join(f['header_columns'])}"
@@ -243,7 +243,7 @@ def _explain(f: dict, counts: dict | None) -> str:
         many = f"{line} can have several rows for each row of {header} (rows per {header} row: unknown until the data is counted)"
         size = f"so SUM({header}.{first}) over the joined rows counts each {header} row once per {line} row"
     return (f"{header}.{', '.join(cols)} {'is an amount' if len(cols) == 1 else 'are amounts'} on {header}, and {many} "
-            f"(rule {f['rule']}: {link}). In a join of the two, each {header} amount is repeated on every {line} row, {size}. "
+            f"(rule {(label or str)(f['rule'])}: {link}). In a join of the two, each {header} amount is repeated on every {line} row, {size}. "
             f"Sum it on {header} itself, or sum an amount of {line} instead: {LEVELS}.")
 
 
@@ -267,7 +267,7 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
             except Exception as e:                                       # noqa: BLE001 - one failed count never hides the finding
                 f["count_error"] = f"{type(e).__name__}: {e}"
         f["rows_per_header"] = counts if counts and counts["headers"] else "unknown"
-        f["explanation"] = _explain(f, counts)
+        f["explanation"] = _explain(f, counts, plan.label)
         f["do_instead"] = (f"Aggregate {', '.join(f['amount_columns'])} on {f['header']} (one row per {f['header']}) and join the "
                            f"result, or sum a {f['line']} amount; never SUM({f['header']}.{f['amount_columns'][0]}) over {f['line']} rows.")
     repeated = [f for f in found if isinstance(f["rows_per_header"], dict) and f["rows_per_header"]["max_lines"] > 1]

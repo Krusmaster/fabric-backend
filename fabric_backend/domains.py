@@ -210,6 +210,8 @@ def _name(tables: list[str], g: dict[str, dict[str, float]], into: dict[str, flo
 # ------------------------------------------------------------------ the proposal ----------------------------------
 
 def _weight(rule: str, kind: str | None = None, check: dict | None = None) -> float:
+    if rule not in WEIGHTS and rule.endswith(" pack"):          # a pack's own name, as /check's result shows it (n79)
+        rule = "SAP pack"
     w = EXTENDED_WEIGHTS.get(kind, 0.4) if kind else WEIGHTS.get(rule, 0.5)
     if check:
         if check.get("verdict", "").startswith("holds"):
@@ -220,11 +222,13 @@ def _weight(rule: str, kind: str | None = None, check: dict | None = None) -> fl
 
 
 def propose(tables: list[dict], relationships: list[dict], validation: dict | None = None,
-            gamma: float = RESOLUTION, areas: dict[str, str] | None = None) -> dict:
+            gamma: float = RESOLUTION, areas: dict[str, str] | None = None, label=None) -> dict:
     """Domains from plain data, the form both the plan and /check's result give:
     tables [{"name", "key": [cols]}], relationships [{"source", "source_cols", "target", "target_cols", "rule", "kind"?}],
     validation: validate_plan's output (optional), areas: {table: area} a knowledge pack gave (pack_areas), used for the
-    domains' names. Returns {"domains", "unassigned", "interfaces", "method"}."""
+    domains' names, label: the rule as a person reads it in the reasons (Plan.label; n79), the `rule` fields keep the
+    plan's. Returns {"domains", "unassigned", "interfaces", "method"}."""
+    label = label or (lambda rule: rule)
     checks = {(r["source"], tuple(c.lower() for c in r["columns"]), r["target"]): r for r in (validation or {}).get("relationships", [])}
     keyed = sorted((t["name"] for t in tables if t.get("key")), key=str.lower)
     keyless = sorted((t["name"] for t in tables if not t.get("key")), key=str.lower)
@@ -282,7 +286,7 @@ def propose(tables: list[dict], relationships: list[dict], validation: dict | No
                             or (r["target"] == t and where.get(r["source"]) == d["slug"] and r["source"] != t)),
                            key=lambda r: (-r["weight"], r["source"].lower(), r["target"].lower()))
             r = inner[0]
-            how = f"{r['source']}.{'+'.join(r['source_cols'])} → {r['target']} ({r.get('rule') or r.get('kind')}, weight {r['weight']})"
+            how = f"{r['source']}.{'+'.join(r['source_cols'])} → {r['target']} ({label(r.get('rule')) if r.get('rule') else r.get('kind')}, weight {r['weight']})"
             d["reasons"][t] = (parent[t][1] + "; " if t in parent else "") + f"{len(inner)} relationship(s) inside the domain; strongest: {how}"
     for t in keyless:
         points = sorted({where[r["target"]] for r in rels if r["source"] == t and r["target"] in where})
@@ -326,7 +330,7 @@ def propose_plan(p, validation: dict | None = None, gamma: float = RESOLUTION, a
     """Domains of a plan (infer.plan). The names come from the plan's pack when it names its tables' areas; `areas`
     overrides that (pack_areas of a match the engine did not make itself)."""
     tables, rels = _plan_data(p)
-    return propose(tables, rels, validation, gamma, areas if areas is not None else _plan_areas(p))
+    return propose(tables, rels, validation, gamma, areas if areas is not None else _plan_areas(p), getattr(p, "label", None))
 
 
 def propose_from_check(result: dict, gamma: float = RESOLUTION) -> dict:
@@ -396,6 +400,7 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
     checks_k = {k["table"]: k for k in (validation or {}).get("keys", [])}
     checks_r = {(r["source"], tuple(c.lower() for c in r["columns"]), r["target"]): r for r in (validation or {}).get("relationships", [])}
     mine = set(domain["tables"])
+    L = getattr(p, "label", None) or (lambda rule: rule)     # the pack's own name where a person reads the rule (n79)
     rels = [r for r in list(p.relationships) if r.source in mine]
     objects, dated = [], []
     for name in domain["tables"]:
@@ -412,10 +417,10 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
             if prop["logicalType"] in ("date", "timestamp"):
                 dated.append(f"{name}.{c.name}")
         obj = {"name": name, "physicalName": f"{schema}.{name}", "physicalType": "table", "logicalType": "object",
-               "description": domain["reasons"].get(name, "") + f"; key by rule {key[1]}", "properties": props}
+               "description": domain["reasons"].get(name, "") + f"; key by rule {L(key[1])}", "properties": props}
         quality = []
         if key[0]:
-            rule = {"name": f"{name}_key_unique", "description": f"Key {'+'.join(key[0])} ({key[1]}) has no duplicates",
+            rule = {"name": f"{name}_key_unique", "description": f"Key {'+'.join(key[0])} ({L(key[1])}) has no duplicates",
                     "dimension": "uniqueness", "type": "library", "metric": "duplicateValues", "mustBe": 0,
                     "arguments": {"properties": list(key[0])}}
             k = checks_k.get(name)
@@ -427,7 +432,7 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
             on = " AND ".join(f"t.{_quote(b)} = s.{_quote(a)}" for a, b in zip(r.source_cols, r.target_cols))
             some = " OR ".join(f"s.{_quote(a)} IS NOT NULL" for a in r.source_cols)
             rule = {"name": f"{name}_{'_'.join(r.source_cols)}_no_orphans".lower(),
-                    "description": f"Every {name}.{'+'.join(r.source_cols)} with a value finds a row in {r.target} ({r.rule})",
+                    "description": f"Every {name}.{'+'.join(r.source_cols)} with a value finds a row in {r.target} ({L(r.rule)})",
                     "dimension": "consistency", "type": "sql",
                     "query": (f"SELECT COUNT(*) FROM {_quote(schema)}.{_quote(name)} s WHERE ({some}) AND NOT EXISTS "
                               f"(SELECT 1 FROM {_quote(schema)}.{_quote(r.target)} t WHERE {on})"),

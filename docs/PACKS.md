@@ -77,9 +77,11 @@ The benchmark table in `examples/benchmark/README.md` is unchanged by the manife
    set and a row of the table) when it is meant to be measured; the test then compares the facit with the manifest.
 5. **Run the suite** (`python -m pytest -q`). `tests/test_pack_manifest.py` says what is out of step; the numbers in
    `tests/test_sap_inference.py` are asserted exactly, so a change to the SAP pack shows up there.
-6. **The engine.** `infer._pack` reads the SAP pack today; a second pack is read through `sap_pack.plan_with` until
-   the Engine area makes the one-line change [YOUNIUM-SALESFORCE.md](YOUNIUM-SALESFORCE.md) describes
-   (`sap_pack.match_any`). A manifest does not change that.
+6. **The engine.** `infer._pack` reads every pack through `sap_pack.match_any` since round n78: the pack that
+   recognises most of a schema's tables, of those that recognise at least one table whose name is the system's own.
+   Mark a table `common_name` in the module file when its name is an ordinary word another system's table can carry
+   (`ACCOUNTS`, `INVOICES`, `Contact`): tables of that kind alone never light the pack. A manifest does not change
+   what the engine reads.
 
 ## The review step
 

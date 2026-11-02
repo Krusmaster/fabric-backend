@@ -1,0 +1,68 @@
+table wind_weather_tower_telemetry_augmented_Mar2025
+	lineageTag: d483e039-8cde-4214-8c30-56426f527d27
+
+	column TowerId
+		dataType: string
+		lineageTag: 6b11ccdc-27d4-4632-80e6-c2458c8245be
+		sourceColumn: TowerId
+
+	column Humidity_percent
+		dataType: int64
+		formatString: 0
+		lineageTag: 6b4ab3d8-58b7-4d48-a790-41ca88afd33f
+		sourceColumn: Humidity_percent
+
+	column Pressure_hPa
+		dataType: int64
+		formatString: 0
+		lineageTag: 7ffb03df-de08-443d-b92f-72efbbca475d
+		sourceColumn: Pressure_hPa
+
+	column SolarRadiation
+		dataType: int64
+		formatString: 0
+		lineageTag: 4d824661-06fd-410c-9619-ad312324bba7
+		sourceColumn: SolarRadiation
+
+	column Temperature
+		dataType: int64
+		formatString: 0
+		lineageTag: 8b815c03-2498-4bd4-b587-f6297ede43a9
+		sourceColumn: Temperature
+
+	column Turbulence
+		dataType: int64
+		formatString: 0
+		lineageTag: 63856673-0d76-4021-8658-a3194a4164e0
+		sourceColumn: Turbulence
+
+	column WindDirection
+		dataType: int64
+		formatString: 0
+		lineageTag: e6419499-eb0e-4445-bd1a-d51a974e43ee
+		sourceColumn: WindDirection
+
+	column WindShear
+		dataType: double
+		lineageTag: 0558d2b8-f80e-421b-8788-3570f7e3ebcc
+		sourceColumn: WindShear
+
+	column WindSpeed
+		dataType: int64
+		formatString: 0
+		lineageTag: 090f7a56-3ef1-429d-a806-0e5ea87d6a7a
+		sourceColumn: WindSpeed
+
+	column Timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: d9841bd8-214f-4bf3-808a-a82cc369c2d0
+		sourceColumn: Timestamp
+
+	partition wind_weather_tower_telemetry_augmented_Mar2025 = entity
+		mode: directLake
+		source
+			entityName: wind_weather_tower_telemetry_augmented_Mar2025
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

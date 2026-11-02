@@ -831,7 +831,7 @@
   }
  },
  "younium": {
-  "_about": "Round n72: fabric_backend/younium_demo.py, 14 tables with the system prefixes younium_ and sf_. The relationships are the younium_salesforce pack's applied ones (15) and the three links by number the invoice lines carry in these rows (the pack lists them as unverified). The pack was written from sources the writing session could not open, and the rows from the pack: the row shows what the methods do on a schema only a pack can read, not that the pack is right about Younium. The engine does not apply this pack yet (infer._pack reads the SAP pack alone), so Krusgraph's row is the name rules and the row checks alone.",
+  "_about": "Round n72: fabric_backend/younium_demo.py, 14 tables with the system prefixes younium_ and sf_. The relationships are the younium_salesforce pack's applied ones (15) and the three links by number the invoice lines carry in these rows (the pack lists them as unverified). The pack was written from sources the writing session could not open, and the rows from the pack: the row shows what the methods do on a schema only a pack can read, not that the pack is right about Younium. Since round n78 the engine applies the pack (infer._pack calls sap_pack.match_any), so Krusgraph's row is the pack's 15 relationships with the row checks and R5; before it the row was the name rules alone.",
   "relationships": [
    {
     "source": "sf_contact",

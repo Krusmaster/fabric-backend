@@ -1,0 +1,48 @@
+table wind_maintenance_staff
+	lineageTag: 2573d7f2-2389-46bd-b218-0059b25577af
+
+	column Id
+		dataType: int64
+		formatString: 0
+		lineageTag: ecc0885d-d7a0-4634-a53f-a0066f2b77e7
+		sourceColumn: Id
+
+	column Name
+		dataType: string
+		lineageTag: d0db7b27-b20f-405b-945d-719e511a73ba
+		sourceColumn: Name
+
+	column Email
+		dataType: string
+		lineageTag: f85d5327-c74b-489b-b4e9-29e601b350a6
+		sourceColumn: Email
+
+	column Phone
+		dataType: string
+		lineageTag: d983f816-f81f-4104-a792-2a795b81d8ef
+		sourceColumn: Phone
+
+	column JoinedSince
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: d79bfbb3-beee-488a-b5d5-ee83d1015143
+		sourceColumn: JoinedSince
+
+	column Manager
+		dataType: string
+		lineageTag: 19f92819-1f34-42c9-aac4-c5cb9627e260
+		sourceColumn: Manager
+
+	column WorkOrderTypeResponsible
+		dataType: int64
+		formatString: 0
+		lineageTag: 6d225639-1e0a-4779-b953-48b66be74384
+		sourceColumn: WorkOrderTypeResponsible
+
+	partition wind_maintenance_staff = entity
+		mode: directLake
+		source
+			entityName: wind_maintenance_staff
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

@@ -1,4 +1,4 @@
-"""Rounds n61 and n62: the comparison benchmark in examples/benchmark/ is reproducible and says what it measured."""
+"""Rounds n61, n62 and n78: the comparison benchmark in examples/benchmark/ is reproducible and says what it measured."""
 import importlib.util
 import json
 from pathlib import Path
@@ -33,6 +33,10 @@ def test_what_each_method_catches_and_misses():
         assert (r["precision"], r["recall"], r["recall_with_suggestions"]) == (1.0, 1.0, 1.0), ds
     assert (res["shop"]["krusgraph"]["true_positives"], res["crm"]["krusgraph"]["true_positives"], k["true_positives"]) == (7, 5, 8)
     assert res["sap"]["dbt"]["orphans_found"] == "0/1"                                   # composite keys: no built-in test
+    # n78, measured: the engine reads the younium_salesforce pack; the three links by number stay unapplied
+    y = res["younium"]["krusgraph"]
+    assert (y["precision"], y["true_positives"], y["recall"], y["recall_with_suggestions"]) == (1.0, 15, 0.83, 1.0)
+    assert (y["orphans_found"], y["doubled_found"], y["ambiguous_fallen_for"]) == ("1/1", "2/2", "0/3")
 
 
 def test_the_baseline_is_never_called_power_bi_itself():

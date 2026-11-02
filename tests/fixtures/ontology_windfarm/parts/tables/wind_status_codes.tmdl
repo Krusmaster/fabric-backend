@@ -1,0 +1,45 @@
+table wind_status_codes
+	lineageTag: 84ef2896-ca5f-4107-ae93-0ab228e0ba85
+
+	column ErrorCode
+		dataType: string
+		lineageTag: 696a107e-5efe-48c9-a543-0d806c732639
+		sourceColumn: ErrorCode
+
+	column PlantId
+		dataType: string
+		lineageTag: 8d1a3417-9133-4fb2-9cf5-cd8c8da3c039
+		sourceColumn: PlantId
+
+	column Description
+		dataType: string
+		lineageTag: 3b0954e3-1c17-4481-8364-08f7006537e9
+		sourceColumn: Description
+
+	column Severity
+		dataType: string
+		lineageTag: 3aea0f3c-5a6c-4950-b310-4fc50fdf10a4
+		sourceColumn: Severity
+
+	column PossibleCause
+		dataType: string
+		lineageTag: 8e41cb86-6af4-4a24-8541-e1622d98bc0a
+		sourceColumn: PossibleCause
+
+	column RecommendedAction
+		dataType: string
+		lineageTag: bb0eda8a-7df5-4b40-b3e1-58c7808714c8
+		sourceColumn: RecommendedAction
+
+	column AffectedComponents
+		dataType: string
+		lineageTag: dac8b691-5513-45ac-83d6-3cf395f79190
+		sourceColumn: AffectedComponents
+
+	partition wind_status_codes = entity
+		mode: directLake
+		source
+			entityName: wind_status_codes
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

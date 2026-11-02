@@ -1,0 +1,152 @@
+/// A wind turbine belonging to a plant, including its time-series telemetry.
+entity wind_turbines
+	lineageTag: 92b6d2a1-7717-4d9f-98f3-a834f93b60ba
+	backingTable: wind_turbines
+	keyProperty: TurbineId
+
+	/// Unique turbine identifier.
+	property TurbineId
+		dataType: string
+		lineageTag: 4a36cc7e-fc6b-4f65-acda-db6af2037f11
+
+		backingConfiguration
+			valueColumn: wind_turbines.TurbineId
+
+	/// Identifier of the plant that owns the turbine.
+	property PlantId
+		dataType: string
+		lineageTag: 80014252-2423-4bb1-98cf-7f12571eff2f
+
+		backingConfiguration
+			valueColumn: wind_turbines.PlantId
+
+	/// Display name of the turbine.
+	property TurbineName
+		dataType: string
+		lineageTag: 9323197a-0dae-4f46-af8c-090420cf73e2
+
+		backingConfiguration
+			valueColumn: wind_turbines.TurbineName
+
+	/// Turbine axis orientation.
+	property Axis
+		dataType: string
+		lineageTag: 01dfc3a9-26df-4c48-93f6-5f17e0a26411
+
+		backingConfiguration
+			valueColumn: wind_turbines.Axis
+
+	/// Operational status of the turbine.
+	property TurbineStatus
+		dataType: string
+		lineageTag: 9f6bfa61-6588-45f9-bf34-eca0b988dffc
+
+		backingConfiguration
+			valueColumn: wind_turbines.TurbineStatus
+
+	/// Rated capacity of the turbine.
+	property Capacity
+		dataType: double
+		lineageTag: 9df2e45e-365d-4ed4-92d1-5f35d0840906
+
+		backingConfiguration
+			valueColumn: wind_turbines.Capacity
+
+	/// Hub height of the turbine.
+	property HubHeight
+		dataType: int64
+		lineageTag: 9d22fbbd-4c2d-4e96-b3c2-21805d86141e
+
+		backingConfiguration
+			valueColumn: wind_turbines.HubHeight
+
+	/// Turbine serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: 69e1a36d-b85b-48e3-8f38-92e2781f15dc
+
+		backingConfiguration
+			valueColumn: wind_turbines.SerialNumber
+
+	/// Manufacturer of the turbine.
+	property Manufacturer
+		dataType: string
+		lineageTag: 0f09bcd9-44fb-4983-bd2e-532c876f735b
+
+		backingConfiguration
+			valueColumn: wind_turbines.Manufacturer
+
+	/// Energy produced in kilowatt-hours.
+	property EnergyKwh
+		dataType: TimeSeries<double>
+		lineageTag: e1f95a45-b54c-4748-b223-e1f7eda708bd
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.EnergyKwh
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Rotor diameter.
+	property Diameter
+		dataType: TimeSeries<double>
+		lineageTag: ff5b093f-cb46-4722-9ca1-e889f832866b
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Diameter
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Operational ratio.
+	property Ratio
+		dataType: TimeSeries<double>
+		lineageTag: 49112fe4-11cd-4b0e-8178-230ac4b56cfa
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Ratio
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Operating efficiency.
+	property Efficiency
+		dataType: TimeSeries<double>
+		lineageTag: 3b79d6a0-a507-4a81-870d-9b9de337003d
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Efficiency
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Instantaneous power output.
+	property Power
+		dataType: TimeSeries<double>
+		lineageTag: 429b7f8a-9380-46fd-9699-6c47bb474fd9
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Power
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Output voltage.
+	property Voltage
+		dataType: TimeSeries<double>
+		lineageTag: e56f23e3-28f5-4806-a072-01401057c30a
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Voltage
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	/// Timestamp of the telemetry reading.
+	property Timestamp
+		dataType: TimeSeries<dateTime>
+		lineageTag: dc987608-1be2-475d-b78c-45571d064cea
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+			orderingColumn: wind_turbine_telemetry_augmented_Mar2025.Timestamp
+
+	additionalBackingTable
+		table: wind_turbine_telemetry_augmented_Mar2025
+		relationship: rel_turbinetelemetry_turbine
+

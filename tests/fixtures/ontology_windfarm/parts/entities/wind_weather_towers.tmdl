@@ -1,0 +1,132 @@
+/// A meteorological weather tower installed at a plant, including its time-series telemetry.
+entity wind_weather_towers
+	lineageTag: 4136c51f-6b84-4af1-8a12-354d1d6cba4e
+	backingTable: wind_weather_towers
+	keyProperty: TowerId
+
+	/// Unique weather tower identifier.
+	property TowerId
+		dataType: string
+		lineageTag: 06a4310f-0150-4c0f-91b9-aa2f819b66e4
+
+		backingConfiguration
+			valueColumn: wind_weather_towers.TowerId
+
+	/// Identifier of the plant the tower belongs to.
+	property PlantId
+		dataType: string
+		lineageTag: 434a25d7-8bb0-4e50-9c64-01e5f267b5af
+
+		backingConfiguration
+			valueColumn: wind_weather_towers.PlantId
+
+	/// Display name of the tower.
+	property Name
+		dataType: string
+		lineageTag: 4f12be43-baf8-46e4-86cd-e37cefc6c515
+
+		backingConfiguration
+			valueColumn: wind_weather_towers.Name
+
+	/// Height of the tower in metres.
+	property Height_m
+		dataType: int64
+		lineageTag: fb0d23ed-0b87-42b1-96c5-8e71851c8fb7
+
+		backingConfiguration
+			valueColumn: wind_weather_towers.Height_m
+
+	/// Relative humidity percentage.
+	property Humidity_percent
+		dataType: TimeSeries<int64>
+		lineageTag: b518cb2c-7d8a-4e4f-bc23-a277e3e523c3
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.Humidity_percent
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Atmospheric pressure in hectopascals.
+	property Pressure_hPa
+		dataType: TimeSeries<int64>
+		lineageTag: d1b758f9-a9c2-43f8-a214-f1197f6ae49c
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.Pressure_hPa
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Solar radiation measurement.
+	property SolarRadiation
+		dataType: TimeSeries<int64>
+		lineageTag: 0ea4800a-80f2-4a6c-832a-2b3e8a040a8a
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.SolarRadiation
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Ambient temperature.
+	property Temperature
+		dataType: TimeSeries<int64>
+		lineageTag: 88fc4902-b0c1-4c31-a3c1-f2443e67f195
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.Temperature
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Turbulence measurement.
+	property Turbulence
+		dataType: TimeSeries<int64>
+		lineageTag: b01c5b77-316c-4fcf-af3f-1ffb6cbf2415
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.Turbulence
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Wind direction in degrees.
+	property WindDirection
+		dataType: TimeSeries<int64>
+		lineageTag: 4f131515-d98b-49af-aa9a-d603a8108cd1
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.WindDirection
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Wind shear measurement.
+	property WindShear
+		dataType: TimeSeries<double>
+		lineageTag: 85a51d1f-8baa-4059-bfff-77158ff8ade8
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.WindShear
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Wind speed.
+	property WindSpeed
+		dataType: TimeSeries<int64>
+		lineageTag: 3de9d2a7-6f7e-4f3d-bfff-eb208fdb96f8
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.WindSpeed
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	/// Timestamp of the telemetry reading.
+	property Timestamp
+		dataType: TimeSeries<dateTime>
+		lineageTag: e2c3720e-0f72-4979-bead-51405c890776
+
+		backingConfiguration
+			type: timeSeries
+			valueColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+			orderingColumn: wind_weather_tower_telemetry_augmented_Mar2025.Timestamp
+
+	additionalBackingTable
+		table: wind_weather_tower_telemetry_augmented_Mar2025
+		relationship: rel_weathertelemetry_tower
+

@@ -1,0 +1,86 @@
+table wind_maintenance_requests
+	lineageTag: 2cd9e342-8d92-4239-993f-ebc06eb1ffcc
+
+	column WorkorderId
+		dataType: string
+		lineageTag: 826a0f1f-6d5a-491b-adba-faaf97d2f4e0
+		sourceColumn: WorkorderId
+
+	column TurbineId
+		dataType: string
+		lineageTag: e9f681af-3f6e-4797-86a7-3750ac0cc76f
+		sourceColumn: TurbineId
+
+	column WorkOrderType
+		dataType: int64
+		formatString: 0
+		lineageTag: a9e4dd49-abb1-4ef4-af48-9a822182b0b6
+		sourceColumn: WorkOrderType
+
+	column Status
+		dataType: int64
+		formatString: 0
+		lineageTag: 3acd6fd0-1f24-4ef3-aaef-630c22dbefb3
+		sourceColumn: Status
+
+	column Priority
+		dataType: int64
+		formatString: 0
+		lineageTag: 227a0e66-b56d-4927-9197-e171f1aa487e
+		sourceColumn: Priority
+
+	column OrderDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 1ddf0930-ed51-46c4-bb48-e41d19083799
+		sourceColumn: OrderDate
+
+	column LastUpdatedDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 98a3670e-829b-4ecd-9554-c8604ee6af46
+		sourceColumn: LastUpdatedDate
+
+	column EstimatedStartDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 84160d5f-0828-41d9-aa39-94f08c43e0a6
+		sourceColumn: EstimatedStartDate
+
+	column CommitmentDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 00432f3d-57b9-43f3-92f8-cad655fa6336
+		sourceColumn: CommitmentDate
+
+	column EstimatedLabourHours
+		dataType: int64
+		formatString: 0
+		lineageTag: 074595be-def1-4844-8ab1-60002b4ee208
+		sourceColumn: EstimatedLabourHours
+
+	column ActualLabourHours
+		dataType: int64
+		formatString: 0
+		lineageTag: c7ebfbe2-5b2a-4cb7-bbe6-93ef11ffdb35
+		sourceColumn: ActualLabourHours
+
+	column ActualEndDate
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 2fca9de6-3825-426f-854d-5bc904aabbcf
+		sourceColumn: ActualEndDate
+
+	column AssignedTo
+		dataType: int64
+		formatString: 0
+		lineageTag: 7decf37c-8f67-40a0-99bd-bcdce94ac4e9
+		sourceColumn: AssignedTo
+
+	partition wind_maintenance_requests = entity
+		mode: directLake
+		source
+			entityName: wind_maintenance_requests
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

@@ -5,6 +5,42 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n82: by Gustav's decision of 2 November 2026 VS Code and Cursor (verified by him) and Lovable (its flow ran live
+  on 30 October 2026, `docs/LOVABLE-END-TO-END.md`) are **Tested end to end** in `tool_status.CLIENTS`, with the date in
+  their notes; the Connect menu, the hub, /docs, /start, /lovable and the llms files follow, and "Experimental:" is gone
+  from the three menu items. Claude Code and Glama are unchanged. Gustav opened an RDF/XML file from `/check` in
+  Microsoft's Ontology Playground the same day, with a good result (`docs/LIVE-TEST.md`; one sentence at the download);
+  the file stays Draft. `docs/REFRESH-ROTATION.md` with `tests/test_refresh_rotation.py`: an investigation of Glama's
+  sign-out (a refresh token sent twice ends the whole line; what a deployment does to the lines and the key; the causes
+  ranked; an overlap window proposed, not implemented). `tests/test_pack_label.py` freezes the evidence report's clock.
+- Round n80: a simpler Connect menu (Claude first and open with one large button, Copy URL and a first question to copy
+  that only reads; Lovable under it; VS Code and Cursor folded under *Other clients*; the admin line last with a note to
+  copy for the admin: the consent link, what is approved, `/it`). No address is printed; each copy button holds its
+  client's. `/consent/done` gives one next step, Connect and the question. At `/mcp/connect`, a sign-in Entra stops for
+  want of admin consent shows a page that says so, with the same note, instead of an unexplained error in the client.
+  Gustav verified on 2 November 2026 that the *Add to VS Code* and *Add to Cursor* buttons work in their clients
+  (`tool_status.CLIENTS`, `docs/LIVE-TEST.md`). `/check` says "app starter for Lovable" without the word Supabase (the
+  zip is unchanged). `ontology.ontology_rdfxml`: the plan as RDF/XML for Microsoft's Ontology Playground, which reads
+  RDF/XML and not Turtle, written after its RDF/XML subset at commit 7bf7acb (MIT), with its validation rules ported to
+  `tests/playground_rdf.py` and one official catalogue file as a fixture; a Draft download on `/check`, opened in the
+  Playground with a file import; no new MCP tool. Not tried in the Playground app itself.
+- Round n79: the pack's own name where a person reads the rule (Subscription billing on `/check`, the data dictionary,
+  the Power BI README, the contracts, the Rayfin comments say *Younium + Salesforce pack*; the `rule` fields of the
+  answers keep `SAP pack`, and the SAP texts are unchanged). Masking goes through the pack the engine reads, so the
+  Younium + Salesforce pack's personal columns (Contact's and the accounts' names, e-mail and telephone numbers) are
+  masked like SAP's; the account names were added to the pack. The evidence report
+  (`fabric_backend/evidence_report.py`), a pilot's hand-over as JSON and Markdown from the plan and validate_plan's
+  counts, with "not checked" for whatever was not counted and no row values: a Draft download on `/check` and
+  `evidence-report.md`/`.json` from `fabric-backend demo`; no new MCP tool.
+- Round n78: the engine reads the Younium + Salesforce pack. `infer._pack` calls `sap_pack.match_any`, so a schema the
+  pack recognises gets its keys and applied relationships with the rule `SAP pack` (one rule for every pack) and the
+  pack's name and source on each note, and `plan.pack` carries its tables, amounts and traps. The pack's ordinary table
+  names (accounts, invoices, Contact and the like) are marked `common_name`, and a pack is taken only when one table it
+  recognises has a name of the system's own, so the shop, SAP, crm and traps plans are the ones before (tested against
+  the SAP-only engine). The benchmark's younium row: recall from 0/18 to 15/18 at precision 15/15, orphans 1/1 and
+  doubled totals 2/2; the other rows unchanged. `/check` has a fourth example, *Subscription billing* (Younium +
+  Salesforce, synthetic data). The pack is still written from sources that could not be opened, and the demo rows from
+  the pack.
 - Round n77: one manifest per knowledge pack, `fabric_backend/packs/<pack>/manifest.yaml` (`sap`, `younium_salesforce`), in one
   shape for every pack and checked by `packs/manifest.schema.json`: id, version, title, source systems, scope, sharing
   (public-synthetic), sources with `accessed` and `verified` (false wherever the pack's files say the page was not read),
@@ -34,6 +70,23 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   has no rows"), a line under the state says whether every key and relationship of the plan was counted, and the docs'
   `plan_backend` and `validate_plan` sentences carry R5's sample and query budget and `validate_plan`'s default
   `max_items` read from `server.py`. The Fabric IQ FAQ n73 put on `/docs` was checked and left as it is.
+- Round n76: trust, risk and licences, as documents. `docs/RISK-REGISTER.md` (internal): eight risk hypotheses with
+  cause, event, consequence, area, the existing controls with their file or function in the repository, action, owner
+  and next review; probability and impact "not assessed" wherever the repository holds nothing to carry a value; product
+  risks apart from business obstacles. `docs/TRUST.md`: the material for a public /trust page, every statement with its
+  source in the repository and Microsoft's attestations marked as Microsoft's; the line "Krusgraph is not ISO 27001 or
+  SOC 2 certified; here is what we do instead"; the subprocessor list (Microsoft Azure; the AI client is the customer's
+  own vendor). `docs/ISO27001-SELF-ASSESSMENT.md`: the 93 Annex A controls, each in place, partly, missing or not
+  applicable with its file, and no score. `docs/DPA-DRAFT.md`: a data processing agreement template as a draft, not legal
+  advice. `THIRD_PARTY_NOTICES.md` generated from `deploy/constraints.txt` and the extras by `tools/third_party_notices.py`
+  (`--check` for CI; the workflow step is left for the Deployment area), with the vendored Pyodide and fonts and the
+  image's components; a "Reusing external code" section in `CONTRIBUTING.md` (verified licence file at a pinned commit,
+  notices kept, no AGPL or SSPL, nothing from a repository whose licence cannot be verified). `docs/ECOSYSTEM-WATCHLIST.md`:
+  the related MCP servers (Microsoft's Fabric MCP Server, Fabric IQ MCP, the Power BI modeling server, the warehouse
+  and Real-Time Intelligence servers; datumnova/ms-fabric-mcp and Jasuni69/ms-core-mcp with no licence file found,
+  mkoziel2000/mcp-fabric-api under the AGPL) with licence as observed or not verified, what is worth referring to, what
+  is not copied, and the date. `docs/COMPANION-MCP.md`: Krusgraph beside Microsoft's servers in the same client, a
+  complement with no server-to-server connection, cited from fabric-docs because Learn could not be opened.
 - Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
   line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
   status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got

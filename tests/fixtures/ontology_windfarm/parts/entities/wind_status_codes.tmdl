@@ -1,0 +1,62 @@
+/// A diagnostic status/error code applicable to a plant.
+entity wind_status_codes
+	lineageTag: a90b9455-45d6-44db-9b25-a8a35de8e3ff
+	backingTable: wind_status_codes
+	keyProperty: ErrorCode
+
+	/// Unique status/error code.
+	property ErrorCode
+		dataType: string
+		lineageTag: 39e10ce5-bc74-48a1-9307-b95bd14ed6b1
+
+		backingConfiguration
+			valueColumn: wind_status_codes.ErrorCode
+
+	/// Identifier of the plant the code applies to.
+	property PlantId
+		dataType: string
+		lineageTag: 45f43756-259e-4f95-95fd-8986ec68da5d
+
+		backingConfiguration
+			valueColumn: wind_status_codes.PlantId
+
+	/// Human-readable description of the code.
+	property Description
+		dataType: string
+		lineageTag: 82672d5b-ba12-42bf-b0cf-72f6a15d6d9a
+
+		backingConfiguration
+			valueColumn: wind_status_codes.Description
+
+	/// Severity of the status code.
+	property Severity
+		dataType: string
+		lineageTag: d10dccb9-7870-44c4-9dec-d501c27243c1
+
+		backingConfiguration
+			valueColumn: wind_status_codes.Severity
+
+	/// Possible cause of the condition.
+	property PossibleCause
+		dataType: string
+		lineageTag: 0d586c10-47d3-4a7e-935c-e1af8c518e3c
+
+		backingConfiguration
+			valueColumn: wind_status_codes.PossibleCause
+
+	/// Recommended remediation action.
+	property RecommendedAction
+		dataType: string
+		lineageTag: b21ffcc0-83ac-4d6e-94eb-cfceb4449615
+
+		backingConfiguration
+			valueColumn: wind_status_codes.RecommendedAction
+
+	/// Components affected by the code.
+	property AffectedComponents
+		dataType: string
+		lineageTag: d6c6c40e-590c-45b7-bae8-9944e6edc439
+
+		backingConfiguration
+			valueColumn: wind_status_codes.AffectedComponents
+

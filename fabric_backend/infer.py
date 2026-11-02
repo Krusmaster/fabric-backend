@@ -49,11 +49,14 @@ Relationships (per column of a table A that is not A's own key):
 A column that could point at two tables is reported as ambiguous and not applied.
 
 SAP pack (before K2–K5 and R1–R4): when two or more tables are tables a knowledge pack describes (sap_pack.py,
-fabric_backend/packs/sap/), with or without a prefix (`VBAK`, `vbak`, `sap_vbak`), their keys and the relationships
-between them come from the pack, with the rule "SAP pack" and the public source on the relationship's note. Name
-rules add nothing between two such tables (`LIPS.VBELN` is a delivery, not an order). Declared keys (K0), the
-caller's keys (K1) and confirmed relationships still win. A schema without such tables gets exactly the plan it got
-before. The pack is a suggestion with a source; validate_plan checks it against the rows.
+fabric_backend/packs/sap/, and since round n78 packs/younium_salesforce/), with or without a prefix (`VBAK`, `vbak`,
+`sap_vbak`, `younium_invoices`, `sf_account`), their keys and the relationships between them come from the pack that
+recognises most of them (sap_pack.match_any), with the rule "SAP pack" for every pack and the pack's name and public
+source on the relationship's note. A pack whose table names are ordinary words (accounts, invoices, Contact) is taken
+only when one of the tables it recognises has a name of the system's own (subscription_versions,
+OpportunityLineItem). Name rules add nothing between two such tables (`LIPS.VBELN` is a delivery, not an order).
+Declared keys (K0), the caller's keys (K1) and confirmed relationships still win. A schema without such tables gets
+exactly the plan it got before. The pack is a suggestion with a source; validate_plan checks it against the rows.
 A pack join that is not an equality on the target's key goes to plan.extended (ExtendedRelationship), never to
 plan.relationships: kind "unique" (a unique column set of the target that is not its key, CVI_CUST_LINK.PARTNER_GUID ->
 BUT000) and kind "valid_on" (the key without its valid-to column, plus a date inside the target row's period,
@@ -169,8 +172,12 @@ class Plan:
                          "were not counted) — see plan.proposed")
         if self.pack:
             lines.append(f"{len(self.pack['tables'])} table(s) recognised by the {self.pack['pack']} pack: keys and relationships from its "
-                         f"public sources (rule \"{self.pack['rule']}\"), to be checked with validate_plan — see plan.pack")
+                         f"public sources (rule \"{self.label(self.pack['rule'])}\"), to be checked with validate_plan — see plan.pack")
         return "\n".join(lines)
+
+    def label(self, rule: str) -> str:
+        """The rule as a person reads it: the pack's own name for the pack rule (rule_label)."""
+        return rule_label(rule, self.pack)
 
     def mermaid(self) -> str:
         out = ["erDiagram"]
@@ -181,7 +188,7 @@ class Plan:
                 out.append(f"    {_m(c)} {_m(_type_word(t, c))}{mark}")
             out.append("  }")
         for r in self.relationships:
-            out.append(f'  {_m(r.target)} ||--o{{ {_m(r.source)} : "{"+".join(r.source_cols)} {r.rule}"')
+            out.append(f'  {_m(r.target)} ||--o{{ {_m(r.source)} : "{"+".join(r.source_cols)} {self.label(r.rule)}"')
         return "\n".join(out)
 
 
@@ -253,11 +260,27 @@ _LINE_LIKE = {"line", "lineno", "linenumber", "linenr", "linenum", "position", "
               "itemno", "rowno", "rownumber", "rad", "radnr", "radnummer", "zeile", "zeilennr", "zeilennummer", "posnr", "positionsnr"}
 PACK_RULE = "SAP pack"
 # Not in RULES: the rule tables a plan renders (data dictionary, docs) list it only when a pack was used, so answers on
-# schemas without SAP tables stay as they were.
+# schemas without pack tables stay as they were. One rule for every pack: the pack's name is on plan.pack and the note.
 PACK_RULES = {PACK_RULE: "keys and relationships of tables a knowledge pack describes (fabric_backend/packs/sap/: VBAK, VBAP, LIKP, "
-                         "VBRK…), recognised with or without a prefix; each relationship names its public source; name rules add "
-                         "nothing between two such tables"}
+                         "VBRK…; packs/younium_salesforce/ since round n78), recognised with or without a prefix; each "
+                         "relationship names its pack and public source; name rules add nothing between two such tables"}
 _CLIENT = ("MANDT", "RCLNT")
+
+
+def rule_label(rule: str, pack=None) -> str:
+    """The rule as a person reads it (n79). A plan's relationships and keys carry PACK_RULE ("SAP pack") for every pack,
+    and the MCP answers keep that value in their `rule` fields; where the rule is written for a person (the /check map
+    and findings, the data dictionary, the Power BI README, the data contracts) a pack other than SAP is named by its own
+    rule label, "Younium + Salesforce pack". `pack` is plan.pack (or the pack's name); SAP and every other rule read as
+    before."""
+    name = pack.get("pack") if isinstance(pack, dict) else pack
+    if rule != PACK_RULE or not name or name == "sap":
+        return rule
+    from . import sap_pack
+    try:
+        return sap_pack.load(name)["rule"]
+    except KeyError:
+        return rule
 _HISTORY = re.compile(r"^(start|validfrom|effective)|from$")
 _MIN_ABBREVIATION = 4
 
@@ -865,7 +888,7 @@ def check_tables(schema: Schema, tables: list[str] | None) -> None:
 def _pack(schema: Schema, keys: dict[str, list[str]] | None) -> tuple[dict | None, dict[str, list[str]], list[dict], set[str]]:
     """What the knowledge packs recognise in the schema: (summary for plan.pack, keys, relationships, tables)."""
     from . import sap_pack
-    m = sap_pack.match(schema)
+    m = sap_pack.match_any(schema)                 # SAP, or Younium + Salesforce (round n78); see match_any for when a pack counts
     if m is None:
         return None, {}, [], set()
     p = sap_pack.load(m.pack)

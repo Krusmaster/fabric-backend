@@ -28,6 +28,17 @@ ENTRA_ERRORS_DENIED = {"access_denied", "consent_required", "interaction_require
 # Entra answers that end a refresh line for good; anything else (an outage, a 5xx) leaves it to be tried again
 ENTRA_ERRORS_FINAL = {"invalid_grant", "interaction_required", "consent_required", "login_required", "unauthorized_client",
                       "invalid_scope"}
+# n80: Entra's answers that mean the organisation has not approved the app (Microsoft's AADSTS codes): consent missing,
+# an admin's approval required, an approval requested through the admin consent workflow, or declined (the answer when
+# a person leaves Entra's approval page without consent). The callback shows a page that says so, with the note for the
+# admin, instead of passing an unexplained error to the client.
+ADMIN_CONSENT_CODES = ("AADSTS65001", "AADSTS90094", "AADSTS90095", "AADSTS65004")
+
+
+def needs_admin_consent(error: str, description: str = "") -> bool:
+    return error == "consent_required" or any(c in f"{error} {description}" for c in ADMIN_CONSENT_CODES)
+
+
 HANDLER_THREADS = 8                     # threads for this layer's endpoints, apart from the pool the MCP tools use
 
 
@@ -137,6 +148,30 @@ class Layer:
 <h1>This sign-in cannot continue</h1><p class="lede">{html.escape(text)}</p>
 <p>Nothing was shared. Start the sign-in again from your MCP client; if it keeps happening, the client may not be set
 up for this server.</p>""", status)
+
+    def _admin_consent_page(self, req: dict, error: str, text: str, delete=()):
+        """n80: the sign-in stopped because the organisation has not approved the app: what happened, the note for the
+        admin (the Connect menu's, as text to select: this page runs no script and sends nothing) and a link that hands
+        the error to the client, so it stops waiting."""
+        from .pages import admin_note
+        reg.log("admin_consent_missing", client=self._client_label(req.get("client_id", "")))
+        back = _with_query(req["redirect_uri"], {"error": error, "error_description": text[:300], "state": req.get("state"),
+                                                 "iss": reg.issuer(self.cfg)})
+        who = html.escape((req.get("client_name") or "").strip()[:80] or "your client")
+        p = html.escape(self.product)
+        note = admin_note()
+        return self._page("Approval needed", f"""<span class="kicker">Sign-in stopped</span>
+<h1>Your organisation has not approved {p} yet</h1>
+<p class="lede">Microsoft Entra stopped the sign-in at the approval step. An administrator of your organisation’s
+Microsoft Entra tenant approves {p} once for everyone (admin consent); until then nobody in the organisation can sign in,
+or the approval was declined. Nothing was shared.</p>
+<p class="muted">Microsoft Entra answered: <code>{html.escape(text[:300])}</code></p>
+<h2>Send this note to your admin</h2>
+<p>Select the note and paste it into an email or a chat; this page sends nothing. It has the consent link, what the
+admin approves, and the page for your IT department.</p>
+<textarea class="oauth-note" readonly rows="12" aria-label="A note to your admin">{html.escape(note)}</textarea>
+<p>When your admin has approved {p}, start the sign-in again from {who}.</p>
+<div class="ctas"><a class="btn secondary" href="{html.escape(back, quote=True)}">Back to {who}</a></div>""", delete=delete)
 
     def _consent_page(self, client: reg.Client, req: dict, csrf: str, warn_other_user: bool = False):
         redirect = req["redirect_uri"]
@@ -347,14 +382,18 @@ signed in). {memory}</p>
         if q.get("error"):
             code = "access_denied" if q["error"] in ENTRA_ERRORS_DENIED else "server_error"
             text = f"Microsoft Entra answered {q['error'][:60]}: " + (q.get("error_description") or "").splitlines()[0][:200] if q.get("error_description") else f"Microsoft Entra answered {q['error'][:60]}"
+            if needs_admin_consent(q["error"], q.get("error_description") or ""):
+                return self._admin_consent_page(req, code, text, delete=[cookie_name])
             return self._back_to_client(req, code, text, delete=[cookie_name])
         try:
             tokens = self._entra_token({"grant_type": "authorization_code", "code": q.get("code", ""),
                                         "redirect_uri": reg.callback_url(self.cfg), "code_verifier": txn["verifier"]})
             claims = self.validator.validate(tokens["access_token"])
         except EntraError as e:
-            return self._back_to_client(req, "server_error", f"Microsoft Entra did not complete the sign-in: {e.code} {e.description}".strip(),
-                                        delete=[cookie_name])
+            text = f"Microsoft Entra did not complete the sign-in: {e.code} {e.description}".strip()
+            if needs_admin_consent(e.code, e.description):
+                return self._admin_consent_page(req, "access_denied", text, delete=[cookie_name])
+            return self._back_to_client(req, "server_error", text, delete=[cookie_name])
         except TokenError as e:
             return self._back_to_client(req, "access_denied", f"the token from Microsoft Entra is not accepted here: {e}", delete=[cookie_name])
         if not claims.get("oid"):

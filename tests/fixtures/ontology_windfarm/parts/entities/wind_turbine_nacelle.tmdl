@@ -1,0 +1,54 @@
+/// A nacelle component installed on a wind turbine.
+entity wind_turbine_nacelle
+	lineageTag: d0046552-c645-4342-9cb2-64ed838dd13d
+	backingTable: wind_turbine_nacelle
+	keyProperty: ComponentId
+
+	/// Identifier of the parent turbine.
+	property TurbineId
+		dataType: string
+		lineageTag: 48c4a58e-6210-4910-be14-0181f9bf8068
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.TurbineId
+
+	/// Unique component identifier.
+	property ComponentId
+		dataType: string
+		lineageTag: cb20c5d4-a38a-4218-8ef9-d520b45da665
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.ComponentId
+
+	/// Component name (source column spelling preserved).
+	property ComponentNane
+		dataType: string
+		lineageTag: 05c63676-abe9-450c-80d2-e122397bc4aa
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.ComponentNane
+
+	/// Additional component details.
+	property ComponentDetails
+		dataType: string
+		lineageTag: 319c7f1b-54e0-4d7d-b331-d80f15dfbae6
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.ComponentDetails
+
+	/// Component serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: e4c86af9-aad6-40b1-bca5-f8762b8343c1
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.SerialNumber
+
+	/// Manufacturer of the component.
+	property Manufacturer
+		dataType: string
+		lineageTag: 76346353-12f9-4635-9036-3a828583afe8
+
+		backingConfiguration
+			valueColumn: wind_turbine_nacelle.Manufacturer
+

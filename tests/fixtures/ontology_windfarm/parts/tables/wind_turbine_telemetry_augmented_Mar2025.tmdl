@@ -1,0 +1,63 @@
+table wind_turbine_telemetry_augmented_Mar2025
+	lineageTag: 1477b3e1-008e-4fdd-aa22-6f3c804fdf85
+
+	/// Mean instantaneous power output across turbine telemetry readings.
+	measure 'Average Power' = AVERAGE('wind_turbine_telemetry_augmented_Mar2025'[Power])
+		formatString: 0.00
+		displayFolder: Telemetry
+		lineageTag: a5c18132-3e7c-4a1d-b3f1-b6e9557d34b8
+
+	/// Total energy produced (kWh) across turbine telemetry readings.
+	measure 'Total Energy Kwh' = SUM('wind_turbine_telemetry_augmented_Mar2025'[EnergyKwh])
+		formatString: #,0
+		displayFolder: Telemetry
+		lineageTag: 14dd08b0-f2d0-419f-bb99-f4d595958a1e
+
+	column TurbineId
+		dataType: string
+		lineageTag: e65faa84-3ad2-47e6-8aa8-a8ae2a3ddbd7
+		sourceColumn: TurbineId
+
+	column EnergyKwh
+		dataType: double
+		lineageTag: 835bc09d-d59d-4600-bf9b-3b45aa3222ac
+		sourceColumn: EnergyKwh
+
+	column Diameter
+		dataType: double
+		lineageTag: 05fd4014-23dd-423f-bf3d-f0e6642f43be
+		sourceColumn: Diameter
+
+	column Ratio
+		dataType: double
+		lineageTag: d447c067-094d-40d5-8823-40149744ae0d
+		sourceColumn: Ratio
+
+	column Efficiency
+		dataType: double
+		lineageTag: 9b2c3087-ef68-4a95-8ef0-8bb0b76c200c
+		sourceColumn: Efficiency
+
+	column Power
+		dataType: double
+		lineageTag: cbb04a63-ea05-460e-932c-7b5a788cde48
+		sourceColumn: Power
+
+	column Voltage
+		dataType: double
+		lineageTag: 553c10b0-8f5c-49c7-9aa3-80c39f8f9ae0
+		sourceColumn: Voltage
+
+	column Timestamp
+		dataType: dateTime
+		formatString: General Date
+		lineageTag: 1f9c1295-409a-4438-9dff-dbb2f0224ee0
+		sourceColumn: Timestamp
+
+	partition wind_turbine_telemetry_augmented_Mar2025 = entity
+		mode: directLake
+		source
+			entityName: wind_turbine_telemetry_augmented_Mar2025
+			schemaName: dbo
+			expressionSource: DatabaseQuery
+

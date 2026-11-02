@@ -1,0 +1,54 @@
+/// A blade component installed on a wind turbine.
+entity wind_turbine_blade
+	lineageTag: 75661f08-bc6c-4f8f-8fe8-15f75a40bf57
+	backingTable: wind_turbine_blade
+	keyProperty: ComponentId
+
+	/// Identifier of the parent turbine.
+	property TurbineId
+		dataType: string
+		lineageTag: 0351e695-8e47-4f64-aa8c-7695d642de2a
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.TurbineId
+
+	/// Unique component identifier.
+	property ComponentId
+		dataType: string
+		lineageTag: 4637f55d-dc1c-43d0-bf5d-c3d9a2a0bcdc
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.ComponentId
+
+	/// Component name (source column spelling preserved).
+	property ComponentNane
+		dataType: string
+		lineageTag: a68c4293-3e1b-4824-9134-5f0c1e414462
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.ComponentNane
+
+	/// Additional component details.
+	property ComponentDetails
+		dataType: string
+		lineageTag: 7cd3a37e-9b83-4405-930d-6376e37ce573
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.ComponentDetails
+
+	/// Component serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: 5c5a6716-5649-4875-a492-7b51add5caf7
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.SerialNumber
+
+	/// Manufacturer of the component.
+	property Manufacturer
+		dataType: string
+		lineageTag: fc2db96d-7d62-4555-816a-fd81e35260ba
+
+		backingConfiguration
+			valueColumn: wind_turbine_blade.Manufacturer
+

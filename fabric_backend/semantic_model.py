@@ -432,9 +432,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     if active or inactive:
         readme += ["| From | To | Rule | Active |", "| --- | --- | --- | --- |"]
         for r in active:
-            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | yes |")
+            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {plan.label(r.rule)} | yes |")
         for r, why in inactive:
-            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {r.rule} | no: {why} |")
+            readme.append(f"| `{r.source}.{r.source_cols[0]}` | `{r.target}.{r.target_cols[0]}` | {plan.label(r.rule)} | no: {why} |")
     if not rel_lines:
         readme += [f"None in the model, so there is no `definition/relationships.tmdl`: a TMDL document must hold an object, and Power BI "
                    "Desktop (2.151, 30 October 2026) refuses one that holds only a comment (`InvalidLineType`, document `./relationships`, "
@@ -446,7 +446,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     for r, why in inactive:
         readme.append(f"- `{r.source}.{r.source_cols[0]} -> {r.target}` is inactive: {why}. Use USERELATIONSHIP in DAX or pick another active one.")
     for r in composite:
-        readme.append(f"- `{r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}` ({r.rule}) is not in the model: "
+        readme.append(f"- `{r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}` ({plan.label(r.rule)}) is not in the model: "
                       f"{not_expressible_why(plan, r)}.")
     for t in keyless:
         readme.append(f"- `{t}` has no key: it is in the model but nothing relates to it (rule K3). Give `keys` to change that.")

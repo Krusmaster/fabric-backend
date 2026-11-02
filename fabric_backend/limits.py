@@ -19,6 +19,8 @@ Configuration (environment):
 """
 from __future__ import annotations
 
+import base64
+import binascii
 import hashlib
 import math
 import os
@@ -118,3 +120,136 @@ def answer(hit: dict) -> dict:
     return {"error": f"Too many calls from {who} in a short time: the limit is {hit['limit']} for {who} on this server.",
             "kind": "rate_limited", "retry_after": seconds,
             "hint": f"Try again in {when}. Nothing was run for this call. If your work needs more, ask the operator about higher limits."}
+
+
+# ------------------------------------------------------------------ item definitions: part checks and Fabric's limits --
+# Checked before a definition is sent to Fabric (deploy.write_and_wait's callers), so a definition Fabric would refuse
+# is stopped here with the reason, and nothing is written.
+#
+# The ontology limits are Fabric's own, as Microsoft documents them in "Payload limits" of
+# tools/Fabric.Mcp.Tools.Docs/src/Resources/item-definitions/ontology-definition.md in microsoft/mcp at commit
+# 7257a94355dd63ba4f1ba43fc5ae5dfcd1a7203d (MIT, Copyright (c) Microsoft Corporation; see THIRD_PARTY_NOTICES.md).
+# Only the limits that can be counted from our TMDL parts without a full parser are checked. The local budgets of that
+# project's tools (1024 parts, 16/32 MiB per definition) are its own and not Fabric's, so they are not here.
+
+ONTOLOGY_LIMITS = {
+    "tables": 15_998, "columns_per_table": 15_997, "model_budget": 16_000,   # 2 + tables + columns <= 16,000
+    "expressions": 10_000, "relationships": 10_000, "entities": 10_000, "entity_relationships": 10_000,
+    "namespaces": 10_000, "metrics": 10_000, "rules": 1_000,
+    "measures_per_table": 10_000, "partitions_per_table": 1_000, "properties_per_entity": 1_000,
+    "name_chars": 512, "description_chars": 4_000, "annotation_chars": 4_000,
+}
+
+
+class DefinitionError(ValueError):
+    """A definition that would not be sent: the parts or a limit are wrong. Nothing was written to Fabric."""
+
+
+def part_problems(parts) -> list[str]:
+    """Problems with a definition's parts, as sentences; empty when it may be sent. `parts` is a definition's
+    `parts` list ({path, payload, payloadType}) or {path: text}. Checks: every path is a relative path with no empty,
+    '.' or '..' segment; paths are unique ignoring case; no path is both a file and a folder (`a` and `a/b`); an
+    InlineBase64 payload is valid base64."""
+    if isinstance(parts, dict):
+        items = [(path, None, None) for path in parts]
+    else:
+        items = [(p.get("path"), p.get("payload"), p.get("payloadType")) for p in parts or []]
+    problems: list[str] = []
+    seen: dict[str, str] = {}
+    for path, payload, kind in items:
+        if not isinstance(path, str) or not path:
+            problems.append("a part has no path")
+            continue
+        segments = path.split("/")
+        if path.startswith("/") or "\\" in path or any(s in ("", ".", "..") for s in segments):
+            problems.append(f"part {path!r}: the path must be relative, with '/' between non-empty names and no '.' or '..'")
+        low = path.lower()
+        if low in seen:
+            problems.append(f"parts {seen[low]!r} and {path!r} have the same path when case is ignored")
+        else:
+            seen[low] = path
+        if kind == "InlineBase64" or (kind is None and payload is not None):
+            try:
+                base64.b64decode(payload if isinstance(payload, (str, bytes)) else "\0", validate=True)
+            except (binascii.Error, ValueError):
+                problems.append(f"part {path!r}: the payload is not valid base64")
+    folders = {"/".join(p.split("/")[:i]) for p in seen for i in range(1, p.count("/") + 1)}
+    for low, path in seen.items():
+        if low in folders:
+            problems.append(f"part {path!r} is a file, and also a folder of another part")
+    return problems
+
+
+def _name(rest: str) -> str:
+    """The object name of a TMDL declaration's rest ("x", "'a b'", "x = entity", "DatabaseQuery ="), unquoted."""
+    return re.split(r"\s+=(?:\s|$)", rest.strip(), maxsplit=1)[0].strip().strip("'")
+
+
+def _blocks(text: str, keyword: str, indent: int = 0) -> list[str]:
+    """Names of the TMDL objects declared with `keyword` at this many tabs ('table x', '\\tcolumn y = ...')."""
+    head = "\t" * indent + keyword + " "
+    out = []
+    for line in text.splitlines():
+        if line.startswith(head):                    # exactly `indent` tabs: a deeper line has a tab where the keyword is
+            out.append(_name(line[len(head):]))
+    return out
+
+
+def ontology_problems(parts: dict[str, str]) -> list[str]:
+    """Fabric's payload limits for an ontology definition (generation 2, TMDL), counted from {path: text}."""
+    L = ONTOLOGY_LIMITS
+    problems: list[str] = []
+
+    def over(what: str, n: int, limit: int) -> None:
+        if n > limit:
+            problems.append(f"{what}: {n:,}, Fabric's limit is {limit:,}")
+
+    tables = {p: t for p, t in parts.items() if p.startswith("tables/")}
+    entities = {p: t for p, t in parts.items() if p.startswith("entities/")}
+    over("tables", len(tables), L["tables"])
+    columns = 0
+    for path, text in tables.items():
+        cols = _blocks(text, "column", 1)
+        columns += len(cols)
+        over(f"columns in {path}", len(cols), L["columns_per_table"])
+        over(f"measures in {path}", len(_blocks(text, "measure", 1)), L["measures_per_table"])
+        over(f"partitions in {path}", len(_blocks(text, "partition", 1)), L["partitions_per_table"])
+    if 2 + len(tables) + columns > L["model_budget"]:
+        problems.append(f"2 + tables + columns: {2 + len(tables) + columns:,}, Fabric's limit is {L['model_budget']:,}")
+    over("entities", len(entities), L["entities"])
+    for path, text in entities.items():
+        over(f"properties in {path}", len(_blocks(text, "property", 1)), L["properties_per_entity"])
+    over("namespaces", sum(p.startswith("namespaces/") for p in parts), L["namespaces"])
+    over("rules", sum(p.startswith("rules/") for p in parts), L["rules"])
+    over("metrics", sum(p.startswith("metrics/") for p in parts), L["metrics"])
+    over("expressions", len(_blocks(parts.get("expressions.tmdl", ""), "expression")), L["expressions"])
+    over("relationships", len(_blocks(parts.get("relationships.tmdl", ""), "relationship")), L["relationships"])
+    over("entity relationships", len(_blocks(parts.get("entityRelationships.tmdl", ""), "entityRelationship")), L["entity_relationships"])
+    for path, text in parts.items():
+        if not path.endswith(".tmdl"):
+            continue
+        for line in text.splitlines():
+            bare = line.lstrip("\t")
+            if bare.startswith("///"):
+                over(f"a description in {path}", len(bare[3:].strip()), L["description_chars"])
+                continue
+            word, _, rest = bare.partition(" ")
+            if word == "annotation":
+                over(f"an annotation value in {path}", len(rest.partition(" = ")[2]), L["annotation_chars"])
+            elif word in ("database", "model", "table", "column", "measure", "partition", "entity", "property", "relationship",
+                          "entityRelationship", "namespace", "rule", "metric", "expression") and rest:
+                name = _name(rest)
+                over(f"the name of a {word} in {path}", len(name), L["name_chars"])
+    return problems
+
+
+def check_definition(definition: dict, item_type: str = "") -> None:
+    """Raise DefinitionError, before anything is sent, when the parts are wrong or (for an ontology) over Fabric's limits."""
+    parts = (definition or {}).get("parts") or []
+    problems = part_problems(parts)
+    if not problems and item_type == "Ontology":
+        texts = {p["path"]: base64.b64decode(p["payload"]).decode("utf-8", "replace") for p in parts if p.get("payloadType") == "InlineBase64"}
+        problems = ontology_problems(texts)
+    if problems:
+        shown = "; ".join(problems[:5]) + (f"; and {len(problems) - 5} more" if len(problems) > 5 else "")
+        raise DefinitionError(f"the definition was not sent to Fabric: {shown}")

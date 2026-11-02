@@ -1,0 +1,78 @@
+/// A wind turbine belonging to a plant, including its time-series telemetry.
+entity mynamespace#wind_turbines2
+	lineageTag: d889adad-1685-4245-a06b-7c898e0bcde6
+	backingTable: wind_turbines2
+	keyProperty: TurbineId
+
+	/// Unique turbine identifier.
+	property TurbineId
+		dataType: string
+		lineageTag: 8f743478-fdd5-4f0e-b06c-2282f3fbdb1c
+
+		backingConfiguration
+			valueColumn: wind_turbines2.TurbineId
+
+	/// Identifier of the plant that owns the turbine.
+	property PlantId
+		dataType: string
+		lineageTag: 0c7b683c-082b-4e93-90d0-2d445558a2af
+
+		backingConfiguration
+			valueColumn: wind_turbines2.PlantId
+
+	/// Display name of the turbine.
+	property TurbineName
+		dataType: string
+		lineageTag: eb433a06-d540-4c97-bfa4-20b0f991a74b
+
+		backingConfiguration
+			valueColumn: wind_turbines2.TurbineName
+
+	/// Turbine axis orientation.
+	property Axis
+		dataType: string
+		lineageTag: 389b12b3-1993-40e9-92ed-6339e306cb8a
+
+		backingConfiguration
+			valueColumn: wind_turbines2.Axis
+
+	/// Operational status of the turbine.
+	property TurbineStatus
+		dataType: string
+		lineageTag: 9bc230a1-9ddd-4595-bc87-6bb42cf64447
+
+		backingConfiguration
+			valueColumn: wind_turbines2.TurbineStatus
+
+	/// Rated capacity of the turbine.
+	property Capacity
+		dataType: double
+		lineageTag: 54b8a0bc-df56-4353-82bf-48e4026e19eb
+
+		backingConfiguration
+			valueColumn: wind_turbines2.Capacity
+
+	/// Hub height of the turbine.
+	property HubHeight
+		dataType: int64
+		lineageTag: 5376956f-46d8-4b24-b04f-e02a27699e1a
+
+		backingConfiguration
+			valueColumn: wind_turbines2.HubHeight
+
+	/// Turbine serial number.
+	property SerialNumber
+		dataType: string
+		lineageTag: 58388081-5148-4b0b-88c4-62be91a312ec
+
+		backingConfiguration
+			valueColumn: wind_turbines2.SerialNumber
+
+	/// Manufacturer of the turbine.
+	property Manufacturer
+		dataType: string
+		lineageTag: a5f34d0c-d3c1-4523-8081-1487677eb588
+
+		backingConfiguration
+			valueColumn: wind_turbines2.Manufacturer
+

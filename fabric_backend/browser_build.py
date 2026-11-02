@@ -29,7 +29,8 @@ WORKSPACE = "<workspace id>"
 
 
 def _name(src) -> str:
-    base = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp"}.get(getattr(src, "_kind", ""), "") or re.sub(r"\W+", "_", src.schema.schema or "data")
+    from .browser_check import NAMES
+    base = NAMES.get(getattr(src, "_kind", ""), "") or re.sub(r"\W+", "_", src.schema.schema or "data")
     return (base.strip("_") or "data")[:40]
 
 

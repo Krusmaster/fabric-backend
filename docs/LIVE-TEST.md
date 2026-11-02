@@ -119,12 +119,21 @@ Through client registration instead (`docs/OPERATIONS.md` section 6, after `bash
 | VS Code (GitHub Copilot agent mode) | `mcp.json` with only `"url": "https://krusgraph.com/mcp/connect"`; *MCP: List Servers* → Start | Krusgraph's page names Visual Studio Code, `vscode.dev`, a program on this computer; Allow; Microsoft sign-in; `demo` | works (the maintainer) | 27 October 2026 |
 | Cursor | register once with `http://localhost:8787/callback` (section 6), `"auth": {"CLIENT_ID": "<kgdcr.…>"}` | the page says the name is not verified and shows `http://localhost:8787/callback`; `demo` | works (the maintainer) | 27 October 2026 |
 | Glama | add `https://krusgraph.com/mcp/connect` in Glama's connector | the page shows `glama.ai` as where the answer goes; `demo` in Glama | works: Glama identified itself with its client ID metadata document; its connection test "Healthy" at 17:59 | 27 October 2026 |
+| VS Code: the *Add to VS Code* button | the button on the site's Connect menu (*Other clients*) | VS Code opens and offers to add the server | works in VS Code (Gustav) | 2 November 2026 |
+| Cursor: the *Add to Cursor* button | the button on the site's Connect menu (*Other clients*) | Cursor opens its install dialog for the server | works in Cursor (Gustav) | 2 November 2026 |
 | Lovable (custom MCP) | add `https://krusgraph.com/mcp/connect` as a custom MCP connector in Lovable (OAuth), from a phone | Microsoft sign-in through Krusgraph's OAuth (dynamic client registration), then the tools in Lovable's chat | works: signed in with Entra and ran `plan_backend`, `validate_plan`, `create_backend`, `create_semantic_model` and `create_report` against `demo` (section 6) | 30 October 2026 |
 
 28 October 2026: VS Code, Cursor and Glama work through `/mcp/connect` (the rows above); they stay *Experimental* for
 now in `fabric_backend/tool_status.CLIENTS`, which the hub, the docs' overview and the start page follow. 30 October 2026:
 Lovable too, as a custom MCP connector; it stays *Experimental* as well, with its own row in `CLIENTS` next to the row
-for the GraphQL API it reads.
+for the GraphQL API it reads. 2 November 2026: Gustav verified that the *Add to VS Code* and *Add to Cursor* buttons on the
+site's Connect menu work in their clients (the two rows above); that is all the rows say, and `tool_status.CLIENTS`
+carries the same sentence in both clients' notes. Later on 2 November 2026 Gustav decided that VS Code and Cursor are
+no longer marked *Experimental* (he has verified them), and that Lovable is not either, since its flow ran live on
+30 October 2026 (`docs/LOVABLE-END-TO-END.md`): the three are **Tested end to end** in `tool_status.CLIENTS` (both of
+Lovable's rows), with "status set by Gustav on 2 November 2026" in their notes (`CLIENTS_DECIDED`), and the Connect
+menu no longer puts "Experimental:" before them. Glama and Claude Code are unchanged (*Experimental*); section 6 has
+the decision.
 | Claude Code (optional) | `claude mcp add --transport http krusgraph-connect https://krusgraph.com/mcp/connect` | the page names Claude Code from `claude.ai`; `demo` | | |
 | Deny | choose Deny on the page once | the client reports access denied | | |
 
@@ -197,9 +206,28 @@ connector or through Lovable as an MCP client.
 - **Lovable as a client.** Lovable connected to `https://krusgraph.com/mcp/connect` with an Entra sign-in through
   Krusgraph's OAuth (dynamic client registration), from a phone, and ran `plan_backend`, `validate_plan`,
   `create_backend`, `create_semantic_model` and `create_report`. It has a row of its own in
-  `fabric_backend/tool_status.CLIENTS` ("via MCP (/mcp/connect)", *Experimental*, works since 30 October 2026) next to
-  the row for the GraphQL API it reads through its own Fabric connector. The Entra app is a verified publisher since
+  `fabric_backend/tool_status.CLIENTS` ("via MCP (/mcp/connect)", *Experimental* at the time, works since 30 October
+  2026; **Tested end to end** since Gustav's decision of 2 November 2026, below) next to the row for the GraphQL API it
+  reads through its own Fabric connector. The Entra app is a verified publisher since
   the same day (`docs/SCOPES.md`).
+
+### 2 November 2026: three clients without Experimental, and Ontology Playground
+
+- **VS Code, Cursor and Lovable.** Gustav decided on 2 November 2026 that VS Code and Cursor are not to be marked
+  *Experimental*: he has verified them (their sign-in and tool runs at `/mcp/connect` on 27 October 2026, section 4,
+  and the *Add to VS Code* and *Add to Cursor* buttons the same morning). Lovable loses the word too, because its flow
+  ran live on 30 October 2026 (`docs/LOVABLE-END-TO-END.md`, and the section above): as an MCP client, and with a
+  Lovable app reading the API for GraphQL that create_backend updated. In `fabric_backend/tool_status.CLIENTS` the three are **Tested end to end** with
+  "status set by Gustav on 2 November 2026" (`CLIENTS_DECIDED`); /docs, /start, /lovable, the home page, the Connect
+  menu and the llms files render from there. Claude Code (not tried) and Glama stay *Experimental*. On the same day
+  Glama's connection test went from Healthy to "Missing credentials" around 07:16 UTC; that is investigated in
+  `docs/REFRESH-ROTATION.md` and does not change Glama's word.
+- **Ontology Playground.** On 2 November 2026 Gustav opened the RDF/XML file from `/check` (the download "ontology for
+  Microsoft's Ontology Playground", `ontology.ontology_rdfxml`) in Microsoft's Ontology Playground, with a good result
+  (source: Gustav). That is what was tried: a file import in the Playground, not a Fabric item. The file stays
+  **Draft** (`tool_status.ONTOLOGY_RDFXML`), the download on `/check` says it in one sentence
+  (`tool_status.ONTOLOGY_RDFXML_TRIED`), and nothing more is claimed: no partnership with Microsoft and no relation to
+  the Playground's project beyond the code taken from it under its licence (`docs/ECOSYSTEM-WATCHLIST.md`).
 
 ## Databricks
 
