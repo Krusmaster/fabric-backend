@@ -5,6 +5,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n78: the engine reads the Younium + Salesforce pack. `infer._pack` calls `sap_pack.match_any`, so a schema the
+  pack recognises gets its keys and applied relationships with the rule `SAP pack` (one rule for every pack) and the
+  pack's name and source on each note, and `plan.pack` carries its tables, amounts and traps. The pack's ordinary table
+  names (accounts, invoices, Contact and the like) are marked `common_name`, and a pack is taken only when one table it
+  recognises has a name of the system's own, so the shop, SAP, crm and traps plans are the ones before (tested against
+  the SAP-only engine). The benchmark's younium row: recall from 0/18 to 15/18 at precision 15/15, orphans 1/1 and
+  doubled totals 2/2; the other rows unchanged. `/check` has a fourth example, *Subscription billing* (Younium +
+  Salesforce, synthetic data). The pack is still written from sources that could not be opened, and the demo rows from
+  the pack.
 - Round n77: one manifest per knowledge pack, `fabric_backend/packs/<pack>/manifest.yaml` (`sap`, `younium_salesforce`), in one
   shape for every pack and checked by `packs/manifest.schema.json`: id, version, title, source systems, scope, sharing
   (public-synthetic), sources with `accessed` and `verified` (false wherever the pack's files say the page was not read),
