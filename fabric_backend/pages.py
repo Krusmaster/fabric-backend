@@ -94,6 +94,8 @@ def _vars() -> dict[str, str]:
         "TERMS_UPDATED": TERMS_UPDATED,
         # the creating tools without a dry run, from tool_status (a test checks them against the signatures in server.py)
         "NO_DRY_RUN_TOOLS": _listed(list(ts.NO_DRY_RUN)),
+        # n75: how much the hosted tools count, read from server.py (R5's sample and query budget, validate_plan's default)
+        **_counting_limits(),
         "ASSET_V": asset_version(),
         "PARTNER_SIGNIN": "1" if os.environ.get("PARTNER_SIGNIN", "").strip() in {"1", "true", "yes"} else "",
         # the privacy page states what this deployment keeps: console logs in Log Analytics or nowhere, org hashes or none
@@ -122,6 +124,16 @@ def _vars() -> dict[str, str]:
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
+
+
+def _counting_limits() -> dict[str, str]:
+    """plan_backend's R5 reads the first R5_SAMPLE distinct values of a candidate column with at most R5_MAX_QUERIES
+    counting queries; validate_plan checks up to max_items keys and relationships (its default). From server.py, so the
+    docs cannot drift from the code."""
+    import inspect
+    from . import server
+    return {"R5_SAMPLE": str(server.R5_SAMPLE), "R5_MAX_QUERIES": str(server.R5_MAX_QUERIES),
+            "VALIDATE_MAX_ITEMS": str(inspect.signature(server.validate_plan).parameters["max_items"].default)}
 
 
 def _client_status(name: str, where: str) -> str:

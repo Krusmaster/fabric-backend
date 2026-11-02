@@ -1263,6 +1263,20 @@ def test_the_home_page_offers_two_paths_after_the_demo(client):
         assert word not in paths.lower(), word
 
 
+def test_the_docs_say_how_much_the_hosted_tools_count_from_the_code(client):
+    """n75: the coverage sentences on /docs carry plan_backend's R5 sample and query budget and validate_plan's
+    default max_items as server.py has them, never a typed number."""
+    import inspect
+    from fabric_backend import server
+    docs = client.get("/docs").text
+    default = inspect.signature(server.validate_plan).parameters["max_items"].default
+    assert f"its rule R5 reads the first {server.R5_SAMPLE} distinct values of a code or role column" in docs
+    assert f"with at most {server.R5_MAX_QUERIES} counting queries per call" in docs
+    assert f"(the first {server.R5_SAMPLE} distinct values per candidate, at most {server.R5_MAX_QUERIES} counting queries;" in docs
+    assert docs.count(f"(default {default})") == 1 and f"(default {default}; the summary says when fewer than the plan has were checked)" in docs
+    assert "counted_in_rows" in docs and "over the whole table" in docs
+
+
 def test_check_leads_to_the_pilot_once(client):
     html = client.get("/check").text
     assert html.count('id="check-pilot"') == 1 and "Have a similar question in your own data?" in html
