@@ -30,7 +30,7 @@ LIVE_RUN = ("list_workspaces", "list_sources", "list_tables", "sample_rows", "pl
             "gold_views_draft", "drift_monitor_draft", "export_item_definitions",
             "create_views", "create_semantic_model", "create_data_agent", "create_backend")
 # a tool that ran only part of the way, with how far
-LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace has no model",
+LIVE_RUN_PARTLY = {"compare_semantic_model": "as far as the model lookup, which answered not_found: the demo workspace had no model that day",
                    "create_backend": "as an update in place of shop_api with confirmed; no new item was created"}
 # Creating calls run live after that run, with dry_run=false against the same workspace (from 28 October 2026, after the
 # Entra app got Notebook.ReadWrite.All, DataPipeline.ReadWrite.All and Item.ReadWrite.All): what each one did, in the
@@ -54,6 +54,25 @@ LATER_LIVE = {
                      "(dry run first, then dry_run=false; one blank page bound to shop_model_live; status Succeeded, mode created). "
                      "Later that day Lovable (as an MCP client at /mcp/connect) created shop_report on shop_model; Gustav opened "
                      "shop_report in the Fabric portal, added a visualisation (Calendar) and saw data.",
+}
+# n87: the same runs as a tool's own answer says them: no person's or client's name, no counts of that day's item that
+# today's draft need not have.
+LATER_LIVE_ANSWER = {
+    "create_ontology": "On 28 October 2026 it created the ontology shop_ontology live against a Fabric workspace with synthetic "
+                       "data; the item was reviewed in the Fabric portal on 29 October 2026.",
+    "create_semantic_model": "On 29 October 2026 it created the semantic model shop_model_live live against a Fabric workspace "
+                             "with synthetic data; it was refreshed and reviewed in the Fabric portal the same day, and a model "
+                             "was updated in place on 30 October 2026. The counts in this answer are today's draft's.",
+    "create_report": "On 30 October 2026 it created the report shop_report_live live against a Fabric workspace with synthetic "
+                     "data (one blank page bound to shop_model_live; status Succeeded, mode created); a report made the same "
+                     "way was opened in the Fabric portal, given a visual and showed data.",
+}
+# n87: creating tools whose creating has no recorded run, with what docs/LIVE-TEST.md does record.
+CREATE_RECORD = {
+    "create_views": "creating has no recorded live run (docs/LIVE-TEST.md, row 20), although the demo lakehouse holds the view "
+                    "krusgraph.vw_order_items, which create_views made at a time no protocol records.",
+    "create_data_agent": "creating has no recorded live run in docs/LIVE-TEST.md; a data agent lineage finds in a workspace may "
+                         "have been made by it outside a recorded run.",
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
 REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026", "create_report": "30 October 2026"}
@@ -139,7 +158,7 @@ _RAW = {
     "answer_query_draft": (HOSTED, DRAFT, _NO, "unit tests on the shop schema"),
     "suggest_relationships": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "compare_semantic_model": (OPERATOR, READS, _NO, "unit tests; live only as far as the model lookup", False,
-                               "; with `tmdl`: Experimental; live on 27 October 2026 only as far as the model lookup (no model in the demo workspace)"),
+                               "; with `tmdl`: Experimental; live on 27 October 2026 only as far as the model lookup (the demo workspace had no model that day)"),
     "gold_views_draft": (HOSTED, DRAFT, _NO, "unit tests; the SQL on SQLite and a local PySpark 4.0.1", False,
                          "; the SQL ran on SQLite and a local PySpark 4.0.1, not yet in Fabric"),
     "create_gold_views": (HOSTED, CREATES, "creates/updates one notebook; never deletes", "unit tests; created live on 28 October 2026",
@@ -227,15 +246,16 @@ def answer_note(name: str) -> str:
     """One sentence for a tool's own answer: how far it has run against a live workspace, from the same fields."""
     s, where = STATUS[name], "against a Fabric workspace with synthetic data"
     if name in LATER_LIVE:
-        return LATER_LIVE[name]
+        return LATER_LIVE_ANSWER.get(name, LATER_LIVE[name])
     if not s.live:
         return "Not yet run against a live workspace."
     if name in LIVE_RUN_PARTLY:
         return f"Run live on {LIVE_RUN_DATE} {where} only {LIVE_RUN_PARTLY[name]}; the rest is unit-tested."
     if s.dry_run_only:
-        return f"The dry run was tested end to end on {LIVE_RUN_DATE} {where}; creating has not run against a live workspace."
+        return f"The dry run was tested end to end on {LIVE_RUN_DATE} {where}; " + CREATE_RECORD.get(
+            name, "creating has no recorded live run (docs/LIVE-TEST.md).")
     if s.kind == DRAFT:
-        return f"Tested end to end on {LIVE_RUN_DATE} {where} as a draft; it creates nothing."
+        return f"This tool's call was tested end to end on {LIVE_RUN_DATE} {where} as a draft; it creates nothing."
     return f"Tested end to end on {LIVE_RUN_DATE} {where}."
 
 

@@ -21,8 +21,8 @@ Format followed — the files read on 25 October 2026 (commit in brackets):
 - microsoft/fabric-rest-api-specs [a96c37a] semanticModel/examples/GetSemanticModelDefinitionDefault.json and
   swagger.json: part paths `definition/database.tmdl`, `definition/model.tmdl`, `definition/tables/*.tmdl`,
   `definition.pbism`; the definition `format` defaults to TMDL.
-The TMDL language reference on learn.microsoft.com (analysis-services/tmdl/*) could not be fetched from the
-build environment; the syntax here is what those files use and nothing beyond it. Open points are written to
+The syntax here is what those files use and nothing beyond it (the TMDL language reference on learn.microsoft.com,
+analysis-services/tmdl/*, was not read for it). Open points are written to
 README.generated.md rather than guessed.
 
 Every document written here starts with an object. On 30 October 2026 Power BI Desktop (2.151) opened the shop project
@@ -461,8 +461,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "If this is wrong for your lakehouse, add or remove the `schemaName` lines.",
                "- Filter direction is single (dimension to fact), the TMDL default; nothing is set to both directions.",
                "- Dates are `dateTime` (TMDL has no date type).",
-               "- The TMDL language reference itself could not be fetched when this generator was written; the syntax follows "
-               "Microsoft's published sample definitions listed in fabric_backend/semantic_model.py.",
+               "- The syntax follows Microsoft's published sample definitions (microsoft/fabric-rest-api-specs and the PBIP "
+               "samples listed in fabric_backend/semantic_model.py), and nothing beyond what they use.",
                ""]
     readme += ["## Suggested measures", ""] + ([f"- `{m['name']}` = `{m['expression']}` on `{m['table']}`: {m['why']}." for m in measures]
                                               or ["- None: the plan has no fact table (a table that points at others and that nothing points at)."])

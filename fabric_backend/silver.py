@@ -8,7 +8,7 @@ Per table, in the order of the relationships (a parent before the tables that po
   3. rows that share a key: the latest by the ordering column wins (`order_by`, else a column named like updated_at /
      modified / ingested_at / __timestamp); without one, one row per key by a content hash, so a re-run keeps the same
      row; the others go to quarantine;
-  4. per relationship (R0-R4 or confirmed): rows whose reference has no row in the parent's silver table go to
+  4. per relationship (R0-R5 or confirmed): rows whose reference has no row in the parent's silver table go to
      quarantine with the reason; a NULL reference stays (it says "unknown", not "wrong");
   5. the result is written as a Delta table, overwritten on every run (idempotent), and marked with the table
      property krusgraph.silver = <lakehouse id>/<schema>; a target without that mark (or with another source's) is never
@@ -325,7 +325,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
              + (f"the schema `{s['silver_schema']}`" if src["schemas_enabled"] else f"tables prefixed `{s['silver_schema']}_`")
              + ", de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in "
              f"`{QUARANTINE}` with the reason. The source tables are only read. Run it again at any time: every silver table "
-             "is rewritten from the source. Each step below names the rule (K0–K5, R0–R4) that motivates it.")
+             "is rewritten from the source. Each step below names the rule (K0–K5, R0–R5) that motivates it.")
     params = (f"SILVER_SCHEMA = {_py(s['silver_schema'])}   # where the silver tables go; never the source schema\n"
               'TABLE_FORMAT = "delta"     # lakehouse tables are Delta; leave as it is\n'
               f"MASK_PERSONAL_DATA = {s.get('mask_personal_data', True)}   # quarantined rows keep personal-data columns as *** (see PERSONAL_COLUMNS)")

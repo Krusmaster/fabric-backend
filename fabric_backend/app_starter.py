@@ -218,7 +218,8 @@ def starter(description: dict, endpoint: str, api_name: str, workspace_id: str) 
                 "(a user, or a service principal) must have been granted access to the API item in the Fabric portal",
         "headers": {"Content-Type": "application/json"}, "method": "POST", "body": '{"query": "...", "variables": {}}',
         "query_shape": description.get("how_to_query", ""),
-        "introspection": "off until a workspace admin turns it on under the item's settings; the queries below do not need it",
+        "introspection": "not checked by app_starter: app_readiness probes it with one query. A workspace admin turns it on under "
+                         "the item's settings; the queries below do not need it",
     }
     checklist = [
         f"Entra: register an app for the app itself (not the Krusgraph app): Certificates & secrets -> new client secret; note tenant id, client id, secret",

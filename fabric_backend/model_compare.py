@@ -16,7 +16,7 @@ direction and whether they are active. The files come from one of two places:
 - The same files from the user: a PBIP folder or the workspace's Git repository holds them, and reading them needs no
   permission at all, so the tool takes them as input (`tmdl`).
 
-`compare(plan, model, ...)` then lists what differs, each with the rule (K0-K5, R0-R4) or the validation result behind
+`compare(plan, model, ...)` then lists what differs, each with the rule (K0-K5, R0-R5) or the validation result behind
 it. Nothing here talks to Fabric.
 """
 from __future__ import annotations

@@ -61,7 +61,7 @@ except ImportError:  # pragma: no cover
 INSTRUCTIONS = (
     "Tables in one source behind this local server: a Fabric SQL analytics endpoint, warehouse or SQL database, or a SQL "
     "Server (FABRIC_ODBC), or Databricks Unity Catalog (KRUSGRAPH_PLATFORM=databricks, Draft only). plan_backend gives the "
-    "keys and relationships with the rule behind each (K0-K5, R0-R4); validate_plan checks them against the rows; "
+    "keys and relationships with the rule behind each (K0-K5, R0-R5); validate_plan checks them against the rows; "
     "review_plan keeps the plan, the decisions and the checks as a file to read back later. The "
     "databricks_* tools draft informational constraints, a Lakeflow pipeline, metric views and a bundle from the same "
     "plan; create_databricks_constraints and create_databricks_pipeline are dry runs by default. A tool that does not "

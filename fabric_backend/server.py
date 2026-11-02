@@ -65,7 +65,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows (create_backend does not run it, and has no dry run), then create_backend. Before query_graphql, describe_backend gives the exact field "
-    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R4, or \"SAP pack\" for SAP tables such as "
+    "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "
     "VBAK/VBAP, whose keys with MANDT and order-to-cash relationships come from public sources; sap_pack_draft shows what the pack "
     "recognises and what is missing); "
     "ambiguous columns are reported, never guessed. From the same plan, without creating anything: semantic_model_draft "
@@ -647,9 +647,10 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
         "definition_parts": parts,
         "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
                  "delegated_scope": "Item.ReadWrite.All", "body": _ontology.envelope(name, parts)},
-        "note": "Ontology (preview): format follows the item's own definition as of 2026. Creating the item needs the "
-                "Item.ReadWrite.All scope, which this connector asks for only when its operator enables create_ontology; the "
-                "portal route (Import ontology with the TTL, then bind per `bindings`) needs no extra permission.",
+        "note": "Ontology (preview): format follows the item's own definition as of 2026. Creating the item (create_ontology) needs "
+                "the delegated permission Item.ReadWrite.All, which the hosted connector's app has had since 28 October 2026 "
+                "(docs/SCOPES.md), and the tenant setting for Ontology (preview) items; the portal route (Import ontology with "
+                "the TTL, then bind per `bindings`) needs neither.",
     }
     text = json.dumps(out, indent=2)
     if len(text) <= MAX_RESULT_CHARS:
@@ -1303,8 +1304,8 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
                    f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason.",
                    "Run it again whenever the source changes: every silver table is rewritten from the source."],
            "note": ("Unit-tested: the steps run in Python on the shop seed with duplicates and broken references added, and the generated "
-                    "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026); the notebook "
-                    "has not run in a Fabric workspace. " + _tool_status.answer_note(tool))}
+                    "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026). The notebook "
+                    "it writes has not yet been run in Fabric. " + _tool_status.answer_note(tool))}
     if len(json.dumps(out)) > MAX_RESULT_CHARS:
         out["notebook"].pop("content")
         out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; pass tables=[...] for a few at a "
@@ -1513,8 +1514,8 @@ def _monitor_answer(p, src: dict, name: str, at: str, time_zone: str, library_re
                                  "Open the Notebook activity once and check its Connection: if Fabric asks for one, choose your account or the "
                                  "workspace identity; the run reads the workspace's items with that identity.",
                                  "Run the pipeline once by hand: the first run saves the baseline plan and reports 'first run'."],
-            "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema; the notebook "
-                     "has not run in a Fabric workspace. " + _tool_status.answer_note(tool) + " " + _monitor.library_note(library_ref))}
+            "note": ("Unit-tested: the comparison, the message and the generated notebook and pipeline on the shop schema. The notebook "
+                     "it writes has not yet been run in Fabric. " + _tool_status.answer_note(tool) + " " + _monitor.library_note(library_ref))}
 
 
 @mcp.tool(title="Draft a nightly drift monitor: notebook, pipeline and schedule (nothing created)", annotations=RO)

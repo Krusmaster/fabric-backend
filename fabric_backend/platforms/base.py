@@ -9,7 +9,7 @@
    the tool that creates it (dry run by default), and the module that writes it. A builder's draft is pure: it turns
    a plan into files or SQL and calls nothing.
 
-Everything else (inference K0–K5/R0–R4, validation as counting queries, join paths, the graph analysis, plan drift,
+Everything else (inference K0–K5/R0–R5, validation as counting queries, join paths, the graph analysis, plan drift,
 the data dictionary, dbt tests, the silver logic) is the engine's, and the engine imports no adapter
 (tests/test_architecture.py checks it). docs/ARCHITECTURE.md has the picture and the checklist for a new adapter.
 """
