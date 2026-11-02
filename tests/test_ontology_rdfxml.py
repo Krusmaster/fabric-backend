@@ -191,3 +191,19 @@ def test_ontology_files_carry_the_rdf_beside_the_ttl(shop):
     files = ontology.ontology_files(shop, "shop_ontology", workspace_id="w", item_id="i", item_name="shop_lh", schema="shop")
     assert files["ontology/shop_ontology/shop_ontology.rdf"] == ontology.ontology_rdfxml(shop, "shop_ontology", "shop")
     assert "Ontology Playground" in files["ontology/shop_ontology/README.generated.md"]
+
+
+def test_check_offers_it_for_every_example_and_for_a_list_of_columns():
+    """/check's worker writes the file (browser_check._ontology_rdfxml): named after the example, status Draft, and
+    passing the Playground's rules; no row values, so the shop's example customer names are not in it."""
+    from fabric_backend import browser_check as bc, tool_status as ts
+    for kind, name in bc.NAMES.items():
+        o = bc.analyze(kind)["ontology_rdfxml"]
+        assert o["name"] == f"{name}_ontology.rdf" and o["status"] == "Draft" == ts.ONTOLOGY_RDFXML, kind
+        assert pr.codes(pr.validate(o["xml"].encode("utf-8"))) == [], kind
+        assert o["entity_types"] == o["xml"].count("<owl:Class ") > 0
+    rows = {str(v) for t in seed.rows().values() for row in t for v in row if isinstance(v, str) and len(str(v)) > 3}
+    sample = bc.analyze("sample")["ontology_rdfxml"]["xml"]
+    assert not [v for v in rows if f">{v}<" in sample]
+    o = bc.analyze("columns", text="orders.order_id\norders.customer_id\ncustomers.customer_id")["ontology_rdfxml"]
+    assert o["entity_types"] == 2 and o["relationship_types"] == 1 and pr.codes(pr.validate(o["xml"].encode())) == []

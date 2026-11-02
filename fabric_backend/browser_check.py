@@ -302,7 +302,7 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
                "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data),
-               "evidence_report": _evidence_report(p, src, validation, kind)}
+               "evidence_report": _evidence_report(p, src, validation, kind), "ontology_rdfxml": _ontology_rdfxml(p, src, kind)}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -324,6 +324,20 @@ def _evidence_report(p, src, validation: dict | None, kind: str) -> dict:
     rep = evidence_report.report(p, validation, source=src.label)
     return {"name": f"{base}_evidence_report.md", "markdown": evidence_report.markdown(rep), "status": ts.EVIDENCE_REPORT,
             "summary": rep["summary"]}
+
+
+def _ontology_rdfxml(p, src, kind: str) -> dict | None:
+    """n80: the plan as RDF/XML for Microsoft's Ontology Playground (ontology.ontology_rdfxml), a file for the page to
+    save: entity types, their columns and the relationships with the rule in each description, no rows. None when there
+    is nothing to write or the file would pass the Playground's 8 MiB."""
+    from . import ontology, tool_status as ts
+    base = NAMES.get(kind) or re.sub(r"\W+", "_", getattr(src.schema, "schema", "") or "data")
+    try:
+        xml = ontology.ontology_rdfxml(p, base, getattr(src.schema, "schema", "") or "dbo")
+    except ValueError:
+        return None
+    return {"name": f"{base}_ontology.rdf", "xml": xml, "status": ts.ONTOLOGY_RDFXML,
+            "entity_types": xml.count("<owl:Class "), "relationship_types": xml.count("<owl:ObjectProperty ")}
 
 
 def _amount_examples(p, src, validation: dict | None) -> dict[tuple, dict]:

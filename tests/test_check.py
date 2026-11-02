@@ -256,6 +256,11 @@ def test_in_a_browser_no_request_carries_the_files(site):
     ev = r["evidence"]
     assert ev and not ev["hidden"] and ev["download"] == "shop_evidence_report.md", ev
     assert ev["text"].startswith("Download shop_evidence_report.md: evidence report for a hand-over (Markdown): source, time and engine version") and "no row values" in ev["text"] and ev["text"].endswith("Draft"), ev
+    # n80: beside it, the ontology as RDF/XML for Ontology Playground: what it holds, Draft, and how it is opened there
+    rd = r["rdfxml"]
+    assert rd and rd["download"] == "shop_ontology.rdf" and rd["head"].startswith('<?xml version="1.0" encoding="UTF-8"?>\n<rdf:RDF'), rd
+    assert rd["text"] == ("Download shop_ontology.rdf: ontology for Microsoft's Ontology Playground (RDF/XML): 7 entity types with their columns and "
+                          "6 relationships, the rule in each description; no row values. Open it in Ontology Playground with Import / Export, as a file import Draft"), rd
     # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
     for w in ("375", "1280"):
         bl = r["billing"][w]
@@ -415,7 +420,8 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert 0 <= o["heading_top"] < 120, o["heading_top"]
         assert o["focus"] == "check-model-h" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
         assert o["requests_while_building"] == [], o["requests_while_building"]
-        assert o["app_rows"] > 0 and "Download crm_erp_app.zip: app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet " + ts.label("app_starter") in o["app_text"]
+        assert o["app_rows"] > 0 and "Download crm_erp_app.zip: app starter for Lovable and Rayfin connector entities from the same plan; the API itself does not exist yet " + ts.label("app_starter") in o["app_text"]
+        assert "Supabase" not in o["app_text"] and "an app starter for Lovable" in o["app_text"]       # n80: the word stays in /docs and /lovable
         assert "Download crm_erp_model.zip: Power BI project (.pbip), the model with the plan's keys and relationships as checked in the rows and an empty report page " + ts.label("semantic_model_draft") in o["model_text"]
         assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
         assert o["next_links"] == ["Create it in your own Fabric /start", "Get help /support"]

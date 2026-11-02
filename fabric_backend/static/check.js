@@ -247,8 +247,8 @@
     }
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
     kids.push(el("h3", null, "The app's starter code"),
-      el("p", null, "Rayfin connector entities with the plan's keys and relationships, and a Lovable prompt, GraphQL queries and a Supabase edge function for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet", b.status.app_starter)));
+      el("p", null, "Rayfin connector entities with the plan's keys and relationships, and an app starter for Lovable: a prompt, GraphQL queries and the server function that keeps the secrets out of the browser, for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter for Lovable and Rayfin connector entities from the same plan; the API itself does not exist yet", b.status.app_starter)));
     panels.app.replaceChildren(...kids);
   }
 
@@ -435,6 +435,12 @@
     if (!e || !r.tables.length) { box.hidden = true; return; }
     box.append(saveText(e.name, e.markdown, "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
       + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions; no row values", e.status, "text/markdown"));
+    // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
+    // there with a file import (there is no link that opens it there)
+    const o = r.ontology_rdfxml;
+    if (o) box.append(saveText(o.name, o.xml, "ontology for Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
+      + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. "
+      + "Open it in Ontology Playground with Import / Export, as a file import", o.status, "application/rdf+xml"));
     box.hidden = false;
   }
 

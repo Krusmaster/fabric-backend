@@ -35,6 +35,18 @@ const { chromium } = require("playwright");
   out.sample_text = await page.textContent("#check-run");
   // n79: the evidence report beside the build buttons, saved from a Blob like the contract
   out.evidence = await page.evaluate(() => { const a = document.querySelector("#check-evidence a"); return a ? { text: a.textContent, download: a.getAttribute("download"), hidden: document.getElementById("check-evidence").hidden } : null; });
+  // n80: the RDF/XML for Ontology Playground, the second download there; its first bytes read from the Blob it saves
+  out.rdfxml = await page.evaluate(async () => {
+    const a = document.querySelectorAll("#check-evidence a")[1];
+    if (!a) return null;
+    let head = null;
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = (b) => { head = b; return orig.call(URL, b); };
+    a.addEventListener("click", (e) => e.preventDefault(), { once: true });
+    a.click();
+    URL.createObjectURL = orig;
+    return { text: a.textContent, download: a.getAttribute("download"), head: head ? (await head.text()).slice(0, 60) : null };
+  });
   out.steps = await page.$$eval("#check-steps strong", (n) => n.map((x) => x.textContent));
   // n73: the finding first. At 1280 x 720 the state line, the most important finding and the folded list stand right
   // under the status line and before the map, on the screen without scrolling; the engine's steps are a closed
