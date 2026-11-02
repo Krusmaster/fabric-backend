@@ -69,7 +69,7 @@ New to a Fabric lakehouse? Start by understanding how its tables fit together: c
    [grant admin consent](https://login.microsoftonline.com/organizations/adminconsent?client_id={{CLIENT_ID}}&redirect_uri={{CONSENT_URL_ENC}}).
    It allows the connector to call Fabric and SQL as each signed-in user — nothing more. Microsoft then returns the admin
    to [{{DOMAIN}}/consent/done](/consent/done), which says whether the consent was granted and, if not, what to do next.
-2. **In Claude:** Settings → Connectors → Add custom connector, with the URL
+2. **In Claude:** Customize → Connectors → Add → Add custom connector, with the URL
    `{{MCP_URL}}`. Sign in with your Microsoft work account. {{#IF CLIENT_REGISTRATION}}VS Code, Cursor and other MCP clients
    that sign in on their own use `{{CONNECT_URL}}` instead ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and that is the client
    it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
@@ -138,7 +138,7 @@ section's link in its `hint`.
 
 | `kind` | What happened | What to do, in order |
 | --- | --- | --- |
-| `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Settings → Connectors → {{PRODUCT}} → Disconnect**, then **Connect** again and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
+| `sign_in` | The connector has no valid sign-in for this request (expired, revoked, or never completed) | In Claude: **Customize → Connectors → Yours → Reconnect** on {{PRODUCT}}, and finish the Microsoft sign-in with your work account. If it loops, your organisation requires multi-factor authentication for new apps: complete it when asked. |
 | `consent` | Your Microsoft Entra organisation has not consented to the app (Entra AADSTS65001), or the tool needs a permission the app has not been granted | Send your Entra admin the consent link on [/start](/start) (it opens Microsoft's own page); after they click **Accept**, disconnect and reconnect the connector. For `create_semantic_model`, `create_ontology`, `create_data_agent`, `create_silver_notebook` and `create_drift_monitor` the answer names the missing scope (such as `Item.ReadWrite.All` or `SemanticModel.ReadWrite.All`); that is a permission the operator adds to the app, see `docs/SCOPES.md`; the dry runs work meanwhile. |
 | `no_access` | You can sign in, but this workspace or item is not shared with you (HTTP 403) | Ask the workspace owner for a role on the workspace: **Viewer** is enough for everything that reads and plans, **Contributor** for `create_backend`, `create_views` and the other creating tools. Then run the same request again; `list_workspaces` shows what you can see. |
 | `capacity` | The workspace has no active Fabric capacity (paused, not assigned, or expired trial) | In Fabric: **Workspace settings → License info**, assign a capacity or resume the paused one; a trial capacity is enough. Lakehouse SQL endpoints answer again a minute after the capacity is up. |

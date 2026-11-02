@@ -204,7 +204,7 @@ def connect_links() -> dict[str, str]:
     return {"vscode": install("vscode"), "vscode_insiders": install("vscode-insiders"),
             "cursor": "cursor://anysphere.cursor-deeplink/mcp/install?name=" + quote(v["PRODUCT"], safe="") + "&config="
                       + base64.b64encode(json.dumps({"url": v["CONNECT_URL"]}, separators=(",", ":")).encode()).decode(),
-            "claude": "https://claude.ai/settings/connectors"}
+            "claude": "https://claude.ai/customize/connectors"}
 
 
 # n80: the first question the Connect menu offers to copy: read-only, and it needs no workspace name (list_workspaces
@@ -257,7 +257,7 @@ def connect_menu_html(where: str) -> str:
     items = [f'<div class="connect-item connect-claude"><strong>Claude</strong>'
              f'<span class="connect-row"><a class="btn primary connect-main" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a>'
              f'<button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button></span>'
-             f'<span class="muted tiny">Add custom connector, paste the URL and sign in with Microsoft.</span>'
+             f'<span class="muted tiny">Add → Add custom connector, paste the URL and sign in with Microsoft.</span>'
              f'<span class="connect-row"><button type="button" class="btn ghost small" data-copy-text="{e(FIRST_QUESTION)}">Copy a first question</button></span>'
              f'<span class="muted tiny">Paste it in a new chat; it only reads.</span></div>']
     if reg:

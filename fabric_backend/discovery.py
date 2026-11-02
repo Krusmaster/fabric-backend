@@ -184,7 +184,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 ## Connect
 
-- Claude (web, desktop, mobile): Settings → Connectors → Add custom connector → URL `{v['MCP_URL']}` → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect
+- Claude (web, desktop, mobile): Customize → Connectors → Add → Add custom connector → URL `{v['MCP_URL']}` → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect
 {connect_lines}
 - First calls: `list_workspaces`, then `list_sources` with the workspace name, `plan_backend` (nothing is deployed), `validate_plan` to check the plan against the rows (a step to ask for; `create_backend` does not run it), `create_backend`, then `describe_backend` before `query_graphql`.
 

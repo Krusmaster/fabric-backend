@@ -118,7 +118,7 @@ def test_docs_have_the_first_questions_and_the_first_time_errors(client):
     assert '<h3 id="first-time-errors">' in docs
     for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
         assert f"<code>{kind}</code>" in docs
-    assert "Workspace settings → License info" in docs and "Disconnect" in docs
+    assert "Workspace settings → License info" in docs and "Customize → Connectors → Yours → Reconnect" in docs   # n90: Claude moved Connectors to Customize
     from fabric_backend import errors
     assert errors.docs_url("first-time-errors").endswith("/docs#first-time-errors")
     for kind in errors.FIRST_TIME:
@@ -1389,13 +1389,13 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
     assert "connect-inline" in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
     pop = html.split("connect-pop", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
-    assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/settings/connectors" rel="noopener"' in pop
+    assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/customize/connectors" rel="noopener"' in pop
     assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop
     # n80: Claude first, open, with one large button, Copy URL beside it and a first question to copy; the admin line
     # last, with a note to copy; no address printed anywhere in the panel, every one inside a copy button or a link
     from fabric_backend import pages
     claude = pop.split('<div class="connect-item connect-claude">', 1)[1].split("</div>", 1)[0]
-    assert re.search(r'<a class="btn primary connect-main" href="https://claude.ai/settings/connectors" rel="noopener">Open Claude’s connectors</a>'
+    assert re.search(r'<a class="btn primary connect-main" href="https://claude.ai/customize/connectors" rel="noopener">Open Claude’s connectors</a>'
                      r'<button type="button" class="btn secondary small" data-copy-text="https://krusgraph.test/mcp">Copy URL</button>', claude)
     assert f'data-copy-text="{pages.FIRST_QUESTION}">Copy a first question</button>' in claude and "it only reads" in claude
     shown = re.sub(r"<[^>]+>", " ", re.sub(r'(data-copy-text|href)="[^"]*"', "", pop))
