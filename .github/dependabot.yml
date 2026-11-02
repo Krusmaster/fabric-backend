@@ -1,14 +1,23 @@
-# Weekly update PRs for the Python dependencies (pyproject.toml, deploy/constraints.txt) and the Actions in .github/workflows
+# Monthly update PRs for the Python dependencies (pyproject.toml, deploy/constraints.txt) and the Actions in
+# .github/workflows: one PR per ecosystem and month, with every update of that ecosystem in it.
+#
+# Nobody has to approve them: a Deployment round (CONTRIBUTING.md, "Deployment") rebases each PR onto main, waits for
+# green CI and squash-merges it; a red PR is fixed in place when the cause is a simple consequence of the update, and
+# closed with a comment that says what is needed otherwise.
 version: 2
 updates:
   - package-ecosystem: pip
     directory: /
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    groups:
+      all: { patterns: ["*"] }
   - package-ecosystem: pip
     directory: /deploy
-    schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    schedule: { interval: monthly }
+    groups:
+      all: { patterns: ["*"] }
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    groups:
+      all: { patterns: ["*"] }

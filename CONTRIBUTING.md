@@ -48,6 +48,15 @@ and set it back to "open" when you are done.
 Rounds are numbered nNN, and the number appears in the claim and release commits. Before a round claims, run
 `git log origin/main --oneline --grep "nNN claims"` and take the next number that has not been used.
 
+## Deployment
+
+Dependabot opens one grouped pull request per ecosystem and month (`.github/dependabot.yml`: pip, pip in `deploy/`,
+GitHub Actions). Nobody has to approve them: a Deployment round rebases each PR onto `main`, waits for green CI and
+squash-merges it; a red PR is fixed in place when the cause is a simple consequence of the update (a changed default in
+an action, a dropped Python version), and closed with a comment that says what is needed otherwise. `main` has no
+branch protection rules, and the way of working needs none: CI runs on every push and every PR, and a round verifies
+that `main` is green after each merge before the next.
+
 ## Issues, pull requests and conduct
 
 - Issues use the forms in `.github/ISSUE_TEMPLATE/`: **Bug** (which example or which file, without customer data),
