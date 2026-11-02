@@ -410,6 +410,12 @@ What is measured or recorded, and where; no claim beyond what these say.
 - **Status per tool**, rendered from `fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status.
 - **What is still missing** for the sales deck, the Marketplace listing and the connector application, and who takes it:
   [docs/MISSING-EVIDENCE.md](docs/MISSING-EVIDENCE.md).
+- **Trust, risk and licences**: what may be said about security and data handling, each statement with its source in the
+  repository ([docs/TRUST.md](docs/TRUST.md)); the ISO/IEC 27001:2022 Annex A controls, in place, partly, missing or not
+  applicable, with no score ([docs/ISO27001-SELF-ASSESSMENT.md](docs/ISO27001-SELF-ASSESSMENT.md)); Krusgraph holds no
+  ISO 27001 or SOC 2 certification. The licences of every dependency, generated from the pins:
+  [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Related MCP servers and Krusgraph's place beside Microsoft's:
+  [docs/ECOSYSTEM-WATCHLIST.md](docs/ECOSYSTEM-WATCHLIST.md), [docs/COMPANION-MCP.md](docs/COMPANION-MCP.md).
 
 ## Status
 

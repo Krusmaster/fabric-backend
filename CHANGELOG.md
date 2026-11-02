@@ -34,6 +34,23 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
   has no rows"), a line under the state says whether every key and relationship of the plan was counted, and the docs'
   `plan_backend` and `validate_plan` sentences carry R5's sample and query budget and `validate_plan`'s default
   `max_items` read from `server.py`. The Fabric IQ FAQ n73 put on `/docs` was checked and left as it is.
+- Round n76: trust, risk and licences, as documents. `docs/RISK-REGISTER.md` (internal): eight risk hypotheses with
+  cause, event, consequence, area, the existing controls with their file or function in the repository, action, owner
+  and next review; probability and impact "not assessed" wherever the repository holds nothing to carry a value; product
+  risks apart from business obstacles. `docs/TRUST.md`: the material for a public /trust page, every statement with its
+  source in the repository and Microsoft's attestations marked as Microsoft's; the line "Krusgraph is not ISO 27001 or
+  SOC 2 certified; here is what we do instead"; the subprocessor list (Microsoft Azure; the AI client is the customer's
+  own vendor). `docs/ISO27001-SELF-ASSESSMENT.md`: the 93 Annex A controls, each in place, partly, missing or not
+  applicable with its file, and no score. `docs/DPA-DRAFT.md`: a data processing agreement template as a draft, not legal
+  advice. `THIRD_PARTY_NOTICES.md` generated from `deploy/constraints.txt` and the extras by `tools/third_party_notices.py`
+  (`--check` for CI; the workflow step is left for the Deployment area), with the vendored Pyodide and fonts and the
+  image's components; a "Reusing external code" section in `CONTRIBUTING.md` (verified licence file at a pinned commit,
+  notices kept, no AGPL or SSPL, nothing from a repository whose licence cannot be verified). `docs/ECOSYSTEM-WATCHLIST.md`:
+  the related MCP servers (Microsoft's Fabric MCP Server, Fabric IQ MCP, the Power BI modeling server, the warehouse
+  and Real-Time Intelligence servers; datumnova/ms-fabric-mcp and Jasuni69/ms-core-mcp with no licence file found,
+  mkoziel2000/mcp-fabric-api under the AGPL) with licence as observed or not verified, what is worth referring to, what
+  is not copied, and the date. `docs/COMPANION-MCP.md`: Krusgraph beside Microsoft's servers in the same client, a
+  complement with no server-to-server connection, cited from fabric-docs because Learn could not be opened.
 - Round n73: the polish from the external review, on the site. `/check` shows the finding first: after a run the state
   line ("Enough to start · 4 things to check"), the most important finding and the folded list come right under the
   status line and before the map, and the engine's steps are a closed `<details>` under the map ("How the engine got
