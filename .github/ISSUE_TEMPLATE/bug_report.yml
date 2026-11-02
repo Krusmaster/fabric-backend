@@ -1,0 +1,50 @@
+name: Bug
+description: Something does not do what the docs say it does.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        No customer data: no table names from a customer, no row values, no workspace, tenant or subscription ids.
+        Reproduce on the synthetic shop schema (`fabric_backend/seed.py`), one of the `/check` examples, or a schema
+        you are free to share.
+  - type: input
+    id: where
+    attributes:
+      label: Which example or which file
+      description: The example on /check, the test fixture, or the file you used, without customer data. If you cannot share the file, say what shape it has (how many tables, which naming style).
+      placeholder: "/check → 'A total that doubles'; or tests/fixtures/schemas/sakila"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The answer you got (the tool's `kind`, the error text, or the part of the page), copied as text.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: What the docs or the tool's description say should happen, with a link if you have one.
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where
+      options:
+        - "krusgraph.com/check (in the browser)"
+        - "the hosted connector (https://krusgraph.com/mcp or /mcp/connect)"
+        - "the local stdio server or the library"
+        - "fabric-backend demo"
+        - "the website"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or build
+      description: "`pip show fabric-backend`, the `build` from https://krusgraph.com/healthz, or the commit."

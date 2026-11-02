@@ -1,7 +1,7 @@
 {
  "analyze": {
-  "bytes": 42639,
-  "sha256": "60f04ab725b5a4fce05650bd4969ef8f565b48ac36cdbd5b76c2f95c33983a12"
+  "bytes": 42644,
+  "sha256": "1a0e5d0c1b6498e111740319d4fcc0ebb0914699bc5801e8a5a7dab08bc78cec"
  },
  "candidates": {
   "bytes": 29038,
@@ -70,8 +70,8 @@
   "sha256": "dd8d1e0cdee3bd5cbf69f18f1cafeb510da92bf856ddeff7ae213c6f9263fac7"
  },
  "dictionary": {
-  "bytes": 108648,
-  "sha256": "fffcc525ccc8dbae2b35432df3bc564d093d561ebf8ef032a53b7ea502d2c109"
+  "bytes": 111562,
+  "sha256": "8355d24931b59985b067f03dbb6856924b0f06d46b4cbd3df44d76ca53ba45dd"
  },
  "gold": {
   "raises": "PlanInputError: materialized lake views need a lakehouse created with schemas (Lakehouse schemas); this one has none. Create a lakehouse with schemas and add the tables as shortcuts, or use create_views for T-SQL views."
@@ -227,8 +227,8 @@
   "WorkOrderRouting": "SELECT TOP (10) [WorkOrderID], [ProductID], [OperationSequence], [LocationID], [ScheduledStartDate], [ScheduledEndDate], [ActualStartDate], [ActualEndDate], [ActualResourceHrs], [PlannedCost], [ActualCost], [ModifiedDate] FROM [dbo].[WorkOrderRouting]"
  },
  "semantic_model": {
-  "bytes": 295227,
-  "sha256": "d9f9931710d8cb81a83261cace7c62b5fe8d6b2cad8ac8706c83897ba825fff9"
+  "bytes": 302593,
+  "sha256": "128d0878654a41eb52c0b45e6914d3b4446bd737aa6839c269e7b5ea7de27099"
  },
  "silver": {
   "bytes": 121666,

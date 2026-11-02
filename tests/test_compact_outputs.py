@@ -60,7 +60,7 @@ def test_summary_on_demand_for_the_shop(remote):
     assert out["detail"] == "summary" and out["keys"]["orders"] == "order_id (K2)" and out["keys"]["order_items"] == "order_id+line_no (K5)"
     assert "orders.customer_id -> customers [R1]" in out["relationships"] and "mermaid" not in out and "detail=\"full\"" in out["note"]
     lt = json.loads(server.list_tables("ws", "shop_lh", schema="shop", detail="summary"))
-    assert lt["tables"] == 7 and lt["per_table"]["orders"] == 4 and lt["columns"] == 22
+    assert lt["tables"] == 7 and lt["per_table"]["orders"] == 4 and lt["columns"] == 23      # 23 since products.list_price (n71)
     an = json.loads(server.analyze_schema("ws", "shop_lh", schema="shop", detail="summary"))
     assert an["roles"]["fact"] == ["audit_log", "order_items", "orders"] and an["central"][0]["table"] == "customers"
     assert an["active_relationships"] == 6 and an["inactive_relationships"]["count"] == 0

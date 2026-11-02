@@ -10,7 +10,7 @@
   <h2 id="data">Data and access</h2>
   <p>What is read, passed through and stored is described in the <a href="/privacy">privacy policy</a>, and the permissions and how to revoke them on <a href="/it">the page for your IT department</a>.</p>
   <h2 id="creating">Nothing is created without you</h2>
-  <p>{{PRODUCT}} creates nothing in Microsoft Fabric unless a tool is called with <code>dry_run=false</code>, and then only with the signed-in person’s own permissions. Planning, checking and drafts only read.</p>
+  <p>{{PRODUCT}} creates nothing in Microsoft Fabric unless you ask for it: every creating tool except <code>{{NO_DRY_RUN_TOOLS}}</code> answers with what it would create until it is called with <code>dry_run=false</code>, and <code>{{NO_DRY_RUN_TOOLS}}</code>, which has no dry run, creates or updates only the API for GraphQL you name in the call. Either way the tool acts with the signed-in person’s own permissions. Planning, checking and drafts only read.</p>
   <h2 id="contact">Contact</h2>
   <p>Kruse Consulting AB{{ORGNR_PAREN}}, <a href="mailto:{{CONTACT}}">{{CONTACT}}</a>.</p>
 </article>

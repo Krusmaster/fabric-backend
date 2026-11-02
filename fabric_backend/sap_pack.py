@@ -29,7 +29,8 @@ from pathlib import Path
 PACKS = Path(__file__).parent / "packs"
 RULE = "SAP pack"
 CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
-_LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract")
+# words a landing puts in front of a source table's name: a layer (raw, bronze) or the system (sap, younium, sf)
+_LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm")
 
 
 def available() -> list[str]:
@@ -144,8 +145,19 @@ class Match:
         return [{"id": i, **{k: pack["sources"][i][k] for k in ("title", "url", "fetched")}} for i in ids]
 
 
+def _norm(column: str) -> str:
+    """A column name as a pack compares it: without case and underscores, so a pack written in snake case (EXTERNAL_CRM_ID)
+    reads a camelCase landing (externalCrmId) and a snake-case one (external_crm_id) alike. SAP names have no such
+    doubles (VBTYP_N is only ever VBTYP_N)."""
+    return column.upper().replace("_", "")
+
+
 def _cols(table) -> dict[str, str]:
-    return {c.upper(): c for c in table.column_names}
+    """Normalised column name -> the schema's spelling. When two columns differ only by underscores or case, the first wins."""
+    out: dict[str, str] = {}
+    for c in table.column_names:
+        out.setdefault(_norm(c), c)
+    return out
 
 
 def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None:
@@ -165,8 +177,8 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         if variant and pt.get("variants") and variant not in pt["variants"]:
             continue
         have = _cols(t)
-        key = [c for c in pt["key"] if c in have or c not in CLIENT_COLUMNS]
-        if not all(c in have for c in key) or len(key) == 0:
+        key = [c for c in pt["key"] if _norm(c) in have or c not in CLIENT_COLUMNS]
+        if not all(_norm(c) in have for c in key) or len(key) == 0:
             keyless.append(t.name)
             continue
         taken.add(name)
@@ -174,7 +186,7 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         cols[t.name] = have
         if len(key) < len(pt["key"]):
             dropped.append(t.name)
-        keys[t.name] = [have[c] for c in key]
+        keys[t.name] = [have[_norm(c)] for c in key]
     if len(found) < 2:
         return None
     by_pack = {v: k for k, v in found.items()}
@@ -192,7 +204,7 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         pairs = []
         lost = []
         for a, b in zip(r["source_cols"], r["target_cols"]):
-            ha, hb = cols[s].get(a), cols[g].get(b)
+            ha, hb = cols[s].get(_norm(a)), cols[g].get(_norm(b))
             if ha and hb:
                 pairs.append((ha, hb))
             elif a in CLIENT_COLUMNS or b in CLIENT_COLUMNS:
@@ -203,20 +215,20 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         valid = None
         if kind == "valid_on":                                            # the date and the period columns must be there too
             v = r["valid_on"]
-            tf, tt = cols[g].get(v["target_from"]), cols[g].get(v["target_to"])
+            tf, tt = cols[g].get(_norm(v["target_from"])), cols[g].get(_norm(v["target_to"]))
             need = [(g, v["target_from"], tf), (g, v["target_to"], tt)]
             valid = {"target_from": tf, "target_to": tt}
             if v.get("on") == "today":
                 valid["on"] = "today"
             else:
-                sd = cols[s].get(v["source_date"])
+                sd = cols[s].get(_norm(v["source_date"]))
                 need.append((s, v["source_date"], sd))
                 valid["source_date"] = sd
             lost += [(t_, c_) for t_, c_, have in need if not have]
         where = []
         for w in r.get("where", []):                                       # the filter columns must be there too
             table = s if w["side"] == "source" else g
-            have = cols[table].get(w["column"])
+            have = cols[table].get(_norm(w["column"]))
             if have:
                 where.append({**w, "column": have})
             else:
@@ -248,6 +260,33 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
     if seen:                                                              # BSEG is not missing from an S/4HANA schema
         missing_tables = {n for n in missing_tables if not p["tables"][n].get("variants") or seen in p["tables"][n]["variants"]}
     return Match(pack, found, keys, applied, not_applied, sorted(missing_tables), missing_cols, dropped, hint, keyless)
+
+
+def match_any(schema, variant: str | None = None) -> Match | None:
+    """The pack that recognises most of a schema's tables (sap, younium_salesforce, ...), or None when none recognises
+    two. Ties go to the pack named first in alphabetical order. The engine (infer._pack) calls match(schema) today, which
+    is the SAP pack alone; this is the one call it would make to read every pack (round n72, proposed)."""
+    best = None
+    for name in available():
+        m = match(schema, name, variant if name == "sap" else None)
+        if m is not None and (best is None or len(m.tables) > len(best.tables)):
+            best = m
+    return best
+
+
+def plan_with(schema, pack: str, **kwargs):
+    """infer.plan over the schema with a pack's keys and plain key relationships given as the caller's keys and
+    confirmed relationships: what the engine would plan once it reads the pack itself (match_any), without changing
+    the engine. The rules in the plan then read K1 and confirmed, not the pack's rule; relationships of kind unique or
+    valid_on and filtered ones are not passed (they would be plan.extended). Returns (plan, match)."""
+    from .infer import plan
+    m = match(schema, pack)
+    if m is None:
+        return plan(schema, **kwargs), None
+    keys = {t: list(cols) for t, cols in m.keys.items()}
+    confirmed = [{"source": r["source"], "source_cols": r["source_cols"], "target": r["target"], "target_cols": r["target_cols"]}
+                 for r in m.relationships if r.get("kind", "key") == "key" and not r.get("where")]
+    return plan(schema, keys={**keys, **kwargs.pop("keys", {})}, confirmed=confirmed + list(kwargs.pop("confirmed", [])), **kwargs), m
 
 
 def table_info(pack_table: str, pack: str = "sap") -> dict:

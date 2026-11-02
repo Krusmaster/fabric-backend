@@ -145,8 +145,11 @@ def test_semantic_model_suggests_measures_with_the_reason_and_never_on_ids(shop_
     out = semantic_model.draft(shop_plan, INFO, "shop_model")
     measures = {m["name"]: m for m in out["summary"]["measures"]}
     # one row count per fact table, one sum per column summarizeBy sums; nothing on keys, references, ids or dimensions
-    assert set(measures) == {"Rows in orders", "Rows in order_items", "Rows in audit_log", "Total quantity"}
+    assert set(measures) == {"Rows in orders", "Rows in order_items", "Rows in audit_log", "Total quantity", "Order amount"}
     assert measures["Total quantity"]["expression"] == "SUM('order_items'[quantity])" and "summarizeBy: sum" in measures["Total quantity"]["why"]
+    # the amount that is not there: quantity on the line, list price on the product (tests/test_order_amount.py has the rest)
+    assert measures["Order amount"]["expression"] == "SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))"
+    assert "Total list_price" not in measures                                                     # a price is not summed on its own
     assert all(m["why"] for m in measures.values())
     items = out["parts"]["definition/tables/order_items.tmdl"]
     assert "\t/// Suggested by Krusgraph: order_items.quantity is a number" in items
@@ -380,7 +383,8 @@ def shop(monkeypatch):
 
 def test_tools_answer_on_the_shop_schema(shop, monkeypatch):
     out = json.loads(server.semantic_model_draft(*shop, name="shop_model", schema="shop"))
-    assert out["summary"]["tables"] == 7 and "definition/tables/orders.tmdl" in out["parts"] and "not yet created" in out["note"]
+    assert out["summary"]["tables"] == 7 and "definition/tables/orders.tmdl" in out["parts"]
+    assert "create_semantic_model creates the item from it (created live; reviewed in Fabric)" in out["note"]      # from tool_status (n69)
     assert 'Sql.Database("x.datawarehouse.fabric.microsoft.com", "shop_lh")' in out["parts"]["definition/expressions.tmdl"]
     out = json.loads(server.join_path(*shop, start="customers", end="categories", schema="shop"))
     assert out["paths"][0]["hops"] == 4 and out["paths"][0]["sql"].startswith("SELECT TOP (100)")

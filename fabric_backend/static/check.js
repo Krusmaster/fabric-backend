@@ -10,6 +10,11 @@
 // n53: "Ask Onto" under the verdict: three to five questions picked from what the engine found, each answered here from
 // the engine's own result (its check and rule names), never sent anywhere; the doubled total and a missing key are
 // also marked on the map. No free text: a question box would have to send what is typed.
+// n73: the finding first. After a run the state line, the most important finding and the folded list come right under
+// the status line, before the map; the engine's steps are a <details> under the map ("How the engine got here"),
+// closed on every run. One example row runs through the example: the finding, Onto's answer, the Power BI preview and
+// the contract all name the header row the engine read (its key, its amount, its lines), never a number of their own.
+// Every download button says what the file holds and its status word from tool_status.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -41,7 +46,7 @@
   function say(text) { status.textContent = text; }
   const seconds = (ms) => (ms / 1000).toFixed(1) + " s";
 
-  let booted = false, last = null, built = null, map = null;
+  let booted = false, last = null, lastResult = null, built = null, map = null;
   say("Loading the engine in this browser…");
   hop("Starting the Python runtime…");
   const boot = call({ kind: "boot" }).then((r) => {
@@ -58,6 +63,7 @@
     if (busy) return;
     busy = true;
     last = { kind, files: files || [], text: text || "" };
+    lastResult = null;
     built = null;
     resetBuild();
     hop(booted ? "Reading the input…" : "Loading the engine…");
@@ -71,6 +77,9 @@
     $("check-ask").hidden = true;
     $("check-pilot").hidden = true;
     $("check-steps").replaceChildren();
+    $("check-engine").open = false;                  // n73: the steps stay folded; the hop text names the step under way
+    $("check-all").hidden = true;
+    $("check-verdict").replaceChildren();
     result.hidden = true;
     if (!still) run.hidden = false;
     const show = (s) => { addStep(s); map.update(s); };
@@ -85,6 +94,7 @@
       if (!r.ok) { landed(); say("The engine stopped: " + r.error); return; }
       if (still) { run.hidden = false; events.forEach(show); }
       landed();
+      lastResult = r.result;
       draw(r.result);
       if (guided) guide(r.result);
       $("check-build-head").hidden = !r.result.tables.length;
@@ -156,8 +166,9 @@
 
   const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
   const tag = (t) => el("span", { class: "status-tag" }, t);
-  function download(name, b64, label) {
-    const a = el("a", { class: "btn primary small", href: "#", download: name }, label);
+  // n73: a download button says what the file holds and carries its status word (tool_status) as a tag
+  function download(name, b64, label, status) {
+    const a = el("a", { class: "btn primary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
     a.addEventListener("click", (e) => {               // the zip was made in the worker; a Blob saves it, nothing is fetched
       const bin = atob(b64), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -179,14 +190,33 @@
     return el("figure", { class: "check-chart" }, el("figcaption", null, el("strong", null, c.title), c.more ? " (largest eight; " + c.more + " more)" : ""), list);
   }
   const noRows = () => el("p", { class: "muted" }, "A list of columns has no rows, so there is nothing to count: the download below has the model, the preview needs files with rows.");
+  // n73: the total that doubles in the run's result, the same one Onto answers about: the amount finding whose sum over
+  // the lines is the larger (else the first), with the example row the engine read
+  const doubledFinding = (r) => { const a = (r ? r.findings : []).filter((f) => f.check === "amount_level" && f.amount); return a.find((f) => Number(f.amount.wrong) > Number(f.amount.right)) || a[0] || null; };
+  const times = (n) => n === 1 ? "once" : n === 2 ? "twice" : n + " times";
+  const rowsOf = (n, t) => n + " " + t + " row" + (n === 1 ? "" : "s");
+  // "For example order_id 1: 1,000 on its orders row; 2 order_lines rows point at it, so the join counts it twice: 2,000."
+  const exampleRow = (a) => a.example ? el("p", null, "For example ", code(a.example.key + " " + a.example.id), ": " + fmt(a.example.amount) + " on its " + a.header + " row; "
+    + rowsOf(a.example.lines, a.line) + " point at it, so the join counts it " + times(a.example.lines) + ": " + fmt(a.example.repeated) + ".") : null;
+  function doubledBlock(f, b) {
+    const a = f.amount, inModel = !!(b && b.report.doubled && b.report.doubled.column === a.header + "." + a.column);
+    return el("div", { class: "check-doubled" },
+      el("p", null, el("strong", null, "The total that doubles: " + a.header + "." + a.column)),
+      el("ul", { class: "check-kpis" }, el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + a.line + ")")),
+        el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + a.header + ")"))),
+      exampleRow(a),
+      el("p", { class: "muted tiny" }, "Summed over the " + a.line + " rows each " + a.header + " row counts once per line; summed on " + a.header + " it counts once. "
+        + (inModel ? "The model's measure sums it the right way." : a.on_map ? "The model sums it on " + a.header + "." : "The example's two tables (" + a.header + ", " + a.line + ") sit beside the shop's and are not in this model; the rule is the same there: an amount is summed on the table it belongs to.")));
+  }
   function drawModel(b) {
-    const r = b.report;
+    const r = b.report, dbl = doubledFinding(lastResult);
     const kids = [el("h3", { id: "check-model-h", tabindex: "-1" }, "A simple report from your rows"),
       el("p", { class: "tiny" }, tag(b.status.report), " The report preview is drawn here: Krusgraph has no report tool. The model: ", tag(b.status.model), " (semantic_model_draft).")];
     if (!r.has_data) kids.push(noRows());
     else {
       kids.push(figures(r.measures));
-      if (r.doubled) kids.push(el("div", { class: "check-doubled" },
+      if (dbl) kids.push(doubledBlock(dbl, b));      // the run's own finding, so the preview and the finding show one order
+      else if (r.doubled) kids.push(el("div", { class: "check-doubled" },
         el("p", null, el("strong", null, "The total that doubles: " + r.doubled.column)),
         el("ul", { class: "check-kpis" }, el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + r.doubled.line + ")")),
           el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(r.doubled.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + r.doubled.header + ")"))),
@@ -195,8 +225,8 @@
     }
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
     kids.push(el("h3", null, "The model as a Power BI project"),
-      el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opening it in Power BI Desktop has not been tried yet."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)),
+      el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project (.pbip), the model with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + " and an empty report page", b.status.model)),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
     panels.model.replaceChildren(...kids);
   }
@@ -216,17 +246,21 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
     kids.push(el("h3", null, "The app's starter code"),
       el("p", null, "Rayfin connector entities with the plan's keys and relationships, and a Lovable prompt, GraphQL queries and a Supabase edge function for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Download " + zip)));
+      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter, Rayfin connector entities, a Lovable prompt, GraphQL queries and a Supabase edge function from the same plan; the API itself does not exist yet", b.status.app_starter)));
     panels.app.replaceChildren(...kids);
   }
 
   // ------------------------------------------------------------------ drawing (textContent only: names come from files)
+  // a child that is null, undefined or false is left out (n68: a conditional child written as `cond ? node : null`),
+  // and fill() does the same for a node's replaceChildren, which would otherwise write the word "null" into the page
+  const kept = (k) => k != null && k !== false;
   function el(tag, attrs, ...kids) {
     const n = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs || {})) if (v != null) n.setAttribute(k, v);
-    for (const k of kids) if (k != null) n.append(k);
+    for (const [k, v] of Object.entries(attrs || {})) if (kept(v)) n.setAttribute(k, v);
+    for (const k of kids) if (kept(k)) n.append(k);
     return n;
   }
+  const fill = (node, ...kids) => node.replaceChildren(...kids.filter(kept));
   const code = (t) => el("code", null, t);
 
   function addStep(s) {
@@ -235,68 +269,13 @@
       el("strong", null, s.title), el("span", { class: "check-step-detail" }, s.detail)));
   }
 
-  function MapView(box) {
-    const NS = "http://www.w3.org/2000/svg";
-    let svg = null, edges = null, nodes = null, pos = {}, W = 760, H = 460, lit = [];
-    const groups = {};
-    box.replaceChildren();
-    const add = (parent, tag, attrs, text) => { const x = document.createElementNS(NS, tag); for (const k in attrs) x.setAttribute(k, attrs[k]); if (text != null) x.textContent = text; parent.append(x); return x; };
-    const key = (s, t, c) => s + "|" + (c || []).join("+").toLowerCase() + "|" + t;
-    const lines = {};
-    function edge(x, cls) {
-      const a = pos[x.source], b = pos[x.target];
-      if (!a || !b || lines[key(x.source, x.target, x.source_cols)]) return;
-      const g = add(edges, "g", { class: "m-edge-g " + cls + (still ? "" : " in") });
-      add(g, "line", { x1: a[0], y1: a[1], x2: b[0], y2: b[1], class: "m-edge" });
-      if (x.rule) add(g, "text", { x: (a[0] + b[0]) / 2, y: (a[1] + b[1]) / 2 - 5, class: "m-rule", "text-anchor": "middle" }, x.rule);
-      lines[key(x.source, x.target, x.source_cols)] = g;
-    }
-    // n53: mark one relationship (source, target, columns) or one table; returns whether it is on the map
-    this.highlight = (x) => {
-      lit.forEach((g) => g.classList.remove("m-hl")); lit = [];
-      const g = !x ? null : x.table ? groups[x.table] : lines[key(x.source, x.target, x.source_cols)];
-      if (g) { g.classList.add("m-hl"); lit.push(g); }
-      return !!g;
-    };
-    this.update = (s) => {
-      if (s.step === "keys") {
-        const n = s.tables.length;
-        H = n > 10 ? 560 : 440;
-        svg = document.createElementNS(NS, "svg");
-        svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-        svg.setAttribute("aria-hidden", "true");
-        edges = add(svg, "g", {}); nodes = add(svg, "g", {});
-        box.replaceChildren(svg);
-        const rx = W / 2 - 90, ry = H / 2 - 40;
-        s.tables.forEach((t, i) => {
-          const a = -Math.PI / 2 + (2 * Math.PI * i) / n;
-          pos[t.name] = n === 1 ? [W / 2, H / 2] : [W / 2 + rx * Math.cos(a), H / 2 + ry * Math.sin(a)];
-          const [x, y] = pos[t.name], label = t.name.length > 18 ? t.name.slice(0, 17) + "…" : t.name, w = Math.max(84, Math.min(170, 8.4 * label.length + 22));
-          const g = add(nodes, "g", { class: (t.key.length ? "m-node" : "m-node m-nokey") + (still ? "" : " in"), style: still ? "" : `animation-delay:${Math.min(i * 40, 600)}ms` });
-          groups[t.name] = g;
-          add(g, "rect", { x: x - w / 2, y: y - 21, width: w, height: 42, rx: 12 });
-          add(g, "text", { x, y: y - 3, "text-anchor": "middle", class: "m-name" }, label);
-          add(g, "text", { x, y: y + 13, "text-anchor": "middle", class: "m-key" }, t.key.length ? "key " + t.key_rule : "no key · K3");
-        });
-        $("check-map-summary").textContent = n + " tables.";
-      } else if (s.step === "relationships" && svg) {
-        s.relationships.forEach((x) => edge(x, ""));
-        $("check-map-summary").textContent = Object.keys(pos).length + " tables, " + s.relationships.length + " relationships found from names.";
-      } else if (s.step === "validate" && svg) {
-        (s.orphans || []).forEach((x) => { const g = lines[key(x.source, x.target, x.source_cols)]; if (g) g.classList.add("m-bad"); });
-      } else if (s.step === "suggest" && svg) {
-        (s.suggested || []).forEach((x) => edge({ ...x, rule: "?" }, "m-sug"));
-      }
-    };
-  }
+  // n59: the renderer is in map.js, shared with /use-cases
+  const MapView = function (box) { return new window.KrusMap.MapView(box, { still, summary: (t) => { $("check-map-summary").textContent = t; } }); };
 
   // n55: the map first. Under it one line with the state and the count, the most important finding, and every item
   // folded into "Show all N findings"; selecting a finding's title marks its relationship or table on the map.
   // where a finding is on the map, most precise first: its relationship, the amount's lines → header, its table
-  function where(f) {
-    const a = f.amount;
-    return [f.link, a && { source: a.line, target: a.header, source_cols: a.line_columns }, a && { table: a.header }, f.table && { table: f.table }].filter(Boolean);
-  }
+  const where = (f) => window.KrusMap.where(f);
   function mark(f, btn) {
     const shown = !!map && where(f).some((x) => map.highlight(x));
     if (!shown && map) map.highlight(null);
@@ -334,6 +313,7 @@
     $("check-tables").replaceChildren(...r.tables.map((t) => el("p", { class: "tiny" }, el("strong", null, t.name), " ",
       ...(t.key.length ? ["key ", code(t.key.join(" + ")), " (rule " + t.key_rule + ")"] : ["no key (rule K3)"]))));
     $("check-notes").replaceChildren(...((r.source && r.source.notes) || []).map((n) => el("li", null, n)));
+    domainsOn(r);
     $("check-pilot").hidden = !r.findings.length;     // n58: one way from a finding to the pilot page
     ask(r);
   }
@@ -391,6 +371,58 @@
     show(false);
   }
 
+  // ------------------------------------------------------------------ n63: domains on the map
+  // domain_draft's proposal from the worker's result (browser_check runs domains.draft on the same plan): with two
+  // domains or more the map tints each domain's tables and labels them, and a list under the map says the same in words.
+  // n68: each domain in the list is a button: chosen (one or several), its tables and interfaces keep full colour on
+  // the map and the rest is dimmed; "Show all" clears the choice. The same choice names the domain Onto offers to
+  // package as a data product, and the contract that answer saves.
+  const domainsOf = (r) => (r.domains && r.domains.domains) || [];
+  let picked = [];
+  function domainsOn(r) {
+    const box = $("check-domains"), ds = domainsOf(r);
+    picked = [];
+    if (ds.length < 2) { box.hidden = true; box.replaceChildren(); return; }
+    const tint = map ? map.domains(r.domains) : {};
+    const name = (slug) => (ds.find((d) => d.slug === slug) || { name: slug }).name;
+    const ifs = r.domains.interfaces || [];
+    const said = el("p", { class: "muted tiny check-dom-said", role: "status" });
+    const buttons = ds.map((d) => {
+      const b = el("button", { type: "button", class: "check-dom", "data-domain": d.slug, "aria-pressed": "false" },
+        el("span", { class: "check-dom-sw m-dom-" + (tint[d.slug] != null ? tint[d.slug] : 0), "aria-hidden": "true" }),
+        el("strong", null, d.name), ": " + d.tables.join(", "));
+      b.addEventListener("click", () => choose(picked.includes(d.slug) ? picked.filter((x) => x !== d.slug) : picked.concat(d.slug)));
+      return b;
+    });
+    const all = el("button", { type: "button", class: "btn ghost small", id: "check-dom-all" }, "Show all");
+    all.addEventListener("click", () => choose([]));
+    function choose(slugs) {
+      picked = slugs;
+      buttons.forEach((b) => b.setAttribute("aria-pressed", String(picked.includes(b.dataset.domain))));
+      if (map) map.focus(r.domains, picked);
+      const names = picked.map(name);
+      said.textContent = names.length ? "On the map: " + names.join(" and ") + ", with the tables and interfaces of " + (names.length === 1 ? "that domain" : "those domains") + "; the rest is dimmed." : "";
+      ask(r);
+    }
+    fill(box, el("h4", null, "Proposed domains"),
+      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision. Choose one or more to see them on the map."),
+      el("ul", { class: "check-dom-list" }, ...buttons.map((b) => el("li", null, b))),
+      el("p", { class: "check-dom-actions" }, all), said,
+      ifs.length ? el("p", { class: "tiny" }, el("strong", null, "Interfaces between them (the thicker lines): ")) : null,
+      ifs.length ? el("ul", { class: "tiny check-dom-ifs" }, ...ifs.map((i) => el("li", null, code(i.source + "." + i.source_cols.join(" + ")), " → ", code(i.target),
+        " (" + i.rule + "): " + name(i.consumer) + " uses the key of " + name(i.provider)))) : null,
+      (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
+    box.hidden = false;
+  }
+  function saveText(name, text, label, status) {     // the contract is written here; a Blob saves it, nothing is fetched
+    const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
+    a.addEventListener("click", () => {
+      const url = URL.createObjectURL(new Blob([text], { type: "application/yaml" }));
+      a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
+    });
+    return a;
+  }
+
   // ------------------------------------------------------------------ n53: Ask Onto
   // Every answer is drawn from `r`, the result the worker returned; nothing here makes a request.
   function ask(r) {
@@ -399,8 +431,7 @@
     if (map) map.highlight(null);
     if (!r.tables.length) { box.hidden = true; return; }
     const tags = (f) => el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)));
-    const amounts = r.findings.filter((f) => f.check === "amount_level" && f.amount);
-    const doubled = amounts.find((f) => Number(f.amount.wrong) > Number(f.amount.right)) || amounts[0];
+    const doubled = doubledFinding(r);                 // the same finding the Power BI preview shows
     const keyless = r.tables.find((t) => !t.key.length);
     const qs = [];
     if (doubled) qs.push({ id: "total", q: "Why does this total come out twice?", a: () => {
@@ -409,6 +440,7 @@
       const shown = a.on_map && map && map.highlight(rel);
       return [el("p", null, el("strong", null, a.header + "." + a.column), " is an amount on ", code(a.header), ", and ", code(a.line),
           " has rows that point at each ", code(a.header), " row (", code(a.line + "." + a.line_columns.join(" + ")), " → ", code(a.header), "). Summed over the joined rows, each header amount is counted once per line."),
+        exampleRow(a),
         el("ul", { class: "check-kpis" },
           el("li", { class: "bad" }, el("span", { class: "check-kpi-v" }, fmt(a.wrong)), el("span", { class: "check-kpi-l" }, "Summed over the joined lines (" + a.line + ")")),
           el("li", { class: "ok" }, el("span", { class: "check-kpi-v" }, fmt(a.right)), el("span", { class: "check-kpi-l" }, "Summed once per header (" + a.header + ")"))),
@@ -430,13 +462,33 @@
         f && f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
         el("p", { class: "muted tiny" }, "The table is marked on the map."), f ? tags(f) : el("p", { class: "tiny check-tags" }, code("rule K3"))];
     } });
+    const chosen = domainsOf(r).find((d) => picked.includes(d.slug));               // n68: the domain chosen under the map, if any
+    const product = chosen || domainsOf(r).find((d) => d.tables.length >= 2);
+    if (product) qs.push({ id: "product", q: chosen ? "Package " + product.name + " as a data product?" : "These " + product.tables.length + " tables hang together as " + product.name + ". Package them as a data product?", a: () => {
+      const yaml = (r.domains.contracts || {})[product.slug] || "";
+      const rels = product.relationships || [], checks = product.checks || [];
+      if (map) map.highlight({ table: product.tables[0] });
+      return [el("p", null, "A data product is a set of tables one team owns and promises to others, with a contract that says what they can rely on."),
+        el("p", { class: "muted tiny" }, "Why these belong together: " + product.name_reason + "."),
+        el("p", null, el("strong", null, "Tables and keys")),
+        el("ul", { class: "tiny" }, ...product.tables.map((t) => el("li", null, code(t), " ", ...((product.keys[t] || []).length ? ["key ", code(product.keys[t].join(" + "))] : ["no key"])))),
+        el("p", null, el("strong", null, "Relationships inside it")),
+        rels.length ? el("ul", { class: "tiny" }, ...rels.map((x) => el("li", null, code(x.source + "." + x.source_cols.join(" + ")), " → ", code(x.target), " (rule " + x.rule + ")")))
+          : el("p", { class: "tiny" }, "None: its tables are linked through a shared parent."),
+        el("p", null, el("strong", null, "What validate_plan counted")),
+        checks.length ? el("ul", { class: "tiny" }, ...checks.map((c) => el("li", null, c.what + ": " + c.verdict)))
+          : el("p", { class: "tiny" }, "No rows to count: a columns list gives the plan only."),
+        el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
+        el("p", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract (ODCS 3.2 YAML), schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : ""), r.domains.status),
+          el("a", { class: "btn primary small", href: "/start" }, "Create it in your own Fabric"))];
+    } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {
       setTimeout(() => openBuild("model"), 0);
       return [el("p", null, "Below the result: a simple report from your rows and the model as a Power BI project (.pbip) to download, made from the same plan in this browser. Creating the model in your own Fabric is a step in Claude (create_semantic_model).")];
     } });
     qs.push({ id: "own", q: "Can I ask my own questions?", a: () => [
       el("p", null, el("strong", null, "Yes, in Claude."), " Connect " + $("check-ask").dataset.product + " to Claude and ask about your own lakehouse; the answers come with the same rules and are checked against the rows. Here on /check nothing leaves the browser, so there is no question box."),
-      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect to Claude"))] });
+      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/#connect" }, "Connect"))] });
     listEl.replaceChildren(...qs.map((x) => {
       const b = el("button", { type: "button", class: "check-ask-q", "aria-expanded": "false", "aria-controls": "check-ask-answer", "data-ask": x.id }, x.q);
       b.addEventListener("click", () => {
@@ -444,7 +496,7 @@
         listEl.querySelectorAll("button").forEach((o) => o.setAttribute("aria-expanded", "false"));
         if (open) { answer.hidden = true; answer.replaceChildren(); if (map) map.highlight(null); return; }
         b.setAttribute("aria-expanded", "true");
-        answer.replaceChildren(el("p", { class: "check-ask-said" }, x.q), ...x.a());
+        fill(answer, el("p", { class: "check-ask-said" }, x.q), ...x.a());
         answer.hidden = false;
       });
       return el("li", null, b);
