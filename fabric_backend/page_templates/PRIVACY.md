@@ -9,8 +9,9 @@ service, how access tokens and technical logs are handled, and which other servi
 ## What the service does
 
 {{PRODUCT}} is a remote MCP server. When you use it from Claude (or another MCP client), it reads the metadata of the
-Microsoft Fabric items you choose and infers keys and relationships. Only when you ask for it does it count or read
-rows, run a read-only GraphQL query, or create or update an item in your Fabric workspace.
+Microsoft Fabric items you choose and infers keys and relationships. To do that, the tools that build on that plan
+also runs a few read-only counting queries (described below); only the counts come back. Only when you ask for it does
+it read rows, run a read-only GraphQL query, or create or update an item in your Fabric workspace.
 
 ## Your Microsoft account
 
@@ -29,6 +30,11 @@ What the service reads from Fabric depends on the tool you ask for:
 - **Metadata.** Workspace, item, table and column names and types, read to build the plan, a draft or the definition
   you asked for. Some tools also read the definitions of items in the workspace (GraphQL APIs, semantic models, data
   agents, views) to describe them or to show what builds on a table.
+- **Counting for the plan.** The tools that build on the plan (`plan_backend`, `validate_plan`, the drafts, the
+  creating tools, `join_path`, `answer_query_draft` and the others that take a source) applies rule R5: code and role
+  columns the names leave unlinked (such as `ship_to_id`) are counted against the table they may point at, at most 20
+  read-only counting queries per call over at most the first 200 distinct values of a column. Only the counts come
+  back and are used in that call; nothing from them is kept between calls.
 - **Checks against the rows.** `validate_plan`, `suggest_relationships` and `data_dictionary` with `validate=true` run
   counting queries in Fabric. Only the counts come back, not the row values.
 - **Sample rows.** `sample_rows` returns up to 20 rows of one table, with long text shortened. Columns whose name looks
@@ -149,4 +155,4 @@ about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and,
 sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: 2026-11-02.
+**Changes.** We date every change to this page. Last updated: 2026-11-02 (the counting queries of rule R5).
