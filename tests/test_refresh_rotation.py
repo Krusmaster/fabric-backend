@@ -57,6 +57,15 @@ def _later(monkeypatch, seconds):
     monkeypatch.setattr(flow, "_now", lambda: real() + seconds)
 
 
+def _same_answer(a, b):
+    """Two token answers are the same: every field equal, and expires_in (the remaining lifetime, computed per request
+    from the same expires_at) at most one second apart, since the two requests may fall either side of a second."""
+    ja, jb = a.json(), b.json()
+    assert {k: v for k, v in ja.items() if k != "expires_in"} == {k: v for k, v in jb.items() if k != "expires_in"}
+    assert abs(ja["expires_in"] - jb["expires_in"]) <= 1
+    return True
+
+
 def _events(capsys):
     return [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{\"event\"")]
 
@@ -94,7 +103,7 @@ def test_the_same_token_twice_in_quick_succession_gets_one_answer_and_the_line_l
     with client(env=env) as c:
         rt1 = _signed_in(c, env)
         a, b = _refresh(c, rt1), _refresh(c, rt1)
-        assert a.status_code == b.status_code == 200 and a.json() == b.json()
+        assert a.status_code == b.status_code == 200 and _same_answer(a, b)
         assert _refresh(c, a.json()["refresh_token"]).status_code == 200 and _lines(env) == 1
 
 
@@ -152,7 +161,7 @@ def test_parallel_with_an_entra_that_accepts_its_refresh_token_twice_the_loser_g
         rt1 = _signed_in(c, env)
         capsys.readouterr()
         a, b = _second_request_inside_entra(env, c, rt1, entra_accepts_reuse=True)
-        assert a.status_code == b.status_code == 200 and a.json() == b.json()
+        assert a.status_code == b.status_code == 200 and _same_answer(a, b)
         replayed = [e for e in _events(capsys) if e["event"].endswith("refresh_replayed")]
         assert [e["when"] for e in replayed] == ["conflict"]
         assert _lines(env) == 1 and _refresh(c, b.json()["refresh_token"]).status_code == 200
@@ -167,7 +176,7 @@ def test_parallel_with_an_entra_that_takes_its_refresh_token_once_the_line_is_no
         rt1 = _signed_in(c, env)
         capsys.readouterr()
         a, b = _second_request_inside_entra(env, c, rt1, entra_accepts_reuse=False)
-        assert a.status_code == b.status_code == 200 and a.json() == b.json()
+        assert a.status_code == b.status_code == 200 and _same_answer(a, b)
         assert [e["when"] for e in _events(capsys) if e["event"].endswith("refresh_replayed")] == ["entra_refused"]
         assert _lines(env) == 1 and _refresh(c, b.json()["refresh_token"]).status_code == 200
 
@@ -272,7 +281,7 @@ def test_a_line_written_before_the_window_still_works(env):
         first = _refresh(c, rt1)
         assert first.status_code == 200
         assert {"prev_hash", "prev_until", "prev_answer"} <= set(_line(env, rt1)[0])
-        assert _refresh(c, rt1).json() == first.json()
+        assert _same_answer(_refresh(c, rt1), first)
         row, etag = _line(env, rt1)
         env["store"].replace("family", family, {**row, "prev_until": "never", "prev_answer": None}, etag)
         assert _refresh(c, rt1).json()["error"] == "invalid_grant" and _lines(env) == 0
