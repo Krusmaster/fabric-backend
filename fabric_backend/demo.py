@@ -85,6 +85,40 @@ def demo_suggestions() -> list[dict]:
     return found
 
 
+def _drafts(p) -> dict:
+    """What the engine's drafts say about one plan, in counts: ontology_draft, semantic_model_draft, domain_draft, and
+    validate_plan on the synthetic rows."""
+    from . import domains, evidence, ontology, semantic_model
+    o = ontology.summary(p)
+    m = semantic_model.draft(p, {"item_name": "shop"}, "shop_model")["summary"]
+    d = domains.propose_plan(p)
+    v = evidence.validate(p, _demo_db())
+    held = [r for r in v["relationships"] if r.get("orphans") == 0]
+    return {
+        "relationships": len(p.relationships),
+        "validation": {"relationships": len(v["relationships"]), "hold": len(held), "summary": v["summary"]},
+        "ontology": {"tool": "ontology_draft", "entity_types": o["entity_types"], "with_key": o["with_key"],
+                     "relationship_types": o["relationship_types"]},
+        "semantic_model": {"tool": "semantic_model_draft", "tables": m["tables"], "active": m["relationships_active"],
+                           "inactive": [{"source": r["source"], "columns": r["columns"], "target": r["target"]} for r in m["inactive"]],
+                           "measures": len(m["measures"]), "date_table": (m.get("date_table") or {}).get("name", "")},
+        "domains": {"tool": "domain_draft", "domains": [{"name": x["name"], "tables": x["tables"]} for x in d["domains"]],
+                    "interfaces": [{"source": i["source"], "source_cols": i["source_cols"], "target": i["target"]} for i in d["interfaces"]],
+                    "unassigned": [u["table"] for u in d["unassigned"]]},
+    }
+
+
+@lru_cache(maxsize=1)
+def demo_drafts() -> dict:
+    """The start page's chat demo (n92): the drafts' counts for the demo plan as it is (`as_is`) and with the one
+    suggestion confirmed (`with_suggestion`, the page-local equivalent of confirmed=[...]). Computed, not typed: the chat
+    reads its numbers from /demo/plan.json, and tests/test_chat_demo.py says when they change."""
+    sug = demo_suggestions()
+    confirmed = [h["confirmed"] for h in sug if h["table"] == "orders" and h["column"] == "ship_to_id"]
+    return {"as_is": _drafts(plan(schema("shop"), keys=DEMO_KEYS)),
+            "with_suggestion": _drafts(plan(schema("shop"), keys=DEMO_KEYS, confirmed=confirmed))}
+
+
 def demo_plan() -> dict:
     s = schema("shop")
     p = plan(s, keys=DEMO_KEYS)
@@ -121,6 +155,7 @@ def demo_plan() -> dict:
                            "target_cols": r.target_cols, "rule": r.rule, "field": r.field_name,
                            "reverse": r.reverse_name} for r in p.relationships],
         "ambiguous": p.ambiguous, "keyless": p.keyless, "unlinked": unlinked, "suggestions": suggestions, "mermaid": p.mermaid(),
+        "drafts": demo_drafts(),
     }
 
 

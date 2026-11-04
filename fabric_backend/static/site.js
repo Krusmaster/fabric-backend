@@ -579,5 +579,34 @@
   // n53: /it's print button (the page has a print stylesheet; no PDF is made here)
   document.querySelectorAll('[data-print]').forEach(function (b) { b.addEventListener('click', function () { window.print(); }); });
 
+  /* ------------------------------------------------------------------ n92: the chat demo's button on the start page */
+  // Only the button comes with the page. The first click loads chat-demo.css and chat-demo.js (which fetch
+  // /demo/plan.json and nothing else); the chat never opens by itself. If the script cannot load, the click goes on to
+  // the check page's example instead.
+  var kgc = document.getElementById('kgcLaunch');
+  if (kgc) {
+    var kgcFace = kgc.querySelector('.kgc-fig');
+    if (kgcFace && M) kgcFace.innerHTML = M.svg('onto', { pose: 'rest', label: '', gaze: false });
+    kgc.hidden = false;
+    document.body.classList.add('has-kgc');
+    var kgcLoading = false;
+    kgc.addEventListener('click', function () {
+      if (window.KrusgraphChat) { window.KrusgraphChat.open(kgc); return; }
+      if (kgcLoading) return;
+      kgcLoading = true;
+      kgc.setAttribute('aria-busy', 'true');
+      var css = document.createElement('link'), js = document.createElement('script'), left = 2, failed = false;
+      var ready = function () {
+        if (failed || --left) return;
+        kgc.removeAttribute('aria-busy');
+        window.KrusgraphChat.open(kgc);
+      };
+      var fail = function () { if (!failed) { failed = true; location.href = kgc.getAttribute('data-fallback'); } };
+      css.rel = 'stylesheet'; css.href = kgc.getAttribute('data-css'); css.onload = ready; css.onerror = fail;
+      js.src = kgc.getAttribute('data-js'); js.onload = ready; js.onerror = fail;
+      document.head.appendChild(css); document.body.appendChild(js);
+    });
+  }
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

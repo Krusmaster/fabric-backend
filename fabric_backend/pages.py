@@ -735,9 +735,41 @@ def partners_vars() -> dict[str, str]:
             "DEMO_ORDER_LINES": str(d["finding"]["rows_per_header"]["max_lines"])}
 
 
+# n92: the chat demo on the start page. The three results it can show, with the tool that drafts them and the tool that
+# creates them in Fabric; what the chat says about creating comes from tool_status, not from the chat's own text.
+CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("ontology", "ontology_draft", "create_ontology"),
+                ("products", "domain_draft", ""))
+
+
+def chat_status(tool: str) -> str:
+    """A tool's status as the chat says it: its status word, then the short form when that adds something."""
+    from . import tool_status as ts
+    w, s = ts.word(tool), ts.short(tool)
+    w = w[0].lower() + w[1:]
+    return w if s in w else f"{w}; {s}"
+
+
+def chat_launch_html() -> str:
+    """The chat demo's button (n92, Gustav's decision of 4 November 2026). Hidden without JavaScript; site.js shows it, and
+    the first click loads chat-demo.css and chat-demo.js, which fetch /demo/plan.json and nothing else. Each result's
+    status and whether the agent creates it in Fabric (tool_status.build_word) ride along as data attributes."""
+    from . import tool_status as ts
+    v = _vars()
+    e = lambda x: html.escape(x, quote=True)
+    attrs = [f'data-product="{e(v["PRODUCT"])}"', f'data-css="/static/chat-demo.css?v={v["ASSET_V"]}"',
+             f'data-js="/static/chat-demo.js?v={v["ASSET_V"]}"', 'data-fallback="/check?example=sample"']
+    for key, draft, create in CHAT_RESULTS:
+        tool = create or draft
+        attrs += [f'data-tool-{key}="{e(tool)}"', f'data-status-{key}="{e(chat_status(tool))}"',
+                  f'data-does-{key}="{"creates" if create and ts.build_word(create) == "creates" else "drafts"}"']
+    return (f'<button class="kgc-launch" id="kgcLaunch" type="button" aria-expanded="false" hidden '
+            f'{" ".join(attrs)}><span class="kgc-fig" aria-hidden="true"></span>Try a demo</button>')
+
+
 def _home_vars() -> dict[str, str]:
-    """The start page's server-rendered parts: the hub and the before/after example."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
+    """The start page's server-rendered parts: the hub, the before/after example and the chat demo's button."""
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop"),
+            "HOME_CHAT": chat_launch_html()}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",

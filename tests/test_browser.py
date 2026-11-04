@@ -218,3 +218,126 @@ def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
         assert e["heading"]["bottom"] <= height and len(e["buttons"]) == 4, v
         assert all(b["bottom"] <= height for b in e["buttons"]), (v, e["buttons"])
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
+
+
+# ------------------------------------------------------------------ round n92: the chat demo on the start page --------
+CHAT_FILES = ["/static/chat-demo.css", "/static/chat-demo.js", "/demo/plan.json"]
+
+
+@pytest.fixture(scope="module")
+def chat(site):
+    cmd = ["node", str(ROOT / "tests" / "chat_demo_browser.js"), site] + ([CHROMIUM] if CHROMIUM else [])
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def _chat_runs(chat):
+    return {k: v for k, v in chat.items() if k.split("-")[0] in ("375", "1280")}
+
+
+def test_chat_the_page_loads_only_the_button_and_the_chat_never_opens_by_itself(chat):
+    """At 375 and 1280 px, light and dark: before the click the page has the button and nothing of the chat (no script,
+    no stylesheet, no box), 1.5 s after load included; at the bottom of the page the button covers no text or control."""
+    runs = _chat_runs(chat)
+    assert len(runs) == 8
+    for v, f in runs.items():
+        assert f["onLoad"] == {"box": False, "launch": True, "text": "Try a demo", "chatScript": False, "css": ["/static/site.css"]}, v
+        assert not any("chat-demo" in u or u == "/demo/plan.json" for u in f["before"]), (v, f["before"])
+        assert f["bottomCovers"] == [], (v, f["bottomCovers"])
+        assert f["errors"] == [], (v, f["errors"])
+    assert chat["noJs"] == {"exists": True, "shown": False, "padded": False}
+
+
+def test_chat_makes_no_request_but_the_plan_and_stores_nothing(chat):
+    """After the click: the chat's two files and /demo/plan.json, nothing else of its own (the start page's own n49
+    prefetch of /check's engine may run while the page is still; it is not the chat's and carries nothing). No cookie,
+    no change in localStorage or sessionStorage."""
+    engine = set(f"/static/pyodide/{n}" for n in pages.CHECK_DOWNLOAD)
+    for v, f in _chat_runs(chat).items():
+        own = [u for u in f["requests"] if u not in engine and not u.startswith("/check/engine.zip")]
+        assert own == CHAT_FILES, (v, own)
+        assert f["storeAfter"] == f["storeBefore"] == {"local": {}, "session": {}, "cookie": ""}, v
+        assert f["cookies"] == [], v
+
+
+def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
+    for v, f in _chat_runs(chat).items():
+        if not v.endswith("mouse"):
+            continue
+        assert f["firstPicks"] == ["Check the tables", "See the check on sample files"], v
+        assert f["firstLinks"] == [{"href": "/check?example=sample", "target": None}], v
+        assert f["facts"] == ["7", "6", "1"] and len(f["links"]) == 6, v
+        assert "All 15 of its values exist in addresses.address_id, in 60 of 60 rows." in f["question"], v
+        assert "The plan now has 7 links." in f["linkAdded"], v
+        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Create a dbt flow"], v
+        model, onto, products = f["results"][1:]
+        assert "7 tables and 7 relationships; all 7 hold" in model and "1 inactive: addresses.customer_id → customers would close a cycle" in model, v
+        assert "7 entity types (5 with a key) and 7 relationship types" in onto, v
+        assert "2 data products drafted" in products and "customers and products, with an interface between them" in products, v
+        assert "audit_log stays out, because it has no key" in products, v
+        for r in (model, onto, products):
+            assert "This is a demo, so nothing was created." in r, (v, r)
+        assert "your agent creates this in your Fabric workspace when you ask" in model and "your agent creates this" in onto, v
+        assert "the draft creates nothing in Fabric. Status of domain_draft: draft only." in products, v
+        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/#connect", "target": None}], v
+        assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
+        assert f["overflowX"] <= 0, v
+        low = f["allText"].lower()
+        from tests.test_site import SALES
+        assert not [w for w in SALES if w in low], v
+
+
+def test_chat_planned_choices_run_nothing(chat):
+    for v, f in _chat_runs(chat).items():
+        if v.endswith("mouse"):
+            b, a = f["planned"]["before"], f["planned"]["after"]
+            assert a["steps"] == b["steps"] and a["wins"] == b["wins"] and a["msgs"] == b["msgs"] + 2, (v, f["planned"])
+            assert a["disabled"] == ["true", "true"] and a["youSaid"] == ["Check the tables", "Yes, add the link"], v
+            assert "is planned" in a["said"][0] and "is planned" in a["said"][1], v
+        else:
+            assert f["plannedFocused"] == "Fix data issues" and f["plannedByKeyboard"]["steps"] == 0, v
+            assert f["plannedByKeyboard"]["focus"] == "Fix data issues" and "is planned" in f["plannedByKeyboard"]["said"], v
+
+
+def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
+    for v, f in _chat_runs(chat).items():
+        if not v.endswith("keyboard"):
+            continue
+        assert f["tabbedToLaunch"] == "kgcLaunch" and f["launchFocus"].startswith("solid"), v
+        assert f["openFocus"]["cls"] == "kgc-close" and f["openFocus"]["outline"].startswith("solid"), v
+        assert f["firstTab"]["pick"] == "Check the tables" and f["firstTab"]["outline"].startswith("solid"), v
+        assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "Create an ontology", "Draft data products"], v
+        assert len(f["keyboardResults"]) == 4 and f["keyboardEndFocus"] == "Try your own files", v
+        assert f["escape"] == {"hidden": True, "focus": "kgcLaunch"} and f["reopenedKept"] > 0, v
+        assert f["escapeEnd"] == {"hidden": True, "focus": "kgcLaunch"}, v
+        if v.startswith("375"):
+            assert f["tabOutside"] == [], (v, f["tabOutside"])                 # Tab stays in the chat on a phone
+
+
+def test_chat_on_a_phone_covers_the_screen_and_holds_the_page(chat):
+    for scheme in ("light", "dark"):
+        p = chat[f"phone@{scheme}"]
+        assert p["scrolled"] == 0 and p["htmlOverflow"] == "hidden" and p["mainInert"] and p["modal"] == "true", p
+        assert p["width"] == p["vw"] and p["top"] <= 41 and p["height"] >= p["vh"] - 41, p
+        assert p["afterClose"] == {"inert": 0, "lock": False}, p
+
+
+def test_chat_mascots_off_and_reduced_motion(chat):
+    m = chat["mascotsOff"]
+    assert m["launchText"] == "Try a demo" and m["launchFig"] == "none" and m["figuresShown"] == 0
+    assert "All 15 of its values" in m["question"] and "Semantic model ready" in m["results"][1]
+    assert chat["mascotsOffPhone"] == 0
+    for w in (375, 1280):
+        r = chat[f"reduced@{w}"]
+        assert r["launchTransition"] == "0s" and r["launchTransform"] == "none" and r["animations"] == [] and r["bits"] == 0, (w, r)
+
+
+def test_chat_when_the_plan_does_not_load_and_under_the_start_pages_policy(chat):
+    """The plan fails: one sentence and a link to /check?example=sample. Under the start page's own content security
+    policy (connect-src: /check's engine files only, n49; unchanged in n92) the browser refuses /demo/plan.json today, so
+    the visitor gets the same fallback until the maintainer adds that path (docs/SITE.md, the chat demo)."""
+    for case in ("planFails", "realPolicy"):
+        f = chat[case]
+        assert f["links"] == ["/check?example=sample"] and "did not load" in f["text"], (case, f)
+    assert chat["realPolicy"]["refused"] is True

@@ -1,0 +1,130 @@
+/* Krusgraph chat demo on the start page (n92). Loaded by site.js on the first click on the button "Try a demo"; the
+   button's own styles are in site.css. Colours are the site's tokens, so light and dark follow the theme. Under 560 px
+   the chat covers nearly the whole screen and the page behind it does not scroll (html.kgc-lock). prefers-reduced-motion
+   turns every animation off; Mascots: off hides the figures and keeps every word. */
+.kgc {
+  position: fixed; z-index: 31; margin: 0; padding: 0;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--bg); color: var(--ink); font-size: 15.5px; line-height: 1.45;
+  right: max(16px, env(safe-area-inset-right, 0px));
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  width: min(410px, calc(100vw - 32px));
+  height: min(640px, calc(100vh - 110px));
+  height: min(640px, calc(100dvh - 110px));
+  border: 1px solid var(--line-strong); border-radius: 22px; overflow: hidden;
+  box-shadow: 0 14px 44px rgba(0, 0, 0, .22);
+  animation: kgc-up .22s ease-out;
+}
+@keyframes kgc-up { from { transform: translateY(16px); opacity: .2 } }
+
+.kgc-head {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center;
+  padding: 8px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+.kgc-head .kgc-fig { width: 40px; height: 40px }
+.kgc-head h2 { margin: 0; display: block; font-family: var(--font-head); font-weight: 600; font-size: 17px; line-height: 1.2; letter-spacing: 0 }
+.kgc-head small { display: block; font-size: 12.5px; font-weight: 700; color: var(--muted); line-height: 1.25 }
+.kgc-close {
+  font: inherit; font-weight: 800; font-size: 14px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 12px; cursor: pointer;
+}
+.kgc-close:focus-visible { border-radius: 999px; outline-offset: 2px }
+
+.kgc-log {
+  overflow-y: auto; padding: 12px; display: grid; gap: 10px; align-content: start;
+  overscroll-behavior: contain;
+}
+.kgc-log:focus { outline: none }
+.kgc-log > * { min-width: 0 }
+.kgc-you {
+  justify-self: end; max-width: 85%; margin: 0;
+  background: var(--lav-soft); color: var(--lav-ink); font-weight: 700;
+  padding: 6px 12px; border-radius: 16px 16px 4px 16px;
+}
+.kgc-msg {
+  position: relative; display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 4px 7px;
+  animation: kgc-rise .28s ease-out;
+}
+@keyframes kgc-rise { from { transform: translateY(7px); opacity: .3 } }
+.kgc-msg .kgc-fig { width: 42px; height: 42px }
+.kgc-bub {
+  min-width: 0; background: var(--card); border: 1px solid var(--line);
+  border-radius: 4px 16px 16px 16px; padding: 9px 12px; display: grid; gap: 7px;
+}
+.kgc-bub > * { min-width: 0; margin: 0 }
+.kgc-msg.win .kgc-bub { border: 2px solid var(--sage-ink) }
+.kgc-who { font-family: var(--font-head); font-weight: 600; font-size: 13px; color: var(--lav-ink) }
+.kgc-msg.onto .kgc-who { color: var(--coral-ink) }
+.kgc-msg.thinker .kgc-who { color: var(--sage-ink) }
+.kgc-bub h3 { font-family: var(--font-head); font-weight: 600; font-size: 17.5px; line-height: 1.2 }
+.kgc-bub code { font-size: 13px; overflow-wrap: anywhere }
+.kgc-facts { display: flex; flex-wrap: wrap; gap: 4px 18px }
+.kgc-facts div { font-size: 12.5px; font-weight: 700; color: var(--muted); line-height: 1.2 }
+.kgc-facts b { display: block; font-family: var(--font-head); font-weight: 600; font-size: 23px; color: var(--ink) }
+.kgc-steps { list-style: none; padding: 0; display: grid; gap: 2px; font-size: 14.5px }
+.kgc-steps li { color: var(--muted) }
+.kgc-steps li::before { content: "○ " }
+.kgc-steps li.doing { color: var(--ink); font-weight: 700 }
+.kgc-steps li.doing::before { content: "◐ " }
+.kgc-steps li.did { color: var(--sage-ink) }
+.kgc-steps li.did::before { content: "✓ " }
+.kgc-links { list-style: none; padding: 0; display: grid; gap: 2px; font-size: 13.5px }
+.kgc-note { font-size: 13px; color: var(--muted) }
+
+.kgc-picks { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; padding-top: 3px }
+.kgc-pick {
+  display: inline-block; font: inherit; font-weight: 700; font-size: 14.5px; line-height: 1.3;
+  text-align: left; text-decoration: none; color: var(--ink); background: var(--card);
+  border: 1.5px solid var(--line-strong); border-bottom-width: 3px; border-radius: 14px;
+  padding: 5px 12px; cursor: pointer; max-width: 100%;
+  transition: transform .12s, border-color .12s;
+}
+.kgc-pick:hover { transform: translateY(-1px); border-color: var(--coral); color: var(--ink) }
+.kgc-pick:focus-visible { border-radius: 14px; outline-offset: 2px }
+.kgc-pick.rec { font-weight: 800; background: var(--coral-soft); border-color: var(--coral); color: var(--coral-ink) }
+.kgc-pick small { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink) }
+.kgc-pick.planned {
+  border-style: dashed; color: var(--muted); background: transparent; border-bottom-width: 1.5px; cursor: help;
+}
+.kgc-pick.planned:hover { transform: none }
+.kgc-pick.planned[aria-disabled="true"] { cursor: default }
+.kgc-pick.planned i {
+  font-style: normal; font-size: 11.5px; font-weight: 800; color: var(--lav-ink); background: var(--lav-soft);
+  border-radius: 999px; padding: 0 6px; margin-left: 5px;
+}
+
+.kgc-foot {
+  margin: 0; padding: 6px 12px calc(7px + env(safe-area-inset-bottom, 0px));
+  font-size: 12px; color: var(--muted); background: var(--card); border-top: 1px solid var(--line);
+}
+
+.kgc-bit {
+  position: absolute; width: 8px; height: 8px; border-radius: 50%; top: 18px; left: 20px;
+  pointer-events: none; z-index: 2; animation: kgc-fly .9s ease-out forwards;
+}
+@keyframes kgc-fly { to { transform: translate(var(--x), var(--y)); opacity: 0 } }
+.kgc-cheer .mascot { animation: kgc-hop .55s cubic-bezier(.3, 1.5, .6, 1) 2 }
+@keyframes kgc-hop { 50% { transform: translateY(-9px) } }
+
+html[data-mascots="off"] .kgc-fig { display: none }
+html[data-mascots="off"] .kgc-head { grid-template-columns: minmax(0, 1fr) auto }
+html[data-mascots="off"] .kgc-msg { grid-template-columns: minmax(0, 1fr) }
+html[data-mascots="off"] .kgc-picks { grid-column: 1 }
+
+@media (max-width: 560px) {
+  .kgc {
+    inset: auto 0 0 0; width: 100%;
+    height: calc(100vh - 40px); height: calc(100dvh - 40px);
+    border-width: 1px 0 0; border-radius: 20px 20px 0 0;
+  }
+  .kgc-head, .kgc-log, .kgc-foot {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
+  html.kgc-lock, html.kgc-lock body { overflow: hidden }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kgc, .kgc *, .kgc-launch { animation: none !important; transition: none !important }
+  .kgc-pick:hover { transform: none }
+}

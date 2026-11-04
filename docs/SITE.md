@@ -13,6 +13,7 @@ no build step, no bundler and no external resource at runtime. This note is for 
 | `fabric_backend/page_templates/DOCS.md`, `PRIVACY.md`, `LOVABLE.md` | the Markdown pages (served as HTML and as `.md`); `{{RULES_TABLE}}` in DOCS.md is generated from `infer.RULES` |
 | `fabric_backend/static/site.css` | design tokens (`:root`, dark values under `prefers-color-scheme: dark`), shell, components, the graph, the mascot poses and animations |
 | `fabric_backend/static/site.js` | navigation toggle, the graph renderer (`Graph`), and the per-page wiring for `/demo`, `/explore`, `/partners/workspace`, `/mascots`; on `/` it sends the guided demo's old anchors (`#guide`, `#demo`, …) on to the same anchor on `/demo` |
+| `fabric_backend/static/chat-demo.js`, `chat-demo.css` | the chat demo on the start page (n92), loaded on the first click on its button; see below |
 | `fabric_backend/static/mascots.js` | the three figures as inline SVG (`Mascots.svg`), the off switch, gaze, the follower, the builder sequence |
 | `fabric_backend/static/fonts/` | Fredoka and Nunito, variable, subset to Latin, SIL OFL (licence files beside them) |
 | `fabric_backend/static/favicon.svg|png`, `og.svg|png` | icon and Open Graph image; the PNGs are rendered from the SVGs with Playwright |
@@ -65,6 +66,55 @@ have. `Mascots.follower(area, {text})` makes Onto follow the pointer in a graph 
 `Mascots.build(fig, 'success' | 'failure', {onState})` runs the builder sequence; `Mascots.say(container, el,
 text)` shows a bubble. The switch in the footer sets `html[data-mascots=off]` and stores the choice in
 `localStorage` under `krusgraph.mascots` (wrapped in try/catch). `/mascots` shows every pose and state.
+
+## The chat demo on the start page
+
+Round n92 (Gustav's decision of 4 November 2026). A button with Onto in the bottom right corner of `/`, "Try a demo",
+opens a small chat that walks through the example shop with buttons: check how the tables connect, decide on the
+suggested `orders.ship_to_id` link, then a semantic model, an ontology and data products, in any order. Only the start
+page has it; `/demo`, `/check`, `/it`, `/privacy` and the pricing page do not, and the replay "A replay of a session in
+Claude" stays as it is.
+
+- **Files.** The button is server-rendered by `pages.chat_launch_html()` with the `hidden` attribute, so without
+  JavaScript there is no button and the page is as before. `site.js` shows it and gives the footer room underneath
+  (`body.has-kgc`), so the button never covers the last line of the page. Its styles are the few `.kgc-launch` rules in
+  `site.css`. The chat itself is `static/chat-demo.js` and `static/chat-demo.css`, with `ASSET_V` like every other file,
+  and they load on the first click, not with the page. No inline script and no external resource.
+- **Behaviour.** The chat never opens by itself and nothing appears over the page before the click. Buttons only: no
+  free text, no AI. The one request it makes is `GET /demo/plan.json`; it sets no cookie, writes nothing to
+  `localStorage` or `sessionStorage`, and logs no event (`/demo/plan.json` is not one of the paths `usage.page_view`
+  counts). The links (`/check`, `/check?example=sample`, `/#connect`) open in the same tab. If the plan cannot be
+  fetched, the chat says so in one sentence and links to `/check?example=sample`. If the script cannot load, the click
+  goes on to that page instead.
+- **Numbers.** None is typed into the chat. Tables, links, `keyless` and the `orders.ship_to_id` suggestion (15 of 15
+  different values are in `addresses`, in 60 of 60 rows, counted in `seed.rows()`) come from `/demo/plan.json`, and so
+  do the drafts' counts in its `drafts` part (`demo.demo_drafts()`): `ontology_draft`, `semantic_model_draft`,
+  `domain_draft` and `validate_plan` run on the demo plan as it is (`as_is`) and with the suggestion confirmed
+  (`with_suggestion`). Today: 7 entity types (5 with a key) and 6 or 7 relationship types; 7 tables, 6 active
+  relationships and, with the link, 1 inactive one; 2 data products, `customers` and `products`, with one interface, and
+  `audit_log` left out because it has no key. `tests/test_chat_demo.py` fails when one of them changes.
+- **What it promises.** Every result says that nothing was created in the demo, and what the agent does in the
+  visitor's own Fabric when asked, by `tool_status`: "creates" where `build_word()` of the creating tool says so (the
+  semantic model, the ontology), "drafts" otherwise (data products: `domain_draft` creates nothing), followed by the
+  tool's status word (`pages.chat_status()`). "Fix data issues" and "Create a dbt flow" are marked Planned, run nothing,
+  and say what exists today; no dates. The chat does not say that its bubbles appear in the agent. The sales-word test
+  covers its text.
+- **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat
+  opens and to the first new choice after each step; Esc and Close close it and give the focus back to the button. Under
+  560 px the chat covers the screen but its top 40 px, the page behind does not scroll (`html.kgc-lock`) and is `inert`,
+  Tab stays in the chat (`aria-modal`), and `env(safe-area-inset-*)` is respected. `prefers-reduced-motion` turns off
+  every animation and transition, and the steps finish at once. Mascots: off hides the figures; the button and every
+  word stay. Colours are the site's tokens, so light and dark follow the theme.
+- **The start page's content security policy.** Its `connect-src` names only `/check`'s engine files (n49,
+  `server.py`, `home_headers`), so a browser that enforces it refuses the chat's `GET /demo/plan.json` and the chat shows
+  its fallback. Round n92 did not change the policy (the brief said it stays as it is); adding the one path
+  `/demo/plan.json` to the start page's `connect-src` is the maintainer's decision. Until then
+  `tests/chat_demo_browser.js` checks the whole flow with the policy bypassed, and checks separately what the start page
+  shows under its own policy.
+- **Checks.** `tests/test_chat_demo.py` (the numbers, the files the page loads, no other request or storage, the
+  Planned choices, the statuses, the sales words) and `tests/chat_demo_browser.js` through `tests/test_browser.py` (at
+  375 and 1280 px, light and dark: the flow by mouse and by keyboard, Mascots: off, reduced motion, no JavaScript, the
+  plan failing to load).
 
 ## Screenshots and checks
 

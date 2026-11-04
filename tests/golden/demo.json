@@ -1,6 +1,126 @@
 {
  "demo_plan": {
   "ambiguous": [],
+  "drafts": {
+   "as_is": {
+    "domains": {
+     "domains": [
+      {
+       "name": "customers",
+       "tables": [
+        "addresses",
+        "customers",
+        "order_items",
+        "orders"
+       ]
+      },
+      {
+       "name": "products",
+       "tables": [
+        "categories",
+        "products"
+       ]
+      }
+     ],
+     "interfaces": [
+      {
+       "source": "order_items",
+       "source_cols": [
+        "product_id"
+       ],
+       "target": "products"
+      }
+     ],
+     "tool": "domain_draft",
+     "unassigned": [
+      "audit_log"
+     ]
+    },
+    "ontology": {
+     "entity_types": 7,
+     "relationship_types": 6,
+     "tool": "ontology_draft",
+     "with_key": 5
+    },
+    "relationships": 6,
+    "semantic_model": {
+     "active": 6,
+     "date_table": "Calendar",
+     "inactive": [],
+     "measures": 5,
+     "tables": 7,
+     "tool": "semantic_model_draft"
+    },
+    "validation": {
+     "hold": 6,
+     "relationships": 6,
+     "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans"
+    }
+   },
+   "with_suggestion": {
+    "domains": {
+     "domains": [
+      {
+       "name": "customers",
+       "tables": [
+        "addresses",
+        "customers",
+        "order_items",
+        "orders"
+       ]
+      },
+      {
+       "name": "products",
+       "tables": [
+        "categories",
+        "products"
+       ]
+      }
+     ],
+     "interfaces": [
+      {
+       "source": "order_items",
+       "source_cols": [
+        "product_id"
+       ],
+       "target": "products"
+      }
+     ],
+     "tool": "domain_draft",
+     "unassigned": [
+      "audit_log"
+     ]
+    },
+    "ontology": {
+     "entity_types": 7,
+     "relationship_types": 7,
+     "tool": "ontology_draft",
+     "with_key": 5
+    },
+    "relationships": 7,
+    "semantic_model": {
+     "active": 6,
+     "date_table": "Calendar",
+     "inactive": [
+      {
+       "columns": [
+        "customer_id"
+       ],
+       "source": "addresses",
+       "target": "customers"
+      }
+     ],
+     "measures": 5,
+     "tables": 7,
+     "tool": "semantic_model_draft"
+    },
+    "validation": {
+     "hold": 7,
+     "relationships": 7,
+     "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans"
+    }
+   }
+  },
   "engine": "fabric_backend.infer.plan",
   "keyless": [
    "audit_log"
