@@ -10,6 +10,11 @@ const path = require('path');
 const [base, exe] = process.argv.slice(2);
 const SHOTS = process.env.SHOTS || '';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// waitForFunction evaluates a string in newer Playwright, which the start page's CSP (no 'unsafe-eval') refuses: poll
+async function until(page, fn, arg, what) {
+  for (let i = 0; i < 300; i++) { if (await page.evaluate(fn, arg)) return; await wait(50); }
+  throw new Error('timeout: ' + (what || arg));
+}
 
 async function shot(page, name) {
   if (!SHOTS) return;
@@ -20,7 +25,7 @@ async function shot(page, name) {
 // the picks on screen now, by label
 const picks = (page) => page.evaluate(() => [...document.querySelectorAll('.kgc-picks .kgc-pick')].map((b) => b.getAttribute('data-pick')));
 async function waitPick(page, label) {
-  await page.waitForFunction((l) => [...document.querySelectorAll('.kgc-picks .kgc-pick')].some((b) => b.getAttribute('data-pick') === l), label, { timeout: 15000 });
+  await until(page, (l) => [...document.querySelectorAll('.kgc-picks .kgc-pick')].some((b) => b.getAttribute('data-pick') === l), label);
 }
 const lastText = (page, sel) => page.evaluate((s) => { const all = document.querySelectorAll(s); return all.length ? all[all.length - 1].innerText : ''; }, sel);
 const wins = (page) => page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win .kgc-bub')].map((b) => b.innerText.replace(/\s+/g, ' ').trim()));
@@ -99,14 +104,14 @@ async function flowByKeyboard(page, f, v) {
   await shot(page, `chat-pick-focus@${v}`);
   const steps = [];
   const enterOn = async (label) => {
-    await page.waitForFunction((l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, label, { timeout: 15000 });
+    await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, label, 'focus on ' + label);
     steps.push(label);
     await page.keyboard.press('Enter');
   };
   await enterOn('Check the tables');
   await enterOn('Yes, add the link');
   // the planned choice by keyboard: Tab to it, Enter, and nothing runs
-  await page.waitForFunction(() => document.activeElement && document.activeElement.getAttribute('data-pick') === 'Create a semantic model', null, { timeout: 15000 });
+  await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Create a semantic model', 'focus on Create a semantic model');
   for (let i = 0; i < 10; i++) {
     if ((await focusInfo(page)).pick === 'Fix data issues') break;
     await page.keyboard.press('Tab');
@@ -131,7 +136,7 @@ async function flowByKeyboard(page, f, v) {
   await enterOn('Create a semantic model');
   await enterOn('Create an ontology');
   await enterOn('Draft data products');
-  await page.waitForFunction(() => document.activeElement && document.activeElement.getAttribute('data-pick') === 'Try your own files', null, { timeout: 15000 });
+  await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Try your own files', 'focus on Try your own files');
   f.keyboardSteps = steps;
   f.keyboardResults = await wins(page);
   f.keyboardEndFocus = (await focusInfo(page)).pick;
