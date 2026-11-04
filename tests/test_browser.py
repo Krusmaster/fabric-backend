@@ -220,20 +220,27 @@ def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
 
 
-# ------------------------------------------------------------------ round n92: the chat demo on the start page --------
+# ------------------------------------------------------------------ round n92: the chat demo (n93: every ordinary page) --
 CHAT_FILES = ["/static/chat-demo.css", "/static/chat-demo.js", "/demo/plan.json"]
+# n93: the pages with the button, as the server renders them (tests/test_chat_demo.py checks the same list on the HTML)
+CHAT_PAGES = [p for p in pages.PAGES if p not in pages.CHAT_OFF] + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"]
 
 
 @pytest.fixture(scope="module")
 def chat(site):
     cmd = ["node", str(ROOT / "tests" / "chat_demo_browser.js"), site] + ([CHROMIUM] if CHROMIUM else [])
-    out = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+    env = os.environ | {"CHAT_PAGES": json.dumps(CHAT_PAGES)}
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=900, env=env)
     assert out.returncode == 0, out.stderr[-2000:]
     return json.loads(out.stdout.strip().splitlines()[-1])
 
 
 def _chat_runs(chat):
     return {k: v for k, v in chat.items() if k.split("-")[0] in ("375", "1280")}
+
+
+def _stored(f):
+    return json.loads(f["storeAfter"]["session"]["krusgraph.chat"])
 
 
 def test_chat_the_page_loads_only_the_button_and_the_chat_never_opens_by_itself(chat):
@@ -247,18 +254,24 @@ def test_chat_the_page_loads_only_the_button_and_the_chat_never_opens_by_itself(
         assert not any("chat-demo" in u or u == "/demo/plan.json" for u in f["before"]), (v, f["before"])
         assert f["bottomCovers"] == [], (v, f["bottomCovers"])
         assert f["errors"] == [], (v, f["errors"])
+        assert f["storeBefore"] == {"local": {}, "session": {}, "cookie": ""}, v          # a first visit: nothing stored
     assert chat["noJs"] == {"exists": True, "shown": False, "padded": False}
+    assert chat["noJsDocs"] == {"exists": True, "shown": False}
 
 
-def test_chat_makes_no_request_but_the_plan_and_stores_nothing(chat):
+def test_chat_makes_no_request_but_the_plan_and_keeps_only_its_steps_in_the_tab(chat):
     """After the click: the chat's two files and /demo/plan.json, nothing else of its own (the start page's own n49
     prefetch of /check's engine may run while the page is still; it is not the chat's and carries nothing). No cookie,
-    no change in localStorage or sessionStorage."""
+    nothing in localStorage; in sessionStorage only the chat's one key, with known step names and whether it is open."""
     engine = set(f"/static/pyodide/{n}" for n in pages.CHECK_DOWNLOAD)
     for v, f in _chat_runs(chat).items():
         own = [u for u in f["requests"] if u not in engine and not u.startswith("/check/engine.zip")]
         assert own == CHAT_FILES, (v, own)
-        assert f["storeAfter"] == f["storeBefore"] == {"local": {}, "session": {}, "cookie": ""}, v
+        assert f["storeAfter"]["local"] == {} and f["storeAfter"]["cookie"] == "" and list(f["storeAfter"]["session"]) == ["krusgraph.chat"], v
+        st = _stored(f)
+        assert st == {"open": False, "steps": st["steps"]} and st["open"] is False, (v, st)
+        assert st["steps"] == (["scan", "yes", "fix", "dbt", "model", "ontology", "domains"] if v.endswith("mouse")
+                               else ["scan", "yes", "fix", "model", "ontology", "domains"]), (v, st)
         assert f["cookies"] == [], v
 
 
@@ -280,13 +293,60 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         for r in (model, onto, products):
             assert "This is a demo, so nothing was created." in r, (v, r)
         assert "your agent creates this in your Fabric workspace when you ask" in model and "your agent creates this" in onto, v
-        assert "the draft creates nothing in Fabric. Status of domain_draft: draft only." in products, v
-        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/#connect", "target": None}], v
+        # n93: a plain sentence from tool_status, no tool's name
+        m_note, o_note, d_note = f["notes"]
+        for note in (m_note, o_note):
+            assert note.endswith("Created in a live Fabric workspace and reviewed there. Creating it needs a permission the hosted service does not ask for today."), (v, note)
+        assert d_note.endswith("the draft creates nothing in Fabric. Tested with unit tests, not yet against a live Fabric workspace."), (v, d_note)
+        for tool in ("create_semantic_model", "create_ontology", "domain_draft", "semantic_model_draft", "ontology_draft", "Status of"):
+            assert tool not in f["allText"], (v, tool)
+        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
+        assert f["endWhy"] == "Opens the set-up guide.", v
         assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
-        assert f["overflowX"] <= 0, v
+        assert f["overflowX"] <= 0 and f["logOverflowX"] <= 0 and f["pageOverflowX"] <= 0, v
         low = f["allText"].lower()
         from tests.test_site import SALES
         assert not [w for w in SALES if w in low], v
+
+
+def test_chat_the_pictures_show_each_step_inside_their_bubbles(chat):
+    """n93: five pictures, drawn from the plan: the tables and links with audit_log without a key; the same with the new
+    link marked; the semantic model with the inactive relationship dashed; the ontology's entity types with and without a
+    key; the data products as two groups with the interface between them and audit_log outside. Each stays inside its
+    bubble at 375 and 1280 px (no sideways scroll), its names fit their boxes at 12 px or more on screen, it has a
+    description for screen readers, and the text beside it stays."""
+    tables = ["customers", "categories", "products", "addresses", "orders", "order_items", "audit_log"]
+    for v, f in _chat_runs(chat).items():
+        if not v.endswith("mouse"):
+            continue
+        plan, link, model, onto, prods = f["pics"]
+        for p in f["pics"]:
+            assert p["role"] == "img" and len(p["desc"]) > 40 and p["inside"] and p["fit"] and not p["overlap"], (v, p)
+            assert p["minFont"] >= 12, (v, p["minFont"])
+            assert p["zoom"] and p["textBeside"] > 20, (v, p)
+        assert sorted(plan["names"]) == sorted(tables) and plan["edges"] == 6 and plan["keys"] == 6 and plan["nokey"] == ["audit_log"], (v, plan)
+        assert "7 tables" in plan["desc"] and "6 links" in plan["desc"] and "audit_log has none" in plan["desc"], v
+        assert link["names"] == plan["names"] and link["edges"] == 7 and link["kinds"]["new"] == 1, (v, link)
+        assert "new link from orders.ship_to_id to addresses" in link["desc"], v
+        assert sorted(model["names"]) == sorted(tables) and model["edges"] == 7 and model["kinds"]["off"] == 1 and model["keys"] == 0, (v, model)
+        assert "6 active relationships as solid lines and addresses.customer_id to customers, inactive, as a dashed line" in model["desc"], v
+        assert sorted(onto["names"]) == sorted(["Customers", "Categories", "Products", "Addresses", "Orders", "OrderItems", "AuditLog"]), v
+        assert onto["keys"] == 5 and sorted(onto["nokey"]) == ["AuditLog", "OrderItems"] and onto["edges"] == 7, (v, onto)
+        assert prods["groupNames"] == ["customers", "products"] and prods["kinds"]["iface"] == 1 and prods["outside"] is False, (v, prods)
+        assert prods["nokey"] == ["audit_log"] and "audit_log outside them" in prods["desc"], (v, prods)
+        # the same place for every table in every picture: the map does not move between steps
+        assert plan["names"] == link["names"] == model["names"] == prods["names"], v
+
+
+def test_chat_larger_picture_opens_inside_the_chat(chat):
+    for v, f in _chat_runs(chat).items():
+        if not v.endswith("mouse"):
+            continue
+        b = f["big"]
+        assert b["focus"] == "kgc-back" and b["covers"] and b["overflowX"] <= 0 and b["logInert"], (v, b)
+        assert b["width"] > f["pics"][4]["width"], (v, b["width"], f["pics"][4]["width"])
+        assert "A picture of the data products" in b["text"], v
+        assert f["bigClosed"] == {"big": False, "open": True, "focus": "kgc-zoom", "pic": "4"}, (v, f["bigClosed"])
 
 
 def test_chat_planned_choices_run_nothing(chat):
@@ -332,9 +392,104 @@ def test_chat_mascots_off_and_reduced_motion(chat):
     for w in (375, 1280):
         r = chat[f"reduced@{w}"]
         assert r["launchTransition"] == "0s" and r["launchTransform"] == "none" and r["animations"] == [] and r["bits"] == 0, (w, r)
+    # n93: a restored chat with reduced motion and Mascots: off: no animation, no figure, every picture
+    rr = chat["restoredReduced"]
+    assert rr["state"]["open"] and rr["state"]["anims"] == [] and rr["state"]["bits"] == 0 and rr["figures"] == 0, rr
+    assert len(rr["pics"]) == 2 and rr["svgShown"] == 2 and all(p["inside"] for p in rr["pics"]), rr
 
 
 def test_chat_when_the_plan_does_not_load(chat):
     """The plan fails to load (the request is aborted): one sentence and a link to /check?example=sample, no button."""
     f = chat["planFails"]
     assert f["links"] == ["/check?example=sample"] and "did not load" in f["text"] and f["buttons"] == 0, f
+
+
+# ------------------------------------------------------------------ n93: the memory within the tab, and every page ----
+def test_chat_comes_back_after_a_page_change_as_it_was_where_it_was_without_the_focus(chat):
+    """At 1280 px, light and dark: open on one page, the menu to the next: the chat is open there with the same steps and
+    pictures, in the same place, without animation, confetti or the focus; its files and the plan load with that page.
+    Esc on the page beside it does not close it; Close is stored, and the page after that loads only the button. At
+    375 px the chat stays closed after the page change and loads nothing until the button is pressed. Either way the
+    button brings the steps back, the focus on Close."""
+    for scheme in ("light", "dark"):
+        f = chat[f"pagechange@1280-{scheme}"]
+        b, a = f["before"], f["after"]
+        assert f["errors"] == [], f["errors"]
+        assert json.loads(f["storedOpen"]) == {"open": True, "steps": ["scan", "yes"]}
+        assert a["open"] and a["still"] and a["you"] == b["you"] == ["Check the tables", "Yes, add the link"] and a["pics"] == b["pics"] == 2, a
+        assert a["rect"] == b["rect"], (a["rect"], b["rect"])
+        assert not a["focusInChat"] and a["anims"] == [] and a["bits"] == 0 and not a["launchShown"], a
+        assert sorted(set(f["afterRequests"])) == sorted(CHAT_FILES), f["afterRequests"]
+        assert all(p["inside"] and p["fit"] for p in f["afterPics"]) and len(f["afterPics"]) == 2
+        assert f["escOnPage"] is True
+        assert json.loads(f["closedStored"]) == {"open": False, "steps": ["scan", "yes"]}
+        c = f["closedNext"]
+        assert not c["loaded"] and not c["box"] and c["launchShown"] and f["closedRequests"] == [], (c, f["closedRequests"])
+        r = f["reopened"]
+        assert r["open"] and r["you"] == ["Check the tables", "Yes, add the link"] and r["pics"] == 2, r
+        assert r["focusInChat"] and r["bits"] == 0, r
+    for scheme in ("light", "dark"):
+        f = chat[f"pagechange@375-{scheme}"]
+        a = f["after"]
+        assert f["errors"] == [] and json.loads(f["storedOpen"])["open"] is True
+        assert not a["loaded"] and not a["box"] and a["launchShown"] and f["afterRequests"] == [], (a, f["afterRequests"])
+        r = f["reopened"]
+        assert r["open"] and r["you"] == ["Check the tables", "Yes, add the link"] and r["focusInChat"], r
+
+
+def test_chat_a_link_inside_closes_it_and_connect_goes_to_the_set_up_guide(chat):
+    for w in (1280, 375):
+        f = chat[f"link@{w}"]
+        assert f["url"] == "/start" and "set-up guide" in f["title"], f
+        assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains"]}, f["stored"]
+        assert not f["after"]["open"] and not f["after"]["loaded"], f["after"]
+        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][:2] == ["Try your own files", "Connect to your agent"], f
+
+
+def test_chat_start_over_empties_the_steps(chat):
+    f = chat["startOver"]
+    assert f["before"] == {"open": True, "steps": ["scan", "yes"]}
+    assert f["stored"] == {"open": True, "steps": []} and f["after"]["you"] == [] and f["after"]["msgs"] == 1 and f["after"]["pics"] == 0
+    assert f["focus"] == "Check the tables"
+    assert f["next"]["open"] and f["next"]["you"] == [] and f["next"]["msgs"] == 1
+
+
+def test_chat_ignores_a_corrupt_stored_value(chat):
+    """Anything under the key that is not what the chat writes is ignored: the chat does not open by itself, nothing of
+    the value is shown or run, and the button opens it fresh."""
+    c = chat["corrupt"]
+    assert c["errors"] == [], c["errors"]
+    for r in c["results"]:
+        assert not r["state"]["open"] and r["state"]["you"] == [], r
+        assert r["opened"]["open"] and r["opened"]["you"] == [] and r["opened"]["msgs"] == 1, r
+        assert r["injected"] == {"img": 0, "flag": False}, r
+        assert json.loads(r["storedAfter"]) == {"open": True, "steps": []}, r
+    # extra keys beside a valid value: the steps come back, the rest is ignored
+    assert c["extra"]["open"] and c["extra"]["you"] == ["Check the tables", "Yes, add the link"] and c["extraInjected"] == 0
+
+
+def test_chat_works_without_storage(chat):
+    f = chat["blocked"]
+    assert f["errors"] == [], f["errors"]
+    assert len(f["results"]) == 2 and "Semantic model ready" in f["results"][1] and f["pics"] == 3
+    assert f["afterStartOver"]["you"] == [] and f["afterStartOver"]["msgs"] == 1
+    assert not f["next"]["open"] and not f["next"]["loaded"], f["next"]                  # it cannot remember: as in n92
+    assert f["reopened"]["open"] and f["reopened"]["you"] == [], f["reopened"]
+
+
+def test_chat_button_on_every_ordinary_page_and_it_covers_nothing(chat):
+    """n93: at 375 and 1280 px, every page in CHAT_PAGES shows the button, loads nothing of the chat, and at the bottom of
+    the page the button covers no text or control, with no fixed or sticky part of the page under it; /check and /demo
+    (which goes to /check) have none."""
+    res = chat["pages"]
+    for w in (375, 1280):
+        # the one console line is the 404 page's own status (the page at /no-such-page answers 404 on purpose)
+        assert [e for e in res[f"errors@{w}"] if "404 (Not Found)" not in e] == [], res[f"errors@{w}"]
+        assert len(res[f"errors@{w}"]) <= 1, res[f"errors@{w}"]
+        for p in CHAT_PAGES:
+            r = res[f"{p}@{w}"]
+            assert r["shown"] and r["text"] == "Try a demo" and not r["chat"], (p, w, r)
+            assert r["covers"] == [] and r["fixed"] == [], (p, w, r)
+        for p in ("/check", "/demo"):
+            r = res[f"{p}@{w}"]
+            assert not r["button"] and r["path"] == "/check", (p, w, r)

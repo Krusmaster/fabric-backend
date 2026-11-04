@@ -2088,7 +2088,7 @@ def build_app(host: str = "0.0.0.0"):
 
     from starlette.responses import FileResponse, HTMLResponse
     from .pages import (PAGES, STATIC_TYPES, THEME_HASH, docs_html, docs_md, lovable_html, lovable_md, local_html, local_md, not_found_html, privacy_html,
-                        privacy_md, render, start_md, static_file, use_cases_md)
+                        privacy_md, render, start_md, static_file, strip_chat, use_cases_md)
     from . import discovery
     from .demo import demo_plan_json, demo_validation_json
 
@@ -2137,7 +2137,10 @@ def build_app(host: str = "0.0.0.0"):
             if path == "/mascots":
                 headers["X-Robots-Tag"] = "noindex, nofollow"
             _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
-            return compressed(request, fn().encode("utf-8"), "text/html; charset=utf-8", headers)
+            body = fn()
+            if "connect-src 'none'" in headers["Content-Security-Policy"]:
+                body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan
+            return compressed(request, body.encode("utf-8"), "text/html; charset=utf-8", headers)
         app.router.routes.append(Route(path, handler))
 
     for path in PAGES:

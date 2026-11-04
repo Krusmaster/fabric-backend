@@ -511,7 +511,7 @@ def before_after_html() -> str:
 
 
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
-           path: str = "") -> str:
+           path: str = "", chat: bool = False) -> str:
     v = _vars()
     links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
@@ -522,10 +522,11 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     md_alternate = (f'<link rel="alternate" type="text/markdown" href="{path}.md" title="Markdown version">'
                     if path in MARKDOWN_TWINS else "")                       # agents and crawlers get the text form in one hop
     # the mascot toggle only on a page that has mascots: a placeholder in the HTML, or the ones /demo's graph draws (n36:
-    # the toggle said "Mascots: on" on pages with none, such as /docs)
+    # the toggle said "Mascots: on" on pages with none, such as /docs); n93: the chat's button shows Onto, so every page
+    # with it has the toggle too
     toggle = ('<button type="button" class="btn ghost small" data-mascot-toggle aria-pressed="true">Mascots: on</button>\n'
               '      <span class="muted tiny" id="mascot-toggle-note">Your choice applies across the site and is saved in this browser.</span>'
-              if has_mascots(body, page) else "")
+              if has_mascots(body, page) or chat else "")
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -598,7 +599,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       {toggle}
     </div>
   </div>
-</footer>
+</footer>{chr(10) + chat_launch_html() if chat else ""}
 <script src="/static/mascots.js?v={v['ASSET_V']}" defer></script>
 <script src="/static/site.js?v={v['ASSET_V']}" defer></script>
 </body>
@@ -735,24 +736,45 @@ def partners_vars() -> dict[str, str]:
             "DEMO_ORDER_LINES": str(d["finding"]["rows_per_header"]["max_lines"])}
 
 
-# n92: the chat demo on the start page. The three results it can show, with the tool that drafts them and the tool that
-# creates them in Fabric; what the chat says about creating comes from tool_status, not from the chat's own text.
+# n92: the chat demo (on every ordinary page since n93). The three results it can show, with the tool that drafts them
+# and the tool that creates them in Fabric; what the chat says about creating comes from tool_status, not from the chat's
+# own text.
 CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("ontology", "ontology_draft", "create_ontology"),
-                ("products", "domain_draft", ""))
+                ("domains", "domain_draft", ""))
+# n93: the pages that never get the chat's button: /check (its policy has connect-src 'none') and /demo (a redirect to
+# /check). Any other page whose policy says connect-src 'none' loses it in server.py (strip_chat).
+CHAT_OFF = ("/check", "/demo")
 
 
 def chat_status(tool: str) -> str:
-    """A tool's status as the chat says it: its status word, then the short form when that adds something."""
+    """A tool's status as the chat says it (n93): a short plain sentence without the tool's name, built from tool_status
+    and saying no more than it: whether it created its item in a live Fabric workspace (build_word), whether that item
+    was reviewed there (REVIEWED), how a tool that has not run live is tested, and whether creating needs a permission the
+    hosted app does not ask for today (available == OPERATOR)."""
     from . import tool_status as ts
-    w, s = ts.word(tool), ts.short(tool)
-    w = w[0].lower() + w[1:]
-    return w if s in w else f"{w}; {s}"
+    s = ts.STATUS[tool]
+    if s.kind == ts.CREATES:
+        made = ts.build_word(tool)
+        if made == "creates":
+            out = "Created in a live Fabric workspace" + (" and reviewed there." if tool in ts.REVIEWED else ".")
+        elif made == "updates":
+            out = "Updated in place in a live Fabric workspace; a new one is not yet created there."
+        else:
+            out = "Not yet created in a live Fabric workspace."
+    elif s.live:
+        out = "Run against a live Fabric workspace" + (" as a draft." if s.kind == ts.DRAFT else ".")
+    else:
+        out = ("Tested with unit tests" if s.tested.startswith("unit tests") else "Tested") + ", not yet against a live Fabric workspace."
+    if s.available == ts.OPERATOR:
+        out += " Creating it needs a permission the hosted service does not ask for today."
+    return out
 
 
 def chat_launch_html() -> str:
-    """The chat demo's button (n92, Gustav's decision of 4 November 2026). Hidden without JavaScript; site.js shows it, and
-    the first click loads chat-demo.css and chat-demo.js, which fetch /demo/plan.json and nothing else. Each result's
-    status and whether the agent creates it in Fabric (tool_status.build_word) ride along as data attributes."""
+    """The chat demo's button (n92, Gustav's decision of 4 November 2026; on every ordinary page since n93). Hidden
+    without JavaScript; site.js shows it, and the first click (or a chat to restore, n93) loads chat-demo.css and
+    chat-demo.js, which fetch /demo/plan.json and nothing else. Each result's status sentence and whether the agent
+    creates it in Fabric (tool_status.build_word) ride along as data attributes."""
     from . import tool_status as ts
     v = _vars()
     e = lambda x: html.escape(x, quote=True)
@@ -760,16 +782,24 @@ def chat_launch_html() -> str:
              f'data-js="/static/chat-demo.js?v={v["ASSET_V"]}"', 'data-fallback="/check?example=sample"']
     for key, draft, create in CHAT_RESULTS:
         tool = create or draft
-        attrs += [f'data-tool-{key}="{e(tool)}"', f'data-status-{key}="{e(chat_status(tool))}"',
+        attrs += [f'data-status-{key}="{e(chat_status(tool))}"',
                   f'data-does-{key}="{"creates" if create and ts.build_word(create) == "creates" else "drafts"}"']
     return (f'<button class="kgc-launch" id="kgcLaunch" type="button" aria-expanded="false" hidden '
             f'{" ".join(attrs)}><span class="kgc-fig" aria-hidden="true"></span>Try a demo</button>')
 
 
+_CHAT_BUTTON = re.compile(r'\n?<button class="kgc-launch" id="kgcLaunch"[^>]*>.*?</button>', re.S)
+
+
+def strip_chat(page: str) -> str:
+    """The page without the chat's button: for a page whose content security policy says connect-src 'none', where the
+    chat could not fetch its plan (server.py)."""
+    return _CHAT_BUTTON.sub("", page)
+
+
 def _home_vars() -> dict[str, str]:
-    """The start page's server-rendered parts: the hub, the before/after example and the chat demo's button."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop"),
-            "HOME_CHAT": chat_launch_html()}
+    """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -818,7 +848,8 @@ def render(path: str) -> str:
         body = re.sub(r"\{\{(UC_\w+)\}\}", lambda m: uv.get(m.group(1), ""), body)
     body = _fill(_conditional(body, v))
     head = json_ld() if path == "/" else ""
-    return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path)
+    return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
+                  chat=path not in CHAT_OFF)
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
@@ -866,7 +897,7 @@ def local_md() -> str:
 
 def local_html() -> str:
     body = f'<article class="wrap prose docs">{_md_to_html(local_md())}</article>'
-    return _shell("Run {{PRODUCT}} locally", LOCAL_DESC, body, page="local", nav="docs", path="/local")
+    return _shell("Run {{PRODUCT}} locally", LOCAL_DESC, body, page="local", nav="docs", path="/local", chat=True)
 
 
 def use_cases_md() -> str:
@@ -934,7 +965,7 @@ def consent_done_html(params) -> str:
 {body}
 </div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="{pose}" data-label=""></span></div></div></section>"""
     return _shell(title, "What happened after the admin consent for {{PRODUCT}} in Microsoft Entra, and the next step.", section,
-                  page="consent", nav="", noindex=True)
+                  page="consent", nav="", noindex=True, chat=True)
 
 
 def not_found_html(path: str) -> str:
@@ -943,12 +974,12 @@ def not_found_html(path: str) -> str:
 <p class="lede">There is no page at <code>{html.escape(path[:120])}</code>.</p>
 <div class="ctas"><a class="btn primary" href="/">Start page</a><a class="btn secondary" href="/check?example=sample#check-map">See the example’s map</a><a class="btn ghost" href="/docs">Docs</a></div>
 </div><div class="hero-figure" aria-hidden="true"><span data-mascot="onto" data-pose="aside" data-label=""></span></div></div></section>"""
-    return _shell("Page not found — {{PRODUCT}}", "There is no page at this address.", body, page="notfound", nav="", noindex=True)
+    return _shell("Page not found — {{PRODUCT}}", "There is no page at this address.", body, page="notfound", nav="", noindex=True, chat=True)
 
 
 def privacy_html() -> str:
     body = f'<article class="wrap prose">{_md_to_html(privacy_md())}</article>'
-    return _shell("Privacy policy — {{PRODUCT}}", PRIVACY_DESC, body, page="privacy", nav="", path="/privacy")
+    return _shell("Privacy policy — {{PRODUCT}}", PRIVACY_DESC, body, page="privacy", nav="", path="/privacy", chat=True)
 
 
 def _rules_table() -> str:
@@ -983,12 +1014,12 @@ def _with_toc(rendered: str) -> str:
 
 def docs_html() -> str:
     body = f'<article class="wrap prose docs">{_with_toc(_md_to_html(docs_md()))}</article>'
-    return _shell("{{PRODUCT}} — docs", DOCS_DESC, body, page="docs", nav="docs", path="/docs")
+    return _shell("{{PRODUCT}} — docs", DOCS_DESC, body, page="docs", nav="docs", path="/docs", chat=True)
 
 
 def lovable_html() -> str:
     body = f'<article class="wrap prose docs">{_md_to_html(lovable_md())}</article>'
-    return _shell("Build a Lovable app on your Fabric tables — {{PRODUCT}}", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable")
+    return _shell("Build a Lovable app on your Fabric tables — {{PRODUCT}}", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable", chat=True)
 
 
 def start_md() -> str:

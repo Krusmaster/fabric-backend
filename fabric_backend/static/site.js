@@ -579,33 +579,51 @@
   // n53: /it's print button (the page has a print stylesheet; no PDF is made here)
   document.querySelectorAll('[data-print]').forEach(function (b) { b.addEventListener('click', function () { window.print(); }); });
 
-  /* ------------------------------------------------------------------ n92: the chat demo's button on the start page */
-  // Only the button comes with the page. The first click loads chat-demo.css and chat-demo.js (which fetch
-  // /demo/plan.json and nothing else); the chat never opens by itself. If the script cannot load, the click goes on to
-  // the check page's example instead.
+  /* ------------------------------------------------------------------ n92: the chat demo's button (every ordinary page, n93) */
+  // Only the button comes with the page. A click loads chat-demo.css and chat-demo.js (which fetch /demo/plan.json and
+  // nothing else); so does a chat that was open on the previous page in this tab (n93: the one sessionStorage key the
+  // chat writes, read here only for "was it open"; chat-demo.js checks the rest), which comes back without animation and
+  // without taking the focus, except under 560 px, where it would cover the page. The chat never opens by itself on a
+  // first visit. If the script cannot load, a click goes on to the check page's example instead.
   var kgc = document.getElementById('kgcLaunch');
   if (kgc) {
     var kgcFace = kgc.querySelector('.kgc-fig');
     if (kgcFace && M) kgcFace.innerHTML = M.svg('onto', { pose: 'rest', label: '', gaze: false });
     kgc.hidden = false;
     document.body.classList.add('has-kgc');
-    var kgcLoading = false;
-    kgc.addEventListener('click', function () {
-      if (window.KrusgraphChat) { window.KrusgraphChat.open(kgc); return; }
-      if (kgcLoading) return;
-      kgcLoading = true;
+    var kgcState = 0, kgcThen = [];                  // 0 not loaded, 1 loading, 2 loaded, 3 failed
+    var kgcLoad = function (then) {
+      if (kgcState === 2) { then(true); return; }
+      kgcThen.push(then);
+      if (kgcState === 1) return;
+      kgcState = 1;
       kgc.setAttribute('aria-busy', 'true');
-      var css = document.createElement('link'), js = document.createElement('script'), left = 2, failed = false;
-      var ready = function () {
-        if (failed || --left) return;
+      var css = document.createElement('link'), js = document.createElement('script'), left = 2;
+      var end = function (ok) {
         kgc.removeAttribute('aria-busy');
-        window.KrusgraphChat.open(kgc);
+        kgcState = ok ? 2 : 3;
+        var all = kgcThen; kgcThen = [];
+        all.forEach(function (f) { f(ok); });
       };
-      var fail = function () { if (!failed) { failed = true; location.href = kgc.getAttribute('data-fallback'); } };
+      var ready = function () { if (kgcState === 1 && !--left) end(!!window.KrusgraphChat); };
+      var fail = function () { if (kgcState === 1) end(false); };
       css.rel = 'stylesheet'; css.href = kgc.getAttribute('data-css'); css.onload = ready; css.onerror = fail;
       js.src = kgc.getAttribute('data-js'); js.onload = ready; js.onerror = fail;
       document.head.appendChild(css); document.body.appendChild(js);
+    };
+    kgc.addEventListener('click', function () {
+      if (kgcState === 3) { location.href = kgc.getAttribute('data-fallback'); return; }
+      kgcLoad(function (ok) { if (ok) window.KrusgraphChat.open(kgc); else location.href = kgc.getAttribute('data-fallback'); });
     });
+    var kgcWasOpen = false;
+    try {
+      var kgcRaw = window.sessionStorage.getItem('krusgraph.chat');
+      var kgcWas = kgcRaw && kgcRaw.length <= 400 ? JSON.parse(kgcRaw) : null;
+      kgcWasOpen = !!kgcWas && typeof kgcWas === 'object' && kgcWas.open === true && Array.isArray(kgcWas.steps);
+    } catch (e) { kgcWasOpen = false; }
+    if (kgcWasOpen && !window.matchMedia('(max-width: 560px)').matches) {
+      kgcLoad(function (ok) { if (ok) window.KrusgraphChat.restore(kgc); });
+    }
   }
 
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };

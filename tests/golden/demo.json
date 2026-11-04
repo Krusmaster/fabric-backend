@@ -37,7 +37,70 @@
      ]
     },
     "ontology": {
+     "entities": [
+      {
+       "key": true,
+       "name": "Customers",
+       "table": "customers"
+      },
+      {
+       "key": true,
+       "name": "Categories",
+       "table": "categories"
+      },
+      {
+       "key": true,
+       "name": "Products",
+       "table": "products"
+      },
+      {
+       "key": true,
+       "name": "Addresses",
+       "table": "addresses"
+      },
+      {
+       "key": true,
+       "name": "Orders",
+       "table": "orders"
+      },
+      {
+       "key": false,
+       "name": "OrderItems",
+       "table": "order_items"
+      },
+      {
+       "key": false,
+       "name": "AuditLog",
+       "table": "audit_log"
+      }
+     ],
      "entity_types": 7,
+     "links": [
+      {
+       "source": "products",
+       "target": "categories"
+      },
+      {
+       "source": "addresses",
+       "target": "customers"
+      },
+      {
+       "source": "orders",
+       "target": "customers"
+      },
+      {
+       "source": "order_items",
+       "target": "orders"
+      },
+      {
+       "source": "order_items",
+       "target": "products"
+      },
+      {
+       "source": "audit_log",
+       "target": "customers"
+      }
+     ],
      "relationship_types": 6,
      "tool": "ontology_draft",
      "with_key": 5
@@ -48,6 +111,65 @@
      "date_table": "Calendar",
      "inactive": [],
      "measures": 5,
+     "relationships": [
+      {
+       "active": true,
+       "columns": [
+        "category_id"
+       ],
+       "source": "products",
+       "target": "categories"
+      },
+      {
+       "active": true,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "addresses",
+       "target": "customers"
+      },
+      {
+       "active": true,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "orders",
+       "target": "customers"
+      },
+      {
+       "active": true,
+       "columns": [
+        "order_id"
+       ],
+       "source": "order_items",
+       "target": "orders"
+      },
+      {
+       "active": true,
+       "columns": [
+        "product_id"
+       ],
+       "source": "order_items",
+       "target": "products"
+      },
+      {
+       "active": true,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "audit_log",
+       "target": "customers"
+      }
+     ],
+     "table_names": [
+      "customers",
+      "categories",
+      "products",
+      "addresses",
+      "orders",
+      "order_items",
+      "audit_log"
+     ],
      "tables": 7,
      "tool": "semantic_model_draft"
     },
@@ -92,7 +214,74 @@
      ]
     },
     "ontology": {
+     "entities": [
+      {
+       "key": true,
+       "name": "Customers",
+       "table": "customers"
+      },
+      {
+       "key": true,
+       "name": "Categories",
+       "table": "categories"
+      },
+      {
+       "key": true,
+       "name": "Products",
+       "table": "products"
+      },
+      {
+       "key": true,
+       "name": "Addresses",
+       "table": "addresses"
+      },
+      {
+       "key": true,
+       "name": "Orders",
+       "table": "orders"
+      },
+      {
+       "key": false,
+       "name": "OrderItems",
+       "table": "order_items"
+      },
+      {
+       "key": false,
+       "name": "AuditLog",
+       "table": "audit_log"
+      }
+     ],
      "entity_types": 7,
+     "links": [
+      {
+       "source": "orders",
+       "target": "addresses"
+      },
+      {
+       "source": "products",
+       "target": "categories"
+      },
+      {
+       "source": "addresses",
+       "target": "customers"
+      },
+      {
+       "source": "orders",
+       "target": "customers"
+      },
+      {
+       "source": "order_items",
+       "target": "orders"
+      },
+      {
+       "source": "order_items",
+       "target": "products"
+      },
+      {
+       "source": "audit_log",
+       "target": "customers"
+      }
+     ],
      "relationship_types": 7,
      "tool": "ontology_draft",
      "with_key": 5
@@ -111,6 +300,73 @@
       }
      ],
      "measures": 5,
+     "relationships": [
+      {
+       "active": true,
+       "columns": [
+        "ship_to_id"
+       ],
+       "source": "orders",
+       "target": "addresses"
+      },
+      {
+       "active": true,
+       "columns": [
+        "category_id"
+       ],
+       "source": "products",
+       "target": "categories"
+      },
+      {
+       "active": false,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "addresses",
+       "target": "customers"
+      },
+      {
+       "active": true,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "orders",
+       "target": "customers"
+      },
+      {
+       "active": true,
+       "columns": [
+        "order_id"
+       ],
+       "source": "order_items",
+       "target": "orders"
+      },
+      {
+       "active": true,
+       "columns": [
+        "product_id"
+       ],
+       "source": "order_items",
+       "target": "products"
+      },
+      {
+       "active": true,
+       "columns": [
+        "customer_id"
+       ],
+       "source": "audit_log",
+       "target": "customers"
+      }
+     ],
+     "table_names": [
+      "customers",
+      "categories",
+      "products",
+      "addresses",
+      "orders",
+      "order_items",
+      "audit_log"
+     ],
      "tables": 7,
      "tool": "semantic_model_draft"
     },

@@ -91,6 +91,14 @@ def _drafts(p) -> dict:
     from . import domains, evidence, ontology, semantic_model
     o = ontology.summary(p)
     m = semantic_model.draft(p, {"item_name": "shop"}, "shop_model")["summary"]
+    model = ontology._model(p, None)                      # the entity types, in plan order, with their key (None: keyless)
+    names = {t.name for t, *_ in model}
+    single = [r for r in p.relationships if r.source in names and r.target in names and len(r.source_cols) == 1 and len(r.target_cols) == 1]
+    skipped = {(r["source"], tuple(r["columns"]), r["target"]) for r in m["not_expressible"]}
+    off = {(r["source"], tuple(r["columns"]), r["target"]) for r in m["inactive"]}
+    model_rels = [{"source": r.source, "columns": r.source_cols, "target": r.target,
+                   "active": (r.source, tuple(r.source_cols), r.target) not in off}
+                  for r in p.relationships if (r.source, tuple(r.source_cols), r.target) not in skipped]
     d = domains.propose_plan(p)
     v = evidence.validate(p, _demo_db())
     held = [r for r in v["relationships"] if r.get("orphans") == 0]
@@ -98,8 +106,13 @@ def _drafts(p) -> dict:
         "relationships": len(p.relationships),
         "validation": {"relationships": len(v["relationships"]), "hold": len(held), "summary": v["summary"]},
         "ontology": {"tool": "ontology_draft", "entity_types": o["entity_types"], "with_key": o["with_key"],
-                     "relationship_types": o["relationship_types"]},
+                     "relationship_types": o["relationship_types"],
+                     # n93: what the chat's picture draws: each entity type with its table and whether it has a key, and
+                     # each relationship type between two entity types
+                     "entities": [{"name": ontology.entity_name(t.name), "table": t.name, "key": bool(key)} for t, key, *_ in model],
+                     "links": [{"source": r.source, "target": r.target} for r in single]},
         "semantic_model": {"tool": "semantic_model_draft", "tables": m["tables"], "active": m["relationships_active"],
+                           "table_names": list(m["roles"]), "relationships": model_rels,
                            "inactive": [{"source": r["source"], "columns": r["columns"], "target": r["target"]} for r in m["inactive"]],
                            "measures": len(m["measures"]), "date_table": (m.get("date_table") or {}).get("name", "")},
         "domains": {"tool": "domain_draft", "domains": [{"name": x["name"], "tables": x["tables"]} for x in d["domains"]],

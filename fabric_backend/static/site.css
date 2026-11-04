@@ -938,8 +938,8 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 .before-after .ba-before{background:var(--coral-soft)}.before-after .ba-before dd{color:var(--coral-ink)}
 .before-after .ba-after{background:var(--sage-soft)}.before-after .ba-after dd{color:var(--sage-ink)}
 @media (max-width:600px){.before-after .ba{grid-template-columns:minmax(0,1fr)}.before-after .ba-figure .mascot{width:56px;height:56px}}
-/* /start hides its figures on a phone, so the toggle goes with them there */
-@media (max-width:600px){body:has([data-page=start]) .footer-controls [data-mascot-toggle],body:has([data-page=start]) #mascot-toggle-note{display:none}}
+/* /start hides its figures on a phone, so the toggle goes with them there (n93: unless the chat's button shows Onto) */
+@media (max-width:600px){body:has([data-page=start]):not(.has-kgc) .footer-controls [data-mascot-toggle],body:has([data-page=start]):not(.has-kgc) #mascot-toggle-note{display:none}}
 
 /* /check: the start surface and the engine's run */
 .check-start{position:relative;padding:40px 0 28px;background:
@@ -1245,7 +1245,8 @@ html[data-mascots=off] .check-guide-figure{display:none}
 .check-map .m-node>*,.check-map .m-edge-g>*{transition:opacity .25s ease}
 .check-map svg.m-focus .m-node:not(.m-on)>*,.check-map svg.m-focus .m-edge-g:not(.m-on)>*{opacity:.22}
 @media (prefers-reduced-motion:reduce){.check-map .m-node>*,.check-map .m-edge-g>*{transition:none}}
-/* n92: the chat demo's button on the start page (the chat itself and its styles, chat-demo.css, load on the first click).
+/* n92: the chat demo's button, on every ordinary page since n93 (the chat itself and its styles, chat-demo.css, load on a
+   click or to restore a chat left open; the button hides while the phone menu is open, which it could cover).
    Hidden without JavaScript (the hidden attribute); site.js shows it and gives the footer room so it never covers the
    last line of the page. Mascots: off hides the figure, the words stay. */
 .kgc-launch{position:fixed;z-index:30;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:6px;font:inherit;font-weight:800;font-size:15px;color:var(--ink);background:var(--card);border:1.5px solid var(--line-strong);border-bottom-width:3.5px;border-radius:999px;padding:4px 16px 4px 6px;cursor:pointer;transition:transform .12s,border-color .12s}
@@ -1257,4 +1258,5 @@ html[data-mascots=off] .check-guide-figure{display:none}
 html[data-mascots=off] .kgc-launch .kgc-fig{display:none}
 html[data-mascots=off] .kgc-launch{padding:9px 16px}
 body.has-kgc .site-footer{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
+body.nav-open .kgc-launch{visibility:hidden}
 @media (prefers-reduced-motion:reduce){.kgc-launch,.kgc-launch:hover{transition:none;transform:none}}

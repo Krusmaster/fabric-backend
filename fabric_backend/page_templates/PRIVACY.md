@@ -113,6 +113,12 @@ starts sooner: only when your pointer or keyboard focus reaches a link to `/chec
 few seconds on a fast connection that has not asked to save data. These are ordinary requests for public files; they
 carry nothing from you, write no usage record, and the files stay in your browser's cache.
 
+The demo chat behind the button "Try a demo" fetches one public file, `/demo/plan.json`, the example shop, and nothing
+else; it sets no cookie and writes no usage record. So that it can pick up where you were on the next page, it keeps
+which of its buttons you clicked and whether it was open in your browser's `sessionStorage`, under one key, for this tab
+only: the names of its own steps, nothing from your files or from the page. That storage stays in your browser and is
+never sent to us; it is gone when you close the tab, and *Start over* in the chat clears the steps.
+
 ## Technical logs
 
 {{#IF LOGS_NOT_KEPT}}The server writes a technical access line per request to its console (time, method, path, HTTP status and

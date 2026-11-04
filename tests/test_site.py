@@ -1019,12 +1019,13 @@ def test_no_page_uses_the_ruled_out_sales_words(client):
 
 # ------------------------------------------------------------------ n36: the mascot toggle goes with the mascots --------
 # The footer said "Mascots: on" on pages with no mascot (the home page, /docs). The toggle is rendered only where the page
-# has a placeholder or draws mascots by script (/demo's graph); tests/browser_check.js checks the same on screen.
+# has a placeholder or draws mascots by script (/demo's graph), or (n93) has the chat demo's button, which shows Onto;
+# tests/browser_check.js checks the same on screen.
 @pytest.mark.parametrize("path", PUBLIC_PAGES + ["/mascots"])
 def test_the_mascot_toggle_is_only_on_pages_with_mascots(client, path):
     text = client.get(path).text
     body = text[text.index("<main"):text.index("</main>")] if "<main" in text else text
-    expected = "data-mascot=" in body or 'data-page="demo"' in body
+    expected = "data-mascot=" in body or 'data-page="demo"' in body or 'id="kgcLaunch"' in text
     assert ("data-mascot-toggle" in text) == expected, path
 
 

@@ -1,7 +1,8 @@
-/* Krusgraph chat demo on the start page (n92). Loaded by site.js on the first click on the button "Try a demo"; the
-   button's own styles are in site.css. Colours are the site's tokens, so light and dark follow the theme. Under 560 px
-   the chat covers nearly the whole screen and the page behind it does not scroll (html.kgc-lock). prefers-reduced-motion
-   turns every animation off; Mascots: off hides the figures and keeps every word. */
+/* Krusgraph chat demo (n92; on every ordinary page, with pictures, since n93). Loaded by site.js on a click on the button
+   "Try a demo" or to restore a chat left open; the button's own styles are in site.css. Colours are the site's tokens,
+   so light and dark follow the theme, the pictures included. Under 560 px the chat covers nearly the whole screen and the
+   page behind it does not scroll (html.kgc-lock). prefers-reduced-motion turns every animation off, and a restored chat
+   (.kgc-still, .still) appears without one; Mascots: off hides the figures and keeps every word and every picture. */
 .kgc {
   position: fixed; z-index: 31; margin: 0; padding: 0;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto;
@@ -94,9 +95,56 @@
 }
 
 .kgc-foot {
+  display: flex; align-items: center; gap: 8px;
   margin: 0; padding: 6px 12px calc(7px + env(safe-area-inset-bottom, 0px));
   font-size: 12px; color: var(--muted); background: var(--card); border-top: 1px solid var(--line);
 }
+.kgc-foot p { margin: 0; flex: 1; min-width: 0; line-height: 1.35 }
+.kgc-restart, .kgc-zoom, .kgc-back {
+  font: inherit; font-weight: 800; font-size: 12.5px; color: var(--ink); background: var(--bg); cursor: pointer;
+  border: 1px solid var(--line-strong); border-radius: 999px; padding: 3px 10px; white-space: nowrap; flex: none;
+}
+.kgc-restart:focus-visible, .kgc-zoom:focus-visible, .kgc-back:focus-visible { border-radius: 999px; outline-offset: 2px }
+
+/* n93: the pictures. The SVG is drawn in a fixed box (viewBox) and scales to the bubble's width, never wider. */
+.kgc-pic { margin: 0; display: grid; gap: 4px; justify-items: start; min-width: 0 }
+.kgc-svg { display: block; width: 100%; height: auto; max-width: 100%; overflow: visible }
+.kgc-svg text { font-family: var(--font-body); font-weight: 700; font-size: 14px; fill: var(--ink) }
+.kgc-n rect { fill: var(--card-2); stroke: var(--line-strong); stroke-width: 1.5 }
+.kgc-n.nokey rect { fill: var(--card); stroke: var(--muted); stroke-dasharray: 4 3 }
+.kgc-nk rect { fill: var(--card); stroke: var(--muted); stroke-width: 1.2 }
+.kgc-svg .kgc-nk text { font-size: 10.5px; font-weight: 800; fill: var(--muted) }
+.kgc-key circle { fill: var(--sage-soft); stroke: var(--sage-d); stroke-width: 1.3 }
+.kgc-key .k { fill: none; stroke: var(--sage-ink); stroke-width: 1.4; stroke-linecap: round }
+.kgc-key circle.k { fill: none; stroke: var(--sage-ink) }
+.kgc-e line { stroke: var(--muted); stroke-width: 1.6 }
+.kgc-e circle { fill: var(--muted); stroke: var(--card); stroke-width: 1 }
+.kgc-e.new line, .kgc-e.iface line { stroke: var(--coral-d); stroke-width: 3 }
+.kgc-e.new circle, .kgc-e.iface circle { fill: var(--coral-d) }
+.kgc-e.off line { stroke: var(--lav-d); stroke-width: 2.2; stroke-dasharray: 5 4 }
+.kgc-e.off circle { fill: var(--lav-d) }
+.kgc-e.faint line { stroke: var(--line-strong); stroke-width: 1.4 }
+.kgc-e.faint circle { fill: var(--line-strong) }
+.kgc-grp rect { fill: var(--sage-soft); stroke: var(--sage-d); stroke-width: 1.4 }
+.kgc-svg .kgc-grp text { font-size: 12.5px; font-weight: 800; fill: var(--sage-ink); paint-order: stroke; stroke: var(--sage-soft); stroke-width: 5px; stroke-linejoin: round }
+.kgc-grp.b rect { fill: var(--lav-soft); stroke: var(--lav-d) }
+.kgc-svg .kgc-grp.b text { fill: var(--lav-ink); stroke: var(--lav-soft) }
+
+/* n93: the larger picture, inside the chat over the messages; Back to the chat or Esc returns */
+.kgc-big {
+  position: absolute; inset: 0; z-index: 3; display: grid; grid-template-rows: auto minmax(0, 1fr);
+  background: var(--bg);
+}
+.kgc-big-head {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--card); border-bottom: 1px solid var(--line);
+}
+.kgc-big-head p { margin: 0; flex: 1; font-family: var(--font-head); font-weight: 600; font-size: 17px }
+.kgc-big-body { overflow-y: auto; overflow-x: hidden; padding: 12px; display: grid; gap: 10px; align-content: start; overscroll-behavior: contain }
+.kgc-big-body p { margin: 0; font-size: 14px; color: var(--ink) }
+
+/* a restored chat appears as it was: no animation, the figures of its messages still too */
+.kgc.kgc-still, .kgc-msg.still, .kgc-you.still { animation: none }
+.kgc-msg.still .kgc-fig * { animation: none !important }
 
 .kgc-bit {
   position: absolute; width: 8px; height: 8px; border-radius: 50%; top: 18px; left: 20px;
@@ -112,6 +160,10 @@ html[data-mascots="off"] .kgc-msg { grid-template-columns: minmax(0, 1fr) }
 html[data-mascots="off"] .kgc-picks { grid-column: 1 }
 
 @media (max-width: 560px) {
+  .kgc-big-head, .kgc-big-body {
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+  }
   .kgc {
     inset: auto 0 0 0; width: 100%;
     height: calc(100vh - 40px); height: calc(100dvh - 40px);

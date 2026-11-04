@@ -13,7 +13,7 @@ no build step, no bundler and no external resource at runtime. This note is for 
 | `fabric_backend/page_templates/DOCS.md`, `PRIVACY.md`, `LOVABLE.md` | the Markdown pages (served as HTML and as `.md`); `{{RULES_TABLE}}` in DOCS.md is generated from `infer.RULES` |
 | `fabric_backend/static/site.css` | design tokens (`:root`, dark values under `prefers-color-scheme: dark`), shell, components, the graph, the mascot poses and animations |
 | `fabric_backend/static/site.js` | navigation toggle, the graph renderer (`Graph`), and the per-page wiring for `/demo`, `/explore`, `/partners/workspace`, `/mascots`; on `/` it sends the guided demo's old anchors (`#guide`, `#demo`, …) on to the same anchor on `/demo` |
-| `fabric_backend/static/chat-demo.js`, `chat-demo.css` | the chat demo on the start page (n92), loaded on the first click on its button; see below |
+| `fabric_backend/static/chat-demo.js`, `chat-demo.css` | the chat demo (n92, on every ordinary page since n93), loaded on a click on its button or to restore a chat left open; see below |
 | `fabric_backend/static/mascots.js` | the three figures as inline SVG (`Mascots.svg`), the off switch, gaze, the follower, the builder sequence |
 | `fabric_backend/static/fonts/` | Fredoka and Nunito, variable, subset to Latin, SIL OFL (licence files beside them) |
 | `fabric_backend/static/favicon.svg|png`, `og.svg|png` | icon and Open Graph image; the PNGs are rendered from the SVGs with Playwright |
@@ -67,25 +67,64 @@ have. `Mascots.follower(area, {text})` makes Onto follow the pointer in a graph 
 text)` shows a bubble. The switch in the footer sets `html[data-mascots=off]` and stores the choice in
 `localStorage` under `krusgraph.mascots` (wrapped in try/catch). `/mascots` shows every pose and state.
 
-## The chat demo on the start page
+## The chat demo
 
-Round n92 (Gustav's decision of 4 November 2026). A button with Onto in the bottom right corner of `/`, "Try a demo",
-opens a small chat that walks through the example shop with buttons: check how the tables connect, decide on the
-suggested `orders.ship_to_id` link, then a semantic model, an ontology and data products, in any order. Only the start
-page has it; `/demo`, `/check`, `/it`, `/privacy` and the pricing page do not, and the replay "A replay of a session in
-Claude" stays as it is.
+Round n92 (Gustav's decision of 4 November 2026) put it on the start page; round n93 (his decision of the same day, after
+he tried it live) gave it pictures, a direct way to the set-up guide, a place on every ordinary page and a memory within
+the tab. A button with Onto in the bottom right corner, "Try a demo", opens a small chat that walks through the example
+shop with buttons: check how the tables connect, decide on the suggested `orders.ship_to_id` link, then a semantic model,
+an ontology and data products, in any order. The replay "A replay of a session in Claude" on the start page stays as it
+is.
 
-- **Files.** The button is server-rendered by `pages.chat_launch_html()` with the `hidden` attribute, so without
-  JavaScript there is no button and the page is as before. `site.js` shows it and gives the footer room underneath
-  (`body.has-kgc`), so the button never covers the last line of the page. Its styles are the few `.kgc-launch` rules in
-  `site.css`. The chat itself is `static/chat-demo.js` and `static/chat-demo.css`, with `ASSET_V` like every other file,
-  and they load on the first click, not with the page. No inline script and no external resource.
-- **Behaviour.** The chat never opens by itself and nothing appears over the page before the click. Buttons only: no
-  free text, no AI. The one request it makes is `GET /demo/plan.json`; it sets no cookie, writes nothing to
-  `localStorage` or `sessionStorage`, and logs no event (`/demo/plan.json` is not one of the paths `usage.page_view`
-  counts). The links (`/check`, `/check?example=sample`, `/#connect`) open in the same tab. If the plan cannot be
-  fetched, the chat says so in one sentence and links to `/check?example=sample`. If the script cannot load, the click
-  goes on to that page instead.
+- **Which pages.** Every page with the site's header (`_shell(..., chat=True)`): the pages in `PAGES`, `/privacy`,
+  `/docs`, `/lovable`, `/local`, the admin-consent return page and the 404 page; not `/check` and not `/demo`
+  (`pages.CHAT_OFF`; `/demo` is a redirect to `/check`), and never a page whose content security policy says
+  `connect-src 'none'`: `server.py` takes the button out of such a page (`pages.strip_chat`), which today is `/check`
+  and the start page when a request's Host header is one its policy cannot name. No page's policy changed for the chat:
+  every other page has `connect-src 'self'`, the start page names `/demo/plan.json`. The preview of the first customer
+  demonstration (`sales_demo.py`, only with `KRUSGRAPH_PREVIEW=1`) is not an ordinary page and has no button. The button
+  shows Onto, so every page with it also has the footer's Mascots switch (the n36 rule: the switch goes with a mascot).
+- **Files.** The button is server-rendered by `pages.chat_launch_html()` after the footer, with the `hidden` attribute,
+  so without JavaScript there is no button and the page is as before. `site.js` shows it and gives the footer room
+  underneath (`body.has-kgc`), so the button never covers the last line of a page; it hides while the phone menu is open
+  (`body.nav-open`). Its styles are the few `.kgc-launch` rules in `site.css`. The chat itself is `static/chat-demo.js`
+  and `static/chat-demo.css`, with `ASSET_V` like every other file, and they load on a click on the button or to
+  restore a chat left open, never otherwise with the page. No inline script and no external resource.
+- **Behaviour.** The chat never opens by itself on a first visit and nothing appears over the page before the click.
+  Buttons only: no free text, no AI. The one request it makes is `GET /demo/plan.json`; it sets no cookie, writes
+  nothing to `localStorage`, and logs no event (`/demo/plan.json` is not one of the paths `usage.page_view` counts). The
+  links (`/check`, `/check?example=sample`, and "Connect to your agent", labelled "Opens the set-up guide.", to `/start`)
+  open in the same tab and close the chat. If the plan cannot be fetched, the chat says so in one sentence and links to
+  `/check?example=sample`. If the script cannot load, the click goes on to that page instead.
+- **Memory within the tab (n93).** The steps clicked and whether the chat is open are kept in `sessionStorage` under the
+  one key `krusgraph.chat`, as `{"open": true|false, "steps": [...]}` with step names from a fixed list (`scan`, `yes`,
+  `no`, `model`, `ontology`, `domains`, `fix`, `dbt`); never HTML, text or anything from the plan. Read back, anything
+  else is ignored: not an object, `open` not a boolean, an unknown or repeated step, more than 400 characters. A step is
+  replayed only by running the button it names when that button is on screen; the first that is not ends the replay.
+  Every access is in try/catch: without storage the chat works as in n92 and forgets on the next page. `sessionStorage`
+  stays in the browser and in that tab; nothing of it is sent anywhere. A chat that was open on the previous page opens
+  again on the next one (`site.js` reads the key only for `open`; `KrusgraphChat.restore`), with its steps, in the same
+  corner, without animation, without the confetti and without taking the focus from the page; under 560 px, where the
+  chat covers the page, it stays closed after a page change until the button is pressed. Close, Esc and a link inside
+  the chat store it as closed, and the steps are there at the next open. **Start over** in the chat's footer empties the
+  steps and begins again.
+- **Pictures (n93).** Each step draws a small picture in its bubble, as inline SVG built in `chat-demo.js` from
+  `/demo/plan.json`; no table, column or entity type name and no count is written in the code. Check the tables: the
+  tables as boxes, the links as lines, a key on each table with a key and a "no key" tag on `audit_log`. Yes, add the
+  link: the same picture with `orders.ship_to_id` → `addresses` added and marked. Semantic model: its tables with the
+  active relationships solid and the inactive one dashed. Ontology: the entity types, with a key or "no key", and the
+  relationship types. Data products: `customers` and `products` as groups, the interface between them marked, and
+  `audit_log` outside. The drafts' lists the pictures need are in the plan's `drafts` part (`demo._drafts`:
+  `ontology.entities` and `ontology.links`, `semantic_model.table_names` and `semantic_model.relationships` with
+  `active`). The site's graph renderer (`Graph`) was not reused: its layout names the shop's tables in `site.js`, every
+  table and wire in it is a focusable control (a row of tab stops inside each bubble), it lays out one column under 700
+  px and it has no groups. The placement is deterministic: a grid of two columns, and of all placements the first, in a
+  fixed order, with the shortest lines, no line crossing another or running through a table, and each data product's
+  tables in a rectangle that holds no other table; every picture uses the same one. The SVG scales to the bubble's width
+  (no horizontal scroll at 375 px; names at about 13 px), and **Larger picture** under each one opens it at the chat's
+  full width inside the chat, with its description as text, until Back to the chat or Esc. Each picture has a
+  description for screen readers (`role="img"`, `aria-label`, built from the plan) and the text beside it stays.
+  Colours are the site's tokens, light and dark; no animation; Mascots: off does not touch them.
 - **Numbers.** None is typed into the chat. Tables, links, `keyless` and the `orders.ship_to_id` suggestion (15 of 15
   different values are in `addresses`, in 60 of 60 rows, counted in `seed.rows()`) come from `/demo/plan.json`, and so
   do the drafts' counts in its `drafts` part (`demo.demo_drafts()`): `ontology_draft`, `semantic_model_draft`,
@@ -95,24 +134,32 @@ Claude" stays as it is.
   `audit_log` left out because it has no key. `tests/test_chat_demo.py` fails when one of them changes.
 - **What it promises.** Every result says that nothing was created in the demo, and what the agent does in the
   visitor's own Fabric when asked, by `tool_status`: "creates" where `build_word()` of the creating tool says so (the
-  semantic model, the ontology), "drafts" otherwise (data products: `domain_draft` creates nothing), followed by the
-  tool's status word (`pages.chat_status()`). "Fix data issues" and "Create a dbt flow" are marked Planned, run nothing,
-  and say what exists today; no dates. The chat does not say that its bubbles appear in the agent. The sales-word test
-  covers its text.
+  semantic model, the ontology), "drafts" otherwise (data products: `domain_draft` creates nothing). Then, since n93, one
+  plain sentence without a tool's name, built by `pages.chat_status()` from `tool_status` and saying no more than it:
+  "Created in a live Fabric workspace and reviewed there." (`build_word` and `REVIEWED`), "Creating it needs a permission
+  the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet
+  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Create a dbt flow" are marked
+  Planned, run nothing, and say what exists today; no dates. The chat does not say that its bubbles appear in the agent.
+  The sales-word test covers its text.
 - **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat
-  opens and to the first new choice after each step; Esc and Close close it and give the focus back to the button. Under
-  560 px the chat covers the screen but its top 40 px, the page behind does not scroll (`html.kgc-lock`) and is `inert`,
-  Tab stays in the chat (`aria-modal`), and `env(safe-area-inset-*)` is respected. `prefers-reduced-motion` turns off
-  every animation and transition, and the steps finish at once. Mascots: off hides the figures; the button and every
-  word stay. Colours are the site's tokens, so light and dark follow the theme.
+  opens and to the first new choice after each step; Esc (from inside the chat) and Close close it and give the focus
+  back to the button. Under 560 px the chat covers the screen but its top 40 px, the page behind does not scroll
+  (`html.kgc-lock`) and is `inert`, Tab stays in the chat (`aria-modal`), and `env(safe-area-inset-*)` is respected.
+  `prefers-reduced-motion` turns off every animation and transition, and the steps finish at once. Mascots: off hides
+  the figures; the button, every word and every picture stay. Colours are the site's tokens, so light and dark follow
+  the theme.
 - **The start page's content security policy.** Its `connect-src` names exactly three sources on the page's own host:
   `/check`'s engine files (`/static/pyodide/` and `/check/engine.zip`, for the prefetch, n49) and `/demo/plan.json`
   (n92, for the chat). No `'self'`, no other path; `script-src` and the rest are the other pages', and no other page's
-  policy changed (`server.py`, `home_headers`; `tests/test_check.py` checks the three sources).
-- **Checks.** `tests/test_chat_demo.py` (the numbers, the files the page loads, no other request or storage, the
-  Planned choices, the statuses, the sales words) and `tests/chat_demo_browser.js` through `tests/test_browser.py`, under
-  the start page's own policy (at 375 and 1280 px, light and dark: the flow by mouse and by keyboard, Mascots: off,
-  reduced motion, no JavaScript, the plan failing to load).
+  policy changed (`server.py`, `home_headers`; `tests/test_check.py` checks the three sources, `tests/test_chat_demo.py`
+  every page's policy).
+- **Checks.** `tests/test_chat_demo.py` (the numbers and lists, the pages with and without the button, every page's
+  policy, the files a page loads, no other request, the one storage key and how it is read, the Planned choices, the
+  status sentence from `tool_status`, the sales words) and `tests/chat_demo_browser.js` through `tests/test_browser.py`,
+  under the pages' own policies (at 375 and 1280 px, light and dark: the flow by mouse and by keyboard, the pictures
+  inside their bubbles, Larger picture, Connect to `/start`, a page change with the chat open and closed, Start over, a
+  corrupt stored value, blocked storage, Mascots: off, reduced motion, no JavaScript, the plan failing to load, the
+  button on every page and what it may cover).
 
 ## Screenshots and checks
 
