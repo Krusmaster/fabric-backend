@@ -237,7 +237,8 @@ def _chat_runs(chat):
 
 
 def test_chat_the_page_loads_only_the_button_and_the_chat_never_opens_by_itself(chat):
-    """At 375 and 1280 px, light and dark: before the click the page has the button and nothing of the chat (no script,
+    """Under the start page's own content security policy (nothing bypassed; no console error, so no refused request).
+    At 375 and 1280 px, light and dark: before the click the page has the button and nothing of the chat (no script,
     no stylesheet, no box), 1.5 s after load included; at the bottom of the page the button covers no text or control."""
     runs = _chat_runs(chat)
     assert len(runs) == 8
@@ -333,11 +334,7 @@ def test_chat_mascots_off_and_reduced_motion(chat):
         assert r["launchTransition"] == "0s" and r["launchTransform"] == "none" and r["animations"] == [] and r["bits"] == 0, (w, r)
 
 
-def test_chat_when_the_plan_does_not_load_and_under_the_start_pages_policy(chat):
-    """The plan fails: one sentence and a link to /check?example=sample. Under the start page's own content security
-    policy (connect-src: /check's engine files only, n49; unchanged in n92) the browser refuses /demo/plan.json today, so
-    the visitor gets the same fallback until the maintainer adds that path (docs/SITE.md, the chat demo)."""
-    for case in ("planFails", "realPolicy"):
-        f = chat[case]
-        assert f["links"] == ["/check?example=sample"] and "did not load" in f["text"], (case, f)
-    assert chat["realPolicy"]["refused"] is True
+def test_chat_when_the_plan_does_not_load(chat):
+    """The plan fails to load (the request is aborted): one sentence and a link to /check?example=sample, no button."""
+    f = chat["planFails"]
+    assert f["links"] == ["/check?example=sample"] and "did not load" in f["text"] and f["buttons"] == 0, f

@@ -473,7 +473,11 @@ def test_the_start_page_fetches_the_engine_ahead_only_when_asked_and_check_then_
 def test_the_start_page_policy_allows_only_the_engine_and_privacy_says_when_it_is_fetched(client):
     r = client.get("/")
     csp = r.headers["content-security-policy"]
-    assert "connect-src testserver/static/pyodide/ testserver/check/engine.zip;" in csp and "connect-src 'self'" not in csp
+    # n92: and the demo plan, which the chat demo fetches once it is opened; exactly these three sources, and the rest of
+    # the policy is the other pages'
+    src = csp.split("connect-src ", 1)[1].split(";", 1)[0].split()
+    assert src == ["testserver/static/pyodide/", "testserver/check/engine.zip", "testserver/demo/plan.json"] and "connect-src 'self'" not in csp
+    assert csp.replace("connect-src " + " ".join(src), "connect-src 'self'") == client.get("/start").headers["content-security-policy"]
     assert 'data-check-prefetch="/static/pyodide/pyodide.mjs ' in r.text and f"/check/engine.zip?v={pages.check_vars()['CHECK_ENGINE_V']}" in r.text
     assert client.get("/start").headers["content-security-policy"].count("connect-src 'self'") == 1
     privacy = client.get("/privacy").text

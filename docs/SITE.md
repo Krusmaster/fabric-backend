@@ -105,16 +105,14 @@ Claude" stays as it is.
   Tab stays in the chat (`aria-modal`), and `env(safe-area-inset-*)` is respected. `prefers-reduced-motion` turns off
   every animation and transition, and the steps finish at once. Mascots: off hides the figures; the button and every
   word stay. Colours are the site's tokens, so light and dark follow the theme.
-- **The start page's content security policy.** Its `connect-src` names only `/check`'s engine files (n49,
-  `server.py`, `home_headers`), so a browser that enforces it refuses the chat's `GET /demo/plan.json` and the chat shows
-  its fallback. Round n92 did not change the policy (the brief said it stays as it is); adding the one path
-  `/demo/plan.json` to the start page's `connect-src` is the maintainer's decision. Until then
-  `tests/chat_demo_browser.js` checks the whole flow with the policy bypassed, and checks separately what the start page
-  shows under its own policy.
+- **The start page's content security policy.** Its `connect-src` names exactly three sources on the page's own host:
+  `/check`'s engine files (`/static/pyodide/` and `/check/engine.zip`, for the prefetch, n49) and `/demo/plan.json`
+  (n92, for the chat). No `'self'`, no other path; `script-src` and the rest are the other pages', and no other page's
+  policy changed (`server.py`, `home_headers`; `tests/test_check.py` checks the three sources).
 - **Checks.** `tests/test_chat_demo.py` (the numbers, the files the page loads, no other request or storage, the
-  Planned choices, the statuses, the sales words) and `tests/chat_demo_browser.js` through `tests/test_browser.py` (at
-  375 and 1280 px, light and dark: the flow by mouse and by keyboard, Mascots: off, reduced motion, no JavaScript, the
-  plan failing to load).
+  Planned choices, the statuses, the sales words) and `tests/chat_demo_browser.js` through `tests/test_browser.py`, under
+  the start page's own policy (at 375 and 1280 px, light and dark: the flow by mouse and by keyboard, Mascots: off,
+  reduced motion, no JavaScript, the plan failing to load).
 
 ## Screenshots and checks
 

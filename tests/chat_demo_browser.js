@@ -1,17 +1,14 @@
-// Round n92: the chat demo on the start page. Prints JSON facts for tests/test_chat_demo.py: at 375 x 812 and 1280 x 800,
+// Round n92: the chat demo on the start page. Prints JSON facts for tests/test_browser.py: at 375 x 812 and 1280 x 800,
 // light and dark, the whole flow once by mouse and once by keyboard; what loads before and after the first click; the
 // storage before and after; Mascots: off; reduced motion; the plan failing to load; no JavaScript. With SHOTS=<dir> it
 // also saves screenshots there.
-// The start page's content security policy (server.py, home_headers) allows connect-src only to /check's engine files
-// (n49), so in a browser that enforces it the chat's GET /demo/plan.json is refused and the chat shows its fallback.
-// Whether the policy names /demo/plan.json too is the maintainer's decision (round n92's report); until then the flow is
-// checked with the policy bypassed (BYPASS below), and `realPolicy` records what the start page does under its policy.
+// Everything runs under the start page's own content security policy (connect-src: /check's engine files and
+// /demo/plan.json on this host, server.py home_headers); nothing is bypassed.
 const { chromium } = require('playwright');
 const path = require('path');
 
 const [base, exe] = process.argv.slice(2);
 const SHOTS = process.env.SHOTS || '';
-const BYPASS = { bypassCSP: true };
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function shot(page, name) {
@@ -154,7 +151,7 @@ async function flowByKeyboard(page, f, v) {
     for (const scheme of ['light', 'dark']) {
       for (const mode of ['mouse', 'keyboard']) {
         const v = `${w}-${scheme}-${mode}`;
-        const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme, ...BYPASS });
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, colorScheme: scheme });
         const page = await ctx.newPage();
         const f = { errors: [], requests: [] };
         page.on('console', (m) => { if (m.type() === 'error') f.errors.push(m.text()); });
@@ -210,7 +207,7 @@ async function flowByKeyboard(page, f, v) {
 
   // Mascots: off (the footer's switch): no figures, the button and every word stay
   {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...BYPASS });
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.goto(base + '/', { waitUntil: 'load' });
     await page.click('[data-mascot-toggle]');
@@ -234,7 +231,7 @@ async function flowByKeyboard(page, f, v) {
     await ctx.close();
   }
   {
-    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, colorScheme: 'dark', ...BYPASS });
+    const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, colorScheme: 'dark' });
     const page = await ctx.newPage();
     await page.goto(base + '/', { waitUntil: 'load' });
     await page.click('[data-mascot-toggle]');
@@ -250,7 +247,7 @@ async function flowByKeyboard(page, f, v) {
 
   // Reduce motion: no animation or transition runs, in the button or the chat, and the steps finish at once
   for (const w of [375, 1280]) {
-    const ctx = await browser.newContext({ viewport: { width: w, height: w === 375 ? 812 : 800 }, reducedMotion: 'reduce', ...BYPASS });
+    const ctx = await browser.newContext({ viewport: { width: w, height: w === 375 ? 812 : 800 }, reducedMotion: 'reduce' });
     const page = await ctx.newPage();
     await page.goto(base + '/', { waitUntil: 'load' });
     const f = {};
@@ -272,25 +269,9 @@ async function flowByKeyboard(page, f, v) {
     await ctx.close();
   }
 
-  // under the start page's own policy (not bypassed): what the visitor gets today
-  {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
-    const page = await ctx.newPage();
-    const refused = [];
-    page.on('console', (m) => { if (m.type() === 'error') refused.push(m.text()); });
-    await page.goto(base + '/', { waitUntil: 'load' });
-    await page.click('#kgcLaunch');
-    await page.waitForSelector('.kgc-msg');
-    await wait(300);
-    out.realPolicy = await page.evaluate(() => ({ text: document.querySelector('.kgc-log').innerText.replace(/\s+/g, ' ').trim(),
-      links: [...document.querySelectorAll('.kgc-picks a')].map((a) => a.getAttribute('href')) }));
-    out.realPolicy.refused = refused.filter((t) => t.includes('/demo/plan.json')).length > 0;
-    await ctx.close();
-  }
-
   // the plan cannot be fetched: a short text and a link to the check page's example
   {
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, ...BYPASS });
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.route('**/demo/plan.json', (r) => r.abort());
     await page.goto(base + '/', { waitUntil: 'load' });

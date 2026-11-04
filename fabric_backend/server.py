@@ -2122,11 +2122,13 @@ def build_app(host: str = "0.0.0.0"):
                "font-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'")
         return {**PAGE_HEADERS, "Content-Security-Policy": csp}
 
-    # n49: the start page fetches nothing but /check's engine, ahead of a visit (site.js): its connect-src names those
-    # two paths on this host and nothing else
+    # n49: the start page fetches /check's engine ahead of a visit (site.js); n92: and the demo plan, once the chat demo
+    # is opened (chat-demo.js). Its connect-src names those three sources on this host and nothing else; the rest of the
+    # policy is the other pages'
     def home_headers(request) -> dict:
         host = request.headers.get("host", "").strip()
-        own = f"{host}/static/pyodide/ {host}/check/engine.zip" if host and all(c.isalnum() or c in ".-:[]" for c in host) else "'none'"
+        own = (f"{host}/static/pyodide/ {host}/check/engine.zip {host}/demo/plan.json"
+               if host and all(c.isalnum() or c in ".-:[]" for c in host) else "'none'")
         return {**PAGE_HEADERS, "Content-Security-Policy": PAGE_HEADERS["Content-Security-Policy"].replace("connect-src 'self'", "connect-src " + own)}
 
     def page_route(path: str, fn):
