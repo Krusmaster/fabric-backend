@@ -98,6 +98,8 @@ const { chromium } = require("playwright");
   }
   await page.focus('[data-ask="product"]'); await page.keyboard.press("Enter");
   out.ask.product.html_links = await page.$$eval("#check-ask-answer a", (n) => n.map((a) => [a.textContent, a.getAttribute("href"), a.getAttribute("download")]));
+  out.ask.product.dl = await page.$$eval("#check-ask-answer a.check-dl", (n) => n.map((a) => [a.children.length, a.nextElementSibling ? a.nextElementSibling.textContent : null,
+    [...document.querySelectorAll("#check-ask-answer .check-dl-status")].map((p) => p.textContent)]));
   const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#check-ask-answer a[download]")]);
   out.contract = { name: dl.suggestedFilename(), text: require("fs").readFileSync(await dl.path(), "utf8") };
   await page.click('[data-ask="powerbi"]');
@@ -106,6 +108,10 @@ const { chromium } = require("playwright");
   // n73: one order through the example: the finding, Onto's answer, the Power BI preview and the contract name the same row
   out.same_order = { finding: await page.textContent('#check-findings li.sev-warning'), preview: await page.textContent("#check-model .check-doubled"),
                      labels: await page.$$eval("#check-model a[download], #check-ask-answer a[download]", (n) => n.map((a) => a.textContent)) };
+  // n95: every download on the page: the button's own text, the description under it, and the status lines
+  out.dl_items = await page.evaluate(() => [...document.querySelectorAll("a.check-dl")].map((a) => ({ text: a.textContent, children: a.children.length,
+    desc: a.nextElementSibling && a.nextElementSibling.classList.contains("check-dl-desc") ? a.nextElementSibling.textContent : null,
+    status: [...(a.closest("#check-evidence, #check-model, #check-app, #check-ask-answer") || document).querySelectorAll(".check-dl-status")].map((p) => p.textContent) })));
   out.ask_requests = out.requests.slice(before).filter((u) => !u.includes("/check/event"));
   await page.evaluate(() => window.Mascots.setEnabled(false));
   out.ask_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-ask-figure")).display,

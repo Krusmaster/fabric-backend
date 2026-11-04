@@ -284,11 +284,36 @@ def connect_menu_html(where: str) -> str:
 HUB_LINK = "Connect {p} to Claude: the guide"     # n91: the name of the hub's node, a link to /start
 
 
+def hub_status_note(clients: list[str]) -> str:
+    """n95: the one line under the hub that keeps the statuses the hub no longer marks, all from tool_status: which
+    sources are tested end to end and which are experimental, any client named there that is not tested end to end, and
+    that some items need a permission the hosted service does not ask for today (tool_status.OPERATOR)."""
+    from . import tool_status as ts
+    tested = [n for n, t in ts.SOURCES if t]
+    other = [n for n, t in ts.SOURCES if not t]
+    parts = []
+    if tested:
+        parts.append(f"{_listed(tested)} {'is' if len(tested) == 1 else 'are'} tested end to end")
+    if other:
+        parts.append(f"{_listed(other)} {'is' if len(other) == 1 else 'are'} experimental")
+    named = list(clients) + ["Lovable"]
+    shown = {c.name: c.status for c in ts.CLIENTS if c.path}                 # an MCP client, at its address
+    shown.update({c.name: c.status for c in ts.CLIENTS if not c.path})      # Lovable's row: the app builder over the API
+    untested = [c for c in named if shown.get(c) and shown[c] != "Tested end to end"]
+    if untested:
+        parts.append(f"{_listed(untested)} {'is' if len(untested) == 1 else 'are'} experimental as {'a client' if len(untested) == 1 else 'clients'}")
+    out = "; ".join(parts)
+    out = out[:1].upper() + out[1:] + "." if out else ""
+    if any(ts.STATUS[tool].available == ts.OPERATOR for _, tool in ts.BUILDS):
+        out += " Some items need a permission the hosted service does not ask for today."
+    return out.strip()
+
+
 def hub_html() -> str:
     """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
     builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
-    Every status comes from tool_status: "creates" only for what has been created live on the hosted service, "updates"
-    for what has only been updated in place there, "draft" for the rest; sources not yet read live are marked experimental; an MCP client is named only once it has signed
+    n95: the cards carry names only, no status tags; the statuses are said once, in a muted line under the hub built from
+    tool_status (hub_status_note), with a link to /docs#test-status; an MCP client is named only once it has signed
     in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
     the visual is hidden from screen readers, which get the same as one paragraph. n68: the middle node is the logo (the
     mark and the wordmark; the mark alone under 720 px) in the same faint coral frame. n91 (Gustav's decision of 2 November
@@ -299,28 +324,16 @@ def hub_html() -> str:
     p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
     clients = ts.clients_working(_registration_on())
 
-    def tag(word: str) -> str:
-        return f'<span class="hub-tag hub-{word.split()[0]}">{word}</span>'
-    sources = "".join(f"<li><b>{n}</b>{'' if tested else tag('experimental')}</li>" for n, tested in ts.SOURCES)
-    builds = "".join(f"<li><b>{n}</b>{tag(ts.build_word(tool))}</li>" for n, tool in ts.BUILDS)
-    status = {c.name: c.status for c in ts.CLIENTS}
-    exp = lambda c: "" if status[c] == "Tested end to end" else tag("experimental")
-    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span>{exp(c)}</li>' for c in clients)
-    where += f'<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span>{exp("Lovable")}</li>'
-
-    exp_word = lambda c: "" if status[c] == "Tested end to end" else " (experimental)"
-    created = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "creates"]
-    updated = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "updates"]
-    drafted = [n for n, tool in ts.BUILDS if ts.build_word(tool) == "draft"]
-    said = (f"Your data in Fabric: " + _listed([f"{n} ({ts.source_word(t)})" for n, t in ts.SOURCES]) + ". "
+    sources = "".join(f"<li><b>{n}</b></li>" for n, _ in ts.SOURCES)
+    builds = "".join(f"<li><b>{n}</b></li>" for n, _ in ts.BUILDS)
+    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span></li>' for c in clients)
+    where += '<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span></li>'
+    note = hub_status_note(clients)
+    said = (f"Your data in Fabric: " + _listed([n for n, _ in ts.SOURCES]) + ". " + note + " "
             f"In the middle, {p}: one plan, with the rule behind every relationship. "
-            f"What {p} builds in Fabric from that plan: " + "; ".join(
-                ([f"it creates the {_listed(created)}"] if created else [])
-                + ([f"it updates an existing {_listed(updated)} (creating a new one is experimental)"] if updated else [])
-                + ([f"{_listed(drafted)} {'is a draft' if len(drafted) == 1 else 'are drafts'} so far"] if drafted else [])) + ". "
-            f"Where you build: {_listed([c + exp_word(c) for c in clients])} "
-            f"{'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
-            f"Lovable{exp_word('Lovable')} uses the GraphQL API {p} creates in Fabric rather than {p} itself.")
+            f"What {p} builds in Fabric from that plan: " + _listed([n for n, _ in ts.BUILDS]) + ". "
+            f"Where you build: {_listed(clients)} {'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
+            f"Lovable uses the GraphQL API {p} makes in Fabric rather than {p} itself.")
     makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
     return f"""<section class="wrap connects" aria-label="What {p} connects">
   <p class="visually-hidden">{said}</p>
@@ -332,6 +345,8 @@ def hub_html() -> str:
     <div class="hub-mid"><span class="hub-node"><a class="c-hub c-hub-logo hub-go" href="/start" aria-label="{HUB_LINK.format(p=p)}">{_LOGO}<span class="c-hub-word" aria-hidden="true">{low}</span></a><i class="hub-end" aria-hidden="true"></i></span><span class="hub-sub" aria-hidden="true">one plan, the rule behind every relationship</span></div>
     <div class="hub-group hub-where c-mustard" aria-hidden="true"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
   </div>
+
+  <p class="muted tiny connects-status"><span aria-hidden="true">{html.escape(note)}</span> <a href="/docs#test-status">Status per tool</a></p>
   <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
 </section>"""
 

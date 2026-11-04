@@ -14,7 +14,8 @@
 // the status line, before the map; the engine's steps are a <details> under the map ("How the engine got here"),
 // closed on every run. One example row runs through the example: the finding, Onto's answer, the Power BI preview and
 // the contract all name the header row the engine read (its key, its amount, its lines), never a number of their own.
-// Every download button says what the file holds and its status word from tool_status.
+// Every download button says "Download" and what the file is; its description stands under it and its status word from
+// tool_status is said once above the list (n95).
 // n85: the decisions taken on this page (the guided demo's Accept and Reject) go into the evidence report when it is
 // downloaded, each with what, the decision, the browser's time and "by: not recorded". They stay in this browser:
 // nothing is sent or saved, and a new run starts without them. Accepting a suggestion checks nothing: the report says
@@ -174,16 +175,33 @@
 
   const fmt = (v) => v == null ? "–" : typeof v === "number" ? v.toLocaleString("en-US") : String(v);
   const tag = (t) => el("span", { class: "status-tag" }, t);
-  // n73: a download button says what the file holds and carries its status word (tool_status) as a tag
-  function download(name, b64, label, status) {
-    const a = el("a", { class: "btn primary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
+  // n73: a download says what the file holds; n95: the button is short ("Download" and what the file is), the
+  // description stands under it as plain text, and the status is said once above the list (statusLines)
+  function dlItem(a, desc) {
+    return el("div", { class: "check-dl-item" }, a, desc ? el("p", { class: "muted tiny check-dl-desc" }, desc) : null);
+  }
+  const statusSaid = (s, n) => /^draft/i.test(s) ? (n > 1 ? "drafts" : "a draft") + " for you to review" : s.charAt(0).toLowerCase() + s.slice(1);
+  const listedJs = (xs) => xs.length < 2 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
+  // files: [{ what, status }] as shown; one line when they share a status, otherwise one line per status
+  function statusLines(files) {
+    const by = new Map();
+    files.filter((f) => f.status).forEach((f) => { if (!by.has(f.status)) by.set(f.status, []); by.get(f.status).push(f.what); });
+    const line = (t) => el("p", { class: "muted tiny check-dl-status" }, t);
+    if (by.size === 1) {
+      const [[s, ws]] = [...by];
+      return [line((ws.length > 1 ? "These files are " : "This file is ") + statusSaid(s, ws.length) + ".")];
+    }
+    return [...by].map(([s, ws]) => { const t = listedJs(ws); return line(t.charAt(0).toUpperCase() + t.slice(1) + (ws.length > 1 ? " are " : " is ") + statusSaid(s, ws.length) + "."); });
+  }
+  function download(name, b64, what, desc) {
+    const a = el("a", { class: "btn primary small check-dl", href: "#", download: name }, "Download " + what);
     a.addEventListener("click", (e) => {               // the zip was made in the worker; a Blob saves it, nothing is fetched
       const bin = atob(b64), bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const url = URL.createObjectURL(new Blob([bytes], { type: "application/zip" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
     });
-    return a;
+    return dlItem(a, desc);
   }
   function figures(items) {
     return el("ul", { class: "check-kpis" }, ...items.map((m) => el("li", null, el("span", { class: "check-kpi-v" }, fmt(m.value)), el("span", { class: "check-kpi-l" }, m.name || m.label))));
@@ -234,7 +252,8 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
     kids.push(el("h3", null, "The model as a Power BI project"),
       el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project (.pbip), the model with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + " and an empty report page", b.status.model)),
+      ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
+      el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
     panels.model.replaceChildren(...kids);
   }
@@ -254,7 +273,8 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_app.zip"));
     kids.push(el("h3", null, "The app's starter code"),
       el("p", null, "Rayfin connector entities with the plan's keys and relationships, and an app starter for Lovable: a prompt, GraphQL queries and the server function that keeps the secrets out of the browser, for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
-      el("p", { class: "ctas" }, download(zip, b.downloads[zip], "app starter for Lovable and Rayfin connector entities from the same plan; the API itself does not exist yet", b.status.app_starter)));
+      ...statusLines([{ what: "the app starter", status: b.status.app_starter }]),
+      el("div", { class: "ctas" }, download(zip, b.downloads[zip], "app starter", "For Lovable, with Rayfin connector entities from the same plan; the API itself does not exist yet.")));
     panels.app.replaceChildren(...kids);
   }
 
@@ -430,13 +450,13 @@
       (r.domains.unassigned || []).length ? el("p", { class: "muted tiny" }, "Not placed: " + r.domains.unassigned.map((u) => u.table + " (" + u.reason + ")").join("; ") + ".") : null);
     box.hidden = false;
   }
-  function saveText(name, text, label, status, type) {   // written here; a Blob saves it, nothing is fetched
-    const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + name + ": " + label, status ? " " : null, status ? tag(status) : null);
+  function saveText(name, text, what, desc, type) {   // written here; a Blob saves it, nothing is fetched
+    const a = el("a", { class: "btn secondary small check-dl", href: "#", download: name }, "Download " + what);
     a.addEventListener("click", () => {                  // n85: a function is called at each click, so the file is as of now
       const url = URL.createObjectURL(new Blob([typeof text === "function" ? text() : text], { type: type || "application/yaml" }));
       a.href = url; setTimeout(() => { URL.revokeObjectURL(url); a.href = "#"; }, 1000);
     });
-    return a;
+    return dlItem(a, desc);
   }
 
   // n85: the decisions taken on this page (`decisions`, declared at the top), latest choice per item
@@ -467,14 +487,15 @@
     const e = r.evidence_report, box = $("check-evidence");
     box.replaceChildren();
     if (!e || !r.tables.length) { box.hidden = true; return; }
-    box.append(saveText(e.name, () => withDecisions(e.markdown), "evidence report for a hand-over (Markdown): source, time and engine version, every key and relationship with its rule, "
-      + (r.source && r.source.has_data ? "each check with its counts and how much of the rows it read" : "every check marked not checked") + ", the open questions, the decisions taken on this page; no row values", e.status, "text/markdown"));
     // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
-    // there with a file import (there is no link that opens it there); n82: Gustav's try there, from tool_status
+    // there with a file import (there is no link that opens it there)
     const o = r.ontology_rdfxml;
-    if (o) box.append(saveText(o.name, o.xml, "ontology for Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
-      + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. "
-      + "Open it in Ontology Playground with Import / Export, as a file import" + (o.tried ? ". " + o.tried : ""), o.status, "application/rdf+xml"));
+    const files = [{ what: "the evidence report", status: e.status }].concat(o ? [{ what: "the ontology", status: o.status }] : []);
+    box.append(...statusLines(files));
+    box.append(saveText(e.name, () => withDecisions(e.markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
+      + (r.source && r.source.has_data ? "each check with its counts" : "every check marked not checked") + ", open questions and this page's decisions; no row values.", "text/markdown"));
+    if (o) box.append(saveText(o.name, o.xml, "ontology", "For Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
+      + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. Open it there with Import / Export.", "application/rdf+xml"));
     box.hidden = false;
   }
 
@@ -534,7 +555,8 @@
         checks.length ? el("ul", { class: "tiny" }, ...checks.map((c) => el("li", null, c.what + ": " + c.verdict)))
           : el("p", { class: "tiny" }, "No rows to count: a columns list gives the plan only."),
         el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
-        el("p", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract (ODCS 3.2 YAML), schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : ""), r.domains.status),
+        ...statusLines([{ what: "the data contract", status: r.domains.status }]),
+        el("div", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract", "ODCS 3.2 YAML: schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : "") + "."),
           el("a", { class: "btn primary small", href: "/start" }, "Create it in your own Fabric"))];
     } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {

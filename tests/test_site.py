@@ -813,16 +813,18 @@ def _hub(client):
     after_hero = '<section class="wrap connects"' + after_hero
     assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
-    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-note">', row, re.S).group(1)   # n91: the node links to /start, so the visual as a whole is not aria-hidden
+    visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-status"', row, re.S).group(1)   # n91: the node links to /start, so the visual as a whole is not aria-hidden
     groups = {h: re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
               for h, g in re.findall(r'<div class="hub-group[^"]*"[^>]*><p class="hub-h"[^>]*>(.*?)</p><ul[^>]*>(.*?)</ul>', visual, re.S)}
     said = re.search(r'<p class="visually-hidden">(.*?)</p>', row, re.S).group(1)
     return row, visual, groups, said
 
 
-def _tag(rest):
-    m = re.search(r'<span class="hub-tag[^"]*">(.*?)</span>', rest)
-    return m.group(1) if m else None
+def _note(row):
+    """n95: the muted line under the hub, its text without the link, and the link."""
+    m = re.search(r'<p class="muted tiny connects-status"><span aria-hidden="true">(.*?)</span> <a href="([^"]+)">([^<]+)</a></p>', row, re.S)
+    assert m, row
+    return m.group(1), m.group(2), m.group(3)
 
 
 def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses_from_tool_status(client):
@@ -835,13 +837,13 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     from fabric_backend import tool_status as ts
     row, visual, groups, said = _hub(client)
     assert list(groups) == ["Your data in Fabric", "What Krusgraph builds in Fabric", "Where you build"]
-    assert [n for n, _ in groups["Your data in Fabric"]] == ["Lakehouse", "Warehouse", "SQL database"]
-    assert {n: _tag(r) for n, r in groups["Your data in Fabric"]} == {"Lakehouse": None, "Warehouse": "experimental",
-                                                                       "SQL database": "experimental"}
-    built = {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}
-    assert built == {n: ts.build_word(t) for n, t in ts.BUILDS}                         # rendered from tool_status
-    assert built == {"GraphQL API": "updates", "Power BI semantic model": "creates", "Fabric IQ ontology": "creates", "views": "draft",
-                     "data agent": "draft", "silver notebooks": "creates"}        # the live test of 27 October 2026 and LATER_LIVE (n66)
+    assert groups["Your data in Fabric"] == [("Lakehouse", ""), ("Warehouse", ""), ("SQL database", "")]   # n95: no tags
+    assert groups["What Krusgraph builds in Fabric"] == [(n, "") for n, _ in ts.BUILDS]
+    assert "hub-tag" not in row and "status-tag" not in row
+    note, href, text = _note(row)                                                       # n95: the statuses, once, under the hub
+    assert note == ("Lakehouse is tested end to end; Warehouse and SQL database are experimental. "
+                    "Some items need a permission the hosted service does not ask for today.")
+    assert (href, text) == ("/docs#test-status", "Status per tool")
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]   # n82: Tested end to end
     assert '<a class="c-hub c-hub-logo hub-go" href="/start" aria-label="Connect Krusgraph to Claude: the guide">' in visual   # n68: the logo in the middle; n91: a link to the guide
@@ -855,13 +857,13 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     plain = re.sub(r"<[^>]+>", " ", row)
     for other in ("VS Code", "Visual Studio", "Cursor", "Copilot", "ChatGPT", "Windsurf", "Claude Code", "Glama"):
         assert other not in plain, other
-    for part in ("Lakehouse (tested end to end)", "Warehouse (experimental)", "SQL database (experimental)",
+    for part in ("Your data in Fabric: Lakehouse, Warehouse and SQL database.",
                  "one plan, with the rule behind every relationship",
-                 "it creates the Power BI semantic model, Fabric IQ ontology and silver notebooks; it updates an existing GraphQL API (creating a new one is experimental)",
-                 "views and data agent are drafts so far",
                  "Claude connects to Krusgraph through MCP",
-                 "Lovable uses the GraphQL API Krusgraph creates in Fabric rather than Krusgraph itself"):
+                 "Lovable uses the GraphQL API Krusgraph makes in Fabric rather than Krusgraph itself"):
         assert part in said, part
+    assert said.startswith("Your data in Fabric: Lakehouse, Warehouse and SQL database. " + note + " ")   # the same reservation, heard
+    assert not re.search(r"\bcreates\b", said.replace(note, "")), said                # nothing is said to be created without it
     assert ('<p class="muted tiny connects-note">Independent product, not made by Microsoft, '
             'Anthropic or Lovable.</p>') in row
 
@@ -915,14 +917,23 @@ def test_home_hub_names_vs_code_and_cursor_once_the_hosted_service_signs_them_in
 
 
 def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkeypatch):
+    """n95: the line under the hub is built from tool_status, with no names written into it: sources, clients that are
+    not tested end to end, and the permission the hosted service does not ask for."""
     from fabric_backend import tool_status as ts
-    live = ts.ToolStatus(*ts._RAW["create_views"][:4], dry_run_only=False, name="create_views")
-    monkeypatch.setitem(ts.STATUS, "create_views", live)
-    monkeypatch.setattr(ts, "SOURCES", (("Lakehouse", True), ("Warehouse", True), ("SQL database", False)))
+    monkeypatch.setattr(ts, "SOURCES", (("Lakehouse", True), ("Warehouse", True), ("Eventhouse", False)))
     row, visual, groups, said = _hub(client)
-    assert {n: _tag(r) for n, r in groups["What Krusgraph builds in Fabric"]}["views"] == "creates"
-    assert {n: _tag(r) for n, r in groups["Your data in Fabric"]}["Warehouse"] is None
-    assert re.search(r"it creates the [^;]*views[^;]*; it updates an existing GraphQL API", said) and "Warehouse (tested end to end)" in said
+    note = _note(row)[0]
+    assert note.startswith("Lakehouse and Warehouse are tested end to end; Eventhouse is experimental.") and note in said
+    assert [n for n, _ in groups["Your data in Fabric"]] == ["Lakehouse", "Warehouse", "Eventhouse"]
+    monkeypatch.setattr(ts, "CLIENTS", tuple(ts.ClientStatus(c.name, c.where, c.path, "Experimental" if c.name == "Lovable" and not c.path else c.status,
+                                                             c.works_since, c.note) for c in ts.CLIENTS))
+    note = _note(_hub(client)[0])[0]
+    assert "Lovable is experimental as a client" in note
+    import dataclasses
+    for _, t in ts.BUILDS:
+        monkeypatch.setitem(ts.STATUS, t, dataclasses.replace(ts.STATUS[t], available=ts.HOSTED))
+    note = _note(_hub(client)[0])[0]
+    assert "permission" not in note
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):

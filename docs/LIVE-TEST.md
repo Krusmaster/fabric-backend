@@ -229,8 +229,9 @@ connector or through Lovable as an MCP client.
 - **Ontology Playground.** On 2 November 2026 Gustav opened the RDF/XML file from `/check` (the download "ontology for
   Microsoft's Ontology Playground", `ontology.ontology_rdfxml`) in Microsoft's Ontology Playground, with a good result
   (source: Gustav). That is what was tried: a file import in the Playground, not a Fabric item. The file stays
-  **Draft** (`tool_status.ONTOLOGY_RDFXML`), the download on `/check` says it in one sentence
-  (`tool_status.ONTOLOGY_RDFXML_TRIED`), and nothing more is claimed: no partnership with Microsoft and no relation to
+  **Draft** (`tool_status.ONTOLOGY_RDFXML`). Since n95 the download on `/check` no longer says it; the record is here
+  and in `tool_status.ONTOLOGY_RDFXML_TRIED`: "Gustav tried a file from /check there on 2 November 2026, with a good
+  result". Nothing more is claimed: no partnership with Microsoft and no relation to
   the Playground's project beyond the code taken from it under its licence (`docs/ECOSYSTEM-WATCHLIST.md`).
 
 ### 2 November 2026: round n81's path against Fabric

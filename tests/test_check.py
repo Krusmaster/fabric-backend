@@ -255,13 +255,21 @@ def test_in_a_browser_no_request_carries_the_files(site):
     # n79: the evidence report as a download that says what it holds, with the status Draft
     ev = r["evidence"]
     assert ev and not ev["hidden"] and ev["download"] == "shop_evidence_report.md", ev
-    assert ev["text"].startswith("Download shop_evidence_report.md: evidence report for a hand-over (Markdown): source, time and engine version") and "no row values" in ev["text"] and ev["text"].endswith("Draft"), ev
+    assert ev["text"] == "Download evidence report", ev                              # n95: short, no file name, no tag
     # n80: beside it, the ontology as RDF/XML for Ontology Playground: what it holds, Draft, and how it is opened there
     rd = r["rdfxml"]
     assert rd and rd["download"] == "shop_ontology.rdf" and rd["head"].startswith('<?xml version="1.0" encoding="UTF-8"?>\n<rdf:RDF'), rd
-    assert rd["text"] == ("Download shop_ontology.rdf: ontology for Microsoft's Ontology Playground (RDF/XML): 7 entity types with their columns and "
-                          "6 relationships, the rule in each description; no row values. Open it in Ontology Playground with Import / Export, as a file import. "
-                          "Gustav tried a file from /check there on 2 November 2026, with a good result Draft"), rd
+    assert rd["text"] == "Download ontology", rd
+    # n95: the description under each button, as plain text, and the status said once above the list
+    items = {d["text"]: d for d in r["dl_items"]}
+    for d in r["dl_items"]:
+        assert d["children"] == 0 and d["desc"] and d["desc"] not in d["text"], d       # no description, tag or file name inside a button
+        assert not re.search(r"\.(md|rdf|zip|yaml)\b|Draft|Experimental|Tested end to end", d["text"]), d
+    assert items["Download evidence report"]["desc"].startswith("For a hand-over (Markdown): source, time, engine version") and "no row values" in items["Download evidence report"]["desc"]
+    assert items["Download ontology"]["desc"] == ("For Microsoft's Ontology Playground (RDF/XML): 7 entity types with their columns and 6 relationships, "
+                                                  "the rule in each description; no row values. Open it there with Import / Export.")
+    assert items["Download evidence report"]["status"] == ["These files are drafts for you to review."] == items["Download ontology"]["status"]
+    assert "Gustav tried" not in r["sample_text"] and "Gustav tried" not in (ROOT / "fabric_backend/static/check.js").read_text()
     # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
     for w in ("375", "1280"):
         bl = r["billing"][w]
@@ -280,9 +288,11 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert "1 000" in so["finding"] and "2 000" in so["finding"]
     c = r["contract"]["text"]
     assert "amountLevel.orders.order_amount" in c and "order_id 1 is 1 000 on its orders row" in c and "counts it twice (2 000)" in c, c[-900:]
-    assert so["labels"] == ["Download shop_model.zip: Power BI project (.pbip), the model with the plan's keys and relationships as checked in the rows and an empty report page " + ts.label("semantic_model_draft")], so["labels"]
-    assert ["Download customers.odcs.yaml: data contract (ODCS 3.2 YAML), schema, keys, relationships and the checks that passed, with the total that doubles " + ts.label("domain_draft"),
-            "#", "customers.odcs.yaml"] in r["ask"]["product"]["html_links"], r["ask"]["product"]["html_links"]
+    assert so["labels"] == ["Download Power BI project"], so["labels"]
+    assert items["Download Power BI project"]["desc"] == "The model (.pbip) with the plan's keys and relationships as checked in the rows, and an empty report page."
+    assert r["ask"]["product"]["dl"] == [[0, "ODCS 3.2 YAML: schema, keys, relationships and the checks that passed, with the total that doubles.",
+                                          ["This file is a draft for you to review."]]], r["ask"]["product"]["dl"]
+    assert ["Download data contract", "#", "customers.odcs.yaml"] in r["ask"]["product"]["html_links"], r["ask"]["product"]["html_links"]
 
 
 def test_the_privacy_sentence_matches_what_the_page_sends(client):
@@ -421,9 +431,10 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert 0 <= o["heading_top"] < 120, o["heading_top"]
         assert o["focus"] == "check-model-h" and o["download_name"] == "crm_erp_model.zip" and o["download_head"] == "PK"
         assert o["requests_while_building"] == [], o["requests_while_building"]
-        assert o["app_rows"] > 0 and "Download crm_erp_app.zip: app starter for Lovable and Rayfin connector entities from the same plan; the API itself does not exist yet " + ts.label("app_starter") in o["app_text"]
+        assert o["app_rows"] > 0 and "Download app starterFor Lovable, with Rayfin connector entities from the same plan; the API itself does not exist yet." in o["app_text"]
         assert "Supabase" not in o["app_text"] and "an app starter for Lovable" in o["app_text"]       # n80: the word stays in /docs and /lovable
-        assert "Download crm_erp_model.zip: Power BI project (.pbip), the model with the plan's keys and relationships as checked in the rows and an empty report page " + ts.label("semantic_model_draft") in o["model_text"]
+        assert "This file is " + ts.label("semantic_model_draft")[0].lower() + ts.label("semantic_model_draft")[1:] + "." in o["model_text"]   # n95: said once, above
+        assert "Download Power BI projectThe model (.pbip) with the plan's keys and relationships as checked in the rows, and an empty report page." in o["model_text"]
         assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
         assert o["next_links"] == ["Create it in your own Fabric /start", "Get help /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
@@ -483,3 +494,21 @@ def test_the_start_page_policy_allows_only_the_engine_and_privacy_says_when_it_i
     privacy = client.get("/privacy").text
     assert "can download <code>/check</code>" in privacy or "can download `/check`" in privacy
     assert "has not asked to save data" in privacy and "write no usage record" in privacy
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_in_a_browser_the_download_buttons_keep_their_text_inside(site):
+    """n95: under the page's own policy, at 375 and 1280 px, light and dark: each download on /check is a short button
+    whose text stays inside its edge, and the page does not scroll sideways."""
+    out = subprocess.run(["node", str(ROOT / "tests/check_dl_browser.js"), site] + ([CHROMIUM] if CHROMIUM else []),
+                         capture_output=True, text=True, timeout=600)
+    assert out.returncode == 0, out.stderr[-2000:]
+    r = json.loads(out.stdout.strip().splitlines()[-1])
+    assert not r["errors"], r["errors"]
+    assert sorted(r["runs"]) == ["dark-1280", "dark-375", "light-1280", "light-375"]
+    for k, run in r["runs"].items():
+        texts = [i["text"] for i in run["items"]]
+        assert texts == ["Download evidence report", "Download ontology", "Download data contract", "Download Power BI project", "Download app starter"], (k, texts)
+        assert not run["pageOverflow"], k
+        for i in run["items"]:
+            assert not i["outside"] and not i["overflow"] and not i["offPage"], (k, i)

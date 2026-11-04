@@ -337,7 +337,7 @@ def _ontology_rdfxml(p, src, kind: str) -> dict | None:
     except ValueError:
         return None
     return {"name": f"{base}_ontology.rdf", "xml": xml, "status": ts.ONTOLOGY_RDFXML,
-            "tried": ts.ONTOLOGY_RDFXML_TRIED, "entity_types": xml.count("<owl:Class "), "relationship_types": xml.count("<owl:ObjectProperty ")}
+            "entity_types": xml.count("<owl:Class "), "relationship_types": xml.count("<owl:ObjectProperty ")}
 
 
 def _amount_examples(p, src, validation: dict | None) -> dict[tuple, dict]:

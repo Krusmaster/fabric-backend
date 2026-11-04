@@ -478,8 +478,8 @@
 
   function suggestions() {
     var left = [
-      { key: 'model', label: 'Create a semantic model', why: 'The links are checked, so the model can use them.', go: model },
-      { key: 'ontology', label: 'Create an ontology', why: 'Give tables and links your business names.', go: ontology },
+      { key: 'model', label: 'Create a semantic model', why: 'For reports in Power BI: tables, links and measures.', go: model },
+      { key: 'ontology', label: 'Create an ontology', why: 'For meaning: what things are and how they relate.', go: ontology },
       { key: 'domains', label: 'Draft data products', why: 'Group the tables, with a contract for each.', go: products }
     ].filter(function (p) { return !S[p.key]; });
     left.forEach(function (p, i) { p.rec = i === 0; if (i) p.why = ''; });
