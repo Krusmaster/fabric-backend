@@ -90,7 +90,7 @@ def test_status_words_come_from_tool_status(fresh, monkeypatch):
 
 
 def test_each_card_links_to_a_docs_section_that_exists():
-    docs = pages.docs_html()
+    docs = "".join(pages.docs_page_html(x["path"]) for x in pages.docs_pages())
     for tool in pages.BUILD_DOCS:
         anchor = pages.build_doc_anchor(tool).split("#", 1)[1]
         assert f'id="{anchor}"' in docs, tool

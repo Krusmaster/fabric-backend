@@ -162,7 +162,7 @@ def test_privacy_and_docs_pages(monkeypatch):
     monkeypatch.setenv("MCP_PUBLIC_URL", "https://mcp.testname.io/mcp")
     monkeypatch.setenv("CONTACT_EMAIL", "hello@testname.io")
     monkeypatch.setenv("ENTRA_CLIENT_ID", "cid-123")
-    p, d = privacy_html(), docs_html()
+    p, d = privacy_html(), "".join(__import__("fabric_backend.pages").pages.docs_page_html(x["path"]) for x in __import__("fabric_backend.pages").pages.docs_pages())
     assert "<h1>Privacy policy — Testname</h1>" in p and "Kruse Consulting AB" in p and "{{" not in p
     assert "Template." not in p and "hello@testname.io" in p
     for must in ("What we process", "Kept", "Third parties", "Your rights", "Contact"):   # directory: collection, storage, sharing, retention, contact

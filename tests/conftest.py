@@ -8,3 +8,9 @@ def _no_existing_api_lookup(monkeypatch):
     lookup get "no such API", so they never call Fabric; tests of the guard mock it themselves."""
     from fabric_backend import server
     monkeypatch.setattr(server, "_existing_api", lambda workspace, name, headers: None)
+
+
+def docs_all(client) -> str:
+    """n86a: /docs is split into sub-pages; the whole docs text is all of them together."""
+    from fabric_backend.pages import docs_pages
+    return "".join(client.get(x["path"]).text for x in docs_pages())

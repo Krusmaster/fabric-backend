@@ -496,3 +496,42 @@ def test_chat_button_on_every_ordinary_page_and_it_covers_nothing(chat):
         for p in ("/check", "/demo"):
             r = res[f"{p}@{w}"]
             assert not r["button"] and r["path"] == "/check", (p, w, r)
+
+
+@pytest.fixture(scope="module")
+def docs_run(site):
+    """n86a: the docs' sub-pages (tests/docs_browser.js) under the server's own headers."""
+    cmd = ["node", str(ROOT / "tests" / "docs_browser.js"), site] + ([CHROMIUM] if CHROMIUM else [])
+    keep = {k: os.environ.get(k) for k in ("PRODUCT_NAME", "MCP_PUBLIC_URL")}
+    os.environ.update({"PRODUCT_NAME": "Krusgraph", "MCP_PUBLIC_URL": "https://krusgraph.test/mcp"})   # as the server runs
+    try:
+        paths = [x["path"] for x in pages.docs_pages()]
+    finally:
+        for k, v in keep.items():
+            os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=600, env=os.environ | {"DOCS_PAGES": json.dumps(paths)})
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def test_docs_pages_fit_and_raise_no_error(docs_run):
+    assert docs_run["overflow"] == [] and docs_run["errors"] == []
+
+
+def test_docs_menu_by_width_mouse_keyboard_and_without_javascript(docs_run):
+    for key, r in docs_run["runs"].items():
+        wide = key.startswith("1280")
+        assert r["menuWide"] is wide and r["menuPhone"] is not wide, key
+        assert r["otp"] in (None, wide), key
+        if not wide:
+            assert r["closedLinkVisible"] is False and r["openByKey"] is True and r["focusAfter"] == "/docs"
+            assert r["openOverflow"] is False and r["closedByClick"] is True
+    assert docs_run["runs"]["1280-light"]["bg"] != docs_run["runs"]["1280-dark"]["bg"]
+    assert docs_run["noJs"]["url"] == "/docs#test-status" and docs_run["noJs"]["links"] > 25 and docs_run["noJs"]["opens"] is True
+
+
+def test_docs_old_anchors_land_on_the_page_and_heading(docs_run):
+    for key, r in docs_run["runs"].items():
+        assert r["oldAnchor"] == "/docs/reference/test-status#test-status" and r["headingInView"], key
+        assert r["hashChange"] == "/docs/get-started/first-time-errors#first-time-errors", key
+        assert r["ownAnchor"] == "/docs#why-krusgraph", key

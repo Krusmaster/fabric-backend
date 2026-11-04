@@ -1264,3 +1264,45 @@ html[data-mascots=off] .kgc-launch{padding:9px 16px}
 body.has-kgc .site-footer{padding-bottom:calc(104px + env(safe-area-inset-bottom,0px))}
 body.nav-open .kgc-launch{visibility:hidden}
 @media (prefers-reduced-motion:reduce){.kgc-launch,.kgc-launch:hover{transition:none;transform:none}}
+/* n86a: /docs in sub-pages: menu left, text in the middle, "On this page" right on a wide screen. Under 960 px the menu
+   is a <details> above the text, so it opens and closes without JavaScript and never scrolls sideways. */
+.docs-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;padding-top:20px}
+.docs-layout>.prose{padding-top:0;min-width:0;max-width:800px}
+.docs-layout .prose h1{font-size:clamp(28px,4vw,42px);scroll-margin-top:20px}
+.docs-layout .prose h1,.docs-layout .prose h2,.docs-layout .prose h3{overflow-wrap:anywhere}
+.docs-tree{list-style:none;margin:0;padding:0;font-size:15px}
+.docs-tree li{margin:2px 0}
+.docs-tree ul{list-style:none;margin:2px 0 10px;padding:0 0 0 12px;border-left:1px solid var(--line)}
+.docs-tree a{display:block;padding:4px 8px;border-radius:8px;color:var(--muted);text-decoration:none;overflow-wrap:anywhere}
+.docs-tree a.docs-group{color:var(--ink);font-weight:600}
+.docs-tree a:hover{color:var(--coral-ink);text-decoration:underline}
+.docs-tree a[aria-current=page]{background:var(--coral-soft);color:var(--ink);font-weight:700}
+.docs-more{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.docs-menu{display:none}
+.docs-menu-m{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card)}
+.docs-menu-m>summary{cursor:pointer;padding:12px 16px;min-height:44px;box-sizing:border-box;font-weight:600}
+.docs-menu-m>nav{padding:0 12px 12px}
+.crumbs ol{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-wrap:wrap;gap:4px;font-size:14px;color:var(--muted)}
+.crumbs li+li::before{content:"›";margin-right:4px}
+.crumbs a{color:var(--muted)}
+.docs-children{margin:20px 0}
+.docs-children>ul{padding-left:22px}
+.docs-pager{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;margin-top:40px;padding-top:16px;border-top:1px solid var(--line)}
+.docs-pager a{display:flex;flex-direction:column;max-width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card);color:var(--ink);text-decoration:none;overflow-wrap:anywhere}
+.docs-pager a:hover{border-color:var(--line-strong)}
+.docs-pager .docs-next{margin-left:auto;text-align:right}
+.docs-otp{display:none}
+.docs-otp-h{margin:0 0 6px;font-weight:600;font-size:14px}
+.docs-otp ul{list-style:none;margin:0;padding:0;font-size:14px}
+.docs-otp a{color:var(--muted);text-decoration:none}
+.docs-otp a:hover{color:var(--coral-ink);text-decoration:underline}
+@media (min-width:960px){
+  .docs-layout{grid-template-columns:230px minmax(0,1fr);gap:32px}
+  .docs-menu{display:block;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto;padding-bottom:16px}
+  .docs-menu-m{display:none}
+}
+@media (min-width:1240px){
+  .docs-layout{grid-template-columns:230px minmax(0,1fr) 180px}
+  .docs-otp{display:block;position:sticky;top:16px;align-self:start}
+}
+.wrap.docs-layout{max-width:1320px}

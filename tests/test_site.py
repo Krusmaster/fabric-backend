@@ -8,6 +8,8 @@ import sys
 import subprocess
 
 import pytest
+from conftest import docs_all
+from fabric_backend.pages import docs_pages
 
 from starlette.testclient import TestClient
 
@@ -111,11 +113,11 @@ def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
 
 
 def test_docs_have_the_first_questions_and_the_first_time_errors(client):
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     assert "Five first questions on a lakehouse nobody has documented" in docs
     for tool in ("analyze_schema", "plan_backend", "validate_plan", "suggest_relationships", "data_dictionary"):
         assert f"({'<code>' + tool + '</code>'}" in docs or f"<code>{tool}</code>" in docs
-    assert '<h3 id="first-time-errors">' in docs
+    assert '<h1 id="first-time-errors">' in docs
     for kind in ("sign_in", "consent", "no_access", "capacity", "schema_not_found"):
         assert f"<code>{kind}</code>" in docs
     assert "Workspace settings → License info" in docs and "Customize → Connectors → Yours → Reconnect" in docs   # n90: Claude moved Connectors to Customize
@@ -187,7 +189,7 @@ def test_privacy_shows_org_nr_only_when_configured(client, monkeypatch):
 
 
 def test_docs_describe_the_data_path(client):
-    html = client.get("/docs").text
+    html = docs_all(client)
     assert 'id="what-it-accesses"' in html and "From Claude, your tokens" in html and "held in memory only" in html and "no database" in html
     assert "https://krusgraph.test/mcp" in html and "client_id=cid-123" in html
     assert "<td><code>create_backend</code></td>" in html
@@ -316,15 +318,16 @@ def test_json_ld_on_home_only_and_only_facts(client):
     text = json.dumps(blocks).lower()
     for banned in ("aggregaterating", "ratingvalue", "review", "downloads", "interactioncount"):
         assert banned not in text, banned
-    assert "application/ld+json" not in client.get("/docs").text
+    assert "application/ld+json" not in docs_all(client)
 
 
 def test_sitemap_lists_public_pages_only(client):
     r = client.get("/sitemap.xml")
     assert r.status_code == 200 and r.headers["content-type"].startswith("application/xml")
     locs = re.findall(r"<loc>([^<]+)</loc>", r.text)
-    assert locs == ["https://krusgraph.test" + p for p in PUBLIC]
-    assert r.text.count("<lastmod>") == len(PUBLIC) and "mascots" not in r.text
+    sub = [x["path"] for x in docs_pages()[1:]]                     # n86a: and the docs' sub-pages
+    assert locs == ["https://krusgraph.test" + p for p in PUBLIC + sub] and len(sub) > 20
+    assert r.text.count("<lastmod>") == len(PUBLIC) + len(sub) and "mascots" not in r.text
     for loc in locs:
         assert client.get(loc.replace("https://krusgraph.test", "")).status_code == 200
 
@@ -371,7 +374,7 @@ def test_lovable_page_follows_the_path_of_30_october(client, monkeypatch, regist
     two Lovable rows; no screenshots; the /mcp/connect address only when client registration is on."""
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     assert 'href="/lovable"' in client.get("/").text                                      # footer
-    assert 'href="/lovable"' in client.get("/docs").text
+    assert 'href="/lovable"' in docs_all(client)
     html = client.get("/lovable").text
     assert "https://docs.lovable.dev/integrations/microsoft-fabric" in html and "https://docs.lovable.dev/integrations/custom-mcp" in html
     for step in ("Plan, check and create the API from Lovable", "The three portal steps", "Connect Lovable", "Contributor", "Introspection", "has no API"):
@@ -463,8 +466,8 @@ def test_pages_point_agents_at_their_markdown_twin_and_home_declares_the_website
 def test_fabric_iq_is_described_on_home_docs_and_llms(client):
     home = client.get("/").text
     assert 'id="fabric-iq"' in home and 'href="/docs#fabric-iq-the-same-graph-as-an-ontology"' in home and "preview" in home
-    docs = client.get("/docs").text
-    assert '<h3 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
+    docs = docs_all(client)
+    assert '<h1 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
     assert "ontology_draft" in client.get("/docs.md").text and "`ontology_draft`" in client.get("/llms.txt").text
     assert "Fabric IQ" in client.get("/llms-full.txt").text
 
@@ -480,7 +483,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
              "silver_notebook_draft", "create_silver_notebook", "drift_monitor_draft", "create_drift_monitor", "answer_query_draft",
              "compare_semantic_model", "gold_views_draft", "create_gold_views", "export_item_definitions"}
     assert tools <= defined
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     for t in tools:
         assert f"<code>{t}</code>" in docs, t
     assert "Cold start" in docs and "min_replicas" in docs and "26 October 2026" in docs
@@ -509,12 +512,12 @@ def test_local_page_registry_line_and_plugin_coming_soon(client):
     html = client.get("/local").text
     assert "Trusted_Connection=yes;TrustServerCertificate=yes" in html and "db_datareader" in html and "FABRIC_SOURCE_KIND" in html
     assert "not yet been run against a live SQL Server" in html and 'href="/docs"' in html
-    assert 'href="/local"' in client.get("/docs").text and "/local" in client.get("/sitemap.xml").text
+    assert 'href="/local"' in docs_all(client) and "/local" in client.get("/sitemap.xml").text
     assert "https://krusgraph.test/local.md" in client.get("/llms.txt").text and "/local.md -->" in client.get("/llms-full.txt").text
     for page in ("/", "/docs"):
-        t = client.get(page).text
+        t = client.get(page).text if page == "/" else docs_all(client)
         assert "registry.modelcontextprotocol.io" in t and "com.krusgraph/krusgraph" in t
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     assert "coming soon" in docs and "plugin/krusgraph" in docs and "not published yet" in docs
     for t in (docs, client.get("/").text, client.get("/llms.txt").text):
         assert "Claude directory" not in t and "connector directory" not in t and "Verified connector" not in t
@@ -617,7 +620,7 @@ def test_docs_and_llms_place_krusgraph_beside_microsofts_fabric_mcp_servers_with
     """Round n12: one section in /docs and one line in llms.txt and the server instructions on working with Microsoft's
     official Fabric MCP servers, with Microsoft's own pages linked; no partnership, endorsement or certification."""
     from fabric_backend import server
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     assert "With Microsoft’s Fabric MCP servers" in docs or "With Microsoft's Fabric MCP servers" in docs
     for link in ("https://github.com/microsoft/mcp/blob/main/servers/Fabric.Mcp.Server/README.md",
                  "https://learn.microsoft.com/fabric/iq/connectors/fabric-iq-mcp", "https://github.com/microsoft/powerbi-modeling-mcp"):
@@ -636,7 +639,7 @@ def test_privacy_and_docs_say_exactly_what_is_read_about_personal_data_and_label
     html = client.get("/privacy").text
     assert "show_personal_data=true" in html and "judged by the column" in html and "label’s id only" in html or "label's id only" in html
     assert "no call goes to GitHub, Azure" in html and "compare_semantic_model" in html
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     assert "Personal data and sensitivity labels." in docs and "never from the values" in docs
 
 
@@ -695,8 +698,8 @@ def test_creating_the_api_or_the_views_is_never_called_tested_end_to_end(client)
 def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     """The website brief of 26 October 2026 groups /docs into five parts; links into the old sections (from the home
     page, /start, the README and other sites) must keep landing on the same section."""
-    docs = client.get("/docs").text
-    groups = re.findall(r'<h2 id="([^"]+)">', docs)
+    docs = docs_all(client)
+    groups = re.findall(r'<h[12] id="([^"]+)">', "".join(client.get(x["path"]).text for x in __import__("fabric_backend.pages").pages.docs_pages() if x["depth"] < 2))
     assert groups[0].startswith("why-")                    # n23: "Why <product>" ahead of the five parts
     assert groups[1:] == ["get-started", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]
     for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
@@ -710,9 +713,9 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     for page in ("/", "/start", "/explore", "/use-cases", "/lovable", "/local", "/partners", "/support", "/docs"):
         for frag in re.findall(r'href="/docs#([^"]+)"', client.get(page).text):
             assert frag in ids, (page, frag)
-    # the 'on this page' list nests each section under its group
-    toc = re.search(r'<nav class="toc"[^>]*>(.*?)</nav>', docs, re.S).group(1)
-    assert toc.index('href="#get-started"') < toc.index('href="#connect"') < toc.index('href="#explore-and-check"')
+    # n86a: the menu nests each page under its group, in the order of DOCS.md
+    menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', client.get("/docs").text, re.S).group(1)
+    assert menu.index('href="/docs/get-started"') < menu.index('href="/docs/get-started/connect"') < menu.index('href="/docs/explore-and-check"')
 
 
 def _without_agreed_facts(text: str) -> str:
@@ -937,12 +940,12 @@ def test_home_hub_follows_tool_status_when_another_part_is_tested(client, monkey
 
 
 def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registration_is_on(client, monkeypatch):
-    start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
+    start, docs, llms = client.get("/start").text, docs_all(client), client.get("/llms.txt").text
     for text in (start, docs, llms):
         assert "/mcp/connect" not in text
     assert "that is the client it has been tested with" in start
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
-    start, docs, llms = client.get("/start").text, client.get("/docs").text, client.get("/llms.txt").text
+    start, docs, llms = client.get("/start").text, docs_all(client), client.get("/llms.txt").text
     assert "<code>https://krusgraph.test/mcp/connect</code>" in start and 'href="/docs#other-mcp-clients"' in start
     assert ("Tested end to end: VS Code and Cursor signed in and ran tools here on 27 October 2026 and Lovable on 30 October 2026 "
             "(status set by Gustav on 2 November 2026); Experimental: Glama was tried here on 27 October 2026; it stays Experimental "
@@ -968,8 +971,8 @@ def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):
         assert word.lower() not in why.lower(), word
     assert client.get("/docs.md").text.count(why) == 1
     assert why.strip() in client.get("/llms-full.txt").text
-    html = client.get("/docs").text
-    assert re.search(r'<h2 id="why-[^"]+">Why ', html) and '<h3 id="app-access">App access</h3>' in html
+    html = docs_all(client)
+    assert re.search(r'<h2 id="why-[^"]+">Why ', html) and '<h1 id="app-access">App access</h1>' in html
     assert "can see data they have no permission to read" in md
 
 
@@ -1321,7 +1324,7 @@ def test_the_docs_say_how_much_the_hosted_tools_count_from_the_code(client):
     default max_items as server.py has them, never a typed number."""
     import inspect
     from fabric_backend import server
-    docs = client.get("/docs").text
+    docs = docs_all(client)
     default = inspect.signature(server.validate_plan).parameters["max_items"].default
     assert f"its rule R5 reads the first {server.R5_SAMPLE} distinct values of a code or role column" in docs
     assert f"with at most {server.R5_MAX_QUERIES} counting queries per call" in docs
@@ -1374,7 +1377,7 @@ def test_it_and_docs_say_where_tokens_are_kept_as_exactly_as_privacy(client, mon
     """Claude's tokens stay in memory; sign-ins from other MCP clients (client registration on) keep encrypted records
     for the times /privacy gives, and /it and /docs say so in the same words and link there."""
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
-    it, docs, privacy = (client.get(p).text for p in ("/it", "/docs", "/privacy"))
+    it, docs, privacy = client.get("/it").text, docs_all(client), client.get("/privacy").text
     assert "From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs." in it
     assert "From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk or logs." in docs
     for text in (" are kept encrypted in ", "at most 60 seconds", "at most 90 days", "never given to the client",

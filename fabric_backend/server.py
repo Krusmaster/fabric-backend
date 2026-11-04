@@ -2151,6 +2151,16 @@ def build_app(host: str = "0.0.0.0"):
         app.router.routes.append(Route(path, (lambda t: lambda request: RedirectResponse(t, status_code=301))(to)))
     page_route("/privacy", privacy_html)
     page_route("/docs", docs_html)
+    # n86a: the docs' sub-pages, cut out of DOCS.md when they are rendered (which pages exist follows the same settings
+    # as the text, so they are looked up per request); the same headers and policy as /docs
+    from .pages import docs_page_html, docs_pages
+
+    async def docs_sub(request):
+        path = request.url.path
+        if not any(x["path"] == path for x in docs_pages()[1:]):
+            return HTMLResponse(not_found_html(path), status_code=404, headers={"X-Robots-Tag": "noindex", **PAGE_HEADERS})
+        return compressed(request, docs_page_html(path).encode("utf-8"), "text/html; charset=utf-8", {"Cache-Control": PAGE_CACHE, **PAGE_HEADERS})
+    app.router.routes.append(Route("/docs/{part:path}", docs_sub))
     page_route("/lovable", lovable_html)
     page_route("/local", local_html)
 

@@ -23,6 +23,20 @@ no build step, no bundler and no external resource at runtime. This note is for 
 | `tests/test_browser.py` + `tests/browser_check.js` | Playwright checks; skipped when Node + Playwright + Chromium are missing |
 | `docs/screenshots/` | the reviewed screenshots (1280 light, 1280 dark, 390 light per page, plus interaction states) |
 
+## The docs' sub-pages (n86a)
+
+`DOCS.md` is the only source of the docs. `pages.docs_pages()` cuts the rendered Markdown into pages when they are served:
+the intro and "Why" are `/docs` (the overview, with links to every page), each other `##` section is a group page
+(`/docs/get-started`, …: its heading and the lines before its first `###`) and each `###` a page under it
+(`/docs/get-started/connect`). The menu's group labels are `DOCS_GROUPS`; everything else in it is the headings, plus
+`/start`, `/it` and `/lovable` (`DOCS_MORE`). Layout: menu left, text in the middle, "On this page" right from 1240 px,
+breadcrumbs, previous and next; under 960 px the menu is a `<details>` above the text, which works without JavaScript.
+`/docs.md` and `/llms-full.txt` are the same text as before; `/llms.txt` and the sitemap list the sub-pages. Old links
+such as `/docs#test-status` are sent on by `static/docs.js`, from a map `/docs` carries as JSON (`docs_anchors()`, built
+from the headings); without JavaScript they stay on the overview. Links between headings inside the text point to the
+page that has the heading. The sub-pages have `/docs`'s headers and policy, the chat button and the Mascots switch.
+Checks: `tests/test_docs_pages.py` and `tests/docs_browser.js` (through `tests/test_browser.py`).
+
 ## Adding a page
 
 1. Add a body template under `page_templates/` (just the inside of `<main>`; the shell adds header and footer).

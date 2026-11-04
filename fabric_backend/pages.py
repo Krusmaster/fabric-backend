@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import html
+import json
 import os
 import re
 from importlib import resources
@@ -1039,9 +1040,132 @@ def _with_toc(rendered: str) -> str:
     return rendered.replace("</p>", "</p>" + toc, 1)
 
 
+# n86a: /docs in sub-pages with a menu. DOCS.md stays the only source: the pages are cut out of docs_md() when they are
+# rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
+# /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
+# and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
+DOCS_GROUPS = ["Overview", "Get started", "Explore and check", "Build from a plan", "Reference", "Hosting and permissions"]
+DOCS_MORE = [("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
+
+
+def _md_plain(s: str) -> str:
+    return re.sub(r"[`*]", "", s).strip()
+
+
+def docs_pages() -> list[dict]:
+    """The docs as pages in reading order: path, title, group, group path, depth (0 overview, 1 group, 2 page), md."""
+    md = docs_md()
+    chunks: list[list[str]] = [[]]
+    kinds: list[str] = ["intro"]
+    fence = False
+    for ln in md.splitlines(keepends=True):
+        if ln.startswith("```"):
+            fence = not fence
+        if not fence and (ln.startswith("## ") or ln.startswith("### ")):
+            chunks.append([]); kinds.append(ln[:3].strip())
+        chunks[-1].append(ln)
+    pages: list[dict] = []
+    gi, why = 0, False
+    for kind, lines in zip(kinds, chunks):
+        text = "".join(lines)
+        head = _md_plain(lines[0].lstrip("#")) if lines else ""
+        if kind == "intro":
+            pages.append(dict(path="/docs", title=DOCS_GROUPS[0], group=DOCS_GROUPS[0], gpath="/docs", depth=0, md=text)); gi = 1
+        elif kind == "##" and len(pages) == 1 and not why:
+            pages[0]["md"] += text; why = True                      # "Why ..." belongs to the overview
+        elif kind == "##":
+            label = DOCS_GROUPS[gi]; gi += 1
+            pages.append(dict(path="/docs/" + _slug(label), title=head, group=label, gpath="/docs/" + _slug(label), depth=1, md=text))
+        else:
+            parent = next(x for x in reversed(pages) if x["depth"] <= 1)
+            if parent["depth"] == 0:
+                raise ValueError("a ### before the first group in DOCS.md")
+            pages.append(dict(path=parent["gpath"] + "/" + _slug(lines[0][4:]), title=head, group=parent["group"],
+                              gpath=parent["gpath"], depth=2, md=text))
+    if gi != len(DOCS_GROUPS):
+        raise ValueError(f"DOCS.md has {gi} groups, the menu {len(DOCS_GROUPS)}")
+    paths = [x["path"] for x in pages]
+    if len(paths) != len(set(paths)):
+        raise ValueError("two docs pages with the same address")
+    for x in pages:
+        x["ids"] = re.findall(r'<h[23] id="([^"]+)">', _md_to_html(x["md"]))
+    return pages
+
+
+def docs_anchors(pages: list[dict] | None = None) -> dict[str, str]:
+    """Old /docs#anchor → the page that has that heading now (built from the headings, never by hand)."""
+    return {i: x["path"] for x in (pages or docs_pages()) if x["depth"] for i in x["ids"]}
+
+
+def _docs_tree(pages: list[dict], current: str) -> str:
+    cur = lambda path: ' aria-current="page"' if path == current else ""
+    out = []
+    for x in pages:
+        if x["depth"] <= 1:
+            kids = [y for y in pages if y["depth"] == 2 and y["gpath"] == x["path"]]
+            sub = "".join(f'<li><a href="{y["path"]}"{cur(y["path"])}>{html.escape(y["title"])}</a></li>' for y in kids)
+            out.append(f'<li><a class="docs-group" href="{x["path"]}"{cur(x["path"])}>{html.escape(x["group"])}</a>'
+                       + (f"<ul>{sub}</ul>" if sub else "") + "</li>")
+    more = "".join(f'<li><a href="{h}">{html.escape(t)}</a></li>' for h, t in DOCS_MORE)
+    return f'<ul class="docs-tree">{"".join(out)}</ul><ul class="docs-tree docs-more">{more}</ul>'
+
+
+def docs_page_html(path: str) -> str:
+    pages = docs_pages()
+    idx = next(i for i, x in enumerate(pages) if x["path"] == path)
+    pg = pages[idx]
+    where = docs_anchors(pages)
+    body = _md_to_html(pg["md"])
+    # links between the parts of the old page go to the page that has the heading now
+    body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
+                  else m.group(0), body)
+    if pg["depth"]:                                                         # the page's own heading is its h1
+        body = re.sub(r'^<h([23]) id="([^"]+)">(.*?)</h\1>', r'<h1 id="\2">\3</h1>', body, count=1)
+    own = [(i, t) for _n, i, t in re.findall(r'<h([23]) id="([^"]+)">(.*?)</h\1>', body)]
+    otp = ("" if not own else '<aside class="docs-otp"><nav aria-label="On this page"><p class="docs-otp-h">On this page</p><ul>'
+           + "".join(f'<li><a href="#{i}">{re.sub(r"<[^>]+>", "", t)}</a></li>' for i, t in own) + "</ul></nav></aside>")
+    tree = _docs_tree(pages, path)
+    crumbs = ['<li><a href="/docs">Docs</a></li>']
+    if pg["depth"] == 2:
+        crumbs.append(f'<li><a href="{pg["gpath"]}">{html.escape(pg["group"])}</a></li>')
+    if pg["depth"]:
+        crumbs.append(f'<li aria-current="page">{html.escape(pg["title"])}</li>')
+    kids = ""
+    if pg["depth"] == 0:
+        kids = f'<nav class="docs-children" aria-label="All docs pages">{tree}</nav>'
+    elif pg["depth"] == 1:
+        kids = ('<nav class="docs-children" aria-label="Pages in this part"><ul>' + "".join(
+            f'<li><a href="{y["path"]}">{html.escape(y["title"])}</a></li>' for y in pages if y["depth"] == 2 and y["gpath"] == path) + "</ul></nav>")
+    pager = []
+    if idx > 0:
+        pager.append(f'<a class="docs-prev" href="{pages[idx-1]["path"]}" rel="prev"><span class="muted tiny">Previous</span> {html.escape(pages[idx-1]["title"])}</a>')
+    if idx + 1 < len(pages):
+        pager.append(f'<a class="docs-next" href="{pages[idx+1]["path"]}" rel="next"><span class="muted tiny">Next</span> {html.escape(pages[idx+1]["title"])}</a>')
+    anchors = ""
+    if pg["depth"] == 0:                                                    # read by /static/docs.js, never run as script
+        data = json.dumps(where).replace("<", "\\u003c")
+        anchors = f'<script type="application/json" id="docs-anchors">{data}</script>'
+    main = f"""<div class="wrap docs-layout">
+<details class="docs-menu-m"><summary>Docs menu</summary><nav aria-label="Docs">{tree}</nav></details>
+<nav class="docs-menu" aria-label="Docs">{tree}</nav>
+<article class="prose docs">
+<nav class="crumbs" aria-label="Breadcrumb"><ol>{"".join(crumbs)}</ol></nav>
+{body}
+{kids}
+<nav class="docs-pager" aria-label="Previous and next">{"".join(pager)}</nav>
+</article>
+{otp}
+</div>{anchors}"""
+    title = "{{PRODUCT}} — docs" if not pg["depth"] else f'{pg["title"]} — {{{{PRODUCT}}}} docs'
+    first = re.search(r"<p>(.*?)</p>", body, flags=re.S)
+    desc = re.sub(r"<[^>]+>", "", first.group(1)) if pg["depth"] and first else DOCS_DESC
+    desc = html.unescape(desc) if len(desc) <= 220 else DOCS_DESC
+    head = f'<script src="/static/docs.js?v={_vars()["ASSET_V"]}" defer></script>' if pg["depth"] == 0 else ""
+    return _shell(title, desc, main, page="docs", nav="docs", path=path, chat=True, head=head)
+
+
 def docs_html() -> str:
-    body = f'<article class="wrap prose docs">{_with_toc(_md_to_html(docs_md()))}</article>'
-    return _shell("{{PRODUCT}} — docs", DOCS_DESC, body, page="docs", nav="docs", path="/docs", chat=True)
+    return docs_page_html("/docs")
 
 
 def lovable_html() -> str:

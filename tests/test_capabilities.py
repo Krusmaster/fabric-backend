@@ -3,6 +3,7 @@
 import asyncio
 
 import pytest
+from conftest import docs_all
 
 from fabric_backend import mcp_server, tool_status as ts
 from tests.test_site import client  # noqa: F401  (the site's test client)
@@ -39,7 +40,7 @@ def test_docs_docs_md_and_llms_full_carry_the_same_table(client, monkeypatch, re
     table = ts.overview_md(bool(registration))
     assert table in client.get("/docs.md").text
     assert table in client.get("/llms-full.txt").text
-    html = client.get("/docs").text
+    html = docs_all(client)
     assert "Overview: tools, functions and clients" in html and "plan_sql_server" in html and "Claude Code (client)" in html
     assert ("cannot sign in to this server" in table) != bool(registration)
 

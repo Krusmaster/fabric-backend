@@ -102,7 +102,9 @@ def lastmod() -> str:
 
 def sitemap_xml() -> str:
     origin, d = site_url(), lastmod()
-    urls = "".join(f"  <url><loc>{origin}{p}</loc><lastmod>{d}</lastmod></url>\n" for p in PUBLIC_PAGES)
+    from .pages import docs_pages
+    urls = "".join(f"  <url><loc>{origin}{p}</loc><lastmod>{d}</lastmod></url>\n"
+                   for p in PUBLIC_PAGES + [x["path"] for x in docs_pages()[1:]])          # n86a: the docs' sub-pages
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n'
 
 
@@ -162,6 +164,8 @@ def llms_txt() -> str:
             f"Claude's sign-in redirect is registered on the hosted app, so Cursor and other local clients cannot sign in to it today. Other "
             f"MCP clients should work when you host {p} yourself (not tested yet).")
     usp = "\n".join("- " + x for x in USP_POINTS)
+    from .pages import docs_pages as _dp                       # n86a: the same docs as HTML pages, one per heading
+    docs_pages = "\n".join(f"  - [{x['group'] + ': ' if x['depth'] == 2 else ''}{x['title']}]({o}{x['path']})" for x in _dp())
     return f"""# {p}
 
 > {USP} {p} turns the tables in a Microsoft Fabric lakehouse, warehouse or SQL database into an explainable graph and an API for GraphQL item. It is a remote MCP server at {v['MCP_URL']}: you add it to Claude as a custom connector and sign in with a Microsoft Entra work account, and every call runs with that account's own Fabric permissions. {clients_said}
@@ -173,6 +177,7 @@ It reads table and column names, infers keys and relationships from names (decla
 ## Docs
 
 - [Docs]({o}/docs.md): connecting, what it reads and passes through, reviewing and checking a plan, the thirty-six tools with what each changes and its test status, {p} beside Microsoft's Fabric MCP servers, how relationships are inferred, Fabric IQ ontology drafts, sources, cold start, the two manual steps
+{docs_pages}
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): plan and create the API for GraphQL item from Lovable's chat with {p} as a custom MCP connector, finish the three portal steps, then connect Lovable's Fabric connector to it
 - [Run it locally]({o}/local.md): the same engine on your own machine over ODBC (SQL Server with Windows sign-in, or a Fabric SQL endpoint), and exactly what leaves the machine
