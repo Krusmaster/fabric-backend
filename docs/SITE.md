@@ -133,8 +133,10 @@ is.
   relationships and, with the link, 1 inactive one; 2 data products, `customers` and `products`, with one interface, and
   `audit_log` left out because it has no key. `tests/test_chat_demo.py` fails when one of them changes.
 - **What it promises.** Every result says that nothing was created in the demo, and what the agent does in the
-  visitor's own Fabric when asked, by `tool_status`: "creates" where `build_word()` of the creating tool says so (the
-  semantic model, the ontology), "drafts" otherwise (data products: `domain_draft` creates nothing). Then, since n93, one
+  visitor's own Fabric when asked, by `tool_status`: "creates" where `build_word()` of the creating tool says so and its
+  permission is asked for (`available` is not `OPERATOR`, `pages.chat_does()`), "drafts" otherwise: data products
+  (`domain_draft` creates nothing) add "the draft creates nothing in Fabric", while the semantic model and the ontology,
+  whose permission is not asked for today (n94), say only that the agent drafts them and leave the rest to the status. Then, since n93, one
   plain sentence without a tool's name, built by `pages.chat_status()` from `tool_status` and saying no more than it:
   "Created in a live Fabric workspace and reviewed there." (`build_word` and `REVIEWED`), "Creating it needs a permission
   the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet

@@ -498,10 +498,12 @@
   // been tried, are tool_status's (data-does-* and data-status-* on the button: a plain sentence, no tool's name).
   function done(key, html, pic) {
     S[key] = true;
-    var creates = data(key, 'does') === 'creates';
-    var note = 'This is a demo, so nothing was created. ' + (creates
+    var does = data(key, 'does');
+    var note = 'This is a demo, so nothing was created. ' + (does === 'creates'
       ? 'Connected to ' + product + ', your agent creates this in your Fabric workspace when you ask.'
-      : 'Connected to ' + product + ', your agent drafts this from your own tables when you ask; the draft creates nothing in Fabric.');
+      : does === 'drafts-gated'
+        ? 'Connected to ' + product + ', your agent drafts this from your own tables when you ask.'
+        : 'Connected to ' + product + ', your agent drafts this from your own tables when you ask; the draft creates nothing in Fabric.');
     var el = say('builder', 'celebrate', html + pic + '<p class="kgc-note">' + esc(note) + ' ' + esc(data(key, 'status')) + '</p>', null, 'win');
     cheer(el);
     next();

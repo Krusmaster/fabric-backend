@@ -770,6 +770,18 @@ def chat_status(tool: str) -> str:
     return out
 
 
+def chat_does(create):
+    """n94: data-does-* for a result. "creates" only when the creating tool creates live (build_word) and the hosted
+    service asks for its permission (available is not OPERATOR); "drafts-gated" when such a tool exists but its
+    permission is not asked for today; "drafts" when nothing creates it (data products)."""
+    from . import tool_status as ts
+    if not create:
+        return "drafts"
+    if ts.build_word(create) == "creates" and ts.STATUS[create].available != ts.OPERATOR:
+        return "creates"
+    return "drafts-gated"
+
+
 def chat_launch_html() -> str:
     """The chat demo's button (n92, Gustav's decision of 4 November 2026; on every ordinary page since n93). Hidden
     without JavaScript; site.js shows it, and the first click (or a chat to restore, n93) loads chat-demo.css and
@@ -783,7 +795,7 @@ def chat_launch_html() -> str:
     for key, draft, create in CHAT_RESULTS:
         tool = create or draft
         attrs += [f'data-status-{key}="{e(chat_status(tool))}"',
-                  f'data-does-{key}="{"creates" if create and ts.build_word(create) == "creates" else "drafts"}"']
+                  f'data-does-{key}="{chat_does(create)}"']
     return (f'<button class="kgc-launch" id="kgcLaunch" type="button" aria-expanded="false" hidden '
             f'{" ".join(attrs)}><span class="kgc-fig" aria-hidden="true"></span>Try a demo</button>')
 

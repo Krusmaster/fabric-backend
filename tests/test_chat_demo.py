@@ -282,12 +282,13 @@ def test_every_result_says_nothing_was_created_and_what_the_agent_does_by_tool_s
         tool = create or draft
         assert f'data-status-{key}="{pages.chat_status(tool)}"' in button
         assert "data-tool-" not in button and tool not in button and tool not in pages.chat_status(tool)
-        does = "creates" if create and ts.build_word(create) == "creates" else "drafts"
+        does = pages.chat_does(create)
         assert f'data-does-{key}="{does}"' in button
     assert 'data-does-domains="drafts"' in button
     assert "This is a demo, so nothing was created. " in CHAT_JS
     assert "your agent creates this in your Fabric workspace when you ask." in CHAT_JS
     assert "your agent drafts this from your own tables when you ask; the draft creates nothing in Fabric." in CHAT_JS
+    assert "your agent drafts this from your own tables when you ask.'" in CHAT_JS
     assert "esc(note) + ' ' + esc(data(key, 'status'))" in CHAT_JS and "Status of" not in CHAT_JS
     assert "The ontology item is in preview in Fabric." in CHAT_JS
     low = _strings(CHAT_JS).lower()
@@ -365,3 +366,23 @@ def test_site_md_describes_the_chat():
     for words in ("chat-demo.js", "/demo/plan.json", "Planned", "localStorage", "560 px", "Mascots: off", "tool_status",
                   "connect-src", "sessionStorage", "Start over", "/start", "Larger picture", "connect-src 'none'"):
         assert words in sec, words
+
+
+def test_creates_is_never_said_next_to_the_missing_permission():
+    """n94: "creates this in your Fabric workspace when you ask" and "Creating it needs a permission the hosted service
+    does not ask for today." contradicted each other for the semantic model and the ontology."""
+    gated = "Creating it needs a permission the hosted service does not ask for today."
+    for key, draft, create in pages.CHAT_RESULTS:
+        if gated in pages.chat_status(create or draft):
+            assert pages.chat_does(create) != "creates", key
+    assert pages.chat_does(None) == "drafts"
+
+
+def test_creates_comes_back_when_the_permission_is_asked_for(monkeypatch):
+    import dataclasses
+    for key, draft, create in pages.CHAT_RESULTS:
+        if create and ts.build_word(create) == "creates":
+            monkeypatch.setitem(ts.STATUS, create, dataclasses.replace(ts.STATUS[create], available=ts.HOSTED))
+            assert pages.chat_does(create) == "creates", key
+            monkeypatch.setitem(ts.STATUS, create, dataclasses.replace(ts.STATUS[create], available=ts.OPERATOR))
+            assert pages.chat_does(create) == "drafts-gated", key
