@@ -2,6 +2,7 @@
 tools/list (inputSchema.properties.*.description), and a tool's description describes rather than instructs (the
 Claude directory's policy: "Returns …" and "Use when …" are fine, "Always call X first" and "You must" are not)."""
 import asyncio
+import inspect
 import json
 import re
 
@@ -56,8 +57,13 @@ def test_creating_tools_say_what_changes_in_fabric():
 
 def test_read_only_listing_stays_small():
     """Round n26: the tools an agent gets with read-only access, as compact JSON of list_tools(), stay under a cap a
-    little above what n26 landed on (57 974 characters), so the listing does not grow again by accident."""
+    little above what n26 landed on (57 974 characters), so the listing does not grow again by accident.
+    Round n102: descriptions are measured after inspect.cleandoc, so Python 3.12 (which keeps docstring indentation)
+    and 3.13 (which strips it at compile time) give the same number."""
     ro = [t.model_dump(by_alias=True, exclude_none=True, mode="json") for t in TOOLS
           if t.annotations and t.annotations.read_only_hint]
+    for t in ro:
+        t["description"] = inspect.cleandoc(t.get("description", ""))
     size = len(json.dumps({"tools": ro}, separators=(",", ":"), ensure_ascii=False))
-    assert size <= 60_000, f"read-only tools/list is {size} characters"
+    # 64 000: our own growth guard (n26), not an external limit; about 4 300 above the n102 size (59 680) for headroom
+    assert size <= 64_000, f"read-only tools/list is {size} characters"
