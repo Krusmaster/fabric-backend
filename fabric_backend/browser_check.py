@@ -150,6 +150,9 @@ def _checked(f: dict, validation: dict | None, has_data: bool) -> str:
                     f"{_n(rp['max_lines'], a['line'] + ' row')}.")
         return (f"Counted on all rows of {a['header']} and {a['line']}: {_n(rp['headers'], a['header'] + ' row')} with {a['line']} rows, "
                 f"at most {rp['max_lines']} each.")
+    if kind == "flat_amount":                                       # n106: counted per header value, over the whole table
+        c = f.get("counted") or {}
+        return f"Counted on all {_n(c.get('rows', 0), 'row')} of {table} with a value in the header column: {c.get('header_values', 0)} distinct value(s)."
     if kind == "suggestion":
         c = f.get("counted")
         if not c:
@@ -242,7 +245,9 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                 bad = [{"source": r["source"], "target": r["target"], "source_cols": r["columns"], "orphans": r["orphans"]}
                        for r in validation["relationships"] if not r["verdict"].startswith("holds")]
                 step("validate", "validate_plan: counted in the rows", t, validation["summary"]
-                     + (f"; {len(validation['amount_levels']['findings'])} amount(s) repeated by a join" if validation.get("amount_levels", {}).get("findings") else ""),
+                     + (f"; {len(validation['amount_levels']['findings'])} amount(s) repeated by a join" if validation.get("amount_levels", {}).get("findings") else "")
+                     + (f"; {n_flat} amount(s) repeated on every row of a flat table" if (n_flat := sum(
+                         1 for e in validation.get("amount_levels", {}).get("flat_tables", []) if e["pattern"])) else ""),
                      orphans=bad)
             except Exception as e:                                 # noqa: BLE001 - the map still shows without counts
                 step("validate", "validate_plan: counted in the rows", t, f"could not run: {type(e).__name__}: {e}")

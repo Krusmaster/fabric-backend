@@ -255,10 +255,19 @@ def _rel_status(r: dict) -> str:
 
 
 def _amount_status(f: dict) -> str:
+    if "header_column" in f:                                     # n106: a flat table's amount, counted per header value
+        return "failed" if f.get("pattern") else "passed"
     per = f.get("rows_per_header")
     if not isinstance(per, dict):
         return "not_counted"
     return "failed" if per.get("max_lines", 0) > 1 else "passed"
+
+
+def _amount_items(full: dict) -> list[dict]:
+    """amount_levels' findings (a header amount a join repeats) and, since n106, its flat_tables entries (an amount a
+    flat table repeats on every row of a header value): one group in the summary, as in the full answer."""
+    levels = full.get("amount_levels") or {}
+    return list(levels.get("findings", [])) + list(levels.get("flat_tables", []))
 
 
 def summarize(full: dict, plan: Plan | None = None) -> dict:
@@ -269,7 +278,7 @@ def summarize(full: dict, plan: Plan | None = None) -> dict:
     checks max_items left out."""
     groups = (("keys", full.get("keys", []), _key_status),
               ("relationships", full.get("relationships", []), _rel_status),
-              ("amount_levels", (full.get("amount_levels") or {}).get("findings", []), _amount_status))
+              ("amount_levels", _amount_items(full), _amount_status))
     attention: dict[str, list] = {}
     totals: dict[str, dict] = {}
     left: dict[str, int] = {}
@@ -395,7 +404,7 @@ def next_steps(full: dict, totals: dict | None = None) -> list[dict]:
         add("semantic_model_draft", {}, f"all {passed} counted checks passed; the draft shows the Power BI model "
                                         "built on these keys and relationships, creating nothing.")
         add("ontology_draft", {}, "the draft shows the Fabric IQ ontology built on the same plan, creating nothing.")
-    if not keys and not rels and not findings and not skipped:
+    if not keys and not rels and not _amount_items(full) and not skipped:
         add("plan_backend", {}, "no check ran; the plan shows which keys and relationships were inferred and which "
                                 "keys to give.")
         add("list_tables", {}, "the tables and columns show which columns could be a key.")

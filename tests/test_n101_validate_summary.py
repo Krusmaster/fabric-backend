@@ -143,7 +143,7 @@ def test_an_invalid_detail_from_the_tools_is_bad_input_before_any_query(monkeypa
 
 
 # The measured sizes (characters of the tool's JSON). Pinned so the documentation cannot drift from them.
-SIZES = {"shop": (5312, 3197), "adventureworks": (62235, 9946)}     # n103 added next_steps: 2246 and 8241 before
+SIZES = {"shop": (5312, 3197), "adventureworks": (62634, 9946)}     # n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before
 
 
 @pytest.mark.parametrize("name", ["shop", "adventureworks"])

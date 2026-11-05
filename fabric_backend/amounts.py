@@ -20,6 +20,20 @@ a table that carries the price (products.list_price). A model with only `SUM(qua
 report wants an order amount, so `order_amount_measures` writes the amount as quantity × price summed over the line
 rows (DAX: SUMX with RELATED over the relationship), and says where the price comes from. A line that carries an amount
 (order_items.net_amount, VBAP.NETWR) keeps it: that amount is summed, and no product is computed.
+
+The flat table (round n106): an export where the order lines already carry the order's amount (one CSV, one row per
+line, order_id and order_amount on every row) repeats the amount without any join. With a connection, `check` counts,
+one query per (table, header column), whether an amount column has exactly one value per header value while header
+values repeat across rows:
+
+    for each table: header candidates (a column named like an id of another entity, order_id in order_lines, or the
+    source column of a declared or confirmed relationship) x the table's amount columns
+        -> rows, distinct header values, header values on more than one row, header values whose amount differs
+        -> no differing value and some repeated: summing the amount over the table counts each header once per row
+
+A header value whose amount differs between its rows is an exception: then the column is not a clean header amount,
+and the count is reported without the claim. So is a single repeated header value (one customer with two orders of the
+same total): the claim needs at least MIN_REPEATED of them. These queries share `max_items` with the line counts above.
 """
 from __future__ import annotations
 
@@ -281,6 +295,123 @@ def _explain(f: dict, counts: dict | None, label=None) -> str:
             f"Sum it on {header} itself, or sum an amount of {line} instead: {LEVELS}.")
 
 
+FLAT_RULE = ("In a flat table an amount with exactly one value per header value (order_amount per order_id), where header "
+             "values repeat across rows, is the header's amount copied onto each of its rows; summing it over the table "
+             "counts each header once per row.")
+_ID_END = ("id", "no", "nr", "number", "num", "key")
+MIN_REPEATED = 2        # one repeated header value with one amount can be chance; the claim needs at least two
+_POSITION = {"line", "pos", "position", "seq", "sequence", "row", "item", "rad", "radnr"}   # line_no numbers rows, it names no entity
+
+
+def _entity(words: list[str]) -> str:
+    return " ".join(w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w for w in words)
+
+
+def flat_candidates(plan: Plan) -> list[dict]:
+    """Every (table, header column, amount columns) the flat check counts, from names and types alone: no query. A header
+    column is the source column of a single-column relationship of the plan (declared, confirmed or inferred) or a column
+    named like an id of another entity (order_id in order_lines; never the table's own OrderID in Orders, nor its whole
+    single-column key). The amount columns are the table's amounts by name (or named by the pack) that are neither key,
+    reference nor header column, and not a price per unit. Ordered so that a header whose entity the amount names comes
+    first (order_id with order_amount)."""
+    packed = {(x["table"], x["column"].lower()) for x in (plan.pack or {}).get("amounts", [])}
+    out = []
+    for t in plan.schema:
+        key = [c.lower() for c in plan.keys.get(t.name, ([], ""))[0]]
+        own_key = key[0] if len(key) == 1 else None
+        own = _entity(_words(t.name))
+        headers: dict[str, tuple[str, str]] = {}
+        for r in plan.relationships:
+            if r.source == t.name and r.target != t.name and len(r.source_cols) == 1 and r.source_cols[0].lower() != own_key:
+                c = r.source_cols[0]
+                headers.setdefault(c.lower(), (c, f"relationship {t.name}.{c} → {r.target} (rule {plan.label(r.rule)})"))
+        for c in t.columns:
+            w = _words(c.name)
+            ent = _entity(w[:-1])
+            if (len(w) >= 2 and w[-1] in _ID_END and ent != own and not own.endswith(" " + ent) and w[-2] not in _POSITION
+                    and c.name.lower() != own_key and not looks_like_amount(c.name, c.data_type)):
+                headers.setdefault(c.name.lower(), (c.name, f"named like an id of {ent}"))
+        refs = {c.lower() for r in plan.relationships if r.source == t.name for c in r.source_cols}
+        amounts_ = [c.name for c in t.columns if c.name.lower() not in set(key) | refs | set(headers)
+                    and not is_price(c.name, c.data_type)
+                    and (looks_like_amount(c.name, c.data_type) or (t.name, c.name.lower()) in packed)]
+        if not amounts_:
+            continue
+        for col, why in headers.values():
+            ent = set(_entity(_words(col)[:-1]).split())
+            near = [a for a in amounts_ if ent & set(_entity(_words(a)).split())]
+            out.append({"table": t.name, "header_column": col, "header_rule": why,
+                        "amount_columns": near + [a for a in amounts_ if a not in near], "_near": bool(near)})
+    out.sort(key=lambda f: not f.pop("_near"))                       # stable: schema order within each group
+    return out
+
+
+def flat_sql(schema: str, table: str, header: str, amount_columns: list[str], dialect: Dialect = TSQL) -> str:
+    """One read-only query for one header column and its amount columns: rows with a header value (row_count), distinct
+    header values, header values on more than one row (repeated_values) and, per amount column i, header values whose
+    amount differs between their rows (differs_i; a NULL beside a value counts as different). Counts only, no values."""
+    q, count = dialect.quote, dialect.count
+    h = q(header)
+    inner = "".join(f", {count}(DISTINCT {q(a)}) AS d{i}, {count}({q(a)}) AS c{i}" for i, a in enumerate(amount_columns))
+    outer = "".join(f", SUM(CASE WHEN g.d{i} > 1 OR (g.c{i} > 0 AND g.c{i} < g.n) THEN 1 ELSE 0 END) AS differs_{i}"
+                    for i in range(len(amount_columns)))
+    return (f"SELECT SUM(g.n) AS row_count, {count}(*) AS header_values, SUM(CASE WHEN g.n > 1 THEN 1 ELSE 0 END) AS repeated_values"
+            f"{outer} FROM (SELECT {h}, {count}(*) AS n{inner} FROM {dialect.table(schema, table)} WHERE {h} IS NOT NULL "
+            f"GROUP BY {h}) AS g")
+
+
+def flat_sum_once_sql(schema: str, table: str, header: str, amount: str, dialect: Dialect = TSQL) -> str:
+    """The amount summed once per header value: read-only."""
+    q = dialect.quote
+    return (f"SELECT SUM(x.{q(amount)}) AS total FROM (SELECT {q(header)}, MAX({q(amount)}) AS {q(amount)} "
+            f"FROM {dialect.table(schema, table)} WHERE {q(header)} IS NOT NULL GROUP BY {q(header)}) AS x")
+
+
+def _flat_entry(schema: str, c: dict, amount: str, n: int, values: int, repeated: int, differs: int, dialect: Dialect) -> dict:
+    t, h = c["table"], c["header_column"]
+    pattern = repeated >= MIN_REPEATED and differs == 0
+    e = {"table": t, "header_column": h, "header_rule": c["header_rule"], "amount_column": amount, "rows": n,
+         "header_values": values, "repeated_header_values": repeated, "differing_header_values": differs,
+         "pattern": pattern, "sql": flat_sql(schema, t, h, [amount], dialect)}
+    if pattern:
+        e["explanation"] = (f"{t}.{amount} has one value per {h}, and {repeated} of the {values} {h} values are on more than one "
+                            f"of the {n} rows, so SUM({amount}) over {t} counts each {h}'s amount once per row instead of once.")
+        e["sum_once_sql"] = flat_sum_once_sql(schema, t, h, amount, dialect)
+        e["do_instead"] = (f"Sum {amount} once per {h} (sum_once_sql), or sum an amount that belongs to each row; never "
+                           f"SUM({amount}) over the {t} rows.")
+    elif not differs:
+        e["explanation"] = (f"{t}.{amount} has one value per {h}, but only {repeated} of the {values} {h} values is on more than "
+                            f"one of the {n} rows: too few to tell a header amount from chance, so it is not taken for one.")
+    else:
+        e["explanation"] = (f"{t}.{amount} is not one value per {h}: of the {repeated} {h} values on more than one row, "
+                            f"{differs} carry different {amount} values on different rows ({n} rows, {values} {h} values), so it "
+                            "is not taken for a header amount.")
+    return e
+
+
+def _flat(plan: Plan, execute, budget: int, dialect: Dialect) -> tuple[list[dict], int, list[str]]:
+    """The flat check within `budget` queries: (entries, candidates not counted, errors). An entry is listed when the
+    pattern holds or a header value's amount differs; a header that never repeats, or no rows, is nothing to report."""
+    schema = plan.schema.schema
+    entries, errors, left = [], [], 0
+    for c in flat_candidates(plan):
+        if budget <= 0:
+            left += 1
+            continue
+        budget -= 1
+        try:
+            row = list(execute(flat_sql(schema, c["table"], c["header_column"], c["amount_columns"], dialect)))[0]
+        except Exception as e:                                           # noqa: BLE001 - one failed count never stops the rest
+            errors.append(readable_count_error(e))
+            continue
+        n, values, repeated = (int(row.get(k) or 0) for k in ("row_count", "header_values", "repeated_values"))
+        for i, a in enumerate(c["amount_columns"]):
+            differs = int(row.get(f"differs_{i}") or 0)
+            if n and (differs or repeated):
+                entries.append(_flat_entry(schema, c, a, n, values, repeated, differs, dialect))
+    return entries, left, errors
+
+
 def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
     """The header amounts of the plan with an explanation each; with `execute`, the line rows per header counted."""
     found = header_amounts(plan)
@@ -306,6 +437,9 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
         f["explanation"] = _explain(f, counts, plan.label)
         f["do_instead"] = (f"Aggregate {', '.join(f['amount_columns'])} on {f['header']} (one row per {f['header']}) and join the "
                            f"result, or sum a {f['line']} amount; never SUM({f['header']}.{f['amount_columns'][0]}) over {f['line']} rows.")
+    flat = flat_left = flat_errors = None
+    if execute is not None:                                              # n106: the flat check, in what is left of the budget
+        flat, flat_left, flat_errors = _flat(plan, execute, max_items - counted, dialect)
     repeated = [f for f in found if isinstance(f["rows_per_header"], dict) and f["rows_per_header"]["max_lines"] > 1]
     failed = [f for f in found if "count_error" in f]
     counted_ok = [f for f in found if isinstance(f["rows_per_header"], dict)]
@@ -320,9 +454,26 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
                   if failed else f"; {len(repeated)} with more than one line per header in the data")
     summary = (f"{len(found)} header amount(s) that a join with their line rows would repeat" + counts
                if found else "no header table with an amount column that a line table points at")
-    return {"summary": summary, "rule": RULE, "findings": found,
-            "note": "Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. "
-                    "The counts are over the whole tables at the moment of the call."}
+    out = {"summary": summary, "rule": RULE, "findings": found}
+    if flat or flat_left or flat_errors:
+        claimed = [e for e in flat if e["pattern"]]
+        out["summary"] += ((f"; {len(claimed)} amount(s) in a flat table repeated on every row of a header value ("
+                            + ", ".join(f"{e['table']}.{e['amount_column']} per {e['header_column']}" for e in claimed[:3])
+                            + (", ..." if len(claimed) > 3 else "") + ")" if claimed else "")
+                           + (f"; {differ} flat-table amount(s) whose value differs within a header value (not header amounts)"
+                              if (differ := sum(1 for e in flat if e["differing_header_values"])) else "")
+                           + (f"; {few} flat-table amount(s) with one value per header value but too few repeated header values "
+                              "to tell" if (few := len(flat) - len(claimed) - differ) else "")
+                           + (f"; {flat_left} flat-table check(s) not run: amount_levels' budget of {max_items} queries was used up" if flat_left else "")
+                           + (f"; {len(flat_errors)} flat-table check(s) could not be counted ({flat_errors[0]})" if flat_errors else ""))
+        out.update({"flat_rule": FLAT_RULE, "flat_tables": flat})
+        if flat_left:
+            out["flat_not_counted"] = flat_left
+        if flat_errors:
+            out["flat_count_errors"] = flat_errors
+    out["note"] = ("Names and types say where an amount sits; whether a report sums it over the lines is not in the plan. "
+                   "The counts are over the whole tables at the moment of the call.")
+    return out
 
 
 def before_after_sql(schema: str, f: dict, column: str, dialect: Dialect = TSQL) -> tuple[str, str]:

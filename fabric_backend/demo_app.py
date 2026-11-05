@@ -467,6 +467,14 @@ class Session:
                         "amount": {"header": f["header"], "line": f["line"], "line_columns": f["line_columns"], "column": col,
                                    "wrong": before.get("summed_over_lines"), "right": before.get("summed_per_header"), "on_map": True,
                                    "rows_per_header": f.get("rows_per_header") if ba else None}})   # n75: what the count read
+        for e in [e for e in levels.get("flat_tables", []) if e["pattern"]][:5]:   # n106: an amount a flat table repeats
+            t, h, col = e["table"], e["header_column"], e["amount_column"]
+            out.append({"id": f"flat:{t}.{h}>{col}", "kind": "flat_amount", "severity": "warning", "table": t,
+                        "title": f"{t}.{col} is one amount per {h}, repeated on every row",
+                        "saw": (f"{e['rows']} rows with a {h}, {e['header_values']} distinct {h} values, {e['repeated_header_values']} of them on "
+                                f"more than one row, {e['differing_header_values']} with a {col} that differs between its rows."),
+                        "means": e["explanation"], "next": {"sql": e["sum_once_sql"]}, "next_text": e["do_instead"],
+                        "evidence": e["sql"], "counted": {"rows": e["rows"], "header_values": e["header_values"]}})
         if self.source.kind == "sample":
             d = amounts.demo()
             out.append({"id": "amt:demo", "kind": "amount_level", "severity": "warning", "table": "orders (synthetic example)",
