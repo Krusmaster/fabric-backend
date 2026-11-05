@@ -37,8 +37,11 @@ def key_sql(schema: str, table: str, cols: list[str], dialect: Dialect = TSQL) -
 
 
 def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
-                     dialect: Dialect = TSQL, blank_is_none: bool = False) -> str:
-    """blank_is_none: a blank reference ('' or spaces) counts as no value, as SAP writes "none" (the SAP pack's joins)."""
+                     dialect: Dialect = TSQL, blank_is_none: bool = False, target_unique: bool = False) -> str:
+    """blank_is_none: a blank reference ('' or spaces) counts as no value, as SAP writes "none" (the SAP pack's joins).
+    target_unique (round n104): the same run has counted exactly these target columns as unique with no NULLs
+    (target_key_unique), so the target table is joined directly; otherwise through SELECT DISTINCT. The counts are the
+    same either way; the default is the DISTINCT form."""
     q, count = dialect.quote, dialect.count
     on = " AND ".join(f"s.{q(a)} = t.{q(b)}" for a, b in zip(source_cols, target_cols))
     has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
@@ -46,10 +49,31 @@ def relationship_sql(schema: str, source: str, source_cols: list[str], target: s
         has_value += "".join(f" AND LTRIM(RTRIM(s.{q(a)})) <> ''" for a in source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT"))
     first = q(target_cols[0])
     tcs = ", ".join(q(c) for c in target_cols)
-    # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted
+    # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted. A target key
+    # counted unique with no NULLs cannot multiply them, and its NULL-free rows are the DISTINCT rows: join it directly
+    joined = (_t(schema, target, dialect) if target_unique
+              else f"(SELECT DISTINCT {tcs} FROM {_t(schema, target, dialect)})")
     return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN t.{first} IS NULL THEN 1 ELSE 0 END) AS orphans "
-            f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN (SELECT DISTINCT {tcs} FROM {_t(schema, target, dialect)}) AS t ON {on} "
+            f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN {joined} AS t ON {on} "
             f"WHERE {has_value}")
+
+
+def target_key_unique(keys: list[dict], target: str, target_cols: list[str]) -> bool:
+    """True only when a key entry of the same validate run (its "keys") is for `target`, has exactly the columns
+    `target_cols` (the same names, in any order, none left over or missing) and was counted unique: rows > 0, no NULL,
+    as many distinct values as rows. Anything else (not checked, a key on other or only some of the columns, not
+    unique, NULLs, an empty table) is False, and the relationship check keeps SELECT DISTINCT."""
+    cols = [str(c) for c in target_cols]
+    if not cols or len(set(cols)) != len(cols):
+        return False
+    for k in keys:
+        if k.get("table") != target or sorted(str(c) for c in k.get("columns", [])) != sorted(cols):
+            continue
+        n, nulls, distinct = k.get("rows"), k.get("nulls"), k.get("distinct")
+        if (isinstance(n, int) and n > 0 and nulls == 0 and distinct == n
+                and str(k.get("verdict", "")).startswith("unique")):
+            return True
+    return False
 
 
 def extended_sql(schema: str, r, dialect: Dialect = TSQL) -> str:
@@ -165,7 +189,8 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
             break
         budget -= 1
         row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
-                                       blank_is_none=r.rule == "SAP pack"))[0]
+                                       blank_is_none=r.rule == "SAP pack",
+                                       target_unique=target_key_unique(keys, r.target, r.target_cols)))[0]
         with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
         verdict = relationship_verdict(with_value, orphans)
         if r.target in unique and not unique[r.target]:

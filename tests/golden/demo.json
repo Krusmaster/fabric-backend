@@ -1023,7 +1023,7 @@
     {
      "accepted": false,
      "can_accept": false,
-     "evidence": "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[kund_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [data].[ordrar] AS s LEFT JOIN (SELECT DISTINCT [kund_id] FROM [data].[kunder]) AS t ON s.[kund_id] = t.[kund_id] WHERE s.[kund_id] IS NOT NULL",
+     "evidence": "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[kund_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [data].[ordrar] AS s LEFT JOIN [data].[kunder] AS t ON s.[kund_id] = t.[kund_id] WHERE s.[kund_id] IS NOT NULL",
      "id": "rel:ordrar.kund_id>kunder",
      "kind": "relationship",
      "means": "Either the link is right and the data has gaps (deleted parents, loads out of order), or the column points at another table. Both are worth knowing before an app is built on it.",

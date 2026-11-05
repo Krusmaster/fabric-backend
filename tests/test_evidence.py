@@ -33,7 +33,8 @@ def python_execute():
                 nulls = sum(1 for v in vals if any(x is None for x in v))
                 return [{"n": len(vals), "nulls": nulls, "distinct_keys": len({v for v in vals if None not in v})}]
         for r in p.relationships:
-            if sql == ev.relationship_sql("shop", r.source, r.source_cols, r.target, r.target_cols):
+            if sql in (ev.relationship_sql("shop", r.source, r.source_cols, r.target, r.target_cols, target_unique=u)
+                       for u in (False, True)):                                # n104: direct join on a key counted unique
                 src = [v for v in zip(*[col(r.source, c) for c in r.source_cols]) if None not in v]
                 tgt = set(zip(*[col(r.target, c) for c in r.target_cols]))
                 return [{"with_value": len(src), "orphans": sum(1 for v in src if v not in tgt)}]

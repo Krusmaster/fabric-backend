@@ -344,7 +344,9 @@ class Session:
                         "means": "Either the link is right and the data has gaps (deleted parents, loads out of order), or the column points at another table. Both are worth knowing before an app is built on it.",
                         "next": {"sql": f"SELECT s.* FROM {evidence.qi(schema)}.{evidence.qi(r['source'])} AS s LEFT JOIN {evidence.qi(schema)}.{evidence.qi(r['target'])} AS t ON " + " AND ".join(f"s.{evidence.qi(a)} = t.{evidence.qi(b)}" for a, b in zip(r['columns'], r['target_columns'])) + f" WHERE t.{evidence.qi(r['target_columns'][0])} IS NULL AND s.{evidence.qi(r['columns'][0])} IS NOT NULL"},
                         "next_text": "Look at the orphan rows with the SQL; if the link is wrong, skip it here and pass another target as `confirmed`.",
-                        "evidence": evidence.relationship_sql(schema, r["source"], r["columns"], r["target"], r["target_columns"])})
+                        "evidence": evidence.relationship_sql(schema, r["source"], r["columns"], r["target"], r["target_columns"],
+                                                              target_unique=evidence.target_key_unique(
+                                                                  (validation or {}).get("keys", []), r["target"], r["target_columns"]))})
         out += self._amount_findings(p, validation)
         decided_cols = {(c["source"], tuple(x.lower() for x in c["source_cols"])) for c in self.confirmed}
         for a in p.ambiguous:
