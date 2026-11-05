@@ -3403,7 +3403,11 @@
   "answer": {
    "candidates": [],
    "checked_against_data": 0,
-   "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with many distinct values is strong evidence, 100% with two distinct values is not. After the data check the order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score.",
+   "dropped": [],
+   "dropped_count": 0,
+   "join_counts": 0,
+   "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with many distinct values is strong evidence, 100% with two distinct values is not. After the data check the order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score. Before counting, a pair that certainly has zero matches is dropped and listed under `dropped` with its reason: types that never compare equal, or number ranges (one MIN/MAX per column) that do not overlap; a pair is kept whenever a type is unknown or a min/max cannot be read. A dropped pair uses a place of `check`.",
+   "range_queries": 0,
    "summary": "7 tables, 6 with keys, 7 relationships; 0 candidate(s), 0 checked against the data"
   },
   "args": {

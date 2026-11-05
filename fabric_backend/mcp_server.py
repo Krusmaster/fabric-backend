@@ -409,7 +409,8 @@ def suggest_relationships(schema: str = "dbo", keys: dict[str, list[str]] | None
     with _connection(schema) as execute:
         p = _plan_on(execute, schema, keys, confirmed)
         out = _graphs.suggest(p, execute, check=max(0, min(int(check), 100)))
-    out["summary"] = p.summary().splitlines()[0] + f"; {len(out['candidates'])} candidate(s), {out['checked_against_data']} checked against the data"
+    out["summary"] = (p.summary().splitlines()[0] + f"; {len(out['candidates'])} candidate(s), {out['checked_against_data']} checked against the data"
+                      + (f", {out['dropped_count']} dropped before counting (see dropped)" if out.get("dropped_count") else ""))
     return json.dumps(out, indent=2, default=str)
 
 

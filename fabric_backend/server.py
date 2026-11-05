@@ -882,7 +882,8 @@ def suggest_relationships(workspace: _p.Workspace, source: _p.Source, schema: _p
         out = _graphs.suggest(p, execute, check=max(0, min(int(check), 100)))
     finally:
         getattr(execute, "close", lambda: None)()
-    out["summary"] = p.summary().splitlines()[0] + f"; {len(out['candidates'])} candidate(s), {out['checked_against_data']} checked against the data"
+    out["summary"] = (p.summary().splitlines()[0] + f"; {len(out['candidates'])} candidate(s), {out['checked_against_data']} checked against the data"
+                      + (f", {out['dropped_count']} dropped before counting (see dropped)" if out.get("dropped_count") else ""))
     return json.dumps(out, indent=2, default=str)
 
 

@@ -517,18 +517,114 @@ def evidence_strength(ev: dict | None) -> float:
     return round(ev["inclusion"] * min(1.0, (ev.get("distinct_values") or 0) / EVIDENCE_DISTINCT), 4)
 
 
+# n105: before the exact join count, a pair that certainly gives zero matches is dropped and listed with its reason.
+# Two rules, and a pair is kept whenever a rule cannot decide (a type outside these families, a min/max not read).
+#   types   the two types belong to families that never compare equal. Text, numbers, dates and binary convert into each
+#           other implicitly in T-SQL and Spark SQL ('5' = 5 matches), so the only families held apart are a GUID against
+#           a number, a date/time or a boolean, and a boolean against a date/time (no conversion between them in T-SQL's
+#           chart; Spark refuses the comparison). candidates() already requires the same type or the same int/text
+#           family, so on its own candidates this rule is a guard and drops nothing; it decides only if ranking loosens.
+#   ranges  both columns are numbers and [min, max] of the column and of the key do not overlap. One MIN/MAX query per
+#           column, read once per call and reused for every pair that column is in. Text and dates are not compared:
+#           collations and driver types make a client-side order unsafe.
+# A dropped pair still uses one place of `check`, so a call never runs more join counts than it did before n105.
+_FAMILIES = {
+    "number": {"int", "integer", "bigint", "smallint", "tinyint", "int64", "int32", "int16", "long", "short", "byte",
+               "decimal", "numeric", "money", "smallmoney", "number", "float", "real", "double", "float64", "float32"},
+    "datetime": {"date", "datetime", "datetime2", "smalldatetime", "datetimeoffset", "time", "timestamp", "timestamp_ntz",
+                 "timestamp_ltz"},
+    "boolean": {"bit", "boolean", "bool"},
+    "guid": {"uniqueidentifier", "uuid"},
+}
+_NEVER_EQUAL = {frozenset(p) for p in (("guid", "number"), ("guid", "datetime"), ("guid", "boolean"), ("boolean", "datetime"))}
+
+
+def _family(data_type: str | None) -> str | None:
+    t = _type(data_type or "")
+    return next((f for f, names in _FAMILIES.items() if t in names), None)
+
+
+def _types_never_match(a: str | None, b: str | None) -> bool:
+    fa, fb = _family(a), _family(b)
+    return fa is not None and fb is not None and frozenset((fa, fb)) in _NEVER_EQUAL
+
+
+def range_sql(schema: str, table: str, column: str, dialect=None) -> str:
+    """One aggregate over one column: its smallest and largest value. Read-only."""
+    from .dialects import TSQL
+    d = dialect or TSQL
+    return f"SELECT MIN({d.quote(column)}) AS min_value, MAX({d.quote(column)}) AS max_value FROM {d.table(schema, table)}"
+
+
+def _number(v):
+    from decimal import Decimal, InvalidOperation
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        n = Decimal(str(v).strip())
+    except (InvalidOperation, ValueError):
+        return None
+    return n if n.is_finite() else None
+
+
+class _Prefilter:
+    """The two rules for one suggest() call, with each column's min/max read at most once."""
+
+    def __init__(self, plan: Plan, execute, dialect):
+        self.schema, self.execute, self.dialect = plan.schema.schema, execute, dialect
+        self.types = {(t.name, c.name.lower()): c.data_type for t in plan.schema for c in t.columns}
+        self.ranges: dict[tuple[str, str], tuple | None] = {}
+        self.range_queries = 0
+
+    def _range(self, table: str, column: str):
+        k = (table, column.lower())
+        if k not in self.ranges:
+            self.range_queries += 1
+            try:
+                rows = list(self.execute(range_sql(self.schema, table, column, self.dialect)))
+                row = rows[0] if rows else {}
+                lo, hi = _number(row.get("min_value")), _number(row.get("max_value"))
+                self.ranges[k] = (lo, hi) if lo is not None and hi is not None else None
+            except Exception:                                             # not readable: the pair is kept and counted
+                self.ranges[k] = None
+        return self.ranges[k]
+
+    def reason(self, cand: dict) -> str | None:
+        """Why the pair certainly has zero matches, or None to count it."""
+        s, sc, t, tc = cand["source"], cand["source_cols"][0], cand["target"], cand["target_cols"][0]
+        st, tt = self.types.get((s, sc.lower())), self.types.get((t, tc.lower()))
+        if _types_never_match(st, tt):
+            return f"types never compare equal ({_type(st)} against {_type(tt)})"
+        if _family(st) != "number" or _family(tt) != "number":
+            return None
+        a, b = self._range(s, sc), self._range(t, tc)
+        if a is None or b is None or (a[1] >= b[0] and b[1] >= a[0]):
+            return None
+        return f"value ranges do not overlap ({a[0]}..{a[1]} against {b[0]}..{b[1]})"
+
+
 def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
     """Candidates, and for the best `check` of them the inclusion evidence from the data when `execute` is given.
     After the check the order is by final_score = score + 3 x inclusion x min(1, distinct values / 10), so the data and
-    the names decide together. Nothing is applied: each suggestion carries a ready `confirmed` entry."""
+    the names decide together. Nothing is applied: each suggestion carries a ready `confirmed` entry. With data, a pair
+    that certainly gives zero matches (_Prefilter) is not counted: it leaves the candidates and is listed under
+    `dropped` with its reason."""
     from . import evidence
     from .dialects import of as dialect_of
     cands = candidates(plan, limit)
-    checked = 0
+    checked = counted = 0
+    pre = _Prefilter(plan, execute, dialect_of(execute)) if execute is not None else None
+    dropped: list[str] = []
+    kept: list[dict] = []
     for cand in cands:
         cand["confirmed"] = {"source": cand["source"], "source_cols": cand["source_cols"], "target": cand["target"], "target_cols": cand["target_cols"]}
         if execute is not None and checked < check:
             checked += 1
+            why = pre.reason(cand)
+            if why:
+                dropped.append(f"{cand['source']}.{cand['source_cols'][0]} -> {cand['target']}.{cand['target_cols'][0]}: {why}")
+                continue
+            counted += 1
             rows = list(execute(evidence.inclusion_sql(plan.schema.schema, cand["source"], cand["source_cols"][0], cand["target"], cand["target_cols"][0],
                                                        dialect_of(execute))))
             row = rows[0] if rows else {}
@@ -539,10 +635,19 @@ def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
                                             "no rows with a value" if not with_value else f"{with_value - matched} row(s) whose value is not in the target key")}
         if execute is not None:
             cand["final_score"] = round(cand["score"] + EVIDENCE_WEIGHT * evidence_strength(cand.get("evidence")), 2)
+        kept.append(cand)
+    cands = kept
     if execute is not None:
         cands.sort(key=lambda c: (-c["final_score"], -c["score"], c["source"], c["source_cols"], c["target"]))
-    return {"candidates": cands, "checked_against_data": checked,
-            "note": "Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or "
-                    "create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with "
-                    "many distinct values is strong evidence, 100% with two distinct values is not. After the data check the "
-                    "order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score."}
+    out = {"candidates": cands, "checked_against_data": checked}
+    note = ("Suggestions only: nothing is applied. Pass the `confirmed` entry of the one you accept to plan_backend or "
+            "create_backend. Inclusion = share of non-NULL values of the column that exist in the target key; 100% with "
+            "many distinct values is strong evidence, 100% with two distinct values is not. After the data check the "
+            "order is by final_score, which adds the inclusion (damped below ten distinct values) to the name score.")
+    if execute is not None:
+        out.update({"join_counts": counted, "range_queries": pre.range_queries, "dropped_count": len(dropped), "dropped": dropped})
+        note += (" Before counting, a pair that certainly has zero matches is dropped and listed under `dropped` with its "
+                 "reason: types that never compare equal, or number ranges (one MIN/MAX per column) that do not overlap; "
+                 "a pair is kept whenever a type is unknown or a min/max cannot be read. A dropped pair uses a place of `check`.")
+    out["note"] = note
+    return out
