@@ -27,6 +27,8 @@ Confirmed = Annotated[list[dict] | None, _d(
 TablesShown = Annotated[list[str] | None, _d('Table names or globs to show. Default all. Example: ["sales_*"].')]
 TablesOnly = Annotated[list[str] | None, _d('Exact table names to include. Default all.')]
 Detail = Annotated[str, _d('"auto" (default: full up to 60 tables, else summary), "full" or "summary".')]
+ValidateDetail = Annotated[str, _d('"summary" (default): failing and not-counted checks in full, passing ones as a '
+                                   'count. "full": every check.')]
 MaxItems = Annotated[int, _d('Cap on counting queries (one per key and relationship), 1–200. Default 60.')]
 DryRun = Annotated[bool, _d(
     'true (default) returns what would be created and the REST calls, changing nothing; false creates or updates.')]

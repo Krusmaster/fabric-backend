@@ -184,8 +184,9 @@ HOSTED_CALLS = [
     ("plan_backend", {**SRC, "detail": "summary"}),
     ("plan_backend", {**SRC, "keys": {"orders": ["ghost"]}}),
     ("plan_backend", {"workspace": "demo", "source": "demo_wh", "schema": "shop"}),
-    ("validate_plan", SRC),
-    ("validate_plan", {"workspace": "demo", "source": "demo_wh", "schema": "shop"}),
+    ("validate_plan", {**SRC, "detail": "full"}),
+    ("validate_plan", {"workspace": "demo", "source": "demo_wh", "schema": "shop", "detail": "full"}),
+    ("validate_plan", SRC),                                          # n101: the summary is the default
     ("sample_rows", {**SRC, "table": "customers"}),
     ("sample_rows", {**SRC, "table": "customers", "n": 3, "show_personal_data": True}),
     ("sample_rows", {**SRC, "table": "ghost"}),
@@ -293,7 +294,8 @@ LOCAL_CALLS = [
     ("plan_backend", S),
     ("plan_backend", {**S, "keys": {"order_items": ["order_id", "line_no"]}, "confirmed": [gs.SHIP_TO]}),
     ("plan_backend", {**S, "detail": "summary", "tables": ["order*"]}),
-    ("validate_plan", S),
+    ("validate_plan", {**S, "detail": "full"}),
+    ("validate_plan", S),                                            # n101: the summary is the default
     ("sample_rows", {**S, "table": "customers"}),
     ("sample_rows", {**S, "table": "ghost"}),
     ("create_backend", {"workspace": gs.WS, "source": "demo_lh", "name": "shop_api_v2", **S, "dry_run": True}),

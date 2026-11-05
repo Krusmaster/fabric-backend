@@ -37,7 +37,7 @@ def test_every_plan_in_a_tool_counts_r5_with_the_same_bounds(fabric, monkeypatch
 def test_validate_review_and_analyze_see_seven_relationships(fabric):
     planned = json.loads(server.plan_backend(**SRC))
     assert len(planned["relationships"]) == 7 and SHIP in _rels(planned)
-    checked = json.loads(server.validate_plan(**SRC))
+    checked = json.loads(server.validate_plan(**SRC, detail="full"))
     assert len(checked["relationships"]) == 7 and any(r["source"] == "orders" and r["columns"] == ["ship_to_id"] for r in checked["relationships"])
     review = json.loads(server.review_plan(**SRC))
     assert "7 relationships" in review["summary"] and "ship_to_id" in json.dumps(review["review"])

@@ -63,7 +63,7 @@ checks treat both as no value, so the expected numbers are the same.
 
 | # | Tool | Question in Claude | Expected | Result | Date |
 | --- | --- | --- | --- | --- | --- |
-| 5 | `validate_plan` | *"Check the plan of <source>, schema <schema> against the data, max_items 200."* | a verdict per key and relationship; save the whole JSON answer to a file on your machine, not in the repository | | |
+| 5 | `validate_plan` | *"Check the plan of <source>, schema <schema> against the data, max_items 200, detail full."* | a verdict per key and relationship; save the whole JSON answer (`detail="full"`: `sap-verify` needs every check, not the summary) to a file on your machine, not in the repository | | |
 | 6 | `validate_plan` → `amount_levels` | (same answer) | `VBAK.NETWR` over `VBAP` rows named, with the line rows per order counted | | |
 | 7 | `sample_rows` | *"Show five rows of ADR6"* (or `KNA1`) | `SMTP_ADDR` (or `TELF1`, `STRAS`) shown as `***`, the reason naming the SAP pack | | |
 

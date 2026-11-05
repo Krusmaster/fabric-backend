@@ -204,6 +204,90 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
                     "today; they do not prove the meaning, and new rows can change them."}
 
 
+DETAILS = ("summary", "full")
+
+
+def pick_detail(detail: str | None) -> str:
+    """validate_plan's `detail` (round n101): "summary" (the default) or "full"; anything else is a bad_input error."""
+    d = "summary" if detail is None else str(detail).strip().lower()
+    if d not in DETAILS:
+        from .infer import PlanInputError
+        raise PlanInputError(f"detail: {detail!r} is not one of {', '.join(DETAILS)}; \"summary\" (default) lists what "
+                             "needs attention, \"full\" every check")
+    return d
+
+
+def _key_status(k: dict) -> str:
+    v = k["verdict"]
+    return "passed" if v.startswith("unique") else "not_counted" if v.startswith("empty table") else "failed"
+
+
+def _rel_status(r: dict) -> str:
+    v = r["verdict"]
+    if v.startswith("holds"):
+        return "warning" if "; but" in v else "passed"
+    return "not_counted" if v.startswith("no rows with a value") else "failed"
+
+
+def _amount_status(f: dict) -> str:
+    per = f.get("rows_per_header")
+    if not isinstance(per, dict):
+        return "not_counted"
+    return "failed" if per.get("max_lines", 0) > 1 else "passed"
+
+
+def summarize(full: dict, plan: Plan | None = None) -> dict:
+    """validate_plan's summary form (round n101), written only from the full answer: nothing is counted or queried
+    again. It keeps the verdict line, the totals per kind of check, and every check that failed, was not counted or
+    holds with a warning ("; but ...") exactly as the full answer has it (counts, rule, SQL). Passing checks become a
+    count, and the answer says how many were left out and that detail="full" lists them. `plan` gives the number of
+    checks max_items left out."""
+    groups = (("keys", full.get("keys", []), _key_status),
+              ("relationships", full.get("relationships", []), _rel_status),
+              ("amount_levels", (full.get("amount_levels") or {}).get("findings", []), _amount_status))
+    attention: dict[str, list] = {}
+    totals: dict[str, dict] = {}
+    left: dict[str, int] = {}
+    for name, items, status in groups:
+        st = [status(x) for x in items]
+        t = {"checked": len(items), "passed": st.count("passed"), "failed": st.count("failed")}
+        if st.count("warning"):
+            t["passed_with_warning"] = st.count("warning")
+        if st.count("not_counted"):
+            t["not_counted"] = st.count("not_counted")
+        totals[name] = t
+        shown = [x for x, s in zip(items, st) if s != "passed"]
+        if shown:
+            attention[name] = shown
+        left[name] = t["passed"]
+    if plan is not None:
+        total = len(plan.keys) + len(plan.relationships) + len(getattr(plan, "extended", []))
+        skipped = total - len(full.get("keys", [])) - len(full.get("relationships", []))
+        if skipped > 0:
+            totals["not_checked_beyond_max_items"] = skipped
+    passing = sum(left.values())
+    skipped = totals.get("not_checked_beyond_max_items", 0)
+    out = {"detail": "summary", "summary": full.get("summary", "")}
+    if attention:
+        n = sum(len(v) for v in attention.values())
+        out["needs_attention"] = n
+        out["attention"] = attention
+        out["totals"] = totals
+        out["left_out"] = {"passing_checks": passing, **{k: v for k, v in left.items() if v},
+                           "how": f'{passing} passing check(s) are left out of this summary; detail="full" lists every '
+                                  "check with its counts and rule."
+                                  + (f" {skipped} check(s) did not run: raise max_items." if skipped else "")}
+    else:
+        out["totals"] = totals
+        out["result"] = ("No check ran: the plan has no key, relationship or header amount to count." if not passing and not skipped
+                         else f"All {passing} counted checks passed" + (f" ({skipped} not checked: raise max_items)" if skipped else "")
+                         + '; they are left out of this summary, and detail="full" lists each with its counts and rule.')
+    if "personal_data" in full:
+        out["personal_data"] = full["personal_data"]
+    out["note"] = full.get("note", "")
+    return out
+
+
 def suggest_composite_keys(plan: Plan) -> list[dict]:
     """Keyless tables whose reference to a keyed table plus a line/position-like column could form a key,
     e.g. order_items: order_id + line_no. Suggestions only — pass them as `keys` after checking them."""

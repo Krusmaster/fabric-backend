@@ -436,12 +436,14 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 @mcp.tool(title="Check the plan against the data", annotations=RO)
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
-                  confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, ctx: Context = None) -> str:
+                  confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
+                  ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique and non-null, and how many references find no target (orphans).
-    Requires workspace and source; takes the same keys and confirmed as plan_backend. Returns JSON with counts and a
-    verdict per key and relationship (no row values). Read-only counting queries. create_backend does not run this
-    check. Errors: {error, kind, hint}."""
+    Requires workspace and source; takes the same keys and confirmed as plan_backend. Returns JSON with counts and
+    verdicts (no row values): by default the totals and each failing check in full; detail="full" lists every check.
+    Read-only counting queries. create_backend does not run this check. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
+    detail = _evidence.pick_detail(detail)
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
@@ -455,6 +457,8 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
+    if detail == "summary":
+        out = _evidence.summarize(out, p)
     return json.dumps(out, indent=2, default=str)
 
 

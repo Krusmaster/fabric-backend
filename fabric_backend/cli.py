@@ -160,7 +160,12 @@ def cmd_dbt(a) -> int:
 def cmd_sap_verify(a) -> int:
     """A saved validate_plan answer on SAP tables -> a proposal per pack relationship; --write records the verified ones."""
     from . import sap_pack
-    report = sap_pack.verification(json.loads(Path(a.validation).read_text(encoding="utf-8")), a.where, a.when)
+    validation = json.loads(Path(a.validation).read_text(encoding="utf-8"))
+    if isinstance(validation, dict) and validation.get("detail") == "summary":       # n101: the summary leaves passing checks out
+        print('error: this is validate_plan\'s summary, which lists passing checks only as a count; run validate_plan with '
+              'detail="full" and save that answer.', file=sys.stderr)
+        return 2
+    report = sap_pack.verification(validation, a.where, a.when)
     print(sap_pack.verification_markdown(report))
     if a.write:
         for line in sap_pack.write_verified(report):
@@ -279,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--source-name"); s.add_argument("--out", default="dictionary.md"); s.set_defaults(fn=cmd_dictionary)
 
     s = sub.add_parser("sap-verify", help="propose a status per SAP pack relationship from a saved validate_plan answer")
-    s.add_argument("validation", help="the JSON validate_plan answered, saved to a file")
+    s.add_argument("validation", help="the JSON validate_plan answered with detail=\"full\", saved to a file")
     s.add_argument("--where", required=True, help="what was checked, without naming a company: 'SAP S/4HANA sandbox, synthetic data'")
     s.add_argument("--when", required=True, help="the date of the run, YYYY-MM-DD")
     s.add_argument("--write", action="store_true", help="record the verified relationships in fabric_backend/packs/sap/*.json")

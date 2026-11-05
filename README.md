@@ -100,7 +100,7 @@ docker build -t fabric-backend-server . && docker run -p 8000:8000 \
 
 Streamable HTTP at `/mcp`, thirty-eight tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
-composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows), `create_backend`
+composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows; by default a summary with every failing check in full, `detail="full"` for every check), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
 `rayfin_connector` and `ontology_draft`; every tool takes the workspace by id or name. Five more read-only tools turn the
 same plan into the week's deliverables, all unit-tested and run against the demo workspace (synthetic shop data) on 26 and 27 October 2026:

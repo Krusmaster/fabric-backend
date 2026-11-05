@@ -1272,7 +1272,7 @@
    "open_world_hint": true,
    "read_only_hint": true
   },
-  "description": "Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every\nreference find its target (orphan count). One counting query per key and relationship, read-only.",
+  "description": "Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every\nreference find its target (orphan count). One counting query per key and relationship, read-only. detail=\"summary\"\n(default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing\nchecks as a count; detail=\"full\" lists every check.",
   "input_schema": {
    "properties": {
     "confirmed": {
@@ -1290,6 +1290,11 @@
      ],
      "default": null,
      "title": "Confirmed"
+    },
+    "detail": {
+     "default": "summary",
+     "title": "Detail",
+     "type": "string"
     },
     "keys": {
      "anyOf": [

@@ -1177,6 +1177,7 @@
    "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans"
   },
   "args": {
+   "detail": "full",
    "schema": "shop",
    "source": "demo_lh",
    "workspace": "demo"
@@ -1402,6 +1403,7 @@
    "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans"
   },
   "args": {
+   "detail": "full",
    "schema": "shop",
    "source": "demo_wh",
    "workspace": "demo"
@@ -1418,6 +1420,84 @@
    [
     "GET",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/warehouses/aaaaaaaa-0000-0000-0000-000000000003"
+   ]
+  ],
+  "tool": "validate_plan"
+ },
+ {
+  "answer": {
+   "attention": {
+    "amount_levels": [
+     {
+      "amount_columns": [
+       "list_price"
+      ],
+      "do_instead": "Aggregate list_price on products (one row per products) and join the result, or sum a order_items amount; never SUM(products.list_price) over order_items rows.",
+      "explanation": "products.list_price is an amount on products, and order_items has 16.75 rows for each row of products on average and up to 27 (8 referenced header value(s), 8 of them in products) (rule R1: order_items.product_id → products.product_id). In a join of the two, each products amount is repeated on every order_items row, so SUM(products.list_price) over the joined rows counts each products row once per order_items row and comes out too large; by how much depends on the amounts, because the products rows have between 13 and 27 order_items rows each, and the average number of rows is not the ratio of the two sums. Sum it on products itself, or sum an amount of order_items instead: order amount and line amount are different levels.",
+      "header": "products",
+      "header_columns": [
+       "product_id"
+      ],
+      "line": "order_items",
+      "line_columns": [
+       "product_id"
+      ],
+      "rows_per_header": {
+       "avg_lines": 16.75,
+       "headers": 8,
+       "headers_in_table": 8,
+       "max_lines": 27,
+       "min_lines": 13
+      },
+      "rule": "R1"
+     }
+    ]
+   },
+   "detail": "summary",
+   "left_out": {
+    "how": "13 passing check(s) are left out of this summary; detail=\"full\" lists every check with its counts and rule.",
+    "keys": 6,
+    "passing_checks": 13,
+    "relationships": 7
+   },
+   "needs_attention": 1,
+   "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
+   "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+   "totals": {
+    "amount_levels": {
+     "checked": 1,
+     "failed": 1,
+     "passed": 0
+    },
+    "keys": {
+     "checked": 6,
+     "failed": 0,
+     "passed": 6
+    },
+    "relationships": {
+     "checked": 7,
+     "failed": 0,
+     "passed": 7
+    }
+   }
+  },
+  "args": {
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "demo"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
    ]
   ],
   "tool": "validate_plan"

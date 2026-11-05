@@ -188,6 +188,21 @@ its own), `plan_backend` without empty `note` fields and with `mermaid=false` on
 | `data_dictionary` | 10 235 → 10 235 | 989 145 → 55 384 (cut on a line, says so) |
 | `dbt_schema` | 4 290 → 4 290 | 436 916 → 56 180 (cut on a line, says so) |
 
+`validate_plan` answers with a summary by default since round n101: the verdict line, the totals checked, passed
+and failed per kind of check, and every check that failed, was not counted or holds with a warning, whole, as the full
+answer has it (counts, rule, the join SQL of a pack relationship); passing checks become a count, and `left_out` says how
+many there are and that `detail="full"` lists them. `detail="full"` is the earlier answer, unchanged (the golden answers
+show it). Nothing is counted differently and no other query runs: the summary is written from the full answer
+(`evidence.summarize`). Characters of the JSON answer, measured in `tests/test_n101_validate_summary.py`:
+
+| Plan | `detail="full"` | summary (default) |
+| --- | --- | --- |
+| shop rows, local tool (6 keys, 6 relationships, 1 header amount that a join repeats) | 5 312 | 2 246 |
+| shop rows, hosted tool (R5's `ship_to_id` too: 7 relationships) | 5 608 | 2 246 |
+| AdventureWorks fixture, 71 tables, counts from a fixed double (1 key with duplicates, every fourth relationship with orphans, 1 empty source) | 62 235 | 8 241 |
+
+On the shop most of the summary is the one finding that needs attention, the header amount with its explanation.
+
 What was not changed: the `note` texts that say what a tool has and has not done live (tests pin several of them, and
 they are the only place an agent sees the verification status); the GraphQL field names in `plan_backend` (they are
 what `create_backend` and `describe_backend` use); the Mermaid diagram by default on small schemas (the docs promise

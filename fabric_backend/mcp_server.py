@@ -269,12 +269,16 @@ def ontology_draft(name: str = "ontology", schema: str = "dbo", keys: dict[str, 
 @_tool("Check the plan against the rows", RO)
 @safe
 def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                  max_items: int = 60) -> str:
+                  max_items: int = 60, detail: str = "summary") -> str:
     """Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every
-    reference find its target (orphan count). One counting query per key and relationship, read-only."""
+    reference find its target (orphan count). One counting query per key and relationship, read-only. detail="summary"
+    (default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing
+    checks as a count; detail="full" lists every check."""
+    detail = _evidence.pick_detail(detail)
     with _connection(schema) as execute:
         p = _plan_on(execute, schema, keys, confirmed)
-        return json.dumps(_evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200))), indent=2, default=str)
+        out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
+        return json.dumps(_evidence.summarize(out, p) if detail == "summary" else out, indent=2, default=str)
 
 
 @_tool("Keep the reviewed plan as a file", RO)

@@ -91,7 +91,7 @@ def test_column_tags_flag_personal_data_under_the_p_rules_and_are_masked(workspa
 
 
 def test_counting_queries_run_in_databricks_sql_and_agree_with_fabric(workspace):
-    out = call("validate_plan", schema="shop")
+    out = call("validate_plan", schema="shop", detail="full")
     assert out["summary"].startswith("6 of 6 keys unique, 6 of 6 relationships hold")
     counts = [s for s in workspace.statements if "AS distinct_keys" in s or "AS orphans" in s]
     assert counts and all("COUNT_BIG" not in s and "[" not in s and "`workspace`.`shop`." in s for s in counts)

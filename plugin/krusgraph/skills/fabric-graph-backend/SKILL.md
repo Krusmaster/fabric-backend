@@ -18,7 +18,8 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
 3. **Unclear column?** `sample_rows(table)` shows a few rows so the meaning can be settled before deciding on a key
    or a relationship. Never decide a relationship from a column's name alone when the plan says it is ambiguous.
 4. **Check against the data.** `validate_plan` counts uniqueness, NULLs and orphans for every key and relationship.
-   Report the verdicts. A key that is not unique or a relationship with orphans is a reason to stop and ask.
+   Its answer is a summary by default: the totals and every failing or not-counted check in full, passing checks as a
+   count; `detail="full"` lists every check. Report the verdicts. A key that is not unique or a relationship with orphans is a reason to stop and ask.
    **Large schemas:** above 60 tables `list_tables`, `plan_backend` and `analyze_schema` answer in summary form on
    their own (one line per key and relationship, no field names, no diagram) and say so; `detail="full"` asks for
    everything, `tables=["sales_*", "customers"]` narrows the answer to matching tables while the plan is still made
