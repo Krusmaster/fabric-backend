@@ -121,3 +121,117 @@ def test_the_demo_writes_it_beside_the_dictionary_with_the_decisions_and_their_t
     assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ", rep["decisions"][0]["at"])
     assert ("orders", ["ship_to_id"], "addresses", "confirmed") in [(r["source"], r["source_cols"], r["target"], r["rule"]) for r in rep["relationships"]]
     assert files["evidence-report.md"][1].startswith("# Evidence report: Synthetic shop data")
+
+
+# ---------------------------------------------------------------- n100: the findings as a checklist -------------------
+
+WRONG_KEY = {"order_items": ["order_id"]}                                    # 134 rows, 60 distinct: not unique
+WRONG_LINK = {"source": "orders", "source_cols": ["customer_id"], "target": "products", "target_cols": ["product_id"]}
+
+
+@pytest.fixture()
+def shop_findings():
+    """The shop planned with a wrong key and a wrong link, so the rows give real counts for the checks that fail."""
+    src = sample_source()
+    p = plan(src.schema, keys=WRONG_KEY, confirmed=[WRONG_LINK])
+    yield src, p, evidence.validate(p, src.execute)
+    src.close()
+
+
+def _all_kinds(p):
+    """The shop's findings plus one of each kind the shop's rows do not give: an ambiguous column, an R5 proposal, and
+    a pack relationship not applied."""
+    import dataclasses
+    pack = {"pack": "example", "rule": "P1", "status": "Draft", "tables": {},
+            "not_applied": [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "why": "conditional"}]}
+    return dataclasses.replace(p, ambiguous=[{"table": "orders", "column": "ship_to_id", "candidates": ["addresses", "customers"]}],
+                               proposed=[{"source": "orders", "source_cols": ["status"], "target": "categories", "why": "not counted"}],
+                               pack=pack)
+
+
+def test_every_finding_type_gets_a_row(shop_findings):
+    src, p, v = shop_findings
+    rows = er.report(_all_kinds(p), v, generated_at=AT)["checklist"] + er.report(p, None, generated_at=AT)["checklist"]
+    assert {r["type"] for r in rows} == set(er.FINDING_TYPES)
+    for r in rows:
+        assert r["owner"] == "" and r["status"] == "open" and r["action"] == er.action(r["type"])
+        assert set(r) == {"finding", "type", "table", "column", "counts", "action", "owner", "status"}
+    by = {r["type"]: r for r in rows}
+    assert (by["key_not_unique"]["table"], by["key_not_unique"]["column"], by["key_not_unique"]["counts"]) == \
+        ("order_items", "order_id", {"rows": 134, "nulls": 0, "distinct": 60})
+    assert (by["orphans"]["table"], by["orphans"]["column"], by["orphans"]["counts"]["orphans"]) == ("orders", "customer_id", 9)
+    assert by["no_key"]["table"] == "audit_log" and by["no_key"]["counts"] == {}
+    assert by["not_counted"]["table"] == "" and by["not_counted"]["column"] == ""
+    rep = er.report(_all_kinds(p), v, generated_at=AT)
+    assert [r["finding"] for r in rep["checklist"]] == rep["open_questions"] and rep["summary"]["checklist"] == len(rep["checklist"])
+    md = er.markdown(rep)
+    assert "## Checklist" in md and "| # | Finding | Table | Column | Counts | Suggested action | Owner | Status |" in md
+    assert "| 1 | The key order_items.order_id is not unique" in md and "| rows 134, nulls 0, distinct 60 |" in md
+
+
+def test_a_type_without_a_mapping_says_review(shop_findings):
+    _, p, v = shop_findings
+    assert er.action("a_kind_nobody_mapped") == "Review" and "pack_not_applied" not in er.ACTIONS
+    row = next(r for r in er.report(_all_kinds(p), v, generated_at=AT)["checklist"] if r["type"] == "pack_not_applied")
+    assert row["action"] == "Review" and (row["table"], row["column"]) == ("orders", "ship_to_id")
+    # the mapped actions are instructions to look, ask or count: none of them names an answer a person has to give
+    assert all(a[0].isupper() and a.endswith(".") for a in er.ACTIONS.values())
+    assert not [a for a in er.ACTIONS.values() if re.search(r"\b(fix|fixed|must|should|delete|drop)\b", a, re.I)]
+
+
+def test_a_decided_finding_keeps_its_decision_from_the_review_file(shop_findings):
+    from fabric_backend import review
+    src, p, v = shop_findings
+    base = plan(src.schema)
+    rid = review.rel_id("orders", ["customer_id"], "products")
+    rv = review.build(p, base, {"platform": "sqlite", "source": "shop", "schema": "shop"}, checks=v, checked_at=AT,
+                      decisions=[{"item": "key:order_items", "review": "rejected", "reason": "the key is order_id + line_no"},
+                                 {"item": rid, "review": "open", "reason": "ask the data owner"}])
+    rows = er.report(p, v, generated_at=AT, review=json.dumps(rv))["checklist"]
+    status = {r["type"]: r["status"] for r in rows}
+    assert status["key_not_unique"] == "rejected"                           # decided in the review file: kept
+    assert status["orphans"] == "open" and status["no_key"] == "open"       # "open" in the file, and no item: still open
+    rv2 = review.build(p, base, {"platform": "sqlite", "source": "shop", "schema": "shop"}, previous=review.read(rv),
+                       decisions=[{"item": rid, "review": "accepted"}])
+    rows2 = er.report(p, v, generated_at=AT, review=rv2)["checklist"]
+    assert [r["status"] for r in rows2 if r["type"] in ("key_not_unique", "orphans")] == ["rejected", "accepted"]
+    assert all(r["owner"] == "" for r in rows2)                              # a decision names no owner
+    assert "| rejected |" in er.markdown(er.report(p, v, generated_at=AT, review=rv))
+    with pytest.raises(review.ReviewFileError):
+        er.report(p, v, review={"format": "something else"})
+
+
+def test_a_report_without_findings_says_so():
+    from fabric_backend.schema import Schema
+    src = sample_source()
+    try:
+        p = plan(Schema({n: src.schema[n] for n in ("customers", "orders")}, schema=src.schema.schema))
+        rep = er.report(p, evidence.validate(p, src.execute), generated_at=AT)
+    finally:
+        src.close()
+    assert rep["open_questions"] == [] and rep["checklist"] == [] and rep["summary"]["checklist"] == 0
+    md = er.markdown(rep)
+    section = md[md.index("## Checklist"):md.index("## Decisions")]
+    assert "No findings: the report holds nothing to do." in section and "|" not in section
+
+
+def test_the_checklist_is_the_same_every_time(shop_findings):
+    src, p, v = shop_findings
+    a = er.report(_all_kinds(p), v, generated_at=AT)
+    b = er.report(_all_kinds(plan(src.schema, keys=WRONG_KEY, confirmed=[WRONG_LINK])), evidence.validate(p, src.execute), generated_at=AT)
+    assert er.to_json(a) == er.to_json(b) and er.markdown(a) == er.markdown(b)
+    assert [r["type"] for r in a["checklist"]] == ["key_not_unique", "orphans", "amount_repeated", "amount_repeated",
+                                                   "ambiguous_target", "no_key", "proposed_not_applied", "pack_not_applied"]
+
+
+def test_no_row_value_is_in_the_checklist(shop_findings):
+    from fabric_backend import review
+    src, p, v = shop_findings
+    rv = review.build(p, plan(src.schema), {"platform": "sqlite", "source": "shop", "schema": "shop"}, checks=v, checked_at=AT,
+                      decisions=[{"item": "key:order_items", "review": "rejected"}])
+    rep = er.report(_all_kinds(p), v, generated_at=AT, review=rv)
+    md = er.markdown(rep)
+    text = json.dumps(rep["checklist"]) + md[md.index("## Checklist"):]
+    values = _row_values(src)
+    assert rep["checklist"] and not [x for x in values if x in text]
+    assert not re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", text)

@@ -59,6 +59,13 @@ write-up of what the engine got right, what it left unlinked, and what they had 
    item ids you add; no row values. On `/check` the decisions are the ones taken on the page (the guided demo's Accept
    and Reject), with the browser's time and "by: not recorded"; they stay in the browser, and an accepted relationship
    is listed as not checked. It is marked Draft until the person who hands it over has read and signed it.
+   The report ends with a checklist, in the Markdown and as `checklist` in the JSON: one row per open question, in the
+   same order, with the table and column, the counts behind it, a suggested action, an empty owner and the status
+   "open". The suggested action is a fixed sentence per kind of finding (`ACTIONS` in `evidence_report.py`), or
+   "Review" for a kind without one; where the answer is a business decision it says what to ask, not what to choose.
+   Owners are left for the team to fill in. Called with a review file from `review_plan` (`report(..., review=...)`),
+   a finding whose key or relationship is already accepted or rejected there shows that decision as its status. No
+   row values, only names and counts. A report without findings says so instead of giving an empty table.
 
 ## Not included
 
