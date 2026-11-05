@@ -438,10 +438,9 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
                   ctx: Context = None) -> str:
-    """Checks the plan against the rows: is each key unique and non-null, and how many references find no target (orphans).
-    Requires workspace and source; takes the same keys and confirmed as plan_backend. Returns JSON with counts and
-    verdicts (no row values): by default the totals and each failing check in full; detail="full" lists every check.
-    Read-only counting queries. create_backend does not run this check. Errors: {error, kind, hint}."""
+    """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
+    Requires workspace and source; keys, confirmed as in plan_backend. Returns JSON counts, no row values: failing
+    checks in full, passing as totals. Read-only. create_backend does not run it. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     detail = _evidence.pick_detail(detail)
     s, execute = _connected(workspace, source, schema, ctx)

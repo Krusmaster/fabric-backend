@@ -3662,7 +3662,7 @@
     "read_only_hint": true,
     "title": "Check the plan against the data"
    },
-   "description": "Checks the plan against the rows: is each key unique and non-null, and how many references find no target (orphans).\nRequires workspace and source; takes the same keys and confirmed as plan_backend. Returns JSON with counts and\nverdicts (no row values): by default the totals and each failing check in full; detail=\"full\" lists every check.\nRead-only counting queries. create_backend does not run this check. Errors: {error, kind, hint}.",
+   "description": "Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).\nRequires workspace and source; keys, confirmed as in plan_backend. Returns JSON counts, no row values: failing\nchecks in full, passing as totals. Read-only. create_backend does not run it. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -3684,7 +3684,7 @@
      },
      "detail": {
       "default": "summary",
-      "description": "\"summary\" (default): failing and not-counted checks in full, passing ones as a count. \"full\": every check.",
+      "description": "\"summary\" (default) or \"full\" (every check).",
       "title": "Detail",
       "type": "string"
      },
