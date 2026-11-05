@@ -87,7 +87,7 @@ def test_non_overlapping_ranges_are_dropped_and_listed_with_the_reason():
     assert "orders.ship_to_id -> addresses.address_id" in pairs
     assert "orders.ship_to_id -> warehouses.warehouse_id" not in pairs
     assert out["dropped_count"] == len(out["dropped"]) >= 1
-    assert "orders.ship_to_id -> warehouses.warehouse_id: value ranges do not overlap (1..10 against 500..510)" in out["dropped"]
+    assert "orders.ship_to_id -> warehouses.warehouse_id: value ranges do not overlap" in out["dropped"]
     joins = [q for q in seen if "LEFT JOIN" in q]
     assert len(joins) == out["join_counts"] == out["checked_against_data"] - out["dropped_count"]
     assert not any("[warehouses]" in q for q in joins)                              # the dropped pair was never counted
@@ -164,3 +164,29 @@ def test_the_check_budget_never_runs_more_join_counts_than_before():
 def test_without_data_the_answer_has_no_prefilter_keys():
     out = graphs.suggest(plan(seed.schema("shop")))
     assert not {"dropped", "dropped_count", "join_counts", "range_queries"} & set(out)
+
+
+# n107: the same shape as RANGES with values that cannot occur by chance in an answer (ids, counts, scores).
+LEAK = {
+    "addresses": ([("address_id", "int"), ("city", "varchar")], [(i, f"City {i}") for i in range(73011, 73021)]),
+    "warehouses": ([("warehouse_id", "int"), ("label", "varchar")], [(i, f"W{i}") for i in range(948201, 948212)]),
+    "orders": ([("order_id", "int"), ("ship_to_id", "int")], [(610001 + i, 73011 + i % 10) for i in range(30)]),
+}
+LEAK_MINMAX = ("73011", "73020", "948201", "948211", "610001", "610030")
+
+
+def test_no_min_or_max_value_anywhere_in_the_suggest_relationships_answer(monkeypatch):
+    """n107: Krusgraph's answers give names and counts, not row values. The prefilter reads MIN/MAX per column; neither
+    the reason of a dropped pair nor any other part of the tool's answer may carry them."""
+    from fabric_backend import mcp_server
+    s, execute, seen = _source(LEAK)
+    out = graphs.suggest(plan(s), execute)
+    assert "orders.ship_to_id -> warehouses.warehouse_id: value ranges do not overlap" in out["dropped"]
+    assert out["range_queries"] >= 2 and any("MIN(" in q for q in seen)                # the min/max were read ...
+    monkeypatch.setattr(mcp_server, "_execute_factory", lambda schema: _source(LEAK)[1])
+    monkeypatch.setattr(mcp_server, "_plan_on", lambda execute, schema, keys=None, confirmed=None: plan(_source(LEAK)[0]))
+    tool = mcp_server.suggest_relationships(schema="s")
+    assert "value ranges do not overlap" in tool and "dropped before counting" in json.loads(tool)["summary"]
+    for text in (json.dumps(out, default=str), tool):                                  # ... and appear nowhere in the answer
+        for v in LEAK_MINMAX:
+            assert v not in text, v

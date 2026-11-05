@@ -191,3 +191,22 @@ def test_check_in_the_browser_shows_the_flat_amount():
     assert f["severity"] == "warning" and "GROUP BY [order_id]" in f["sql"]
     assert f["checked"].startswith("Counted on all 6 rows of order_lines")
     assert "1 amount(s) repeated on every row of a flat table" in next(e["detail"] for e in events if e["step"] == "validate")
+
+
+def test_no_min_or_max_amount_anywhere_in_the_flat_amount_finding():
+    """n107: the flat-amount finding gives names and counts. Neither the smallest nor the largest amount of the fixture
+    (nor any other amount) appears in validate_plan's answer, its summary, the /check finding or its progress events."""
+    amounts_ = [r[3] for r in FLAT] + [r[4] for r in FLAT]
+    minmax = {min(r[3] for r in FLAT), max(r[3] for r in FLAT), min(r[4] for r in FLAT), max(r[4] for r in FLAT)}
+    assert {55501.07, 987654.32, 777.13} <= minmax
+    p, ex = _flat()
+    full = evidence.validate(p, ex)
+    assert any(e["pattern"] for e in full["amount_levels"]["flat_tables"])
+    csv = ("order_id,line_no,product_code,order_amount,line_amount\n"
+           + "".join(",".join(str(v) for v in r) + "\n" for r in FLAT)).encode()
+    events: list[dict] = []
+    out = browser_check.analyze("files", [("order_lines.csv", csv)], emit=events.append)
+    assert [f for f in out["findings"] if f["check"] == "flat_amount"]
+    text = json.dumps([full, evidence.summarize(full, p), out, events], default=str)
+    for v in sorted(set(amounts_) | minmax):
+        assert str(v) not in text and f"{v:.2f}" not in text, v

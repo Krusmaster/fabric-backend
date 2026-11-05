@@ -600,7 +600,7 @@ class _Prefilter:
         a, b = self._range(s, sc), self._range(t, tc)
         if a is None or b is None or (a[1] >= b[0] and b[1] >= a[0]):
             return None
-        return f"value ranges do not overlap ({a[0]}..{a[1]} against {b[0]}..{b[1]})"
+        return "value ranges do not overlap"                    # n107: no row values (min/max) in the answer
 
 
 def suggest(plan: Plan, execute=None, check: int = 15, limit: int = 50) -> dict:
