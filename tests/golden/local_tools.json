@@ -686,6 +686,28 @@
     "relationships": 6
    },
    "needs_attention": 1,
+   "next_steps": [
+    {
+     "arguments": {
+      "question": "total list_price per products",
+      "tables": [
+       "products",
+       "order_items"
+      ]
+     },
+     "text": "answer_query_draft(question=\"total list_price per products\", tables=[\"products\", \"order_items\"]), other arguments as in this call: products.list_price is repeated on every order_items row in a join; the draft sums it once per products row.",
+     "tool": "answer_query_draft",
+     "why": "products.list_price is repeated on every order_items row in a join; the draft sums it once per products row."
+    },
+    {
+     "arguments": {
+      "validate": true
+     },
+     "text": "review_plan(validate=true), other arguments as in this call: keeps the plan, its checks and the decisions made about it as one file.",
+     "tool": "review_plan",
+     "why": "keeps the plan, its checks and the decisions made about it as one file."
+    }
+   ],
    "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan today; they do not prove the meaning, and new rows can change them.",
    "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans",
    "totals": {

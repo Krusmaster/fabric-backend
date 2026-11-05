@@ -143,7 +143,7 @@ def test_an_invalid_detail_from_the_tools_is_bad_input_before_any_query(monkeypa
 
 
 # The measured sizes (characters of the tool's JSON). Pinned so the documentation cannot drift from them.
-SIZES = {"shop": (5312, 2246), "adventureworks": (62235, 8241)}
+SIZES = {"shop": (5312, 3197), "adventureworks": (62235, 9946)}     # n103 added next_steps: 2246 and 8241 before
 
 
 @pytest.mark.parametrize("name", ["shop", "adventureworks"])
@@ -157,10 +157,10 @@ def test_the_summary_is_smaller_and_its_size_is_measured(name):
 
 def test_the_hosted_tool_answers_measure_the_same_on_the_shop():
     """The hosted golden answers (Fabric mocked, the shop rows in SQLite, R5's ship_to_id included): 5 608 characters
-    in full, 2 246 as the summary."""
+    in full, 3 197 as the summary (2 246 before n103's next_steps)."""
     calls = [e for e in json.loads((GOLDEN / "hosted_tools.json").read_text(encoding="utf-8")) if e.get("tool") == "validate_plan"]
     sizes = {e["args"].get("detail", "summary"): len(_text(e["answer"])) for e in calls if e["args"]["source"] == "demo_lh"}
-    assert sizes == {"full": 5608, "summary": 2246}
+    assert sizes == {"full": 5608, "summary": 3197}
 
 
 def test_sap_verify_refuses_a_summary_and_asks_for_the_full_answer(tmp_path, capsys):

@@ -282,10 +282,101 @@ def summarize(full: dict, plan: Plan | None = None) -> dict:
         out["result"] = ("No check ran: the plan has no key, relationship or header amount to count." if not passing and not skipped
                          else f"All {passing} counted checks passed" + (f" ({skipped} not checked: raise max_items)" if skipped else "")
                          + '; they are left out of this summary, and detail="full" lists each with its counts and rule.')
+    out["next_steps"] = next_steps(full, totals)
     if "personal_data" in full:
         out["personal_data"] = full["personal_data"]
     out["note"] = full.get("note", "")
     return out
+
+
+# Round n103: what to do after validate_plan, in the summary form only. Fixed rules over the full answer, in this
+# order; each rule gives at most one step, a tool appears at most once, and the first three steps are kept. Only tools
+# that read or draft, in both the local and the hosted server; no creating tool, so no dry run is needed either.
+NEXT_STEP_TOOLS = ("sample_rows", "review_plan", "answer_query_draft", "validate_plan", "suggest_relationships",
+                   "semantic_model_draft", "ontology_draft", "plan_backend", "list_tables")
+MAX_NEXT_STEPS = 3
+
+
+def _step(tool: str, arguments: dict, why: str) -> dict:
+    import json
+    shown = ", ".join(f"{k}={json.dumps(v, ensure_ascii=False)}" for k, v in arguments.items())
+    return {"tool": tool, "arguments": arguments, "why": why,
+            "text": f"{tool}({shown}), other arguments as in this call: {why}"}
+
+
+def next_steps(full: dict, totals: dict | None = None) -> list[dict]:
+    """Up to three steps after validate_plan, each {tool, arguments, why, text}: the arguments come from this result
+    only (table names, the item id, the amount column); the other arguments (workspace, source, schema, keys,
+    confirmed) are this call's. The rules, in order:
+      1. a key that is not unique or has NULLs: sample_rows on its table;
+      2. a relationship with orphans: review_plan with validate=true on its two tables, to record a decision on it;
+      3. a header amount that a join repeats: answer_query_draft for its total per header over header and line;
+      4. a relationship that holds with a warning (a target matched more than once): sample_rows on the target;
+      5. checks left out by max_items: validate_plan with a max_items that covers them (at most 200);
+      6. a relationship with orphans: suggest_relationships, for another target of the column;
+      7. nothing failed, nothing left out and at least one check passed: semantic_model_draft, then ontology_draft;
+      8. no check ran at all: plan_backend, then list_tables;
+      9. fewer than two steps so far: review_plan with validate=true, to keep the checks as a file."""
+    from .review import key_id, rel_id
+    keys = full.get("keys", [])
+    rels = full.get("relationships", [])
+    findings = (full.get("amount_levels") or {}).get("findings", [])
+    totals = totals or {}
+    skipped = totals.get("not_checked_beyond_max_items", 0)
+    bad_keys = [k for k in keys if _key_status(k) == "failed"]
+    orphans = [r for r in rels if _rel_status(r) == "failed" and r.get("orphans", 0) > 0]
+    warned = [r for r in rels if _rel_status(r) == "warning"]
+    repeated = [f for f in findings if _amount_status(f) == "failed" and f.get("amount_columns")]
+    failed = bad_keys or orphans or warned or repeated or any(
+        t.get("failed") for t in totals.values() if isinstance(t, dict))
+    passed = sum(t.get("passed", 0) for t in totals.values() if isinstance(t, dict))
+    steps: list[dict] = []
+
+    def add(tool, arguments, why):
+        if all(s["tool"] != tool for s in steps):
+            steps.append(_step(tool, arguments, why))
+
+    if bad_keys:
+        k = bad_keys[0]
+        add("sample_rows", {"table": k["table"], "n": 10},
+            f"{key_id(k['table'])} on {', '.join(k['columns'])} is {k['verdict']}; a few rows show which columns "
+            "identify a row, to pass as keys to validate_plan.")
+    if orphans:
+        r = orphans[0]
+        add("review_plan", {"validate": True, "tables": sorted({r["source"], r["target"]})},
+            f"{rel_id(r['source'], r['columns'], r['target'])}: {r['verdict']}; record in decisions whether it is "
+            "accepted or rejected, with the reason.")
+    if repeated:
+        f = repeated[0]
+        col = f["amount_columns"][0]
+        add("answer_query_draft", {"question": f"total {col} per {f['header']}", "tables": [f["header"], f["line"]]},
+            f"{f['header']}.{col} is repeated on every {f['line']} row in a join; the draft sums it once per "
+            f"{f['header']} row.")
+    if warned:
+        r = warned[0]
+        add("sample_rows", {"table": r["target"], "n": 10},
+            f"{rel_id(r['source'], r['columns'], r['target'])} holds, but a row can match more than one row of "
+            f"{r['target']}; a few rows of {r['target']} show why.")
+    if skipped:
+        checked = len(keys) + len(rels)
+        add("validate_plan", {"max_items": min(200, checked + skipped)},
+            f"{skipped} check(s) did not run because max_items was reached.")
+    if orphans:
+        r = orphans[0]
+        add("suggest_relationships", {},
+            f"{r['source']}.{'+'.join(r['columns'])} has rows that point at nothing in {r['target']}; the candidates "
+            "show whether another table fits it, counted against the data.")
+    if not failed and not skipped and passed:
+        add("semantic_model_draft", {}, f"all {passed} counted checks passed; the draft shows the Power BI model "
+                                        "built on these keys and relationships, creating nothing.")
+        add("ontology_draft", {}, "the draft shows the Fabric IQ ontology built on the same plan, creating nothing.")
+    if not keys and not rels and not findings and not skipped:
+        add("plan_backend", {}, "no check ran; the plan shows which keys and relationships were inferred and which "
+                                "keys to give.")
+        add("list_tables", {}, "the tables and columns show which columns could be a key.")
+    if len(steps) < 2:
+        add("review_plan", {"validate": True}, "keeps the plan, its checks and the decisions made about it as one file.")
+    return steps[:MAX_NEXT_STEPS]
 
 
 def suggest_composite_keys(plan: Plan) -> list[dict]:
