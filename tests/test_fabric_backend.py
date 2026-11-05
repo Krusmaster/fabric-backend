@@ -283,9 +283,12 @@ def test_rayfin_readme_gives_the_publishing_steps_and_their_limits(schema, keys)
     at = [readme.find(x) for x in steps]
     assert -1 not in at and at == sorted(at), [x for x, i in zip(steps, at) if i == -1]
     assert '403 "The feature is not available"' in readme
-    for limit in ("the template's own page", '"Wired 0"', "`src/lib/connectors.ts` does not use the connector yet",
-                  "No query through the connector or from the app has been run"):
+    for limit in ("a published app showed rows from a table", '"Wired 0"',
+                  "`src/lib/connectors.ts` had to be wired by hand", "has to be changed by hand to show data",
+                  "as a type only", "explicit column lists", "decorators stopped the build",
+                  "`dataapp`, which is built for semantic models"):
         assert limit in readme
+    assert "the template's own page" not in readme and "No query through the connector" not in readme
     low = readme.lower()
     assert not any(w in low for w in ("one click", "one-click", "automated", "automatic", "fast", "quick", "minute"))
     from_meta = rayfin_files(plan(Schema.from_rayfin_metadata({"schemas": [{"schemaName": "shop", "tables": [

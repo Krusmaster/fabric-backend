@@ -376,9 +376,11 @@ setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off.
 8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
 9. If the connector step failed: `npx rayfin up connector apply --name shop`.
 
-Limits of that run: the app shows the template's own page; `connector add` printed "Wired 0", so
-`src/lib/connectors.ts` does not use the connector yet; and no query through the connector or from the app has been
-run.
+Later in that run a published app showed rows from a table through the connector, after the page and
+`src/lib/connectors.ts` were changed by hand. Limits: `connector add` printed "Wired 0", so `src/lib/connectors.ts` had
+to be wired by hand; the template's page has to be changed by hand to show data; the page imported the generated schema
+as a type only and passed explicit column lists, because importing the entity classes with their decorators stopped
+the build; and the template used was `dataapp`, which is built for semantic models.
 
 ## Sources it can expose
 

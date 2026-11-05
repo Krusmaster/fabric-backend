@@ -493,7 +493,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in home and "no new item was created" in home
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Thirty-six tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Thirty-eight tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 

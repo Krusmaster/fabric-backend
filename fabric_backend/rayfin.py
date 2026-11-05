@@ -17,9 +17,12 @@ the key, and the relationships the plan inferred as `@one(() => Target)` / `@man
 Docs used (Oct 2026): learn.microsoft.com/fabric/apps/connectors and the decorators reference
 shipped in @microsoft/rayfin-core. Verified with `npx rayfin up` in a sandbox (2026-10-22). On 2026-11-05, with Rayfin
 1.36.2 against a synthetic lakehouse, the steps in `_readme` were run from `npm create` to `npx rayfin up`; `rayfin up`
-answered 403 "The feature is not available" until the tenant setting AppBackendTenant was on. Limits of that run: the
-app shows the template's own page, `connector add` printed "Wired 0" (src/lib/connectors.ts does not use the connector
-yet), and no query through the connector or from the app has been run. Two things the docs do not say:
+answered 403 "The feature is not available" until the tenant setting AppBackendTenant was on. Later in the same run a
+published app showed rows from a table through the connector, after the page and src/lib/connectors.ts were changed by
+hand. Limits: `connector add` printed "Wired 0", so src/lib/connectors.ts had to be wired by hand; the template's page
+has to be changed by hand to show data; the page imported the generated schema as a type only and passed explicit
+column lists, because importing the entity classes with their decorators stopped the build; the template used was
+`dataapp`, which is built for semantic models. Two things the docs do not say:
 - `@one` / `@many` work on connector entities, but only with `{ sourceFields, targetFields }` —
   without them Rayfin derives a column like `customer_customer_id` that the table does not have.
 - `@date()` properties are typed `Date`, not `string`, or the type check fails.
@@ -228,11 +231,14 @@ the setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off
 8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
 9. If the connector step failed: `npx rayfin up connector apply --name {connector}`.
 
-What these steps do not give you yet (run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse):
+Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse: a published app showed rows from a table through the
+connector, after the page and `src/lib/connectors.ts` were changed by hand. What these steps do not do for you:
 
-- The app shows the template's own page.
-- `connector add` printed "Wired 0": `src/lib/connectors.ts` does not use the connector yet.
-- No query through the connector or from the app has been run.
+- `connector add` printed "Wired 0", so `src/lib/connectors.ts` had to be wired by hand.
+- The template's page has to be changed by hand to show data.
+- The page imported the generated schema as a type only (`import type`) and passed explicit column lists, because
+  importing the entity classes with their decorators stopped the build.
+- The template used was `dataapp`, which is built for semantic models.
 
 `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with
 `relationships=False` and keep this file's list as documentation.
