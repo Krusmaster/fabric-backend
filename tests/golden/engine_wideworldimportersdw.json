@@ -1448,8 +1448,8 @@
   "synonyms": []
  },
  "rayfin": {
-  "bytes": 34461,
-  "sha256": "79728ebc7825fc9bc89755db88621c9e18733c15720a2cbaa85ad195a6dedcd0"
+  "bytes": 35992,
+  "sha256": "d63ce4c12c5b24f1aa1bf0b38f796c1ecc923ed3a775fc4d890c0396ea72ac5c"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Date Key] = t.[DateKey] WHERE s.[Date Key] IS NOT NULL",

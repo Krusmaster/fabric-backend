@@ -146,8 +146,8 @@
   "sha256": "3e9099139eba37c96ff8016b8fbd683ed96bf9b3e8aa022e70a863bf7297ba6d"
  },
  "rayfin": {
-  "bytes": 115925,
-  "sha256": "e218a7cec7b2d4a0cbcd5bb140db6a25f91da8c400ae48a36f51dfc3d3e1531a"
+  "bytes": 117456,
+  "sha256": "5c9f5771a1cf113a945040f784c056ad7c2c9982fcdaef7d8ff1a01096509ce4"
  },
  "relationship_sql": {
   "bytes": 23520,

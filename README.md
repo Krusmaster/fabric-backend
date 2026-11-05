@@ -353,6 +353,33 @@ entities **only with `sourceFields`/`targetFields`** — without them Rayfin inv
 `string`. Both are generated. The docs do say *don't infer a primary key from a column name*; this
 does, and prints the rule beside every key so you can take it out.
 
+### Publishing the generated files in Fabric
+
+These are the steps of a run on 5 November 2026 with Rayfin 1.36.2 against a synthetic lakehouse; the generated
+`README.generated.md` repeats them with your connector's name.
+
+First, a Fabric admin turns on the tenant setting "Enable Fabric App Items (preview)" (`AppBackendTenant`) in the
+Admin portal. Until it was on, `npx rayfin up` failed with 403 "The feature is not available". An admin can read the
+setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off.
+
+1. `npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"` (in Windows PowerShell
+   `npm.cmd create ...`), then `cd <app>`.
+2. `npx rayfin login`
+3. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read`,
+   then run the `npm install` it prints, inside the project.
+4. `fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema shop --connector shop --out .`
+5. Review the keys: delete `primaryKey` where a K2 key (inferred from a column name) is wrong.
+6. If `rayfin/tsconfig.json` is missing, copy it from
+   `node_modules/@microsoft/rayfin-cli/templates/data-app/rayfin/tsconfig.json`. Without it the connector apply fails
+   with "No usable compiled connector entities" while the deploy still reports success, so read the warnings.
+7. `npx tsc -p rayfin/tsconfig.json --noEmit`
+8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
+9. If the connector step failed: `npx rayfin up connector apply --name shop`.
+
+Limits of that run: the app shows the template's own page; `connector add` printed "Wired 0", so
+`src/lib/connectors.ts` does not use the connector yet; and no query through the connector or from the app has been
+run.
+
 ## Sources it can expose
 
 | Source | `sourceType` | Writes | Rayfin connector |

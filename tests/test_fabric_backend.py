@@ -267,6 +267,32 @@ def test_rayfin_entities_and_schema(schema, keys):
     assert "@one" not in no_rel and "many" not in no_rel.split("from '@microsoft/rayfin-core'")[0]
 
 
+def test_rayfin_readme_gives_the_publishing_steps_and_their_limits(schema, keys):
+    """The steps of the run of 5 November 2026 (Rayfin 1.36.2, synthetic lakehouse), in order, and what was not run."""
+    from fabric_backend.rayfin import rayfin_files
+    readme = rayfin_files(plan(schema, keys), "shop")["rayfin/connectors/shop/README.generated.md"]
+    steps = ['"Enable Fabric App Items (preview)" (`AppBackendTenant`)', "GET /v1/admin/tenantsettings",
+             "Leave anonymous data access off",
+             'npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"', "npm.cmd",
+             "npx rayfin login",
+             "npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read",
+             "fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema dbo --connector shop --out .",
+             "Keys marked K2", "node_modules/@microsoft/rayfin-cli/templates/data-app/rayfin/tsconfig.json",
+             '"No usable compiled connector entities"', "npx tsc -p rayfin/tsconfig.json --noEmit",
+             "npx rayfin up --workspace <workspace>", "visitors must sign in", "npx rayfin up connector apply --name shop"]
+    at = [readme.find(x) for x in steps]
+    assert -1 not in at and at == sorted(at), [x for x, i in zip(steps, at) if i == -1]
+    assert '403 "The feature is not available"' in readme
+    for limit in ("the template's own page", '"Wired 0"', "`src/lib/connectors.ts` does not use the connector yet",
+                  "No query through the connector or from the app has been run"):
+        assert limit in readme
+    low = readme.lower()
+    assert not any(w in low for w in ("one click", "one-click", "automated", "automatic", "fast", "quick", "minute"))
+    from_meta = rayfin_files(plan(Schema.from_rayfin_metadata({"schemas": [{"schemaName": "shop", "tables": [
+        {"tableName": "orders", "columns": [{"columnName": "order_id", "dataType": "int"}]}]}]})), "shop")
+    assert "--schema shop --connector shop" in from_meta["rayfin/connectors/shop/README.generated.md"]
+
+
 def test_rayfin_warehouse_type_and_rejects_semantic_model(schema, keys):
     from fabric_backend.rayfin import rayfin_files
     assert "connector: 'fabric-warehouse'" in rayfin_files(plan(schema, keys), "x", "Warehouse")["rayfin/connectors/x/schema.ts"]
