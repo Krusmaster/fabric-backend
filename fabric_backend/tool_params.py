@@ -5,7 +5,7 @@ own in one tool are defined next to the shared ones under that tool's name. test
 a parameter has no description."""
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import Field
 
@@ -139,6 +139,9 @@ ExportNames = Annotated[dict[str, str] | None, _d(
 StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id.')]
 LineageTable = Annotated[str | None, _d('One table to trace: the answer adds what a change to it reaches. Default: none. '
                                         'Example: "orders".')]
+LineageFormat = Annotated[Literal["graph", "openlineage"], _d('"graph" (default) or "openlineage": one OpenLineage '
+                                    'RunEvent per object, tables as datasets with column names and types, relationship '
+                                    'rules and counts in a custom facet; no row values.')]
 Question = Annotated[str, _d('The question, in Swedish or English. Example: "total amount per customer last month".')]
 QuestionTables = Annotated[list[str], _d('Tables the question is about, exact names. Example: ["orders", "customers"].')]
 QuestionApi = Annotated[str | None, _d('API for GraphQL item over the source; when given, a GraphQL query is drafted too. '

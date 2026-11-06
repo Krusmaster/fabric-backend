@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Krusmaster/fabric-backend/blob/main/fabric_backend/openlineage_krusgraph_facet.json",
+  "description": "Krusgraph's custom OpenLineage job facet (fabric_backend/openlineage.py): whether Krusgraph created the item, the lineage edges as read, and the relationships between the job's input tables that were counted, with their rule and counts. Names, rules and counts only; never a row value.",
+  "type": "object",
+  "allOf": [{"$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/JobFacet"}],
+  "properties": {
+    "created_by_krusgraph": {"type": "boolean"},
+    "item_id": {"type": ["string", "null"]},
+    "kind": {"type": "string", "enum": ["graphql_api", "semantic_model", "view", "data_agent"]},
+    "edges": {"type": "array", "items": {"type": "object", "properties": {
+      "table": {"type": "string"}, "via": {"type": "string"}, "certain": {"type": "boolean"}},
+      "required": ["table", "via", "certain"], "additionalProperties": false}},
+    "relationships": {"type": "array", "items": {"type": "object", "properties": {
+      "from": {"type": "string"}, "to": {"type": "string"}, "rule": {"type": "string"},
+      "rows_with_value": {"type": ["integer", "null"]}, "orphans": {"type": ["integer", "null"]},
+      "verdict": {"type": ["string", "null"]}},
+      "required": ["from", "to", "rule"], "additionalProperties": false}}
+  },
+  "required": ["created_by_krusgraph", "kind", "edges", "relationships"]
+}

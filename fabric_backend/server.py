@@ -2065,11 +2065,12 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
 
 @mcp.tool(title="Lineage: what builds on a source's tables", annotations=RO)
 @safe
-def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", table: _p.LineageTable = None, ctx: Context = None) -> str:
+def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", table: _p.LineageTable = None,
+            format: _p.LineageFormat = "graph", ctx: Context = None) -> str:
     """Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the
     SQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per
-    table, tables nothing uses, items that could not be read, and with table, what a change to it reaches.
-    Read-only. Errors: {error, kind, hint}."""
+    table, tables nothing uses, items that could not be read, and with table, what a change to it reaches; format="openlineage" returns OpenLineage events
+    instead. Read-only. Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         headers = _headers(ctx)
@@ -2077,6 +2078,14 @@ def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo
         item = _resolve_source(workspace_id, source, headers)
         tables = [t.name for t in s]
         edges, skipped = _lineage_edges(workspace_id, item, schema, set(tables), headers, execute=execute)
+        if format == "openlineage":                                         # n125: the graph as OpenLineage events
+            from datetime import datetime, timezone
+            from . import openlineage as _ol
+            checks = _evidence.validate(_hosted_plan(s, None, None, execute), execute)["relationships"]
+            graph = _lineage.graph(item, schema, tables, edges, skipped)
+            evs = _ol.events(graph, s, workspace_id, item, created_ids=_ol.created_ids(_workspace_items(workspace_id, headers)),
+                             checks=checks, event_time=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
+            return json.dumps(_ol.answer(graph, evs, checked=bool(checks)), indent=2, default=str)
     finally:
         getattr(execute, "close", lambda: None)()
     out = _lineage.graph(item, schema, tables, edges, skipped)

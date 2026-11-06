@@ -2416,9 +2416,19 @@
     "read_only_hint": true,
     "title": "Lineage: what builds on a source's tables"
    },
-   "description": "Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the\nSQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per\ntable, tables nothing uses, items that could not be read, and with table, what a change to it reaches.\nRead-only. Errors: {error, kind, hint}.",
+   "description": "Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the\nSQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per\ntable, tables nothing uses, items that could not be read, and with table, what a change to it reaches; format=\"openlineage\" returns OpenLineage events\ninstead. Read-only. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
+     "format": {
+      "default": "graph",
+      "description": "\"graph\" (default) or \"openlineage\": one OpenLineage RunEvent per object, tables as datasets with column names and types, relationship rules and counts in a custom facet; no row values.",
+      "enum": [
+       "graph",
+       "openlineage"
+      ],
+      "title": "Format",
+      "type": "string"
+     },
      "schema": {
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",
