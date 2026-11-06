@@ -5,6 +5,18 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n116: a OneLake catalog draft (`fabric_backend/catalog.py`). `export_item_definitions(items=["catalog"])` lists
+  each Fabric item the plan touches with the description and tags it would get, and the exact REST calls for them. The
+  items are the source lakehouse or warehouse and the API, model, notebooks and pipelines the creating tools would
+  make. The calls are `PATCH /v1/workspaces/{id}/items/{id}` (Update Item, description at most 256 characters) and
+  `POST .../items/{id}/applyTags`, which takes tag ids that `GET /v1/tags` finds. Tags that do not exist yet need
+  `POST /v1/admin/tags/bulkCreateTags`, which only a Fabric administrator can call. A description holds table and
+  entity names, roles, key and relationship rules, validate_plan's counts with `check_rows=true`, and the proposed
+  domains. It never holds a column name or a row value. The tags are "Krusgraph" plus one per proposed domain.
+  `catalog` alone answers without files; with other items the files stay. Nothing is set on lakehouse tables, T-SQL
+  views, the SQL analytics endpoint or endorsement, because no public operation covers them. Sources:
+  fabric-rest-api-specs 6f817cb, fabric-docs 28d4ff3 and microsoft/mcp 42c66a2, all read on 6 Nov 2026. No tool sends
+  the calls; still 38 tools. Writing would also need `Tag.Read.All`. Unit-tested on the shop; not sent to Fabric.
 - Round n115: a fix suggestion for each of validate_plan's findings (`fabric_backend/fixes.py`), as drafts. Each row of
   the evidence report's checklist carries `fix`, and the report has a "Fix suggestions" section. A fix is a mechanical
   step with a stated rule: rows with a NULL key and exact copies go to quarantine, one row per key stays, and an amount

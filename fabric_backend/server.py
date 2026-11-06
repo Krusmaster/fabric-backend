@@ -1681,7 +1681,7 @@ def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
 
 
 EXPORTABLE = ("create_backend", "create_semantic_model", "create_views", "create_silver_notebook", "create_drift_monitor", "create_gold_views")
-EXPORT_DRAFTS = ("pipeline",)     # n110: drafts no tool creates, exported only when asked for in `items`
+EXPORT_DRAFTS = ("pipeline", "catalog")     # n110, n116: drafts no tool creates, exported only when asked for in `items`
 
 
 @mcp.tool(title="Export what the creating tools would create, in Fabric's Git format", annotations=RO)
@@ -1690,15 +1690,21 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                             names: _p.ExportNames = None, keys: _p.Keys = None,
                             confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, silver_schema: _p.SilverSchema = "silver",
                             gold_schema: _p.GoldSchema = "gold", views_schema: _p.ViewsSchema = "krusgraph", writable: _p.Writable = False,
-                            show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
+                            show_personal_data: _p.ShowPersonalData = False, check_rows: _p.CheckRows = False,
+                            ctx: Context = None) -> str:
     """Exports what the creating tools would create as files in Fabric's Git format: a <name>.<type> folder per item,
     views as .sql, a README; items=["pipeline"] adds a data pipeline draft (silver, gold, then a check that fails
-    the run). Requires workspace and source. Returns JSON with the files, the items and what was skipped and why.
-    Changes nothing. Errors: {error, kind, hint}."""
+    the run); items=["catalog"] the OneLake catalog descriptions and tags per item with the REST calls (not sent).
+    Requires workspace and source. Returns JSON with the files, the items and what was skipped and why. Changes
+    nothing. Errors: {error, kind, hint}."""
     from . import git_export as _gx, notebook as _notebook, silver as _silver_mod, gold as _gold_mod, monitor as _monitor
-    from . import pipeline as _pipeline
+    from . import pipeline as _pipeline, catalog as _catalog
     from .infer import PlanInputError
     wanted = list(dict.fromkeys(items or EXPORTABLE))
+    catalog_only = wanted == ["catalog"]      # n116: the catalog draft for the items the creating tools would create, no files
+    with_catalog = "catalog" in wanted
+    if with_catalog:
+        wanted = [w for w in wanted if w != "catalog"] or list(EXPORTABLE)
     unknown = [i for i in wanted if i not in EXPORTABLE + EXPORT_DRAFTS]
     if unknown:
         raise PlanInputError("items: one or more of " + ", ".join(EXPORTABLE + EXPORT_DRAFTS) + "; not known: " + ", ".join(unknown))
@@ -1707,18 +1713,26 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
         wanted += [w for w in ("create_silver_notebook", "create_gold_views") if w not in wanted] + ["pipeline"]
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
+    validation = None
+    if check_rows and with_catalog:          # validate_plan's counts for the catalog descriptions; counts only, no values
+        _, execute = _connected(workspace, source, schema, ctx)
+        try:
+            validation = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
     names = {**{"create_backend": f"{info['item_name']}_api", "create_semantic_model": f"{info['item_name']}_model",
                 "create_silver_notebook": f"silver_{schema}", "create_drift_monitor": f"drift_monitor_{schema}",
                 "create_gold_views": f"gold_{schema}", "pipeline": f"pipeline_{schema}"}, **(names or {})}
     lakehouse = info["item_kind"] == "Lakehouse"
     files: dict[str, str] = {}
-    entries, notes, skipped = [], [], []
+    entries, notes, skipped, made = [], [], [], []
     existing_api = None
 
     def add(tool: str, item_type: str, body: dict, what: str) -> None:
         folder = _gx.folder(body["displayName"], item_type)
         if any(e["folder"] == folder for e in entries):
             raise PlanInputError(f"names: two items would share the folder {folder}; give {tool} another name")
+        made.append({"tool": tool, "type": item_type, "name": body["displayName"]})
         files.update(_gx.files_of(body, item_type))
         entries.append({"tool": tool, "type": item_type, "folder": _gx.folder(body["displayName"], item_type), "what": what})
     for tool in wanted:
@@ -1822,6 +1836,18 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                            "not_verified": "Not run in Fabric: the Git update of these files, the binding of the notebook references and "
                                            "the check's Spark SQL in a Fabric runtime are untested; the check runs in the unit tests on "
                                            "SQLite and on a local PySpark."}
+    if check_rows and not with_catalog:
+        notes.append("check_rows counts rows for items=[\"catalog\"] only; nothing was counted.")
+    if with_catalog:
+        within = sorted(_compact.match_tables(p.schema, tables) or [], key=str.lower) or None
+        cat = _catalog.draft(p, info, made, names, {"silver": silver_schema, "gold": gold_schema}, validation, within)
+        if catalog_only:
+            return _bounded({"summary": p.summary().splitlines()[0] + "; OneLake catalog draft: " + cat.pop("summary"),
+                             "catalog": cat, "skipped": skipped,
+                             "hint": "Pass the creating tools in items as well for their files in Fabric's Git format."},
+                            MAX_RESULT_CHARS)
+        out["catalog"] = cat
+        out["summary"] += "; OneLake catalog draft: " + cat.pop("summary")
     text = json.dumps(out, indent=2)
     if len(text) > MAX_RESULT_CHARS:
         out["omitted"] = []

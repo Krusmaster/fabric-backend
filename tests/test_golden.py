@@ -222,6 +222,7 @@ HOSTED_CALLS = [
     ("drift_monitor_draft", SRC),
     ("create_drift_monitor", {**SRC, "name": "shop_drift"}),
     ("export_item_definitions", SRC),
+    ("export_item_definitions", {**SRC, "items": ["catalog"], "check_rows": True}),      # n116: the OneLake catalog draft
     ("app_starter", {"workspace": "demo", "api": "shop_api"}),
     ("app_readiness", {"workspace": "demo", "api": "shop_api"}),
     ("lineage", SRC),

@@ -6371,6 +6371,641 @@
  },
  {
   "answer": {
+   "catalog": {
+    "apis": [
+     {
+      "method": "PATCH",
+      "operation": "Items_UpdateItem",
+      "path": "/v1/workspaces/{workspaceId}/items/{itemId}",
+      "scopes": "Item.ReadWrite.All or <itemType>.ReadWrite.All",
+      "sets": "description (at most 256 characters) and displayName of one item",
+      "status": "documented, no preview note",
+      "used": true,
+      "who": "read and write permission on the item"
+     },
+     {
+      "method": "GET",
+      "operation": "Tags_ListTags",
+      "path": "/v1/tags",
+      "scopes": "Tag.Read.All",
+      "sets": "nothing: lists the tenant's tags, to find their ids",
+      "status": "documented, no preview note",
+      "used": true,
+      "who": "no role named in the docs"
+     },
+     {
+      "method": "POST",
+      "operation": "Tags_ApplyTags",
+      "path": "/v1/workspaces/{workspaceId}/items/{itemId}/applyTags",
+      "scopes": "ItemMetadata.ReadWrite.All, Item.ReadWrite.All or <itemType>.ReadWrite.All",
+      "sets": "tags on one item, by tag id; at most 10 per item",
+      "status": "documented, no preview note",
+      "used": true,
+      "who": "Contributor or higher on the workspace"
+     },
+     {
+      "method": "POST",
+      "operation": "Tags_BulkCreateTags",
+      "path": "/v1/admin/tags/bulkCreateTags",
+      "scopes": "Tenant.ReadWrite.All",
+      "sets": "new tenant or domain tags (names of at most 40 characters)",
+      "status": "documented, admin API",
+      "used": "only for tags the tenant does not have",
+      "who": "a Fabric administrator"
+     },
+     {
+      "method": "POST",
+      "operation": "Catalog_Search",
+      "path": "/v1/catalog/search",
+      "scopes": "Catalog.Read.All",
+      "sets": "nothing: searches display names, workspace names and descriptions (not tags)",
+      "status": "preview",
+      "used": "to check afterwards that the items are found",
+      "who": "items the caller may see"
+     }
+    ],
+    "facts": {
+     "counted": true,
+     "domains": [
+      {
+       "name": "customers",
+       "tables": [
+        "addresses",
+        "customers",
+        "order_items",
+        "orders"
+       ]
+      },
+      {
+       "name": "products",
+       "tables": [
+        "categories",
+        "products"
+       ]
+      }
+     ],
+     "relationships": [
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 17
+       },
+       "from": "addresses",
+       "from_entity": "Addresses",
+       "rule": "R1",
+       "to": "customers",
+       "to_entity": "Customers"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 40
+       },
+       "from": "audit_log",
+       "from_entity": "AuditLog",
+       "rule": "R1",
+       "to": "customers",
+       "to_entity": "Customers"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 134
+       },
+       "from": "order_items",
+       "from_entity": "OrderItems",
+       "rule": "R1",
+       "to": "orders",
+       "to_entity": "Orders"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 134
+       },
+       "from": "order_items",
+       "from_entity": "OrderItems",
+       "rule": "R1",
+       "to": "products",
+       "to_entity": "Products"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 60
+       },
+       "from": "orders",
+       "from_entity": "Orders",
+       "rule": "R5",
+       "to": "addresses",
+       "to_entity": "Addresses"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 60
+       },
+       "from": "orders",
+       "from_entity": "Orders",
+       "rule": "R1",
+       "to": "customers",
+       "to_entity": "Customers"
+      },
+      {
+       "counted": {
+        "orphans": 0,
+        "rows_with_value": 8
+       },
+       "from": "products",
+       "from_entity": "Products",
+       "rule": "R1",
+       "to": "categories",
+       "to_entity": "Categories"
+      }
+     ],
+     "tables": [
+      {
+       "entity": "Addresses",
+       "key_columns": 1,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 17,
+        "unique": true
+       },
+       "key_rule": "K2",
+       "role": "dimension",
+       "table": "addresses"
+      },
+      {
+       "entity": "AuditLog",
+       "key_columns": 0,
+       "key_rule": null,
+       "role": "fact",
+       "table": "audit_log"
+      },
+      {
+       "entity": "Categories",
+       "key_columns": 1,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 3,
+        "unique": true
+       },
+       "key_rule": "K2",
+       "role": "dimension",
+       "table": "categories"
+      },
+      {
+       "entity": "Customers",
+       "key_columns": 1,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 10,
+        "unique": true
+       },
+       "key_rule": "K2",
+       "role": "dimension",
+       "table": "customers"
+      },
+      {
+       "entity": "OrderItems",
+       "key_columns": 2,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 134,
+        "unique": true
+       },
+       "key_rule": "K5",
+       "role": "fact",
+       "table": "order_items"
+      },
+      {
+       "entity": "Orders",
+       "key_columns": 1,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 60,
+        "unique": true
+       },
+       "key_rule": "K2",
+       "role": "fact",
+       "table": "orders"
+      },
+      {
+       "entity": "Products",
+       "key_columns": 1,
+       "key_counted": {
+        "nulls": 0,
+        "rows": 8,
+        "unique": true
+       },
+       "key_rule": "K2",
+       "role": "dimension",
+       "table": "products"
+      }
+     ]
+    },
+    "find_it": "The OneLake catalog shows the description under the item's name and filters by tag; Catalog_Search (preview) and Microsoft's Fabric MCP server's core_search-catalog match the description, not the tags.",
+    "items": [
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5), counted: 6 of 6 keys unique, 7 of 7 relationships without orphans; proposed domains: customers, products."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateLakehouse: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001",
+        "scopes": "Item.ReadWrite.All or Lakehouse.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000001"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or Lakehouse.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000001/applyTags"
+       }
+      ],
+      "description": "Schema shop, planned by Krusgraph: 7 tables (3 facts; 4 dimensions), 6 with a key (K2, K5); 7 relationships (R1, R5), counted: 6 of 6 keys unique, 7 of 7 relationships without orphans; proposed domains: customers, products.",
+      "description_chars": 223,
+      "exists": true,
+      "item": "demo_lh",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": null,
+      "type": "Lakehouse"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateGraphQLApi: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis/<id of demo_lh_api once created>",
+        "scopes": "Item.ReadWrite.All or GraphQLApi.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_api once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or GraphQLApi.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_api once created>/applyTags"
+       }
+      ],
+      "description": "API for GraphQL over demo_lh.shop: types Addresses, AuditLog, Categories, Customers, OrderItems, Orders, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans.",
+      "description_chars": 229,
+      "exists": false,
+      "item": "demo_lh_api",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_backend",
+      "type": "GraphQLApi"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateSemanticModel: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/semanticModels/<id of demo_lh_model once created>",
+        "scopes": "Item.ReadWrite.All or SemanticModel.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_model once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or SemanticModel.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of demo_lh_model once created>/applyTags"
+       }
+      ],
+      "description": "Direct Lake model over demo_lh.shop: facts AuditLog, OrderItems, Orders; dimensions Addresses, Categories, Customers, Products; 7 relationships (R1, R5) from Krusgraph's plan, counted: 6 of 6 keys unique, 7 of 7 relationships without orphans.",
+      "description_chars": 242,
+      "exists": false,
+      "item": "demo_lh_model",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_semantic_model",
+      "type": "SemanticModel"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateNotebook: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/notebooks/<id of silver_shop once created>",
+        "scopes": "Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of silver_shop once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of silver_shop once created>/applyTags"
+       }
+      ],
+      "description": "Writes de-duplicated silver tables in silver from demo_lh.shop: 6 keys, 7 references checked per row, rows without a match go to a quarantine table. Generated by Krusgraph from the plan.",
+      "description_chars": 186,
+      "exists": false,
+      "item": "silver_shop",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_silver_notebook",
+      "type": "Notebook"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateNotebook: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/notebooks/<id of drift_monitor_shop once created>",
+        "scopes": "Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop once created>/applyTags"
+       }
+      ],
+      "description": "Compares the tables of demo_lh.shop with the last plan and sends the changes to a webhook. Generated by Krusgraph.",
+      "description_chars": 114,
+      "exists": false,
+      "item": "drift_monitor_shop",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_drift_monitor",
+      "type": "Notebook"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateDataPipeline: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/dataPipelines/<id of drift_monitor_shop_nightly once created>",
+        "scopes": "Item.ReadWrite.All or DataPipeline.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop_nightly once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or DataPipeline.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of drift_monitor_shop_nightly once created>/applyTags"
+       }
+      ],
+      "description": "Runs the notebook drift_monitor_shop each night. Generated by Krusgraph.",
+      "description_chars": 72,
+      "exists": false,
+      "item": "drift_monitor_shop_nightly",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_drift_monitor",
+      "type": "DataPipeline"
+     },
+     {
+      "calls": [
+       {
+        "body": {
+         "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan."
+        },
+        "method": "PATCH",
+        "operation": "Items_UpdateItem",
+        "same_with": "Items_UpdateNotebook: PATCH https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/notebooks/<id of gold_shop once created>",
+        "scopes": "Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of gold_shop once created>"
+       },
+       {
+        "body": {
+         "tags": [
+          "<id of tag 'Krusgraph' from GET /v1/tags>",
+          "<id of tag 'domain: customers' from GET /v1/tags>",
+          "<id of tag 'domain: products' from GET /v1/tags>"
+         ]
+        },
+        "method": "POST",
+        "operation": "Tags_ApplyTags",
+        "scopes": "ItemMetadata.ReadWrite.All or Item.ReadWrite.All or Notebook.ReadWrite.All",
+        "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/<id of gold_shop once created>/applyTags"
+       }
+      ],
+      "description": "Creates materialized lake views in gold over the silver tables of demo_lh.shop, with the plan's keys and relationships as data quality rules. Generated by Krusgraph from the plan.",
+      "description_chars": 179,
+      "exists": false,
+      "item": "gold_shop",
+      "tags": [
+       "Krusgraph",
+       "domain: customers",
+       "domain: products"
+      ],
+      "tool": "create_gold_views",
+      "type": "Notebook"
+     }
+    ],
+    "not_set": [
+     {
+      "what": "lakehouse and warehouse tables",
+      "why": "tables are not Fabric items: no public API sets a table's description or tags (a lakehouse table has type, name, location and format); what the plan knows per table goes into the source item's description, in short, and in full into data_dictionary"
+     },
+     {
+      "what": "the T-SQL views of create_views",
+      "why": "views are not Fabric items; they have no description or tags in the catalog"
+     },
+     {
+      "what": "the SQL analytics endpoint",
+      "why": "the specs have no update operation for it (its only PATCH is settings/sqlAudit)"
+     },
+     {
+      "what": "endorsement (promoted, certified)",
+      "why": "no public REST operation; certifying is for people a Fabric administrator names, so it is left out"
+     },
+     {
+      "what": "Fabric domains",
+      "why": "assigning a workspace to a domain is an admin API (Tenant.ReadWrite.All); the proposed domains appear here as tags, domain_draft has the proposal"
+     }
+    ],
+    "note": "A draft: no tool sends these calls. Review the descriptions and tags, then send them yourself, for example with Microsoft's Fabric MCP server (core_update-item for the description) or the REST API.",
+    "permissions": {
+     "has_today": "Item.ReadWrite.All (delegated, on the hosted app since 28 October 2026) covers Update Item and Apply Tags for a user who is Contributor on the workspace.",
+     "new_for_writing": [
+      "Tag.Read.All: to look up the tags' ids (GET /v1/tags), which Apply Tags takes instead of names"
+     ],
+     "optional": [
+      "Catalog.Read.All: to search the catalog afterwards (Catalog_Search, preview)"
+     ],
+     "stays_with_the_customer": [
+      "Tenant.ReadWrite.All with a Fabric administrator: creating the tags (bulkCreateTags); Krusgraph should not hold it"
+     ]
+    },
+    "sources": "microsoft/fabric-rest-api-specs 6f817cb (2 Nov 2026); MicrosoftDocs/fabric-docs 28d4ff3 governance/tags-*.md, onelake-catalog-*.md; microsoft/mcp 42c66a2 servers/Fabric.Mcp.Server/README.md; read 6 Nov 2026",
+    "tag_setup": {
+     "calls": [
+      {
+       "method": "GET",
+       "operation": "Tags_ListTags",
+       "scopes": "Tag.Read.All",
+       "url": "https://api.fabric.microsoft.com/v1/tags",
+       "why": "Apply Tags takes tag ids: find each tag's id by its displayName (pages with continuationToken)"
+      },
+      {
+       "body": {
+        "createTagsRequest": [
+         {
+          "displayName": "Krusgraph"
+         },
+         {
+          "displayName": "domain: customers"
+         },
+         {
+          "displayName": "domain: products"
+         }
+        ]
+       },
+       "method": "POST",
+       "operation": "Tags_BulkCreateTags",
+       "scopes": "Tenant.ReadWrite.All",
+       "url": "https://api.fabric.microsoft.com/v1/admin/tags/bulkCreateTags",
+       "why": "only for the tags GET /v1/tags does not list, and only by a Fabric administrator; a domain admin can create them as domain tags with \"scope\": {\"type\": \"Domain\", \"domainId\": ...}"
+      }
+     ],
+     "tags": [
+      "Krusgraph",
+      "domain: customers",
+      "domain: products"
+     ]
+    }
+   },
+   "hint": "Pass the creating tools in items as well for their files in Fabric's Git format.",
+   "skipped": [],
+   "summary": "7 tables, 6 with keys, 7 relationships; OneLake catalog draft: 7 item(s) with a description and 3 tag(s) each; counts from validate_plan; nothing sent"
+  },
+  "args": {
+   "check_rows": true,
+   "items": [
+    "catalog"
+   ],
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "demo"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ]
+  ],
+  "tool": "export_item_definitions"
+ },
+ {
+  "answer": {
    "backend": {
     "edge_function": {
      "path": "supabase/functions/fabric-graphql/index.ts",
