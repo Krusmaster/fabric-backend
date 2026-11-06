@@ -69,7 +69,7 @@
  },
  "rayfin": {
   "bytes": 96387,
-  "sha256": "ec0903930db9c1b9689a77aee2758e9397db41866eb3d43ae0b929962c235e27"
+  "sha256": "c82e304db7dfff493fc4fe9038cedfc15cb6acf5c98878ef2ba59ce0a98cd50e"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[StateProvinceID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Cities] AS s LEFT JOIN (SELECT DISTINCT [StateProvinceID] FROM [dbo].[StateProvinces]) AS t ON s.[StateProvinceID] = t.[StateProvinceID] WHERE s.[StateProvinceID] IS NOT NULL",

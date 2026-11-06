@@ -573,8 +573,8 @@ the setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off
 
 ## What was verified, and what was not
 
-- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse, `dataapp` template: a published app showed rows from a
-  table through the connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated
+- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse, `dataapp` template:
+  a published app showed rows from a table through the connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated
   files do the same things (type-only schema import, explicit column lists), but they have not been deployed to Fabric
   or opened in a browser, and no app has been published from a `blankapp` project.
 - fabric-backend's tests compile the generated files, the page included, with `tsc` against `@microsoft/rayfin-*`

@@ -271,18 +271,19 @@ def test_rayfin_entities_and_schema(schema, keys):
 
 def test_rayfin_readme_gives_the_publishing_steps_and_their_limits(schema, keys):
     """The steps of the run of 5 November 2026 (Rayfin 1.36.2, synthetic lakehouse), in order, with the hand steps of
-    that run replaced by the generated files (n109), and what was verified and what was not."""
+    that run replaced by the generated files (n109) and the template changed to blankapp (n128), and what was verified
+    and what was not."""
     from fabric_backend.rayfin import rayfin_files
     readme = rayfin_files(plan(schema, keys), "shop")["rayfin/connectors/shop/README.generated.md"]
     steps = ["`src/lib/connectors.ts`", "`src/pages/OrderItemsPage.tsx`", "`rayfin/tsconfig.json`",
              '"Enable Fabric App Items (preview)" (`AppBackendTenant`)', "GET /v1/admin/tenantsettings",
              "Leave anonymous data access off",
-             'npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"', "npm.cmd",
-             "npx rayfin login",
+             'npm create @microsoft/rayfin@latest -- <app> --template blankapp --workspace "<workspace>"', "npm.cmd",
+             "npm run pack:add -- connectors", "npx rayfin login",
              "npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read",
              "fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema dbo --connector shop --out .",
              "--page-table", "Keys marked K2", "Use the generated files", "<OrderItemsPage />",
-             "npx tsc -p rayfin/tsconfig.json --noEmit", "npx tsc -p tsconfig.json --noEmit",
+             "npx tsc -p rayfin/tsconfig.json --noEmit", "npm run typecheck", "npm run build",
              "npx rayfin up --workspace <workspace>", "visitors must sign in", "npx rayfin up connector apply --name shop",
              '"No usable compiled connector entities"', "What was verified, and what was not"]
     at = [readme.find(x) for x in steps]
@@ -296,7 +297,11 @@ def test_rayfin_readme_gives_the_publishing_steps_and_their_limits(schema, keys)
     for said in ("a published app showed rows from a table", "were written by hand",
                  "they have not been deployed to Fabric", "imports the connector's schema as a type only",
                  "explicit\n  column list", "1.36.2 and TypeScript 5.7.3", "That checks types, not behaviour",
-                 "`dataapp`, which is built for semantic models"):
+                 "`dataapp` project (built for semantic\nmodels)", "no app has been published from a `blankapp`"):
+        assert said in readme, said
+    # n128: blankapp is recommended; dataapp only with the hand changes it needed
+    assert "--template dataapp" not in readme and "Use the `blankapp` template." in readme
+    for said in ("`SemanticModelConnectors`", "`src/lib/connectors.spec.ts` then", "packages/frontend/src/App.tsx"):
         assert said in readme, said
     low = readme.lower()
     assert not any(w in low for w in ("one click", "one-click", "automated", "automatic", "fast", "quick", "minute",

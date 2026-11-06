@@ -1449,7 +1449,7 @@
  },
  "rayfin": {
   "bytes": 49895,
-  "sha256": "2895241cdbaaa56c5cae0e17bd47f7ee470c0512769359f9ca85f3f5bd072f07"
+  "sha256": "4968e82307c74112479763984346e9c1718dfeb31ed14578d719ac0ac8bfe3e6"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DateKey] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Movement] AS s LEFT JOIN (SELECT DISTINCT [DateKey] FROM [dbo].[Date]) AS t ON s.[Date Key] = t.[DateKey] WHERE s.[Date Key] IS NOT NULL",
