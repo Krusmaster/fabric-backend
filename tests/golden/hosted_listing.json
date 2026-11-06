@@ -572,7 +572,7 @@
     "read_only_hint": false,
     "title": "Create or update a Fabric data agent from the plan (dry run by default)"
    },
-   "description": "Creates a Fabric data agent over the source, with the plan as its instructions, the plan's tables selected and 5–10\nexample question/T-SQL pairs, or updates the agent of that name in place. Requires workspace, source and name;\nItem.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON with the instructions, examples and REST calls; with\ndry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data\nsource and examples are replaced; nothing is deleted. Errors: {error, kind, hint}.",
+   "description": "Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that\nare safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example\nquestion/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted\nare called safe. Requires workspace, source and name; Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON\nwith the instructions, examples, sizes against the documented limits and the REST calls; with dry_run=false also\nthe result, or kind consent. Changes Fabric only with dry_run=false: instructions, data source and examples are\nreplaced; nothing is deleted. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -649,6 +649,12 @@
       "default": false,
       "description": "true also checks the plan against the rows (counts only, as validate_plan) and drafts 10-20 test questions for the agent, each with the T-SQL that gives the right answer, the answer's shape and the finding it tests. Default false.",
       "title": "Test Questions",
+      "type": "boolean"
+     },
+     "validate": {
+      "default": false,
+      "description": "true runs validate_plan's counting queries and includes the counts; false (default) reads metadata only.",
+      "title": "Validate",
       "type": "boolean"
      },
      "workspace": {

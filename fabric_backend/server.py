@@ -1328,16 +1328,28 @@ def _views_personal(stmts: dict) -> dict:
 @safe
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
-                      dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False, ctx: Context = None) -> str:
-    """Creates a Fabric data agent over the source, with the plan as its instructions, the plan's tables selected and 5–10
-    example question/T-SQL pairs, or updates the agent of that name in place. Requires workspace, source and name;
-    Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON with the instructions, examples and REST calls; with
-    dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data
-    source and examples are replaced; nothing is deleted. Errors: {error, kind, hint}."""
+                      validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
+                      ctx: Context = None) -> str:
+    """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
+    are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
+    question/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted
+    are called safe. Requires workspace, source and name; Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON
+    with the instructions, examples, sizes against the documented limits and the REST calls; with dry_run=false also
+    the result, or kind consent. Changes Fabric only with dry_run=false: instructions, data source and examples are
+    replaced; nothing is deleted. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
-    spec = _data_agent.draft(p, info, name, schema, show_personal_data)
-    out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions", "tables_to_select", "fewshots")},
+    counted = None
+    if validate:                                                       # n130: only joins counted here are called safe
+        _, execute = _connected(workspace, source, schema, ctx)
+        try:
+            counted = _evidence.validate(p, execute, max_items=200)
+        finally:
+            getattr(execute, "close", lambda: None)()
+    spec = _data_agent.draft(p, info, name, schema, show_personal_data, counted)
+    out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
+                                                                                      "datasource_description", "tables_to_select", "fewshots")},
+           "context": spec["context"],
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
            "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "

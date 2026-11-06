@@ -215,6 +215,7 @@ HOSTED_CALLS = [
     ("create_views", SRC),
     ("create_views", {**SRC, "dry_run": False}),
     ("create_data_agent", {**SRC, "name": "shop_agent"}),
+    ("create_data_agent", {**SRC, "name": "shop_agent", "validate": True}),
     ("silver_notebook_draft", SRC),
     ("create_silver_notebook", {**SRC, "name": "shop_silver"}),
     ("gold_views_draft", SRC),

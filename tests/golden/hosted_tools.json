@@ -5104,50 +5104,23 @@
      },
      "type": "LakehouseTables"
     },
-    "datasource_instructions": "Tables live in schema shop. products.category_id joins categories.id. addresses.customer_id joins customers.customer_id. orders.customer_id joins customers.customer_id. order_items.order_id joins orders.order_id. order_items.product_id joins products.product_id. audit_log.customer_id joins customers.customer_id. orders.ship_to_id joins addresses.address_id.",
+    "datasource_description": "demo_lh, schema shop: customers, categories, products, addresses, orders, order items, audit log",
+    "datasource_instructions": "## General knowledge\nTables live in schema shop of demo_lh. No join was counted against the rows for these instructions, so none is called safe yet; create_data_agent with validate=true counts them.\n\n## Table descriptions\n- shop.customers (Customers): one row per customer_id (rule K2); columns customer_id, country\n- shop.categories (Categories): one row per id (rule K2); columns id, name\n- shop.products (Products): one row per product_id (rule K2); columns product_id, name, category_id, list_price\n- shop.addresses (Addresses): one row per address_id (rule K2); columns address_id, customer_id\n- shop.orders (Orders): one row per order_id (rule K2); columns order_id, customer_id, order_date, ship_to_id\n- shop.order_items (OrderItems): one row per order_id+line_no (rule K5); columns order_id, line_no, product_id, quantity\n- shop.audit_log (AuditLog): no key found (rule K3): do not join to it as a dimension; columns event, customer_id, happened_at\n\n## Safe joins (checked, many-to-one)\n- None. Nothing was counted: run create_data_agent with validate=true.\n\n## Joins that are not safe\n- products -> categories: products.category_id = categories.id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- addresses -> customers: addresses.customer_id = customers.customer_id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- orders -> customers: orders.customer_id = customers.customer_id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- order_items -> orders: order_items.order_id = orders.order_id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- order_items -> products: order_items.product_id = products.product_id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- audit_log -> customers: audit_log.customer_id = customers.customer_id (rule R1): inferred from the names; not counted: create_data_agent with validate=true counts it\n- orders -> addresses: orders.ship_to_id = addresses.address_id (rule R5): inferred from the names; not counted: create_data_agent with validate=true counts it\n\n## Amounts that must not be summed over lines\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing. (not counted; order_items.product_id -> products (rule R1))\n\n## Rules behind the keys and joins\n- K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name\n- K3: nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it\n- K5: line: no column names a key; the reference to the header table plus a line-number column\n- R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id`\n- R5: checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem",
     "fewshots": [
      {
-      "query": "SELECT COUNT_BIG(*) AS row_count FROM [shop].[order_items]",
-      "question": "How many rows are there in order_items?"
+      "query": "-- One table, no join.\nSELECT COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS t0",
+      "question": "How many order items are there?"
      },
      {
-      "query": "SELECT COUNT_BIG(*) AS row_count FROM [shop].[audit_log]",
-      "question": "How many rows are there in audit_log?"
+      "query": "-- One table, no join.\nSELECT COUNT_BIG(*) AS [products_count]\nFROM [shop].[products] AS t0",
+      "question": "How many products are there?"
      },
      {
-      "query": "SELECT TOP (10) t.[name], COUNT_BIG(*) AS [products_count] FROM [shop].[products] AS s JOIN [shop].[categories] AS t ON s.[category_id] = t.[id] GROUP BY t.[name] ORDER BY [products_count] DESC",
-      "question": "Which categories have the most rows in products?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[customer_id], COUNT_BIG(*) AS [addresses_count] FROM [shop].[addresses] AS s JOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id] GROUP BY t.[customer_id] ORDER BY [addresses_count] DESC",
-      "question": "Which customers have the most rows in addresses?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[customer_id], COUNT_BIG(*) AS [orders_count] FROM [shop].[orders] AS s JOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id] GROUP BY t.[customer_id] ORDER BY [orders_count] DESC",
-      "question": "Which customers have the most rows in orders?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[order_id], COUNT_BIG(*) AS [order_items_count] FROM [shop].[order_items] AS s JOIN [shop].[orders] AS t ON s.[order_id] = t.[order_id] GROUP BY t.[order_id] ORDER BY [order_items_count] DESC",
-      "question": "Which orders have the most rows in order_items?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[name], COUNT_BIG(*) AS [order_items_count] FROM [shop].[order_items] AS s JOIN [shop].[products] AS t ON s.[product_id] = t.[product_id] GROUP BY t.[name] ORDER BY [order_items_count] DESC",
-      "question": "Which products have the most rows in order_items?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[customer_id], COUNT_BIG(*) AS [audit_log_count] FROM [shop].[audit_log] AS s JOIN [shop].[customers] AS t ON s.[customer_id] = t.[customer_id] GROUP BY t.[customer_id] ORDER BY [audit_log_count] DESC",
-      "question": "Which customers have the most rows in audit_log?"
-     },
-     {
-      "query": "SELECT TOP (10) t.[address_id], COUNT_BIG(*) AS [orders_count] FROM [shop].[orders] AS s JOIN [shop].[addresses] AS t ON s.[ship_to_id] = t.[address_id] GROUP BY t.[address_id] ORDER BY [orders_count] DESC",
-      "question": "Which addresses have the most rows in orders?"
-     },
-     {
-      "query": "SELECT TOP (100) t0.[id] AS [categories_id], t4.[customer_id], t4.[country]\nFROM [shop].[categories] AS t0\nJOIN [shop].[products] AS t1 ON t0.[id] = t1.[category_id]\nJOIN [shop].[order_items] AS t2 ON t1.[product_id] = t2.[product_id]\nJOIN [shop].[orders] AS t3 ON t2.[order_id] = t3.[order_id]\nJOIN [shop].[customers] AS t4 ON t3.[customer_id] = t4.[customer_id]",
-      "question": "Show categories joined to customers through products, order_items and orders."
+      "query": "-- One table, no join.\nSELECT COUNT_BIG(*) AS [addresses_count]\nFROM [shop].[addresses] AS t0",
+      "question": "How many addresses are there?"
      }
     ],
-    "instructions": "You answer questions about the demo_lh data (schema shop) with T-SQL on its SQL analytics endpoint. Use only the tables, keys and relationships below; they were inferred from the names and checked where noted, and every one carries the rule that produced it.\n\nTables and keys:\n- shop.customers: columns customer_id, country; key customer_id (rule K2)\n- shop.categories: columns id, name; key id (rule K2)\n- shop.products: columns product_id, name, category_id, list_price; key product_id (rule K2)\n- shop.addresses: columns address_id, customer_id; key address_id (rule K2)\n- shop.orders: columns order_id, customer_id, order_date, ship_to_id; key order_id (rule K2)\n- shop.order_items: columns order_id, line_no, product_id, quantity; key order_id+line_no (rule K5)\n- shop.audit_log: columns event, customer_id, happened_at; key none (rule K3)\n\nRelationships (join conditions):\n- products -> categories: products.category_id = categories.id (rule R1, many-to-one)\n- addresses -> customers: addresses.customer_id = customers.customer_id (rule R1, many-to-one)\n- orders -> customers: orders.customer_id = customers.customer_id (rule R1, many-to-one)\n- order_items -> orders: order_items.order_id = orders.order_id (rule R1, many-to-one)\n- order_items -> products: order_items.product_id = products.product_id (rule R1, many-to-one)\n- audit_log -> customers: audit_log.customer_id = customers.customer_id (rule R1, many-to-one)\n- orders -> addresses: orders.ship_to_id = addresses.address_id (rule R5, many-to-one)\n\nTables without a key (do not join to them as a dimension): audit_log\n\nColumns that look like personal data by name, left out of the lists above: addresses.city (P5: an address); customers.name (P1: a person's name). Do not select, group by or show them; group by the table's key instead.\n\nRules: K0 = declared primary key; K1 = `keys` override from the caller; K2 = a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name; K3 = nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it; K4 = junction: no column names a key and the table starts with two or more reference columns; together they are the key; K5 = line: no column names a key; the reference to the header table plus a line-number column; R0 = declared foreign key; R1 = column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id`; R2 = column has exactly the same name as B's single key column, and that name is not just `id`; R3 = all of B's composite key columns appear in A; R4 = weaker name match when R1 and R2 find nothing: the R1/R2 shapes through the synonym table; R5 = checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem\n\nAlways quote identifiers with square brackets, qualify tables with the schema, and prefer the relationships above over guessing joins.",
+    "instructions": "## Objective\nYou answer questions about the demo_lh data (schema shop) with T-SQL on its SQL analytics endpoint. Keys and relationships were inferred from names and carry the rule that produced them. No join was counted against the rows for these instructions, so none is called safe yet; create_data_agent with validate=true counts them.\n\n## Data sources\n- demo_lh (Lakehouse), schema shop: 7 table(s).\n\n## Key terminology\n- Customers (customers): table shop.customers\n- Categories (categories): table shop.categories\n- Products (products): table shop.products\n- Addresses (addresses): table shop.addresses\n- Orders (orders): table shop.orders\n- OrderItems (order items): table shop.order_items\n- AuditLog (audit log): table shop.audit_log\n\n## Response guidelines\n- Name the tables and joins an answer used, and the rule behind each join.\n- Quote identifiers with square brackets and qualify tables with the schema.\n- Write read-only T-SQL; the agent shows at most 25 rows and 25 columns, so answer with aggregates.\n- Do not select, group by or show columns that look like personal data by name: addresses.city; customers.name. Group by the table's key instead.\n\n## Handling common topics\n- Joins: use only the safe joins and paths in the data source instructions, from the many side to the one side. For any other join, say that it is not checked and ask before you use it.\n- Two tables that both point at the same table: aggregate each to that table's key first, then join; joining them row by row multiplies rows.\n- Amounts: never SUM(products.list_price) over order_items rows. The data source instructions say how to sum them instead.",
     "name": "shop_agent",
     "tables_to_select": [
      "customers",
@@ -5158,6 +5131,151 @@
      "order_items",
      "audit_log"
     ]
+   },
+   "context": {
+    "business_names": [
+     {
+      "entity": "Customers",
+      "table": "customers",
+      "words": "customers"
+     },
+     {
+      "entity": "Categories",
+      "table": "categories",
+      "words": "categories"
+     },
+     {
+      "entity": "Products",
+      "table": "products",
+      "words": "products"
+     },
+     {
+      "entity": "Addresses",
+      "table": "addresses",
+      "words": "addresses"
+     },
+     {
+      "entity": "Orders",
+      "table": "orders",
+      "words": "orders"
+     },
+     {
+      "entity": "OrderItems",
+      "table": "order_items",
+      "words": "order items"
+     },
+     {
+      "entity": "AuditLog",
+      "table": "audit_log",
+      "words": "audit log"
+     }
+    ],
+    "cut": [],
+    "examples": "3 example(s) from answer_query_draft over safe joins (no join is checked, so each uses one table)",
+    "examples_turned_down": [],
+    "limits": {
+     "datasource_description": {
+      "max_chars": 1000,
+      "source": "no number in the documentation; Krusgraph's own budget"
+     },
+     "datasource_instructions": {
+      "max_chars": 15000,
+      "source": "no number in the documentation (fabric-docs main at 951e7d3, read 6 November 2026); Krusgraph's own budget, the same as the agent instructions"
+     },
+     "examples": {
+      "max_per_datasource": 100,
+      "source": "fabric-docs docs/data-science/concept-data-agent.md (ms.date 05/11/2026) and data-agent-example-queries.md (ms.date 09/11/2025)",
+      "typically_retrieved": 4
+     },
+     "instructions": {
+      "max_chars": 15000,
+      "source": "fabric-docs docs/data-science/how-to-create-data-agent.md, ms.date 05/20/2026"
+     },
+     "language": "English: the documentation says the data agent does not support other languages yet"
+    },
+    "not_safe_joins": [
+     {
+      "direction": "many-to-one",
+      "name": "ProductsHasCategories",
+      "on": "products.category_id = categories.id",
+      "rule": "R1",
+      "source": "products",
+      "target": "categories",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "AddressesHasCustomers",
+      "on": "addresses.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "addresses",
+      "target": "customers",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "OrdersHasCustomers",
+      "on": "orders.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "orders",
+      "target": "customers",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "OrderItemsHasOrders",
+      "on": "order_items.order_id = orders.order_id",
+      "rule": "R1",
+      "source": "order_items",
+      "target": "orders",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "OrderItemsHasProducts",
+      "on": "order_items.product_id = products.product_id",
+      "rule": "R1",
+      "source": "order_items",
+      "target": "products",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "AuditLogHasCustomers",
+      "on": "audit_log.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "audit_log",
+      "target": "customers",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     },
+     {
+      "direction": "many-to-one",
+      "name": "OrdersHasAddresses",
+      "on": "orders.ship_to_id = addresses.address_id",
+      "rule": "R5",
+      "source": "orders",
+      "target": "addresses",
+      "why": "inferred from the names; not counted: create_data_agent with validate=true counts it"
+     }
+    ],
+    "repeated_amounts": [
+     {
+      "column": "list_price",
+      "kind": "header",
+      "lines": "order_items",
+      "status": "not counted",
+      "table": "products"
+     }
+    ],
+    "safe_joins": [],
+    "safe_paths": [],
+    "sizes": {
+     "datasource_description": 96,
+     "datasource_instructions": 3280,
+     "examples": 3,
+     "instructions": 1640
+    },
+    "validated": false
    },
    "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
    "dry_run": true,
@@ -5173,7 +5291,7 @@
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents (or reuse the item named 'shop_agent')",
     "PATCH /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/settings",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/datasources (once; reused if it exists)",
-    "PATCH …/staging/datasources/{dsId}; PATCH …/elements?id=… isSelected for the tables above",
+    "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
     "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
     "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
    ],
@@ -5201,6 +5319,284 @@
    [
     "GET",
     "/v1/workspaces"
+   ]
+  ],
+  "tool": "create_data_agent"
+ },
+ {
+  "answer": {
+   "agent": {
+    "datasource": {
+     "lakehouseReference": {
+      "itemId": "aaaaaaaa-0000-0000-0000-000000000001",
+      "referenceType": "ById",
+      "workspaceId": "11111111-2222-3333-4444-555555555555"
+     },
+     "type": "LakehouseTables"
+    },
+    "datasource_description": "demo_lh, schema shop: customers, categories, products, addresses, orders, order items, audit log",
+    "datasource_instructions": "## General knowledge\nTables live in schema shop of demo_lh. Every join below was counted against the rows by validate_plan; only joins that held are called safe.\n\n## Table descriptions\n- shop.customers (Customers): one row per customer_id (rule K2); columns customer_id, country\n- shop.categories (Categories): one row per id (rule K2); columns id, name\n- shop.products (Products): one row per product_id (rule K2); columns product_id, name, category_id, list_price\n- shop.addresses (Addresses): one row per address_id (rule K2); columns address_id, customer_id\n- shop.orders (Orders): one row per order_id (rule K2); columns order_id, customer_id, order_date, ship_to_id\n- shop.order_items (OrderItems): one row per order_id+line_no (rule K5); columns order_id, line_no, product_id, quantity\n- shop.audit_log (AuditLog): no key found (rule K3): do not join to it as a dimension; columns event, customer_id, happened_at\n\n## Safe joins (checked, many-to-one)\n- products -> categories: products.category_id = categories.id (ProductsHasCategories, rule R1, many-to-one; counted by validate_plan: every products row with a value finds its categories row, and that key is unique)\n- addresses -> customers: addresses.customer_id = customers.customer_id (AddressesHasCustomers, rule R1, many-to-one; counted by validate_plan: every addresses row with a value finds its customers row, and that key is unique)\n- orders -> customers: orders.customer_id = customers.customer_id (OrdersHasCustomers, rule R1, many-to-one; counted by validate_plan: every orders row with a value finds its customers row, and that key is unique)\n- order_items -> orders: order_items.order_id = orders.order_id (OrderItemsHasOrders, rule R1, many-to-one; counted by validate_plan: every order_items row with a value finds its orders row, and that key is unique)\n- order_items -> products: order_items.product_id = products.product_id (OrderItemsHasProducts, rule R1, many-to-one; counted by validate_plan: every order_items row with a value finds its products row, and that key is unique)\n- audit_log -> customers: audit_log.customer_id = customers.customer_id (AuditLogHasCustomers, rule R1, many-to-one; counted by validate_plan: every audit_log row with a value finds its customers row, and that key is unique)\n- orders -> addresses: orders.ship_to_id = addresses.address_id (OrdersHasAddresses, rule R5, many-to-one; counted by validate_plan: every orders row with a value finds its addresses row, and that key is unique)\n\n## Safe paths\n- order_items -> orders -> addresses -> customers\n- order_items -> orders -> addresses\n- order_items -> orders -> customers\n- order_items -> products -> categories\n- orders -> addresses -> customers\n\n## Amounts that must not be summed over lines\n- products.list_price is one value per products row; a join with order_items repeats it on every order_items row. Never SUM(products.list_price) over order_items rows: it is a price, so multiply it by the quantity on each order_items row, or report it per products without summing. (counted: more than one line per header in the data; order_items.product_id -> products (rule R1))\n\n## Rules behind the keys and joins\n- K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name\n- K3: nothing — the table gets no key; it can be queried but not by pk, and nothing can point at it\n- K5: line: no column names a key; the reference to the header table plus a line-number column\n- R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id`\n- R5: checked against the rows: a code column `<stem>_code` / `<stem>_no` / `<stem>_key` where a table with the same stem",
+    "fewshots": [
+     {
+      "query": "-- Safe many-to-one join(s): order_items.order_id = orders.order_id (OrderItemsHasOrders, rule R1, checked); orders.ship_to_id = addresses.address_id (OrdersHasAddresses, rule R5, checked); orders.customer_id = customers.customer_id (OrdersHasCustomers, rule R1, checked).\nSELECT t3.[customer_id], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[orders] AS t1 ON t0.[order_id] = t1.[order_id]\nJOIN [shop].[addresses] AS t2 ON t1.[ship_to_id] = t2.[address_id]\nJOIN [shop].[customers] AS t3 ON t1.[customer_id] = t3.[customer_id]\nGROUP BY t3.[customer_id]\nORDER BY [order_items_count] DESC",
+      "question": "How many order items are there per customer?"
+     },
+     {
+      "query": "-- Safe many-to-one join(s): order_items.order_id = orders.order_id (OrderItemsHasOrders, rule R1, checked); orders.ship_to_id = addresses.address_id (OrdersHasAddresses, rule R5, checked).\nSELECT t2.[address_id], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[orders] AS t1 ON t0.[order_id] = t1.[order_id]\nJOIN [shop].[addresses] AS t2 ON t1.[ship_to_id] = t2.[address_id]\nGROUP BY t2.[address_id]\nORDER BY [order_items_count] DESC",
+      "question": "How many order items are there per address?"
+     },
+     {
+      "query": "-- Safe many-to-one join(s): order_items.product_id = products.product_id (OrderItemsHasProducts, rule R1, checked); products.category_id = categories.id (ProductsHasCategories, rule R1, checked).\nSELECT t2.[id], t2.[name], COUNT_BIG(*) AS [order_items_count]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[products] AS t1 ON t0.[product_id] = t1.[product_id]\nJOIN [shop].[categories] AS t2 ON t1.[category_id] = t2.[id]\nGROUP BY t2.[id], t2.[name]\nORDER BY [order_items_count] DESC",
+      "question": "How many order items are there per category?"
+     },
+     {
+      "query": "-- Safe many-to-one join(s): order_items.order_id = orders.order_id (OrderItemsHasOrders, rule R1, checked); orders.ship_to_id = addresses.address_id (OrdersHasAddresses, rule R5, checked); orders.customer_id = customers.customer_id (OrdersHasCustomers, rule R1, checked).\nSELECT t3.[customer_id], SUM(t0.[quantity]) AS [total_quantity]\nFROM [shop].[order_items] AS t0\nJOIN [shop].[orders] AS t1 ON t0.[order_id] = t1.[order_id]\nJOIN [shop].[addresses] AS t2 ON t1.[ship_to_id] = t2.[address_id]\nJOIN [shop].[customers] AS t3 ON t1.[customer_id] = t3.[customer_id]\nGROUP BY t3.[customer_id]\nORDER BY [total_quantity] DESC",
+      "question": "What is the total quantity per customer?"
+     },
+     {
+      "query": "-- Safe many-to-one join(s): products.category_id = categories.id (ProductsHasCategories, rule R1, checked).\nSELECT t1.[id], t1.[name], COUNT_BIG(*) AS [products_count]\nFROM [shop].[products] AS t0\nJOIN [shop].[categories] AS t1 ON t0.[category_id] = t1.[id]\nGROUP BY t1.[id], t1.[name]\nORDER BY [products_count] DESC",
+      "question": "How many products are there per category?"
+     }
+    ],
+    "instructions": "## Objective\nYou answer questions about the demo_lh data (schema shop) with T-SQL on its SQL analytics endpoint. Keys and relationships were inferred from names and carry the rule that produced them. Every join below was counted against the rows by validate_plan; only joins that held are called safe.\n\n## Data sources\n- demo_lh (Lakehouse), schema shop: 7 table(s).\n\n## Key terminology\n- Customers (customers): table shop.customers\n- Categories (categories): table shop.categories\n- Products (products): table shop.products\n- Addresses (addresses): table shop.addresses\n- Orders (orders): table shop.orders\n- OrderItems (order items): table shop.order_items\n- AuditLog (audit log): table shop.audit_log\n\n## Response guidelines\n- Name the tables and joins an answer used, and the rule behind each join.\n- Quote identifiers with square brackets and qualify tables with the schema.\n- Write read-only T-SQL; the agent shows at most 25 rows and 25 columns, so answer with aggregates.\n- Do not select, group by or show columns that look like personal data by name: addresses.city; customers.name. Group by the table's key instead.\n\n## Handling common topics\n- Joins: use only the safe joins and paths in the data source instructions, from the many side to the one side. For any other join, say that it is not checked and ask before you use it.\n- Two tables that both point at the same table: aggregate each to that table's key first, then join; joining them row by row multiplies rows.\n- Amounts: never SUM(products.list_price) over order_items rows. The data source instructions say how to sum them instead.",
+    "name": "shop_agent",
+    "tables_to_select": [
+     "customers",
+     "categories",
+     "products",
+     "addresses",
+     "orders",
+     "order_items",
+     "audit_log"
+    ]
+   },
+   "context": {
+    "business_names": [
+     {
+      "entity": "Customers",
+      "table": "customers",
+      "words": "customers"
+     },
+     {
+      "entity": "Categories",
+      "table": "categories",
+      "words": "categories"
+     },
+     {
+      "entity": "Products",
+      "table": "products",
+      "words": "products"
+     },
+     {
+      "entity": "Addresses",
+      "table": "addresses",
+      "words": "addresses"
+     },
+     {
+      "entity": "Orders",
+      "table": "orders",
+      "words": "orders"
+     },
+     {
+      "entity": "OrderItems",
+      "table": "order_items",
+      "words": "order items"
+     },
+     {
+      "entity": "AuditLog",
+      "table": "audit_log",
+      "words": "audit log"
+     }
+    ],
+    "cut": [],
+    "examples": "5 example(s) from answer_query_draft over safe joins",
+    "examples_turned_down": [],
+    "limits": {
+     "datasource_description": {
+      "max_chars": 1000,
+      "source": "no number in the documentation; Krusgraph's own budget"
+     },
+     "datasource_instructions": {
+      "max_chars": 15000,
+      "source": "no number in the documentation (fabric-docs main at 951e7d3, read 6 November 2026); Krusgraph's own budget, the same as the agent instructions"
+     },
+     "examples": {
+      "max_per_datasource": 100,
+      "source": "fabric-docs docs/data-science/concept-data-agent.md (ms.date 05/11/2026) and data-agent-example-queries.md (ms.date 09/11/2025)",
+      "typically_retrieved": 4
+     },
+     "instructions": {
+      "max_chars": 15000,
+      "source": "fabric-docs docs/data-science/how-to-create-data-agent.md, ms.date 05/20/2026"
+     },
+     "language": "English: the documentation says the data agent does not support other languages yet"
+    },
+    "not_safe_joins": [],
+    "repeated_amounts": [
+     {
+      "column": "list_price",
+      "kind": "header",
+      "lines": "order_items",
+      "status": "counted: more than one line per header in the data",
+      "table": "products"
+     }
+    ],
+    "safe_joins": [
+     {
+      "checked": "counted by validate_plan: every products row with a value finds its categories row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "ProductsHasCategories",
+      "on": "products.category_id = categories.id",
+      "rule": "R1",
+      "source": "products",
+      "target": "categories"
+     },
+     {
+      "checked": "counted by validate_plan: every addresses row with a value finds its customers row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "AddressesHasCustomers",
+      "on": "addresses.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "addresses",
+      "target": "customers"
+     },
+     {
+      "checked": "counted by validate_plan: every orders row with a value finds its customers row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "OrdersHasCustomers",
+      "on": "orders.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "orders",
+      "target": "customers"
+     },
+     {
+      "checked": "counted by validate_plan: every order_items row with a value finds its orders row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "OrderItemsHasOrders",
+      "on": "order_items.order_id = orders.order_id",
+      "rule": "R1",
+      "source": "order_items",
+      "target": "orders"
+     },
+     {
+      "checked": "counted by validate_plan: every order_items row with a value finds its products row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "OrderItemsHasProducts",
+      "on": "order_items.product_id = products.product_id",
+      "rule": "R1",
+      "source": "order_items",
+      "target": "products"
+     },
+     {
+      "checked": "counted by validate_plan: every audit_log row with a value finds its customers row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "AuditLogHasCustomers",
+      "on": "audit_log.customer_id = customers.customer_id",
+      "rule": "R1",
+      "source": "audit_log",
+      "target": "customers"
+     },
+     {
+      "checked": "counted by validate_plan: every orders row with a value finds its addresses row, and that key is unique",
+      "direction": "many-to-one",
+      "name": "OrdersHasAddresses",
+      "on": "orders.ship_to_id = addresses.address_id",
+      "rule": "R5",
+      "source": "orders",
+      "target": "addresses"
+     }
+    ],
+    "safe_paths": [
+     [
+      "order_items",
+      "orders",
+      "addresses",
+      "customers"
+     ],
+     [
+      "order_items",
+      "orders",
+      "addresses"
+     ],
+     [
+      "order_items",
+      "orders",
+      "customers"
+     ],
+     [
+      "order_items",
+      "products",
+      "categories"
+     ],
+     [
+      "orders",
+      "addresses",
+      "customers"
+     ]
+    ],
+    "sizes": {
+     "datasource_description": 96,
+     "datasource_instructions": 3788,
+     "examples": 5,
+     "instructions": 1603
+    },
+    "validated": true
+   },
+   "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
+   "dry_run": true,
+   "note": "Unit-tested with the REST calls mocked. The dry run was tested end to end on 27 October 2026 against a Fabric workspace with synthetic data; creating has no recorded live run in docs/LIVE-TEST.md; a data agent lineage finds in a workspace may have been made by it outside a recorded run. Without the permission the create answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, selected tables and example queries under its staging configuration; publish makes them live.",
+   "personal_data": {
+    "left_out": [
+     "addresses.city (P5: an address)",
+     "customers.name (P1: a person's name)"
+    ],
+    "notice": "left out of the instructions and the examples by name (privacy rules); the key stands in. show_personal_data=true includes them."
+   },
+   "rest": [
+    "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents (or reuse the item named 'shop_agent')",
+    "PATCH /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/settings",
+    "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/datasources (once; reused if it exists)",
+    "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
+    "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
+    "POST /v1/workspaces/11111111-2222-3333-4444-555555555555/dataAgents/{id}/staging/publish"
+   ],
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
+  },
+  "args": {
+   "name": "shop_agent",
+   "schema": "shop",
+   "source": "demo_lh",
+   "validate": true,
+   "workspace": "demo"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
    ]
   ],
   "tool": "create_data_agent"

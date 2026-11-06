@@ -99,26 +99,31 @@ def fewshots(plan: Plan, schema: str, limit: int = MAX_FEWSHOTS, personal_data: 
     return out[:limit]
 
 
-def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bool = False) -> dict:
-    """What create_data_agent would create: settings, data source, selected tables, few-shots and the REST calls."""
+def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bool = False, validation: dict | None = None) -> dict:
+    """What create_data_agent would create: settings, data source, selected tables, few-shots and the REST calls. Since
+    n130 the instructions, data source instructions and description, and the 3–5 examples come from agent_context
+    (business names, checked joins, repeated amounts, answer_query_draft over safe joins); `validation` is
+    validate_plan's full answer when the call counted the plan."""
+    from . import agent_context
     flagged = personal(plan, show_personal_data)
+    ctx = agent_context.build(plan, info.get("item_name") or "source", schema, flagged, validation, show_personal_data,
+                              info.get("item_kind") or "Lakehouse")
     kind = info.get("item_kind") or "Lakehouse"
     if kind == "Lakehouse":
         datasource = {"type": "LakehouseTables", "lakehouseReference": {"referenceType": "ById", "itemId": info.get("item_id"), "workspaceId": info.get("workspace_id")}}
     else:
         datasource = {"type": "FabricItem", "itemReference": {"referenceType": "ById", "itemId": info.get("item_id"), "workspaceId": info.get("workspace_id")}}
-    ds_instructions = (f"Tables live in schema {schema}. " + " ".join(
-        f"{r.source}.{'+'.join(r.source_cols)} joins {r.target}.{'+'.join(r.target_cols)}." for r in plan.relationships))
     ws = info.get("workspace_id")
     return {
-        "name": name, "instructions": instructions(plan, info.get("item_name") or "source", schema, flagged),
-        "datasource": datasource, "datasource_instructions": ds_instructions,
-        "tables_to_select": [t.name for t in plan.schema], "fewshots": fewshots(plan, schema, personal_data=flagged),
+        "name": name, "instructions": ctx["instructions"],
+        "datasource": datasource, "datasource_instructions": ctx["datasource_instructions"],
+        "datasource_description": ctx["datasource_description"],
+        "tables_to_select": [t.name for t in plan.schema], "fewshots": ctx["fewshots"], "context": ctx["context"],
         "personal_left_out": privacy.findings(flagged),
         "rest": [f"POST /v1/workspaces/{ws}/dataAgents (or reuse the item named {name!r})",
                  f"PATCH /v1/workspaces/{ws}/dataAgents/{{id}}/staging/settings",
                  f"POST /v1/workspaces/{ws}/dataAgents/{{id}}/staging/datasources (once; reused if it exists)",
-                 "PATCH …/staging/datasources/{dsId}; PATCH …/elements?id=… isSelected for the tables above",
+                 "PATCH …/staging/datasources/{dsId} (instructions, description); PATCH …/elements?id=… isSelected for the tables above",
                  "POST or PATCH …/staging/datasources/{dsId}/fewshots, one per example",
                  f"POST /v1/workspaces/{ws}/dataAgents/{{id}}/staging/publish"],
         "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
@@ -178,7 +183,7 @@ def apply(spec: dict, workspace: str, headers: dict, publish: bool = True, poll_
             ds = next((d for d in existing if (d.get("lakehouseReference") or d.get("itemReference") or {}).get("itemId") == ds_ref.get("itemId")), ds)
         log.append(f"added data source {ds.get('id')}")
     ds_id = ds.get("id")
-    _check(requests.patch(f"{stage}/datasources/{ds_id}", headers=headers, json={"instructions": spec["datasource_instructions"]}, timeout=60), "setting data source instructions")
+    _check(requests.patch(f"{stage}/datasources/{ds_id}", headers=headers, json={"instructions": spec["datasource_instructions"], **({"description": spec["datasource_description"]} if spec.get("datasource_description") else {})}, timeout=60), "setting data source instructions")
     log.append("data source instructions set")
     selected = _select_tables(requests, headers, f"{stage}/datasources/{ds_id}/elements", spec["tables_to_select"])
     log.append(f"selected {selected} of {len(spec['tables_to_select'])} tables in the data source" if selected is not None

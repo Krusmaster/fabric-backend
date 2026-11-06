@@ -225,28 +225,44 @@ def test_create_views_explains_a_refusing_endpoint_and_suggests_a_warehouse(shop
 
 # ------------------------------------------------------------------ data agent -----------------
 
+def holds(p) -> dict:
+    """validate_plan's answer as if every relationship held when counted (verdicts only, no row values)."""
+    from fabric_backend import amounts
+    return {"relationships": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
+                               "rule": r.rule, "verdict": "holds for all 5 rows with a value"} for r in p.relationships],
+            "amount_levels": amounts.check(p)}
+
+
+def runnable(shots):
+    con = sqlite_with_seed()
+    for f in shots:
+        sql = re.sub(r"\[shop\]\.", "", f["query"]).replace("COUNT_BIG(", "COUNT(")
+        sql = re.sub(r"SELECT TOP \((\d+)\) (.*)", lambda m: f"SELECT {m.group(2)} LIMIT {m.group(1)}", sql, flags=re.S)
+        assert con.execute(sql).fetchall() is not None, f["question"]
+
+
 def test_data_agent_draft_has_instructions_examples_and_rest_plan():
     p = plan(seed.schema("shop"), confirmed=SHIP_TO)
     d = data_agent.draft(p, INFO, "shop_agent", "shop")
     assert d["datasource"] == {"type": "LakehouseTables", "lakehouseReference": {"referenceType": "ById", "itemId": "lh-1", "workspaceId": WS}}
-    text = d["instructions"]
-    assert "shop.order_items: columns order_id, line_no, product_id, quantity; key order_id+line_no (rule K5)" in text
-    assert "orders -> customers: orders.customer_id = customers.customer_id (rule R1, many-to-one)" in text
-    assert "audit_log" in text and "square brackets" in text
-    assert 5 <= len(d["fewshots"]) <= 10 and d["fewshots"][0] == {"question": "How many rows are there in order_items?",
-                                                                 "query": "SELECT COUNT_BIG(*) AS row_count FROM [shop].[order_items]"}
-    assert any("JOIN [shop].[customers]" in f["query"] for f in d["fewshots"]) and all(f["query"].count("[shop].") >= 1 for f in d["fewshots"])
+    assert d["instructions"].startswith("## Objective\nYou answer questions about the shop_lh data") and "square brackets" in d["instructions"]
+    ds = d["datasource_instructions"]
+    assert "- shop.order_items (OrderItems): one row per order_id+line_no (rule K5); columns order_id, line_no, product_id, quantity" in ds
+    assert "- orders -> customers: orders.customer_id = customers.customer_id (rule R1): inferred from the names; not counted" in ds
+    assert "- orders -> addresses: orders.ship_to_id = addresses.address_id (rule confirmed): confirmed by you; not counted" in ds
+    assert "audit_log" in ds and d["datasource_description"].startswith("shop_lh, schema shop: ")
+    assert 3 <= len(d["fewshots"]) <= 5 and all("JOIN" not in f["query"] for f in d["fewshots"])     # nothing counted: one table each
+    assert d["fewshots"][0]["question"] == "How many order items are there?"
     assert d["tables_to_select"] == ["customers", "categories", "products", "addresses", "orders", "order_items", "audit_log"]
     assert d["rest"][0].startswith(f"POST /v1/workspaces/{WS}/dataAgents") and d["delegated_scope"].startswith("Item.ReadWrite.All")
     assert data_agent.draft(p, INFO, "shop_agent", "shop") == d
     wh = data_agent.draft(p, {**INFO, "item_kind": "Warehouse"}, "a", "dbo")
     assert wh["datasource"]["type"] == "FabricItem" and wh["datasource"]["itemReference"]["itemId"] == "lh-1"
-    # the few-shot SQL is runnable (on SQLite, with COUNT_BIG and TOP rewritten as the demo validation does)
-    con = sqlite_with_seed()
-    for f in d["fewshots"]:
-        sql = re.sub(r"\[shop\]\.", "", f["query"]).replace("COUNT_BIG(", "COUNT(")
-        sql = re.sub(r"SELECT TOP \((\d+)\) (.*)", lambda m: f"SELECT {m.group(2)} LIMIT {m.group(1)}", sql, flags=re.S)
-        assert con.execute(sql).fetchall() is not None, f["question"]
+    runnable(d["fewshots"])                                                          # the SQL runs (on SQLite, rewritten)
+    checked = data_agent.draft(p, INFO, "shop_agent", "shop", validation=holds(p))
+    assert any("JOIN [shop].[customers]" in f["query"] for f in checked["fewshots"]) and 3 <= len(checked["fewshots"]) <= 5
+    runnable(checked["fewshots"])
+
 
 
 class FakeFabric:
@@ -319,16 +335,17 @@ def fake(monkeypatch):
 
 def test_create_data_agent_creates_configures_and_publishes_then_updates_in_place(shop, fake):
     out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop"))
-    assert out["dry_run"] is True and "instructions" in out["agent"] and len(out["agent"]["fewshots"]) >= 5
+    assert out["dry_run"] is True and "instructions" in out["agent"] and 3 <= len(out["agent"]["fewshots"]) <= 5
+    n = len(out["agent"]["fewshots"])
     f = fake()
     out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop", dry_run=False))
     assert out["result"]["status"] == "Succeeded" and out["result"]["id"] == "da-2" and "error" not in out, out
     log = out["result"]["log"]
-    assert log[0].startswith("created data agent 'shop_agent'") and "published" in log and "examples: 10 added, 0 updated, 0 unchanged" in log
+    assert log[0].startswith("created data agent 'shop_agent'") and "published" in log and f"examples: {n} added, 0 updated, 0 unchanged" in log
     assert any("selected 2 of 7 tables" in line for line in log)                 # orders selected now, customers already was; 'other' left alone
-    assert f.selected == ["t-orders"] and f.settings["aiInstructions"].startswith("You answer questions about the shop_lh data")
+    assert f.selected == ["t-orders"] and f.settings["aiInstructions"].startswith("## Objective\nYou answer questions about the shop_lh data")
     assert f.datasources[0]["type"] == "LakehouseTables" and f.datasources[0]["lakehouseReference"]["itemId"] == "lh-1"
-    assert len(f.fewshots) == 10 and f.published == [{"publishedDescription": "Published by Krusgraph from the inferred plan"}]
+    assert len(f.fewshots) == n and f.published == [{"publishedDescription": "Published by Krusgraph from the inferred plan"}]
     assert not any(c[0] == "delete" for c in f.calls)
     # run again with one example changed: the agent and data source are reused, one fewshot patched, nothing added twice
     f.agents = {"shop_agent": {"id": "da-2", "displayName": "shop_agent", "type": "DataAgent"}}
@@ -337,39 +354,38 @@ def test_create_data_agent_creates_configures_and_publishes_then_updates_in_plac
     out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop", dry_run=False, publish=False))
     log = out["result"]["log"]
     assert log[0] == "reused data agent 'shop_agent' (da-2)" and "reused data source ds-1" in log
-    assert "examples: 0 added, 1 updated, 9 unchanged" in log and "published" not in log and len(f.fewshots) == 10
+    assert f"examples: 0 added, 1 updated, {n - 1} unchanged" in log and "published" not in log and len(f.fewshots) == n
     assert not any(c[0] == "post" and c[1].endswith("/dataAgents") for c in f.calls)
 
 
 def test_the_data_agents_examples_and_instructions_follow_the_privacy_rules(shop):
-    """The live test of 27 October 2026: the dry run's examples grouped on customers.name (P1), for example "Which
-    customers have the most rows in addresses?" with t.[name]. As in answer_query_draft, the key stands in (or the
-    column is left out) unless show_personal_data=true."""
+    """The live test of 27 October 2026: the dry run's examples grouped on customers.name (P1). As in
+    answer_query_draft, the key stands in (or the column is left out) unless show_personal_data=true; since n130 the
+    examples come from answer_query_draft itself, over checked joins."""
     out = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop"))
     agent = out["agent"]
-    shot = next(f for f in agent["fewshots"] if f["question"] == "Which customers have the most rows in addresses?")
-    assert "t.[name]" not in shot["query"] and "t.[customer_id], COUNT_BIG(*)" in shot["query"] and "GROUP BY t.[customer_id]" in shot["query"]
+    ds = agent["datasource_instructions"]
+    assert "- shop.customers (Customers): one row per customer_id (rule K2); columns customer_id, country" in ds
+    assert "- shop.addresses (Addresses): one row per address_id (rule K2); columns address_id, customer_id" in ds
+    assert "addresses.city; customers.name" in agent["instructions"]
+    assert out["personal_data"]["left_out"] == ["addresses.city (P5: an address)", "customers.name (P1: a person's name)"]
+    assert "show_personal_data=true" in out["personal_data"]["notice"]
+    p = plan(seed.schema("shop"))
+    d = data_agent.draft(p, INFO, "shop_agent", "shop", validation=holds(p))
+    shot = next(f for f in d["fewshots"] if f["question"] == "How many order items are there per customer?")
+    assert "[name]" not in shot["query"] and "t2.[customer_id], COUNT_BIG(*)" in shot["query"]
     personal = {("customers", "name"), ("addresses", "city")}
-    for f in agent["fewshots"]:
+    for f in d["fewshots"]:
         for t, c in personal:
             alias = re.findall(rf"\[shop\]\.\[{t}\] AS (\w+)", f["query"])
             assert not any(f"{a}.[{c}]" in f["query"] for a in alias), (f["question"], t, c)
-    assert "- shop.customers: columns customer_id, country; key customer_id" in agent["instructions"]
-    assert "- shop.addresses: columns address_id, customer_id; key address_id" in agent["instructions"]
-    assert "customers.name (P1: a person's name)" in agent["instructions"] and "addresses.city (P5: an address)" in agent["instructions"]
-    assert out["personal_data"]["left_out"] == ["addresses.city (P5: an address)", "customers.name (P1: a person's name)"]
-    assert "show_personal_data=true" in out["personal_data"]["notice"]
-    categories = next(f for f in agent["fewshots"] if f["question"] == "Which categories have the most rows in products?")
-    assert "t.[name]" in categories["query"]                                          # a category's name is not a person's
-    shown = json.loads(server.create_data_agent(*shop, name="shop_agent", schema="shop", show_personal_data=True))
-    shot = next(f for f in shown["agent"]["fewshots"] if f["question"] == "Which customers have the most rows in addresses?")
-    assert "t.[name]" in shot["query"] and "columns customer_id, name, country" in shown["agent"]["instructions"]
-    assert "personal_data" not in shown or "left_out" not in shown["personal_data"]
-    con = sqlite_with_seed()                                                           # still runnable
-    for f in agent["fewshots"]:
-        sql = re.sub(r"\[shop\]\.", "", f["query"]).replace("COUNT_BIG(", "COUNT(")
-        sql = re.sub(r"SELECT TOP \((\d+)\) (.*)", lambda m: f"SELECT {m.group(2)} LIMIT {m.group(1)}", sql, flags=re.S)
-        assert con.execute(sql).fetchall() is not None, f["question"]
+    categories = next(f for f in d["fewshots"] if f["question"] == "How many products are there per category?")
+    assert "t1.[name]" in categories["query"]                                         # a category's name is not a person's
+    shown = data_agent.draft(p, INFO, "shop_agent", "shop", show_personal_data=True, validation=holds(p))
+    shot = next(f for f in shown["fewshots"] if f["question"] == "How many order items are there per customer?")
+    assert "t2.[name]" in shot["query"] and "columns customer_id, name, country" in shown["datasource_instructions"]
+    assert shown["personal_left_out"] == []
+    runnable(d["fewshots"])
 
 
 def test_a_join_that_ends_at_a_table_of_people_leaves_their_personal_columns_out():
