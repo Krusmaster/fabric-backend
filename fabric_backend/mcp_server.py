@@ -6,7 +6,7 @@ Same functions as the library, over the one SQL connection in FABRIC_ODBC:
   list_tables(schema)                       what is in the lakehouse / warehouse
   plan_backend(schema, ...)                 inferred keys + relationships, Mermaid, nothing deployed
   validate_plan / sample_rows               the plan checked against the rows; a few rows of one table
-  create_backend(workspace, source, name)   create/update the GraphQLApi item, return endpoint + checklist
+  create_backend(..., dry_run=True)         create/update the GraphQLApi item, return endpoint + checklist
   rayfin_connector(connector, ...)          Rayfin (Fabric Apps) connector entity files from the same plan
   ontology_draft, semantic_model_draft      Fabric IQ ontology draft; Power BI model in TMDL (Direct Lake)
   join_path, data_dictionary, dbt_schema    how two tables connect (with T-SQL); hand-over Markdown; dbt sources
@@ -217,22 +217,61 @@ def plan_backend(schema: str = "dbo", keys: dict[str, list[str]] | None = None,
     return _compact.bounded(_compact.plan_full(shown, suggested), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
 
 
-@_tool("Create or update the GraphQL API", WRITE)
+@_tool("Create or update the GraphQL API (dry run by default)", WRITE)
 @safe
 def create_backend(workspace: str, source: str, name: str, schema: str = "dbo", writable: bool = False,
                    keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                   tables: list[str] | None = None, dry_run: bool = False) -> str:
+                   tables: list[str] | None = None, dry_run: bool = True) -> str:
     """Create (or update in place) a Fabric API for GraphQL item over the source's tables with the
-    inferred relationships. Returns the endpoint URL and the portal steps that remain."""
+    inferred relationships. Returns the endpoint URL and the portal steps that remain. dry_run=true (default) changes
+    nothing and returns whether the item exists and would be updated or created, the definition and what changes in
+    it, and the checks that passed."""
     refused = _fabric_only("create_backend", schema)
     if refused:
         return refused
     with _connection(schema) as execute:
         out = create(workspace, source, name, execute=execute, schema=schema, keys=keys,
                      confirmed=confirmed, tables=tables, writable=writable, token_provider=_token, dry_run=dry_run)
-    return json.dumps({"summary": out["plan"].summary(), "source": out["source"],
+    if dry_run:
+        return _backend_dry_run(out, workspace, writable, tables, confirmed)
+    return json.dumps({"summary": out["plan"].summary(), "dry_run": False, "source": out["source"],
                        "result": out.get("result"), "card": out.get("card"),
                        "skipped_relationships": out["definition"].get("skipped_relationships", [])}, indent=2)
+
+
+def _backend_dry_run(out: dict, workspace: str, writable: bool, tables, confirmed) -> str:
+    """What create_backend with dry_run=false would send (the same envelope), and whether it would update the item of
+    that name or create one: read-only (deploy.find_item, getDefinition), the same answer shape as the remote server."""
+    from .deploy import FABRIC, _headers, find_item
+    from .drift import preview
+    from .lineage import rest_graphql_definition
+    p, env, src = out["plan"], out["definition"], out["source"]
+    headers = _headers(_token)
+    existing_id = find_item(workspace, env["displayName"], headers)
+    existing = None
+    if existing_id:
+        try:
+            existing = rest_graphql_definition(workspace, existing_id, headers)
+        except Exception:                              # noqa: BLE001 — the preview says what it could not read
+            existing = None
+    view = preview(p, env, existing_id, existing, workspace, src["id"], src["type"], writable=writable, tables=tables,
+                   confirmed=confirmed)
+    checks = [f"name {env['displayName']!r}: letters, digits and underscores", f"source found: {src['type']} {src['id']}",
+              "tables: every name given is a table of the source" if tables else "tables: all tables of the source",
+              f"keys and relationships planned: {p.summary().splitlines()[0]}"]
+    if existing is not None:
+        checks.append("the existing API's definition was read")
+    rest = ({"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/items/{existing_id}/updateDefinition"}
+            if existing_id else {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/graphQLApis"})
+    answer = {"summary": p.summary(), "dry_run": True, "source": src, **view, "rest": {**rest, "parts": view["parts"]},
+              "checks_passed": checks, "not_checked": "validate_plan (keys and relationships against the rows)",
+              "skipped_relationships": env.get("skipped_relationships", [])}
+    text = json.dumps(answer, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        answer["definition"] = None
+        answer["omitted"] = "definition: too long for one answer"
+        text = json.dumps(answer, indent=2)
+    return text
 
 
 @_tool("Rayfin connector entities", RO)

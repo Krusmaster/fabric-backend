@@ -34,7 +34,7 @@ def fresh(monkeypatch):
 
 def _call(make, **kw):
     fake = make()
-    out = json.loads(server.create_backend(source="demo_lh", schema="shop", **kw))
+    out = json.loads(server.create_backend(source="demo_lh", schema="shop", dry_run=False, **kw))
     return out, fake
 
 

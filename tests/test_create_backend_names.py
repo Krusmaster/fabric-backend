@@ -67,7 +67,7 @@ def _fields(body: dict, table: str) -> dict[str, tuple]:
 
 
 def test_the_live_call_keeps_the_apis_field_names_and_updates_in_place(fabric):
-    out = json.loads(server.create_backend(**SRC, name="shop_api", confirmed=[AS_ASKED]))
+    out = json.loads(server.create_backend(**SRC, name="shop_api", confirmed=[AS_ASKED], dry_run=False))
     assert out.get("kind") != "would_remove", out
     assert out["result"]["status"] == "Succeeded" and out["result"]["mode"] == "updated"
     written = _written(fabric)
@@ -98,7 +98,7 @@ def _same(body: dict) -> dict:
 def test_keep_with_confirmed_carries_both_field_names_and_following_it_changes_nothing(fabric):
     # n87: every tool plans with R5, so orders.ship_to_id -> addresses is in the plan without confirmed; the update keeps
     # the API's two field names for it instead of stopping with would_remove, and changes nothing the API has
-    out = json.loads(server.create_backend(**SRC, name="shop_api"))
+    out = json.loads(server.create_backend(**SRC, name="shop_api", dry_run=False))
     assert out["result"]["status"] == "Succeeded" and _same(_written(fabric)) == _same(decode({"definition": _live_api_definition()}))
     assert [(k["table"], k["field"]) for k in out["names_kept_from_api"]] == [("shop.orders", "address"), ("shop.addresses", "orders")]
     drift = json.loads(server.plan_drift(**SRC, api="shop_api"))
@@ -115,7 +115,7 @@ def test_a_name_given_in_confirmed_wins_and_a_rename_is_still_a_removal(fabric):
 
 def test_the_entry_without_field_names_keeps_both_of_the_apis_names(fabric):
     """docs/LIVE-TEST.md section 3 passes the relationship without names; the API's address and orders stay."""
-    out = json.loads(server.create_backend(**SRC, name="shop_api", confirmed=[gs.SHIP_TO]))
+    out = json.loads(server.create_backend(**SRC, name="shop_api", confirmed=[gs.SHIP_TO], dry_run=False))
     assert out["result"]["status"] == "Succeeded" and _written(fabric) == decode({"definition": _live_api_definition()})
     assert [(k["table"], k["field"], k["instead_of"]) for k in out["names_kept_from_api"]] == [
         ("shop.orders", "address", "ship_to"), ("shop.addresses", "orders", "orders_as_ship_to")]

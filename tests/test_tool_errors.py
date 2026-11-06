@@ -194,13 +194,13 @@ def test_create_backend_explains_a_refused_create(monkeypatch):
     monkeypatch.setattr(server, "source_for", lambda *a: ("ep-1", "SqlAnalyticsEndpoint"))
     monkeypatch.setattr(server, "deploy", lambda *a, **k: {"status": "Failed", "mode": "created", "http": 403,
                                                            "body": '{"errorCode":"WorkspaceNotOnCapacity","message":"Workspace is not on an active capacity"}'})
-    text = server.create_backend("ws-1", "shop", "shop_api")
+    text = server.create_backend("ws-1", "shop", "shop_api", dry_run=False)
     answer = json.loads(text)
     assert answer["kind"] == "capacity" and "shop_api" not in answer["error"] or "capacity" in answer["error"].lower()
     assert "body" not in answer["result"] and answer["result"]["status"] == "Failed"
     assert_clean(text)
     monkeypatch.setattr(server, "deploy", lambda *a, **k: {"status": "Timeout", "mode": "created", "operation": "op-1"})
-    answer = json.loads(server.create_backend("ws-1", "shop", "shop_api"))
+    answer = json.loads(server.create_backend("ws-1", "shop", "shop_api", dry_run=False))
     assert answer["kind"] == "timeout" and "shop_api" in answer["error"]
 
 

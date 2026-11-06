@@ -69,7 +69,7 @@ regardless. After the listing: turn security defaults back on or disable the rev
 
 **2 Tools** — read from the server's code: 38 tools, 29 read-only, 9 write (`create_backend`, `create_views`,
 `create_semantic_model`, `create_data_agent`, `create_ontology`, `create_silver_notebook`, `create_gold_views`,
-`create_drift_monitor`, `create_report`: destructive, idempotent, never delete; all but `create_backend` dry-run by default). New since
+`create_drift_monitor`, `create_report`: destructive, idempotent, never delete; all dry-run by default). New since
 the earlier submission (22 tools, 18 read-only, 4 write) include `sap_pack_draft` and `domain_draft` (in main, not yet deployed). `tests/test_submission.py` keeps
 these numbers and names equal to `server.mcp.list_tools()`.
 
@@ -79,13 +79,13 @@ privacy https://krusgraph.com/privacy · icon: the site favicon.
 - One-liner: Turn Microsoft Fabric tables into an explainable graph and a GraphQL API — keys and relationships inferred, with the rule behind every link shown.
 - Description: what it reads, the rule behind every link, validate_plan and suggest_relationships against the data;
   the drafts (TMDL, data dictionary, dbt, Fabric IQ, Rayfin) and the graph analysis; read-only queries; and what it
-  can create in the user's workspace, each with the user's own delegated permission. Every creating tool except
-  `create_backend` answers with what it would create until called with `dry_run=false`; none deletes anything.
+  can create in the user's workspace, each with the user's own delegated permission. Every creating tool
+  answers with what it would create until called with `dry_run=false`; none deletes anything.
   Sign-in with the user's own account, nothing stored, MIT, not affiliated with Microsoft.
 
   | Created in Fabric | Tool | Delegated permission (Fabric) |
   | --- | --- | --- |
-  | API for GraphQL | `create_backend` (no dry run) | `GraphQLApi.ReadWrite.All` |
+  | API for GraphQL | `create_backend` (dry run by default) | `GraphQLApi.ReadWrite.All` |
   | Views on the SQL endpoint | `create_views` | none beyond Azure SQL `user_impersonation`; Contributor on the workspace |
   | Power BI semantic model | `create_semantic_model` | `SemanticModel.ReadWrite.All` or `Item.ReadWrite.All` |
   | Fabric IQ ontology (preview) | `create_ontology` | `Item.ReadWrite.All` |

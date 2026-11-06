@@ -60,7 +60,7 @@ PAGES = {
     "/pricing": ("pricing.html", "Pricing — {{PRODUCT}}",
                  "Check and the connector in Claude are free and open source (MIT); a pilot with named deliveries and ongoing work for a team are on request and invoiced. What is stored, permissions and how to buy.", "pricing"),
     "/terms": ("terms.html", "Preview terms — {{PRODUCT}}",
-               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric unless you ask for it (a dry run first for every tool but create_backend) and only with your own permissions.", ""),
+               "Preview terms for {{PRODUCT}}: a preview service, code under the MIT licence, nothing created in Fabric unless you ask for it (a dry run first for every creating tool) and only with your own permissions.", ""),
     "/mascots": ("mascots.html", "Mascot review — {{PRODUCT}}",
                  "Review page for the three mascots: every pose and demo state.", ""),
 }
@@ -93,8 +93,6 @@ def _vars() -> dict[str, str]:
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "TERMS_UPDATED": TERMS_UPDATED,
-        # the creating tools without a dry run, from tool_status (a test checks them against the signatures in server.py)
-        "NO_DRY_RUN_TOOLS": _listed(list(ts.NO_DRY_RUN)),
         # n75: how much the hosted tools count, read from server.py (R5's sample and query budget, validate_plan's default)
         **_counting_limits(),
         "ASSET_V": asset_version(),
@@ -668,7 +666,7 @@ def build_path() -> list[dict]:
         {"title": "The plan is checked against the data", "tools": ("validate_plan",),
          "you": "You approve the plan, or correct a key first."},
         {"title": "The parts are created", "tools": creating,
-         "you": "You ask for each part. All but create_backend show what they would create first, and create when you say so."},
+         "you": "You ask for each part. Each shows what it would create first, and creates when you say so."},
     ]
 
 

@@ -113,7 +113,7 @@
   <details><summary>Do you touch my data?</summary>
     <p>Planning reads schema metadata only: workspace, item, table and column names and types. The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
   <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
-    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. The one tool without a dry run, <code>{{NO_DRY_RUN_TOOLS}}</code>, creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
+    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. <code>create_backend</code> creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
   <details><summary>What does my IT department need to approve?</summary>
     <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
   <details><summary>Can I try it without Fabric?</summary>

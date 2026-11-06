@@ -5,6 +5,11 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n111: `create_backend` has a dry run, `dry_run` with the default of the other creating tools (`true`), in the
+  hosted and the local server. It answers whether an item of that name exists and would be updated or created, the
+  definition and what changes in it, and the checks that passed, reading only. A call that should create or update
+  now passes `dry_run=false`; what a real create writes is unchanged. `tool_status.NO_DRY_RUN` is empty and the texts
+  that said create_backend has no dry run say otherwise. Unit-tested with the Fabric test double; not deployed.
 - Round n90: Claude's connectors page moved to Customize. The Connect button opens
   `https://claude.ai/customize/connectors` instead of `https://claude.ai/settings/connectors`, which now only says that
   Connectors moved; the instructions say Customize → Connectors → Add → Add custom connector, and for a new sign-in

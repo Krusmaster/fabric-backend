@@ -59,7 +59,7 @@ def test_create_backend_returns_the_card_when_fabric_succeeds(shop, monkeypatch)
         assert callable(token_provider)                                                 # deploy() fetches the token itself
         return {"status": "Succeeded", "mode": "created", "id": "api-1"}
     monkeypatch.setattr(server, "deploy", fake_deploy)
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", dry_run=False))
     assert out["result"] == {"status": "Succeeded", "mode": "created", "id": "api-1"}
     assert out["source"] == {"id": "ep-1", "type": "SqlAnalyticsEndpoint"}
     assert "graphqlapis/api-1/graphql" in out["card"] and "Introspection" in out["card"]
@@ -71,10 +71,10 @@ def test_create_backend_explains_a_refusal_and_a_timeout(shop, monkeypatch):
     monkeypatch.setattr(server, "source_for", lambda ws, item, headers: ("ep-1", "SqlAnalyticsEndpoint"))
     monkeypatch.setattr(server, "deploy", lambda *a, **k: {"status": "Failed", "mode": "created", "http": 403,
                                                            "body": '{"errorCode":"InsufficientPrivileges","message":"Contributor needed"}'})
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", dry_run=False))
     assert out["kind"] == "no_access" and "Contributor needed" in out["error"] and "body" not in out["result"]
     monkeypatch.setattr(server, "deploy", lambda *a, **k: {"status": "Timeout", "mode": "created", "operation": "op-1"})
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", dry_run=False))
     assert out["kind"] == "timeout" and out["result"]["operation"] == "op-1"
 
 
@@ -94,9 +94,9 @@ def test_a_typo_in_keys_or_confirmed_is_a_bad_input_answer_not_a_fabric_error(sh
 def test_a_tables_filter_must_name_real_tables(shop, monkeypatch):
     monkeypatch.setattr(server, "source_for", lambda ws, item, headers: ("ep-1", "SqlAnalyticsEndpoint"))
     monkeypatch.setattr(server, "deploy", lambda env, ws, **k: {"status": "Succeeded", "mode": "created", "id": "api-1"})
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["orders", "ghost"]))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["orders", "ghost"], dry_run=False))
     assert out["kind"] == "bad_input" and "'ghost'" in out["error"] and "result" not in out       # nothing was deployed
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["ORDERS", "customers"]))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", tables=["ORDERS", "customers"], dry_run=False))
     assert out["result"]["status"] == "Succeeded"                                                  # case does not matter
     out = json.loads(server.rayfin_connector(*shop, connector="shop", schema="shop", tables=[]))
     assert out["kind"] == "bad_input" and "empty" in out["error"]
@@ -115,14 +115,14 @@ def test_create_backend_will_not_silently_drop_a_relationship_the_api_has(shop, 
     deployed = []
     monkeypatch.setattr(server, "deploy", lambda env, ws, **k: deployed.append(env) or {"status": "Succeeded", "mode": "updated", "id": "api-1"})
 
-    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop"))
+    out = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", dry_run=False))
     assert out["kind"] == "would_remove" and not deployed and "allow_removals" in out["hint"]
     assert {r["field"] for r in out["relationships_lost"]} == {"ship_to", "orders_as_ship_to"}
     assert out["keep_with_confirmed"] == [{**ship_to, "field_name": "ship_to", "reverse_name": "orders_as_ship_to"}]   # both of the API's names
 
-    kept = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", confirmed=out["keep_with_confirmed"]))
+    kept = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", confirmed=out["keep_with_confirmed"], dry_run=False))
     assert kept["result"]["status"] == "Succeeded" and len(deployed) == 1
-    dropped = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", allow_removals=True))
+    dropped = json.loads(server.create_backend(*shop, name="shop_api", schema="shop", allow_removals=True, dry_run=False))
     assert dropped["result"]["status"] == "Succeeded" and len(deployed) == 2
-    new_name = json.loads(server.create_backend(*shop, name="shop_api_v2", schema="shop"))
+    new_name = json.loads(server.create_backend(*shop, name="shop_api_v2", schema="shop", dry_run=False))
     assert new_name["result"]["status"] == "Succeeded"                       # a new name has nothing to lose

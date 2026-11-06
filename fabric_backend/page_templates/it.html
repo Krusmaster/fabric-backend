@@ -30,7 +30,7 @@
   </ul>
 
   <h2 id="permissions">What the Entra app asks for, and why</h2>
-  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions. Every creating tool except <code>{{NO_DRY_RUN_TOOLS}}</code> answers with what it would create until it is called with <code>dry_run=false</code>; <code>{{NO_DRY_RUN_TOOLS}}</code> has no dry run and creates or updates the one API for GraphQL named in the call.</p>
+  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions. Every creating tool answers with what it would create until it is called with <code>dry_run=false</code>; <code>create_backend</code> then creates or updates the one API for GraphQL named in the call.</p>
   <div class="table-wrap" tabindex="0"><table class="it-scopes">
     <thead><tr><th>Permission</th><th>In plain words</th></tr></thead>
     <tbody>

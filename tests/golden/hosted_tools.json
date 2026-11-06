@@ -1775,7 +1775,906 @@
  },
  {
   "answer": {
+   "changes": {
+    "actions_changed": [],
+    "new_columns": [],
+    "new_relationships": [
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "customer",
+      "table": "shop.addresses",
+      "target": "shop.customers"
+     },
+     {
+      "columns": [
+       "address_id"
+      ],
+      "field": "orders_as_ship_to",
+      "table": "shop.addresses",
+      "target": "shop.orders"
+     },
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "customer",
+      "table": "shop.audit_log",
+      "target": "shop.customers"
+     },
+     {
+      "columns": [
+       "id"
+      ],
+      "field": "products",
+      "table": "shop.categories",
+      "target": "shop.products"
+     },
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "addresses",
+      "table": "shop.customers",
+      "target": "shop.addresses"
+     },
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "audit_log",
+      "table": "shop.customers",
+      "target": "shop.audit_log"
+     },
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "orders",
+      "table": "shop.customers",
+      "target": "shop.orders"
+     },
+     {
+      "columns": [
+       "order_id"
+      ],
+      "field": "order",
+      "table": "shop.order_items",
+      "target": "shop.orders"
+     },
+     {
+      "columns": [
+       "product_id"
+      ],
+      "field": "product",
+      "table": "shop.order_items",
+      "target": "shop.products"
+     },
+     {
+      "columns": [
+       "customer_id"
+      ],
+      "field": "customer",
+      "table": "shop.orders",
+      "target": "shop.customers"
+     },
+     {
+      "columns": [
+       "order_id"
+      ],
+      "field": "order_items",
+      "table": "shop.orders",
+      "target": "shop.order_items"
+     },
+     {
+      "columns": [
+       "ship_to_id"
+      ],
+      "field": "ship_to",
+      "table": "shop.orders",
+      "target": "shop.addresses"
+     },
+     {
+      "columns": [
+       "category_id"
+      ],
+      "field": "category",
+      "table": "shop.products",
+      "target": "shop.categories"
+     },
+     {
+      "columns": [
+       "product_id"
+      ],
+      "field": "order_items",
+      "table": "shop.products",
+      "target": "shop.order_items"
+     }
+    ],
+    "new_tables": [
+     "shop.addresses",
+     "shop.audit_log",
+     "shop.categories",
+     "shop.customers",
+     "shop.order_items",
+     "shop.orders",
+     "shop.products"
+    ],
+    "relationships_unsupported": [],
+    "removed_columns": [],
+    "source_changed": [],
+    "tables_gone": []
+   },
+   "checks_passed": [
+    "name 'shop_api_v2': letters, digits and underscores",
+    "source found: SqlAnalyticsEndpoint aaaaaaaa-0000-0000-0000-000000000002",
+    "tables: all tables of the source",
+    "keys and relationships planned: 7 tables, 6 with keys, 7 relationships"
+   ],
+   "definition": {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+    "datasources": [
+     {
+      "objects": [
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "country": "country",
+         "customer_id": "customer_id",
+         "name": "name"
+        },
+        "graphqlType": "customers",
+        "relationships": [
+         {
+          "cardinality": "OneToMany",
+          "field": "addresses",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.addresses"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "orders",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.orders"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "audit_log",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.audit_log"
+         }
+        ],
+        "sourceObject": "shop.customers",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "id": "id",
+         "name": "name"
+        },
+        "graphqlType": "categories",
+        "relationships": [
+         {
+          "cardinality": "OneToMany",
+          "field": "products",
+          "sourceFields": [
+           "id"
+          ],
+          "targetFields": [
+           "category_id"
+          ],
+          "targetObject": "shop.products"
+         }
+        ],
+        "sourceObject": "shop.categories",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "category_id": "category_id",
+         "list_price": "list_price",
+         "name": "name",
+         "product_id": "product_id"
+        },
+        "graphqlType": "products",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "category",
+          "sourceFields": [
+           "category_id"
+          ],
+          "targetFields": [
+           "id"
+          ],
+          "targetObject": "shop.categories"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "order_items",
+          "sourceFields": [
+           "product_id"
+          ],
+          "targetFields": [
+           "product_id"
+          ],
+          "targetObject": "shop.order_items"
+         }
+        ],
+        "sourceObject": "shop.products",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "address_id": "address_id",
+         "city": "city",
+         "customer_id": "customer_id"
+        },
+        "graphqlType": "addresses",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "orders_as_ship_to",
+          "sourceFields": [
+           "address_id"
+          ],
+          "targetFields": [
+           "ship_to_id"
+          ],
+          "targetObject": "shop.orders"
+         }
+        ],
+        "sourceObject": "shop.addresses",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "customer_id": "customer_id",
+         "order_date": "order_date",
+         "order_id": "order_id",
+         "ship_to_id": "ship_to_id"
+        },
+        "graphqlType": "orders",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "order_items",
+          "sourceFields": [
+           "order_id"
+          ],
+          "targetFields": [
+           "order_id"
+          ],
+          "targetObject": "shop.order_items"
+         },
+         {
+          "cardinality": "ManyToOne",
+          "field": "ship_to",
+          "sourceFields": [
+           "ship_to_id"
+          ],
+          "targetFields": [
+           "address_id"
+          ],
+          "targetObject": "shop.addresses"
+         }
+        ],
+        "sourceObject": "shop.orders",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "line_no": "line_no",
+         "order_id": "order_id",
+         "product_id": "product_id",
+         "quantity": "quantity"
+        },
+        "graphqlType": "order_items",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "order",
+          "sourceFields": [
+           "order_id"
+          ],
+          "targetFields": [
+           "order_id"
+          ],
+          "targetObject": "shop.orders"
+         },
+         {
+          "cardinality": "ManyToOne",
+          "field": "product",
+          "sourceFields": [
+           "product_id"
+          ],
+          "targetFields": [
+           "product_id"
+          ],
+          "targetObject": "shop.products"
+         }
+        ],
+        "sourceObject": "shop.order_items",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Disabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "customer_id": "customer_id",
+         "event": "event",
+         "happened_at": "happened_at"
+        },
+        "graphqlType": "audit_log",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         }
+        ],
+        "sourceObject": "shop.audit_log",
+        "sourceObjectType": "Table"
+       }
+      ],
+      "sourceItemId": "aaaaaaaa-0000-0000-0000-000000000002",
+      "sourceType": "SqlAnalyticsEndpoint",
+      "sourceWorkspaceId": "11111111-2222-3333-4444-555555555555"
+     }
+    ]
+   },
+   "dry_run": true,
+   "exists": false,
+   "name": "shop_api_v2",
+   "not_checked": "validate_plan (keys and relationships against the rows)",
+   "parts": [
+    "graphql-definition.json",
+    ".platform"
+   ],
+   "rest": {
+    "delegated_scope": "GraphQLApi.ReadWrite.All",
+    "method": "POST",
+    "parts": [
+     "graphql-definition.json",
+     ".platform"
+    ],
+    "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphQLApis"
+   },
+   "skipped_relationships": [],
+   "source": {
+    "id": "aaaaaaaa-0000-0000-0000-000000000002",
+    "type": "SqlAnalyticsEndpoint"
+   },
+   "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "would": "create",
+   "would_change": true
+  },
+  "args": {
+   "name": "shop_api_v2",
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "demo"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items?type=GraphQLApi"
+   ]
+  ],
+  "tool": "create_backend"
+ },
+ {
+  "answer": {
+   "changes": {
+    "actions_changed": [],
+    "new_columns": [],
+    "new_relationships": [],
+    "new_tables": [],
+    "relationships_unsupported": [],
+    "removed_columns": [],
+    "source_changed": [],
+    "tables_gone": []
+   },
+   "checks_passed": [
+    "name 'shop_api': letters, digits and underscores",
+    "source found: SqlAnalyticsEndpoint aaaaaaaa-0000-0000-0000-000000000002",
+    "tables: all tables of the source",
+    "keys and relationships planned: 7 tables, 6 with keys, 7 relationships",
+    "the existing API's definition was read",
+    "no relationship the API has today would be removed"
+   ],
+   "definition": {
+    "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/graphqlApi/definition/1.0.0/schema.json",
+    "datasources": [
+     {
+      "objects": [
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "country": "country",
+         "customer_id": "customer_id",
+         "name": "name"
+        },
+        "graphqlType": "customers",
+        "relationships": [
+         {
+          "cardinality": "OneToMany",
+          "field": "addresses",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.addresses"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "orders",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.orders"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "audit_log",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.audit_log"
+         }
+        ],
+        "sourceObject": "shop.customers",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "id": "id",
+         "name": "name"
+        },
+        "graphqlType": "categories",
+        "relationships": [
+         {
+          "cardinality": "OneToMany",
+          "field": "products",
+          "sourceFields": [
+           "id"
+          ],
+          "targetFields": [
+           "category_id"
+          ],
+          "targetObject": "shop.products"
+         }
+        ],
+        "sourceObject": "shop.categories",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "category_id": "category_id",
+         "list_price": "list_price",
+         "name": "name",
+         "product_id": "product_id"
+        },
+        "graphqlType": "products",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "category",
+          "sourceFields": [
+           "category_id"
+          ],
+          "targetFields": [
+           "id"
+          ],
+          "targetObject": "shop.categories"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "order_items",
+          "sourceFields": [
+           "product_id"
+          ],
+          "targetFields": [
+           "product_id"
+          ],
+          "targetObject": "shop.order_items"
+         }
+        ],
+        "sourceObject": "shop.products",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "address_id": "address_id",
+         "city": "city",
+         "customer_id": "customer_id"
+        },
+        "graphqlType": "addresses",
+        "relationships": [
+         {
+          "cardinality": "OneToMany",
+          "field": "orders_as_ship_to",
+          "sourceFields": [
+           "address_id"
+          ],
+          "targetFields": [
+           "ship_to_id"
+          ],
+          "targetObject": "shop.orders"
+         },
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         }
+        ],
+        "sourceObject": "shop.addresses",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "customer_id": "customer_id",
+         "order_date": "order_date",
+         "order_id": "order_id",
+         "ship_to_id": "ship_to_id"
+        },
+        "graphqlType": "orders",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "ship_to",
+          "sourceFields": [
+           "ship_to_id"
+          ],
+          "targetFields": [
+           "address_id"
+          ],
+          "targetObject": "shop.addresses"
+         },
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         },
+         {
+          "cardinality": "OneToMany",
+          "field": "order_items",
+          "sourceFields": [
+           "order_id"
+          ],
+          "targetFields": [
+           "order_id"
+          ],
+          "targetObject": "shop.order_items"
+         }
+        ],
+        "sourceObject": "shop.orders",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Enabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "line_no": "line_no",
+         "order_id": "order_id",
+         "product_id": "product_id",
+         "quantity": "quantity"
+        },
+        "graphqlType": "order_items",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "order",
+          "sourceFields": [
+           "order_id"
+          ],
+          "targetFields": [
+           "order_id"
+          ],
+          "targetObject": "shop.orders"
+         },
+         {
+          "cardinality": "ManyToOne",
+          "field": "product",
+          "sourceFields": [
+           "product_id"
+          ],
+          "targetFields": [
+           "product_id"
+          ],
+          "targetObject": "shop.products"
+         }
+        ],
+        "sourceObject": "shop.order_items",
+        "sourceObjectType": "Table"
+       },
+       {
+        "actions": {
+         "Create": "Disabled",
+         "Delete": "Disabled",
+         "Query": "Enabled",
+         "Query_by_pk": "Disabled",
+         "Update": "Disabled"
+        },
+        "fieldMappings": {
+         "customer_id": "customer_id",
+         "event": "event",
+         "happened_at": "happened_at"
+        },
+        "graphqlType": "audit_log",
+        "relationships": [
+         {
+          "cardinality": "ManyToOne",
+          "field": "customer",
+          "sourceFields": [
+           "customer_id"
+          ],
+          "targetFields": [
+           "customer_id"
+          ],
+          "targetObject": "shop.customers"
+         }
+        ],
+        "sourceObject": "shop.audit_log",
+        "sourceObjectType": "Table"
+       }
+      ],
+      "sourceItemId": "aaaaaaaa-0000-0000-0000-000000000002",
+      "sourceType": "SqlAnalyticsEndpoint",
+      "sourceWorkspaceId": "11111111-2222-3333-4444-555555555555"
+     }
+    ]
+   },
+   "dry_run": true,
+   "exists": true,
+   "id": "aaaaaaaa-0000-0000-0000-000000000004",
+   "name": "shop_api",
+   "not_checked": "validate_plan (keys and relationships against the rows)",
+   "parts": [
+    "graphql-definition.json",
+    ".platform"
+   ],
+   "rest": {
+    "delegated_scope": "GraphQLApi.ReadWrite.All",
+    "method": "POST",
+    "parts": [
+     "graphql-definition.json",
+     ".platform"
+    ],
+    "url": "https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/updateDefinition"
+   },
+   "skipped_relationships": [],
+   "source": {
+    "id": "aaaaaaaa-0000-0000-0000-000000000002",
+    "type": "SqlAnalyticsEndpoint"
+   },
+   "summary": "7 tables, 6 with keys, 7 relationships\nno key (query only; can reference others, cannot be referenced): audit_log",
+   "would": "update",
+   "would_change": false
+  },
+  "args": {
+   "confirmed": [
+    {
+     "source": "orders",
+     "source_cols": [
+      "ship_to_id"
+     ],
+     "target": "addresses",
+     "target_cols": [
+      "address_id"
+     ]
+    }
+   ],
+   "name": "shop_api",
+   "schema": "shop",
+   "source": "demo_lh",
+   "workspace": "demo"
+  },
+  "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "POST",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items/aaaaaaaa-0000-0000-0000-000000000004/getDefinition"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items?type=GraphQLApi"
+   ]
+  ],
+  "tool": "create_backend"
+ },
+ {
+  "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "dry_run": false,
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -1789,6 +2688,7 @@
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
+   "dry_run": false,
    "name": "shop_api_v2",
    "schema": "shop",
    "source": "demo_lh",
@@ -1829,6 +2729,7 @@
  {
   "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "dry_run": false,
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -1842,6 +2743,7 @@
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
+   "dry_run": false,
    "name": "shop_api",
    "schema": "shop",
    "source": "demo_lh",
@@ -1886,6 +2788,7 @@
  {
   "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/new-graphQLApis/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api_v2 -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api_v2 -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "dry_run": false,
    "result": {
     "id": "new-graphQLApis",
     "mode": "created",
@@ -1899,6 +2802,7 @@
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
+   "dry_run": false,
    "name": "shop_api_v2",
    "schema": "shop",
    "source": "demo_lh",
@@ -1935,6 +2839,7 @@
  {
   "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "dry_run": false,
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -1948,6 +2853,7 @@
    "summary": "7 tables, 6 with keys, 7 relationships\nR5 counted 1 code or role column(s) in the rows: 1 counting query(ies), at most 200 distinct values of a column each\nno key (query only; can reference others, cannot be referenced): audit_log"
   },
   "args": {
+   "dry_run": false,
    "name": "shop_api",
    "schema": "shop",
    "source": "demo_lh",
@@ -1988,6 +2894,7 @@
  {
   "answer": {
    "card": "GraphQL endpoint:  https://api.fabric.microsoft.com/v1/workspaces/11111111-2222-3333-4444-555555555555/graphqlapis/aaaaaaaa-0000-0000-0000-000000000004/graphql\nTenant ID / Client ID / Client secret: from your Entra app registration\n\nStill to do in the Fabric portal (no API for these yet):\n  [ ] shop_api -> Settings -> Introspection -> On   (workspace admin; Lovable needs this)\n  [ ] shop_api -> Manage permissions -> add the service principal with 'Run Queries and Mutations'\n  [ ] once per tenant: Admin portal -> 'Service principals can call Fabric public APIs' = enabled",
+   "dry_run": false,
    "result": {
     "id": "aaaaaaaa-0000-0000-0000-000000000004",
     "mode": "updated",
@@ -2013,6 +2920,7 @@
      ]
     }
    ],
+   "dry_run": false,
    "name": "shop_api",
    "schema": "shop",
    "source": "demo_lh",

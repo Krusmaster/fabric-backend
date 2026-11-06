@@ -182,7 +182,7 @@
    "open_world_hint": true,
    "read_only_hint": false
   },
-  "description": "Create (or update in place) a Fabric API for GraphQL item over the source's tables with the\ninferred relationships. Returns the endpoint URL and the portal steps that remain.",
+  "description": "Create (or update in place) a Fabric API for GraphQL item over the source's tables with the\ninferred relationships. Returns the endpoint URL and the portal steps that remain. dry_run=true (default) changes\nnothing and returns whether the item exists and would be updated or created, the definition and what changes in\nit, and the checks that passed.",
   "input_schema": {
    "properties": {
     "confirmed": {
@@ -202,7 +202,7 @@
      "title": "Confirmed"
     },
     "dry_run": {
-     "default": false,
+     "default": true,
      "title": "Dry Run",
      "type": "boolean"
     },
@@ -284,7 +284,7 @@
    "title": "create_backendOutput",
    "type": "object"
   },
-  "title": "Create or update the GraphQL API"
+  "title": "Create or update the GraphQL API (dry run by default)"
  },
  "create_views": {
   "annotations": {

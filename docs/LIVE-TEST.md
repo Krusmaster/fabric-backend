@@ -31,7 +31,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 4 | `plan_backend` | *"Plan a backend over demo_lh, schema shop."* | 7 tables, 6 with keys, 7 relationships (6 R1, and `orders.ship_to_id → addresses.address_id` by R5, counted in the rows); `audit_log` without a key; `order_items` keyed `order_id + line_no` (K5) | 26, 27 Oct (6 relationships, before R5) | | |
 | 5 | `sample_rows` | *"Show me five rows of customers in demo_lh, schema shop."* | 5 rows; `name` shows `***` with a `personal_data` notice (rule P1) and the parameter `show_personal_data`; the lakehouse's sensitivity label id if it has one | 26 Oct (before masking), 27 Oct (masked) | | |
 | 6 | `validate_plan` | *"Check the plan against the data."* | 6 of 6 keys unique, 7 of 7 relationships hold without orphans (R5's `ship_to_id` among them) | 26, 27 Oct, 2 Nov with build `src-69aa8afa445e6c97` (6 of 6 relationships, before R5 reached validate_plan) | ✓ 6 of 6 keys unique, 7 of 7 relationships without orphans; on schema `dbo` 17 of 17 keys and 32 of 34 relationships | 2 November 2026 |
-| 7 | `create_backend` | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `mode: updated`, the endpoint; nothing dropped (see section 3) | 27 Oct (`Succeeded`, `updated`, after `would_remove`; see sections 2 and 3) | | |
+| 7 | `create_backend` | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id. Dry run first, then update."* | dry run (the default since n111): `would: update`, the changes and the checks passed; with `dry_run=false`: `mode: updated`, the endpoint; nothing dropped (see section 3) | 27 Oct (`Succeeded`, `updated`, after `would_remove`; see sections 2 and 3) | | |
 | 8 | `describe_backend` | *"What can I query in shop_api?"* | the types of the seven tables with fields and relationship names | 26, 27 Oct | | |
 | 9 | `query_graphql` | *"Using shop_api, list five orders with their customer."* | 5 orders, each with its customer object; a mutation asked for is refused | 26, 27 Oct | | |
 | 10 | `query_graphql` with `question` | *"Using shop_api, how many orders per customer? Run it."* | the suggested query beside the result, grouped by `customer_id` | 27 Oct (in Swedish; the counts add up to 60) | | |
@@ -97,7 +97,8 @@ has for the same relationship, and the answer lists them under `names_kept_from_
 "confirmed": [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]
 ```
 
-In Claude: *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* (row 7).
+In Claude: *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id. Dry run first,
+then update."* (row 7; since round n111 the update needs `dry_run=false`).
 On 27 October, before that fix, the update stopped at `would_remove` until the entry also carried
 `"field_name": "address", "reverse_name": "orders"`; with those it answered `Succeeded`, `updated`. Pass `field_name` or
 `reverse_name` only to rename a field on purpose; a rename removes the field an app queries today, so the update then

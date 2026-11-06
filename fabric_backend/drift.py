@@ -85,10 +85,12 @@ def _keep_entry(o: dict, r: dict, api: dict[tuple, str]) -> dict:
 
 
 def compare(plan: Plan, existing: dict, name: str, workspace_id: str, source_id: str, source_type: str,
-            writable: bool = False, tables: list[str] | None = None, confirmed: list[dict] | None = None) -> dict:
+            writable: bool = False, tables: list[str] | None = None, confirmed: list[dict] | None = None,
+            keep_names: bool = True) -> dict:
     """existing: the API's graphql-definition.json. The plan is rendered the way create_backend would render it (with
-    the API's field names kept, keep_api_names), and the two definitions are compared object by object."""
-    plan, kept = keep_api_names(plan, existing, confirmed)
+    the API's field names kept, keep_api_names; keep_names=False when the caller has already done that or, as the
+    local server, does not), and the two definitions are compared object by object."""
+    plan, kept = keep_api_names(plan, existing, confirmed) if keep_names else (plan, [])
     api_names, plan_names = _names_by_shape(existing), {}
     wanted_env = definition(plan, name, workspace_id, source_id, source_type, writable=writable, tables=tables)
     wanted = decode(wanted_env)
@@ -227,4 +229,35 @@ def snapshot_diff(old: dict | None, new: dict) -> dict:
     out["relationships_added"] = [nrels[k] for k in sorted(set(nrels) - set(orels))]
     out["relationships_removed"] = [orels[k] for k in sorted(set(orels) - set(nrels))]
     out["changed"] = any(out[k] for k in out if k not in ("first_run",))
+    return out
+
+
+CHANGE_KEYS = ("new_tables", "tables_gone", "new_columns", "removed_columns", "relationships_unsupported",
+               "new_relationships", "actions_changed", "source_changed")
+
+
+def preview(plan: Plan, env: dict, existing_id: str | None, existing: dict | None, workspace_id: str, source_id: str,
+            source_type: str, writable: bool = False, tables: list[str] | None = None,
+            confirmed: list[dict] | None = None) -> dict:
+    """What create_backend would write, for its dry run: the item name, whether an item of that name exists (and so
+    would be updated in place) or would be created, the definition parts it would send, what changes in
+    graphql-definition.json (against the API's definition, or against nothing for a new item) and the definition
+    itself. `env` is the envelope a real create would send, rendered from `plan` (with the API's names already kept
+    where the caller keeps them); nothing here reads or writes Fabric."""
+    name = env["displayName"]
+    base = existing if existing is not None else {"datasources": []}
+    d = compare(plan, base, name, workspace_id, source_id, source_type, writable=writable, tables=tables,
+                confirmed=confirmed, keep_names=False)
+    out = {"name": name, "exists": existing_id is not None, "would": "update" if existing_id else "create"}
+    if existing_id:
+        out["id"] = existing_id
+    out["parts"] = [p["path"] for p in env["definition"]["parts"]]
+    if existing_id and existing is None:
+        out["changes"] = None
+        out["changes_note"] = ("the existing API's definition could not be read, so what changes is not known; an update "
+                               "replaces the definition with the one below")
+    else:
+        out["changes"] = {k: d[k] for k in CHANGE_KEYS}
+        out["would_change"] = d["would_change"]
+    out["definition"] = decode(env)
     return out

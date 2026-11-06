@@ -64,7 +64,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
-    "relationships against the rows (create_backend does not run it, and has no dry run), then create_backend. Before query_graphql, describe_backend gives the exact field "
+    "relationships against the rows (create_backend does not run it), then create_backend. Before query_graphql, describe_backend gives the exact field "
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "
     "VBAK/VBAP, whose keys with MANDT and order-to-cash relationships come from public sources; sap_pack_draft shows what the pack "
     "recognises and what is missing); "
@@ -74,8 +74,8 @@ mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
     "plan_drift before re-running create_backend on an existing API, to see what would change. One plan, five Fabric pieces: "
     "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
     "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
-    "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all but "
-    "create_backend answer with what they would create until dry_run=false. create_report adds an empty Power BI report (one blank page, no visuals) bound to an existing semantic model; a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
+    "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all "
+    "answer with what they would create until dry_run=false. create_report adds an empty Power BI report (one blank page, no visuals) bound to an existing semantic model; a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
     "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
     "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -535,18 +535,21 @@ def _privacy_rows(table: str, columns: list[str], rows: list[dict], schema, show
     return out
 
 
-@mcp.tool(title="Create or update the GraphQL API", annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True,
-                                                                               idempotent_hint=True, open_world_hint=True))
+@mcp.tool(title="Create or update the GraphQL API (dry run by default)",
+          annotations=ToolAnnotations(read_only_hint=False, destructive_hint=True, idempotent_hint=True, open_world_hint=True))
 @safe
 def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendName, schema: _p.Schema = "dbo", writable: _p.Writable = False,
                    keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-                   tables: _p.CreateBackendTables = None, allow_removals: _p.AllowRemovals = False, ctx: Context = None) -> str:
+                   tables: _p.CreateBackendTables = None, allow_removals: _p.AllowRemovals = False,
+                   dry_run: _p.DryRun = True, ctx: Context = None) -> str:
     """Creates a Fabric API for GraphQL item over the source's tables with the plan's keys and relationships, or updates
-    the API of that name in place. Requires workspace, source and name. Returns JSON {summary, result, card
-    (endpoint, portal steps left), skipped_relationships}. Changes Fabric: an update replaces the API's definition;
+    the API of that name in place. Requires workspace, source and name. Returns JSON {summary, dry_run, result, card
+    (endpoint, portal steps left), skipped_relationships}; the dry run returns instead whether the item exists and
+    would be updated or created, the definition and what changes in it, and the checks that passed. Changes Fabric
+    only with dry_run=false: an update replaces the API's definition;
     tables outside `tables` or gone from the source leave it, field names of unchanged relationships are kept, and
     no item is deleted. When an update would drop relationships the API has, nothing is written and the answer (kind
-    would_remove) lists them as confirmed entries. No dry run, and it does not run validate_plan; plan_backend
+    would_remove) lists them as confirmed entries. It does not run validate_plan; plan_backend
     proposes, validate_plan checks, plan_drift previews an update. Errors: {error, kind, hint}."""
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
@@ -566,8 +569,10 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
                 "hint": "To keep them, call create_backend again with confirmed=keep_with_confirmed (added to any confirmed "
                         "you already pass). To drop them on purpose, call it with allow_removals=true."}, indent=2)
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
+    if dry_run:
+        return _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers)
     result = deploy(env, workspace, token_provider=lambda: auth.fabric(ctx))
-    out = {"summary": p.summary(), "source": {"id": source_id, "type": source_type}, "result": result,
+    out = {"summary": p.summary(), "dry_run": False, "source": {"id": source_id, "type": source_type}, "result": result,
            "skipped_relationships": env.get("skipped_relationships", [])}
     if kept:
         out["names_kept_from_api"] = kept
@@ -583,6 +588,38 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
         out.update({"error": f"Fabric is still working on {name!r}; the operation did not finish in time.", "kind": "timeout",
                     "hint": "Check the item in the Fabric portal in a minute; re-running create_backend updates it in place."})
     return json.dumps(out, indent=2)
+
+
+def _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers) -> str:
+    """create_backend's dry run: what a create with dry_run=false would send, read-only. The item is looked up the
+    way deploy() looks it up (deploy.find_item), so "update" and "create" are the choice the real call would make."""
+    existing_id = _find_item(workspace, env["displayName"], headers)
+    existing = found[1] if found and existing_id else None
+    preview = _drift.preview(p, env, existing_id, existing, workspace, source_id, source_type, writable=writable,
+                             tables=tables, confirmed=confirmed)
+    lost = (preview.get("changes") or {}).get("relationships_unsupported", [])
+    checks = [f"name {env['displayName']!r}: letters, digits and underscores",
+              f"source found: {source_type} {source_id}",
+              "tables: every name given is a table of the source" if tables else "tables: all tables of the source",
+              f"keys and relationships planned: {p.summary().splitlines()[0]}"]
+    if existing_id and existing is not None:
+        checks.append("the existing API's definition was read")
+        checks.append(f"allow_removals=true: {len(lost)} relationship(s) of the API would be removed" if lost
+                      else "no relationship the API has today would be removed")
+    rest = ({"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/items/{existing_id}/updateDefinition"}
+            if existing_id else {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace}/graphQLApis"})
+    rest |= {"delegated_scope": "GraphQLApi.ReadWrite.All", "parts": preview["parts"]}
+    out = {"summary": p.summary(), "dry_run": True, "source": {"id": source_id, "type": source_type}, **preview,
+           "rest": rest, "checks_passed": checks, "not_checked": "validate_plan (keys and relationships against the rows)",
+           "skipped_relationships": env.get("skipped_relationships", [])}
+    if kept:
+        out["names_kept_from_api"] = kept
+    text = json.dumps(out, indent=2)
+    if len(text) > MAX_RESULT_CHARS:
+        out["definition"] = None
+        out["omitted"] = "definition: too long for one answer; export_item_definitions gives it as files"
+        text = json.dumps(out, indent=2)
+    return text
 
 
 def _existing_api(workspace: str, name: str, headers: dict) -> tuple[str, dict] | None:

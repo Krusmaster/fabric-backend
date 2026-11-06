@@ -30,7 +30,8 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
 6. **Existing API?** `plan_drift(api)` before any `create_backend` on a name that already exists: it lists what the
    re-run would add, change or remove. Show removals to the user; keep a relationship the API has by passing its
    `confirmed` entry (the answer's `keep_with_confirmed`).
-7. **Create.** `create_backend(workspace, source, name, keys, confirmed)` creates or updates one API for GraphQL item.
+7. **Create.** `create_backend(workspace, source, name, keys, confirmed)` creates or updates one API for GraphQL item;
+   it is a dry run (would it create or update, what changes) until `dry_run=false`.
    **Ask for the user's go-ahead first**, naming the item and the workspace; it changes an item in their workspace.
    If the answer is `kind: would_remove`, show the list and ask again before passing `allow_removals=true`.
 8. **Describe and query.** `describe_backend(api)` gives the exact type, field and relationship names;

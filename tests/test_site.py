@@ -1353,23 +1353,24 @@ def test_no_page_promises_what_is_not_true(client, path):
 
 # ------------------------------------------------------------------ n66: the trust texts agree with the code ---------
 def test_the_dry_run_claim_matches_the_tool_signatures(client):
-    """The review of 30 October 2026: /terms, /, /it and /docs say that every creating tool but create_backend answers
-    with what it would create until dry_run=false. tool_status.NO_DRY_RUN names the exceptions and renders into the
-    pages; the signatures in server.py decide what it must say."""
+    """The review of 30 October 2026: /terms, /, /it and /docs say what the creating tools do before dry_run=false.
+    Since round n111 every creating tool has a dry run, create_backend included, so tool_status.NO_DRY_RUN is empty
+    and the pages say every creating tool; the signatures in server.py decide what they must say."""
     import inspect
     from fabric_backend import server, tool_status as ts
     creating = [t for t in ts.STATUS if ts.STATUS[t].kind == ts.CREATES]
     params = {t: inspect.signature(getattr(server, t)).parameters for t in creating}
-    assert {t for t in creating if "dry_run" not in params[t]} == set(ts.NO_DRY_RUN) == {"create_backend"}
-    assert all(params[t]["dry_run"].default is True for t in creating if t not in ts.NO_DRY_RUN)
-    for path, text in (("/terms", "every creating tool except <code>create_backend</code> answers with what it would create until it is "
-                                  "called with <code>dry_run=false</code>, and <code>create_backend</code>, which has no dry run,"),
-                       ("/", "The one tool without a dry run, <code>create_backend</code>, creates or updates only the GraphQL API you name."),
-                       ("/it", "Every creating tool except <code>create_backend</code> answers with what it would create until it is called "
-                               "with <code>dry_run=false</code>; <code>create_backend</code> has no dry run"),
-                       ("/docs", "Every creating tool except <code>create_backend</code> answers with what it would create until you pass "
-                                 "<code>dry_run=false</code>. <code>create_backend</code> creates or updates directly and has no dry run")):
-        assert text in client.get(path).text, path
+    assert {t for t in creating if "dry_run" not in params[t]} == set(ts.NO_DRY_RUN) == set()
+    assert all(params[t]["dry_run"].default is True for t in creating)
+    for path, text in (("/terms", "every creating tool answers with what it would create until it is called with "
+                                  "<code>dry_run=false</code>, and <code>create_backend</code> creates or updates only"),
+                       ("/", "<code>create_backend</code> creates or updates only the GraphQL API you name."),
+                       ("/it", "Every creating tool answers with what it would create until it is called with "
+                               "<code>dry_run=false</code>; <code>create_backend</code> then creates or updates"),
+                       ("/docs", "Every creating tool answers with what it would create until you pass <code>dry_run=false</code>")):
+        page = client.get(path).text
+        assert text in page, path
+        assert "no dry run" not in page and "except <code>create_backend</code>" not in page, path
 
 
 @pytest.mark.parametrize("registration", ["", "1"])

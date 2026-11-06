@@ -90,9 +90,9 @@ CREATE_RECORD = {
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
 REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026", "create_report": "30 October 2026"}
-# The creating tools without a dry_run argument: they write on the call. The site's sentences about dry runs render from
-# this, and tests/test_site.py checks it against the tools' signatures in server.py.
-NO_DRY_RUN = ("create_backend",)
+# The creating tools without a dry_run argument: they would write on the call. None since round n111 (create_backend
+# has one); tests/test_site.py checks this against the tools' signatures in server.py.
+NO_DRY_RUN: tuple[str, ...] = ()
 # The first such run, kept for the record: 14 steps, 16 tools, no creating call.
 FIRST_RUN_DATE, FIRST_RUN_STEPS = "26 October 2026", 14
 FIRST_RUN = ("list_workspaces", "list_sources", "sample_rows", "plan_backend", "validate_plan", "suggest_relationships",
