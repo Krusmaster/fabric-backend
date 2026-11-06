@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n138: MCP Apps card polish after the first live run (Claude desktop app, 6 November 2026, demo_lh/shop), still
+  only with `KRUSGRAPH_MCP_APPS=1`. review_plan's ER diagram drew orders.customer_id → customers through the audit_log
+  box and put labels on top of each other; it is now a layered layout (`mcp_apps_review.LAYOUT_JS`, inline SVG, no
+  loads): referenced tables above the tables that refer to them, edges at right angles through the gaps between tables
+  and rows, each label on its own edge on a track of its own. validate_plan's card with nothing to attend to says
+  "Nothing needs attention." under Needs attention and the result sentence once, in the summary line. The buttons
+  ("Run <tool>", "Record decision") send the specification's `tools/call` request only to a host whose
+  `ui/initialize` answer has `hostCapabilities.serverTools`; a host without it, a JSON-RPC error, a result with
+  `isError` and a host that does not answer within 20 s each give a sentence on the card (`mcp_apps.CALL_JS`). Tool
+  count and listing cap unchanged. `tests/test_n138_card_polish.py` (Chromium) checks the diagram geometrically for
+  the shop and a synthetic 15-table fixture, wide and light and narrow and dark, plus the empty-attention line and the
+  request shape in each host mode.
 - Round n137: the MCP Apps cards read the tool result. Seen live in Claude on the web and in the Claude desktop app on
   6 November 2026: validate_plan's card listed the whole answer as one JSON string under "Needs attention" (no
   mascots, no next-step buttons) and review_plan's card said it held no review file. Cause: the tools return `str`, so

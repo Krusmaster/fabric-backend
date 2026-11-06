@@ -15,7 +15,9 @@ mcp_apps.READ_JS: structuredContent, the text content as JSON, or either wrapped
 - an ER diagram drawn as inline SVG from `review.snapshot`: one box per table with its key columns marked "key" and its
   referencing columns marked "ref", one arrow per relationship labelled with its rule and, when the item was checked,
   its counts (rows with a value, orphans); items with a failed or stale check, items left open, keyless tables and
-  tables an open question is about are highlighted, rejected relationships are dashed;
+  tables an open question is about are highlighted, rejected relationships are dashed. Since n138 (LAYOUT_JS) the
+  tables a table refers to stand above it, and the edges run at right angles through the gaps between tables, so no
+  edge crosses a table; each label sits on its own edge, on a track of its own, so no label covers another or a table;
 - every key and relationship as text, with its review status and check verdict;
 - since n136, the site's mascots (mcp_apps_mascots): Onto says the summary (the counts), the Thinker the first line of
   `attention`, the Builder the answer's `note` (what to do next with the file, also shown under "Next steps"); each
@@ -71,7 +73,279 @@ def card_html() -> str:
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
-            .replace("__READ_JS__", mcp_apps.READ_JS))
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS).replace("__LAYOUT_JS__", LAYOUT_JS))
+
+
+# n138: the ER diagram's layout as a pure function (erLayout), placed into the card. tests/test_n138_card_polish.py
+# checks its geometry in a browser for the shop and a 15-table fixture.
+LAYOUT_JS = r"""
+  // n138: the diagram's layout, pure (no DOM), so that it can be checked on its own. A layered grid: a table that
+  // refers to nothing is on the top row, every other one row below the lowest table it refers to, so arrows point up.
+  // Tables sit in fixed columns; between two columns, and left and right of them, is a corridor, and above and below
+  // every row a channel. An edge leaves its table straight into the next channel, runs along a track of that channel
+  // to a corridor, along a track of the corridor past the rows in between, and along a track of the target's channel
+  // to the target: every part is in a channel or a corridor, where no table is, so no edge crosses a table. The label
+  // sits on the edge's part in the target's channel, on a track of its own height; two labels on one track get
+  // intervals that do not meet, so no label covers another or a table.
+  // spec: { width, boxes: [{ h }], edges: [{ s, t, lw, lh }] } (s, t: indexes into boxes; lw 0: no label).
+  // Gives { width, height, cols, boxW, boxes: [{ x, y, w, h, row, col }], edges: [{ points, label }] }.
+  function erLayout(spec) {
+    var W = spec.width, N = spec.boxes.length, E = spec.edges;
+    var MIN_W = 112, MAX_W = 210, TRACK = 8, CPAD = 7, MIN_GAP = 22, MIN_EDGE = 10, CHPAD = 6, EMPTY_CH = 22;
+    var i, j;
+    var refs = [], nb = [];
+    for (i = 0; i < N; i++) { refs.push([]); nb.push([]); }
+    E.forEach(function (e) { if (e.s !== e.t) { refs[e.s].push(e.t); nb[e.s].push(e.t); nb[e.t].push(e.s); } });
+    var level = []; for (i = 0; i < N; i++) level.push(0);
+    for (var pass = 0; pass < N; pass++) {                 // the longest path upwards; a cycle stops at N - 1
+      var moved = false;
+      for (i = 0; i < N; i++) refs[i].forEach(function (t) {
+        if (level[i] < level[t] + 1 && level[t] + 1 < N) { level[i] = level[t] + 1; moved = true; }
+      });
+      if (!moved) break;
+    }
+    var maxLevel = 0, perLevel = {};
+    for (i = 0; i < N; i++) { maxLevel = Math.max(maxLevel, level[i]); perLevel[level[i]] = (perLevel[level[i]] || 0) + 1; }
+    var widest = 1; Object.keys(perLevel).forEach(function (l) { widest = Math.max(widest, perLevel[l]); });
+
+    function place(cols) {
+      var rows = [];
+      for (var l = 0; l <= maxLevel; l++) {
+        var these = []; for (var b = 0; b < N; b++) if (level[b] === l) these.push(b);
+        // a table with many references near the middle of its level; a level wider than the grid wraps
+        these.sort(function (a, c) { return nb[c].length - nb[a].length || a - c; });
+        for (var k = 0; k < these.length; k += cols) rows.push(these.slice(k, k + cols));
+      }
+      var row = [], col = [];
+      rows.forEach(function (r, ri) {
+        var off = Math.floor((cols - r.length) / 2);
+        r.forEach(function (b, k) { row[b] = ri; col[b] = off + k; });
+      });
+      function sweep(order) {                              // each row towards the mean column of its neighbours
+        order.forEach(function (ri) {
+          var r = rows[ri], want = {};
+          r.forEach(function (b) {
+            var others = nb[b].filter(function (o) { return row[o] !== ri; });
+            want[b] = others.length ? others.reduce(function (s, o) { return s + col[o]; }, 0) / others.length : col[b];
+          });
+          var sorted = r.slice().sort(function (a, c) { return want[a] - want[c] || col[a] - col[c] || a - c; });
+          var prev = -1;
+          sorted.forEach(function (b, k) {
+            var slot = Math.max(prev + 1, Math.min(Math.round(want[b]), cols - (sorted.length - k)));
+            col[b] = slot; prev = slot;
+          });
+        });
+      }
+      var down = rows.map(function (r, ri) { return ri; }), up = down.slice().reverse();
+      for (var s = 0; s < 3; s++) { sweep(down); sweep(up); }
+      return { rows: rows, row: row, col: col };
+    }
+
+    function route(g, cols) {
+      var load = []; for (var k = 0; k <= cols; k++) load.push(0);
+      return E.map(function (e) {
+        var sr = g.row[e.s], tr = g.row[e.t], sc = g.col[e.s], tc = g.col[e.t];
+        var r = { e: e };
+        if (sr > tr) { r.A = sr; r.B = tr + 1; r.sSide = "top"; r.tSide = "bottom"; }
+        else if (sr < tr) { r.A = sr + 1; r.B = tr; r.sSide = "bottom"; r.tSide = "top"; }
+        else { r.A = r.B = sr; r.sSide = r.tSide = "top"; }
+        if (r.A !== r.B) {
+          var cand = [];
+          if (sc === tc) cand = [sc, sc + 1];
+          else for (var c = Math.min(sc, tc) + 1; c <= Math.max(sc, tc); c++) cand.push(c);
+          var mid = (sc + tc + 1) / 2;
+          cand.sort(function (a, b) { return load[a] - load[b] || Math.abs(a - mid) - Math.abs(b - mid) || a - b; });
+          r.corr = cand[0]; load[r.corr]++;
+        }
+        return r;
+      });
+    }
+
+    function intervalTracks(items, lo, hi) {               // first fit by start: items on one track never meet
+      var tracks = [];
+      items.slice().sort(function (a, b) { return lo(a) - lo(b); }).forEach(function (it) {
+        for (var k = 0; k < tracks.length; k++) {
+          if (tracks[k].every(function (o) { return hi(o) < lo(it) || hi(it) < lo(o); })) { tracks[k].push(it); it.track = k; return; }
+        }
+        tracks.push([it]); it.track = tracks.length - 1;
+      });
+      return tracks;
+    }
+
+    // the tracks of one channel, top to bottom. A part whose end leaves the channel downwards under another part's room
+    // goes below that part, one that leaves upwards above it, so its line does not cross the other's label (first for
+    // the parts with a label, then for the rest where that makes no cycle); parts whose rooms meet get tracks of
+    // their own.
+    function channelTracks(list) {
+      var n = list.length, after = [], k, m;
+      for (k = 0; k < n; k++) after.push([]);
+      function reaches(from, to) {
+        var seen = {}, stack = [from];
+        while (stack.length) { var x = stack.pop(); if (x === to) return true; if (seen[x]) continue; seen[x] = 1; after[x].forEach(function (y) { stack.push(y); }); }
+        return false;
+      }
+      [true, false].forEach(function (labelled) {
+        for (k = 0; k < n; k++) {
+          if (!!list[k].label !== labelled) continue;
+          for (m = 0; m < n; m++) {
+            if (m === k) continue;
+            list[m].ends.forEach(function (end) {
+              if (end[0] < list[k].lo || end[0] > list[k].hi) return;
+              var hi = end[1] === "down" ? k : m, lo = end[1] === "down" ? m : k;   // hi above lo
+              if (after[hi].indexOf(lo) < 0 && !reaches(lo, hi)) after[hi].push(lo);
+            });
+          }
+        }
+      });
+      var indeg = list.map(function () { return 0; });
+      after.forEach(function (xs) { xs.forEach(function (y) { indeg[y]++; }); });
+      var rank = [], done = [], tracks = [];
+      for (var placed = 0; placed < n; placed++) {
+        var pick = -1;
+        for (k = 0; k < n; k++) if (!done[k] && indeg[k] === 0 && (pick < 0 || list[k].lo < list[pick].lo)) pick = k;
+        done[pick] = true;
+        var min = 0;
+        for (k = 0; k < n; k++) if (done[k] && k !== pick && after[k].indexOf(pick) >= 0) min = Math.max(min, rank[k] + 1);
+        for (var t = min; ; t++) {
+          tracks[t] = tracks[t] || [];
+          if (tracks[t].every(function (o) { return o.hi < list[pick].lo || list[pick].hi < o.lo; })) break;
+        }
+        rank[pick] = t; list[pick].track = t; tracks[t].push(list[pick]);
+        after[pick].forEach(function (y) { indeg[y]--; });
+      }
+      return tracks.filter(function (t) { return t.length; }).map(function (t, i) { t.forEach(function (s) { s.track = i; }); return t; });
+    }
+
+    var cols, g, routes, cw, boxW;
+    for (cols = Math.max(1, Math.min(widest, Math.floor((W + MIN_GAP) / (MIN_W + MIN_GAP)))); ; cols--) {
+      g = place(cols); routes = route(g, cols);
+      cw = [];
+      for (var k = 0; k <= cols; k++) {
+        var inK = routes.filter(function (r) { return r.corr === k; });
+        var n = intervalTracks(inK, function (r) { return Math.min(r.A, r.B); }, function (r) { return Math.max(r.A, r.B); }).length;
+        inK.forEach(function (r) { r.ctrack = r.track; });
+        cw.push(Math.max(k === 0 || k === cols ? MIN_EDGE : MIN_GAP, n ? n * TRACK + 2 * CPAD : 0));
+        cw[k] = { w: cw[k], n: n };
+      }
+      boxW = Math.floor((W - cw.reduce(function (s, c) { return s + c.w; }, 0)) / cols);
+      if (boxW >= MIN_W || cols === 1) break;
+    }
+    boxW = Math.max(80, Math.min(MAX_W, boxW));
+    var used = cw.reduce(function (s, c) { return s + c.w; }, 0) + cols * boxW;
+    var x0 = Math.max(0, Math.floor((W - used) / 2));
+    var corrX = [], colX = [], x = x0;
+    for (k = 0; k <= cols; k++) { corrX.push(x); x += cw[k].w; if (k < cols) { colX.push(x); x += boxW; } }
+    function corrTrackX(k, t) { return corrX[k] + (cw[k].w - cw[k].n * TRACK) / 2 + TRACK * (t + 0.5); }
+    function corrMid(k) { return corrX[k] + cw[k].w / 2; }
+
+    var nRows = g.rows.length, boxes = [];
+    for (i = 0; i < N; i++) boxes.push({ x: colX[g.col[i]], w: boxW, h: spec.boxes[i].h, row: g.row[i], col: g.col[i] });
+
+    // ports: the ends on one side of a table, spread over it in the order of where each edge goes next
+    var sides = {};
+    routes.forEach(function (r, ri) {
+      [["s", r.e.s, r.sSide, r.e.t], ["t", r.e.t, r.tSide, r.e.s]].forEach(function (p) {
+        var key = p[1] + "|" + p[2];
+        var toward = r.corr != null ? corrMid(r.corr) : boxes[p[3]].x + boxW / 2;
+        (sides[key] = sides[key] || []).push({ r: r, end: p[0], toward: toward, ri: ri });
+      });
+    });
+    Object.keys(sides).forEach(function (key) {
+      var b = boxes[Number(key.split("|")[0])], list = sides[key];
+      list.sort(function (a, c) { return a.toward - c.toward || (a.end === c.end ? a.ri - c.ri : (a.end === "s" ? -1 : 1)); });
+      list.forEach(function (p, k) { p.r[p.end + "x"] = Math.round(b.x + b.w * (k + 1) / (list.length + 1)); });
+    });
+
+    // channel tracks: each horizontal part, with room for its label where it has one
+    // the label goes on the part in the target's channel, or, for an edge through a corridor, on the part in the
+    // source's channel when that channel has fewer labels so far: a crowded channel would put lines under labels
+    var segs = [], labelsIn = {};
+    routes.forEach(function (r) { if (r.A === r.B && r.e.lw > 0) labelsIn[r.A] = (labelsIn[r.A] || 0) + 1; });
+    routes.forEach(function (r) {
+      var e = r.e;
+      if (r.A === r.B) { segs.push({ r: r, ch: r.A, x1: r.sx, x2: r.tx, label: e.lw > 0, part: "B" }); return; }
+      var cx = corrTrackX(r.corr, r.ctrack), onA = e.lw > 0 && (labelsIn[r.A] || 0) < (labelsIn[r.B] || 0);
+      r.cx = cx;
+      if (e.lw > 0) labelsIn[onA ? r.A : r.B] = (labelsIn[onA ? r.A : r.B] || 0) + 1;
+      segs.push({ r: r, ch: r.A, x1: r.sx, x2: cx, label: onA, part: "A" });
+      segs.push({ r: r, ch: r.B, x1: cx, x2: r.tx, label: e.lw > 0 && !onA, part: "B" });
+    });
+    segs.forEach(function (s) {
+      // where each end of the part leaves the channel: "down" to the row (or corridor) below, "up" to the one above
+      var r = s.r, sEnd = r.sSide === "top" ? "down" : "up", tEnd = r.tSide === "top" ? "down" : "up";
+      if (r.A === r.B) s.ends = [[s.x1, sEnd], [s.x2, tEnd]];
+      else if (s.part === "A") s.ends = [[s.x1, sEnd], [s.x2, r.B < r.A ? "up" : "down"]];
+      else s.ends = [[s.x1, r.A > r.B ? "down" : "up"], [s.x2, tEnd]];
+      var a = Math.min(s.x1, s.x2), b = Math.max(s.x1, s.x2);
+      s.lo = a - 4; s.hi = b + 4; s.h = 9;
+      if (s.label) {
+        var lw = s.r.e.lw, lx = Math.max(2, Math.min(W - lw - 2, (a + b) / 2 - lw / 2));
+        s.lx = lx; s.lo = Math.min(a, lx) - 5; s.hi = Math.max(b, lx + lw) + 5; s.h = s.r.e.lh + 8;
+      }
+    });
+    var chans = [];
+    for (var c = 0; c <= nRows; c++) {
+      var inC = segs.filter(function (s) { return s.ch === c; });
+      var tracks = channelTracks(inC);
+      var hs = tracks.map(function (t) { return Math.max.apply(null, t.map(function (s) { return s.h; })); });
+      var total = hs.reduce(function (s, h) { return s + h; }, 0);
+      chans.push({ segs: inC, hs: hs, h: tracks.length ? total + 2 * CHPAD : (c === 0 || c === nRows ? 4 : EMPTY_CH) });
+    }
+    var rowH = g.rows.map(function (r) { return Math.max.apply(null, r.map(function (b) { return spec.boxes[b].h; })); });
+    var y = 0, rowY = [];
+    for (c = 0; c <= nRows; c++) {
+      var ch = chans[c], acc = y + CHPAD;
+      ch.y = y;
+      ch.segs.forEach(function (s) {
+        var before = 0; for (var t = 0; t < s.track; t++) before += ch.hs[t];
+        s.y = Math.round(acc + before + ch.hs[s.track] / 2);
+      });
+      y += ch.h;
+      if (c < nRows) { rowY.push(y); y += rowH[c]; }
+    }
+    boxes.forEach(function (b) { b.y = rowY[b.row]; });
+
+    var edges = routes.map(function (r) {
+      var sb = boxes[r.e.s], tb = boxes[r.e.t];
+      var segA = segs.filter(function (s) { return s.r === r && s.part === "A"; })[0];
+      var segB = segs.filter(function (s) { return s.r === r && s.part === "B"; })[0];
+      var sy = r.sSide === "top" ? sb.y : sb.y + sb.h, ty = r.tSide === "top" ? tb.y : tb.y + tb.h;
+      var pts = segA ? [[r.sx, sy], [r.sx, segA.y], [r.cx, segA.y], [r.cx, segB.y], [r.tx, segB.y], [r.tx, ty]]
+                     : [[r.sx, sy], [r.sx, segB.y], [r.tx, segB.y], [r.tx, ty]];
+      pts = pts.filter(function (p, k) { return k === 0 || p[0] !== pts[k - 1][0] || p[1] !== pts[k - 1][1]; });
+      return { points: pts, seg: segA && segA.label ? segA : segB, label: null };
+    });
+
+    // labels: on the edge's part in the target's channel, slid along its own room to cover as few other lines as can be
+    function cuts(rect, own) {
+      var n = 0;
+      edges.forEach(function (ed, k) {
+        if (k === own) return;
+        for (var m = 1; m < ed.points.length; m++) {
+          var p = ed.points[m - 1], q = ed.points[m];
+          var x1 = Math.min(p[0], q[0]), x2 = Math.max(p[0], q[0]), y1 = Math.min(p[1], q[1]), y2 = Math.max(p[1], q[1]);
+          if (x1 <= rect.x + rect.w + 2 && x2 >= rect.x - 2 && y1 <= rect.y + rect.h + 2 && y2 >= rect.y - 2) n++;
+        }
+      });
+      return n;
+    }
+    edges.forEach(function (ed, k) {
+      var s = ed.seg, e = routes[k].e;
+      if (!s.label) return;
+      var lw = e.lw, lh = e.lh, a = Math.min(s.x1, s.x2), b = Math.max(s.x1, s.x2);
+      var from = Math.max(s.lo + 5, a - lw + 6), to = Math.min(s.hi - 5 - lw, b - 6);
+      var best = null;
+      for (var lx = from; lx <= to + 0.01; lx += 3) {
+        var rect = { x: Math.round(lx), y: s.y - lh / 2, w: lw, h: lh };
+        var score = cuts(rect, k) * 1000 + Math.abs(lx - s.lx);
+        if (!best || score < best.score) best = { rect: rect, score: score };
+      }
+      ed.label = best ? best.rect : { x: Math.round(s.lx), y: s.y - lh / 2, w: lw, h: lh };
+    });
+    edges.forEach(function (ed) { delete ed.seg; });
+    return { width: W, height: y, cols: cols, boxW: boxW, boxes: boxes, edges: edges };
+  }
+"""
 
 
 _HTML = r"""<!DOCTYPE html>
@@ -118,7 +392,7 @@ svg .box .tag { fill: var(--kg-accent); font-size: 10.5px; font-weight: 650 }
 svg .box .tag.ref { fill: var(--kg-muted) }
 svg .box .tag.nokey { fill: var(--kg-warn) }
 svg .box line { stroke: var(--kg-line) }
-svg .rel path { fill: none; stroke: var(--kg-edge); stroke-width: 1.5 }
+svg .rel path { fill: none; stroke: var(--kg-edge); stroke-width: 1.5; stroke-linejoin: round }
 svg .rel.finding path { stroke: var(--kg-warn); stroke-width: 2.4 }
 svg .rel.rejected path { stroke-dasharray: 5 4; opacity: .7 }
 svg .rel .head { fill: var(--kg-edge); stroke: none }
@@ -202,184 +476,96 @@ __READ_JS__
   }
 
   // ---------------------------------------------------------------- the diagram
-  function layout(rv, width) {
-    var snap = rv.snapshot, names = Object.keys(snap.tables), rels = snap.relationships || [];
-    var byLower = {}; names.forEach(function (n) { byLower[lower(n)] = n; });
-    var out = {}; names.forEach(function (n) { out[n] = []; });
-    rels.forEach(function (r) { var s = byLower[lower(r.source)], t = byLower[lower(r.target)]; if (s && t && s !== t) out[s].push(t); });
-    // level: 0 for a table that refers to nothing, else one more than the highest table it refers to (cycles stop)
-    var level = {}; names.forEach(function (n) { level[n] = 0; });
-    for (var pass = 0; pass < names.length; pass++) {
-      var moved = false;
-      names.forEach(function (n) { out[n].forEach(function (t) { if (level[n] < level[t] + 1 && level[t] + 1 < names.length) { level[n] = level[t] + 1; moved = true; } }); });
-      if (!moved) break;
-    }
-    var gapX = 28, minW = 130, maxW = 200;
-    var cols = Math.max(1, Math.floor((width + gapX) / (minW + gapX)));
-    var narrow = cols === 1, lane = narrow ? 56 : 0;
-    var boxW = narrow ? Math.max(120, width - lane) : Math.min(maxW, Math.floor((width - gapX * (cols - 1)) / cols));
-    var rows = [], maxLevel = 0;
-    names.forEach(function (n) { maxLevel = Math.max(maxLevel, level[n]); });
-    for (var l = 0; l <= maxLevel; l++) {
-      var these = names.filter(function (n) { return level[n] === l; });
-      for (var i = 0; i < these.length; i += cols) rows.push(these.slice(i, i + cols));
-    }
-    var boxes = {}, y = 4, gapY = cols > 2 ? 92 : 132;    // fewer columns: more labels share a gap
-    rows.forEach(function (row) {
-      var rowH = 0;
-      var used = row.length * boxW + (row.length - 1) * gapX;
-      var x = narrow ? lane : Math.max(0, Math.floor((width - used) / 2));
-      row.forEach(function (n) {
-        var b = { name: n, x: x, y: y, w: boxW, lines: linesOf(rv, n, boxW) };
-        b.h = 30 + b.lines.length * 18 + 6;
-        boxes[n] = b; rowH = Math.max(rowH, b.h); x += boxW + gapX;
-      });
-      y += rowH + gapY;
-    });
-    return { boxes: boxes, height: y - gapY + 8, narrow: narrow, byLower: byLower };
-  }
-
-  function linesOf(rv, n, boxW) {
+__LAYOUT_JS__
+  function linesOf(rv, n) {
     var t = rv.snapshot.tables[n], cols = Object.keys(t.columns || {}), key = (t.key || []).map(lower);
     var refs = {};
     (rv.snapshot.relationships || []).forEach(function (r) { if (lower(r.source) === lower(n)) r.columns.forEach(function (c) { refs[lower(c)] = 1; }); });
     var marked = cols.filter(function (c) { return key.indexOf(lower(c)) >= 0 || refs[lower(c)]; });
     var other = cols.filter(function (c) { return marked.indexOf(c) < 0; });
     var shown = marked.concat(other.slice(0, Math.max(0, 6 - marked.length)));
-    var chars = Math.max(8, Math.floor((boxW - 46) / 7));
     var lines = shown.map(function (c) {
-      return { text: c.length > chars ? c.slice(0, chars - 1) + "…" : c,
-               tag: key.indexOf(lower(c)) >= 0 ? "key" : (refs[lower(c)] ? "ref" : "") };
+      return { text: c, tag: key.indexOf(lower(c)) >= 0 ? "key" : (refs[lower(c)] ? "ref" : "") };
     });
     if (cols.length > shown.length) lines.push({ text: "+" + (cols.length - shown.length) + " more columns", more: true });
     return lines;
   }
+  function cut(s, chars) { return s.length > chars ? s.slice(0, Math.max(1, chars - 1)) + "…" : s; }
 
   function drawDiagram(rv, findings) {
     var host = document.getElementById("diagram");
     var width = Math.max(200, Math.floor(host.clientWidth || 600));
-    var L = layout(rv, width), boxes = L.boxes;
-    var svg = sv("svg", { width: width, height: L.height, viewBox: "0 0 " + width + " " + L.height, role: "img",
-                          "aria-label": "ER diagram: " + Object.keys(boxes).length + " tables, " + (rv.snapshot.relationships || []).length + " relationships" });
-    var edges = sv("g", { "class": "edges" }), tables = sv("g", { "class": "tables" }), labels = sv("g", { "class": "labels" });
-    svg.appendChild(edges); svg.appendChild(tables); svg.appendChild(labels);
+    var names = Object.keys(rv.snapshot.tables), byLower = {};
+    names.forEach(function (n, i) { byLower[lower(n)] = i; });
+    var items = {}; (rv.items || []).forEach(function (it) { items[it.id] = it; });
+    var svg = sv("svg", { width: width, height: 10, role: "img",
+                          "aria-label": "ER diagram: " + names.length + " tables, " + (rv.snapshot.relationships || []).length + " relationships" });
+    var edgesG = sv("g", { "class": "edges" }), tablesG = sv("g", { "class": "tables" }), labelsG = sv("g", { "class": "labels" });
+    svg.appendChild(edgesG); svg.appendChild(tablesG); svg.appendChild(labelsG);
     host.textContent = "";
     host.appendChild(svg);
-    var items = {}; (rv.items || []).forEach(function (it) { items[it.id] = it; });
 
-    // tables
-    Object.keys(boxes).forEach(function (n) {
-      var b = boxes[n], t = rv.snapshot.tables[n], keyless = !(t.key || []).length;
-      var g = sv("g", { "class": "box table" + (findings.tables[lower(n)] || keyless ? " finding" : ""), "data-table": n,
-                        transform: "translate(" + b.x + "," + b.y + ")" });
-      g.appendChild(sv("rect", { width: b.w, height: b.h, rx: 8 }));
-      g.appendChild(sv("text", { "class": "name", x: 10, y: 19 }, n.length > Math.floor((b.w - 60) / 7.5) + 3 ? n.slice(0, Math.floor((b.w - 60) / 7.5)) + "…" : n));
-      if (keyless) g.appendChild(sv("text", { "class": "tag nokey", x: b.w - 8, y: 19, "text-anchor": "end" }, "no key"));
-      g.appendChild(sv("line", { x1: 0, x2: b.w, y1: 27, y2: 27 }));
-      b.lines.forEach(function (ln, i) {
-        var yy = 27 + 16 + i * 18;
-        g.appendChild(sv("text", { "class": ln.more ? "more" : "col", x: 10, y: yy }, ln.text));
-        if (ln.tag) g.appendChild(sv("text", { "class": "tag " + ln.tag, x: b.w - 8, y: yy, "text-anchor": "end" }, ln.tag));
-      });
-      var title = sv("title", {}, n + (keyless ? ": no key" : ": key " + t.key.join(" + ") + " (" + t.key_rule + ")"));
-      g.appendChild(title);
-      tables.appendChild(g);
-    });
-
-    // relationships
-    var placed = Object.keys(boxes).map(function (n) { var b = boxes[n]; return { x: b.x - 2, y: b.y - 2, w: b.w + 4, h: b.h + 4 }; });
-    var sideCount = {};
-    function slot(name, side) { var k = name + "|" + side; sideCount[k] = (sideCount[k] || 0) + 1; return sideCount[k] - 1; }
-    (rv.snapshot.relationships || []).forEach(function (r, idx) {
-      var s = boxes[L.byLower[lower(r.source)]], t = boxes[L.byLower[lower(r.target)]];
-      if (!s || !t) return;
+    // the relationships with their labels, measured in the page before the layout
+    var rels = [];
+    (rv.snapshot.relationships || []).forEach(function (r) {
+      var s = byLower[lower(r.source)], t = byLower[lower(r.target)];
+      if (s == null || t == null) return;
       var id = "rel:" + r.source + "." + r.columns.join("+") + ">" + r.target, it = items[id] || {};
-      var cls = "rel" + (itemFinding(it) ? " finding" : "") + (it.review === "rejected" ? " rejected" : "");
-      var g = sv("g", { "class": cls, "data-id": id, "data-rule": r.rule });
-      var p0, p1, p2, p3;
-      if (s === t) {                                    // a table that refers to itself: a loop on its right side
-        var k = slot(s.name, "self");
-        p0 = [s.x + s.w, s.y + 14 + k * 10]; p3 = [s.x + s.w, s.y + 34 + k * 10];
-        p1 = [p0[0] + 46, p0[1] - 18]; p2 = [p3[0] + 46, p3[1] + 18];
-      } else if (L.narrow || Math.abs(s.y - t.y) < 1) {  // one column, or the same row: round the left (or the gap) side
-        if (Math.abs(s.y - t.y) < 1) {
-          var left = s.x < t.x;
-          p0 = [left ? s.x + s.w : s.x, s.y + 16]; p3 = [left ? t.x : t.x + t.w, t.y + 16];
-          p1 = [p0[0], p0[1] - 30]; p2 = [p3[0], p3[1] - 30];
-        } else {
-          var ks = slot(s.name, "left"), kt = slot(t.name, "left");
-          p0 = [s.x, s.y + 16 + (ks % 3) * 8]; p3 = [t.x, t.y + t.h - 10 - (kt % 3) * 8];
-          var bulge = Math.max(10, s.x - 8 - (idx % 4) * 10);
-          p1 = [p0[0] - bulge, p0[1]]; p2 = [p3[0] - bulge, p3[1]];
-        }
-      } else {
-        var up = s.y > t.y;
-        var ks2 = slot(s.name, up ? "top" : "bottom"), kt2 = slot(t.name, up ? "bottom" : "top");
-        var off = function (k) { return [0, -22, 22, -44, 44][k % 5]; };
-        p0 = [s.x + s.w / 2 + off(ks2), up ? s.y : s.y + s.h];
-        p3 = [t.x + t.w / 2 + off(kt2), up ? t.y + t.h : t.y];
-        var dy = (p3[1] - p0[1]) / 2;
-        p1 = [p0[0], p0[1] + dy]; p2 = [p3[0], p3[1] - dy];
-      }
-      g.appendChild(sv("path", { d: "M" + p0 + " C" + p1 + " " + p2 + " " + p3 }));
-      // the arrow head at the target end, along the curve's last tangent
-      var ang = Math.atan2(p3[1] - p2[1], p3[0] - p2[0]);
-      var a = function (d, w) { return [p3[0] - d * Math.cos(ang) + w * Math.sin(ang), p3[1] - d * Math.sin(ang) - w * Math.cos(ang)]; };
-      g.appendChild(sv("path", { "class": "head", d: "M" + p3 + " L" + a(9, 4.5) + " L" + a(9, -4.5) + " Z" }));
-      g.appendChild(sv("title", {}, whatOf(it.id ? it : { type: "relationship", source: r.source, columns: r.columns, target: r.target,
-                                                       target_columns: r.target_columns, rule: r.rule }) + "; " + checkText(it)));
-      edges.appendChild(g);
-
-      // the label: the rule and, when checked, the counts; put where it covers no table and no other label
       var c = it.check || {}, res = c.result || {};
       var line2 = (c.status === "passed" || c.status === "failed" || c.status === "stale")
         ? res.rows_with_value + " rows, " + res.orphans + " orphans" + (c.status === "stale" ? " (stale)" : "") : "";
       var line1 = r.rule + (it.review && it.review !== "proposed" ? " · " + it.review : "");
-      var lg = sv("g", { "class": "label" + (itemFinding(it) ? " finding" : "") });
+      var lg = sv("g", { "class": "label" + (itemFinding(it) ? " finding" : ""), "data-for": id });
       var tx1 = sv("text", { "class": "rule", "text-anchor": "middle" }, line1);
       lg.appendChild(sv("rect", { rx: 5 })); lg.appendChild(tx1);
       var tx2 = null;
       if (line2) { tx2 = sv("text", { "text-anchor": "middle" }, line2); lg.appendChild(tx2); }
-      labels.appendChild(lg);                           // in the page first, so the text can be measured
+      labelsG.appendChild(lg);
       var lw = Math.ceil(Math.max(tx1.getComputedTextLength() || line1.length * 7,
-                                  tx2 ? (tx2.getComputedTextLength() || line2.length * 7) : 0)) + 14, lh = line2 ? 30 : 17;
-      var at = function (u) {
-        var v = 1 - u;
-        return [v * v * v * p0[0] + 3 * v * v * u * p1[0] + 3 * v * u * u * p2[0] + u * u * u * p3[0],
-                v * v * v * p0[1] + 3 * v * v * u * p1[1] + 3 * v * u * u * p2[1] + u * u * u * p3[1]];
-      };
-      var spot = null;
-      var tries = [];
-      [0, 0.55, -0.55, 1.1, -1.1, 1.6, -1.6].forEach(function (dx) { [0, 0.6, -0.6, 1.2, -1.2].forEach(function (dy) {
-        [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1, 0.9, 0.05, 0.95].forEach(function (u) { tries.push([u, dx * lw, dy * lh]); }); }); });
-      tries.some(function (tr) {
-        var q = at(tr[0]), box = { x: q[0] + tr[1] - lw / 2, y: q[1] + tr[2] - lh / 2, w: lw, h: lh };
-        if (box.x < 0) box.x = 0; if (box.x + lw > width) box.x = width - lw; if (box.y < 0) return false;
-        var hit = placed.some(function (o) { return box.x < o.x + o.w + 3 && o.x < box.x + box.w + 3 && box.y < o.y + o.h + 3 && o.y < box.y + box.h + 3; });
-        if (!hit) { spot = box; return true; }
-        return false;
+                                  tx2 ? (tx2.getComputedTextLength() || line2.length * 7) : 0)) + 14;
+      rels.push({ r: r, id: id, it: it, s: s, t: t, g: lg, tx1: tx1, tx2: tx2, lw: lw, lh: line2 ? 30 : 17 });
+    });
+    var lines = names.map(function (n) { return linesOf(rv, n); });
+    var L = erLayout({ width: width, boxes: lines.map(function (ls) { return { h: 30 + ls.length * 18 + 6 }; }),
+                       edges: rels.map(function (x) { return { s: x.s, t: x.t, lw: x.lw, lh: x.lh }; }) });
+    svg.setAttribute("height", L.height); svg.setAttribute("viewBox", "0 0 " + width + " " + L.height);
+
+    // tables
+    names.forEach(function (n, i) {
+      var b = L.boxes[i], t = rv.snapshot.tables[n], keyless = !(t.key || []).length;
+      var g = sv("g", { "class": "box table" + (findings.tables[lower(n)] || keyless ? " finding" : ""), "data-table": n,
+                        transform: "translate(" + b.x + "," + b.y + ")" });
+      g.appendChild(sv("rect", { width: b.w, height: b.h, rx: 8 }));
+      g.appendChild(sv("text", { "class": "name", x: 10, y: 19 }, cut(n, Math.floor((b.w - (keyless ? 64 : 18)) / 7.5))));
+      if (keyless) g.appendChild(sv("text", { "class": "tag nokey", x: b.w - 8, y: 19, "text-anchor": "end" }, "no key"));
+      g.appendChild(sv("line", { x1: 0, x2: b.w, y1: 27, y2: 27 }));
+      var chars = Math.max(6, Math.floor((b.w - 46) / 7));
+      lines[i].forEach(function (ln, k) {
+        var yy = 27 + 16 + k * 18;
+        g.appendChild(sv("text", { "class": ln.more ? "more" : "col", x: 10, y: yy }, ln.more ? ln.text : cut(ln.text, chars)));
+        if (ln.tag) g.appendChild(sv("text", { "class": "tag " + ln.tag, x: b.w - 8, y: yy, "text-anchor": "end" }, ln.tag));
       });
-      if (!spot) {                                      // no room on the curve: the nearest free place in a gap it crosses
-        var lo = Math.min(p0[1], p3[1]), hi = Math.max(p0[1], p3[1]), mid = at(0.5);
-        for (var gy = lo; gy <= hi - lh && !spot; gy += 6) {
-          for (var step = 0; step <= width && !spot; step += 8) {
-            [mid[0] - lw / 2 + step, mid[0] - lw / 2 - step].some(function (gx) {
-              if (gx < 0 || gx + lw > width) return false;
-              var box = { x: gx, y: gy, w: lw, h: lh };
-              var hit = placed.some(function (o) { return box.x < o.x + o.w + 3 && o.x < box.x + box.w + 3 && box.y < o.y + o.h + 3 && o.y < box.y + box.h + 3; });
-              if (!hit) spot = box;
-              return !hit;
-            });
-          }
-        }
-      }
-      if (!spot) { var q = at(0.5); spot = { x: Math.min(Math.max(0, q[0] - lw / 2), width - lw), y: q[1] - lh / 2, w: lw, h: lh }; }
-      placed.push(spot);
-      lg.firstChild.setAttribute("x", spot.x); lg.firstChild.setAttribute("y", spot.y);
-      lg.firstChild.setAttribute("width", spot.w); lg.firstChild.setAttribute("height", spot.h);
-      tx1.setAttribute("x", spot.x + spot.w / 2); tx1.setAttribute("y", spot.y + 12.5);
-      if (tx2) { tx2.setAttribute("x", spot.x + spot.w / 2); tx2.setAttribute("y", spot.y + 25.5); }
-      lg.setAttribute("data-for", id);
+      g.appendChild(sv("title", {}, n + (keyless ? ": no key" : ": key " + t.key.join(" + ") + " (" + t.key_rule + ")")));
+      tablesG.appendChild(g);
+    });
+
+    // relationships: right-angled lines through the gaps, an arrow head into the table referred to
+    rels.forEach(function (x, k) {
+      var ed = L.edges[k], r = x.r, it = x.it, pts = ed.points;
+      var g = sv("g", { "class": "rel" + (itemFinding(it) ? " finding" : "") + (it.review === "rejected" ? " rejected" : ""),
+                        "data-id": x.id, "data-rule": r.rule, "data-source": names[x.s], "data-target": names[x.t] });
+      g.appendChild(sv("path", { "class": "line", d: pts.map(function (p, m) { return (m ? "L" : "M") + p[0] + "," + p[1]; }).join(" ") }));
+      var end = pts[pts.length - 1], prev = pts[pts.length - 2];
+      var ang = Math.atan2(end[1] - prev[1], end[0] - prev[0]);
+      var a = function (d, w) { return [end[0] - d * Math.cos(ang) + w * Math.sin(ang), end[1] - d * Math.sin(ang) - w * Math.cos(ang)]; };
+      g.appendChild(sv("path", { "class": "head", d: "M" + end + " L" + a(9, 4.5) + " L" + a(9, -4.5) + " Z" }));
+      g.appendChild(sv("title", {}, whatOf(it.id ? it : { type: "relationship", source: r.source, columns: r.columns, target: r.target,
+                                                       target_columns: r.target_columns, rule: r.rule }) + "; " + checkText(it)));
+      edgesG.appendChild(g);
+      var lb = ed.label, rect = x.g.firstChild;
+      rect.setAttribute("x", lb.x); rect.setAttribute("y", lb.y); rect.setAttribute("width", lb.w); rect.setAttribute("height", lb.h);
+      x.tx1.setAttribute("x", lb.x + lb.w / 2); x.tx1.setAttribute("y", lb.y + 12.5);
+      if (x.tx2) { x.tx2.setAttribute("x", lb.x + lb.w / 2); x.tx2.setAttribute("y", lb.y + 25.5); }
     });
   }
 
@@ -462,9 +648,11 @@ __READ_JS__
     var d = { item: item, review: review }; if (reason) d.reason = String(reason).slice(0, 500);
     args.decisions = [d];
     var note = document.getElementById("call"); note.hidden = false;
+    var ask = "Record " + item + " as " + review + (reason ? " (" + String(reason).slice(0, 120) + ")" : "") + " with review_plan.";
+    if (!canCallTools()) { note.textContent = callProblem({ kind: "unsupported" }, TOOL, ask); return; }
     note.textContent = "Asked the host to call review_plan: " + item + " " + review + ".";
     button.disabled = true;
-    request("tools/call", { name: TOOL, arguments: args }).then(function (r) {
+    callTool(TOOL, args, function () { note.textContent = stillWaiting(ask); }).then(function (r) {
       var parsed = answerOf(r);
       if (parsed && isObj(parsed.review)) {
         render(parsed);
@@ -474,7 +662,7 @@ __READ_JS__
         button.disabled = false;
       }
     }, function (e) {
-      note.textContent = "The host did not call review_plan: " + (e && e.message ? e.message : "no reason given") + ".";
+      note.textContent = callProblem(e, TOOL, ask);
       button.disabled = false;
     });
   }
@@ -485,7 +673,7 @@ __READ_JS__
     if (!m || m.jsonrpc !== "2.0") return;
     if (m.id != null && !m.method && pending[m.id]) {
       var p = pending[m.id]; delete pending[m.id];
-      if (m.error) p.reject(new Error(m.error.message || "error")); else p.resolve(m.result);
+      if (m.error) p.reject(m.error); else p.resolve(m.result);
       return;
     }
     if (m.method === "ui/notifications/tool-input") input = (m.params && m.params.arguments) || {};
@@ -511,7 +699,8 @@ __READ_JS__
     appInfo: { name: "Krusgraph plan review", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
     protocolVersion: "__PROTOCOL__"
-  }).then(function () {
+  }).then(function (r) {
+    hostStarted(r);
     notify("ui/notifications/initialized");
     reportSize();
     if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.body);

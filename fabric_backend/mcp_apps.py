@@ -33,6 +33,9 @@ that repository is copied.
 - A button sends `tools/call` to the host, which the host may forward to this server or put to the user first. Only the
   tools in evidence.NEXT_STEP_TOOLS (n103: they read or draft, none creates) can be called, and only with the arguments
   the step names plus workspace, source, schema and, where the tool takes them, keys and confirmed from this call.
+  Since n138 (CALL_JS) the request is sent only to a host whose `ui/initialize` answer has
+  `hostCapabilities.serverTools`; otherwise, and on a JSON-RPC error, an `isError` result or no answer after 20 s, the
+  card says so in a sentence and names what to ask in the chat instead.
 - Graceful degradation: the tool's text answer is not changed, so a client without MCP Apps sees what it saw before.
   The SDK's `client_supports_apps` is not used to vary the listing: the hosted server is stateless, and a host that
   does not render MCP Apps ignores `_meta.ui` (the specification's "tool behaves as standard tool").
@@ -124,7 +127,7 @@ def card_html() -> str:
     (the counts), the Thinker the first thing that needs attention, the Builder the first next step, each word for word
     from the text answer and also on the card; glad only when every check passed; a button hides them."""
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS)
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS + CALL_JS)
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
@@ -169,6 +172,44 @@ READ_JS = r"""
     return d ? JSON.stringify(d, null, 2) : "";
   }
   function readable(s) { return typeof s === "string" && s.trim() && !looksJson(s) ? s : ""; }
+"""
+
+
+# n138: how both cards ask the host to run a tool, checked against the specification read above. The request is the
+# standard MCP `tools/call` (JSON-RPC 2.0: jsonrpc, id, method, params {name, arguments}); the host says in its
+# `ui/initialize` answer whether it runs such calls for the view (`hostCapabilities.serverTools`, "Host can proxy tool
+# calls to the MCP server"). A host without it is not asked: the button says so in a sentence and names what to ask in
+# the chat. A JSON-RPC error (-32601 "method not found" is a host that does not take the call), a result with
+# `isError`, and a host that has not answered after WAIT_MS each give a sentence too; nothing fails silently.
+CALL_JS = r"""
+  var hostCaps = null, WAIT_MS = 20000;
+  function canCallTools() { return isObj(hostCaps) && isObj(hostCaps.serverTools); }
+  function callTool(name, args, onWait) {
+    if (!canCallTools()) return Promise.reject({ kind: "unsupported" });
+    var timer = setTimeout(onWait, WAIT_MS);
+    return request("tools/call", { name: name, arguments: args }).then(function (r) {
+      clearTimeout(timer);
+      if (isObj(r) && r.isError === true) throw { kind: "tool", text: resultText(r) };
+      return r;
+    }, function (e) {
+      clearTimeout(timer);
+      throw { kind: isObj(e) && e.code === -32601 ? "unsupported" : "host", message: isObj(e) ? e.message : "" };
+    });
+  }
+  function callProblem(e, tool, ask) {
+    var then = " Ask in the chat instead: “" + ask + "”";
+    if (e && e.kind === "unsupported") return "This host does not run tools from the card." + then;
+    if (e && e.kind === "tool") {
+      var t = readable(e.text) ? e.text.slice(0, 300) : "no reason given";
+      return tool + " answered with an error: " + t.replace(/[.\s]+$/, "") + ".";
+    }
+    var why = e && typeof e.message === "string" && e.message.trim() ? e.message.trim().slice(0, 200) : "no reason given";
+    return "The host did not run " + tool + ": " + why.replace(/[.\s]+$/, "") + "." + then;
+  }
+  function stillWaiting(ask) {
+    return "No answer from the host yet; it may be asking you first. If nothing happens, ask in the chat instead: “" + ask + "”";
+  }
+  function hostStarted(r) { hostCaps = isObj(r) && isObj(r.hostCapabilities) ? r.hostCapabilities : {}; }
 """
 
 _HTML = """<!DOCTYPE html>
@@ -218,11 +259,10 @@ __MASCOT_CSS__
 <body>
 <main>
   <div class="kg-head"><h1>Plan check</h1>__MASCOT_TOGGLE__</div>
-  <p id="verdict" class="muted" role="status">Waiting for validate_plan's answer.</p>
+  <p class="muted" role="status"><span id="verdict">Waiting for validate_plan's answer.</span><span id="result" hidden></span></p>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
-  <p id="result" class="muted" hidden></p>
-  <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul></section>
+  <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
   <section id="next" hidden><h2 class="muted">Next steps (each reads or drafts; nothing is created)</h2><div id="steps" class="steps"></div></section>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that tool; the host may ask you first.</p>
 </main>
@@ -264,8 +304,10 @@ __READ_JS__
     counts.appendChild(box);
     counts.hidden = false;
 
-    // n137: the overall result in words (an answer with nothing to attend to has one), never a JSON text.
-    var res = document.getElementById("result"); res.textContent = readable(data.result); res.hidden = !res.textContent;
+    // n137: the overall result in words (an answer with nothing to attend to has one), never a JSON text. n138: it is
+    // part of the summary line, once; the attention section then says only that nothing needs attention.
+    var res = document.getElementById("result"), said = readable(data.result);
+    res.textContent = said ? (verdict.textContent ? ". " : "") + said : ""; res.hidden = !said;
 
     var list = document.getElementById("attention-list"); list.textContent = "";
     var att = isObj(data.attention) ? data.attention : {}, firstWhat = "", firstStep = "";
@@ -281,7 +323,8 @@ __READ_JS__
         list.appendChild(el("li", who + ": " + what));
       });
     });
-    document.getElementById("attention").hidden = !list.children.length;
+    document.getElementById("attention-none").hidden = !!list.children.length;
+    document.getElementById("attention").hidden = false;
 
     var steps = document.getElementById("steps"); steps.textContent = "";
     (Array.isArray(data.next_steps) ? data.next_steps : []).forEach(function (s) {
@@ -312,11 +355,14 @@ __READ_JS__
     (ALLOWED[step.tool] || []).forEach(function (k) { if (input[k] != null) args[k] = input[k]; });
     var own = step.arguments || {};
     Object.keys(own).forEach(function (k) { args[k] = own[k]; });
-    button.disabled = true; out.hidden = false; out.textContent = "Asked the host to run " + step.tool + ".";
-    request("tools/call", { name: step.tool, arguments: args }).then(function (r) {
+    var ask = "Run " + step.tool + " with the same workspace, source and schema.";
+    out.hidden = false;
+    if (!canCallTools()) { out.textContent = callProblem({ kind: "unsupported" }, step.tool, ask); return; }
+    button.disabled = true; out.textContent = "Asked the host to run " + step.tool + ".";
+    callTool(step.tool, args, function () { out.textContent = stillWaiting(ask); }).then(function (r) {
       var t = resultText(r); out.textContent = t.length > 4000 ? t.slice(0, 4000) + "\\n\\u2026 (the rest is in the tool's own answer)" : t;
     }, function (e) {
-      out.textContent = "The host did not run " + step.tool + ": " + (e && e.message ? e.message : "no reason given") + ".";
+      out.textContent = callProblem(e, step.tool, ask);
     }).then(function () { button.disabled = false; });
   }
 
@@ -326,7 +372,7 @@ __READ_JS__
     if (!m || m.jsonrpc !== "2.0") return;
     if (m.id != null && !m.method && pending[m.id]) {
       var p = pending[m.id]; delete pending[m.id];
-      if (m.error) p.reject(new Error(m.error.message || "error")); else p.resolve(m.result);
+      if (m.error) p.reject(m.error); else p.resolve(m.result);
       return;
     }
     if (m.method === "ui/notifications/tool-input") input = (m.params && m.params.arguments) || {};
@@ -345,7 +391,8 @@ __READ_JS__
     appInfo: { name: "Krusgraph plan check", version: "1" },
     appCapabilities: { availableDisplayModes: ["inline"] },
     protocolVersion: "__PROTOCOL__"
-  }).then(function () {
+  }).then(function (r) {
+    hostStarted(r);
     notify("ui/notifications/initialized");
     reportSize();
     if (window.ResizeObserver) new ResizeObserver(reportSize).observe(document.body);

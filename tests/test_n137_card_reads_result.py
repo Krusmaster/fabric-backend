@@ -165,8 +165,8 @@ print(json.dumps({t.name: t.model_dump(by_alias=True, exclude_none=True, mode="j
 def _check_validate(view: dict, data: dict):
     assert view["verdict"] == data["summary"]
     assert view["counts"] == [["Keys", "6 of 6 passed"], ["Relationships", "7 of 7 passed"], ["Needs attention", "0"]]
-    assert view["attention"] == [] and not view["attentionShown"]
-    assert view["resultShown"] and view["result"] == data["result"]
+    assert view["attention"] == [] and view["attentionShown"]              # n138: "Nothing needs attention."
+    assert view["resultShown"] and view["result"] == ". " + data["result"]  # n138: in the summary line
     assert view["steps"] == [s["why"] for s in data["next_steps"]]
     assert "Run semantic_model_draft" in view["buttons"] and "Run ontology_draft" in view["buttons"]
     said = {f["kind"]: f for f in view["figures"] if f["shown"]}

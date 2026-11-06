@@ -125,7 +125,7 @@ def test_buttons_map_only_to_review_plan():
     html = mcp_apps_review.card_html()
     allowed = json.loads(re.search(r"var ALLOWED = (\{.*?\});", html).group(1))
     assert allowed == {"review_plan": list(mcp_apps_review.CARRIED)}
-    assert html.count('request("tools/call"') == 1 and 'request("tools/call", { name: TOOL,' in html
+    assert html.count('request("tools/call"') == 1 and "callTool(TOOL, args," in html     # n138: through callTool
     assert 'var TOOL = "review_plan";' in html
     listing = {t.name: t for t in asyncio.run(server.mcp.list_tools())}
     rp = listing["review_plan"]
