@@ -14,6 +14,8 @@ pipeline's table list (exports.py). Nothing here connects to anything.
                                       apply, with what is missing; None when fewer than two tables match
     match_any(schema)              -> the pack that recognises most tables, of those with a table of their own among
                                       them (what the engine, infer._pack, reads)
+    match(schema, "sap", mirror=m) -> the same, with the keys and descriptions a mirrored SAP source declares winning over
+                                      the pack's (rule "SAP mirror metadata", round n129; m comes from sap_mirror.read)
 
 A table matches on its name without case, schema or a leading `sap_`/`raw_`/`stg_`/`bronze_` word (`VBAK`, `vbak`,
 `sap_vbak`, `bronze.SAP_VBAK`), and only when its key columns are there. When an extract has dropped the client
@@ -30,6 +32,7 @@ from pathlib import Path
 
 PACKS = Path(__file__).parent / "packs"
 RULE = "SAP pack"
+MIRROR_RULE = "SAP mirror metadata"       # n129: keys (and descriptions) a mirrored source declares; see sap_mirror.py
 CLIENT_COLUMNS = ("MANDT", "RCLNT", "CLIENT")      # BUT000 and the CVI link tables name it CLIENT
 # words a landing puts in front of a source table's name: a layer (raw, bronze) or the system (sap, younium, sf)
 _LEADING = ("sap", "raw", "stg", "src", "bronze", "landing", "mirror", "mirrored", "ext", "extract", "younium", "sf", "salesforce", "crm")
@@ -141,6 +144,9 @@ class Match:
     client_dropped: list[str] = field(default_factory=list) # matched tables without their client column
     variant_hint: str = ""
     unmatched_keyless: list[str] = field(default_factory=list)  # names a pack knows whose key columns are not all there
+    key_rules: dict[str, str] = field(default_factory=dict)     # schema table -> RULE or MIRROR_RULE (n129)
+    mirror: dict[str, dict] = field(default_factory=dict)       # schema table -> its entry of the mirror metadata (n129)
+    mirror_problems: list[dict] = field(default_factory=list)   # mirror metadata that could not be used, with why (n129)
 
     def source_of(self, ids: list[str]) -> list[dict]:
         pack = load(self.pack)
@@ -162,9 +168,26 @@ def _cols(table) -> dict[str, str]:
     return out
 
 
-def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None:
-    """The pack's view of a schema; None when fewer than two of its tables are recognised (then nothing changes)."""
+def _mirror_entry(mirror: dict | None, table: str, pack_name: str) -> dict | None:
+    """The mirror metadata of a schema table: by its own name, without case, or by the name the pack knows it by."""
+    if not mirror:
+        return None
+    by = {k.lower(): v for k, v in mirror.items()}
+    return by.get(table.lower()) or by.get(table.split(".")[-1].lower()) or by.get(pack_name.lower())
+
+
+def match(schema, pack: str = "sap", variant: str | None = None, mirror: dict | None = None) -> Match | None:
+    """The pack's view of a schema; None when fewer than two of its tables are recognised (then nothing changes).
+
+    mirror (round n129): metadata a mirrored SAP source declares, as sap_mirror.read returns it. Where a table's entry
+    names key columns the table has, those are its key (rule MIRROR_RULE) instead of the pack's, also when the pack's
+    own key columns are not all there; a pack key relationship into such a table is applied only when its target
+    columns are that key, and is listed as not applied, with why, when they are not. Each relationship says which rule
+    decided its target key (`decided_by`). Without mirror the match is exactly what it was."""
     p = load(pack)
+    key_rules: dict[str, str] = {}
+    entries: dict[str, dict] = {}
+    mirror_problems: list[dict] = []
     found: dict[str, str] = {}
     cols: dict[str, dict[str, str]] = {}
     keys: dict[str, list[str]] = {}
@@ -179,6 +202,21 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         if variant and pt.get("variants") and variant not in pt["variants"]:
             continue
         have = _cols(t)
+        entry = _mirror_entry(mirror, t.name, name)
+        if entry is not None:
+            entries[t.name] = entry
+            mk = entry.get("keys") or []
+            lacking = [c for c in mk if _norm(c) not in have]
+            if mk and not lacking:
+                taken.add(name)
+                found[t.name] = name
+                cols[t.name] = have
+                keys[t.name] = [have[_norm(c)] for c in mk]
+                key_rules[t.name] = MIRROR_RULE
+                continue
+            if lacking:
+                mirror_problems.append({"table": t.name, "why": f"the mirror metadata names key column(s) the table lacks: {', '.join(lacking)}; "
+                                                                 f"the {pack} pack's key is used"})
         key = [c for c in pt["key"] if _norm(c) in have or c not in CLIENT_COLUMNS]
         if not all(_norm(c) in have for c in key) or len(key) == 0:
             keyless.append(t.name)
@@ -189,6 +227,7 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
         if len(key) < len(pt["key"]):
             dropped.append(t.name)
         keys[t.name] = [have[_norm(c)] for c in key]
+        key_rules[t.name] = RULE
     if len(found) < 2:
         return None
     by_pack = {v: k for k, v in found.items()}
@@ -237,6 +276,8 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
                 lost.append((table, w["column"]))
         info = {k: r[k] for k in ("cardinality", "role", "condition", "sources", "module") if k in r}
         info["kind"] = kind
+        if mirror is not None:
+            info["decided_by"] = key_rules.get(g, RULE)
         if valid:
             info["valid_on"] = valid
         if where:
@@ -249,6 +290,11 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
                                 "why": "columns missing: " + ", ".join(f"{x}.{c}" for x, c in lost), **info})
             continue
         rel = {"source": s, "source_cols": [a for a, _ in pairs], "target": g, "target_cols": [b for _, b in pairs], **info}
+        if key_rules.get(g) == MIRROR_RULE and kind == "key" and r.get("apply") is not False and not r.get("where") \
+                and sorted(_norm(b) for _, b in pairs) != sorted(_norm(c) for c in keys[g]):
+            not_applied.append({**rel, "why": f"{MIRROR_RULE}: the mirror declares {g}'s key as {', '.join(keys[g])}, not the pack's "
+                                              f"{', '.join(r['target_cols'])}; the mirror's metadata wins over the pack"})
+            continue
         if r.get("apply") is False:
             not_applied.append({**rel, "why": "conditional: " + r.get("condition", "holds for some rows only") + " Listed, not applied; confirm it if your rows are of that kind."})
             continue
@@ -261,7 +307,8 @@ def match(schema, pack: str = "sap", variant: str | None = None) -> Match | None
             hint, seen = f"{v} (tables only that variant has: {', '.join(sorted(only))})", seen or v
     if seen:                                                              # BSEG is not missing from an S/4HANA schema
         missing_tables = {n for n in missing_tables if not p["tables"][n].get("variants") or seen in p["tables"][n]["variants"]}
-    return Match(pack, found, keys, applied, not_applied, sorted(missing_tables), missing_cols, dropped, hint, keyless)
+    return Match(pack, found, keys, applied, not_applied, sorted(missing_tables), missing_cols, dropped, hint, keyless,
+                 key_rules, {t: e for t, e in entries.items() if t in found}, mirror_problems)
 
 
 def match_any(schema, variant: str | None = None) -> Match | None:
@@ -320,9 +367,11 @@ def amounts(m: Match) -> list[dict]:
 EXPORTS = ("none", "krusgraph", "dab", "extraction", "dbt")
 
 
-def draft(plan, source_name: str = "sap", export: str = "none", variant: str | None = None) -> dict:
+def draft(plan, source_name: str = "sap", export: str = "none", variant: str | None = None, mirror: dict | None = None) -> dict:
     """What the pack recognises in a plan's schema and what it lacks, read-only; optionally one export of the plan.
-    The answer behind the sap_pack_draft tool."""
+    The answer behind the sap_pack_draft tool. mirror (n129, library only; the tool does not take it): metadata a
+    mirrored SAP source declares (sap_mirror.read); each table then says which rule gave its key and description, and
+    each relationship which rule decided its target key. Build the plan with sap_mirror.plan to have the same keys."""
     from .infer import PlanInputError
     from . import pack_manifest
     if export not in EXPORTS:
@@ -330,7 +379,7 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
     p = load("sap")
     if variant is not None and variant not in p["variants"]:
         raise PlanInputError(f"variant: {variant!r} is not one of {', '.join(p['variants'])}")
-    m = match(plan.schema, "sap", variant)
+    m = match(plan.schema, "sap", variant, mirror=mirror)
     if m is None:
         near = [t.name for t in plan.schema if table_name(t.name) in p["tables"]]
         return {"summary": "no SAP tables recognised (the pack needs two or more of its tables with their key columns); the plan "
@@ -340,10 +389,14 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
     tables = [{"table": t, "pack_table": n, "level": p["tables"][n]["level"], "en": p["tables"][n]["en"], "de": p["tables"][n]["de"],
                "key": m.keys[t], **({"note": p["tables"][n]["note"]} if p["tables"][n].get("note") else {}),
                "sources": srcs(p["tables"][n]["sources"])} for t, n in m.tables.items()]
+    if mirror is not None:
+        for row in tables:
+            row.update(_mirror_fields(m, row["table"], p["tables"][row["pack_table"]]))
     rels = [{"source": r["source"], "source_cols": r["source_cols"], "target": r["target"], "target_cols": r["target_cols"],
              "cardinality": r["cardinality"], "kind": r.get("kind", "key"), **({"valid_on": r["valid_on"]} if r.get("valid_on") else {}),
              **({"role": r["role"]} if r.get("role") else {}),
-             **({"condition": r["condition"]} if r.get("condition") else {}), "sources": srcs(r["sources"])} for r in m.relationships]
+             **({"condition": r["condition"]} if r.get("condition") else {}),
+             **({"decided_by": r["decided_by"]} if r.get("decided_by") else {}), "sources": srcs(r["sources"])} for r in m.relationships]
     in_plan = {(r.source, tuple(c.lower() for c in r.source_cols), r.target): r.rule for r in plan.relationships}
     in_plan.update({(r.source, tuple(c.lower() for c in r.source_cols), r.target): f"{r.rule} ({r.kind}, plan.extended)" for r in plan.extended})
     for r in rels:
@@ -357,6 +410,9 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
            "amounts": amounts(m),
            "traps": [{"title": t["title"], "text": t["text"]} for t in p["traps"]],
            "next": "validate_plan checks keys and relationships against the rows; validate_plan's amount_levels names the header amounts a join repeats.",
+           **({"mirror_problems": m.mirror_problems,
+               "mirror_rule": f"{MIRROR_RULE}: keys and descriptions the mirrored source declares win over the pack and the name rules; "
+                              "see each table's key_rule and description_rule and each relationship's decided_by"} if mirror is not None else {}),
            "pack_manifest": pack_manifest.header("sap")}          # n77: id, version and review status of packs/sap/manifest.yaml
     if export != "none":
         from . import exports
@@ -369,6 +425,21 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
         else:
             from . import dbt
             out["export"] = {"path": f"models/sources/{source_name}.yml", "yaml": dbt.schema_yml(plan, source_name, plan.schema.schema)}
+    return out
+
+
+def _mirror_fields(m: Match, table: str, pack_table: dict) -> dict:
+    """Which rule gave a matched table its key and its description, and the column descriptions the mirror declares."""
+    e = m.mirror.get(table) or {}
+    out = {"key_rule": m.key_rules.get(table, RULE)}
+    if out["key_rule"] == MIRROR_RULE:
+        out["key_from"] = e.get("key_from", "")
+    if e.get("description"):
+        out.update({"description": e["description"], "description_rule": MIRROR_RULE, "description_from": e.get("description_from", "")})
+    else:
+        out.update({"description": pack_table["en"], "description_rule": RULE})
+    if e.get("columns"):
+        out["column_descriptions"] = {c: {"description": d, "rule": MIRROR_RULE} for c, d in e["columns"].items()}
     return out
 
 
