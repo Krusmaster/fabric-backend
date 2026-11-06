@@ -110,7 +110,9 @@ const { chromium } = require("playwright");
                      labels: await page.$$eval("#check-model a[download], #check-ask-answer a[download]", (n) => n.map((a) => a.textContent)) };
   // n95: every download on the page: the button's own text, the description under it, and the status lines
   out.dl_items = await page.evaluate(() => [...document.querySelectorAll("a.check-dl")].map((a) => ({ text: a.textContent, children: a.children.length,
-    desc: a.nextElementSibling && a.nextElementSibling.classList.contains("check-dl-desc") ? a.nextElementSibling.textContent : null,
+    // n86b: the ontology's item has the question mark between the button and its description
+    desc: (() => { const d = a.closest(".check-dl-item") && a.closest(".check-dl-item").querySelector(":scope > .check-dl-desc"); return d ? d.textContent : null; })(),
+    tip: !!(a.nextElementSibling && a.nextElementSibling.classList.contains("kg-tip")),       // the ontology's "?" sits beside its button
     status: [...(a.closest("#check-evidence, #check-model, #check-app, #check-ask-answer") || document).querySelectorAll(".check-dl-status")].map((p) => p.textContent) })));
   out.ask_requests = out.requests.slice(before).filter((u) => !u.includes("/check/event"));
   await page.evaluate(() => window.Mascots.setEnabled(false));

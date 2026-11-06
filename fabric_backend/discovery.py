@@ -176,7 +176,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 ## Docs
 
-- [Docs]({o}/docs.md): connecting, what it reads and passes through, reviewing and checking a plan, the thirty-eight tools with what each changes and its test status, {p} beside Microsoft's Fabric MCP servers, how relationships are inferred, Fabric IQ ontology drafts, sources, cold start, the two manual steps
+- [Docs]({o}/docs.md): connecting, what it reads and passes through, reviewing and checking a plan, the concepts (how it works, ontologies, data products, how they connect, and where it is going), the thirty-eight tools with what each changes and its test status, {p} beside Microsoft's Fabric MCP servers, how relationships are inferred, Fabric IQ ontology drafts, sources, cold start, the two manual steps
 {docs_pages}
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): plan and create the API for GraphQL item from Lovable's chat with {p} as a custom MCP connector, finish the three portal steps, then connect Lovable's Fabric connector to it

@@ -626,5 +626,57 @@
     }
   }
 
+  /* ------------------------------------------------------------------ n86b: the question mark next to a concept */
+  // A small button next to "ontology" and "data products" in the chat demo and on /check. It opens two sentences in
+  // place and links to the concept page; a button, so a tap, a click, Enter and Space all work, and Escape closes it.
+  // Nothing is sent or stored. The sentences are the server's (concepts.TIPS, as JSON in the page).
+  var tipData = null, tipN = 0;
+  function tipText(name) {
+    if (tipData === null) {
+      var el = document.getElementById('kg-tips');
+      try { tipData = el ? JSON.parse(el.textContent) : {}; } catch (e) { tipData = {}; }
+    }
+    return Object.prototype.hasOwnProperty.call(tipData, name) ? tipData[name] : null;
+  }
+  function tipEsc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  // parts(name): the button (in a span.kg-tip, to sit next to the word) and the two sentences (a block, placed after the
+  // heading or line that holds the button, so an open tip never splits the words around it)
+  function tipParts(name) {
+    var t = tipText(name);
+    if (!t || !/^\/docs\/[a-z0-9\/-]+$/.test(t.href)) return null;
+    var id = 'kg-tip-' + (++tipN);
+    return {
+      button: '<span class="kg-tip"><button type="button" class="kg-tip-q" aria-expanded="false" aria-controls="' + id + '" aria-label="' +
+              tipEsc(t.label) + '"></button></span>',             // the "?" is drawn by CSS, so the text around it reads as before
+      body: '<span class="kg-tip-body" id="' + id + '" role="note" hidden>' + tipEsc(t.text) + ' <a href="' + tipEsc(t.href) + '">' + tipEsc(t.more) + '</a></span>'
+    };
+  }
+  function tipEls(name) {
+    var p = tipParts(name);
+    if (!p) return null;
+    var tpl = document.createElement('template');
+    tpl.innerHTML = p.button + p.body;          // built from escaped text above
+    return { button: tpl.content.firstChild, body: tpl.content.lastChild };
+  }
+  function tipToggle(b, open) {
+    var body = document.getElementById(b.getAttribute('aria-controls'));
+    if (!body) return;
+    b.setAttribute('aria-expanded', String(open));
+    body.hidden = !open;
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target && e.target.closest ? e.target.closest('.kg-tip-q') : null;
+    if (!b) return;
+    e.preventDefault();
+    tipToggle(b, b.getAttribute('aria-expanded') !== 'true');
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !e.target || !e.target.closest) return;
+    var b = e.target.closest('.kg-tip-q'), body = e.target.closest('.kg-tip-body');
+    if (!b && body) b = document.querySelector('.kg-tip-q[aria-controls="' + body.id + '"]');
+    if (b && b.getAttribute('aria-expanded') === 'true') { tipToggle(b, false); b.focus(); e.stopPropagation(); }
+  }, true);
+  window.KGTip = { parts: tipParts, els: tipEls };
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

@@ -111,7 +111,10 @@
       document.documentElement.dataset.checkMs = String(ms);
       say("Done: " + what + ", read in this browser in " + seconds(performance.now() - t0) + ". The result showed " + seconds(ms) + " after the page opened; nothing was uploaded.");
       run.focus({ preventScroll: true });
-      run.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
+      // n86b: /docs/concepts/ontologies links to the downloads (#check-evidence) for the ontology's RDF/XML file
+      const ev = $("check-evidence");
+      if (location.hash === "#check-evidence" && !evidenceShown && !ev.hidden) { evidenceShown = true; ev.scrollIntoView({ behavior: "auto", block: "center" }); }
+      else run.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
     } finally {
       onStep = null;
       busy = false;
@@ -290,6 +293,9 @@
   }
   const fill = (node, ...kids) => node.replaceChildren(...kids.filter(kept));
   const code = (t) => el("code", null, t);
+  // n86b: the question mark next to a concept (site.js); nothing when site.js has not run
+  const tip = (name) => (window.KGTip && window.KGTip.els(name)) || { button: null, body: null };
+  let evidenceShown = false;
 
   function addStep(s) {
     $("check-steps").append(el("li", { class: "check-step" + (still ? "" : " in") },
@@ -440,8 +446,10 @@
       said.textContent = names.length ? "On the map: " + names.join(" and ") + ", with the tables and interfaces of " + (names.length === 1 ? "that domain" : "those domains") + "; the rest is dimmed." : "";
       ask(r);
     }
-    fill(box, el("h4", null, "Proposed domains"),
-      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision. Choose one or more to see them on the map."),
+    const dt = tip("data-products");
+    fill(box, el("h4", null, "Proposed domains", dt.button), dt.body,
+      el("p", { class: "muted tiny" }, "From the keys and relationships alone (domain_draft): a proposal to review, not a decision. Choose one or more to see them on the map. ",
+        el("a", { href: "/docs/concepts/data-products" }, "Domains and data products, explained")),
       el("ul", { class: "check-dom-list" }, ...buttons.map((b) => el("li", null, b))),
       el("p", { class: "check-dom-actions" }, all), said,
       ifs.length ? el("p", { class: "tiny" }, el("strong", null, "Interfaces between them (the thicker lines): ")) : null,
@@ -494,8 +502,13 @@
     box.append(...statusLines(files));
     box.append(saveText(e.name, () => withDecisions(e.markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
       + (r.source && r.source.has_data ? "each check with its counts" : "every check marked not checked") + ", open questions and this page's decisions; no row values.", "text/markdown"));
-    if (o) box.append(saveText(o.name, o.xml, "ontology", "For Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
-      + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. Open it there with Import / Export.", "application/rdf+xml"));
+    if (o) {
+      const item = saveText(o.name, o.xml, "ontology", "For Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
+        + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. Open it there with Import / Export.", "application/rdf+xml");
+      const t = tip("ontology");                         // n86b: the question mark next to "Download ontology"
+      if (t.button) { const a = item.querySelector("a"), row = el("div", { class: "check-dl-row" }); a.replaceWith(row); row.append(a, t.button); row.after(t.body); }
+      box.append(item);
+    }
     box.hidden = false;
   }
 

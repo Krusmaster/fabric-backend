@@ -701,7 +701,7 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     docs = docs_all(client)
     groups = re.findall(r'<h[12] id="([^"]+)">', "".join(client.get(x["path"]).text for x in __import__("fabric_backend.pages").pages.docs_pages() if x["depth"] < 2))
     assert groups[0].startswith("why-")                    # n23: "Why <product>" ahead of the five parts
-    assert groups[1:] == ["get-started", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]
+    assert groups[1:] == ["get-started", "concepts", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]  # n86b: Concepts
     for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
                    "how-relationships-are-inferred", "cold-start-and-min-replicas-if-you-run-it-yourself", "one-plan-five-fabric-pieces",
                    "with-microsoft-s-fabric-mcp-servers", "fabric-iq-the-same-graph-as-an-ontology", "sources",

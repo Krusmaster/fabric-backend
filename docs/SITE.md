@@ -37,6 +37,20 @@ from the headings); without JavaScript they stay on the overview. Links between 
 page that has the heading. The sub-pages have `/docs`'s headers and policy, the chat button and the Mascots switch.
 Checks: `tests/test_docs_pages.py` and `tests/docs_browser.js` (through `tests/test_browser.py`).
 
+## The Concepts pages (n86b)
+
+`## Concepts` in `DOCS.md` (after *Get started*) has five pages: How it works, Ontologies, Data products, How they
+connect and Vision. Their examples are not typed by hand: `{{CONCEPT_...}}` placeholders are filled by
+`fabric_backend/concepts.py` from the engine run on the synthetic shop schema (`infer.plan`, `ontology`, `domains`,
+`semantic_model`) and from `tool_status`, each time the docs are rendered, so `/docs.md` and `/llms-full.txt` carry the
+same facts as the HTML. Between `<!-- figure:NAME -->` and `<!-- /figure -->` the HTML page shows a figure instead
+(`concepts.figures()`: HTML and inline SVG in the site's colour tokens, so dark mode follows; the domains diagram has a
+stacked version under 600 px); the Markdown keeps the same content as text. The vision's text is the maintainer's,
+verbatim. The small question mark next to "ontology" and "data products" in the chat demo and on /check is a button
+(`window.KGTip` in `site.js`, the two sentences from `concepts.TIPS` as JSON in the page): it opens in place by tap,
+click or keyboard, Escape closes it, and it sends nothing. The home page's steps and /check's *Proposed domains* link to
+the pages. Checks: `tests/test_n86b_concepts.py`.
+
 ## Adding a page
 
 1. Add a body template under `page_templates/` (just the inside of `<main>`; the shell adds header and footer).

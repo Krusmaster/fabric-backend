@@ -1306,3 +1306,101 @@ body.nav-open .kgc-launch{visibility:hidden}
   .docs-otp{display:block;position:sticky;top:16px;align-self:start}
 }
 .wrap.docs-layout{max-width:1320px}
+
+/* n86b: the Concepts pages' figures (concepts.py): HTML and inline SVG in the site's tokens, so dark mode follows */
+.cx-fig{margin:22px 0 18px;padding:0}
+.cx-fig figcaption{margin-top:10px}
+.cx-tag{display:inline-block;font-size:12.5px;line-height:1.35;font-weight:700;border-radius:8px;padding:1px 8px;background:var(--mustard-soft);color:var(--mustard-ink);margin:0}
+.cx-part{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:12px 14px;min-width:0}
+.prose .cx-part-h{font-family:var(--font-head);font-weight:600;font-size:18px;margin:0 0 2px;line-height:1.25}
+.prose .cx-part-what{font-size:14px;color:var(--muted);margin:0 0 10px;line-height:1.4}
+.prose .cx-list{list-style:none;margin:0;padding:0;font-size:14px}
+.prose .cx-list li{font-size:14px;line-height:1.35;margin:0 0 7px}
+.prose .cx-tags li{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.prose .cx-tags .cx-tag{font-size:12px;font-weight:700}
+.cx-link{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);text-align:center;min-width:0}
+.cx-link-word{font-size:12px;line-height:1.2;font-weight:700}
+.cx-arrow-svg{width:44px;height:16px;flex:none}
+.cx-how-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-items:start}
+.cx-cli{border-color:var(--mustard)}.cx-kg{border-color:var(--coral);background:var(--coral-soft)}.cx-fab{border-color:var(--sage)}.cx-one{border-color:var(--lav)}
+.cx-how-grid .cx-link .cx-arrow-svg,.cx-connect-grid .cx-link .cx-arrow-svg{transform:rotate(90deg);margin:6px 0}
+.cx-d1{display:none}
+@media (min-width:761px){
+  .cx-how-grid{grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr) 64px minmax(0,1fr);
+    grid-template-areas:"cli a1 kg a2 fab" ". . d1 . d2" ". . one one one";gap:6px 4px}
+  .cx-cli{grid-area:cli}.cx-a1{grid-area:a1}.cx-kg{grid-area:kg}.cx-a2{grid-area:a2}.cx-fab{grid-area:fab}
+  .cx-d1{grid-area:d1;display:flex}.cx-d2{grid-area:d2}.cx-one{grid-area:one}
+  .cx-a1,.cx-a2{align-self:center}
+  .cx-kg{align-self:stretch}
+  .cx-one .cx-tags{display:flex;flex-wrap:wrap;gap:4px 18px}
+  .cx-how-grid .cx-a1 .cx-arrow-svg,.cx-how-grid .cx-a2 .cx-arrow-svg{transform:none}
+}
+.cx-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card-2);padding:8px}
+.cx-svg{display:block;max-width:100%;height:auto;min-width:440px;margin:0 auto}
+@media (min-width:600px){.cx-svg{min-width:0}}
+.cx-svg text{font-family:var(--font-body);fill:var(--ink)}
+.cx-svg .cx-n{font-family:var(--font-head);font-weight:600;font-size:16px}
+.cx-svg .cx-s{font-size:13px}
+.cx-node rect,.cx-tab rect{fill:var(--card);stroke:var(--sage-d);stroke-width:1.6}
+.cx-node.cx-nokey rect{stroke:var(--coral-d);stroke-dasharray:5 4}
+.cx-node.cx-nokey .cx-s{fill:var(--coral-ink)}
+.cx-edge{fill:none;stroke:var(--muted);stroke-width:1.6}
+.cx-ah{fill:var(--muted)}
+.cx-dom rect{stroke-width:1.6}
+.cx-dom-a rect{fill:var(--coral-soft);stroke:var(--coral)}
+.cx-dom-b rect{fill:var(--lav-soft);stroke:var(--lav)}
+.cx-tab rect{stroke:var(--line-strong)}
+.cx-edge.cx-if{stroke:var(--ink);stroke-width:2.4}
+.cx-if-l{font-weight:700}
+.cx-connect-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-items:center}
+.cx-plan{border-color:var(--coral);background:var(--coral-soft)}
+.cx-rel{margin:0;font-size:14px;overflow-wrap:anywhere}
+.prose .cx-outs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.prose .cx-outs li{margin:0;font-size:14px;background:var(--card);border:1px solid var(--sage);border-radius:var(--radius-s);padding:10px 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.cx-out-h{font-family:var(--font-head);font-weight:600;font-size:16px;line-height:1.2}
+/* the vision: three cards in a row with a small arrow between them, stacked under 760 px, and the band below */
+.cx-vision{margin:8px 0 18px;padding:0}
+.prose .cx-v-title{margin:8px 0 6px;font-size:clamp(24px,3.2vw,32px)}
+.cx-v-sub{color:var(--muted);margin:0 0 18px}
+.prose .cx-v-row{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr) 28px minmax(0,1fr);align-items:stretch;gap:0}
+.prose .cx-v-row>li{margin:0}
+.cx-v-card{border-radius:var(--radius-s);padding:16px 16px 12px;min-width:0}
+.cx-v-now{background:var(--coral-soft);border:2px solid var(--coral)}
+.cx-v-next{background:var(--card-2);border:1px solid var(--line-strong)}
+.cx-v-vision{background:var(--card);border:1.5px dashed var(--line-strong)}
+.cx-v-kicker{font-size:13px;font-weight:800;letter-spacing:.02em;color:var(--muted);margin:0 0 4px}
+.cx-v-now .cx-v-kicker{color:var(--coral-ink)}
+.prose .cx-v-h{font-size:19px;margin:0 0 8px}
+.prose .cx-v-card ul{margin:0;padding-left:18px;list-style:disc}
+.prose .cx-v-card li{font-size:15px;margin:0 0 4px}
+.cx-v-arrow{display:flex;align-items:center;justify-content:center;color:var(--muted)}
+.cx-v-arrow .cx-arrow-svg{width:24px}
+.cx-v-band{margin-top:14px;padding:14px 18px;border-radius:var(--radius-s);background:var(--sage-soft);border:1px solid var(--sage)}
+.cx-v-goal{font-family:var(--font-head);font-weight:600;font-size:19px;margin:0 0 4px}
+.cx-v-note{font-size:13px;color:var(--muted);margin:0}
+@media (max-width:760px){
+  .prose .cx-v-row{grid-template-columns:minmax(0,1fr)}
+  .cx-v-arrow{padding:4px 0}.cx-v-arrow .cx-arrow-svg{transform:rotate(90deg)}
+}
+/* n86b: the small question mark next to "ontology" and "data products" (site.js, window.KGTip): opens two sentences in
+   place, by tap, click or keyboard; no hover */
+.kg-tip-q{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;min-width:22px;padding:0;margin:0 2px 0 4px;
+  border-radius:50%;border:1.5px solid var(--line-strong);background:var(--card);color:var(--ink);font:700 13px/1 var(--font-body);
+  cursor:pointer;vertical-align:middle;position:relative}
+.kg-tip-q::before{content:"?"}
+.kg-tip-q::after{content:"";position:absolute;inset:-11px}
+.kg-tip-q[aria-expanded=true]{background:var(--lav-soft);border-color:var(--lav)}
+.kg-tip-body{display:block;margin:6px 0 8px;padding:8px 12px;max-width:44ch;border-radius:10px;background:var(--card-2);border:1px solid var(--line);
+  font:400 14px/1.45 var(--font-body);color:var(--ink);letter-spacing:normal;text-transform:none;text-align:left}
+.kg-tip-body a{font-weight:700}
+.steps .step-more{margin:12px 0 0;font-size:14px}
+.steps .step-more a{font-weight:700}
+.cx-frame{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card-2);padding:8px}
+.cx-svg.cx-svg-fit{min-width:0}
+.cx-narrow{display:none}
+.cx-hint{display:none;margin:6px 0 0}
+@media (max-width:599px){.cx-wide{display:none}.cx-narrow{display:block}.cx-narrow .cx-svg{max-width:360px}.cx-hint{display:block}}
+.check-dl-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%}
+.kgc .kg-tip-q,.check-domains .kg-tip-q{border-radius:50%;box-shadow:none;transform:none}
+.kgc .kg-tip-body{margin:4px 0 10px}
+.kg-tip-q:focus-visible{border-radius:50%}

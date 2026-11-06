@@ -372,8 +372,13 @@ def _slug(s: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", re.sub(r"<[^>]+>", "", s).lower()).strip("-")
 
 
-def _md_to_html(md: str) -> str:
-    """Just enough Markdown for these pages: headings (with ids), paragraphs, bold/italic, code, links, lists, pipe tables."""
+_FIGURE = re.compile(r"^<!-- figure:([a-z0-9-]+) -->$")
+
+
+def _md_to_html(md: str, figures: dict | None = None) -> str:
+    """Just enough Markdown for these pages: headings (with ids), paragraphs, bold/italic, code, links, lists, pipe tables.
+    n86b: the Markdown between `<!-- figure:NAME -->` and `<!-- /figure -->` is rendered as usual and handed to
+    figures[NAME], which returns the HTML for that place (the Concepts pages' HTML and SVG); without it, as usual."""
     def inline(s: str) -> str:
         s = html.escape(s, quote=False)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
@@ -395,6 +400,17 @@ def _md_to_html(md: str) -> str:
         ln = lines[i]
         if not ln.strip():
             flush(); i += 1; continue
+        f = _FIGURE.match(ln.strip())
+        if f or ln.strip() == "<!-- /figure -->":
+            flush(); i += 1
+            if not f:
+                continue
+            inner = []
+            while i < len(lines) and lines[i].strip() != "<!-- /figure -->":
+                inner.append(lines[i]); i += 1
+            i += 1
+            rendered = _md_to_html("\n".join(inner))
+            out.append(figures[f.group(1)](rendered) if figures and f.group(1) in figures else rendered); continue
         m = re.match(r"^(#{1,3}) (.*)", ln)
         if m:
             flush(); n = len(m.group(1)); text = inline(m.group(2))
@@ -524,6 +540,14 @@ def before_after_html() -> str:
 </section>"""
 
 
+def _tips_json() -> str:
+    """n86b: the two sentences the question mark next to "ontology" and "data products" opens (concepts.TIPS), read by
+    site.js and never run as a script."""
+    from . import concepts
+    return ('\n<script type="application/json" id="kg-tips">'
+            + json.dumps(concepts.tips(_vars()["PRODUCT"]), ensure_ascii=False).replace("<", "\\u003c") + "</script>")
+
+
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "", chat: bool = False) -> str:
     v = _vars()
@@ -613,7 +637,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       {toggle}
     </div>
   </div>
-</footer>{chr(10) + chat_launch_html() if chat else ""}
+</footer>{chr(10) + chat_launch_html() if chat else ""}{_tips_json() if chat or page == "check" else ""}
 <script src="/static/mascots.js?v={v['ASSET_V']}" defer></script>
 <script src="/static/site.js?v={v['ASSET_V']}" defer></script>
 </body>
@@ -906,8 +930,9 @@ def _tool_statuses(md: str) -> str:
 
 
 def docs_md() -> str:
+    from . import concepts
     md = _conditional(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table()), _vars())
-    return _fill(_tool_statuses(md), escape=False)
+    return _fill(concepts.fill(_tool_statuses(md)), escape=False)          # n86b: the Concepts pages' examples and statuses
 
 
 def lovable_md() -> str:
@@ -1042,7 +1067,7 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Get started", "Explore and check", "Build from a plan", "Reference", "Hosting and permissions"]
+DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Reference", "Hosting and permissions"]
 DOCS_MORE = [("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 
 
@@ -1113,7 +1138,8 @@ def docs_page_html(path: str) -> str:
     idx = next(i for i, x in enumerate(pages) if x["path"] == path)
     pg = pages[idx]
     where = docs_anchors(pages)
-    body = _md_to_html(pg["md"])
+    from . import concepts
+    body = _md_to_html(pg["md"], concepts.figures())
     # links between the parts of the old page go to the page that has the heading now
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
                   else m.group(0), body)

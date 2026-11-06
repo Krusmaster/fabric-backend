@@ -23,6 +23,8 @@
     return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
   }
   function code(s) { return '<code>' + esc(s) + '</code>'; }
+  // n86b: the question mark next to "ontology" and "data products" (site.js builds it from the page's own text)
+  function tip(name) { return (window.KGTip && window.KGTip.parts(name)) || { button: '', body: '' }; }
   function list(xs) { return xs.length < 2 ? xs.join('') : xs.slice(0, -1).join(', ') + ' and ' + xs[xs.length - 1]; }
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
   function figure(who, pose) {
@@ -525,7 +527,8 @@
   function ontology() {
     work('builder', ['Writing entity types and keys', 'Binding them to the tables'], function () {
       var o = drafts().ontology;
-      done('ontology', '<h3>Ontology ready</h3><p>' + plural(o.entity_types, 'entity type') + ' (' + o.with_key + ' with a key) and ' +
+      var t = tip('ontology');
+      done('ontology', '<h3>Ontology' + t.button + ' ready</h3>' + t.body + '<p>' + plural(o.entity_types, 'entity type') + ' (' + o.with_key + ' with a key) and ' +
            plural(o.relationship_types, 'relationship type') + '. The ontology item is in preview in Fabric.</p>', pictureOfOntology(o));
     });
   }
@@ -533,7 +536,8 @@
     work('thinker', ['Grouping tables by their links', 'Writing the contracts'], function () {
       var d = drafts().domains, n = d.domains.length;
       var out = d.unassigned.filter(function (t) { return P.keyless.indexOf(t) >= 0; });
-      done('domains', '<h3>' + plural(n, 'data product') + ' drafted</h3><p>' +
+      var t = tip('data-products');
+      done('domains', '<h3>' + plural(n, 'data product') + t.button + ' drafted</h3>' + t.body + '<p>' +
            list(d.domains.map(function (x) { return code(x.name); })) +
            (d.interfaces.length ? ', with ' + (d.interfaces.length === 1 ? 'an interface' : d.interfaces.length + ' interfaces') + ' between them' : '') + '. ' +
            (out.length ? list(out.map(code)) + (out.length === 1 ? ' stays out, because it has no key. ' : ' stay out, because they have no key. ') : '') +
