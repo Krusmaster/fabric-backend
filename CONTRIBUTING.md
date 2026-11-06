@@ -40,7 +40,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n126 (column usage: `fabric_backend/dax_refs.py`, the `column_usage` part of `plan_drift` and `compare_semantic_model` in `server.py`, `tests/test_dax_refs.py`, `tests/fixtures/dax_refs/`, the goldens it changes) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n127 (release notes: `CHANGELOG.md`, `docs/DEPLOY-NEXT.md`) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 | Tests | `tests/` | open |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || n128 (blankapp check: `fabric_backend/rayfin.py`, its tests, the Rayfin section of `README.md`, `tests/fixtures/rayfin_check/`) |
 

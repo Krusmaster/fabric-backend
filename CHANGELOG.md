@@ -3,6 +3,48 @@
 Dates are the commit dates on `main`. Versions are the `version` in `pyproject.toml`, mirrored in
 `fabric_backend/__init__.py` and `server.json` (a test keeps them equal).
 
+## Not yet deployed — after build `src-8d6c473bf26f45f9` (6 November 2026, main up to n111)
+
+Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deployed either. Round n126 was still
+running when this list was written (round n127) and is not in it. `docs/DEPLOY-NEXT.md` is the checklist for the
+next deploy.
+
+- Round n122: `dbt_schema` takes `quality` (`"gx"`, `"soda"` or `"both"`) and writes the plan's key and relationship
+  checks as a Great Expectations suite per table and as SodaCL checks, each with its rule and counts, as drafts.
+  `profile=true` adds a dbt-fabric `profiles.yml` beside the n114 project, with placeholders and no secret. No new tool.
+  Unit-tested; not run against GX, Soda or a Warehouse, not deployed.
+- Round n125: `lineage` takes `format="openlineage"` and then returns its graph as OpenLineage run events instead of
+  its own graph (the default, `format="graph"`, is unchanged). Tables become datasets with their column names and types,
+  each object Krusgraph found or created becomes a job, and a Krusgraph facet carries the edges and each checked
+  relationship's rule and counts. No row values. Tested against the OpenLineage 2-0-2 schema in unit tests; not deployed.
+- Round n124: a second MCP Apps card, for `review_plan`: its answer drawn as an ER diagram (tables, keys, relationships
+  with their rule and counts, failed or stale checks and open items highlighted), with one button per undecided item
+  that asks the client to call `review_plan` with that decision. Off unless the operator sets `KRUSGRAPH_MCP_APPS=1`;
+  the text answer is the same either way. Unit-tested and checked in Chromium; not deployed.
+- Round n123: two server-wide operator settings, both off by default. `KRUSGRAPH_READ_ONLY=1` leaves out every tool
+  that creates or changes something in Fabric. `KRUSGRAPH_NO_ROW_VALUES=1` leaves out `sample_rows` and takes row values
+  out of the other answers, keeping names and counts. `/healthz` gains a `mode` field, and the server's instructions,
+  `/llms.txt` and the Hosting and permissions section of `/docs` name the two settings. With both off the tools are as
+  before. Unit-tested on the hosted and the local server; not deployed.
+- Round n121: `docs/SEGMENTATION.md`, an internal note with candidate customer segments, where each would run, what
+  exists and what is missing. Prices, customers and demand are unknown and the note says so. No change to the service.
+- Round n119: the first MCP Apps card: `validate_plan`'s summary as a card in clients that show MCP Apps (counts per kind
+  of check, what needs attention, next steps as buttons for read and draft tools only). Off unless the operator sets
+  `KRUSGRAPH_MCP_APPS=1`; the text answer and the tool count are the same either way. Unit-tested and checked in
+  Chromium; not deployed.
+- Round n118: `docs/LANDSCAPE.md`, an internal scan of 33 MCP servers and frameworks near Krusgraph, with licences as
+  read from their LICENSE files and five ranked ideas (idea 3 became round n123). No change to the service.
+- Round n117: a new page in the docs' Concepts group, Where it runs (`/docs/concepts/where-it-runs`): what can be
+  checked, drafted, created and reviewed in the browser, on your own computer, in your own Azure tenant and on the
+  hosted service, each cell read from the code. Unit-tested; not deployed.
+- Round n113: `docs/COMPARISON-MYRIADE.md`, an internal note on how Myriade infers relationships beside Krusgraph on
+  the shop data, from public sources only. No change to the service.
+- Round n86b: a Concepts group in `/docs` with pages on how it works, ontologies, data products, how they connect and
+  the vision (`/docs/concepts/...`), with examples rendered from the engine on the shop schema, three architecture
+  diagrams (layers, sign-in and request flow, plan to Fabric items) and a small explanation that opens next to
+  "ontology" and "data products" in the chat demo and on `/check`. Every old docs anchor still leads to the same text.
+  Unit-tested; not deployed.
+
 ## 0.8.0 — 2026-10-28
 
 - Round n120: `create_pipeline` creates the pipeline of the n110 draft (a new tool; 39). It creates or updates in place
