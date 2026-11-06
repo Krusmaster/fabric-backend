@@ -314,16 +314,23 @@ def ontology_draft(name: str = "ontology", schema: str = "dbo", keys: dict[str, 
 @_tool("Check the plan against the rows", RO)
 @safe
 def validate_plan(schema: str = "dbo", keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
-                  max_items: int = 60, detail: str = "summary") -> str:
+                  max_items: int = 60, detail: str = "summary", profile: bool | dict = False) -> str:
     """Check the plan's keys and relationships against the rows: is each key unique and free of NULLs, does every
     reference find its target (orphan count). One counting query per key and relationship, read-only. detail="summary"
     (default) gives the verdict line, totals, and every failing or not-counted check with its counts and rule, passing
-    checks as a count; detail="full" lists every check."""
+    checks as a count; detail="full" lists every check. profile=true (n132) adds per column of the checked tables the
+    NULL share, distinct count and whether number min/max are below/above zero ({"numbers": [lo, hi], "dates": [from,
+    to]} states ranges): one query per table within max_items, never a value."""
+    from . import profile as _profile
     detail = _evidence.pick_detail(detail)
+    _profile.options(profile)
     with _connection(schema) as execute:
         p = _plan_on(execute, schema, keys, confirmed)
-        out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
-        return json.dumps(_evidence.summarize(out, p) if detail == "summary" else out, indent=2, default=str)
+        out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile)
+        out = _evidence.summarize(out, p) if detail == "summary" else out
+        if prof is not None:
+            out["column_profile"] = prof
+        return json.dumps(out, indent=2, default=str)
 
 
 @_tool("Keep the reviewed plan as a file", RO)

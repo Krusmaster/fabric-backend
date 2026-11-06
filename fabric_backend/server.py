@@ -444,16 +444,17 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
-                  ctx: Context = None) -> str:
+                  profile: _p.Profile = False, ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
     Requires workspace and source; keys, confirmed as in plan_backend. Returns JSON counts, no row values: failing
     checks in full, passing as totals. Read-only. create_backend does not run it. Errors: {error, kind, hint}."""
-    from . import privacy as _privacy
+    from . import privacy as _privacy, profile as _profile
     detail = _evidence.pick_detail(detail)
+    _profile.options(profile)
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
-        out = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
+        out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile)   # n132
         label = _privacy.label_of(getattr(execute, "source_item", None))
     finally:
         getattr(execute, "close", lambda: None)()
@@ -465,6 +466,8 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
                                 "note": "validate_plan returns counts and verdicts only, never a value, so nothing here is masked."}
     if detail == "summary":
         out = _evidence.summarize(out, p)
+    if prof is not None:
+        out["column_profile"] = prof
     return json.dumps(out, indent=2, default=str)
 
 

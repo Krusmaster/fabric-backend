@@ -3923,6 +3923,20 @@
       "title": "Max Items",
       "type": "integer"
      },
+     "profile": {
+      "anyOf": [
+       {
+        "type": "boolean"
+       },
+       {
+        "additionalProperties": true,
+        "type": "object"
+       }
+      ],
+      "default": false,
+      "description": "true adds per column of the checked tables: NULL share, distinct count, number min/max below/above zero; {\"numbers\": [lo, hi], \"dates\": [from, to]} states ranges. One query per table within max_items; never values. Default false.",
+      "title": "Profile"
+     },
      "schema": {
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",

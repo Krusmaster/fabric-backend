@@ -28,6 +28,9 @@ TablesShown = Annotated[list[str] | None, _d('Table names or globs to show. Defa
 TablesOnly = Annotated[list[str] | None, _d('Exact table names to include. Default all.')]
 Detail = Annotated[str, _d('"auto" (default: full up to 60 tables, else summary), "full" or "summary".')]
 ValidateDetail = Annotated[str, _d('"summary" (default) or "full" (every check).')]
+Profile = Annotated[bool | dict, _d('true adds per column of the checked tables: NULL share, distinct count, number '
+                                   'min/max below/above zero; {"numbers": [lo, hi], "dates": [from, to]} states ranges. '
+                                   'One query per table within max_items; never values. Default false.')]
 MaxItems = Annotated[int, _d('Cap on counting queries (one per key and relationship), 1–200. Default 60.')]
 DryRun = Annotated[bool, _d(
     'true (default) returns what would be created and the REST calls, changing nothing; false creates or updates.')]
