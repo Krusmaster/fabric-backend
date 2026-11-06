@@ -51,6 +51,15 @@ verbatim. The small question mark next to "ontology" and "data products" in the 
 click or keyboard, Escape closes it, and it sends nothing. The home page's steps and /check's *Proposed domains* link to
 the pages. Checks: `tests/test_n86b_concepts.py`.
 
+Three architecture diagrams (also n86b) are drawn by `concepts._bands_svg` as inline SVG in bands, one layer under the
+other, with a second drawing for phones (items two to a row, or one) so nothing scrolls sideways at 375 px: the layers
+on *How it works*, the sign-in and request flow on *Hosting and permissions*, and plan → check → items on *How they
+connect*. Each has a short text version for screen readers (a visually hidden paragraph the drawings point to with
+`aria-describedby`) and the same facts as a list in `/docs.md`. The hosting flow's permissions and its "passes through,
+not kept" sentences are read from the rendered `/it` page (`concepts.it_facts()`), so they can only say what `/it` says;
+the marks on the flow (created live, dry run, draft) come from `tool_status` (`concepts.mark()`), and the pipeline's
+from `pipeline.py`'s own description.
+
 ## Adding a page
 
 1. Add a body template under `page_templates/` (just the inside of `<main>`; the shell adds header and footer).

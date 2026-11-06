@@ -150,3 +150,57 @@ def test_the_home_page_steps_link_to_the_concept_pages(client):
     steps = home[home.index('<ol class="steps">'):home.index("</ol>", home.index('<ol class="steps">'))]
     for path in ("/docs/concepts/how-it-works", "/docs/concepts/how-they-connect", "/docs/concepts/ontologies", "/docs/concepts/data-products"):
         assert f'href="{path}"' in steps, path
+
+
+# ------------------------------------------------------------------ Gustav's addition: the architecture diagrams ------
+
+def _figures(text: str) -> list[str]:
+    return re.findall(r'<figure class="cx-fig cx-arch".*?</figure>', text, re.S)
+
+
+@pytest.mark.parametrize("path", ["/docs/concepts/how-it-works", "/docs/hosting-and-permissions", "/docs/concepts/how-they-connect"])
+def test_each_diagram_is_inline_svg_with_a_text_version_and_a_phone_drawing(client, path):
+    figs = _figures(client.get(path).text)
+    assert len(figs) == 1, path
+    f = figs[0]
+    said = re.search(r'<p class="visually-hidden" id="([^"]+)">([^<]{80,})</p>', f)
+    assert said and f.count(f'aria-describedby="{said.group(1)}"') == 2           # the wide and the phone drawing
+    assert f.count("<svg") == 2 and '<div class="cx-narrow">' in f and "<img" not in f and "http" not in f.split("<figcaption")[0].replace("http://www.w3.org", "")
+    ids = re.findall(r'<marker id="([^"]+)"', client.get(path).text)
+    assert len(ids) == len(set(ids))                                                  # the two drawings do not share an arrowhead id
+
+
+def test_the_hosting_flow_says_only_what_it_and_privacy_say(client):
+    import html as _html
+    it = _html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", client.get("/it").text))).replace("’", "'")
+    f = concepts.it_facts()
+    for scope, api, _what in f["scopes"]:
+        assert f"{scope} ({api})" in it
+    for sentence in list(f["stored"].values()) + list(f["where"].values()) + [f["host_note"]]:
+        assert sentence.replace("’", "'") in it, sentence
+    page = client.get("/docs/hosting-and-permissions").text
+    md = client.get("/docs.md").text
+    for scope, _api, _what in f["scopes"]:
+        assert f"`{scope}`" in md and scope in _figures(page)[0]
+    assert "OAuth 2.0 on-behalf-of" in it and "OAuth 2.0 on-behalf-of" in md
+    assert "Azure, Sweden Central" in _figures(page)[0] and "not kept after the request" in _figures(page)[0]
+    assert "not kept after the request" in it
+
+
+def test_the_flow_marks_follow_tool_status():
+    assert concepts.mark("create_semantic_model")[0] == "live" and concepts.mark("create_ontology")[0] == "live"
+    assert concepts.mark("create_backend") == ("live", "updated in place live")
+    assert concepts.mark("create_views")[0] == "dry" and concepts.mark("create_data_agent")[0] == "dry"
+    assert concepts.mark("domain_draft")[0] == "draft"
+    for tool in ("create_silver_notebook", "create_gold_views", "create_drift_monitor"):
+        assert concepts.mark(tool)[1] == "created live; not yet run in Fabric"
+    for name, tool in concepts.OUTPUTS:
+        m, _w = concepts.mark(tool)
+        bw = ts.build_word(tool)
+        assert (m == "live") == (bw in ("creates", "updates")), tool
+        assert (m == "dry") == (ts.STATUS[tool].dry_run_only and ts.STATUS[tool].live and bw == "draft"), tool
+    from fabric_backend import pipeline
+    assert "no tool creates or schedules it" in " ".join(pipeline.__doc__.split())
+    md = pages.docs_md()
+    for name, _m, words in concepts.outputs():
+        assert f"- {name}: {words}" in md

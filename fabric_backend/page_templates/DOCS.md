@@ -231,10 +231,12 @@ semantic model, the ontology and the data products are each written from that pl
 relate: change the plan once, and each is written again from it.
 
 <!-- figure:connect -->
+{{CONCEPT_FLOW}}
+<!-- /figure -->
+
 One relationship, {{CONCEPT_INTERFACE}}, in each of them:
 
 {{CONCEPT_TRACE}}
-<!-- /figure -->
 
 A table without a key stays out wherever a key is needed: {{CONCEPT_UNASSIGNED}} has no entity key in the ontology and
 no domain among the data products. What each piece is, and how far creating it has been tested, is in
@@ -656,6 +658,10 @@ Kruse Consulting AB and is not affiliated with Microsoft.
 ## Hosting and permissions
 
 What the hosted server reads and asks for, and what to know when you run it yourself.
+
+<!-- figure:hosting -->
+{{CONCEPT_HOSTING}}
+<!-- /figure -->
 
 ### What it accesses
 

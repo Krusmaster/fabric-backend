@@ -1310,34 +1310,7 @@ body.nav-open .kgc-launch{visibility:hidden}
 /* n86b: the Concepts pages' figures (concepts.py): HTML and inline SVG in the site's tokens, so dark mode follows */
 .cx-fig{margin:22px 0 18px;padding:0}
 .cx-fig figcaption{margin-top:10px}
-.cx-tag{display:inline-block;font-size:12.5px;line-height:1.35;font-weight:700;border-radius:8px;padding:1px 8px;background:var(--mustard-soft);color:var(--mustard-ink);margin:0}
-.cx-part{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:12px 14px;min-width:0}
-.prose .cx-part-h{font-family:var(--font-head);font-weight:600;font-size:18px;margin:0 0 2px;line-height:1.25}
-.prose .cx-part-what{font-size:14px;color:var(--muted);margin:0 0 10px;line-height:1.4}
-.prose .cx-list{list-style:none;margin:0;padding:0;font-size:14px}
-.prose .cx-list li{font-size:14px;line-height:1.35;margin:0 0 7px}
-.prose .cx-tags li{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
-.prose .cx-tags .cx-tag{font-size:12px;font-weight:700}
-.cx-link{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--muted);text-align:center;min-width:0}
-.cx-link-word{font-size:12px;line-height:1.2;font-weight:700}
 .cx-arrow-svg{width:44px;height:16px;flex:none}
-.cx-how-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-items:start}
-.cx-cli{border-color:var(--mustard)}.cx-kg{border-color:var(--coral);background:var(--coral-soft)}.cx-fab{border-color:var(--sage)}.cx-one{border-color:var(--lav)}
-.cx-how-grid .cx-link .cx-arrow-svg,.cx-connect-grid .cx-link .cx-arrow-svg{transform:rotate(90deg);margin:6px 0}
-.cx-d1{display:none}
-@media (min-width:761px){
-  .cx-how-grid{grid-template-columns:minmax(0,1fr) 64px minmax(0,1fr) 64px minmax(0,1fr);
-    grid-template-areas:"cli a1 kg a2 fab" ". . d1 . d2" ". . one one one";gap:6px 4px}
-  .cx-cli{grid-area:cli}.cx-a1{grid-area:a1}.cx-kg{grid-area:kg}.cx-a2{grid-area:a2}.cx-fab{grid-area:fab}
-  .cx-d1{grid-area:d1;display:flex}.cx-d2{grid-area:d2}.cx-one{grid-area:one}
-  .cx-a1,.cx-a2{align-self:center}
-  .cx-kg{align-self:stretch}
-  .cx-one .cx-tags{display:flex;flex-wrap:wrap;gap:4px 18px}
-  .cx-how-grid .cx-a1 .cx-arrow-svg,.cx-how-grid .cx-a2 .cx-arrow-svg{transform:none}
-}
-.cx-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card-2);padding:8px}
-.cx-svg{display:block;max-width:100%;height:auto;min-width:440px;margin:0 auto}
-@media (min-width:600px){.cx-svg{min-width:0}}
 .cx-svg text{font-family:var(--font-body);fill:var(--ink)}
 .cx-svg .cx-n{font-family:var(--font-head);font-weight:600;font-size:16px}
 .cx-svg .cx-s{font-size:13px}
@@ -1352,12 +1325,6 @@ body.nav-open .kgc-launch{visibility:hidden}
 .cx-tab rect{stroke:var(--line-strong)}
 .cx-edge.cx-if{stroke:var(--ink);stroke-width:2.4}
 .cx-if-l{font-weight:700}
-.cx-connect-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;align-items:center}
-.cx-plan{border-color:var(--coral);background:var(--coral-soft)}
-.cx-rel{margin:0;font-size:14px;overflow-wrap:anywhere}
-.prose .cx-outs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
-.prose .cx-outs li{margin:0;font-size:14px;background:var(--card);border:1px solid var(--sage);border-radius:var(--radius-s);padding:10px 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
-.cx-out-h{font-family:var(--font-head);font-weight:600;font-size:16px;line-height:1.2}
 /* the vision: three cards in a row with a small arrow between them, stacked under 760 px, and the band below */
 .cx-vision{margin:8px 0 18px;padding:0}
 .prose .cx-v-title{margin:8px 0 6px;font-size:clamp(24px,3.2vw,32px)}
@@ -1396,11 +1363,33 @@ body.nav-open .kgc-launch{visibility:hidden}
 .steps .step-more{margin:12px 0 0;font-size:14px}
 .steps .step-more a{font-weight:700}
 .cx-frame{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card-2);padding:8px}
-.cx-svg.cx-svg-fit{min-width:0}
+.cx-svg{display:block;max-width:100%;height:auto;margin:0 auto}
 .cx-narrow{display:none}
-.cx-hint{display:none;margin:6px 0 0}
-@media (max-width:599px){.cx-wide{display:none}.cx-narrow{display:block}.cx-narrow .cx-svg{max-width:360px}.cx-hint{display:block}}
+@media (max-width:599px){.cx-wide{display:none}.cx-narrow{display:block}.cx-narrow .cx-svg{max-width:360px}}
 .check-dl-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;max-width:100%}
 .kgc .kg-tip-q,.check-domains .kg-tip-q{border-radius:50%;box-shadow:none;transform:none}
 .kgc .kg-tip-body{margin:4px 0 10px}
 .kg-tip-q:focus-visible{border-radius:50%}
+/* n86b: the architecture diagrams (concepts._bands_svg): bands one under the other, marks in words and colour */
+.cx-band rect{stroke-width:1.5}
+.cx-band-a>rect{fill:var(--coral-soft);stroke:var(--coral)}
+.cx-band-b>rect{fill:var(--sage-soft);stroke:var(--sage)}
+.cx-band-c>rect{fill:var(--mustard-soft);stroke:var(--mustard)}
+.cx-band-d>rect{fill:var(--card);stroke:var(--line-strong)}
+.cx-band-e>rect{fill:var(--lav-soft);stroke:var(--lav)}
+.cx-it rect{fill:var(--card);stroke:var(--line-strong);stroke-width:1.2}
+.cx-svg .cx-it-n{font-size:14px;font-weight:700}
+.cx-svg .cx-it-t{font-size:12px;fill:var(--muted)}
+.cx-svg .cx-sub{fill:var(--muted)}
+.cx-it.cx-mk-live rect{stroke:var(--sage-d);stroke-width:2}
+.cx-it.cx-mk-dry rect{stroke:var(--mustard-d);stroke-width:2;stroke-dasharray:7 3}
+.cx-it.cx-mk-draft rect{stroke:var(--coral-d);stroke-width:1.6;stroke-dasharray:3 3}
+.cx-it.cx-mk-pass rect{stroke:var(--lav-d);stroke-width:2;stroke-dasharray:2 3}
+.cx-edge.cx-flow{stroke:var(--ink);stroke-width:1.8}
+.cx-svg .cx-flow-l{font-size:13px;font-weight:700;fill:var(--ink)}
+.cx-legend{display:inline-flex;flex-wrap:wrap;gap:6px;margin-right:6px;vertical-align:middle}
+.cx-lg{display:inline-block;font-size:12px;font-weight:700;padding:0 8px;border-radius:7px;background:var(--card);border:2px solid var(--line-strong);color:var(--ink)}
+.cx-lg.cx-mk-live{border-color:var(--sage-d)}
+.cx-lg.cx-mk-dry{border-style:dashed;border-color:var(--mustard-d)}
+.cx-lg.cx-mk-draft{border-style:dotted;border-color:var(--coral-d)}
+.cx-narrow .cx-svg{max-width:100%}
