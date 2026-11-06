@@ -59,8 +59,9 @@ SQL_SCOPE = "https://database.windows.net/.default"
 from .discovery import package_version as _package_version  # noqa: E402
 from . import tool_status as _tool_status  # noqa: E402
 from . import tool_params as _p  # noqa: E402
+from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_MCP_APPS=1)
 
-mcp = MCPServer("fabric-backend", version=_package_version(), instructions=(
+mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
     "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
@@ -433,7 +434,7 @@ def _connected(workspace: str, source: str, schema: str, ctx):
     return s, execute
 
 
-@mcp.tool(title="Check the plan against the data", annotations=RO)
+@mcp.tool(title="Check the plan against the data", annotations=RO, meta=_mcp_apps.tool_meta())
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
