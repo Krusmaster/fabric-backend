@@ -36,26 +36,80 @@ def key_sql(schema: str, table: str, cols: list[str], dialect: Dialect = TSQL) -
             f"FROM {_t(schema, table, dialect)}")
 
 
+def _rel_parts(schema: str, source_cols: list[str], target: str, target_cols: list[str], dialect: Dialect,
+               blank_is_none: bool, target_unique: bool, t: str = "t") -> tuple[str, str, str, str]:
+    """The pieces of one relationship's count, with the target side under alias `t`: (has_value, joined target, ON,
+    the target column that is NULL when nothing matched). relationship_sql and combined_relationship_sql share them."""
+    q = dialect.quote
+    on = " AND ".join(f"s.{q(a)} = {t}.{q(b)}" for a, b in zip(source_cols, target_cols))
+    has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
+    if blank_is_none:
+        has_value += "".join(f" AND LTRIM(RTRIM(s.{q(a)})) <> ''" for a in source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT"))
+    tcs = ", ".join(q(c) for c in target_cols)
+    # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted. A target key
+    # counted unique with no NULLs cannot multiply them, and its NULL-free rows are the DISTINCT rows: join it directly
+    joined = (_t(schema, target, dialect) if target_unique
+              else f"(SELECT DISTINCT {tcs} FROM {_t(schema, target, dialect)})")
+    return has_value, joined, on, f"{t}.{q(target_cols[0])}"
+
+
 def relationship_sql(schema: str, source: str, source_cols: list[str], target: str, target_cols: list[str],
                      dialect: Dialect = TSQL, blank_is_none: bool = False, target_unique: bool = False) -> str:
     """blank_is_none: a blank reference ('' or spaces) counts as no value, as SAP writes "none" (the SAP pack's joins).
     target_unique (round n104): the same run has counted exactly these target columns as unique with no NULLs
     (target_key_unique), so the target table is joined directly; otherwise through SELECT DISTINCT. The counts are the
     same either way; the default is the DISTINCT form."""
-    q, count = dialect.quote, dialect.count
-    on = " AND ".join(f"s.{q(a)} = t.{q(b)}" for a, b in zip(source_cols, target_cols))
-    has_value = " AND ".join(f"s.{q(a)} IS NOT NULL" for a in source_cols)
-    if blank_is_none:
-        has_value += "".join(f" AND LTRIM(RTRIM(s.{q(a)})) <> ''" for a in source_cols if a.upper() not in ("MANDT", "RCLNT", "CLIENT"))
-    first = q(target_cols[0])
-    tcs = ", ".join(q(c) for c in target_cols)
-    # DISTINCT on the target side: a duplicated target key must not multiply the source rows being counted. A target key
-    # counted unique with no NULLs cannot multiply them, and its NULL-free rows are the DISTINCT rows: join it directly
-    joined = (_t(schema, target, dialect) if target_unique
-              else f"(SELECT DISTINCT {tcs} FROM {_t(schema, target, dialect)})")
-    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN t.{first} IS NULL THEN 1 ELSE 0 END) AS orphans "
+    count = dialect.count
+    has_value, joined, on, first = _rel_parts(schema, source_cols, target, target_cols, dialect, blank_is_none, target_unique)
+    return (f"SELECT {count}(*) AS with_value, SUM(CASE WHEN {first} IS NULL THEN 1 ELSE 0 END) AS orphans "
             f"FROM {_t(schema, source, dialect)} AS s LEFT JOIN {joined} AS t ON {on} "
             f"WHERE {has_value}")
+
+
+def combined_relationship_sql(schema: str, source: str, rels: list[dict], dialect: Dialect = TSQL) -> str:
+    """Round n108: the relationships of one source table in one statement, so the source table is read once. `rels` are
+    relationship_sql's arguments per relationship ({source_cols, target, target_cols, blank_is_none, target_unique}).
+    Relationship i gets its own LEFT JOIN (alias t{i}, built exactly as relationship_sql builds it: DISTINCT unless the
+    same run counted the target key unique) and two columns: with_value_{i}, the source rows with a value
+    (relationship_sql's WHERE, here as a condition), and orphans_{i}, those of them the join finds no row for.
+
+    Why the counts equal relationship_sql's: each joined target side has at most one row per value of its join columns
+    (DISTINCT, or a key counted unique with no NULLs), so no LEFT JOIN multiplies a source row; every source row appears
+    exactly once, and the conditions count the same rows relationship_sql's WHERE keeps. with_value_{i} is a count, not
+    an integer SUM, so it overflows where relationship_sql's COUNT does, which is never."""
+    count = dialect.count
+    cols, joins = [], []
+    for i, r in enumerate(rels, 1):
+        has_value, joined, on, first = _rel_parts(schema, r["source_cols"], r["target"], r["target_cols"], dialect,
+                                                  r.get("blank_is_none", False), r.get("target_unique", False), t=f"t{i}")
+        cols.append(f"{count}(CASE WHEN {has_value} THEN 1 END) AS with_value_{i}, "
+                    f"SUM(CASE WHEN {has_value} AND {first} IS NULL THEN 1 ELSE 0 END) AS orphans_{i}")
+        joins.append(f"LEFT JOIN {joined} AS t{i} ON {on}")
+    return f"SELECT {', '.join(cols)} FROM {_t(schema, source, dialect)} AS s " + " ".join(joins)
+
+
+def _base_type(t: str) -> str:
+    return (t or "").lower().split("(")[0].strip()
+
+
+def combinable(plan: Plan, r) -> bool:
+    """Whether a relationship may go into its source table's combined statement. Only when the equal counts follow from
+    the SQL alone: every join column is known on both sides with the same type, so the comparison converts nothing (a
+    conversion could make two distinct target values equal one source value, and a join that matches twice would then
+    change every relationship's counts in the statement, not only its own). Otherwise it keeps its own statement."""
+    try:
+        s, t = plan.schema[r.source], plan.schema[r.target]
+    except Exception:
+        return False
+    if not r.source_cols or len(r.source_cols) != len(r.target_cols):
+        return False
+    stypes = {c.name.lower(): _base_type(c.data_type) for c in s.columns}
+    ttypes = {c.name.lower(): _base_type(c.data_type) for c in t.columns}
+    for a, b in zip(r.source_cols, r.target_cols):
+        st, tt = stypes.get(str(a).lower(), ""), ttypes.get(str(b).lower(), "")
+        if not st or st != tt:
+            return False
+    return True
 
 
 def target_key_unique(keys: list[dict], target: str, target_cols: list[str]) -> bool:
@@ -169,8 +223,16 @@ def relationship_verdict(with_value: int, orphans: int) -> str:
     return f"holds for all {with_value} rows with a value"
 
 
+def _rel_id(r) -> str:
+    return f"rel:{r.source}.{'+'.join(r.source_cols)}>{r.target}"
+
+
 def validate(plan: Plan, execute, max_items: int = 60) -> dict:
-    """Run the checks for every key and every relationship in the plan (up to max_items queries)."""
+    """Run the checks for every key and every relationship in the plan (up to max_items checks: a key, a relationship
+    and an extended relationship count one each, however many statements count them). Since round n108 the
+    relationships of one source table are counted in one statement when there are two or more of them and their join
+    columns have the same types on both sides; the counts are those of their own statements (relationship_sql), and
+    if that statement fails their own statements run instead and combined_relationship_queries says so."""
     schema = plan.schema.schema
     dialect = dialect_of(execute)
     keys, rels, budget = [], [], max_items
@@ -184,14 +246,46 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
         unique[table] = n > 0 and nulls == 0 and distinct == n
         keys.append({"table": table, "columns": cols, "rule": rule, "rows": n, "nulls": nulls,
                      "distinct": distinct, "verdict": key_verdict(n, nulls, distinct)})
-    for r in plan.relationships:
-        if budget <= 0:
-            break
-        budget -= 1
-        row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
-                                       blank_is_none=r.rule == "SAP pack",
-                                       target_unique=target_key_unique(keys, r.target, r.target_cols)))[0]
-        with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
+    # Round n108: the relationships max_items allows (it still counts relationships, not statements), grouped by source
+    # table; a source table with two or more of them is read once (combined_relationship_sql), the rest one by one.
+    todo = list(plan.relationships)[:max(budget, 0)]
+    budget -= len(todo)
+    args = [dict(source_cols=r.source_cols, target=r.target, target_cols=r.target_cols, blank_is_none=r.rule == "SAP pack",
+                 target_unique=target_key_unique(keys, r.target, r.target_cols)) for r in todo]
+    counts: dict[int, tuple[int, int]] = {}
+    combined: list[dict] = []
+    groups: dict[str, list[int]] = {}
+    for i, r in enumerate(todo):
+        if combinable(plan, r):
+            groups.setdefault(r.source, []).append(i)
+    for source, idx in groups.items():
+        if len(idx) < 2:
+            continue
+        sql = combined_relationship_sql(schema, source, [args[i] for i in idx], dialect)
+        # each relationship's own statement, which a customer can run alone, next to the combined one that ran
+        entry = {"source": source, "sql": sql, "relationships": [
+            {"id": _rel_id(todo[i]), "sql": relationship_sql(schema, todo[i].source, todo[i].source_cols, todo[i].target,
+                                                             todo[i].target_cols, dialect, **{k: args[i][k] for k in ("blank_is_none", "target_unique")})}
+            for i in idx]}
+        try:
+            row = execute(sql)[0]
+            got = {}
+            for n, i in enumerate(idx, 1):
+                if f"with_value_{n}" not in row or f"orphans_{n}" not in row:   # not the answer this statement gives
+                    raise LookupError(f"no with_value_{n} or orphans_{n} in the answer")
+                got[i] = (_int(row.get(f"with_value_{n}")), _int(row.get(f"orphans_{n}")))
+            counts.update(got)
+        except Exception as e:                                       # the separate statements below count them instead
+            entry["fell_back"] = (f"the combined statement failed ({type(e).__name__}); each relationship of {source} "
+                                  "was counted with its own statement instead")
+        combined.append(entry)
+    for i, r in enumerate(todo):
+        if i in counts:
+            with_value, orphans = counts[i]
+        else:
+            row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
+                                           blank_is_none=args[i]["blank_is_none"], target_unique=args[i]["target_unique"]))[0]
+            with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
         verdict = relationship_verdict(with_value, orphans)
         if r.target in unique and not unique[r.target]:
             verdict += f"; but the target key of {r.target} is not unique, so a row can match more than one"
@@ -224,9 +318,14 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
                + ("" if checked == total else f" (checked {checked} of {total}; raise max_items to check the rest)"))
     from . import amounts
     levels = amounts.check(plan, execute if budget > 0 else None, max_items=min(20, max(budget, 0)))
-    return {"summary": summary, "keys": keys, "relationships": rels, "amount_levels": levels,
-            "note": "Counts over the whole tables at the moment of the call. They show the data agrees with the plan "
-                    "today; they do not prove the meaning, and new rows can change them."}
+    out = {"summary": summary, "keys": keys, "relationships": rels, "amount_levels": levels}
+    if combined:
+        # Round n108: the statement that ran, once per source table with two or more relationships, and each of its
+        # relationships' own statement (relationship_sql), which gives the same counts and can be run alone.
+        out["combined_relationship_queries"] = combined
+    out["note"] = ( "Counts over the whole tables at the moment of the call. They show the data agrees with the plan "
+                    "today; they do not prove the meaning, and new rows can change them.")
+    return out
 
 
 DETAILS = ("summary", "full")

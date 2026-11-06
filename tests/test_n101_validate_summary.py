@@ -42,6 +42,12 @@ def _adventureworks():
     rows = [("dbo", t["name"], c, typ, i) for t in fx["tables"] for i, (c, typ) in enumerate(t["columns"], 1)]
     p = plan(Schema.from_information_schema(rows, schema="dbo"))
     seen = {"key": 0, "rel": 0}
+    position = {r.key: i for i, r in enumerate(p.relationships, 1)}
+
+    def rel_counts(n):
+        """Relationship n of the plan (1-based): orphans in every fourth, nothing to count in the fifth. By the plan's
+        order, not the order the statements run in (n108 counts a source table's relationships in one statement)."""
+        return (0 if n == 5 else 800), (12 if n % 4 == 0 else 0)
 
     def execute(sql):
         row = {"n": 1000, "nulls": 0, "distinct_keys": 1000, "with_value": 800, "orphans": 0, "several": 0,
@@ -50,12 +56,17 @@ def _adventureworks():
             seen["key"] += 1
             if seen["key"] == 2:
                 row["distinct_keys"] = 990
-        elif "with_value" in sql:
+        elif "with_value_1" in sql:                                 # n108: one source table's relationships at once
+            source = sql.split(" FROM [dbo].[", 1)[1].split("]", 1)[0]
+            rels = [r for r in p.relationships if r.source == source and evidence.combinable(p, r)]
+            for i, r in enumerate(rels, 1):
+                row[f"with_value_{i}"], row[f"orphans_{i}"] = rel_counts(position[r.key])
+        elif "AS several" in sql:
             seen["rel"] += 1
-            if seen["rel"] % 4 == 0:
-                row["orphans"] = 12
-            if seen["rel"] == 5:
-                row["with_value"] = 0
+        elif "with_value" in sql:
+            r = next(r for r in p.relationships if sql in (evidence.relationship_sql("dbo", r.source, r.source_cols, r.target,
+                                                                                      r.target_cols, target_unique=u) for u in (False, True)))
+            row["with_value"], row["orphans"] = rel_counts(position[r.key])
         return [row]
     return p, evidence.validate(p, execute, max_items=200)
 
@@ -143,7 +154,7 @@ def test_an_invalid_detail_from_the_tools_is_bad_input_before_any_query(monkeypa
 
 
 # The measured sizes (characters of the tool's JSON). Pinned so the documentation cannot drift from them.
-SIZES = {"shop": (5312, 3197), "adventureworks": (62634, 9946)}     # n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before
+SIZES = {"shop": (6610, 3197), "adventureworks": (99676, 9946)}     # n103 added next_steps: 2246 and 8241 before; n106 the flat-table count in amount_levels: 62235 before; n108 the combined statements with their relationships' own SQL (full only): 5312 and 62634 before
 
 
 @pytest.mark.parametrize("name", ["shop", "adventureworks"])
@@ -156,11 +167,12 @@ def test_the_summary_is_smaller_and_its_size_is_measured(name):
 
 
 def test_the_hosted_tool_answers_measure_the_same_on_the_shop():
-    """The hosted golden answers (Fabric mocked, the shop rows in SQLite, R5's ship_to_id included): 5 608 characters
-    in full, 3 197 as the summary (2 246 before n103's next_steps)."""
+    """The hosted golden answers (Fabric mocked, the shop rows in SQLite, R5's ship_to_id included): 8 175 characters
+    in full (5 608 before n108 added the combined statements of orders and order_items), 3 197 as the summary, which
+    n108 did not change (2 246 before n103's next_steps)."""
     calls = [e for e in json.loads((GOLDEN / "hosted_tools.json").read_text(encoding="utf-8")) if e.get("tool") == "validate_plan"]
     sizes = {e["args"].get("detail", "summary"): len(_text(e["answer"])) for e in calls if e["args"]["source"] == "demo_lh"}
-    assert sizes == {"full": 5608, "summary": 3197}
+    assert sizes == {"full": 8175, "summary": 3197}
 
 
 def test_sap_verify_refuses_a_summary_and_asks_for_the_full_answer(tmp_path, capsys):

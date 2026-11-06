@@ -106,11 +106,19 @@ def test_the_direct_form_runs_only_after_a_unique_verdict_in_the_same_run():
     out = ev.validate(p, _execute(gs.shop_database(), log))
     unique = {k["table"]: k["columns"] for k in out["keys"] if k["verdict"].startswith("unique")}
     rel_sql = [s for s in log if "AS orphans" in s and "AS several" not in s]
-    assert len(rel_sql) == len(p.relationships)
-    for r, sql in zip(p.relationships, rel_sql):
-        assert sql == ev.relationship_sql("shop", r.source, r.source_cols, r.target, r.target_cols,
-                                          target_unique=sorted(unique.get(r.target, [])) == sorted(r.target_cols))
-        assert (DISTINCT not in sql) == (r.target in unique)
+    # n108: the two order_items relationships run in one statement, the others alone
+    combined = [r for r in p.relationships if r.source == "order_items"]
+    assert len(rel_sql) == len(p.relationships) - len(combined) + 1
+    for r in p.relationships:
+        direct = sorted(unique.get(r.target, [])) == sorted(r.target_cols)
+        own = ev.relationship_sql("shop", r.source, r.source_cols, r.target, r.target_cols, target_unique=direct)
+        if r in combined:
+            ran = next(s for s in rel_sql if "with_value_1" in s)
+            joined = f"[shop].[{r.target}]" if direct else f"(SELECT DISTINCT [{r.target_cols[0]}] FROM [shop].[{r.target}])"
+            assert f"LEFT JOIN {joined} AS t" in ran
+        else:
+            assert own in rel_sql
+        assert (DISTINCT not in own) == (r.target in unique)
     # every key query ran before the first relationship query, as before
     first_rel = log.index(rel_sql[0])
     assert all("distinct_keys" in s for s in log[:first_rel]) and len(log[:first_rel]) == len(p.keys)
@@ -229,3 +237,5 @@ def test_validate_answers_have_the_same_fields_and_counts_as_before():
     want = json.loads((Path(__file__).parent / "golden" / "engine_shop_rows.json").read_text(encoding="utf-8"))["validate"]
     got = json.loads(json.dumps(ev.validate(plan(seed.schema("shop")), _execute(gs.shop_database())), sort_keys=True, default=str))
     assert got == want
+    # n108 added one entry, the combined statement that ran; the others are the ones n104 recorded
+    assert sorted(got) == ["amount_levels", "combined_relationship_queries", "keys", "note", "relationships", "summary"]
