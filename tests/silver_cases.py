@@ -35,3 +35,22 @@ def counts(quarantine):
         k = (q["source_table"], q["rule"], q["reason"])
         out[k] = out.get(k, 0) + 1
     return out
+
+
+def sqlite_execute(data: dict[str, list[dict]]):
+    """Round n115: the same rows in SQLite (schema shop), as validate_plan reads them: an execute(sql) -> list of dicts."""
+    import sqlite3
+
+    from fabric_backend.dialects import sqlite_sql
+    con = sqlite3.connect(":memory:")
+    con.execute("ATTACH DATABASE ':memory:' AS shop")
+    for t, spec in seed.SCHEMAS.items():
+        cols = [c.split()[0] for c in spec.split(", ")]
+        con.execute(f"CREATE TABLE shop.[{t}] ({', '.join(cols)})")
+        con.executemany(f"INSERT INTO shop.[{t}] VALUES ({','.join('?' * len(cols))})",
+                        [tuple(str(v) if hasattr(v, "isoformat") else v for v in r.values()) for r in data.get(t, [])])
+
+    def execute(sql: str):
+        cur = con.execute(sqlite_sql(sql))
+        return [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
+    return execute

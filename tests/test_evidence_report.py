@@ -149,14 +149,25 @@ def _all_kinds(p):
                                pack=pack)
 
 
+def _flat_rows():
+    """n115: n106's flat table (an amount repeated on every row of its order), whose finding the shop does not give."""
+    from test_n106_flat_amounts import _flat
+    p, ex = _flat()
+    return er.report(p, evidence.validate(p, ex), generated_at=AT)["checklist"]
+
+
 def test_every_finding_type_gets_a_row(shop_findings):
     src, p, v = shop_findings
-    rows = er.report(_all_kinds(p), v, generated_at=AT)["checklist"] + er.report(p, None, generated_at=AT)["checklist"]
+    rows = (er.report(_all_kinds(p), v, generated_at=AT)["checklist"] + er.report(p, None, generated_at=AT)["checklist"]
+            + _flat_rows())
     assert {r["type"] for r in rows} == set(er.FINDING_TYPES)
     for r in rows:
         assert r["owner"] == "" and r["status"] == "open" and r["action"] == er.action(r["type"])
-        assert set(r) == {"finding", "type", "table", "column", "counts", "action", "owner", "status"}
-    by = {r["type"]: r for r in rows}
+        assert set(r) == {"finding", "type", "table", "column", "counts", "action", "fix", "owner", "status"}
+        assert r["fix"]["finding"] == r["type"] and r["fix"]["status"] == "draft: not run"
+    by = {}
+    for r in rows:                                                          # the first row of each type: the shop's
+        by.setdefault(r["type"], r)
     assert (by["key_not_unique"]["table"], by["key_not_unique"]["column"], by["key_not_unique"]["counts"]) == \
         ("order_items", "order_id", {"rows": 134, "nulls": 0, "distinct": 60})
     assert (by["orphans"]["table"], by["orphans"]["column"], by["orphans"]["counts"]["orphans"]) == ("orders", "customer_id", 9)

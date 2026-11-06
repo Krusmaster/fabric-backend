@@ -118,6 +118,92 @@ def test_generated_notebook_runs_in_pyspark_and_matches_the_python_steps(tmp_pat
         spark.stop()
 
 
+def _spark(tmp_path, name):
+    from pyspark.sql import SparkSession
+    return (SparkSession.builder.master("local[1]").appName(name)
+            .config("spark.sql.warehouse.dir", str(tmp_path / "warehouse")).config("spark.ui.enabled", "false")
+            .config("spark.sql.shuffle.partitions", "2").getOrCreate())
+
+
+def _run_cells(spark, cells, overrides):
+    ns = {"spark": spark}
+    for kind, code in cells:
+        if kind == "markdown":
+            continue
+        exec(compile(code, "<notebook>", "exec"), ns)
+        if kind == "parameters":
+            exec(overrides, ns)
+    return ns
+
+
+def test_n115_fix_suggestions_run_in_pyspark_with_the_counts_they_state(tmp_path):
+    """Round n115: the silver draft with the fix suggestions in it stops before writing anything until the decisions are
+    made, then ends with the counts the suggestions state and the Python steps reach; the source is unchanged."""
+    from fabric_backend import evidence, fixes
+    from silver_cases import sqlite_execute
+    spark = _spark(tmp_path, "krusgraph-n115-test")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
+        data = seed_rows()
+        for t, rows in data.items():
+            spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
+        p = shop_plan()
+        sug = fixes.suggest(p, evidence.validate(p, sqlite_execute(data)))
+        s = silver.apply_fixes(silver.spec(p, INFO, order_by={"orders": "order_date"}), sug)
+        cells = silver.cells(s)
+        with pytest.raises(ValueError, match="ORPHANS: choose"):
+            _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"')
+        assert not spark.catalog.tableExists("silver.customers")                          # stopped before any write
+        given = {f["silver"]["id"]: ("set_null" if "set_null" in [c["id"] for c in f["choices"]] else "quarantine")
+                 for f in sug if f["kind"] == "choice"}
+        before = {t: spark.read.table(f"shop.{t}").count() for t in data}
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"\n' + "\n".join(f"ORPHANS[{k!r}] = {v!r}" for k, v in given.items()))
+        expected = silver.simulate(s, data, {"ORPHANS": given})
+        for t in data:
+            assert spark.read.table(f"silver.{t}").count() == len(expected["silver"][t]), t
+            assert spark.read.table(f"shop.{t}").count() == before[t], t                     # the source is unchanged
+        for f in sug:
+            if f["finding"] == "key_not_unique":
+                assert spark.read.table(f"silver.{f['table']}").count() == f["counts"]["after"]["silver_rows"]
+        assert spark.read.table("silver.orders").filter("customer_id IS NULL").count() == 1      # set_null: kept, reference NULL
+        q = spark.read.table("silver.krusgraph_quarantine")
+        got = {(r["source_table"], r["reason"]): r["count"] for r in q.groupBy("source_table", "reason").count().collect()}
+        want: dict = {}
+        for x in expected["quarantine"]:
+            want[(x["source_table"], x["reason"])] = want.get((x["source_table"], x["reason"]), 0) + 1
+        assert got == want
+    finally:
+        spark.stop()
+
+
+def test_n115_a_flat_amount_moves_to_its_header_table_in_pyspark(tmp_path):
+    from fabric_backend import fixes
+    from fabric_backend.schema import Column, Schema, Table
+    spark = _spark(tmp_path, "krusgraph-n115-flat")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS x")
+        rows = [(1, 1, 987654.32, 600.0), (1, 2, 987654.32, 400.0), (2, 1, 123457.89, 250.0), (3, 1, 55501.07, 777.13),
+                (3, 2, 55501.07, 30.0), (3, 3, 55501.07, 31.0), (None, 1, 5.0, 5.0)]
+        ddl = "order_id INT, line_no INT, order_amount DOUBLE, line_amount DOUBLE"
+        spark.createDataFrame(rows, ddl).write.format("parquet").mode("overwrite").saveAsTable("x.order_lines")
+        sch = Schema(schema="x")
+        sch.tables["order_lines"] = Table("order_lines", [Column(c.split()[0], c.split()[1].lower()) for c in ddl.split(", ")], schema="x")
+        p = plan(sch)
+        e = {"table": "order_lines", "header_column": "order_id", "amount_column": "order_amount", "rows": 6, "header_values": 3,
+             "repeated_header_values": 2, "differing_header_values": 0, "pattern": True, "sql": "SELECT 1"}
+        s = silver.apply_fixes(silver.spec(p, dict(INFO, schema="x")), [fixes.for_flat_amount(e, "x")])
+        _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+        level = spark.read.table("silver.order_lines_per_order_id")
+        assert level.count() == 3 and round(sum(r["order_amount"] for r in level.collect()), 2) == round(987654.32 + 123457.89 + 55501.07, 2)
+        lines = spark.read.table("silver.order_lines")
+        assert lines.count() == 7 and "order_amount" not in lines.columns
+        assert "order_amount" in spark.read.table("x.order_lines").columns                     # the source keeps it
+        q = spark.read.table("silver.krusgraph_quarantine").collect()
+        assert [r["rule"] for r in q] == ["flat amount"]
+    finally:
+        spark.stop()
+
+
 def test_generated_monitor_runs_two_nights_in_pyspark(tmp_path, monkeypatch):
     pytest.importorskip("pyspark")
     from pyspark.sql import SparkSession

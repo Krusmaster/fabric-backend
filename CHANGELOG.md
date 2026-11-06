@@ -5,6 +5,18 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n115: a fix suggestion for each of validate_plan's findings (`fabric_backend/fixes.py`), as drafts. Each row of
+  the evidence report's checklist carries `fix`, and the report has a "Fix suggestions" section. A fix is a mechanical
+  step with a stated rule: rows with a NULL key and exact copies go to quarantine, one row per key stays, and an amount
+  a flat table repeats on every row of a header value moves to `<table>_per_<header>` in silver. A choice is two such
+  steps with none chosen: an orphan row goes to quarantine, or stays with its reference set to NULL. A question is a
+  business decision with no default: which of two differing rows with one key wins, whether an orphan's target exists
+  elsewhere, which table an amount belongs to. Counts before and after come from the check's own counts and its query.
+  `silver.apply_fixes` puts the steps into the silver notebook draft: the decisions are None in its parameters cell,
+  and the run stops before writing anything while one the data needs is None. Only the silver tables and
+  `krusgraph_quarantine` are written, never a source table, and nothing here runs. n106's flat-table amounts are a
+  checklist finding of their own. No tool added (38). Unit-tested on the synthetic shop and flat-table rows, and the
+  draft ran on a local PySpark 4.0.1 with the counts it states; not run in Fabric, not deployed.
 - Round n114: `dbt_schema` writes a whole dbt project draft with `project=true` (no new tool; still 38). The files are
   dbt_project.yml, the sources file with its tests from the plan's keys and relationships, one staging view per table
   (cast to Fabric Data Warehouse types where the metadata says enough, de-duplicated on the key) and marts in one folder
