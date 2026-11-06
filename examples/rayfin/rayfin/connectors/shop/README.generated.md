@@ -13,43 +13,56 @@
 - `rayfin/tsconfig.json`: the one in the `data-app` template of `@microsoft/rayfin-cli`, written only where the
   project has none.
 
+In a `blankapp` project the app lives in `packages/frontend/`: `--out .` writes `src/lib/connectors.ts` and the page
+under `packages/frontend/src/` when it finds `packages/frontend/package.json`, and keeps the project's own
+`rayfin/tsconfig.json`.
+
 Columns left out of the wiring's default columns and of the page, because they look like personal data by name: addresses.city, customers.name. Add one only where the app's users may see it.
 
 ## Publishing in Fabric
+
+Use the `blankapp` template. On 6 November 2026, with the 1.36.2 packages, the generated files type-checked, compiled
+for `rayfin up` and built in a `blankapp` project with no hand change. In a `dataapp` project (built for semantic
+models) the same files needed three hand changes in the template's files (keep the `SemanticModelConnectors` type in
+`src/lib/connectors.ts`, give `new ConnectorsRayfinClient` in `src/lib/rayfin-client.ts` its type arguments, cast
+through `unknown` in `src/hooks/use-semantic-model-query.ts`), and the template's `src/lib/connectors.spec.ts` then
+fails.
 
 First, a Fabric admin turns on the tenant setting "Enable Fabric App Items (preview)" (`AppBackendTenant`)
 in the Admin portal. Until it is on, `npx rayfin up` stops with 403 "The feature is not available". An admin can read
 the setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off.
 
-1. `npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"`
+1. `npm create @microsoft/rayfin@latest -- <app> --template blankapp --workspace "<workspace>"`
    (in Windows PowerShell `npm.cmd create ...`), then `cd <app>`.
-2. `npx rayfin login`
-3. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read`
+2. `npm run pack:add -- connectors` (the template's step for existing Fabric sources: the connector SDK, a seeded
+   `packages/frontend/src/lib/connectors.ts` and a client typed by `AppConnectorsSchema`).
+3. `npx rayfin login`
+4. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read`
    registers the connector in rayfin.yml, writes `rayfin/connectors/shop/metadata.json` and prints an
    `npm install`; run that inside the project. It may say it wired nothing; the generated `src/lib/connectors.ts` does
    that.
-4. Generate the files from that metadata.json, at the project's root:
+5. Generate the files from that metadata.json, at the project's root:
    `fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema dbo --connector shop --out .`
    (`--page-table <table>` picks the page's table).
-5. Review the keys. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey`
+6. Review the keys. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey`
    where it is wrong.
-6. Use the generated files: in `src/App.tsx`, import `OrderItemsPage` from `./pages/OrderItemsPage` and return
-   `<OrderItemsPage />` in place of the template's placeholder.
-7. `npx tsc -p rayfin/tsconfig.json --noEmit` and `npx tsc -p tsconfig.json --noEmit`
-8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
-9. If the connector step failed: `npx rayfin up connector apply --name shop`. Read the warnings of `rayfin up`:
+7. Use the generated files: in `packages/frontend/src/App.tsx`, import `OrderItemsPage` from
+   `./pages/OrderItemsPage` and return `<OrderItemsPage />` in place of the template's placeholder.
+8. `npx tsc -p rayfin/tsconfig.json --noEmit`, `npm run typecheck` and `npm run build`
+9. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
+10. If the connector step failed: `npx rayfin up connector apply --name shop`. Read the warnings of `rayfin up`:
    a failed connector apply ("No usable compiled connector entities") does not make the deploy report failure.
 
 ## What was verified, and what was not
 
-- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse: a published app showed rows from a table through the
-  connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated files do the same
-  things (type-only schema import, explicit column lists), but they have not been deployed to Fabric or opened in a
-  browser.
+- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse, `dataapp` template: a published app showed rows from a
+  table through the connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated
+  files do the same things (type-only schema import, explicit column lists), but they have not been deployed to Fabric
+  or opened in a browser, and no app has been published from a `blankapp` project.
 - fabric-backend's tests compile the generated files, the page included, with `tsc` against `@microsoft/rayfin-*`
-  1.36.2 and TypeScript 5.7.3, in a project laid out like the `dataapp` template. That checks types, not behaviour:
-  sign-in, the connector apply and reading rows happen only in Fabric.
-- The template used was `dataapp`, which is built for semantic models.
+  1.36.2 and TypeScript 5.7.3, in a project laid out like the `dataapp` template and in one laid out like the
+  `blankapp` template after `pack:add -- connectors`. That checks types, not behaviour: sign-in, the connector apply
+  and reading rows happen only in Fabric.
 
 `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with
 `relationships=False` and keep this file's list as documentation.

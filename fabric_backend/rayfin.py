@@ -23,7 +23,8 @@ hand: `connector add` printed "Wired 0", and importing the entity classes with t
 the page imported the generated schema as a type only and passed explicit column lists. Since n109 those files are
 generated too (`connectors_ts`, `page_tsx`, `RAYFIN_TSCONFIG`, from the installed 1.36.2 packages, see below), and
 tests/test_rayfin_app.py compiles them with the pinned versions; they have not been deployed or run in a browser. The
-template used was `dataapp`, which is built for semantic models. Two things the docs do not say:
+template used was `dataapp`, which is built for semantic models. Since n128 the generated README recommends `blankapp`
+(see BLANKAPP_APP_DIR below). Two things the docs do not say:
 - `@one` / `@many` work on connector entities, but only with `{ sourceFields, targetFields }` —
   without them Rayfin derives a column like `customer_customer_id` that the table does not have.
 - `@date()` properties are typed `Date`, not `string`, or the type check fails.
@@ -33,7 +34,7 @@ and print the rule beside every key so you can take it out.
 from __future__ import annotations
 
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from . import privacy
 from .infer import Plan
@@ -532,41 +533,54 @@ def _readme(connector: str, source_type: str, classes: list[str], plan: Plan, pa
 - `rayfin/tsconfig.json`: the one in the `data-app` template of `@microsoft/rayfin-cli`, written only where the
   project has none.
 
+In a `blankapp` project the app lives in `packages/frontend/`: `--out .` writes `src/lib/connectors.ts` and the page
+under `packages/frontend/src/` when it finds `packages/frontend/package.json`, and keeps the project's own
+`rayfin/tsconfig.json`.
+
 {left_line}## Publishing in Fabric
+
+Use the `blankapp` template. On 6 November 2026, with the 1.36.2 packages, the generated files type-checked, compiled
+for `rayfin up` and built in a `blankapp` project with no hand change. In a `dataapp` project (built for semantic
+models) the same files needed three hand changes in the template's files (keep the `SemanticModelConnectors` type in
+`src/lib/connectors.ts`, give `new ConnectorsRayfinClient` in `src/lib/rayfin-client.ts` its type arguments, cast
+through `unknown` in `src/hooks/use-semantic-model-query.ts`), and the template's `src/lib/connectors.spec.ts` then
+fails.
 
 First, a Fabric admin turns on the tenant setting "Enable Fabric App Items (preview)" (`AppBackendTenant`)
 in the Admin portal. Until it is on, `npx rayfin up` stops with 403 "The feature is not available". An admin can read
 the setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off.
 
-1. `npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"`
+1. `npm create @microsoft/rayfin@latest -- <app> --template blankapp --workspace "<workspace>"`
    (in Windows PowerShell `npm.cmd create ...`), then `cd <app>`.
-2. `npx rayfin login`
-3. `npx rayfin connector add --type {ctype} --workspace-id <ws> --item-id <item> --name {connector} --operations read`
+2. `npm run pack:add -- connectors` (the template's step for existing Fabric sources: the connector SDK, a seeded
+   `packages/frontend/src/lib/connectors.ts` and a client typed by `AppConnectorsSchema`).
+3. `npx rayfin login`
+4. `npx rayfin connector add --type {ctype} --workspace-id <ws> --item-id <item> --name {connector} --operations read`
    registers the connector in rayfin.yml, writes `rayfin/connectors/{connector}/metadata.json` and prints an
    `npm install`; run that inside the project. It may say it wired nothing; the generated `src/lib/connectors.ts` does
    that.
-4. Generate the files from that metadata.json, at the project's root:
+5. Generate the files from that metadata.json, at the project's root:
    `fabric-backend rayfin rayfin/connectors/{connector}/metadata.json --schema {schema} --connector {connector} --out .`
    (`--page-table <table>` picks the page's table).
-5. Review the keys. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey`
+6. Review the keys. Keys marked K2 were inferred from column names. Rayfin's docs say not to; delete `primaryKey`
    where it is wrong.
-6. Use the generated files: in `src/App.tsx`, import `{page_cls}Page` from `./pages/{page_cls}Page` and return
-   `<{page_cls}Page />` in place of the template's placeholder.
-7. `npx tsc -p rayfin/tsconfig.json --noEmit` and `npx tsc -p tsconfig.json --noEmit`
-8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
-9. If the connector step failed: `npx rayfin up connector apply --name {connector}`. Read the warnings of `rayfin up`:
+7. Use the generated files: in `packages/frontend/src/App.tsx`, import `{page_cls}Page` from
+   `./pages/{page_cls}Page` and return `<{page_cls}Page />` in place of the template's placeholder.
+8. `npx tsc -p rayfin/tsconfig.json --noEmit`, `npm run typecheck` and `npm run build`
+9. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
+10. If the connector step failed: `npx rayfin up connector apply --name {connector}`. Read the warnings of `rayfin up`:
    a failed connector apply ("No usable compiled connector entities") does not make the deploy report failure.
 
 ## What was verified, and what was not
 
-- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse: a published app showed rows from a table through the
-  connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated files do the same
-  things (type-only schema import, explicit column lists), but they have not been deployed to Fabric or opened in a
-  browser.
+- Run of 5 November 2026, Rayfin 1.36.2, synthetic lakehouse, `dataapp` template: a published app showed rows from a
+  table through the connector. In that run `src/lib/connectors.ts` and the page were written by hand; the generated
+  files do the same things (type-only schema import, explicit column lists), but they have not been deployed to Fabric
+  or opened in a browser, and no app has been published from a `blankapp` project.
 - fabric-backend's tests compile the generated files, the page included, with `tsc` against `@microsoft/rayfin-*`
-  1.36.2 and TypeScript 5.7.3, in a project laid out like the `dataapp` template. That checks types, not behaviour:
-  sign-in, the connector apply and reading rows happen only in Fabric.
-- The template used was `dataapp`, which is built for semantic models.
+  1.36.2 and TypeScript 5.7.3, in a project laid out like the `dataapp` template and in one laid out like the
+  `blankapp` template after `pack:add -- connectors`. That checks types, not behaviour: sign-in, the connector apply
+  and reading rows happen only in Fabric.
 
 `@one` / `@many` come from the inferred relationships. If the connector rejects them, regenerate with
 `relationships=False` and keep this file's list as documentation.
@@ -575,8 +589,55 @@ Entities: {', '.join(classes)}
 """
 
 
-def write_rayfin(files: dict[str, str], root: str | Path = ".") -> list[Path]:
+# --- the project layout: `blankapp` or `dataapp` ---------------------------------------------------------------------
+#
+# Checked on 6 November 2026 (n128) with the npm packages only (`npm create @microsoft/rayfin@1.36.2`, no login, no
+# `rayfin up`): a `dataapp` and a `blankapp` project (the names `create-rayfin --list-templates` prints), the files
+# generated for the shop example dropped in, then `tsc` and the app build.
+# - `dataapp` keeps the app at the root (src/). Its src/lib/connectors.ts carries the CLI's marker and an app-owned
+#   `SemanticModelConnectors` type that src/hooks/use-semantic-model-query.ts imports, and its src/lib/rayfin-client.ts
+#   builds the client without type arguments. With the generated src/lib/connectors.ts in place the type check needed
+#   three hand changes (keep `SemanticModelConnectors`, give `new ConnectorsRayfinClient` its type arguments, cast
+#   through `unknown` in the hook), and the template's own src/lib/connectors.spec.ts then fails two tests that expect
+#   the CLI's marker.
+# - `blankapp` (the "universal-app" template of @microsoft/rayfin-cli) keeps the app in packages/frontend/, whose
+#   tsconfig.json already includes ../../rayfin/connectors/**/*.ts and which ships its own rayfin/tsconfig.json. After
+#   `npm run pack:add -- connectors` (the template's step for existing Fabric sources: it seeds
+#   packages/frontend/src/lib/connectors.ts with both maps empty and a rayfin-client.ts typed by
+#   `AppConnectorsSchema`), the generated files type-check, compile for `rayfin up` and build with no hand change,
+#   once they sit under packages/frontend/src and import rayfin/connectors/ two levels further up. write_rayfin does
+#   that when it finds packages/frontend/package.json under the root.
+
+BLANKAPP_APP_DIR = "packages/frontend"
+
+
+def app_dir_of(root: str | Path) -> str:
+    """The app's folder inside a Rayfin project: packages/frontend in a `blankapp` project, "" (the root) otherwise."""
+    return BLANKAPP_APP_DIR if (Path(root) / BLANKAPP_APP_DIR / "package.json").is_file() else ""
+
+
+def in_app_dir(files: dict[str, str], app_dir: str) -> dict[str, str]:
+    """The files of rayfin_files with src/ moved under `app_dir` and their imports of rayfin/connectors/ adjusted."""
+    if not app_dir:
+        return dict(files)
+    up = "../" * len(PurePosixPath(app_dir).parts)
+    out = {}
+    for rel, content in files.items():
+        if rel.startswith("src/"):
+            content = (content.replace("from '../../rayfin/connectors/", f"from '../../{up}rayfin/connectors/")
+                       .replace("// src/", f"// {app_dir}/src/", 1)
+                       .replace("Show it from src/App.tsx", f"Show it from {app_dir}/src/App.tsx"))
+            rel = f"{app_dir}/{rel}"
+        out[rel] = content
+    return out
+
+
+def write_rayfin(files: dict[str, str], root: str | Path = ".", app_dir: str | None = None) -> list[Path]:
+    """Write {relative path: text} under `root`. For the Rayfin app files, `app_dir` None means: look at the project
+    (packages/frontend in a `blankapp` project, the root otherwise)."""
     root = Path(root)
+    if "src/lib/connectors.ts" in files:
+        files = in_app_dir(files, app_dir_of(root) if app_dir is None else app_dir)
     out = []
     for rel, content in files.items():
         p = root / rel

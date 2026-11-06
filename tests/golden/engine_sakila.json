@@ -2136,8 +2136,8 @@
   "synonyms": []
  },
  "rayfin": {
-  "bytes": 35066,
-  "sha256": "a9cde3b3dc4480c89bc8bc1cf71808afb8de64bce3e0d0171c1b45ab87893a84"
+  "bytes": 36229,
+  "sha256": "cbfbb39de63db5554bede70e2288ac2ca984a9a0d7c2e5d016f5d50ceb7f9d8f"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[country_id] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[city] AS s LEFT JOIN (SELECT DISTINCT [country_id] FROM [dbo].[country]) AS t ON s.[country_id] = t.[country_id] WHERE s.[country_id] IS NOT NULL",

@@ -1083,8 +1083,8 @@
   "synonyms": []
  },
  "rayfin": {
-  "bytes": 23963,
-  "sha256": "dc65311419751b6d60b174f36921f1207748c16b381c143ae8fd14102e2a725d"
+  "bytes": 25126,
+  "sha256": "d6930a7928490860da194fda433964e55cbe93bae5c3d82f42150d7e19dc8c40"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[R_REGIONKEY] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[NATION] AS s LEFT JOIN (SELECT DISTINCT [R_REGIONKEY] FROM [dbo].[REGION]) AS t ON s.[N_REGIONKEY] = t.[R_REGIONKEY] WHERE s.[N_REGIONKEY] IS NOT NULL",

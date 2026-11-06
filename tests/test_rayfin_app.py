@@ -22,12 +22,14 @@ from pathlib import Path
 import pytest
 
 from fabric_backend import Schema, plan
-from fabric_backend.rayfin import RAYFIN_TSCONFIG, RAYFIN_TSCONFIG_PATH, rayfin_files, write_rayfin
+from fabric_backend.rayfin import (BLANKAPP_APP_DIR, RAYFIN_TSCONFIG, RAYFIN_TSCONFIG_PATH, in_app_dir, rayfin_files,
+                                   write_rayfin)
 
 ROOT = Path(__file__).resolve().parent.parent
 EX = ROOT / "examples"
 CHECK = ROOT / "tests" / "fixtures" / "rayfin_check"
 TEMPLATE = CHECK / "node_modules" / "@microsoft" / "rayfin-cli" / "templates" / "data-app"
+BLANKAPP = CHECK / "node_modules" / "@microsoft" / "rayfin-cli" / "templates" / "universal-app"   # `--template blankapp`
 SCHEMAS = ROOT / "tests" / "fixtures" / "schemas"
 
 
@@ -144,6 +146,29 @@ def test_the_example_is_the_generated_output(shop):
         assert (EX / "rayfin" / rel).read_text(encoding="utf-8") == content, rel
 
 
+def test_in_a_blankapp_project_the_app_files_go_to_packages_frontend(shop, tmp_path):
+    """n128: `blankapp` keeps the app in packages/frontend/; the generated README recommends it."""
+    root = tmp_path / "app"
+    (root / BLANKAPP_APP_DIR).mkdir(parents=True)
+    (root / BLANKAPP_APP_DIR / "package.json").write_text("{}", encoding="utf-8")
+    (root / "rayfin").mkdir()
+    (root / RAYFIN_TSCONFIG_PATH).write_text('{"extends": "../tsconfig.base.json"}\n', encoding="utf-8")
+    files = rayfin_files(shop, "shop")
+    written = {p.relative_to(root).as_posix() for p in write_rayfin(files, root)}
+    assert "packages/frontend/src/lib/connectors.ts" in written and "packages/frontend/src/pages/OrderItemsPage.tsx" in written
+    assert "rayfin/connectors/shop/schema.ts" in written and not (root / "src").exists()
+    assert (root / RAYFIN_TSCONFIG_PATH).read_text(encoding="utf-8") == '{"extends": "../tsconfig.base.json"}\n'
+    page = (root / "packages/frontend/src/pages/OrderItemsPage.tsx").read_text(encoding="utf-8")
+    assert "import type { OrderItems } from '../../../../rayfin/connectors/shop/schema';" in page
+    assert "Show it from packages/frontend/src/App.tsx" in page
+    wiring = (root / "packages/frontend/src/lib/connectors.ts").read_text(encoding="utf-8")
+    assert "from '../../../../rayfin/connectors/shop/schema';" in wiring and "'../../rayfin/" not in wiring
+    assert in_app_dir(files, "") == files                                   # a `dataapp` project: unchanged
+    readme = files["rayfin/connectors/shop/README.generated.md"]
+    assert "--template blankapp" in readme and "--template dataapp" not in readme
+    assert "npm run pack:add -- connectors" in readme and "packages/frontend/src/App.tsx" in readme
+
+
 # --- the compile check ----------------------------------------------------------------------------------------------
 
 def _need(msg: str):
@@ -224,6 +249,54 @@ def test_the_generated_project_compiles_with_the_pinned_versions(case, shop, nod
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def _blankapp_project(root: Path, node_modules: Path, files: dict[str, str]) -> Path:
+    """A project laid out like the `blankapp` template (universal-app in @microsoft/rayfin-cli 1.36.2) after
+    `npm run pack:add -- connectors`: its package.json ("type": "module"), the root and rayfin/ tsconfigs, packages/shared, packages/frontend's tsconfig.json
+    and vite-env.d.ts, and the pack's connectors.ts and rayfin-client.ts, plus the generated files. The rest of the
+    template's frontend is not copied: its imports need packages the generated files do not use."""
+    kit = BLANKAPP / ".agents" / "skills" / "connectors" / "kit"
+    copies = {rel: BLANKAPP / rel for rel in ("package.json", "tsconfig.base.json", "rayfin/tsconfig.json", "packages/shared/package.json",
+                                              "packages/shared/tsconfig.json", "packages/shared/src/index.ts",
+                                              "packages/frontend/package.json", "packages/frontend/tsconfig.json",
+                                              "packages/frontend/src/vite-env.d.ts")}
+    copies["packages/frontend/src/lib/connectors.ts"] = kit / "connectors.ts"
+    copies["packages/frontend/src/lib/rayfin-client.ts"] = kit / "rayfin-client.ts"
+    for rel, src in copies.items():
+        (root / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, root / rel)
+    nm = root / "node_modules"                            # the pinned packages, and the workspace's @rayfin-app/shared
+    nm.mkdir()
+    for entry in node_modules.iterdir():
+        (nm / entry.name).symlink_to(entry, target_is_directory=entry.is_dir())
+    (nm / "@rayfin-app").mkdir()
+    (nm / "@rayfin-app" / "shared").symlink_to(root / "packages" / "shared", target_is_directory=True)
+    write_rayfin(files, root)
+    return root
+
+
+@pytest.mark.parametrize("case", ["shop", "northwind"])
+def test_the_generated_files_compile_in_a_blankapp_project(case, shop, node_modules, tmp_path):
+    """n128: in `blankapp` the generated files need no hand change: they replace the pack's seeded connectors.ts, the
+    pack's rayfin-client.ts takes their AppConnectorsSchema, connectorConfigs and connectorRuntimes."""
+    if case == "shop":
+        files, page = rayfin_files(shop, "shop"), "OrderItemsPage.tsx"
+    else:
+        fx = json.loads((SCHEMAS / "northwind.json").read_text(encoding="utf-8"))
+        rows = [("dbo", t["name"], col, typ, i) for t in fx["tables"] for i, (col, typ) in enumerate(t["columns"], 1)]
+        files, page = rayfin_files(plan(Schema.from_information_schema(rows, schema="dbo")), "north-wind",
+                                   page_table="employees"), "EmployeesPage.tsx"
+    root = _blankapp_project(tmp_path / case, node_modules, files)
+    assert (root / BLANKAPP_APP_DIR / "src" / "pages" / page).exists() and not (root / "src").exists()
+    assert (root / RAYFIN_TSCONFIG_PATH).read_bytes() == (BLANKAPP / RAYFIN_TSCONFIG_PATH).read_bytes()  # the project's own
+    tsc = str(root / "node_modules" / "typescript" / "bin" / "tsc")
+    r = subprocess.run(["node", tsc, "-p", "rayfin/tsconfig.json"], cwd=root, capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert any((root / "rayfin" / ".temp" / "compiled" / "connectors").rglob("schema.js"))
+    r = subprocess.run(["node", tsc, "-b", f"{BLANKAPP_APP_DIR}/tsconfig.json"], cwd=root, capture_output=True, text=True,
+                       timeout=600)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
 def test_the_compile_check_fails_on_a_wrong_column(shop, node_modules, tmp_path):
     """The check is not vacuous: a column the entity does not have fails the app's type check."""
     files = rayfin_files(shop, "shop")
@@ -231,4 +304,15 @@ def test_the_compile_check_fails_on_a_wrong_column(shop, node_modules, tmp_path)
     files[page] = files[page].replace("'quantity', 'timestamp'] as const", "'quantity', 'nope'] as const")
     root = _project(tmp_path / "wrong", node_modules, files)
     r = _tsc(root, "tsconfig.json")
+    assert r.returncode != 0 and "nope" in r.stdout
+
+
+def test_the_blankapp_compile_check_fails_on_a_wrong_column(shop, node_modules, tmp_path):
+    """packages/frontend's type check does read the generated page: a column the entity does not have fails it."""
+    files = rayfin_files(shop, "shop")
+    page = "src/pages/OrderItemsPage.tsx"
+    files[page] = files[page].replace("'quantity', 'timestamp'] as const", "'quantity', 'nope'] as const")
+    root = _blankapp_project(tmp_path / "wrong", node_modules, files)
+    r = subprocess.run(["node", str(root / "node_modules" / "typescript" / "bin" / "tsc"), "-b",
+                        f"{BLANKAPP_APP_DIR}/tsconfig.json"], cwd=root, capture_output=True, text=True, timeout=600)
     assert r.returncode != 0 and "nope" in r.stdout

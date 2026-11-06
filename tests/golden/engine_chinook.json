@@ -1243,8 +1243,8 @@
   "synonyms": []
  },
  "rayfin": {
-  "bytes": 25858,
-  "sha256": "8c9c0434949f446b70b0d87fee4a27e1437e764c5e996332d3a8a735be65403a"
+  "bytes": 27021,
+  "sha256": "92191b2307376a803d366d5f4ac99056c5f6374f435fe7fcef364195593cee03"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[ArtistId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Album] AS s LEFT JOIN (SELECT DISTINCT [ArtistId] FROM [dbo].[Artist]) AS t ON s.[ArtistId] = t.[ArtistId] WHERE s.[ArtistId] IS NOT NULL",
