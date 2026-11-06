@@ -157,8 +157,10 @@ JS = r"""
       if (!passed && GLAD.indexOf(pose) >= 0) pose = "explain";      // never glad about a check that did not pass
       row.querySelector("svg").setAttribute("data-pose", pose);
       row.className = "kg-say " + k + (passed && GLAD.indexOf(pose) >= 0 ? " glad" : "");
-      row.querySelector(".kg-line").textContent = s && s[0] ? s[0] : "";
-      row.hidden = !(s && s[0]);
+      // n137: a figure says a sentence, never a JSON text (seen live when the card could not read the answer).
+      var line = s && typeof s[0] === "string" && s[0].trim() && !/^\s*[\[{]/.test(s[0]) ? s[0] : "";
+      row.querySelector(".kg-line").textContent = line;
+      row.hidden = !line;
       any = any || !row.hidden;
     });
     box.setAttribute("data-filled", any ? "1" : "");

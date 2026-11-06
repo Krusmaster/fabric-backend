@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n137: the MCP Apps cards read the tool result. Seen live in Claude on the web and in the Claude desktop app on
+  6 November 2026: validate_plan's card listed the whole answer as one JSON string under "Needs attention" (no
+  mascots, no next-step buttons) and review_plan's card said it held no review file. Cause: the tools return `str`, so
+  the SDK derives the output schema `{"result": string}` and sends `structuredContent: {"result": "<JSON text>"}`; the
+  cards parsed only the text content and listed the wrapper's `result` as an attention line. Both cards now read the
+  result in every form a host may deliver (`mcp_apps.READ_JS`): `structuredContent` when it holds the answer, else the
+  text content as JSON, unwrapping `{"result": "<JSON text>"}` in either place; what cannot be read gives one short
+  sentence, never a JSON dump, and a mascot never says a JSON text. validate_plan's card shows an all-passed answer's
+  `result` sentence under the counts instead of under "Needs attention". With `KRUSGRAPH_MCP_APPS=1`, validate_plan and
+  review_plan also return the answer as `structuredContent` (text content unchanged) and are listed without the derived
+  output schema; with the flag off nothing changes. Tool count unchanged. Browser tests
+  (`tests/test_n137_card_reads_result.py`, Chromium) feed both cards each payload shape with the live shop answers.
 - Round n136: the site's mascots on both MCP Apps cards (`fabric_backend/mcp_apps_mascots.py`), still only with
   `KRUSGRAPH_MCP_APPS=1`. Onto says the counts (the answer's `summary`), the Thinker the first thing that needs
   attention, the Builder the next step (validate_plan's first next step; review_plan's `note`, now also shown under

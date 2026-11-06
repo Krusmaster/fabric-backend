@@ -20,8 +20,16 @@ that repository is copied.
 - The view talks to the host with JSON-RPC 2.0 over postMessage: `ui/initialize` (appInfo, appCapabilities,
   protocolVersion "2026-01-26"), then the notification `ui/notifications/initialized`. The host then sends
   `ui/notifications/tool-input` (the call's arguments) and `ui/notifications/tool-result` (a CallToolResult). The card
-  reads the summary JSON from the result's text content, the same text every other client gets, and reports its height
-  with `ui/notifications/size-changed`.
+  reports its height with `ui/notifications/size-changed`.
+- Reading the CallToolResult (n137). Seen live in Claude on the web and in the desktop app on 6 November 2026: the
+  card got the answer as `{"result": "<JSON text>"}`, the SDK's wrapping of a tool that returns `str`, and listed that
+  JSON string as one line under "Needs attention", with no mascots and no buttons. The cards now read the result in
+  every form the specification lets a host deliver (READ_JS): `structuredContent` when it holds the answer, otherwise
+  the text content parsed as JSON; a `{"result": "<JSON text>"}` wrapper is unwrapped in either place. What cannot be
+  read gives a short sentence, never a raw dump. With the flag on, validate_plan and review_plan also return the answer
+  as `structuredContent` (structured() below; the specification's "structuredContent: structured data optimized for
+  UI rendering"), with the text content unchanged. They are then registered without an output schema, because the
+  SDK's derived one ({"result": string}) would not describe that data.
 - A button sends `tools/call` to the host, which the host may forward to this server or put to the user first. Only the
   tools in evidence.NEXT_STEP_TOOLS (n103: they read or draft, none creates) can be called, and only with the arguments
   the step names plus workspace, source, schema and, where the tool takes them, keys and confirmed from this call.
@@ -31,6 +39,7 @@ that repository is copied.
 """
 from __future__ import annotations
 
+import functools
 import json
 import os
 
@@ -42,6 +51,7 @@ CARD_URI = "ui://krusgraph/validate-plan-card.html"
 APP_MIME_TYPE = "text/html;profile=mcp-app"           # the specification's MIME type; mcp.server.apps.APP_MIME_TYPE
 PROTOCOL_VERSION = "2026-01-26"
 TOOL = "validate_plan"
+STRUCTURED = ("validate_plan", "review_plan")        # n137: the tools whose answer is also returned as structuredContent
 
 # The arguments a next step carries over from the validate_plan call, per tool: workspace, source and schema always;
 # keys and confirmed only where the tool takes them. tests/test_n119_mcp_apps.py checks each against the tool's
@@ -61,6 +71,36 @@ def tool_meta(on: bool | None = None) -> dict | None:
     if not (enabled() if on is None else on):
         return None
     return {"ui": {"resourceUri": CARD_URI}, "ui/resourceUri": CARD_URI}
+
+
+def call_result(text: str):
+    """n137: a tool's text answer as a CallToolResult: the same text content every client gets, plus the answer as
+    `structuredContent` when the text is a JSON object (an answer that is not one has no structuredContent)."""
+    from mcp.types import CallToolResult, TextContent
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError):
+        data = None
+    return CallToolResult(content=[TextContent(type="text", text=text)],
+                          structured_content=data if isinstance(data, dict) else None)
+
+
+def structured(fn):
+    """n137: the registered form of a tool in STRUCTURED when the flag is on: the tool's own function, its answer
+    wrapped by call_result. The module's function stays the one that returns text."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        out = fn(*args, **kwargs)
+        return call_result(out) if isinstance(out, str) else out
+    return wrapper
+
+
+def registration(name: str, on: bool | None = None) -> dict:
+    """The extra arguments of the tool decorator for `name`: none with the flag off or for any other tool, else
+    structured_output=False (no derived {"result": string} output schema, which would not describe the answer)."""
+    if name not in STRUCTURED or not (enabled() if on is None else on):
+        return {}
+    return {"structured_output": False}
 
 
 def extensions(on: bool | None = None) -> list:
@@ -84,10 +124,52 @@ def card_html() -> str:
     (the counts), the Thinker the first thing that needs attention, the Builder the first next step, each word for word
     from the text answer and also on the card; glad only when every check passed; a button hides them."""
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS)
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
+
+# n137: how both cards read a CallToolResult, in every form the specification lets a host deliver it. answerOf(result)
+# gives the answer object or null: `structuredContent` when it holds the answer; otherwise the first text content that
+# parses as a JSON object; a {"result": "<JSON text>"} wrapper (the SDK's wrapping of a `str` tool, seen live) is
+# unwrapped in either place, as is a host that hands over the wrapper itself. resultText(result) gives readable text
+# for a tool a button ran: its text content, or its structuredContent as indented JSON.
+READ_JS = r"""
+  function looksJson(t) { return typeof t === "string" && /^\s*[\[{]/.test(t); }
+  function parseJson(t) { if (!looksJson(t)) return null; try { return JSON.parse(t); } catch (e) { return null; } }
+  function isObj(x) { return !!x && typeof x === "object" && !Array.isArray(x); }
+  function unwrap(d) {
+    for (var i = 0; i < 4 && isObj(d); i++) {
+      var ks = Object.keys(d);
+      if (ks.length !== 1 || ks[0] !== "result") return d;
+      var inner = isObj(d.result) ? d.result : parseJson(d.result);
+      if (!isObj(inner)) return null;            // {"result": "<a sentence>"} holds no answer object
+      d = inner;
+    }
+    return isObj(d) ? d : null;
+  }
+  function textParts(result) {
+    var parts = (result && Array.isArray(result.content)) ? result.content : [], out = [];
+    for (var i = 0; i < parts.length; i++) if (parts[i] && parts[i].type === "text" && typeof parts[i].text === "string") out.push(parts[i].text);
+    return out;
+  }
+  function answerOf(result) {
+    if (!isObj(result)) return null;
+    var d = isObj(result.structuredContent) ? unwrap(result.structuredContent) : null;
+    if (d) return d;
+    var texts = textParts(result);
+    for (var i = 0; i < texts.length; i++) { d = unwrap(parseJson(texts[i])); if (d) return d; }
+    if (!("content" in result) && !("structuredContent" in result)) return unwrap(result);   // the wrapper itself
+    return null;
+  }
+  function resultText(result) {
+    var texts = textParts(result);
+    if (texts.length) return texts.join("\n");
+    var d = isObj(result) && isObj(result.structuredContent) ? unwrap(result.structuredContent) : null;
+    return d ? JSON.stringify(d, null, 2) : "";
+  }
+  function readable(s) { return typeof s === "string" && s.trim() && !looksJson(s) ? s : ""; }
+"""
 
 _HTML = """<!DOCTYPE html>
 <html lang="en">
@@ -139,6 +221,7 @@ __MASCOT_CSS__
   <p id="verdict" class="muted" role="status">Waiting for validate_plan's answer.</p>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
+  <p id="result" class="muted" hidden></p>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul></section>
   <section id="next" hidden><h2 class="muted">Next steps (each reads or drafts; nothing is created)</h2><div id="steps" class="steps"></div></section>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that tool; the host may ask you first.</p>
@@ -159,53 +242,54 @@ __MASCOT_CSS__
 __MASCOT_JS__
   function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = String(text); if (cls) e.className = cls; return e; }
 
-  function textOf(result) {
-    var parts = (result && result.content) || [];
-    for (var i = 0; i < parts.length; i++) if (parts[i] && parts[i].type === "text") return parts[i].text;
-    return "";
-  }
-
+__READ_JS__
   function render(result) {
-    var data;
-    try { data = JSON.parse(textOf(result)); } catch (e) { data = null; }
+    var data = answerOf(result);
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
-    if (!data || typeof data !== "object") { verdict.textContent = "The answer is not a validate_plan summary; it is in the text of the tool result."; return; }
-    if (data.error) { verdict.textContent = data.error + (data.hint ? " " + data.hint : ""); return; }
-    verdict.textContent = data.summary || "";
+    ["counts", "result", "attention", "next"].forEach(function (id) { document.getElementById(id).hidden = true; });
+    if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
+    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
+    verdict.textContent = readable(data.summary);
     var counts = document.getElementById("counts"); counts.textContent = "";
     var totals = data.totals || {};
     [["keys", "Keys"], ["relationships", "Relationships"], ["amount_levels", "Header amounts"]].forEach(function (k) {
-      var t = totals[k[0]]; if (!t || !t.checked) return;
+      var t = totals[k[0]]; if (!isObj(t) || !t.checked) return;
       var box = el("div"); box.appendChild(el("dt", k[1]));
       box.appendChild(el("dd", t.passed + " of " + t.checked + " passed", t.failed ? "warn" : "ok"));
       counts.appendChild(box);
     });
     var box = el("div"); box.appendChild(el("dt", "Needs attention"));
-    box.appendChild(el("dd", String(data.needs_attention || 0), data.needs_attention ? "warn" : "ok"));
+    box.appendChild(el("dd", String(Number(data.needs_attention) || 0), data.needs_attention ? "warn" : "ok"));
     counts.appendChild(box);
     counts.hidden = false;
 
+    // n137: the overall result in words (an answer with nothing to attend to has one), never a JSON text.
+    var res = document.getElementById("result"); res.textContent = readable(data.result); res.hidden = !res.textContent;
+
     var list = document.getElementById("attention-list"); list.textContent = "";
-    var att = data.attention || {}, firstWhat = "", firstStep = "";
+    var att = isObj(data.attention) ? data.attention : {}, firstWhat = "", firstStep = "";
     Object.keys(att).forEach(function (kind) {
-      (att[kind] || []).forEach(function (x) {
-        var what = x.verdict || x.do_instead || x.explanation ||
+      (Array.isArray(att[kind]) ? att[kind] : []).forEach(function (x) {
+        if (typeof x === "string") { if (readable(x)) { if (!firstWhat) firstWhat = x; list.appendChild(el("li", x)); } return; }
+        if (!isObj(x)) return;
+        var what = readable(x.verdict) || readable(x.do_instead) || readable(x.explanation) ||
           [x.table || x.source || x.header, x.target || x.line].filter(Boolean).join(" \\u2192 ");
         var who = x.table || (x.source ? x.source + " \\u2192 " + x.target : (x.header ? x.header + " / " + x.line : kind));
-        if (!firstWhat && what) firstWhat = what;
+        if (!what) return;
+        if (!firstWhat) firstWhat = what;
         list.appendChild(el("li", who + ": " + what));
       });
     });
     document.getElementById("attention").hidden = !list.children.length;
-    if (!list.children.length && data.result) { list.appendChild(el("li", data.result)); document.getElementById("attention").hidden = false; }
 
     var steps = document.getElementById("steps"); steps.textContent = "";
-    (data.next_steps || []).forEach(function (s) {
-      if (!s || !Object.prototype.hasOwnProperty.call(ALLOWED, s.tool)) return;   // only read and draft tools
+    (Array.isArray(data.next_steps) ? data.next_steps : []).forEach(function (s) {
+      if (!isObj(s) || !Object.prototype.hasOwnProperty.call(ALLOWED, s.tool)) return;   // only read and draft tools
       var row = el("div", null, "step");
-      if (!firstStep) firstStep = s.why || s.text || "";
-      row.appendChild(el("p", s.why || s.text || ""));
+      var why = readable(s.why) || readable(s.text);
+      if (!firstStep) firstStep = why;
+      row.appendChild(el("p", why));
       var b = el("button", "Run " + s.tool); b.type = "button";
       var out = el("pre"); out.hidden = true;
       b.addEventListener("click", function () { run(s, b, out); });
@@ -216,9 +300,9 @@ __MASCOT_JS__
     // n136: Onto says the counts, the Thinker what needs attention, the Builder the next step; every sentence is a
     // string of the answer and is on the card above. Glad only when every check passed and nothing needs attention.
     var checked = 0, failed = 0;
-    Object.keys(totals).forEach(function (k) { var t = totals[k] || {}; checked += t.checked || 0; failed += t.failed || 0; });
+    Object.keys(totals).forEach(function (k) { var t = isObj(totals[k]) ? totals[k] : {}; checked += t.checked || 0; failed += t.failed || 0; });
     var passed = checked > 0 && failed === 0 && !data.needs_attention && !firstWhat;
-    mascots({ onto: [data.summary || "", passed ? "celebrate" : "point"],
+    mascots({ onto: [readable(data.summary), passed ? "celebrate" : "point"],
               thinker: [firstWhat, "think"],
               builder: [firstStep, passed ? "heart" : "explain"] }, passed);
   }
@@ -230,7 +314,7 @@ __MASCOT_JS__
     Object.keys(own).forEach(function (k) { args[k] = own[k]; });
     button.disabled = true; out.hidden = false; out.textContent = "Asked the host to run " + step.tool + ".";
     request("tools/call", { name: step.tool, arguments: args }).then(function (r) {
-      var t = textOf(r); out.textContent = t.length > 4000 ? t.slice(0, 4000) + "\\n\\u2026 (the rest is in the tool's own answer)" : t;
+      var t = resultText(r); out.textContent = t.length > 4000 ? t.slice(0, 4000) + "\\n\\u2026 (the rest is in the tool's own answer)" : t;
     }, function (e) {
       out.textContent = "The host did not run " + step.tool + ": " + (e && e.message ? e.message : "no reason given") + ".";
     }).then(function () { button.disabled = false; });

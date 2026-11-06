@@ -8,7 +8,8 @@ SDK's `Apps` extension, the tool pointing at it with `_meta.ui.resourceUri` and 
 with JSON-RPC 2.0 over postMessage (`ui/initialize`, `ui/notifications/initialized`, `ui/notifications/tool-input`,
 `ui/notifications/tool-result`, `ui/notifications/size-changed`, `tools/call`). No code from that repository is copied.
 
-What the card shows, all of it read from the text of review_plan's answer (the same text every client gets):
+What the card shows, all of it read from review_plan's answer (since n137 in every form a host may deliver it, see
+mcp_apps.READ_JS: structuredContent, the text content as JSON, or either wrapped as {"result": "<JSON text>"}):
 
 - the summary and the answer's `attention` lines;
 - an ER diagram drawn as inline SVG from `review.snapshot`: one box per table with its key columns marked "key" and its
@@ -69,7 +70,8 @@ def card_html() -> str:
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
-            .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
+            .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
+            .replace("__READ_JS__", mcp_apps.READ_JS))
 
 
 _HTML = r"""<!DOCTYPE html>
@@ -176,11 +178,7 @@ __MASCOT_JS__
     if (text != null) e.textContent = String(text);
     return e;
   }
-  function textOf(result) {
-    var parts = (result && result.content) || [];
-    for (var i = 0; i < parts.length; i++) if (parts[i] && parts[i].type === "text") return parts[i].text;
-    return "";
-  }
+__READ_JS__
   function lower(s) { return String(s).toLowerCase(); }
 
   // ---------------------------------------------------------------- what is a finding
@@ -401,15 +399,16 @@ __MASCOT_JS__
   function render(data) {
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
-    if (!data || typeof data !== "object") { verdict.textContent = "The answer is not a review_plan answer; it is in the text of the tool result."; return; }
-    if (data.error) { verdict.textContent = data.error + (data.hint ? " " + data.hint : ""); return; }
+    if (!isObj(data)) { verdict.textContent = "The card could not read review_plan's answer; it is in the text of the tool result."; return; }
+    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
     var rv = data.review;
-    if (!rv || !rv.snapshot || !rv.snapshot.tables) { verdict.textContent = "The answer holds no review file; it is in the text of the tool result."; return; }
+    if (!isObj(rv) || !isObj(rv.snapshot) || !rv.snapshot.tables) { verdict.textContent = "The answer holds no review file; it is in the text of the tool result."; return; }
     answer = data;
-    verdict.textContent = data.summary || "";
+    verdict.textContent = readable(data.summary);
 
     var list = document.getElementById("attention-list"); list.textContent = "";
-    (data.attention || []).forEach(function (a) { list.appendChild(el("li", a)); });
+    var attention = (Array.isArray(data.attention) ? data.attention : []).filter(function (a) { return !!readable(a); });
+    attention.forEach(function (a) { list.appendChild(el("li", a)); });
     document.getElementById("attention").hidden = !list.children.length;
 
     document.getElementById("er").hidden = false;
@@ -429,7 +428,7 @@ __MASCOT_JS__
     });
     document.getElementById("list").hidden = !box.children.length;
 
-    var note = typeof data.note === "string" ? data.note : "";
+    var note = readable(data.note);
     document.getElementById("note").textContent = note;
     document.getElementById("next").hidden = !note;
 
@@ -437,10 +436,10 @@ __MASCOT_JS__
     // sentence is a string of the answer and is on the card. Glad only when every item was checked and passed and
     // nothing needs attention.
     var all = rv.items || [];
-    var passed = all.length > 0 && !(data.attention || []).length &&
+    var passed = all.length > 0 && !attention.length &&
                  all.every(function (it) { return (it.check || {}).status === "passed"; });
-    mascots({ onto: [data.summary || "", passed ? "celebrate" : "point"],
-              thinker: [(data.attention || [])[0] || "", "think"],
+    mascots({ onto: [readable(data.summary), passed ? "celebrate" : "point"],
+              thinker: [attention[0] || "", "think"],
               builder: [note, passed ? "heart" : "explain"] }, passed);
   }
 
@@ -466,8 +465,8 @@ __MASCOT_JS__
     note.textContent = "Asked the host to call review_plan: " + item + " " + review + ".";
     button.disabled = true;
     request("tools/call", { name: TOOL, arguments: args }).then(function (r) {
-      var parsed = null; try { parsed = JSON.parse(textOf(r)); } catch (e) { parsed = null; }
-      if (parsed && parsed.review) {
+      var parsed = answerOf(r);
+      if (parsed && isObj(parsed.review)) {
         render(parsed);
         note.textContent = "review_plan answered: " + item + " " + review + ". " + (parsed.note || "");
       } else {
@@ -491,8 +490,7 @@ __MASCOT_JS__
     }
     if (m.method === "ui/notifications/tool-input") input = (m.params && m.params.arguments) || {};
     else if (m.method === "ui/notifications/tool-result") {
-      var data; try { data = JSON.parse(textOf(m.params)); } catch (e) { data = null; }
-      render(data);
+      render(answerOf(m.params));
     }
     else if (m.method === "ui/notifications/tool-cancelled") { document.getElementById("verdict").textContent = "The review was cancelled."; mascotsQuiet(); }
     else if (m.method === "ui/resource-teardown" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });

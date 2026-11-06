@@ -344,6 +344,10 @@ def _titled_tool(register):
             guarded = _switches.guard(_instrumented(fn, name), name, annotations)
             if not _switches.register(name, annotations):
                 return guarded
+            extra = _mcp_apps.registration(name)                # n137: structuredContent for the cards, flag on only
+            if extra:
+                register(*args, title=title, annotations=annotations, **kwargs, **extra)(_mcp_apps.structured(guarded))
+                return guarded                                  # the module's function still answers text
             return register(*args, title=title, annotations=annotations, **kwargs)(guarded)
         return wrap
     return tool
