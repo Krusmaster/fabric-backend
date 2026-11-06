@@ -39,7 +39,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n131 (agent test questions: new `fabric_backend/agent_tests.py`, an option on `create_data_agent`) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
-| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
+| SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | n129 (SAP mirror metadata: `fabric_backend/sap_pack.py`, new `fabric_backend/sap_mirror.py`, new `tests/test_sap_mirror.py`) |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 | Tests | `tests/` | open |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || n128 (blankapp check: `fabric_backend/rayfin.py`, its tests, the Rayfin section of `README.md`, `tests/fixtures/rayfin_check/`) |
