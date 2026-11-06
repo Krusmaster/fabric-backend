@@ -40,7 +40,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n120 (create pipeline: `pipeline.py`, the new `create_pipeline` tool in `server.py`, its status, docs line, skill line, tests and goldens); n122 (quality suites: `fabric_backend/quality_suites.py`, the `quality` and `profile` options of `dbt_schema` in `server.py` and `dbt.py`, their tests and goldens); n123 (server-wide switches: `fabric_backend/switches.py`, its registration in `server.py` and `mcp_server.py`, the switch clause in both servers' instructions, `/healthz`, `/llms.txt` and the Hosting and permissions section of `DOCS.md`, `docs/RISK-REGISTER.md` R3, their tests and the `hosted_listing` golden) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n121 (`docs/SEGMENTATION.md` only) |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 | Tests | `tests/` | open |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` | open |
 
