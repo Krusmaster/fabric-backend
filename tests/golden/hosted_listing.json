@@ -1697,7 +1697,7 @@
     "read_only_hint": true,
     "title": "dbt schema.yml with source tests"
    },
-   "description": "Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,\ncomposite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric\nWarehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows\ncounted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. Can sit beside dbt\nLabs' dbt-mcp, which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.\nRead-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}.",
+   "description": "Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,\ncomposite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric\nWarehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows\ncounted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. quality: the same\nchecks as Great Expectations and/or Soda drafts; profile: a Fabric profiles.yml. Can sit beside dbt Labs' dbt-mcp,\nwhich runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.\nRead-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "arguments_block": {
@@ -1748,11 +1748,30 @@
       "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
       "title": "Keys"
      },
+     "profile": {
+      "default": false,
+      "description": "With project=true: adds a profiles.yml for Fabric with placeholders and no secret. Default false.",
+      "title": "Profile",
+      "type": "boolean"
+     },
      "project": {
       "default": false,
       "description": "true: a whole dbt project as files (staging, marts per domain) instead of the sources file. Default false. Example: true.",
       "title": "Project",
       "type": "boolean"
+     },
+     "quality": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Also drafts the same key and relationship checks as a Great Expectations suite per table (\"gx\"), as SodaCL checks (\"soda\") or both (\"both\"), each with its rule and counts. Default none.",
+      "title": "Quality"
      },
      "schema": {
       "default": "dbo",

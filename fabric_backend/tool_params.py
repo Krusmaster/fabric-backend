@@ -107,6 +107,9 @@ ArgumentsBlock = Annotated[bool, _d('true (default) puts test arguments under ar
                                     'them top-level for older dbt. Example: false.')]
 DbtProject = Annotated[bool, _d('true: a whole dbt project as files (staging, marts per domain) instead of the sources file. '
                                  'Default false. Example: true.')]
+Quality = Annotated[str | None, _d('Also drafts the same key and relationship checks as a Great Expectations suite per table '
+                                   '("gx"), as SodaCL checks ("soda") or both ("both"), each with its rule and counts. Default none.')]
+DbtProfile = Annotated[bool, _d('With project=true: adds a profiles.yml for Fabric with placeholders and no secret. Default false.')]
 DriftApi = Annotated[str, _d('Existing API for GraphQL item to compare with, by name or id. Example: "shop_api".')]
 DriftWritable = Annotated[bool, _d('Whether the update create_backend would make includes mutations, as its writable. '
                                    'Default false. Example: true.')]

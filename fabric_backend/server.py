@@ -37,7 +37,7 @@ from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
 from .errors import HINTS, SchemaEmpty, _fabric_body, classify_http, safe
 from . import evidence as _evidence
-from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, drift as _drift
+from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import domains as _domains
@@ -960,12 +960,14 @@ def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schem
 def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", source_name: _p.SourceName = None,
                keys: _p.Keys = None, confirmed: _p.Confirmed = None,
                tables: _p.TablesShown = None, arguments_block: _p.ArgumentsBlock = True, project: _p.DbtProject = False,
-               check_rows: _p.CheckRows = False, ctx: Context = None) -> str:
+               check_rows: _p.CheckRows = False, quality: _p.Quality = None, profile: _p.DbtProfile = False,
+               ctx: Context = None) -> str:
     """Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,
     composite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric
     Warehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows
-    counted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. Can sit beside dbt
-    Labs' dbt-mcp, which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.
+    counted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. quality: the same
+    checks as Great Expectations and/or Soda drafts; profile: a Fabric profiles.yml. Can sit beside dbt Labs' dbt-mcp,
+    which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.
     Read-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}."""
     validation = None
     if check_rows:
@@ -984,6 +986,10 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     database = item.get("sql_db") or item.get("displayName") or source
     if project:
         out = {"summary": p.summary().splitlines()[0], **_dbt.project(p, src, schema, database, validation, tables, arguments_block)}
+        if quality:
+            out["files"] = dict(sorted({**out["files"], **_quality.suites(p, schema, quality, validation, tables)}.items()))
+        if profile:
+            out["files"] = dict(sorted({**out["files"], "profiles.yml": _quality.profiles_yml(out["project"], schema)}.items()))
         if validation is not None:
             out["counts"] = validation["summary"]
         text = json.dumps(out, indent=2)
@@ -997,7 +1003,10 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
             text = json.dumps(out, indent=2)
         return text
     yml = _dbt.schema_yml(p, src, schema, database=database, tables=tables, arguments_block=arguments_block)
-    return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
+    out = {"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}
+    if quality:
+        out["quality"] = _quality.suites(p, schema, quality, validation, tables)
+    return _compact.bounded_text(out, "yaml", MAX_RESULT_CHARS)
 
 
 @mcp.tool(title="Draft domains and contracts", annotations=RO)
