@@ -185,7 +185,7 @@ def demo() -> dict:
     from .infer import plan as make_plan
     from .schema import Column, Schema, Table
     from .seed import SCHEMAS, rows
-    data = rows()
+    data = {k: list(v) for k, v in rows().items()}                   # rows() hands out the seed's own lists
     ddl = dict(SCHEMAS, orders=SCHEMAS["orders"] + ", order_amount DOUBLE")
     data["orders"] = [o + (100.0 + o[0],) for o in data["orders"]]
     data["order_items"].append((100, 9, 99, 1.0))                   # product 99 does not exist
