@@ -121,11 +121,12 @@ Schedule = Annotated[bool, _d('true (default) adds the daily schedule to the pip
                               'one. Example: false.')]
 ExportItems = Annotated[list[str] | None, _d(
     'Which creating tools to export: create_backend, create_semantic_model, create_views, create_silver_notebook, '
-    'create_drift_monitor, create_gold_views. Default: all. Example: ["create_backend", '
-    '"create_semantic_model"].')]
+    'create_drift_monitor, create_gold_views; or "pipeline", a draft no tool creates (silver, gold, then a check), with '
+    'the silver and gold notebooks. Default: all creating tools. Example: ["create_backend", "pipeline"].')]
 ExportNames = Annotated[dict[str, str] | None, _d(
     '{tool: display name} per exported item. Default: <source>_api, <source>_model, silver_<schema>, '
-    'drift_monitor_<schema>, gold_<schema>. Example: {"create_backend": "shop_api"}.')]
+    'drift_monitor_<schema>, gold_<schema>, pipeline_<schema> (its check notebook: <name>_check). '
+    'Example: {"create_backend": "shop_api"}.')]
 StarterApi = Annotated[str, _d('API for GraphQL item created by create_backend, by name or id.')]
 LineageTable = Annotated[str | None, _d('One table to trace: the answer adds what a change to it reaches. Default: none. '
                                         'Example: "orders".')]

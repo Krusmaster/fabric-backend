@@ -1616,6 +1616,7 @@ def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
 
 
 EXPORTABLE = ("create_backend", "create_semantic_model", "create_views", "create_silver_notebook", "create_drift_monitor", "create_gold_views")
+EXPORT_DRAFTS = ("pipeline",)     # n110: drafts no tool creates, exported only when asked for in `items`
 
 
 @mcp.tool(title="Export what the creating tools would create, in Fabric's Git format", annotations=RO)
@@ -1626,19 +1627,24 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                             gold_schema: _p.GoldSchema = "gold", views_schema: _p.ViewsSchema = "krusgraph", writable: _p.Writable = False,
                             show_personal_data: _p.ShowPersonalData = False, ctx: Context = None) -> str:
     """Exports what the creating tools would create as files in Fabric's Git format: a <name>.<type> folder per item,
-    views as .sql, a README. Requires workspace and source. Returns JSON with the files, the items and what was
-    skipped and why. Changes nothing. Errors: {error, kind, hint}."""
+    views as .sql, a README; items=["pipeline"] adds a data pipeline draft (silver, gold, then a check that fails
+    the run). Requires workspace and source. Returns JSON with the files, the items and what was skipped and why.
+    Changes nothing. Errors: {error, kind, hint}."""
     from . import git_export as _gx, notebook as _notebook, silver as _silver_mod, gold as _gold_mod, monitor as _monitor
+    from . import pipeline as _pipeline
     from .infer import PlanInputError
     wanted = list(dict.fromkeys(items or EXPORTABLE))
-    unknown = [i for i in wanted if i not in EXPORTABLE]
+    unknown = [i for i in wanted if i not in EXPORTABLE + EXPORT_DRAFTS]
     if unknown:
-        raise PlanInputError("items: one or more of " + ", ".join(EXPORTABLE) + "; not known: " + ", ".join(unknown))
+        raise PlanInputError("items: one or more of " + ", ".join(EXPORTABLE + EXPORT_DRAFTS) + "; not known: " + ", ".join(unknown))
+    if "pipeline" in wanted:      # the pipeline runs the silver and gold notebooks: they come with it, before it
+        wanted = [w for w in wanted if w != "pipeline"]
+        wanted += [w for w in ("create_silver_notebook", "create_gold_views") if w not in wanted] + ["pipeline"]
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     names = {**{"create_backend": f"{info['item_name']}_api", "create_semantic_model": f"{info['item_name']}_model",
                 "create_silver_notebook": f"silver_{schema}", "create_drift_monitor": f"drift_monitor_{schema}",
-                "create_gold_views": f"gold_{schema}"}, **(names or {})}
+                "create_gold_views": f"gold_{schema}", "pipeline": f"pipeline_{schema}"}, **(names or {})}
     lakehouse = info["item_kind"] == "Lakehouse"
     files: dict[str, str] = {}
     entries, notes, skipped = [], [], []
@@ -1651,10 +1657,10 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
         files.update(_gx.files_of(body, item_type))
         entries.append({"tool": tool, "type": item_type, "folder": _gx.folder(body["displayName"], item_type), "what": what})
     for tool in wanted:
-        if tool in ("create_silver_notebook", "create_drift_monitor", "create_gold_views") and not lakehouse:
+        if tool in ("create_silver_notebook", "create_drift_monitor", "create_gold_views", "pipeline") and not lakehouse:
             skipped.append({"tool": tool, "why": f"needs a lakehouse; {info['item_name']!r} is a {info['item_kind']}"})
             continue
-        if tool == "create_gold_views" and not info.get("schemas_enabled"):
+        if tool in ("create_gold_views", "pipeline") and not info.get("schemas_enabled"):
             skipped.append({"tool": tool, "why": "materialized lake views need a lakehouse created with schemas"})
             continue
         if tool == "create_backend":
@@ -1719,6 +1725,21 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                 f"the notebook that creates {len(spec['views'])} materialized lake view(s) in {gold_schema}")
             notes.append("Materialized lake views are created when the gold notebook runs, not by the Git update; Fabric's Git integration "
                          "carries the notebook. Run the silver notebook first.")
+        elif tool == "pipeline":
+            label = f"{info['item_name']}.{schema}"
+            check = f"{names[tool]}_check"
+            spec = _pipeline.check_spec(p, _silver_mod.spec(p, info, silver_schema, None, tables, show_personal_data),
+                                        _gold_mod.spec(p, info, silver_schema, gold_schema, None, show_personal_data, within=tables))
+            add(tool, "Notebook", _notebook.envelope(check, _pipeline.check_source(spec, label, info["workspace_id"], info["item_id"], info["item_name"]),
+                                                     f"Krusgraph check after the gold views for {label}"),
+                f"the check: keys and orphans in {silver_schema}, rows and sums before and after each gold view's join; it fails when one does not hold")
+            add(tool, "DataPipeline", _notebook.pipeline_envelope(names[tool], _pipeline.pipeline_content(
+                names["create_silver_notebook"], names["create_gold_views"], check, label), f"Krusgraph pipeline for {label}"),
+                f"the pipeline: {names['create_silver_notebook']}, then {names['create_gold_views']}, then {check}, each only after the one "
+                "before succeeded; a failed check fails the run")
+            notes.append(f"{names[tool]}: its Notebook activities name the notebooks by the logicalId in their .platform files, which Fabric's "
+                         "Git integration binds to the notebooks in the workspace (fabric-docs cicd/cross-workspace-dependency-binding.md); "
+                         "not yet tried in a workspace. " + _pipeline.NOTHING_CREATED)
     files["KRUSGRAPH-EXPORT.md"] = _gx.readme(entries, notes)
     out = {"summary": p.summary().splitlines()[0] + f"; {len(entries)} item(s) as files in Fabric's Git format, nothing created",
            "items": entries, "skipped": skipped, "how": _gx.HOW, "notes": notes, "files": files, "sources": _gx.SOURCES,
@@ -1726,6 +1747,16 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
                    "workspace through Fabric's Git integration. " + _tool_status.answer_note("export_item_definitions")}
     if existing_api:
         out["existing_api"] = existing_api
+    if "pipeline" in wanted and any(e["tool"] == "pipeline" for e in entries):
+        out["pipeline"] = {"name": names["pipeline"], "steps": [f"{s}: {n}" for s, n in zip(_pipeline.STEPS, (
+                               names["create_silver_notebook"], names["create_gold_views"], f"{names['pipeline']}_check"))],
+                           "stops": "Each step runs only when the one before it succeeded; when the check finds a key that is not unique "
+                                    "or has NULLs, a reference without its row, or a gold view whose rows or sums differ from its silver "
+                                    "fact table, the check notebook raises an error and the pipeline run fails.",
+                           "created": _pipeline.NOTHING_CREATED,
+                           "not_verified": "Not run in Fabric: the Git update of these files, the binding of the notebook references and "
+                                           "the check's Spark SQL in a Fabric runtime are untested; the check runs in the unit tests on "
+                                           "SQLite and on a local PySpark."}
     text = json.dumps(out, indent=2)
     if len(text) > MAX_RESULT_CHARS:
         out["omitted"] = []

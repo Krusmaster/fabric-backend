@@ -1865,7 +1865,7 @@
     "read_only_hint": true,
     "title": "Export what the creating tools would create, in Fabric's Git format"
    },
-   "description": "Exports what the creating tools would create as files in Fabric's Git format: a <name>.<type> folder per item,\nviews as .sql, a README. Requires workspace and source. Returns JSON with the files, the items and what was\nskipped and why. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "Exports what the creating tools would create as files in Fabric's Git format: a <name>.<type> folder per item,\nviews as .sql, a README; items=[\"pipeline\"] adds a data pipeline draft (silver, gold, then a check that fails\nthe run). Requires workspace and source. Returns JSON with the files, the items and what was skipped and why.\nChanges nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -1904,7 +1904,7 @@
        }
       ],
       "default": null,
-      "description": "Which creating tools to export: create_backend, create_semantic_model, create_views, create_silver_notebook, create_drift_monitor, create_gold_views. Default: all. Example: [\"create_backend\", \"create_semantic_model\"].",
+      "description": "Which creating tools to export: create_backend, create_semantic_model, create_views, create_silver_notebook, create_drift_monitor, create_gold_views; or \"pipeline\", a draft no tool creates (silver, gold, then a check), with the silver and gold notebooks. Default: all creating tools. Example: [\"create_backend\", \"pipeline\"].",
       "title": "Items"
      },
      "keys": {
@@ -1939,7 +1939,7 @@
        }
       ],
       "default": null,
-      "description": "{tool: display name} per exported item. Default: <source>_api, <source>_model, silver_<schema>, drift_monitor_<schema>, gold_<schema>. Example: {\"create_backend\": \"shop_api\"}.",
+      "description": "{tool: display name} per exported item. Default: <source>_api, <source>_model, silver_<schema>, drift_monitor_<schema>, gold_<schema>, pipeline_<schema> (its check notebook: <name>_check). Example: {\"create_backend\": \"shop_api\"}.",
       "title": "Names"
      },
      "schema": {

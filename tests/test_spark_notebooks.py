@@ -257,6 +257,51 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
         spark.stop()
 
 
+def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path):
+    """n110: the pipeline's last step, the check notebook, on a local Spark: the silver notebook writes the silver tables,
+    the gold views' SELECTs with their rules stand in for the materialized lake views (open-source Spark has none), and the
+    check notebook's own cells (all but %pip) count keys, orphans, rows and sums with spark.sql. It passes on what the steps
+    produce, and raises, which fails the notebook and so the pipeline run, when a gold view repeats a row."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql import SparkSession
+    from fabric_backend import gold, pipeline
+    spark = (SparkSession.builder.master("local[1]").appName("krusgraph-pipeline-check-test")
+             .config("spark.sql.warehouse.dir", str(tmp_path / "warehouse")).config("spark.ui.enabled", "false")
+             .config("spark.sql.shuffle.partitions", "2").getOrCreate())
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
+        for t, rows in seed_rows().items():
+            spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
+        s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+        ns = {"spark": spark}
+        for kind, code in silver.cells(s):
+            if kind != "markdown":
+                exec(compile(code, "<notebook>", "exec"), ns)
+                if kind == "parameters":
+                    exec('TABLE_FORMAT = "parquet"', ns)
+        g = gold.spec(shop_plan(), INFO)
+        spark.sql("CREATE SCHEMA IF NOT EXISTS gold")
+        for v in g["views"]:
+            spark.sql(f"SELECT * FROM ({gold.select_sql(v, g['silver_schema'])}) AS v WHERE "
+                      + (" AND ".join(f"({c['check']})" for c in v["constraints"]) or "1 = 1")).write.format("parquet").saveAsTable(v["name"])
+        cells = pipeline.check_cells(pipeline.check_spec(shop_plan(), s, g), "shop_lh.shop")
+
+        def run():
+            nb = {"spark": spark}
+            for kind, code in cells:
+                if kind != "markdown" and not code.startswith("%pip"):
+                    exec(compile(code, "<notebook>", "exec"), nb)
+            return nb
+        nb = run()
+        assert nb["result"]["passed"] and nb["result"]["lines"][-1] == "The check holds."
+        assert len(nb["result"]["keys"]) == 6 and len(nb["result"]["relationships"]) == 6
+        spark.sql("INSERT INTO gold.order_items SELECT * FROM gold.order_items LIMIT 1")      # the join repeated a row
+        with pytest.raises(pipeline.CheckFailed, match="gold.order_items: .* rows after the join"):
+            run()
+    finally:
+        spark.stop()
+
+
 def test_sap_demo_one_cell_notebook_writes_every_table(tmp_path):
     """fabric_backend/sap_demo.notebook_inline() as pasted into Fabric (round n33): every table written with its rows
     and types, leading zeros kept. Parquet instead of Delta, as in the tests above."""

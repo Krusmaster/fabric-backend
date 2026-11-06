@@ -58,13 +58,19 @@ def files_of(body: dict, item_type: str) -> dict[str, str]:
     return out
 
 
+def logical_id(item_type: str, display_name: str) -> str:
+    """The logicalId every export writes for an item: derived from its type and display name, so a re-export keeps it
+    and another item (a pipeline's Notebook activity) can name it before Fabric has assigned the item an id."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, item_type.lower() + "|" + display_name))
+
+
 def platform(item_type: str, display_name: str, description: str = "") -> str:
     meta = {"type": item_type, "displayName": display_name}
     if description:
         meta["description"] = description
     return json.dumps({"$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
                        "metadata": meta,
-                       "config": {"version": "2.0", "logicalId": str(uuid.uuid5(uuid.NAMESPACE_URL, item_type.lower() + "|" + display_name))}},
+                       "config": {"version": "2.0", "logicalId": logical_id(item_type, display_name)}},
                       indent=2) + "\n"
 
 
@@ -87,7 +93,8 @@ def readme(entries: list[dict], notes: list[str]) -> str:
     lines = ["# Krusgraph export in Fabric's Git format", "",
              "Generated from the plan. Each folder is one Fabric item (`<name>.<type>` with `.platform` and its definition files). "
              "Nothing was created in Fabric and nothing was sent to a Git provider.", "", "## Items", ""]
-    lines += [f"- `{e['folder']}/` ({e['type']}; what `{e['tool']}` would create): {e['what']}" for e in entries]
+    lines += [f"- `{e['folder']}/` ({e['type']}; " + (f"what `{e['tool']}` would create" if e["tool"].startswith("create_") else
+              "a draft that no tool creates") + f"): {e['what']}" for e in entries]
     lines += ["", "## How to apply", ""] + [f"{i}. {h}" for i, h in enumerate(HOW, 1)]
     if notes:
         lines += ["", "## Notes", ""] + [f"- {n}" for n in notes]
