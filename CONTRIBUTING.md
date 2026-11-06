@@ -37,7 +37,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n122 (quality suites: `fabric_backend/quality_suites.py`, the `quality` and `profile` options of `dbt_schema` in `server.py` and `dbt.py`, their tests and goldens); n126 (column usage: `fabric_backend/dax_refs.py`, the `column_usage` part of `plan_drift` and `compare_semantic_model` in `server.py`, `tests/test_dax_refs.py`, `tests/fixtures/dax_refs/`, the goldens it changes) |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n126 (column usage: `fabric_backend/dax_refs.py`, the `column_usage` part of `plan_drift` and `compare_semantic_model` in `server.py`, `tests/test_dax_refs.py`, `tests/fixtures/dax_refs/`, the goldens it changes) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n127 (release notes: `CHANGELOG.md`, `docs/DEPLOY-NEXT.md`) |
