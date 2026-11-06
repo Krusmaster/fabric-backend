@@ -249,7 +249,9 @@ def test_rayfin_entities_and_schema(schema, keys):
     assert rayfin_type("datetime2") == ("date", "Date") and rayfin_type("bit") == ("boolean", "boolean")
     files = rayfin_files(plan(schema, keys), "shop")
     assert set(files) == {f"rayfin/connectors/shop/{n}.ts" for n in
-                          ["Customers", "Products", "Categories", "Orders", "OrderItems", "Addresses", "AuditLog", "schema"]} | {"rayfin/connectors/shop/README.generated.md"}
+                          ["Customers", "Products", "Categories", "Orders", "OrderItems", "Addresses", "AuditLog", "schema"]} | {
+                              "rayfin/connectors/shop/README.generated.md", "src/lib/connectors.ts",
+                              "src/pages/OrderItemsPage.tsx", "rayfin/tsconfig.json"}   # n109: the app side, tests/test_rayfin_app.py
     orders = files["rayfin/connectors/shop/Orders.ts"]
     assert "export class Orders extends Source({ schema: 'dbo', table: 'orders', primaryKey: ['orderId'] })" in orders
     assert "@int({ column: 'order_id' }) orderId!: number;" in orders
@@ -268,29 +270,37 @@ def test_rayfin_entities_and_schema(schema, keys):
 
 
 def test_rayfin_readme_gives_the_publishing_steps_and_their_limits(schema, keys):
-    """The steps of the run of 5 November 2026 (Rayfin 1.36.2, synthetic lakehouse), in order, and what was not run."""
+    """The steps of the run of 5 November 2026 (Rayfin 1.36.2, synthetic lakehouse), in order, with the hand steps of
+    that run replaced by the generated files (n109), and what was verified and what was not."""
     from fabric_backend.rayfin import rayfin_files
     readme = rayfin_files(plan(schema, keys), "shop")["rayfin/connectors/shop/README.generated.md"]
-    steps = ['"Enable Fabric App Items (preview)" (`AppBackendTenant`)', "GET /v1/admin/tenantsettings",
+    steps = ["`src/lib/connectors.ts`", "`src/pages/OrderItemsPage.tsx`", "`rayfin/tsconfig.json`",
+             '"Enable Fabric App Items (preview)" (`AppBackendTenant`)', "GET /v1/admin/tenantsettings",
              "Leave anonymous data access off",
              'npm create @microsoft/rayfin@latest -- <app> --template dataapp --workspace "<workspace>"', "npm.cmd",
              "npx rayfin login",
              "npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read",
              "fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema dbo --connector shop --out .",
-             "Keys marked K2", "node_modules/@microsoft/rayfin-cli/templates/data-app/rayfin/tsconfig.json",
-             '"No usable compiled connector entities"', "npx tsc -p rayfin/tsconfig.json --noEmit",
-             "npx rayfin up --workspace <workspace>", "visitors must sign in", "npx rayfin up connector apply --name shop"]
+             "--page-table", "Keys marked K2", "Use the generated files", "<OrderItemsPage />",
+             "npx tsc -p rayfin/tsconfig.json --noEmit", "npx tsc -p tsconfig.json --noEmit",
+             "npx rayfin up --workspace <workspace>", "visitors must sign in", "npx rayfin up connector apply --name shop",
+             '"No usable compiled connector entities"', "What was verified, and what was not"]
     at = [readme.find(x) for x in steps]
     assert -1 not in at and at == sorted(at), [x for x, i in zip(steps, at) if i == -1]
     assert '403 "The feature is not available"' in readme
-    for limit in ("a published app showed rows from a table", '"Wired 0"',
-                  "`src/lib/connectors.ts` had to be wired by hand", "has to be changed by hand to show data",
-                  "as a type only", "explicit column lists", "decorators stopped the build",
-                  "`dataapp`, which is built for semantic models"):
-        assert limit in readme
-    assert "the template's own page" not in readme and "No query through the connector" not in readme
+    # the hand steps of that run are gone ...
+    for gone in ("had to be wired by hand", "has to be changed by hand to show data",
+                 "node_modules/@microsoft/rayfin-cli/templates/data-app/rayfin/tsconfig.json"):
+        assert gone not in readme
+    # ... and what was and was not verified is still said
+    for said in ("a published app showed rows from a table", "were written by hand",
+                 "they have not been deployed to Fabric", "imports the connector's schema as a type only",
+                 "explicit\n  column list", "1.36.2 and TypeScript 5.7.3", "That checks types, not behaviour",
+                 "`dataapp`, which is built for semantic models"):
+        assert said in readme, said
     low = readme.lower()
-    assert not any(w in low for w in ("one click", "one-click", "automated", "automatic", "fast", "quick", "minute"))
+    assert not any(w in low for w in ("one click", "one-click", "automated", "automatic", "fast", "quick", "minute",
+                                      "seamless", "effortless", "instantly"))
     from_meta = rayfin_files(plan(Schema.from_rayfin_metadata({"schemas": [{"schemaName": "shop", "tables": [
         {"tableName": "orders", "columns": [{"columnName": "order_id", "dataType": "int"}]}]}]})), "shop")
     assert "--schema shop --connector shop" in from_meta["rayfin/connectors/shop/README.generated.md"]

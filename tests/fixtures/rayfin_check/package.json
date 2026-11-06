@@ -1,0 +1,16 @@
+{
+  "name": "krusgraph-rayfin-check",
+  "private": true,
+  "description": "Pinned packages for tests/test_rayfin_app.py: the generated Rayfin files are compiled with these versions. Rayfin 1.36.2 is the version of the run of 5 November 2026; TypeScript 5.7.3 is what the data-app template of @microsoft/rayfin-cli 1.36.2 resolves (~5.7.2).",
+  "type": "module",
+  "devDependencies": {
+    "@microsoft/rayfin-cli": "1.36.2",
+    "@microsoft/rayfin-client": "1.36.2",
+    "@microsoft/rayfin-connector-fabric-graphql": "1.36.2",
+    "@microsoft/rayfin-connectors": "1.36.2",
+    "@microsoft/rayfin-core": "1.36.2",
+    "@types/react": "19.2.14",
+    "typescript": "5.7.3",
+    "vite": "7.3.7"
+  }
+}

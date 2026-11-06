@@ -353,10 +353,26 @@ entities **only with `sourceFields`/`targetFields`** — without them Rayfin inv
 `string`. Both are generated. The docs do say *don't infer a primary key from a column name*; this
 does, and prints the rule beside every key so you can take it out.
 
-### Publishing the generated files in Fabric
+Besides the connector's entities, the output has the app side, written at the project's root:
 
-These are the steps of a run on 5 November 2026 with Rayfin 1.36.2 against a synthetic lakehouse; the generated
-`README.generated.md` repeats them with your connector's name.
+- `src/lib/connectors.ts` wires the connector into the app (`AppConnectorsSchema`, `connectorConfigs`,
+  `connectorRuntimes` and `getConnectorsClient()`, a `ConnectorsRayfinClient` from `@microsoft/rayfin-client`). It
+  imports the connector's `schema.ts` with `import type` only and lists each entity's columns by name, checked against
+  the entity types; that is the form `@microsoft/rayfin-connectors` recommends for code the browser loads, because a
+  decorated entity class cannot be bundled.
+- `src/pages/<Table>Page.tsx` lists the latest rows of one table through the connector (`--page-table`, by default a
+  fact table): an explicit column list, newest first by the first date column, else by the key.
+- `rayfin/tsconfig.json`, the one in the `data-app` template of `@microsoft/rayfin-cli` 1.36.2, written only where the
+  project has none.
+
+Columns that look like personal data by name are left out of the page and of the default columns; the entity classes
+still describe them.
+
+### Publishing in Fabric
+
+These are the steps of a run on 5 November 2026 with Rayfin 1.36.2 against a synthetic lakehouse, with that run's
+hand steps replaced by the generated files; the generated `README.generated.md` repeats them with your connector's
+name.
 
 First, a Fabric admin turns on the tenant setting "Enable Fabric App Items (preview)" (`AppBackendTenant`) in the
 Admin portal. Until it was on, `npx rayfin up` failed with 403 "The feature is not available". An admin can read the
@@ -366,21 +382,25 @@ setting with `GET /v1/admin/tenantsettings`. Leave anonymous data access off.
    `npm.cmd create ...`), then `cd <app>`.
 2. `npx rayfin login`
 3. `npx rayfin connector add --type fabric-sqlanalytics --workspace-id <ws> --item-id <item> --name shop --operations read`,
-   then run the `npm install` it prints, inside the project.
+   then run the `npm install` it prints, inside the project. It may say it wired nothing: it wires a connector only
+   once `schema.ts` exports `connectorConfig`, and at this point `schema.ts` is still a placeholder.
 4. `fabric-backend rayfin rayfin/connectors/shop/metadata.json --schema shop --connector shop --out .`
 5. Review the keys: delete `primaryKey` where a K2 key (inferred from a column name) is wrong.
-6. If `rayfin/tsconfig.json` is missing, copy it from
-   `node_modules/@microsoft/rayfin-cli/templates/data-app/rayfin/tsconfig.json`. Without it the connector apply fails
-   with "No usable compiled connector entities" while the deploy still reports success, so read the warnings.
-7. `npx tsc -p rayfin/tsconfig.json --noEmit`
+6. Use the generated files: in `src/App.tsx`, render the generated page (`<OrderItemsPage />` for the shop example) in
+   place of the template's placeholder.
+7. `npx tsc -p rayfin/tsconfig.json --noEmit` and `npx tsc -p tsconfig.json --noEmit`
 8. `npx rayfin up --workspace <workspace>`; when asked, choose that visitors must sign in.
-9. If the connector step failed: `npx rayfin up connector apply --name shop`.
+9. If the connector step failed: `npx rayfin up connector apply --name shop`. A failed connector apply ("No usable
+   compiled connector entities") does not make the deploy report failure, so read the warnings.
 
-Later in that run a published app showed rows from a table through the connector, after the page and
-`src/lib/connectors.ts` were changed by hand. Limits: `connector add` printed "Wired 0", so `src/lib/connectors.ts` had
-to be wired by hand; the template's page has to be changed by hand to show data; the page imported the generated schema
-as a type only and passed explicit column lists, because importing the entity classes with their decorators stopped
-the build; and the template used was `dataapp`, which is built for semantic models.
+What was verified: in the run of 5 November a published app showed rows from a table through the connector, with
+`src/lib/connectors.ts` and the page written by hand (`connector add` had printed "Wired 0", and importing the entity
+classes with their decorators had stopped the build, so the page imported the schema as a type only and passed
+explicit column lists). The generated files do the same things. `tests/test_rayfin_app.py` compiles them, the page
+included, with `tsc` against `@microsoft/rayfin-*` 1.36.2 and TypeScript 5.7.3 (pinned in
+`tests/fixtures/rayfin_check/`), in a project laid out like the `dataapp` template. What was not: the generated files
+have not been deployed to Fabric or opened in a browser; sign-in, the connector apply and reading rows happen only
+there. The template used was `dataapp`, which is built for semantic models.
 
 ## Sources it can expose
 
