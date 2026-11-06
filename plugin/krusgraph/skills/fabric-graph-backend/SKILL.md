@@ -69,6 +69,8 @@ completed answers `error`, `kind` and `hint`: read the hint and act on it instea
 - **Gold views:** `gold_views_draft` shows materialized lake views over the silver tables (a lakehouse with schemas),
   one per fact table, with the plan's keys and relationships as data quality rules; `create_gold_views` creates the
   notebook that makes them. Run the silver notebook first.
+- **Pipeline:** `create_pipeline` creates both notebooks, a check notebook and a pipeline that runs them in that
+  order and stops on a failed check; it neither runs nor schedules the pipeline.
 - **An existing semantic model:** `compare_semantic_model(model)` lists what the model lacks or gets wrong against the
   plan. Without the permission it answers `kind: consent`; the model's TMDL files passed as `tmdl` need none.
 - **Changes through Git:** `export_item_definitions` gives what the creating tools would create as folders in Fabric's
@@ -86,7 +88,7 @@ relationship), `data_dictionary` (the hand-over document with everything above).
 ## When to stop and confirm with the user
 
 - Before `create_backend`, `create_semantic_model`, `create_ontology`, `create_views`, `create_data_agent`,
-  `create_silver_notebook`, `create_drift_monitor` or `create_gold_views` run for real.
+  `create_silver_notebook`, `create_drift_monitor`, `create_gold_views` or `create_pipeline` run for real.
 - Before passing `show_personal_data=true`.
 - Before accepting any suggested relationship or composite key into `confirmed` / `keys`.
 - When `validate_plan` finds duplicates or orphans, or `plan_drift` lists removals.

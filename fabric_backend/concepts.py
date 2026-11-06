@@ -573,9 +573,10 @@ OUTPUTS = (("API for GraphQL", "create_backend"), ("Power BI semantic model", "c
 def _pipeline_words() -> str:
     from . import pipeline
     doc = " ".join(pipeline.__doc__.split())
-    if "no tool creates or schedules it" not in doc:                  # the words below are the module's own
+    if "create_pipeline creates it" not in doc or "no tool runs or schedules it" not in doc:   # the words below are the module's own
         raise ValueError("pipeline.py no longer says how its pipeline is made")
-    return "draft; export_item_definitions gives it as files, no tool creates or schedules it"
+    return ("draft; create_pipeline creates it (dry run by default; not yet created live), export_item_definitions gives it as "
+            "files, no tool runs or schedules it")
 
 
 def outputs() -> list[tuple[str, str, str]]:

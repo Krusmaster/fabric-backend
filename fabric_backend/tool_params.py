@@ -119,6 +119,12 @@ MonitorDraftName = Annotated[str, _d('Base name of the notebook and pipeline. De
                                      'Example: "drift_shop".')]
 MonitorName = Annotated[str, _d('Base name of the notebook and pipeline; existing items with these names are updated '
                                 'in place. Example: "drift_shop".')]
+PipelineName = Annotated[str, _d('Display name of the pipeline; its check notebook is <name>_check. Existing items with '
+                                 'these names are updated in place. Example: "pipeline_shop".')]
+PipelineSilverName = Annotated[str, _d('Display name of the silver notebook the pipeline runs, updated in place if it exists. '
+                                       'Default "" (silver_<schema>). Example: "silver_shop".')]
+PipelineGoldName = Annotated[str, _d('Display name of the gold views notebook the pipeline runs, updated in place if it '
+                                     'exists. Default "" (gold_<schema>). Example: "gold_shop".')]
 Schedule = Annotated[bool, _d('true (default) adds the daily schedule to the pipeline; false creates the items without '
                               'one. Example: false.')]
 ExportItems = Annotated[list[str] | None, _d(

@@ -5,6 +5,14 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n120: `create_pipeline` creates the pipeline of the n110 draft (a new tool; 39). It creates or updates in place
+  the silver and gold notebooks the existing tools create, the check notebook, and a data pipeline that runs them in
+  that order, each step only after the one before succeeded, so a failed check fails the run. `dry_run=true` (the
+  default) makes no write call and returns the definitions and the REST calls; `dry_run=false` sends the same
+  definitions with the notebook ids in place of their placeholders. It never runs or schedules the pipeline and says
+  so. It uses the notebook and data pipeline create/updateDefinition calls the code already makes and needs
+  `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`), which the hosted app has.
+  Unit-tested with a test double for Fabric's REST API; not created or run in Fabric, not deployed.
 - Round n116: a OneLake catalog draft (`fabric_backend/catalog.py`). `export_item_definitions(items=["catalog"])` lists
   each Fabric item the plan touches with the description and tags it would get, and the exact REST calls for them. The
   items are the source lakehouse or warehouse and the API, model, notebooks and pipelines the creating tools would

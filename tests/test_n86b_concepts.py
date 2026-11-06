@@ -200,7 +200,8 @@ def test_the_flow_marks_follow_tool_status():
         assert (m == "live") == (bw in ("creates", "updates")), tool
         assert (m == "dry") == (ts.STATUS[tool].dry_run_only and ts.STATUS[tool].live and bw == "draft"), tool
     from fabric_backend import pipeline
-    assert "no tool creates or schedules it" in " ".join(pipeline.__doc__.split())
+    doc = " ".join(pipeline.__doc__.split())
+    assert "create_pipeline creates it" in doc and "no tool runs or schedules it" in doc     # n120
     md = pages.docs_md()
     for name, _m, words in concepts.outputs():
         assert f"- {name}: {words}" in md

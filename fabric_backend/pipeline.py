@@ -1,6 +1,7 @@
 """The pipeline draft (round n110): one Fabric Data Pipeline that runs the existing steps in order, silver notebook, gold
 views notebook, then a check notebook, and fails when the check fails. It is exported with export_item_definitions
-(items=["pipeline"]) as files in Fabric's Git format; no tool creates or schedules it. Nothing here talks to Fabric.
+(items=["pipeline"]) as files in Fabric's Git format, and since round n120 create_pipeline creates it through the REST
+API (the three notebooks, then the pipeline with their ids); no tool runs or schedules it. Nothing here talks to Fabric.
 
 The silver and gold notebooks are exactly the ones silver_notebook_draft and gold_views_draft produce (silver.py,
 gold.py); no transformation is added here. The check notebook is thin, like the drift monitor's (monitor.py): each
@@ -15,7 +16,9 @@ cell calls this module, so the logic is the library's and the tests run it witho
                                              after it (the gold view)
   raise_if_failed(result)                    CheckFailed when any of them does not hold: the notebook fails, so its
                                              Notebook activity fails, and so does the pipeline run
-  check_cells / pipeline_content             the check notebook and pipeline-content.json
+  check_cells / pipeline_content             the check notebook and pipeline-content.json; with `ids` and `workspace_id`
+                                             the activities name the notebooks by their item ids (create_pipeline), without
+                                             them by their logical IDs (the Git export)
 
 What the format rests on, read 6 November 2026:
 - microsoft/fabric-rest-api-specs 6f817cb (3 November 2026), dataPipeline/definitions.json and
@@ -49,6 +52,14 @@ CONDITIONS = ("Succeeded", "Failed", "Skipped", "Completed")
 STEPS = ("Silver tables", "Gold views", "Check keys, orphans and sums")
 NOTHING_CREATED = ("This pipeline is a draft: nothing was created and nothing is scheduled. It runs only when someone "
                    "runs it in Fabric or adds a schedule there.")
+NOT_RUN = ("Creating runs nothing and schedules nothing: no notebook and no pipeline run is started and no schedule is added. "
+           "The pipeline runs only when someone runs it in Fabric or adds a schedule there.")
+
+
+def placeholder(notebook: str) -> str:
+    """What the dry run writes for a notebook's id, which Fabric assigns when the notebook is created; the real create
+    puts the id in its place and changes nothing else."""
+    return f"<id of the notebook {notebook}>"
 
 # The shape of pipeline-content.json as the sources above document it, for the tests and for anyone who checks a file.
 SHAPE = {
@@ -223,23 +234,27 @@ def check_source(spec: dict, label: str, workspace_id: str = "", lakehouse_id: s
     return _nb.fabric_source(check_cells(spec, label), meta)
 
 
-def _activity(name: str, notebook: str, after: str | None, parameters: dict | None = None) -> dict:
+def _activity(name: str, notebook_id: str, workspace_id: str, after: str | None, parameters: dict | None = None) -> dict:
     a = {"name": name, "type": ACTIVITY_TYPE,
          "dependsOn": [{"activity": after, "dependencyConditions": ["Succeeded"]}] if after else [],
          # no retry: a failed check is an answer, not a hiccup; a failed silver or gold run is left for a person to read
          "policy": {"timeout": "0.12:00:00", "retry": 0, "retryIntervalInSeconds": 30, "secureOutput": False, "secureInput": False},
-         "typeProperties": {"notebookId": logical_id("Notebook", notebook), "workspaceId": ZERO_WORKSPACE}}
+         "typeProperties": {"notebookId": notebook_id, "workspaceId": workspace_id}}
     if parameters:
         a["typeProperties"]["parameters"] = parameters
     return a
 
 
-def pipeline_content(silver: str, gold: str, check: str, label: str) -> dict:
-    """pipeline-content.json: three Notebook activities, each after the one before it has Succeeded. The notebooks are
-    named by their logical IDs (the .platform files the export writes), so the Git update binds them."""
+def pipeline_content(silver: str, gold: str, check: str, label: str, ids: dict | None = None,
+                     workspace_id: str = ZERO_WORKSPACE) -> dict:
+    """pipeline-content.json: three Notebook activities, each after the one before it has Succeeded. Without `ids` the
+    notebooks are named by their logical IDs (the .platform files the export writes), so the Git update binds them;
+    with `ids` ({notebook name: item id or placeholder}) by those, in `workspace_id`, as create_pipeline sends it."""
+    nid = (lambda n: ids[n]) if ids is not None else (lambda n: logical_id("Notebook", n))
     return {"properties": {
         "description": (f"Krusgraph pipeline for {label}: the silver tables ({silver}), the gold views ({gold}), then the check "
                         f"({check}); a step runs only when the one before it succeeded, and a failed check fails the run. "
                         "No schedule."),
-        "activities": [_activity(STEPS[0], silver, None), _activity(STEPS[1], gold, STEPS[0]),
-                       _activity(STEPS[2], check, STEPS[1], {"_inlineInstallationEnabled": {"value": True, "type": "bool"}})]}}
+        "activities": [_activity(STEPS[0], nid(silver), workspace_id, None), _activity(STEPS[1], nid(gold), workspace_id, STEPS[0]),
+                       _activity(STEPS[2], nid(check), workspace_id, STEPS[1],
+                                 {"_inlineInstallationEnabled": {"value": True, "type": "bool"}})]}}
