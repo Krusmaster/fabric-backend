@@ -105,6 +105,8 @@ Check = Annotated[int, _d('How many top candidates are counted against the data.
 SourceName = Annotated[str | None, _d('Name of the dbt source. Default: the schema name. Example: "shop".')]
 ArgumentsBlock = Annotated[bool, _d('true (default) puts test arguments under arguments: (dbt 1.10.5+); false writes '
                                     'them top-level for older dbt. Example: false.')]
+DbtProject = Annotated[bool, _d('true: a whole dbt project as files (staging, marts per domain) instead of the sources file. '
+                                 'Default false. Example: true.')]
 DriftApi = Annotated[str, _d('Existing API for GraphQL item to compare with, by name or id. Example: "shop_api".')]
 DriftWritable = Annotated[bool, _d('Whether the update create_backend would make includes mutations, as its writable. '
                                    'Default false. Example: true.')]

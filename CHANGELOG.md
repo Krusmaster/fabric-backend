@@ -5,6 +5,15 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## 0.8.0 — 2026-10-28
 
+- Round n114: `dbt_schema` writes a whole dbt project draft with `project=true` (no new tool; still 38). The files are
+  dbt_project.yml, the sources file with its tests from the plan's keys and relationships, one staging view per table
+  (cast to Fabric Data Warehouse types where the metadata says enough, de-duplicated on the key) and marts in one folder
+  per proposed domain. The marts join only over relationships whose target key `check_rows=true` counted unique, and
+  child tables are summed to the fact's key before the join, so a header amount is never summed over its lines.
+  Written for dbt-fabric 1.12.0 on dbt-core 1.12, T-SQL without CTEs. Untemplated parts (a table without a key, a type
+  without an equivalent) and the customer's TODOs (business rules, which duplicate to keep) are listed. It creates and
+  runs nothing. `dbt parse` passed on the shop project with dbt-core 1.12.6 and dbt-fabric 1.12.0 on 6 November 2026;
+  not run against a Warehouse. Unit-tested; not deployed.
 - Round n111: `create_backend` has a dry run, `dry_run` with the default of the other creating tools (`true`), in the
   hosted and the local server. It answers whether an item of that name exists and would be updated or created, the
   definition and what changes in it, and the checks that passed, reading only. A call that should create or update

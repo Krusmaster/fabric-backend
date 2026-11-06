@@ -1552,13 +1552,19 @@
     "read_only_hint": true,
     "title": "dbt schema.yml with source tests"
    },
-   "description": "Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,\ncomposite ones as comments. Requires workspace and source. Returns YAML text, cut above 60 000 characters.\nChanges nothing. Errors: {error, kind, hint}.",
+   "description": "Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,\ncomposite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric\nWarehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows\ncounted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. Can sit beside dbt\nLabs' dbt-mcp, which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.\nRead-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "arguments_block": {
       "default": true,
       "description": "true (default) puts test arguments under arguments: (dbt 1.10.5+); false writes them top-level for older dbt. Example: false.",
       "title": "Arguments Block",
+      "type": "boolean"
+     },
+     "check_rows": {
+      "default": false,
+      "description": "true: with row counts. Default false.",
+      "title": "Check Rows",
       "type": "boolean"
      },
      "confirmed": {
@@ -1596,6 +1602,12 @@
       "default": null,
       "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
       "title": "Keys"
+     },
+     "project": {
+      "default": false,
+      "description": "true: a whole dbt project as files (staging, marts per domain) instead of the sources file. Default false. Example: true.",
+      "title": "Project",
+      "type": "boolean"
      },
      "schema": {
       "default": "dbo",

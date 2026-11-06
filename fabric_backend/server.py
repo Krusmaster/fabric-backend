@@ -951,16 +951,44 @@ def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schem
 @safe
 def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", source_name: _p.SourceName = None,
                keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-               tables: _p.TablesShown = None, arguments_block: _p.ArgumentsBlock = True, ctx: Context = None) -> str:
+               tables: _p.TablesShown = None, arguments_block: _p.ArgumentsBlock = True, project: _p.DbtProject = False,
+               check_rows: _p.CheckRows = False, ctx: Context = None) -> str:
     """Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,
-    composite ones as comments. Requires workspace and source. Returns YAML text, cut above 60 000 characters.
-    Changes nothing. Errors: {error, kind, hint}."""
-    p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    composite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric
+    Warehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows
+    counted many-to-one, child facts summed before the join; untemplated parts and TODOs listed. Can sit beside dbt
+    Labs' dbt-mcp, which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.
+    Read-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}."""
+    validation = None
+    if check_rows:
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            p = _hosted_plan(s, keys, confirmed, execute)
+            validation = _evidence.validate(p, execute)
+            item = getattr(execute, "source_item", None) or {}
+        finally:
+            getattr(execute, "close", lambda: None)()
+    else:
+        p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
     src = source_name or schema
-    yml = _dbt.schema_yml(p, src, schema, database=item.get("sql_db") or item.get("displayName") or source,
-                         tables=tables, arguments_block=arguments_block)
+    database = item.get("sql_db") or item.get("displayName") or source
+    if project:
+        out = {"summary": p.summary().splitlines()[0], **_dbt.project(p, src, schema, database, validation, tables, arguments_block)}
+        if validation is not None:
+            out["counts"] = validation["summary"]
+        text = json.dumps(out, indent=2)
+        if len(text) > MAX_RESULT_CHARS:           # the biggest models go first; the README and the YAML stay
+            out["omitted"] = []
+            while len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS and any(k.endswith(".sql") for k in out["files"]):
+                biggest = max((k for k in out["files"] if k.endswith(".sql")), key=lambda k: (len(out["files"][k]), k))
+                out["omitted"].append(biggest)
+                out["files"] = {k: v for k, v in out["files"].items() if k != biggest}
+            out["hint"] = "Models left out of this answer because of its size are under omitted; pass tables for them."
+            text = json.dumps(out, indent=2)
+        return text
+    yml = _dbt.schema_yml(p, src, schema, database=database, tables=tables, arguments_block=arguments_block)
     return _compact.bounded_text({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, "yaml", MAX_RESULT_CHARS)
 
 
