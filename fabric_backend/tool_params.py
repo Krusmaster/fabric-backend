@@ -116,6 +116,9 @@ DriftWritable = Annotated[bool, _d('Whether the update create_backend would make
 AgentName = Annotated[str, _name("data agent", "shop_agent")]
 Publish = Annotated[bool, _d('true (default) publishes the agent after creating or updating it; false leaves a draft. '
                              'Example: false.')]
+AgentTests = Annotated[bool, _d('true also checks the plan against the rows (counts only, as validate_plan) and drafts 10-20 '
+                                'test questions for the agent, each with the T-SQL that gives the right answer, the answer\'s '
+                                'shape and the finding it tests. Default false.')]
 SilverName = Annotated[str, _name("notebook item", "silver_shop")]
 GoldName = Annotated[str, _name("notebook item", "gold_shop")]
 MonitorDraftName = Annotated[str, _d('Base name of the notebook and pipeline. Default "" (drift_monitor_<schema>). '

@@ -645,6 +645,12 @@
       "title": "Source",
       "type": "string"
      },
+     "test_questions": {
+      "default": false,
+      "description": "true also checks the plan against the rows (counts only, as validate_plan) and drafts 10-20 test questions for the agent, each with the T-SQL that gives the right answer, the answer's shape and the finding it tests. Default false.",
+      "title": "Test Questions",
+      "type": "boolean"
+     },
      "workspace": {
       "description": "Fabric workspace, name or id.",
       "title": "Workspace",

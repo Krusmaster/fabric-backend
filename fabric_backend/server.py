@@ -1328,7 +1328,7 @@ def _views_personal(stmts: dict) -> dict:
 @safe
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
-                      dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+                      dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False, ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions, the plan's tables selected and 5–10
     example question/T-SQL pairs, or updates the agent of that name in place. Requires workspace, source and name;
     Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON with the instructions, examples and REST calls; with
@@ -1350,6 +1350,14 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     elif flagged:
         out["personal_data"] = {"included": [f"{x['table']}.{x['column']} ({x['rule']}: {x['what']})" for x in flagged],
                                 "notice": _privacy.notice(flagged, shown=True)}
+    if test_questions:                                                 # n131: counts only, then questions without values
+        from . import agent_tests as _agent_tests
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            checked = _hosted_plan(s, keys, confirmed, execute)
+            out["test_questions"] = _agent_tests.questions(checked, _evidence.validate(checked, execute))
+        finally:
+            getattr(execute, "close", lambda: None)()
     if dry_run:
         return json.dumps(out, indent=2)
     headers = _headers(ctx)
