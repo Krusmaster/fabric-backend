@@ -34,6 +34,7 @@ from __future__ import annotations
 import json
 import os
 
+from . import mcp_apps_mascots as mascots
 from .evidence import NEXT_STEP_TOOLS
 
 FLAG = "KRUSGRAPH_MCP_APPS"
@@ -78,10 +79,14 @@ def extensions(on: bool | None = None) -> list:
 
 
 def card_html() -> str:
-    """The card: one self-contained HTML5 document. No src, href, url(), @import, fetch or other load; every word on
-    it is text (no pictures, no mascots); the data arrives only from the host."""
+    """The card: one self-contained HTML5 document. No src, href, url(), @import, fetch or other load; the data arrives
+    only from the host. Since n136 the site's mascots are on it as inline SVG (mcp_apps_mascots): Onto says the summary
+    (the counts), the Thinker the first thing that needs attention, the Builder the first next step, each word for word
+    from the text answer and also on the card; glad only when every check passed; a button hides them."""
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
-    return _HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+            .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
 
 _HTML = """<!DOCTYPE html>
@@ -125,12 +130,14 @@ button:disabled { cursor: default; opacity: .6 }
 pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; max-height: 260px; overflow: auto;
   background: var(--kg-card); border-radius: 8px; padding: 6px 8px }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+__MASCOT_CSS__
 </style>
 </head>
 <body>
 <main>
-  <h1>Plan check</h1>
+  <div class="kg-head"><h1>Plan check</h1>__MASCOT_TOGGLE__</div>
   <p id="verdict" class="muted" role="status">Waiting for validate_plan's answer.</p>
+  __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul></section>
   <section id="next" hidden><h2 class="muted">Next steps (each reads or drafts; nothing is created)</h2><div id="steps" class="steps"></div></section>
@@ -149,6 +156,7 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
     return new Promise(function (resolve, reject) { pending[id] = { resolve: resolve, reject: reject }; });
   }
   function notify(method, params) { send({ jsonrpc: "2.0", method: method, params: params || {} }); }
+__MASCOT_JS__
   function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = String(text); if (cls) e.className = cls; return e; }
 
   function textOf(result) {
@@ -161,6 +169,7 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
     var data;
     try { data = JSON.parse(textOf(result)); } catch (e) { data = null; }
     var verdict = document.getElementById("verdict");
+    mascotsQuiet();
     if (!data || typeof data !== "object") { verdict.textContent = "The answer is not a validate_plan summary; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = data.error + (data.hint ? " " + data.hint : ""); return; }
     verdict.textContent = data.summary || "";
@@ -178,12 +187,13 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
     counts.hidden = false;
 
     var list = document.getElementById("attention-list"); list.textContent = "";
-    var att = data.attention || {};
+    var att = data.attention || {}, firstWhat = "", firstStep = "";
     Object.keys(att).forEach(function (kind) {
       (att[kind] || []).forEach(function (x) {
         var what = x.verdict || x.do_instead || x.explanation ||
           [x.table || x.source || x.header, x.target || x.line].filter(Boolean).join(" \\u2192 ");
         var who = x.table || (x.source ? x.source + " \\u2192 " + x.target : (x.header ? x.header + " / " + x.line : kind));
+        if (!firstWhat && what) firstWhat = what;
         list.appendChild(el("li", who + ": " + what));
       });
     });
@@ -194,6 +204,7 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
     (data.next_steps || []).forEach(function (s) {
       if (!s || !Object.prototype.hasOwnProperty.call(ALLOWED, s.tool)) return;   // only read and draft tools
       var row = el("div", null, "step");
+      if (!firstStep) firstStep = s.why || s.text || "";
       row.appendChild(el("p", s.why || s.text || ""));
       var b = el("button", "Run " + s.tool); b.type = "button";
       var out = el("pre"); out.hidden = true;
@@ -201,6 +212,15 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
       row.appendChild(b); row.appendChild(out); steps.appendChild(row);
     });
     document.getElementById("next").hidden = !steps.children.length;
+
+    // n136: Onto says the counts, the Thinker what needs attention, the Builder the next step; every sentence is a
+    // string of the answer and is on the card above. Glad only when every check passed and nothing needs attention.
+    var checked = 0, failed = 0;
+    Object.keys(totals).forEach(function (k) { var t = totals[k] || {}; checked += t.checked || 0; failed += t.failed || 0; });
+    var passed = checked > 0 && failed === 0 && !data.needs_attention && !firstWhat;
+    mascots({ onto: [data.summary || "", passed ? "celebrate" : "point"],
+              thinker: [firstWhat, "think"],
+              builder: [firstStep, passed ? "heart" : "explain"] }, passed);
   }
 
   function run(step, button, out) {
@@ -227,7 +247,7 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
     }
     if (m.method === "ui/notifications/tool-input") input = (m.params && m.params.arguments) || {};
     else if (m.method === "ui/notifications/tool-result") render(m.params);
-    else if (m.method === "ui/notifications/tool-cancelled") document.getElementById("verdict").textContent = "The check was cancelled.";
+    else if (m.method === "ui/notifications/tool-cancelled") { document.getElementById("verdict").textContent = "The check was cancelled."; mascotsQuiet(); }
     else if (m.method === "ui/resource-teardown" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });

@@ -9,6 +9,16 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n136: the site's mascots on both MCP Apps cards (`fabric_backend/mcp_apps_mascots.py`), still only with
+  `KRUSGRAPH_MCP_APPS=1`. Onto says the counts (the answer's `summary`), the Thinker the first thing that needs
+  attention, the Builder the next step (validate_plan's first next step; review_plan's `note`, now also shown under
+  "Next steps"). Each sentence is a string of the text answer and is also on the card; a figure with nothing to say is
+  not shown. Glad (celebrate, heart) only when every check passed and nothing needs attention; never on a failed or
+  stale check, an error or a cancelled call. A visible "Mascots: on/off" button on each card hides them; no storage.
+  The figures are inline SVG built from the shapes in `static/mascots.js` inside the package (flat colours, no `url()`
+  references, no animation); nothing outside `fabric_backend/` is read. Text answers, tool count and listing size are
+  unchanged. Unit and browser tests (`tests/test_n136_card_mascots.py`, Chromium at 340 and 480 px, light and dark,
+  under the specification's default CSP); not yet tried in a real MCP Apps host.
 - Round n126: column-level usage in semantic models (LANDSCAPE idea 5, `fabric_backend/dax_refs.py`). A small DAX
   reference scanner reads the measures and calculated columns of a model's TMDL: `Table[Column]`, `[Measure]`, quoted
   names and measures over measures, followed to the end with the path; strings and comments are skipped. A name it

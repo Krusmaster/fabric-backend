@@ -67,15 +67,15 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
              docWidth: document.documentElement.scrollWidth, viewWidth: document.documentElement.clientWidth,
              colors: { body: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(document.body).color } };
   });
-  const buttons = await frame.locator("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-item")));
+  const buttons = await frame.locator("button[data-item]").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-item")));
   const before = await frame.locator("body").innerText();
   if (shot) await page.screenshot({ path: shot, fullPage: true });
   let after = null;
   if (buttons.length) {
-    await frame.locator("button").first().click();
+    await frame.locator("button[data-item]").first().click();
     await frame.locator("#call").filter({ hasText: "review_plan answered" }).waitFor({ timeout: 5000 });
     after = { text: await frame.locator("body").innerText(),
-              buttons: await frame.locator("button").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-item"))) };
+              buttons: await frame.locator("button[data-item]").evaluateAll((bs) => bs.map((b) => b.getAttribute("data-item"))) };
   }
   const log = await page.evaluate(() => window.log);
   const violations = await page.evaluate(() => window.violations);

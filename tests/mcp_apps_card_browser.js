@@ -43,7 +43,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   await page.setContent(host);
   const frame = page.frameLocator("#view");
   await frame.locator("#counts").waitFor({ state: "visible", timeout: 10000 });
-  const buttons = frame.locator("button");
+  const buttons = frame.locator(".step button");   // n136: not the Mascots switch
   const n = await buttons.count();
   for (let i = 0; i < n; i++) {
     await buttons.nth(i).click();

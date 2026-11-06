@@ -16,6 +16,10 @@ What the card shows, all of it read from the text of review_plan's answer (the s
   its counts (rows with a value, orphans); items with a failed or stale check, items left open, keyless tables and
   tables an open question is about are highlighted, rejected relationships are dashed;
 - every key and relationship as text, with its review status and check verdict;
+- since n136, the site's mascots (mcp_apps_mascots): Onto says the summary (the counts), the Thinker the first line of
+  `attention`, the Builder the answer's `note` (what to do next with the file, also shown under "Next steps"); each
+  word for word from the text answer and on the card; glad only when every item was checked, every check passed and
+  nothing needs attention; a button on the card hides them;
 - for each item still undecided (review "proposed" or "open") one button that asks the host to call review_plan again
   with that one decision. Nothing else can be called: the only tool the page names is review_plan, which builds the
   review file in its answer and creates nothing in Fabric.
@@ -30,6 +34,7 @@ from __future__ import annotations
 import json
 
 from . import mcp_apps
+from . import mcp_apps_mascots as mascots
 
 CARD_URI = "ui://krusgraph/review-plan-card.html"
 TOOL = "review_plan"
@@ -62,7 +67,9 @@ def card_html() -> str:
     allowed = json.dumps({TOOL: list(CARRIED)}, separators=(",", ":"))
     return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
-            .replace("__UNDECIDED__", json.dumps(list(UNDECIDED))))
+            .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+            .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
 
 _HTML = r"""<!DOCTYPE html>
@@ -129,16 +136,19 @@ input { flex: 1 1 140px }
 button { font-weight: 650; border-radius: 999px; padding: 3px 14px; cursor: pointer }
 button:disabled { cursor: default; opacity: .6 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
+__MASCOT_CSS__
 </style>
 </head>
 <body>
 <main>
-  <h1>Plan review</h1>
+  <div class="kg-head"><h1>Plan review</h1>__MASCOT_TOGGLE__</div>
   <p id="verdict" class="muted" role="status">Waiting for review_plan's answer.</p>
+  __MASCOTS__
   <section id="attention" hidden><h2>Needs attention</h2><ul id="attention-list"></ul></section>
   <section id="er" hidden><h2>Tables and relationships</h2><div id="diagram"></div>
     <p class="muted">Arrows point from the referencing table to the table it refers to; the label is the rule and, when checked, the counts.</p></section>
   <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div></section>
+  <section id="next" hidden><h2>Next steps</h2><p id="note"></p></section>
   <p id="call" class="muted" role="status" hidden></p>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to call review_plan with that one decision; the host may ask you first. review_plan writes the review file in its answer and creates nothing in Fabric.</p>
 </main>
@@ -158,6 +168,7 @@ button:disabled { cursor: default; opacity: .6 }
     return new Promise(function (resolve, reject) { pending[id] = { resolve: resolve, reject: reject }; });
   }
   function notify(method, params) { send({ jsonrpc: "2.0", method: method, params: params || {} }); }
+__MASCOT_JS__
   function el(tag, text, cls) { var e = document.createElement(tag); if (text != null) e.textContent = String(text); if (cls) e.className = cls; return e; }
   function sv(tag, attrs, text) {
     var e = document.createElementNS(NS, tag);
@@ -389,6 +400,7 @@ button:disabled { cursor: default; opacity: .6 }
 
   function render(data) {
     var verdict = document.getElementById("verdict");
+    mascotsQuiet();
     if (!data || typeof data !== "object") { verdict.textContent = "The answer is not a review_plan answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = data.error + (data.hint ? " " + data.hint : ""); return; }
     var rv = data.review;
@@ -416,6 +428,20 @@ button:disabled { cursor: default; opacity: .6 }
       box.appendChild(row);
     });
     document.getElementById("list").hidden = !box.children.length;
+
+    var note = typeof data.note === "string" ? data.note : "";
+    document.getElementById("note").textContent = note;
+    document.getElementById("next").hidden = !note;
+
+    // n136: Onto says the counts, the Thinker the first line that needs attention, the Builder what to do next; every
+    // sentence is a string of the answer and is on the card. Glad only when every item was checked and passed and
+    // nothing needs attention.
+    var all = rv.items || [];
+    var passed = all.length > 0 && !(data.attention || []).length &&
+                 all.every(function (it) { return (it.check || {}).status === "passed"; });
+    mascots({ onto: [data.summary || "", passed ? "celebrate" : "point"],
+              thinker: [(data.attention || [])[0] || "", "think"],
+              builder: [note, passed ? "heart" : "explain"] }, passed);
   }
 
   function decideRow(it) {
@@ -468,7 +494,7 @@ button:disabled { cursor: default; opacity: .6 }
       var data; try { data = JSON.parse(textOf(m.params)); } catch (e) { data = null; }
       render(data);
     }
-    else if (m.method === "ui/notifications/tool-cancelled") document.getElementById("verdict").textContent = "The review was cancelled.";
+    else if (m.method === "ui/notifications/tool-cancelled") { document.getElementById("verdict").textContent = "The review was cancelled."; mascotsQuiet(); }
     else if (m.method === "ui/resource-teardown" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
     else if (m.method === "ping" && m.id != null) send({ jsonrpc: "2.0", id: m.id, result: {} });
   });

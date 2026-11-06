@@ -115,7 +115,9 @@ def test_the_html_is_self_contained_with_no_external_load_and_no_tracking():
                    "document.cookie", "indexeddb", "navigator.", "innerhtml", "outerhtml", "insertadjacenthtml",
                    "document.write", "eval(", "new function", "ui/open-link", "ui/message", "ui/update-model-context"):
         assert banned not in low, banned
-    assert "<svg" not in low and "mascot" not in low                       # no pictures: every word is text
+    # n136: the only pictures are the mascots, inline SVG with no reference of any kind (tests/test_n136_card_mascots.py)
+    assert not {"image", "use", "foreignobject"} & set(p.tags)
+    assert low.count("<svg") == 3 and all('class="mascot ' in t for t in re.findall(r"<svg[^>]*>", low))
 
 
 def test_the_view_uses_the_spec_method_names():
