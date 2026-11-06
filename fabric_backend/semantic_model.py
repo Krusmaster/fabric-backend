@@ -313,6 +313,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         taken.add(m["name"].lower())
         measures.append(m)
     feeds = {(d, c): next(m["name"] for m in order_amount["measures"] if (m["dimension"], m["price"]) == (d, c)) for d, c in consumed}
+    from . import level_measures as _levels                       # n133: sums at the right level (an amount's own table, the header)
+    flat = _levels.flat_amounts(validation, names)
+    measures = [m for m in measures if (m["table"], m.get("column")) not in flat]   # a flat header amount: no plain sum
+    more, flat = _levels.suggest(plan, chosen, measures, header_level, consumed, ref_cols, taken, validation, summarize_by, data_type, role_of)
+    measures += more
     by_table: dict[str, list[dict]] = {}
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
@@ -351,6 +356,10 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                 summarize = "none"
                 lines.append(f"\t/// A price at the level of {t.name}, read by the measure {tmdl_name(feeds[(t.name, c.name)])} through RELATED. "
                              f"Not summed by default: a sum of prices over the line rows would count each price once per line.")
+            elif (t.name, c.name) in flat:
+                summarize = "none"
+                lines.append(f"\t/// An amount at the level of {flat[(t.name, c.name)]}, repeated on every {t.name} row of it (amount_levels). "
+                             "Not summed by default: use the measure, which takes it once per value.")
             elif (t.name, c.name) in header_level:
                 summarize = "none"
                 lines.append(f"\t/// An amount at the level of {t.name}; {', '.join(header_level[(t.name, c.name)])} has several rows per "
@@ -525,4 +534,6 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
                                "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}
+    if flat:
+        summary["flat_amounts"] = [{"table": t, "column": c, "header": h, "summarize_by": "none"} for (t, c), h in flat.items()]
     return {"parts": parts, "summary": summary}

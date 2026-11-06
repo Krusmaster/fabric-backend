@@ -783,16 +783,24 @@ def _api_id(workspace: str, api: str, headers: dict) -> str | None:
 @safe
 def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.ModelDraftName = "semantic_model", schema: _p.Schema = "dbo",
                          keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-                         tables: _p.TablesShown = None, ctx: Context = None) -> str:
+                         tables: _p.TablesShown = None, validate: _p.Validate = False, ctx: Context = None) -> str:
     """Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):
-    relationships with cardinality and filter direction, one active path per table pair. Requires workspace and
+    relationships with cardinality and filter direction, one active path per table pair, suggested measures that sum
+    at the right level (validate=true also counts header amounts repeated in a flat table). Requires workspace and
     source. Returns JSON {path: content} for the definition folder plus README.generated.md listing the decisions to
     check. Changes nothing; create_semantic_model creates the item, compare_semantic_model checks an existing model.
     Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    checked = None
+    if validate:
+        _, execute = _connected(workspace, source, schema, ctx)
+        try:
+            checked = _evidence.validate(p, execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
-    out = _semantic_model.draft(p, info, name, tables)
+    out = _semantic_model.draft(p, info, name, tables, validation=checked)
     out["note"] = ("Unit-tested against Microsoft's published TMDL samples. " + _tool_status.answer_note("semantic_model_draft")
                    + " create_semantic_model creates the item from it (" + _tool_status.short("create_semantic_model") + "). Open the "
                    "folder in Power BI Desktop (TMDL view) or create the item with the Fabric REST API; README.generated.md "

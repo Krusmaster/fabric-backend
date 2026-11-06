@@ -385,16 +385,23 @@ def sample_rows(table: str, schema: str = "dbo", n: int = 10, show_personal_data
 @_tool("Draft a Power BI semantic model (TMDL, nothing created)", RO)
 @safe
 def semantic_model_draft(name: str = "semantic_model", schema: str = "dbo", keys: dict[str, list[str]] | None = None,
-                         confirmed: list[dict] | None = None, tables: list[str] | None = None) -> str:
+                         confirmed: list[dict] | None = None, tables: list[str] | None = None, validate: bool = False) -> str:
     """The plan as a Power BI semantic model in TMDL: Direct Lake tables on the SQL endpoint in FABRIC_ODBC, one active
-    relationship path per table pair (the rest inactive with the reason), README.generated.md with the decisions.
+    relationship path per table pair (the rest inactive with the reason), suggested measures that sum at the right
+    level (validate=true counts flat-table header amounts), README.generated.md with the decisions.
     Returns {path: content}; creates nothing."""
     refused = _fabric_only("semantic_model_draft", schema)
     if refused:
         return refused
-    p = _plan(schema, keys=keys, confirmed=confirmed)
+    checked = None
+    if validate:
+        with _connection(schema) as execute:
+            p = _plan_on(execute, schema, keys, confirmed)
+            checked = _evidence.validate(p, execute)
+    else:
+        p = _plan(schema, keys=keys, confirmed=confirmed)
     check_tables(p.schema, tables)
-    out = _semantic_model.draft(p, _source_info(schema), name, tables)
+    out = _semantic_model.draft(p, _source_info(schema), name, tables, validation=checked)
     out["note"] = ("Drafted locally: the SQL endpoint host and database come from FABRIC_ODBC, the item kind from FABRIC_SOURCE_KIND. "
                    "Unit-tested against Microsoft's sample definitions; not yet created in a live workspace.")
     return json.dumps(out, indent=2)

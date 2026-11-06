@@ -3542,7 +3542,7 @@
     "read_only_hint": true,
     "title": "Draft a Power BI semantic model (TMDL, nothing created)"
    },
-   "description": "Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):\nrelationships with cardinality and filter direction, one active path per table pair. Requires workspace and\nsource. Returns JSON {path: content} for the definition folder plus README.generated.md listing the decisions to\ncheck. Changes nothing; create_semantic_model creates the item, compare_semantic_model checks an existing model.\nErrors: {error, kind, hint}.",
+   "description": "Drafts the plan as a Power BI semantic model in TMDL (Direct Lake on the source's SQL analytics endpoint):\nrelationships with cardinality and filter direction, one active path per table pair, suggested measures that sum\nat the right level (validate=true also counts header amounts repeated in a flat table). Requires workspace and\nsource. Returns JSON {path: content} for the definition folder plus README.generated.md listing the decisions to\ncheck. Changes nothing; create_semantic_model creates the item, compare_semantic_model checks an existing model.\nErrors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -3613,6 +3613,12 @@
       "default": null,
       "description": "Table names or globs to show. Default all. Example: [\"sales_*\"].",
       "title": "Tables"
+     },
+     "validate": {
+      "default": false,
+      "description": "true runs validate_plan's counting queries and includes the counts; false (default) reads metadata only.",
+      "title": "Validate",
+      "type": "boolean"
      },
      "workspace": {
       "description": "Fabric workspace, name or id.",

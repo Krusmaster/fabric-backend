@@ -1008,7 +1008,7 @@
    "open_world_hint": true,
    "read_only_hint": true
   },
-  "description": "The plan as a Power BI semantic model in TMDL: Direct Lake tables on the SQL endpoint in FABRIC_ODBC, one active\nrelationship path per table pair (the rest inactive with the reason), README.generated.md with the decisions.\nReturns {path: content}; creates nothing.",
+  "description": "The plan as a Power BI semantic model in TMDL: Direct Lake tables on the SQL endpoint in FABRIC_ODBC, one active\nrelationship path per table pair (the rest inactive with the reason), suggested measures that sum at the right\nlevel (validate=true counts flat-table header amounts), README.generated.md with the decisions.\nReturns {path: content}; creates nothing.",
   "input_schema": {
    "properties": {
     "confirmed": {
@@ -1069,6 +1069,11 @@
      ],
      "default": null,
      "title": "Tables"
+    },
+    "validate": {
+     "default": false,
+     "title": "Validate",
+     "type": "boolean"
     }
    },
    "title": "semantic_model_draftArguments",
