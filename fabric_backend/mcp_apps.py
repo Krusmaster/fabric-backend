@@ -127,8 +127,8 @@ def card_html() -> str:
     (the counts), the Thinker the first thing that needs attention, the Builder the first next step, each word for word
     from the text answer and also on the card; glad only when every check passed; a button hides them."""
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS + CALL_JS)
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS)
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
 
@@ -212,6 +212,119 @@ CALL_JS = r"""
   function hostStarted(r) { hostCaps = isObj(r) && isObj(r.hostCapabilities) ? r.hostCapabilities : {}; }
 """
 
+
+# n138 (Gustav, live in the Claude desktop app): a button's tool answer was shown as one large JSON block. RESULT_JS
+# gives a short summary per tool, read only from names and counts in the answer (never a row value), with the whole
+# answer behind a collapsed "Show details": semantic_model_draft its tables, relationships, measures and notes;
+# ontology_draft its entity types with their keys, its relationship types and its notes as questions to the user;
+# any other tool its `summary` (a sentence, or the numbers of a summary object). The form is chosen by the answer's
+# shape, not by the tool's name, so the review card names no tool but review_plan. resultView(tool, result) gives the
+# element; both cards use it.
+RESULT_CSS = """
+.res-box { display: grid; gap: 4px; min-width: 0 }
+.res-box .res { margin: 0; padding-left: 18px }
+.res-box .res li { overflow-wrap: anywhere }
+.res-box .res-k { font-weight: 650 }
+.res-box .res-h { margin: 4px 0 0; font-size: 13.5px; font-weight: 650 }
+.res-box .res-q li { margin: 4px 0 }
+.res-box .res-why { display: block; color: var(--kg-muted); font-size: 13px }
+.res-box details summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px; font-weight: 600 }
+.res-box pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; max-height: 260px;
+  overflow: auto; background: var(--kg-card); border-radius: 8px; padding: 6px 8px }
+"""
+
+RESULT_JS = r"""
+  var LIST_MAX = 8;
+  function arr(x) { return Array.isArray(x) ? x : []; }
+  function some(xs, f) {
+    var out = xs.slice(0, LIST_MAX).map(f).filter(Boolean);
+    return out.join(", ") + (xs.length > LIST_MAX ? ", and " + (xs.length - LIST_MAX) + " more" : "");
+  }
+  function name(x) { return typeof x === "string" ? x : ""; }
+  function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  // { lines: [[label, text]], questions: [[question, why]] }, from names and counts only
+  function summaryOf(tool, d) {
+    var lines = [], questions = [], s = isObj(d.summary) ? d.summary : null;
+    if (readable(d.error)) { lines.push(["Error", d.error + (readable(d.hint) ? " " + d.hint : "")]); return { lines: lines, questions: questions }; }
+    if (s && isObj(s.roles) && "relationships_active" in s) {          // a semantic model draft
+      var roles = isObj(s.roles) ? s.roles : {}, by = {};
+      Object.keys(roles).forEach(function (t) { (by[roles[t]] = by[roles[t]] || []).push(t); });
+      lines.push(["Tables", String(Number(s.tables) || Object.keys(roles).length) +
+        (Object.keys(by).length ? " (" + Object.keys(by).map(function (r) { return r + ": " + some(by[r], name); }).join("; ") + ")" : "")]);
+      lines.push(["Relationships", (Number(s.relationships_active) || 0) + " active, " + (Number(s.relationships_inactive) || 0) + " inactive" +
+        (Number(s.relationships_not_expressible) ? ", " + s.relationships_not_expressible + " not expressible" : "")]);
+      var ms = [], seenM = {};
+      arr(s.measures).concat(arr(isObj(s.order_amount) ? s.order_amount.measures : [])).forEach(function (m) {
+        var k = isObj(m) ? m.table + "|" + m.name : ""; if (k && !seenM[k]) { seenM[k] = 1; ms.push(m); } });
+      lines.push(["Measures", ms.length ? ms.length + ": " + some(ms, function (m) { return isObj(m) && name(m.name) ? m.name + (name(m.table) ? " (" + m.table + ")" : "") : ""; }) : "none"]);
+      var notes = [];
+      if (arr(s.keyless).length) notes.push("No key: " + some(arr(s.keyless), name) + ".");
+      if (arr(s.composite_keys).length) notes.push("Composite key: " + some(arr(s.composite_keys), name) + ".");
+      arr(s.inactive).forEach(function (r) { if (isObj(r)) notes.push("Inactive: " + r.source + "." + arr(r.columns).join("+") + " → " + r.target + (readable(r.why) ? ": " + r.why : "") + "."); });
+      arr(s.not_expressible).forEach(function (r) { if (isObj(r)) notes.push("Not expressible: " + r.source + " → " + r.target + (readable(r.why) ? ": " + r.why : "") + "."); });
+      arr(s.header_amounts).forEach(function (h) { if (isObj(h)) notes.push("Header amount " + h.table + "." + h.column + " is not summed over " + arr(h.lines).join(", ") + "."); });
+      var dt = isObj(s.date_table) ? s.date_table : null;
+      if (dt && name(dt.name)) notes.push("Date table " + dt.name + (arr(dt.related).length ? ", related to " + some(arr(dt.related), function (r) { return isObj(r) ? r.fact + "." + r.column : ""; }) : "") +
+        (arr(dt.not_related).length ? "; not related: " + some(arr(dt.not_related), function (r) { return isObj(r) ? r.fact + "." + r.column + (readable(r.why) ? " (" + r.why + ")" : "") : ""; }) : "") + ".");
+      if (readable(d.note)) notes.push(d.note);
+      notes.forEach(function (n) { lines.push(["Note", n]); });
+    } else if (s && Array.isArray(d.bindings) && "entity_types" in s) {   // an ontology draft
+      var binds = arr(d.bindings).filter(isObj);
+      lines.push(["Entity types", (Number(s.entity_types) || binds.length) + ", " + (Number(s.with_key) || 0) + " with a key"]);
+      binds.slice(0, 2 * LIST_MAX).forEach(function (b) {
+        var key = name(b.key) ? "key " + b.key : (arr(b.key_columns).length > 1 ? "no single key (" + arr(b.key_columns).join(" + ") + ")" : "no key");
+        lines.push(["Entity", b.entity_type + ": " + key]);
+      });
+      var rels = [];
+      binds.forEach(function (b) { arr(b.relationships).forEach(function (r) { if (isObj(r)) rels.push(b.entity_type + " → " + r.to + (name(r.name) ? " (" + r.name + ")" : "")); }); });
+      lines.push(["Relationship types", (Number(s.relationship_types) || rels.length) + (rels.length ? ": " + some(rels, name) : "") +
+        (Number(s.skipped_relationships) ? "; " + s.skipped_relationships + " skipped" : "")]);
+      arr(s.notes).forEach(function (n) {
+        if (!readable(n)) return;
+        var who = (/^([A-Za-z_][\w]*):/.exec(n) || [])[1], b = binds.filter(function (x) { return x.entity_type === who; })[0], q;
+        if (b && !name(b.key) && arr(b.key_columns).length > 1) q = "Which one property should be the key of " + who + "?";
+        else if (b && !name(b.key)) q = "Does " + who + " have a key?";
+        else q = (who ? who + ": is" : "Is") + " this right?";
+        questions.push([q, n]);
+      });
+      if (readable(d.note)) lines.push(["Note", d.note]);
+    } else if (readable(d.summary)) {
+      lines.push(["Summary", d.summary]);
+    } else if (s) {
+      Object.keys(s).forEach(function (k) {
+        var v = s[k];
+        if (typeof v === "number" || typeof v === "boolean") lines.push([k.replace(/_/g, " "), String(v)]);
+        else if (Array.isArray(v)) lines.push([k.replace(/_/g, " "), String(v.length)]);
+      });
+    }
+    if (!lines.length && !questions.length) lines.push(["Answer", "no summary in it; the whole answer is under Show details."]);
+    return { lines: lines, questions: questions };
+  }
+  function resultView(tool, r) {
+    var box = el("div", null, "res-box"), d = answerOf(r), text = resultText(r);
+    if (d) {
+      var sm = summaryOf(tool, d), ul = el("ul", null, "res");
+      sm.lines.forEach(function (ln) { var li = el("li"); li.appendChild(el("span", ln[0] + ": ", "res-k")); li.appendChild(document.createTextNode(ln[1])); ul.appendChild(li); });
+      box.appendChild(ul);
+      if (sm.questions.length) {
+        box.appendChild(el("p", "Questions for you", "res-h"));
+        var qs = el("ul", null, "res res-q");
+        sm.questions.forEach(function (q) { var li = el("li", q[0]); li.appendChild(el("span", q[1], "res-why")); qs.appendChild(li); });
+        box.appendChild(qs);
+      }
+    } else {
+      box.appendChild(el("p", readable(text) ? (text.length > 400 ? text.slice(0, 400) + "…" : text) : tool + " answered; the answer is under Show details."));
+    }
+    if (text) {
+      var det = el("details"), full = d ? JSON.stringify(d, null, 2) : text;
+      det.appendChild(el("summary", "Show details"));
+      det.appendChild(el("pre", full.length > 60000 ? full.slice(0, 60000) + "\n… (the rest is in the tool's own answer)" : full));
+      box.appendChild(det);
+    }
+    return box;
+  }
+"""
+
 _HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -254,6 +367,7 @@ pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-size: 12.5p
   background: var(--kg-card); border-radius: 8px; padding: 6px 8px }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
 __MASCOT_CSS__
+__RESULT_CSS__
 </style>
 </head>
 <body>
@@ -334,7 +448,7 @@ __READ_JS__
       if (!firstStep) firstStep = why;
       row.appendChild(el("p", why));
       var b = el("button", "Run " + s.tool); b.type = "button";
-      var out = el("pre"); out.hidden = true;
+      var out = el("div", null, "out"); out.hidden = true;
       b.addEventListener("click", function () { run(s, b, out); });
       row.appendChild(b); row.appendChild(out); steps.appendChild(row);
     });
@@ -360,7 +474,7 @@ __READ_JS__
     if (!canCallTools()) { out.textContent = callProblem({ kind: "unsupported" }, step.tool, ask); return; }
     button.disabled = true; out.textContent = "Asked the host to run " + step.tool + ".";
     callTool(step.tool, args, function () { out.textContent = stillWaiting(ask); }).then(function (r) {
-      var t = resultText(r); out.textContent = t.length > 4000 ? t.slice(0, 4000) + "\\n\\u2026 (the rest is in the tool's own answer)" : t;
+      out.textContent = ""; out.appendChild(resultView(step.tool, r));
     }, function (e) {
       out.textContent = callProblem(e, step.tool, ask);
     }).then(function () { button.disabled = false; });

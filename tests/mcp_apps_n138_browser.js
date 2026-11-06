@@ -6,6 +6,7 @@
 //   error    serverTools, but answers tools/call with the JSON-RPC error -32601 (method not found)
 //   iserror  serverTools, answers with a CallToolResult that has isError: true
 //   silent   serverTools, never answers tools/call (the page clock is moved on by a minute)
+//   bytool   serverTools, <reply.json> maps a tool name to its CallToolResult; every button of the card is clicked
 // Usage: node mcp_apps_n138_browser.js <card.html> <input.json> <result.json> <reply.json> <width> <light|dark> <mode> [<shot.png>]
 const fs = require("fs");
 const { chromium } = require("playwright");
@@ -40,6 +41,7 @@ window.addEventListener("message", (e) => {
   }
   if (m.method === "tools/call") {
     if (MODE === "tools" || MODE === "none") post({ jsonrpc: "2.0", id: m.id, result: REPLY });
+    else if (MODE === "bytool") post({ jsonrpc: "2.0", id: m.id, result: REPLY[m.params.name] });
     else if (MODE === "error") post({ jsonrpc: "2.0", id: m.id, error: { code: -32601, message: "Method not found" } });
     else if (MODE === "iserror") post({ jsonrpc: "2.0", id: m.id, result: { isError: true, content: [{ type: "text", text: "workspace not found" }] } });
   }
@@ -86,19 +88,34 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
       verdict: document.getElementById("verdict").textContent,
       result: txt("#result"), attention: txt("#attention-list li"), attentionNone: txt("#attention-none"),
       attentionShown: shown(document.getElementById("attention")),
-      outputs: txt("#steps pre"), call: txt("#call"), diagram,
+      outputs: txt("#steps .out"), call: txt("#call"), diagram,
+      results: [...document.querySelectorAll(".res-box")].filter(shown).map((o) => ({
+        lines: [...o.querySelectorAll(":scope > ul.res:not(.res-q) > li")].map((li) => li.textContent),
+        questions: [...o.querySelectorAll("ul.res-q > li")].map((li) => [li.firstChild.textContent, li.querySelector(".res-why").textContent]),
+        details: o.querySelector("details") ? { open: o.querySelector("details").open, summary: o.querySelector("details > summary").textContent,
+                                                 preShown: o.querySelector("details pre").checkVisibility(), text: o.querySelector("details pre").textContent } : null,
+        visible: o.innerText })),
       docWidth: document.documentElement.scrollWidth, viewWidth: document.documentElement.clientWidth,
       background: getComputedStyle(document.body).backgroundColor, text: document.body.innerText };
   });
   const before = await read();
   if (shot) await page.screenshot({ path: shot, fullPage: true });
   let after = null;
+  if (mode === "bytool") {
+    const buttons = frame.locator(".step button");
+    for (let i = 0; i < await buttons.count(); i++) {
+      await buttons.nth(i).click();
+      await frame.locator(".step .out").nth(i).locator("details").waitFor({ state: "attached", timeout: 10000 });
+    }
+    after = await read();
+    if (shot) await page.screenshot({ path: shot.replace(/\.png$/, "-after.png"), fullPage: true });
+  }
   const first = frame.locator("#steps button, button[data-item]").first();
-  if (await first.count()) {
+  if (mode !== "bytool" && await first.count()) {
     await first.click();
     if (mode === "silent") await page.clock.runFor(60000);
     const done = mode === "silent" ? /No answer/ : /^(?!Asked the host)./;
-    await frame.locator("#steps pre, #call").filter({ hasText: done }).first().waitFor({ timeout: 10000 });
+    await frame.locator("#steps .out, #call").filter({ hasText: done }).first().waitFor({ timeout: 10000 });
     after = await read();
   }
   const log = await page.evaluate(() => window.log);

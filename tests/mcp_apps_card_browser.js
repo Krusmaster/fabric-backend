@@ -47,7 +47,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   const n = await buttons.count();
   for (let i = 0; i < n; i++) {
     await buttons.nth(i).click();
-    await frame.locator("pre").nth(i).filter({ hasText: "answer of " }).waitFor({ timeout: 5000 });
+    await frame.locator(".step .out").nth(i).filter({ hasText: "answer of " }).waitFor({ timeout: 5000 });
   }
   const text = await frame.locator("body").innerText();
   const log = await page.evaluate(() => window.log);

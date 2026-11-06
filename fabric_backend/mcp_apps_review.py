@@ -71,9 +71,9 @@ def card_html() -> str:
     return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS).replace("__LAYOUT_JS__", LAYOUT_JS))
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS).replace("__LAYOUT_JS__", LAYOUT_JS))
 
 
 # n138: the ER diagram's layout as a pure function (erLayout), placed into the card. tests/test_n138_card_polish.py
@@ -413,6 +413,7 @@ button { font-weight: 650; border-radius: 999px; padding: 3px 14px; cursor: poin
 button:disabled { cursor: default; opacity: .6 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
 __MASCOT_CSS__
+__RESULT_CSS__
 </style>
 </head>
 <body>
@@ -426,6 +427,7 @@ __MASCOT_CSS__
   <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div></section>
   <section id="next" hidden><h2>Next steps</h2><p id="note"></p></section>
   <p id="call" class="muted" role="status" hidden></p>
+  <div id="call-result" hidden></div>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to call review_plan with that one decision; the host may ask you first. review_plan writes the review file in its answer and creates nothing in Fabric.</p>
 </main>
 <script>
@@ -655,10 +657,12 @@ __LAYOUT_JS__
     callTool(TOOL, args, function () { note.textContent = stillWaiting(ask); }).then(function (r) {
       var parsed = answerOf(r);
       if (parsed && isObj(parsed.review)) {
+        document.getElementById("call-result").hidden = true;
         render(parsed);
         note.textContent = "review_plan answered: " + item + " " + review + ". " + (parsed.note || "");
       } else {
-        note.textContent = "review_plan answered; the answer is in the text of the tool result.";
+        note.textContent = "review_plan answered without a review file.";
+        var shown = document.getElementById("call-result"); shown.textContent = ""; shown.appendChild(resultView(TOOL, r)); shown.hidden = false;
         button.disabled = false;
       }
     }, function (e) {

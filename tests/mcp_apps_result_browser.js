@@ -65,7 +65,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
       resultShown: shown(document.getElementById("result")),
       steps: txt("#steps .step > p"),
       buttons: [...document.querySelectorAll("main button")].filter(shown).map((b) => b.textContent),
-      outputs: txt("#steps pre"),
+      outputs: txt("#steps .out"),
       decisions: [...document.querySelectorAll("button[data-item]")].filter(shown).map((b) => b.getAttribute("data-item")),
       note: txt("#note"), call: txt("#call"),
       diagram: svg && shown(svg) ? {
@@ -81,7 +81,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   const first = frame.locator("#steps button, button[data-item]").first();
   if (await first.count()) {
     await first.click();
-    await frame.locator("#steps pre, #call").filter({ hasNotText: "Asked the host" }).filter({ hasText: /./ }).first().waitFor({ timeout: 10000 });
+    await frame.locator("#steps .out, #call").filter({ hasNotText: "Asked the host" }).filter({ hasText: /./ }).first().waitFor({ timeout: 10000 });
     after = await read();
   }
   const log = await page.evaluate(() => window.log);

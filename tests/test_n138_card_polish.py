@@ -315,3 +315,91 @@ def test_the_call_helper_is_in_both_cards():
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html()):
         assert "function callTool(" in html and "hostCapabilities" in html and "serverTools" in html
         assert html.count('request("tools/call"') == 1                                 # one way to call, the helper
+
+
+# ------------------------------------------------------------------ what a button's tool answered ---------------------
+
+def _row_values() -> set[str]:
+    """Every text value in the synthetic shop's rows (names, cities, categories, events): none may be on a summary."""
+    from fabric_backend import seed
+    return {v for rows in seed.rows().values() for row in rows for v in row if isinstance(v, str) and len(v) > 3}
+
+
+def _sdk(answer: str) -> dict:
+    """A str tool's answer as the SDK sends it, the shape seen live: text content plus {"result": text}."""
+    return {"content": [{"type": "text", "text": answer}], "structuredContent": {"result": answer}}
+
+
+@needs_browser
+def test_draft_answers_as_short_summaries_with_details_closed(tmp_path, live_shop):
+    v = json.loads(server.validate_plan(**SRC))
+    assert [s["tool"] for s in v["next_steps"]] == ["semantic_model_draft", "ontology_draft"]
+    smd_text, ont_text = server.semantic_model_draft(**SRC), server.ontology_draft(**SRC)
+    smd, ont = json.loads(smd_text), json.loads(ont_text)
+    # the live shapes the summaries read
+    assert set(smd) >= {"parts", "summary", "note"} and smd["summary"]["tables"] == 7
+    assert (smd["summary"]["relationships_active"], smd["summary"]["relationships_inactive"]) == (6, 1)
+    assert set(ont) >= {"summary", "bindings", "ttl", "definition_parts"} and ont["summary"]["entity_types"] == 7
+    assert ont["summary"]["with_key"] == 5 and ont["summary"]["relationship_types"] == 7 and len(ont["summary"]["notes"]) == 2
+
+    shot = os.environ.get("KRUSGRAPH_CARD_SHOT")
+    out = _browse(tmp_path, "validate_plan", SRC, _text(json.dumps(v)), mode="bytool",
+                  reply={"semantic_model_draft": _sdk(smd_text), "ontology_draft": _sdk(ont_text)},
+                  shot=shot and f"{shot}-n138-results.png")
+    calls = [m for m in out["log"] if m.get("method") == "tools/call"]
+    assert [c["params"]["name"] for c in calls] == ["semantic_model_draft", "ontology_draft"]
+    first, second = out["after"]["results"]
+
+    s = smd["summary"]
+    measures = list(dict.fromkeys(f"{m['name']} ({m['table']})" for m in s["measures"] + s["order_amount"]["measures"]))
+    assert first["lines"][:3] == [
+        "Tables: 7 (dimension: customers, categories, products, addresses; fact: orders, order_items, audit_log)",
+        "Relationships: 6 active, 1 inactive",
+        f"Measures: {len(measures)}: " + ", ".join(measures),                     # one line per measure, no repeats
+    ]
+    notes = [ln for ln in first["lines"] if ln.startswith("Note: ")]
+    assert "Note: No key: audit_log." in notes and "Note: Composite key: order_items." in notes
+    assert any(n.startswith("Note: Inactive: orders.ship_to_id → addresses: it would close a cycle") for n in notes)
+    assert f"Note: {smd['note']}" in notes and first["questions"] == []
+
+    assert second["lines"][0] == "Entity types: 7, 5 with a key"
+    entities = [ln for ln in second["lines"] if ln.startswith("Entity: ")]
+    assert len(entities) == 7 and "Entity: Customers: key customer_id" in entities
+    assert "Entity: OrderItems: no single key (order_id + line_no)" in entities and "Entity: AuditLog: no key" in entities
+    assert any(ln.startswith("Relationship types: 7: ") and "OrderItems → Orders (OrderItemsHasOrders)" in ln for ln in second["lines"])
+    assert second["questions"] == [["Which one property should be the key of OrderItems?", ont["summary"]["notes"][0]],
+                                   ["Does AuditLog have a key?", ont["summary"]["notes"][1]]]
+
+    for res, answer in ((first, smd), (second, ont)):
+        d = res["details"]
+        assert d["summary"] == "Show details" and not d["open"] and not d["preShown"]   # collapsed
+        assert json.loads(d["text"]) == answer                                          # the whole answer, behind it
+        assert "Show details" in res["visible"] and "{" not in res["visible"].replace("Show details", "")
+        for marker in ("lineageTag", "tmdl", "@prefix", "compatibilityLevel"):
+            assert marker not in res["visible"], marker                                 # no raw parts on the card
+        for value in _row_values():
+            assert value not in res["visible"], value                                   # no row values
+
+
+@needs_browser
+def test_any_other_tool_shows_its_summary_field(tmp_path, live_shop):
+    v = json.loads(server.validate_plan(**SRC))
+    v["next_steps"] = [{"tool": "suggest_relationships", "arguments": {}, "why": "find links the plan lacks."}]
+    answer = {"summary": "2 candidate columns, 1 checked against the data", "candidates": [{"column": "x"}]}
+    out = _browse(tmp_path, "validate_plan", SRC, _text(v), mode="bytool",
+                  reply={"suggest_relationships": _text(answer)})
+    [res] = out["after"]["results"]
+    assert res["lines"] == ["Summary: 2 candidate columns, 1 checked against the data"] and res["questions"] == []
+    assert json.loads(res["details"]["text"]) == answer and not res["details"]["open"]
+
+
+@needs_browser
+def test_review_card_shows_an_answer_without_a_review_as_a_summary(tmp_path, live_shop):
+    args = {**SRC, "validate": True}
+    answer = server.review_plan(**args)
+    refusal = {"error": "previous does not belong to this source.", "hint": "Call review_plan without previous."}
+    out = _browse(tmp_path, "review_plan", args, _text(answer), reply=_text(refusal))
+    assert out["after"]["call"] == ["review_plan answered without a review file."]
+    [res] = out["after"]["results"]
+    assert res["lines"] == ["Error: previous does not belong to this source. Call review_plan without previous."]
+    assert json.loads(res["details"]["text"]) == refusal and not res["details"]["open"]

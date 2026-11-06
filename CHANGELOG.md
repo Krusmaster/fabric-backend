@@ -17,10 +17,15 @@ next deploy.
   "Nothing needs attention." under Needs attention and the result sentence once, in the summary line. The buttons
   ("Run <tool>", "Record decision") send the specification's `tools/call` request only to a host whose
   `ui/initialize` answer has `hostCapabilities.serverTools`; a host without it, a JSON-RPC error, a result with
-  `isError` and a host that does not answer within 20 s each give a sentence on the card (`mcp_apps.CALL_JS`). Tool
+  `isError` and a host that does not answer within 20 s each give a sentence on the card (`mcp_apps.CALL_JS`). What a
+  button's tool answers is no longer one large JSON block (seen live with semantic_model_draft and ontology_draft): a
+  short summary read from names and counts only, never a row value (`mcp_apps.RESULT_JS`): semantic_model_draft its
+  tables by role, relationships, measures and notes; ontology_draft its entity types with their keys, relationship
+  types, and its notes as questions to the user; any other tool its `summary`; the whole answer behind a collapsed
+  "Show details". The same on the review card for an answer without a review file. Tool
   count and listing cap unchanged. `tests/test_n138_card_polish.py` (Chromium) checks the diagram geometrically for
   the shop and a synthetic 15-table fixture, wide and light and narrow and dark, plus the empty-attention line and the
-  request shape in each host mode.
+  request shape in each host mode, and the summaries with the live shapes of both draft answers.
 - Round n137: the MCP Apps cards read the tool result. Seen live in Claude on the web and in the Claude desktop app on
   6 November 2026: validate_plan's card listed the whole answer as one JSON string under "Needs attention" (no
   mascots, no next-step buttons) and review_plan's card said it held no review file. Cause: the tools return `str`, so

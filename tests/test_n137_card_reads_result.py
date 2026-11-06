@@ -191,7 +191,8 @@ def test_validate_card_reads_every_shape(tmp_path, live_shop):
         [call] = out["calls"]                                                 # the button asked the host for the step
         assert call["params"]["name"] == "semantic_model_draft"
         assert call["params"]["arguments"] == {k: SRC[k] for k in ("workspace", "source", "schema")}, name
-        assert out["after"]["outputs"] == [drafted], name
+        [shown] = out["after"]["outputs"]                                     # n138: a summary, the JSON under details
+        assert "Show details" in shown and json.dumps(json.loads(drafted), indent=2) in shown, name
 
 
 @needs_browser
