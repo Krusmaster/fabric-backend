@@ -37,7 +37,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
-| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n131 (agent test questions: new `fabric_backend/agent_tests.py`, an option on `create_data_agent`); n130 (agent instructions: new `fabric_backend/agent_context.py`, `create_data_agent`'s draft and a `validate` option) |
+| Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n130 (agent instructions: new `fabric_backend/agent_context.py`, `create_data_agent`'s draft and a `validate` option) |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
