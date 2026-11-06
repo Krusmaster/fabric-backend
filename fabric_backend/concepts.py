@@ -811,15 +811,18 @@ def _default_dry_run(text: str, tool: str) -> bool:
     return bool(m) and bool(re.search(r"dry_run:[^=,]*=\s*True", m.group(1)))
 
 
+# The two console scripts the Where it runs page names. pyproject.toml is not part of the package (an installed server
+# has no repository around it), so the page does not read it; tests/test_site.py checks these against its
+# [project.scripts], and that deploy/krusgraph.sh and `location` in deploy/krusgraph.example.json are still there.
+WHERE_SCRIPTS = ("fabric-backend", "fabric-backend-mcp")
+
+
 @lru_cache(maxsize=1)
 def _where_code() -> dict:
-    """The facts the page reads from the code, checked so the page cannot outlive them."""
-    import tomllib
-    from pathlib import Path
+    """The facts the page reads from the code: only from the package's own files, so rendering works wherever the
+    package is installed (the Docker image has no deploy/, docs/ or tests/). Whether the facts still say what the page
+    says is checked in the tests (where_code_problems), never while a page renders."""
     from . import browser_build, browser_check, tool_status as ts
-    root = Path(__file__).resolve().parent.parent
-    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"] \
-        if (root / "pyproject.toml").exists() else {"fabric-backend": "", "fabric-backend-mcp": ""}
     bc, bb = _src("browser_check.py"), _src("browser_build.py")
     js = _src("static/check.js") + _src("static/check-worker.js")
     local = _src("mcp_server.py")
@@ -828,8 +831,8 @@ def _where_code() -> dict:
                  "app": "_app.zip" in bb, "evidence": "_evidence_report.md" in bc,
                  "dbt": "dbt" in bc + bb, "notebook": "notebook" in (bc + bb).lower()}
     creating = [t for t in ts.STATUS if ts.STATUS[t].kind == ts.CREATES]
-    facts = {
-        "scripts": [s for s in ("fabric-backend", "fabric-backend-mcp") if s in scripts],
+    return {
+        "scripts": list(WHERE_SCRIPTS),
         "browser_same_engine": "the exact engine the hosted service and the CLI run" in " ".join((browser_check.__doc__ or "").split()),
         "browser_counts": "validate_plan" in (browser_check.__doc__ or "") and "a total that doubles" in (browser_check.__doc__ or ""),
         "browser_writes_fabric": any(h in js + bc + bb for h in ("api.fabric.microsoft.com", "onelake.dfs", "database.windows.net")),
@@ -840,16 +843,27 @@ def _where_code() -> dict:
         "local_no_dry": [t for t in creating if t in ts.LOCAL_TOOLS and not _default_dry_run(local, t)],
         "hosted_creating": creating,
         "hosted_dry_default": [t for t in creating if _default_dry_run(re.sub(r"_p\.DryRun", "bool", hosted), t)],
-        "deploy_script": (root / "deploy" / "krusgraph.sh").exists(),
-        "location_key": '"location"' in (root / "deploy" / "krusgraph.example.json").read_text(encoding="utf-8")
-                        if (root / "deploy" / "krusgraph.example.json").exists() else True,
     }
-    if not (facts["browser_same_engine"] and facts["browser_counts"] and facts["browser_decisions"]
-            and downloads["model"] and downloads["ontology"]) or facts["browser_writes_fabric"]:
-        raise ValueError("/check's code no longer says what the Where it runs page reads from it")
-    if not facts["deploy_script"] or not facts["location_key"] or len(facts["scripts"]) != 2:
-        raise ValueError("the package or deploy/ no longer has what the Where it runs page names")
-    return facts
+
+
+def where_code_problems(root) -> list[str]:
+    """For the tests, run in the repository (`root`): what the Where it runs page says that the code, pyproject.toml or
+    deploy/ no longer backs. Rendering never calls this."""
+    import tomllib
+    from pathlib import Path
+    root, c, out = Path(root), _where_code(), []
+    d = c["downloads"]
+    if not (c["browser_same_engine"] and c["browser_counts"] and c["browser_decisions"]
+            and d["model"] and d["ontology"]) or c["browser_writes_fabric"]:
+        out.append("/check's code no longer says what the Where it runs page reads from it")
+    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"]
+    if any(s not in scripts for s in WHERE_SCRIPTS):
+        out.append("pyproject.toml no longer has the scripts the Where it runs page names")
+    example = root / "deploy" / "krusgraph.example.json"
+    if not (root / "deploy" / "krusgraph.sh").exists() or not example.exists() \
+            or '"location"' not in example.read_text(encoding="utf-8"):
+        out.append("deploy/ no longer has what the Where it runs page names")
+    return out
 
 
 def _fn(name: str) -> tuple[str, str, str]:
