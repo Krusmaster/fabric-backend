@@ -61,7 +61,7 @@ def test_flag_off_means_no_resource_no_meta_and_no_extension():
 
 def test_the_resource_is_declared_with_the_spec_mime_type_and_a_ui_uri():
     m = _app_server()
-    [res] = asyncio.run(m.list_resources())
+    res = next(r for r in asyncio.run(m.list_resources()) if str(r.uri) == mcp_apps.CARD_URI)   # n124 adds review_plan's card
     assert str(res.uri) == mcp_apps.CARD_URI and str(res.uri).startswith("ui://")
     assert res.mime_type == "text/html;profile=mcp-app" == mcp_apps.APP_MIME_TYPE
     from mcp.server.apps import APP_MIME_TYPE, EXTENSION_ID
@@ -199,9 +199,11 @@ print(json.dumps({"names": sorted(t.name for t in tools),
                                     capture_output=True, text=True, check=True).stdout)
     assert on["names"] == off["names"]                                      # the tool count does not change
     assert off["meta"] == {} and off["resources"] == []
-    assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True)}
-    assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"]]
-    assert on["ro_size"] <= 64_000 and on["ro_size"] - off["ro_size"] < 200, (on["ro_size"], off["ro_size"])
+    from fabric_backend import mcp_apps_review                           # n124: the second card, review_plan's
+    assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True)}
+    assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
+                               [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"]]
+    assert on["ro_size"] <= 64_000 and on["ro_size"] - off["ro_size"] < 400, (on["ro_size"], off["ro_size"])
 
 
 # ------------------------------------------------------------------ the card in a browser -----------------------------

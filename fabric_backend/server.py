@@ -61,6 +61,7 @@ from . import tool_status as _tool_status  # noqa: E402
 from . import tool_params as _p  # noqa: E402
 from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_MCP_APPS=1)
 from . import switches as _switches  # noqa: E402  (n123: both off unless the operator sets them)
+from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same flag)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -467,7 +468,8 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     return json.dumps(out, indent=2, default=str)
 
 
-@mcp.tool(title="Keep the reviewed plan as a file (nothing in Fabric changes)", annotations=RO)
+@mcp.tool(title="Keep the reviewed plan as a file (nothing in Fabric changes)", annotations=RO,
+          meta=_mcp_apps_review.tool_meta())
 @safe
 def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                 confirmed: _p.Confirmed = None, decisions: _p.Decisions = None, previous: _p.Previous = None,

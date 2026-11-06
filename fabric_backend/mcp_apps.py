@@ -72,6 +72,8 @@ def extensions(on: bool | None = None) -> list:
                            description="validate_plan's summary as a card: counts, what needs attention and the next "
                                        "steps as buttons that ask the host to run a read or draft tool.",
                            prefers_border=True)
+    from . import mcp_apps_review                            # n124: review_plan's card, same flag
+    mcp_apps_review.add_to(apps)
     return [apps]
 
 
