@@ -1,0 +1,74 @@
+table 'Order Lines'
+	lineageTag: 6b1d0e44-0000-4000-8000-000000000001
+
+	/// Every line, counted.
+	measure '# Lines' = COUNTROWS('Order Lines')
+		formatString: #,##0
+
+	measure 'Total Quantity' = SUM('Order Lines'[quantity])
+		formatString: #,##0
+
+	measure Revenue = SUM('Order Lines'[Line Amount])
+		formatString: #,##0.00
+
+	measure 'Revenue (net)' =
+			// orders[ship_to_id] is mentioned only in this comment
+			CALCULATE ( [Revenue], 'Order Lines'[line_no] > 0 ) -- and 'Order Lines'[product_id] in this one
+		formatString: #,##0.00
+
+	measure 'Avg Price' = ```
+			/* a block comment: 'Order Lines'[quantity] / [Ghost] */
+			DIVIDE ( [Revenue], [Total Quantity] )
+			```
+		formatString: #,##0.00
+
+	measure 'Avg Price Label' = "Average of [quantity] and 'Order Lines'[order_id]: " & FORMAT ( [Avg Price], "0.00" )
+
+	measure 'Unit Price Sum' = SUMX ( 'Order Lines', RELATED ( products[List Price] ) )
+
+	measure 'Quantity Unqualified' = SUMX ( 'Order Lines', [line_no] * [quantity] )
+
+	measure 'Per Measure' = SELECTEDMEASURE () * 1
+
+	measure 'Per Measure Twice' = [Per Measure] * 2
+
+	measure 'Unknown Measure' = [Ghost Measure] + 1
+
+	measure 'Broken String' = "no end
+
+	measure 'Two Order Ids' = SUMX ( FILTER ( orders, TRUE ), COUNTROWS ( 'Order Lines' ) + [order_id] )
+
+	measure 'Made Here' = SUMX ( ADDCOLUMNS ( 'Order Lines', "quantity", 1 ), [quantity] )
+
+	column order_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: order_id
+
+	column line_no
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: line_no
+
+	column product_id
+		dataType: int64
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column quantity
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: quantity
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Line Amount' = 'Order Lines'[quantity] * RELATED ( products[List Price] )
+		dataType: double
+		summarizeBy: sum
+
+	partition 'Order Lines' = entity
+		mode: directLake
+		source
+			entityName: order_items
+			schemaName: shop
+			expressionSource: DatabaseQuery

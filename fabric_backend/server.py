@@ -834,7 +834,8 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
         workspace_id = _workspace_id(workspace, headers)
         meta = {"name": model or "(from tmdl)", "read_with": "TMDL files given in `tmdl`; no call to the model"}
         if tmdl:
-            m = _mc.from_tmdl(dict(tmdl))
+            parts = dict(tmdl)
+            m = _mc.from_tmdl(parts)
         else:
             item = {"id": model} if _GUID.match(model.strip()) else find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
             if not item:
@@ -843,7 +844,8 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
             meta = {"name": model, "id": item["id"], "read_with": "Fabric getDefinition (TMDL)", "delegated_scope": MODEL_READ_SCOPE,
                     "spec": MODEL_READ_SPEC}
             try:
-                m = _mc.from_tmdl(_item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL"))
+                parts = _item_definition_parts(workspace_id, "semanticModels", item["id"], headers, fmt="TMDL")
+                m = _mc.from_tmdl(parts)
             except requests.HTTPError as e:
                 status = int(getattr(e.response, "status_code", 0) or 0)
                 if status in (401, 403):
@@ -876,6 +878,8 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
             getattr(execute, "close", lambda: None)()
     out = _mc.compare(p, m, validation, data)
     out = {"summary": out.pop("summary"), "model": meta, **out}
+    from . import dax_refs as _dax_refs                                  # n126: what uses each column whose source is gone
+    out["column_usage"] = _dax_refs.for_compare(parts, out["tables"]["columns_gone"])
     if validation is not None:
         out["validate_plan"] = validation["summary"]
     out["note"] = ("Unit-tested against a model fixture over the shop schema and Microsoft's sample PBIP model. "
@@ -1071,6 +1075,10 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
         out["impact"] = _lineage.impact_of_changes(edges, touched)
         out["impact_note"] = ("objects in the workspace that use the tables a re-run would drop columns from or lose; read from the "
                               "objects' definitions (views not included here, see lineage)" + (f"; {len(skipped)} item(s) could not be read" if skipped else ""))
+        from . import dax_refs as _dax_refs                              # n126: which measures the removed columns break
+        usage = _dax_refs.for_drift(edges, out, lambda mid: _item_definition_parts(workspace_id, "semanticModels", mid, headers, fmt="TMDL"))
+        if usage:
+            out["column_usage"] = usage
     return json.dumps(out, indent=2)
 
 

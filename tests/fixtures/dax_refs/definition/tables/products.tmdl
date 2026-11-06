@@ -1,0 +1,25 @@
+table products
+	lineageTag: 6b1d0e44-0000-4000-8000-000000000002
+
+	column product_id
+		dataType: int64
+		isKey
+		summarizeBy: none
+		sourceColumn: product_id
+
+	column 'List Price'
+		dataType: double
+		summarizeBy: none
+		sourceColumn: list_price
+
+	column 'Price Band' =
+			IF ( [List Price] > 100, "high", "low" )
+		dataType: string
+		summarizeBy: none
+
+	partition products = entity
+		mode: directLake
+		source
+			entityName: products
+			schemaName: shop
+			expressionSource: DatabaseQuery

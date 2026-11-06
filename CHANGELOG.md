@@ -5,10 +5,20 @@ Dates are the commit dates on `main`. Versions are the `version` in `pyproject.t
 
 ## Not yet deployed — after build `src-8d6c473bf26f45f9` (6 November 2026, main up to n111)
 
-Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deployed either. Round n126 was still
-running when this list was written (round n127) and is not in it. `docs/DEPLOY-NEXT.md` is the checklist for the
+Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deployed either. Round n126 was added to
+the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n126: column-level usage in semantic models (LANDSCAPE idea 5, `fabric_backend/dax_refs.py`). A small DAX
+  reference scanner reads the measures and calculated columns of a model's TMDL: `Table[Column]`, `[Measure]`, quoted
+  names and measures over measures, followed to the end with the path; strings and comments are skipped. A name it
+  cannot settle (several candidates, unknown, SELECTEDMEASURE and other dynamic references, unsupported syntax) is
+  listed as could not be read, never guessed, and so is every expression that depends on one. `plan_drift` adds
+  `column_usage` when a removed column or lost table reaches a semantic model (the model's definition is read again);
+  `compare_semantic_model` adds it for each model column whose source column is gone. No new tool; still the same
+  count. Calculation groups, calculated tables, format string expressions, roles, sortByColumn and hierarchies are
+  not read. Unit-tested on a TMDL fixture over the shop schema and on the shop model draft; not run against a model
+  in Fabric.
 - Round n122: `dbt_schema` takes `quality` (`"gx"`, `"soda"` or `"both"`) and writes the plan's key and relationship
   checks as a Great Expectations suite per table and as SodaCL checks, each with its rule and counts, as drafts.
   `profile=true` adds a dbt-fabric `profiles.yml` beside the n114 project, with placeholders and no secret. No new tool.

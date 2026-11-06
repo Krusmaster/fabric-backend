@@ -3754,6 +3754,10 @@
     "addresses.customer_id -> Customer.customer_id (R1)"
    ],
    "cardinality_differences": [],
+   "column_usage": {
+    "columns": [],
+    "note": "Read from the DAX of measures and calculated columns in the model's TMDL: Table[Column], [Measure], quoted names and measures over measures, strings and comments skipped. Anything the scanner cannot settle (a name with more than one meaning, an unknown name, SELECTEDMEASURE and other dynamic references, unsupported syntax) is listed under could_not_be_read rather than guessed. Calculation groups, calculated tables, format string expressions, security roles, sortByColumn and hierarchies are not read."
+   },
    "contradicted": [
     {
      "active": true,

@@ -1,0 +1,7 @@
+relationship 6b1d0e44-0000-4000-8000-0000000000a1
+	fromColumn: 'Order Lines'.order_id
+	toColumn: orders.order_id
+
+relationship 6b1d0e44-0000-4000-8000-0000000000a2
+	fromColumn: 'Order Lines'.product_id
+	toColumn: products.product_id
