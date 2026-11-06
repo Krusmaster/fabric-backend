@@ -109,7 +109,7 @@ def test_http_pages_metadata_and_mcp_authentication(monkeypatch, keys):
             response = client.get(path)
             assert response.status_code == 200
             assert "Krusgraph" in response.text and "{{" not in response.text
-        assert client.get("/healthz").json() == {"ok": True, "auth": "entra"}
+        assert client.get("/healthz").json() == {"ok": True, "auth": "entra", "mode": "default"}
         for path in ("/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/mcp"):
             response = client.get(path)
             assert response.status_code == 200

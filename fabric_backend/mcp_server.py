@@ -49,6 +49,7 @@ from .platforms import local as _local, databricks as _databricks
 from .dialects import TSQL as _TSQL, of as _dialect_of
 from . import evidence as _evidence, semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary
 from . import dbt as _dbt, graphs as _graphs, views as _views, compact as _compact
+from . import switches as _switches                     # n123: both off unless the operator sets them
 
 try:
     from mcp.server.mcpserver import MCPServer as _Server          # mcp >= 2
@@ -65,7 +66,8 @@ INSTRUCTIONS = (
     "review_plan keeps the plan, the decisions and the checks as a file to read back later. The "
     "databricks_* tools draft informational constraints, a Lakeflow pipeline, metric views and a bundle from the same "
     "plan; create_databricks_constraints and create_databricks_pipeline are dry runs by default. A tool that does not "
-    "apply to the source answers kind unsupported with the tool that does. Failures answer error, kind and hint.")
+    "apply to the source answers kind unsupported with the tool that does. Failures answer error, kind and hint. "
+    + _switches.SENTENCE)
 try:
     mcp = _Server("fabric-backend", instructions=INSTRUCTIONS)
 except TypeError:  # pragma: no cover — an SDK without instructions
@@ -81,8 +83,12 @@ except ImportError:  # pragma: no cover — an SDK without annotations: tools re
 
 
 def _tool(title: str, annotations):
-    """Register with a title and hints when the SDK takes them (clients show read-only tools without a confirmation)."""
+    """Register with a title and hints when the SDK takes them (clients show read-only tools without a confirmation).
+    n123: a tool the server-wide switches remove (switches.py) is not registered; with both off nothing changes."""
     def wrap(fn):
+        fn = _switches.guard(fn, fn.__name__, annotations)
+        if not _switches.register(fn.__name__, annotations):
+            return fn
         try:
             return mcp.tool(title=title, annotations=annotations)(fn) if annotations is not None else mcp.tool(title=title)(fn)
         except TypeError:

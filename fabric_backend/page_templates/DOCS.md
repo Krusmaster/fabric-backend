@@ -701,6 +701,8 @@ apart from those sign-in records there is no database and no file storage.{{/IF}
 database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
 service writes technical logs. Details: [privacy policy](/privacy).
 
+**Server-wide switches.** For a server you run yourself (hosted or local), two settings, both off by default: `KRUSGRAPH_READ_ONLY=1` leaves out the tools that create or change something in Fabric, and `KRUSGRAPH_NO_ROW_VALUES=1` leaves out `sample_rows` and removes row values from the other answers, keeping names and counts. A tool that is left out is not in the tool list, and `/healthz` names the mode the server runs in.
+
 **Personal data and sensitivity labels.** Columns whose name looks like personal data are flagged by one rule per
 pattern, from the name alone and never from the values: a person's name (P1: `first_name`, `last_name`, and `name` in a
 table that holds people such as customers or employees), e-mail (P2), telephone (P3), national identity number (P4,

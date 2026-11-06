@@ -60,6 +60,7 @@ from .discovery import package_version as _package_version  # noqa: E402
 from . import tool_status as _tool_status  # noqa: E402
 from . import tool_params as _p  # noqa: E402
 from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_MCP_APPS=1)
+from . import switches as _switches  # noqa: E402  (n123: both off unless the operator sets them)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -112,7 +113,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "database) and api take a name or an id; confirmed lists relationships the user confirmed and is not an approval flag; "
     "an entry has source, source_cols, target, target_cols (default source_cols) and optional field_name and reverse_name; "
     "tables narrows what is shown or included while the plan is still made from the whole schema. "
-    + _tool_status.instructions_sentence()))
+    + _tool_status.instructions_sentence() + " " + _switches.SENTENCE))
 
 
 # ------------------------------------------------------------------ auth ---------------------
@@ -331,14 +332,18 @@ def _instrumented(fn, name: str):
 def _titled_tool(register):
     """The Claude directory reads a tool's name from annotations.title, not only from the tool's title: copy the
     title into the annotations of every tool, so each listing shows a human-readable name. Every tool is registered
-    through _instrumented (limits, entitlements, usage)."""
+    through _instrumented (limits, entitlements, usage). n123: a tool the server-wide switches remove (switches.py,
+    KRUSGRAPH_READ_ONLY and KRUSGRAPH_NO_ROW_VALUES) is not registered; with both off nothing changes."""
     def tool(*args, title: str | None = None, annotations: ToolAnnotations | None = None, **kwargs):
         if title:
             annotations = (annotations or ToolAnnotations()).model_copy(update={"title": title})
-        decorator = register(*args, title=title, annotations=annotations, **kwargs)
 
         def wrap(fn):
-            return decorator(_instrumented(fn, kwargs.get("name") or fn.__name__))
+            name = kwargs.get("name") or fn.__name__
+            guarded = _switches.guard(_instrumented(fn, name), name, annotations)
+            if not _switches.register(name, annotations):
+                return guarded
+            return register(*args, title=title, annotations=annotations, **kwargs)(guarded)
         return wrap
     return tool
 
@@ -2315,6 +2320,7 @@ def build_app(host: str = "0.0.0.0"):
 
     async def health(_request):
         body = {"ok": True, "auth": "entra" if cfg else "bearer-or-service-principal"}
+        body["mode"] = _switches.mode()           # n123: default, read-only, no-row-values, or both
         if os.environ.get("KRUSGRAPH_BUILD"):      # the source tag the deploy script built; lets it tell revisions apart
             body["build"] = os.environ["KRUSGRAPH_BUILD"]
         return JSONResponse(body)
