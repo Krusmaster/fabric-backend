@@ -3948,6 +3948,12 @@
       "title": "Source",
       "type": "string"
      },
+     "sql_sums": {
+      "default": false,
+      "description": "true also reads the SQL views' definitions (no rows) and lists views that SUM a header amount after joining its line table, and views it could not read. Default false.",
+      "title": "Sql Sums",
+      "type": "boolean"
+     },
      "workspace": {
       "description": "Fabric workspace, name or id.",
       "title": "Workspace",
