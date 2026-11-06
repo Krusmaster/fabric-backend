@@ -51,6 +51,15 @@ verbatim. The small question mark next to "ontology" and "data products" in the 
 click or keyboard, Escape closes it, and it sends nothing. The home page's steps and /check's *Proposed domains* link to
 the pages. Checks: `tests/test_n86b_concepts.py`.
 
+*Where it runs* (n117), between *How they connect* and *Vision*, is a table: four places as columns (the browser,
+your own computer, your own Azure tenant, hosted) and the tasks as rows (where it is, status, check, draft, create and
+review). `concepts.where_cells()` reads every cell from the code when the page renders: tool_status (`phrase`, `mark`,
+`task_status`, `FUNCTIONS`, `CLIENTS`, `LOCAL_TOOLS`), the tools' `dry_run` defaults in `server.py` and `mcp_server.py`,
+the `/it` page's where-table, /check's own sentence and downloads, and `deploy/`. What the code cannot say
+(`WHERE_NOT_IN_CODE`) is written once, with `WHERE_AS_OF`. Under 700 px each row becomes a card with one labelled block
+per place; a visually hidden text version comes before the table. The note "calls no language model" rests on
+`tests/test_n117_where_it_runs.py`, which fails if a model SDK or model API host appears in the engine.
+
 Three architecture diagrams (also n86b) are drawn by `concepts._bands_svg` as inline SVG in bands, one layer under the
 other, with a second drawing for phones (items two to a row, or one) so nothing scrolls sideways at 375 px: the layers
 on *How it works*, the sign-in and request flow on *Hosting and permissions*, and plan → check → items on *How they

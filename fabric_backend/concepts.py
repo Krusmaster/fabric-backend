@@ -18,7 +18,7 @@ from functools import lru_cache
 
 BASE = "/docs/concepts"
 PAGES = {"how-it-works": BASE + "/how-it-works", "ontologies": BASE + "/ontologies", "data-products": BASE + "/data-products",
-         "how-they-connect": BASE + "/how-they-connect", "vision": BASE + "/vision"}
+         "how-they-connect": BASE + "/how-they-connect", "where-it-runs": BASE + "/where-it-runs", "vision": BASE + "/vision"}
 
 TIPS = {
     "ontology": {"label": "What is an ontology?", "href": PAGES["ontologies"], "more": "How ontologies work",
@@ -263,6 +263,7 @@ def fill(md: str) -> str:
         "CONCEPT_ONTOLOGY_COUNTS": ontology_counts_md, "CONCEPT_COMPOSITE": composite_md, "CONCEPT_DOMAINS": domains_md,
         "CONCEPT_DOMAIN_NAMES": domain_names_md, "CONCEPT_TRACE": trace_md, "CONCEPT_PLAN_COUNTS": plan_counts_md,
         "CONCEPT_ODCS": odcs_excerpt, "CONCEPT_FLOW": connect_flow_md, "CONCEPT_HOSTING": hosting_md,
+        "CONCEPT_WHERE": where_md, "CONCEPT_WHERE_NOTES": where_notes_md,
         "CONCEPT_INTERFACE": lambda: f"`{i['source']}.{_cols(i['source_cols'])}` → `{i['target']}.{_cols(i['target_cols'])}`",
         "CONCEPT_UNASSIGNED": lambda: _listed(f"`{u['table']}`" for u in shop()["domains"]["unassigned"]),
     }
@@ -444,7 +445,7 @@ def _vision(inner: str) -> str:
 
 def figures() -> dict:
     return {"how-it-works": _how_svg, "ontology": _ontology, "domains": _domains, "connect": _connect_svg, "vision": _vision,
-            "hosting": _hosting}
+            "hosting": _hosting, "where": _where}
 
 
 # ------------------------------------------------------------------ n86b (Gustav's addition): architecture diagrams ----
@@ -770,3 +771,233 @@ def _ontology_list_svg() -> str:
     return (f'<svg class="cx-svg cx-svg-fit" viewBox="0 0 {width} {height}" width="{width}" role="img" aria-label="{E(said)}">'
             '<defs><marker id="cx-ahn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
             '<path d="M0 0 10 5 0 10z" class="cx-ah"/></marker></defs>' + "".join(parts) + "</svg>")
+
+
+# ------------------------------------------------------------------ n117: Where it runs -------------------------------
+# Four places an agent can use Krusgraph from, so that where it runs can follow where the data access is, and what each
+# place can do with a task: check, draft, create and review. Every status and every capability is read from the code
+# when the page renders (tool_status, LOCAL_TOOLS, the tools' dry_run defaults, the /it page's own table, what /check
+# downloads); what the code cannot say is in WHERE_NOT_IN_CODE, once, with its date.
+
+WHERE_AS_OF = "6 November 2026"
+WHERE_NOT_IN_CODE = {
+    "check_live": "/check is live",
+    "tenant_not_run": "not yet run by a customer",
+    "clients_not_tried": "Copilot Studio and Azure AI Foundry have not been tried as clients",
+    "no_packaging": "there is no packaging per region and none per agent tier",
+}
+WHERE_COLS = (("browser", "In the browser"), ("computer", "On your own computer"), ("tenant", "In your own Azure tenant"),
+              ("hosted", "Hosted by {P}"))
+WHERE_ROWS = (("where", "Where it is", ""), ("status", "Status", ""),
+              ("check", "Check", "keys, references with no matching row (orphans), totals a join repeats"),
+              ("draft", "Draft", "model, ontology, dbt, notebooks, pipeline"),
+              ("create", "Create and review", "Fabric items, and decisions on findings"))
+# the drafts, in the row's order: (what, the hosted draft tool); the pipeline has no tool of its own (pipeline.py)
+WHERE_DRAFTS = (("model", "semantic_model_draft"), ("ontology", "ontology_draft"), ("dbt", "dbt_schema"),
+                ("silver notebook", "silver_notebook_draft"), ("gold views notebook", "gold_views_draft"),
+                ("drift monitor notebook", "drift_monitor_draft"))
+
+
+def _src(rel: str) -> str:
+    from pathlib import Path
+    return (Path(__file__).resolve().parent / rel).read_text(encoding="utf-8")
+
+
+def _default_dry_run(text: str, tool: str) -> bool:
+    """Whether `tool`'s own signature in that module's source has dry_run with the default True (a call creates nothing
+    unless dry_run=false is passed)."""
+    m = re.search(rf"^def {tool}\((.*?)\)\s*(?:->[^:]*)?:", text, re.S | re.M)
+    return bool(m) and bool(re.search(r"dry_run:[^=,]*=\s*True", m.group(1)))
+
+
+@lru_cache(maxsize=1)
+def _where_code() -> dict:
+    """The facts the page reads from the code, checked so the page cannot outlive them."""
+    import tomllib
+    from pathlib import Path
+    from . import browser_build, browser_check, tool_status as ts
+    root = Path(__file__).resolve().parent.parent
+    scripts = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]["scripts"] \
+        if (root / "pyproject.toml").exists() else {"fabric-backend": "", "fabric-backend-mcp": ""}
+    bc, bb = _src("browser_check.py"), _src("browser_build.py")
+    js = _src("static/check.js") + _src("static/check-worker.js")
+    local = _src("mcp_server.py")
+    hosted = _src("server.py")
+    downloads = {"model": "_model.zip" in bb and ".pbip" in bb, "ontology": "_ontology.rdf" in bc,
+                 "app": "_app.zip" in bb, "evidence": "_evidence_report.md" in bc,
+                 "dbt": "dbt" in bc + bb, "notebook": "notebook" in (bc + bb).lower()}
+    creating = [t for t in ts.STATUS if ts.STATUS[t].kind == ts.CREATES]
+    facts = {
+        "scripts": [s for s in ("fabric-backend", "fabric-backend-mcp") if s in scripts],
+        "browser_same_engine": "the exact engine the hosted service and the CLI run" in " ".join((browser_check.__doc__ or "").split()),
+        "browser_counts": "validate_plan" in (browser_check.__doc__ or "") and "a total that doubles" in (browser_check.__doc__ or ""),
+        "browser_writes_fabric": any(h in js + bc + bb for h in ("api.fabric.microsoft.com", "onelake.dfs", "database.windows.net")),
+        "browser_decisions": "decisions" in js and "evidence report" in js,
+        "downloads": downloads,
+        "local_tools": [t for t in ts.LOCAL_TOOLS if re.search(rf"^def {t}\(", local, re.M)],
+        "local_creating": [t for t in creating if t in ts.LOCAL_TOOLS and _default_dry_run(local, t)],
+        "local_no_dry": [t for t in creating if t in ts.LOCAL_TOOLS and not _default_dry_run(local, t)],
+        "hosted_creating": creating,
+        "hosted_dry_default": [t for t in creating if _default_dry_run(re.sub(r"_p\.DryRun", "bool", hosted), t)],
+        "deploy_script": (root / "deploy" / "krusgraph.sh").exists(),
+        "location_key": '"location"' in (root / "deploy" / "krusgraph.example.json").read_text(encoding="utf-8")
+                        if (root / "deploy" / "krusgraph.example.json").exists() else True,
+    }
+    if not (facts["browser_same_engine"] and facts["browser_counts"] and facts["browser_decisions"]
+            and downloads["model"] and downloads["ontology"]) or facts["browser_writes_fabric"]:
+        raise ValueError("/check's code no longer says what the Where it runs page reads from it")
+    if not facts["deploy_script"] or not facts["location_key"] or len(facts["scripts"]) != 2:
+        raise ValueError("the package or deploy/ no longer has what the Where it runs page names")
+    return facts
+
+
+def _fn(name: str) -> tuple[str, str, str]:
+    from . import tool_status as ts
+    return next((w, at, what) for n, w, at, what in ts.FUNCTIONS if n == name)
+
+
+def _lowfirst(w: str) -> str:
+    return w[:1].lower() + w[1:]
+
+
+def where_cells() -> dict:
+    """{(row, column): [items]}: Markdown items (backticks for code), each tool next to its own status words."""
+    from . import pages, tool_status as ts
+    c, v, f = _where_code(), pages._vars(), it_facts()
+    w = f["where"]
+    product = v["PRODUCT"]
+    check_said = re.search(r'<p class="check-private"[^>]*><strong>(.*?)</strong>', _src("page_templates/check.html")).group(1)
+    claude = next(x for x in ts.CLIENTS if x.name == "Claude")
+    mcp_w, _at, mcp_what = _fn("`fabric-backend-mcp`")
+    amt_w, amt_at, _what = _fn("`validate_plan` → `amount_levels`")
+    hosted_where = w[_hosted_key(f)].split(".")[0]
+    ops = [t for t in c["hosted_creating"] if ts.STATUS[t].available == ts.OPERATOR]
+    d = c["downloads"]
+    local_drafts = [t for _n, t in WHERE_DRAFTS if t in c["local_tools"]]
+    not_local = [t for _n, t in WHERE_DRAFTS if t not in c["local_tools"]]
+    cells: dict = {}
+    # where it is
+    cells["where", "browser"] = [f"[{v['DOMAIN']}/check](/check). {check_said}",
+                                 f"The same engine as the hosted service and the CLI, run by the browser itself (Pyodide)."]
+    cells["where", "computer"] = ["The open-source library, the CLI (`" + "`, `".join(c["scripts"][:1]) + "`) and the local MCP "
+                                  "server over stdio (`" + c["scripts"][1] + "`), on your machine over ODBC: [run it locally](/local)."]
+    cells["where", "tenant"] = [w["In your own Azure"].replace("deploy/krusgraph.sh", "`deploy/krusgraph.sh`"),
+                                "The region is the one you choose: `location` in your `deploy/krusgraph.json`."]
+    cells["where", "hosted"] = [f"{hosted_where}.", "Sign-in with your Microsoft Entra work account; every call runs as you."]
+    # status
+    cells["status", "browser"] = [f"Live ({WHERE_NOT_IN_CODE['check_live']} as of {WHERE_AS_OF})."]
+    cells["status", "computer"] = ["Available in the open-source package (MIT).",
+                                   f"`fabric-backend-mcp`: {_lowfirst(mcp_w)}; {mcp_what}."]
+    cells["status", "tenant"] = [f"Available: `deploy/krusgraph.sh` deploys the same server.",
+                                 f"{WHERE_NOT_IN_CODE['tenant_not_run'].capitalize()} (as of {WHERE_AS_OF})."]
+    cells["status", "hosted"] = [f"Live: Claude as a client since {claude.works_since}; status per client and tool in the "
+                                 f"[test status](#test-status)."]
+    # check
+    cells["check", "browser"] = ["Counted on your files' rows in the browser: duplicate and empty keys, references with no "
+                                 "matching row, and header totals a join with its lines would repeat.",
+                                 "A pasted columns list gives the plan without counts: there are no rows to count."]
+    cells["check", "computer"] = ["`validate_plan` over ODBC, in the local stdio server and the library."]
+    cells["check", "tenant"] = ["The same tools as hosted, against your Fabric, as the signed-in person."]
+    cells["check", "hosted"] = [f"`validate_plan`: {ts.task_status(['validate_plan'])}."]
+    for col in ("computer", "hosted"):
+        cells["check", col].append(f"`validate_plan` → `amount_levels` (totals a join repeats): {_lowfirst(amt_w)}.")
+    # draft
+    files = [x for x, ok in (("the Power BI model as a project (.pbip)", d["model"]), ("the ontology as RDF/XML", d["ontology"]),
+                             ("an app starter", d["app"]), ("an evidence report", d["evidence"])) if ok]
+    missing = [x for x, ok in (("dbt", d["dbt"]), ("the notebooks", d["notebook"]), ("the pipeline", False)) if not ok]
+    cells["draft", "browser"] = [f"Files to download: {_listed(files)}; drafts, nothing is created in Fabric."]
+    if missing:
+        cells["draft", "browser"].append(f"Not in the browser: {_listed(missing)}.")
+    cells["draft", "computer"] = ["Local tools: " + ", ".join(f"`{t}`" for t in local_drafts) + "."]
+    if not_local:
+        cells["draft", "computer"].append("Hosted only: " + ", ".join(f"`{t}`" for t in not_local) + " and the pipeline.")
+    cells["draft", "tenant"] = ["The same tools as hosted."]
+    cells["draft", "hosted"] = [f"`{t}`: {ts.phrase(t)}." for _n, t in WHERE_DRAFTS]
+    cells["draft", "hosted"].append(f"The pipeline: {_pipeline_words().replace('export_item_definitions', '`export_item_definitions`')}.")
+    # create and review
+    cells["create", "browser"] = ["Cannot write to Fabric: nothing on /check calls Fabric.",
+                                  "Accept or reject on the guided demo's findings goes into the evidence report you download; "
+                                  "the decisions stay in the browser."]
+    cells["create", "computer"] = [", ".join(f"`{t}`" for t in c["local_creating"]) + ": a dry run unless you pass `dry_run=false`.",
+                                   "`review_plan`: the plan with your decisions and its checks as a file for your own repository."]
+    cells["create", "tenant"] = ["The same tools as hosted, each a dry run first.",
+                                 (f"{_listed(f'`{t}`' for t in ops)} need a permission the hosted app does not ask for today; "
+                                  "in your own tenant, you decide what your own Entra app may do.") if ops else ""]
+    cells["create", "hosted"] = [f"`{t}`: {mark(t)[1]}." for t in c["hosted_creating"]]
+    cells["create", "hosted"] += [f"Every creating tool is a dry run unless you pass `dry_run=false`.",
+                                  f"`review_plan`: {ts.phrase('review_plan')}."]
+    if set(c["hosted_dry_default"]) != set(c["hosted_creating"]) or c["local_no_dry"]:
+        raise ValueError("a creating tool no longer defaults to a dry run; the Where it runs page says every one does")
+    return {k: [x for x in items if x] for k, items in cells.items()}
+
+
+def where_md() -> str:
+    """The table as Markdown lists (for /docs.md and llms-full.txt): one list per task, one line per place."""
+    p = _product()
+    cells = where_cells()
+    out = []
+    for r, title, sub in WHERE_ROWS:
+        out.append(f"**{title}**" + (f" ({sub})" if sub else "") + ":")
+        out.append("")
+        for col, name in WHERE_COLS:
+            out.append(f"- {name.replace('{P}', p)}: " + " ".join(cells[r, col]))
+        out.append("")
+    return "\n".join(out).rstrip()
+
+
+def where_notes_md() -> str:
+    from . import tool_status as ts
+    f = it_facts()
+    working, other = clients()
+    n = WHERE_NOT_IN_CODE
+    lines = [
+        "**Data access follows the signed-in person.** Hosted and in your own tenant, every call runs with the Microsoft "
+        "Entra account that signed in, with delegated permissions only, so an agent reaches what that person can reach in "
+        f"Fabric and no more. As the [privacy policy](/privacy) says: {_lowfirst(f['stored']['No table contents'])} On /check your "
+        "files stay in the browser; on your own computer, [what leaves the machine](/local) is listed.",
+        "",
+        "**You pick the MCP client and the model.** {{PRODUCT}} itself calls no language model; the checks are counted with "
+        "SQL, so a smaller model can drive them. The model is the one your MCP client uses, under your organisation's "
+        "agreement with its provider. One tool writes for a model you run elsewhere: `create_data_agent` sets up a Fabric "
+        "data agent's instructions and examples, and that agent answers with Fabric's own model; {{PRODUCT}} sends it no "
+        f"questions. MCP clients that have signed in to the hosted service: "
+        + _listed(f"{c} (at {ts.CLIENTS_TESTED[c][0]} since {ts.CLIENTS_TESTED[c][1]})" for c in working)
+        + "." + (f" Experimental as {'a client' if len(other) == 1 else 'clients'}: {_listed(other)}." if other else "")
+        + " Each client's status is in the [test status](#test-status).",
+        "",
+        f"**Not there yet, as of {WHERE_AS_OF}:** {n['clients_not_tried']}, and {n['no_packaging']}. "
+        "{{PRODUCT}} is an independent open-source project of Kruse Consulting AB, not a Microsoft product.",
+    ]
+    return "\n".join(lines)
+
+
+def _inline(md: str) -> str:
+    """One item of where_cells as HTML: escaped, `code` and [text](href) kept."""
+    s = E(md)
+    s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+    return re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', s)
+
+
+def _where(inner: str) -> str:
+    """The table: places as columns, tasks as rows; under 700 px each task becomes a card with one labelled line per
+    place, so nothing scrolls sideways at 375 px. A text version for screen readers comes before it."""
+    p = _product()
+    cells = where_cells()
+    names = [(col, name.replace("{P}", p)) for col, name in WHERE_COLS]
+    head = "".join(f'<th scope="col">{E(n)}</th>' for _c, n in names)
+    body = []
+    for r, title, sub in WHERE_ROWS:
+        th = f'<th scope="row">{E(title)}' + (f'<span class="wr-sub">{E(sub)}</span>' if sub else "") + "</th>"
+        tds = "".join(f'<td data-label="{E(n)}"><ul>' + "".join(f"<li>{_inline(x)}</li>" for x in cells[r, col]) + "</ul></td>"
+                      for col, n in names)
+        body.append(f'<tr class="wr-{r}">{th}{tds}</tr>')
+    plain = lambda x: re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", x).replace("`", "")
+    said = " ".join(f"{title}" + (f" ({sub})" if sub else "") + ": " + " ".join(
+        f"{n}: " + " ".join(plain(x) for x in cells[r, col]) for col, n in names) for r, title, sub in WHERE_ROWS)
+    return (f'<figure class="cx-fig wr-fig" aria-labelledby="wr-cap"><p class="visually-hidden" id="wr-said">{E(said)}</p>'
+            f'<div class="wr-frame"><table class="wr-table" aria-describedby="wr-said"><caption id="wr-cap">Where {E(p)} runs, '
+            f'and what each place does with a task</caption><thead><tr><td class="wr-corner"></td>{head}</tr></thead>'
+            f'<tbody>{"".join(body)}</tbody></table></div>'
+            f'<figcaption class="muted tiny">Every status here is read from the code when this page is rendered (the same '
+            f'list as the <a href="#test-status">test status</a>); what the code cannot say is dated, '
+            f'once, under the table.</figcaption></figure>')

@@ -242,6 +242,18 @@ A table without a key stays out wherever a key is needed: {{CONCEPT_UNASSIGNED}}
 no domain among the data products. What each piece is, and how far creating it has been tested, is in
 [One plan, five Fabric pieces](#one-plan-five-fabric-pieces).
 
+### Where it runs
+
+Two choices shape an agent for a task: where it runs, and how capable an agent the task needs. Where it runs should
+follow where your data access is: files on a laptop, a database in-house, your own Azure tenant or your Fabric through
+the hosted service. {{PRODUCT}} is the same engine in four places, and each place can do a different part of a task.
+
+<!-- figure:where -->
+{{CONCEPT_WHERE}}
+<!-- /figure -->
+
+{{CONCEPT_WHERE_NOTES}}
+
 ### Vision
 
 <!-- figure:vision -->

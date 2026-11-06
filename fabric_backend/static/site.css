@@ -1393,3 +1393,26 @@ body.nav-open .kgc-launch{visibility:hidden}
 .cx-lg.cx-mk-dry{border-style:dashed;border-color:var(--mustard-d)}
 .cx-lg.cx-mk-draft{border-style:dotted;border-color:var(--coral-d)}
 .cx-narrow .cx-svg{max-width:100%}
+/* n117: Where it runs (concepts._where): places as columns, tasks as rows; under 700 px each task is a card with one
+   labelled block per place, so nothing scrolls sideways at 375 px. Colours are the site's tokens, so dark mode follows. */
+.wr-frame{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card);overflow:hidden}
+table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;table-layout:fixed}
+.wr-table caption{caption-side:top;text-align:left;font-weight:700;padding:10px 12px 6px;color:var(--ink)}
+.wr-table th,.wr-table td{text-align:left;vertical-align:top;padding:10px 12px;border-top:1px solid var(--line);overflow-wrap:anywhere}
+.wr-table thead th{font:600 15px/1.3 var(--font-head);color:var(--ink);background:var(--card-2)}
+.wr-table thead td{background:var(--card-2)}
+.wr-table .wr-corner{width:13%}
+.wr-table tbody th{font-weight:700;color:var(--ink);background:var(--card-2)}
+.wr-table .wr-sub{display:block;font-weight:400;font-size:13px;color:var(--muted);margin-top:2px}
+.wr-table ul{margin:0;padding:0;list-style:none}
+.wr-table li{margin:0 0 6px;line-height:1.45}
+.wr-table li:last-child{margin-bottom:0}
+.wr-table code{font-size:12.5px}
+.wr-table tr.wr-status td{background:var(--sage-soft)}
+@media (max-width:699px){
+  .wr-table,.wr-table tbody,.wr-table tr,.wr-table th,.wr-table td,.wr-table caption{display:block;width:auto}
+  .wr-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .wr-table tbody tr{border-top:2px solid var(--line-strong)}
+  .wr-table tbody th{border-top:0;font-size:16px}
+  .wr-table td::before{content:attr(data-label);display:block;font:600 14px/1.3 var(--font-head);color:var(--ink);margin-bottom:4px}
+}
