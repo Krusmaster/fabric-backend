@@ -530,6 +530,9 @@ says what is still missing on the API; `app_starter` gives the prompt, the queri
 keeps the app's Entra secret on the server side. The whole chain, with who does each step and what still blocks, is in
 the repository's `docs/LOVABLE-END-TO-END.md`.
 
+A live example: [Shop Desk](https://demo.krusgraph.com), built in Lovable, reads synthetic data in the demo workspace
+through a read-only API for GraphQL that `create_backend` made.
+
 ### Databricks (Draft only)
 
 The same engine reads Databricks too, in the local server only (`KRUSGRAPH_PLATFORM=databricks`): a Unity Catalog

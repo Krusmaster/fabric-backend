@@ -1494,3 +1494,12 @@ def test_the_first_question_only_reads_and_needs_no_workspace_name():
     q = pages.FIRST_QUESTION
     assert "workspaces" in q and "lakehouse I choose" in q and "check the links against the rows" in q
     assert not any(w in q.lower() for w in ("create", "build", "deploy", "write"))
+
+
+def test_n147_live_example_link_on_lovable_and_docs():
+    from fabric_backend import pages
+    for html in (pages.lovable_html(), pages.docs_page_html("/docs/build-from-a-plan/use-with-lovable")):
+        assert '<a ' in html and 'href="https://demo.krusgraph.com" target="_blank" rel="noopener"' in html
+    lov = pages.lovable_html()
+    assert "See a live example" in lov and "See the live example →" in lov and 'class="btn primary"' in lov
+    assert "Click Demo in the app for a guided tour" in lov and "synthetic" in lov and "<iframe" not in lov

@@ -390,6 +390,10 @@ def _slug(s: str) -> str:
 _FIGURE = re.compile(r"^<!-- figure:([a-z0-9-]+) -->$")
 
 
+DEMO_APP_URL = "https://demo.krusgraph.com"   # n147: the live Shop Desk example opens in a new tab
+NEW_TAB = ' target="_blank" rel="noopener"'
+
+
 def _md_to_html(md: str, figures: dict | None = None) -> str:
     """Just enough Markdown for these pages: headings (with ids), paragraphs, bold/italic, code, links, lists, pipe tables.
     n86b: the Markdown between `<!-- figure:NAME -->` and `<!-- /figure -->` is rendered as usual and handed to
@@ -399,7 +403,7 @@ def _md_to_html(md: str, figures: dict | None = None) -> str:
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
-        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:|#)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}">{m.group(1)}</a>', s)
+        s = re.sub(r"\[([^\]]+)\]\(((?:https?://|/|mailto:|#)[^)]+)\)", lambda m: f'<a href="{m.group(2).replace(chr(34), "&quot;")}"{NEW_TAB if m.group(2).startswith(DEMO_APP_URL) else ""}>{m.group(1)}</a>', s)
         s = re.sub(r"(?<![\"'>])(https://[^\s<]+[^\s<.,)])", r'<a href="\1">\1</a>', s)
         return s
 
@@ -1208,7 +1212,8 @@ def docs_html() -> str:
 
 
 def lovable_html() -> str:
-    body = f'<article class="wrap prose docs">{_md_to_html(lovable_md())}</article>'
+    html = _md_to_html(lovable_md()).replace(f'<a href="{DEMO_APP_URL}"{NEW_TAB}>See the live example →', f'<a class="btn primary" href="{DEMO_APP_URL}"{NEW_TAB}>See the live example →')
+    body = f'<article class="wrap prose docs">{html}</article>'
     return _shell("Build a Lovable app on your Fabric tables — {{PRODUCT}}", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable", chat=True)
 
 

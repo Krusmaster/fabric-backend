@@ -61,6 +61,16 @@ rows a user may not see are the app's job to hide (see [App access](/docs#app-ac
 
 Lovable's own guide lists every prerequisite and limit: https://docs.lovable.dev/integrations/microsoft-fabric
 
+## See a live example
+
+Shop Desk is an example app built in Lovable on the checked plan: orders, customers, analysis, a report, data quality,
+the model, Ask and Connect pages. It reads the demo workspace in Fabric through `shop_api`, a read-only API for GraphQL
+that `create_backend` made, and its data is synthetic. Figures checked against `shop_api` on 7 November 2026: 60 orders,
+134 order lines and 324 units; September 24/55/137. The Ask page uses an AI model to draft a read-only query, and the
+app computes the answer from the rows it returns. Click Demo in the app for a guided tour.
+
+[See the live example →](https://demo.krusgraph.com)
+
 ## Good to know
 
 - **Lakehouse sources are read-only** through the API for GraphQL; writes work on warehouses and SQL databases.
