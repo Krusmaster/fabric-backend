@@ -89,7 +89,7 @@ import of the library), unit-tested on SQLite and on a local Spark.
 
 | What the run showed | Fixed in | Question in Claude | Expected now | Result | Date |
 | --- | --- | --- | --- | --- | --- |
-| `pipeline_shop_check` failed importing `fabric_backend.pipeline` | n140 | *"Create the pipeline pipeline_shop for demo_lh, schema shop."*, then run `pipeline_shop` in Fabric | all three activities succeed; the check's output starts with `Keys in silver: 6 of 6` and ends with `The check holds.` | | |
+| `pipeline_shop_check` failed importing `fabric_backend.pipeline` | n140 | *"Create the pipeline pipeline_shop for demo_lh, schema shop."*, then run `pipeline_shop` in Fabric | all three activities succeed; the check's output starts with `Keys in silver: 6 of 6` and ends with `The check holds.` | ✓ run 9de8bc49: all three activities succeeded (the check's output is not recorded here) | 7 November 2026 |
 
 Still open after n140: the drift monitor's notebook (`drift_monitor_draft`, `create_drift_monitor`) installs the library
 with `%pip` from GitHub at the tag of the server's version and imports it, so a run needs internet access and the tag, and

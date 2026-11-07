@@ -23,6 +23,15 @@ next deploy.
   Text only: no behaviour, scope or storage changed. `tests/test_n146_one_source.py` fails when two pages state
   different permission lists, status words or Claude Code advice; the texts in page_templates/DOCS.md and README.md that
   still contradict it (held by another round) are strict xfails there.
+- Round n146, second part (after n145 released README.md, DOCS.md and LIVE-TEST.md): DOCS.md's "What it accesses" shows
+  the generated permission table, the planning and checking sentences and the two data flows; "For agents" and "Other MCP
+  clients" give Claude Code `{{CLAUDE_CODE_CONNECT}}`; the status definitions add "Tried live" and say no tool needs an
+  operator-enabled permission; README's permission list and "not granted" lines follow access.py, and it records the
+  pipeline run of 7 November 2026 (also filled in docs/LIVE-TEST.md). The promise line is now "every proposal shows its
+  basis, and the checks you run show their results" on the home page, /docs, llms.txt and the README. By Gustav's
+  decision of 7 November 2026, `amount_levels`, `plan_sql_server` and the local server's plan_backend, validate_plan,
+  data_dictionary, dbt_schema and answer_query_draft are "Tried live" (SQL Server 2022 in a container, 28 Oct 2026;
+  not run from Windows/Claude Desktop yet); the other local tools stay Experimental. The consistency test has no xfails.
 - Round n143: lineage with runs=<pipeline or notebook> reads the item's latest runs (Fabric's job-instance list), each
   Notebook activity's status (its notebook's own run in the pipeline run's time window, a heuristic), the error text as
   Fabric returns it, and a category with a next step from a catalog of Spark/Fabric errors (import, table not found,

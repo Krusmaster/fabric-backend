@@ -20,7 +20,9 @@ or to Kruse Consulting AB. Keys and relationships are inferred the same way, wit
 The local server writes nothing to your disk; the drafts come back in the answer. The command line
 (`fabric-backend plan … --out …`, below) writes the files you name.
 
-Status: **Experimental.** What was tried, and what was not (docs/LOCAL.md):
+Status: **Tried live** for `plan_backend`, `validate_plan`, `data_dictionary`, `dbt_schema` and `answer_query_draft`
+(SQL Server 2022 in a container, 28 Oct 2026; not run from Windows/Claude Desktop yet); **Experimental** for the other
+local tools, which have not run against a live SQL Server. What was tried, and what was not (docs/LOCAL.md):
 
 - **Tried on 28 October 2026:** SQL Server 2022 in a container (`mcr.microsoft.com/mssql/server:2022-latest`, on Linux)
   with ODBC Driver 18 and a SQL login that has `db_datareader` only, on the synthetic shop data: the Python API (plan,

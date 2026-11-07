@@ -5,9 +5,8 @@ when two pages give the same tool different status words, or when they give Clau
 The permissions come from fabric_backend/access.py, which must equal what the deploy check demands; the status words
 from fabric_backend/tool_status.py.
 
-PENDING: the texts this round could not change, because another round holds their files (page_templates/DOCS.md and
-README.md, by the brief of round n146). Each is a strict xfail: the day the text is fixed the test passes, the xfail
-turns into a failure, and the entry is removed here. Nothing else may be added to PENDING.
+PENDING is empty: the texts in page_templates/DOCS.md and README.md that contradicted the source were fixed in the
+second part of round n146. A page that cannot be fixed at once may be listed there as a strict xfail with its reason.
 """
 import html
 import importlib
@@ -22,16 +21,9 @@ from tests.test_site import client  # noqa: F401  (the site's test client)
 
 ROOT = Path(__file__).resolve().parents[1]
 MD_PAGES = ["/docs.md", "/start.md", "/privacy.md", "/lovable.md", "/local.md", "/use-cases.md", "/llms.txt", "/llms-full.txt"]
-_DOCS = "page_templates/DOCS.md is held by another round (n146 brief): "
-_ACCESSES = _DOCS + "'What it accesses' lists six permissions and says Item.ReadWrite.All is not asked for"
-_AGENTS = _DOCS + "'For agents' gives Claude Code /mcp, where it cannot sign in, while 'Other MCP clients' gives /mcp/connect"
-PENDING = {
-    "permissions": {"/docs.md": _ACCESSES, "/llms-full.txt": _ACCESSES + " (it carries /docs.md)",
-                    "/docs/hosting-and-permissions/what-it-accesses": _ACCESSES,
-                    "README.md": "README.md is held by another round (n146 brief): Notebook.ReadWrite.All and the semantic "
-                                 "model reads called 'not granted', and a shorter permission list"},
-    "claude_code": {"/docs.md": _AGENTS, "/llms-full.txt": _AGENTS + " (it carries /docs.md)", "/docs/reference/for-agents": _AGENTS},
-}
+# n146, second part: DOCS.md and README.md were fixed and the strict xfails removed. A text that cannot be fixed in the
+# same round goes here as {test: {page: reason}}, and becomes a strict xfail.
+PENDING: dict[str, dict[str, str]] = {"permissions": {}, "claude_code": {}}
 
 
 def _docs_subpages():
@@ -117,7 +109,7 @@ def test_every_page_states_the_same_permissions(client, name):  # noqa: F811
     assert not bad, bad[:3]
 
 
-@pytest.mark.parametrize("path", ["/start", "/it", "/privacy"])
+@pytest.mark.parametrize("path", ["/start", "/it", "/privacy", "/docs/hosting-and-permissions/what-it-accesses"])
 def test_the_permission_table_is_the_generated_one(client, path):  # noqa: F811
     page = client.get(path).text
     listed = re.findall(r"<tr><td><code>([\w.]+)</code> \(", page)

@@ -2,7 +2,7 @@
 
 See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
 
-- The proof: every key and link comes with the rule or source behind it, and is checked against your data.
+- The proof: every proposal shows its basis, and the checks you run show their results.
 - The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
 - SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
@@ -15,8 +15,8 @@ how far it has been tested.
 ## Why {{PRODUCT}}
 
 **{{PRODUCT}} stores no table contents.** It reads your lakehouse, warehouse or SQL database where it is (lakehouses are
-tested end to end; the other sources are Experimental until a live run). Plans come from table and column metadata,
-checks run as counting queries in Fabric, and the samples and query results you ask for pass through to your MCP
+tested end to end; the other sources are Experimental until a live run). Plans come from table and column metadata
+and the bounded counts of rule R5 (below), checks run as counting queries in Fabric, and the samples and query results you ask for pass through to your MCP
 client without being kept. What it creates is created in Fabric.
 
 **Rules you can check, not guesses.** Keys and relationships come from documented rules ([K0–K5, R0–R4](#how-relationships-are-inferred))
@@ -100,7 +100,7 @@ changes for Claude.
   address, `curl -s {{CONNECT_URL_OAUTH}}/register -H 'Content-Type: application/json' -d '{"client_name": "Cursor", "redirect_uris": ["http://localhost:8787/callback"]}'`,
   and give Cursor the `client_id` from the answer as `"auth": {"CLIENT_ID": "…"}` next to the `url`.
 - **Glama:** add `{{CONNECT_URL}}` in Glama's MCP connector. Glama identifies itself with its metadata document.
-- **Claude Code:** `claude mcp add --transport http {{PRODUCT_LOWER}} {{CONNECT_URL}}` (not tried yet).
+- **Claude Code:** {{CLAUDE_CODE_CONNECT}}
 
 The approval page and Microsoft's sign-in open in your own browser. A web filter on a company network can stop them.
 The browser then says the site "uses an unsupported protocol". Sign in from another network, or ask IT to allow
@@ -319,8 +319,8 @@ A review is worth keeping when the next report or app builds on the same tables.
   check on a table whose columns changed becomes *stale*: an old pass is not carried forward as new evidence.
   `validate=true` runs the checks again.
 - **Limits.** A relationship you reject stays rejected in the file, but the other tools still infer it from the names;
-  leave it out of what you build. A large schema may not fit one answer; `tables` limits the file to an area. The file
-  is unit-tested and not yet run against a live workspace (*Experimental*).
+  leave it out of what you build. A large schema may not fit one answer; `tables` limits the file to an area. The
+  first answer ran live on 27 October 2026; reading a file back is unit-tested and has not run against a live workspace.
 
 ### How relationships are inferred
 
@@ -437,10 +437,10 @@ What you can build once the plan is reviewed. Each tool's status is in the [tool
 ### One plan, five Fabric pieces
 
 Everything {{PRODUCT}} creates comes from one plan: the keys and relationships inferred from a source, with the rule behind
-each one, checked against the rows and corrected by you through `keys` and `confirmed`. From that plan:
+each one, checked against the rows when you run the checks, and corrected by you through `keys` and `confirmed`. From that plan:
 `create_backend` makes the **API for GraphQL** with nested relationships (a dry run first, as with the others; `plan_drift`
-shows what an update would change); `create_views` the **wide T-SQL views** on the SQL analytics endpoint; and, once the operator has enabled
-the permission, `create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
+shows what an update would change); `create_views` the **wide T-SQL views** on the SQL analytics endpoint;
+`create_semantic_model` the **Power BI semantic model** in Direct Lake mode with the same relationships,
 `create_ontology` the **Fabric IQ ontology** with entity types, keys, relationship types and bindings, and
 `create_data_agent` the **data agent** with the plan as instructions and examples. Those four answer with a dry run
 first; how far each has created live, in the words of the [tool reference](#test-status): the views ({{SHORT_CREATE_VIEWS}}),
@@ -563,11 +563,14 @@ that ran live is listed as tested, and its *What it changes* column says it crea
   whose dry run ran *tested end to end as a dry run*; creating keeps its own status. Not run that day, not even as a
   dry run: {{NOT_RUN_LIST}}. The first such run was on {{FIRST_RUN_DATE}} ({{FIRST_RUN_STEPS}} steps). Changes made
   after the run are covered by unit tests.
-- **Experimental** — on the hosted server and unit-tested, not yet run against a live workspace.
+- **Tried live** — an operation of the tool ran against a live target after that run, or ran only part of the way
+  that day: for the hosted tools a Fabric workspace with synthetic data, for the local tools SQL Server 2022 in a
+  container. The overview below gives each tool's last operation tried live, its date, its result and what is still
+  open, as separate fields.
+- **Experimental** — unit-tested, never run against a live target.
 - **Draft only** — returns a draft or files and creates nothing in Fabric.
-- **Available when enabled by the operator** — needs a permission the hosted app does not ask for today. The dry run
-  works; asked to create, the tool answers `consent` with the permission's name
-  ([docs/SCOPES.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SCOPES.md)).
+- **Available when enabled by the operator** — needs a permission the hosted app does not request. No tool has this
+  status today: the app has every permission the tools use ([What it accesses](#what-it-accesses)).
 - **Planned** — not available yet, such as the Claude plugin (see *For agents*).
 
 ### Overview: tools, functions and clients
@@ -644,8 +647,7 @@ JSON with every list cut to its first items and a `truncated` note saying so; pa
 A Markdown version of these docs is at [/docs.md](/docs.md); [/llms.txt](/llms.txt) lists the rest and
 [/llms-full.txt](/llms-full.txt) has every page in one file. MCP clients can read the server's identity and transport
 from its Server Card at `{{MCP_URL}}/server-card`, and the OAuth metadata at `/.well-known/oauth-protected-resource`.
-Claude Code takes the same URL (`claude mcp add --transport http {{PRODUCT_LOWER}} {{MCP_URL}}`), but its local sign-in
-redirect is not registered on the Entra app yet, so it can't sign in to {{DOMAIN}} today; Claude is the supported client.
+Claude Code: {{CLAUDE_CODE_CONNECT}}
 A Claude plugin that bundles this connector with a skill for the whole workflow and the commands `/krusgraph:plan`,
 `/krusgraph:document` and `/krusgraph:explain-schema` is built and tested in the repository (`plugin/krusgraph`) and
 coming soon (Planned); it is not published yet.
@@ -653,8 +655,8 @@ coming soon (Planned); it is not published yet.
 ### With Microsoft's Fabric MCP servers
 
 Microsoft publishes its own MCP servers for Fabric and Power BI. They manage workspaces and items, read files and run
-queries; {{PRODUCT}} works out how your tables relate, with the rule behind every link, checks it against the rows, and
-builds from that plan. Both can be added to the same client, each doing its own part:
+queries; {{PRODUCT}} works out how your tables relate, with the rule behind every link, counts the checks you run against
+the rows, and builds from that plan. Both can be added to the same client, each doing its own part:
 
 - **Workspaces, items and OneLake files:** the local [Fabric MCP Server](https://github.com/microsoft/mcp/blob/main/servers/Fabric.Mcp.Server/README.md)
   ([Learn](https://learn.microsoft.com/fabric/onelake/onelake-local-mcp)) and the remote Fabric Core MCP server
@@ -664,7 +666,7 @@ builds from that plan. Both can be added to the same client, each doing its own 
 - **Editing a semantic model:** the [Power BI Modeling MCP server](https://github.com/microsoft/powerbi-modeling-mcp).
 - **T-SQL on a warehouse:** the [Fabric Data Warehouse MCP server](https://learn.microsoft.com/fabric/data-warehouse/data-warehouse-mcp-server) (preview).
 - **Eventhouse and real-time data:** [Real-Time Intelligence MCP](https://learn.microsoft.com/fabric/real-time-intelligence/mcp-overview).
-- **{{PRODUCT}}:** the plan (keys and relationships with their rules, checked against the rows) and what is built from it:
+- **{{PRODUCT}}:** the plan (keys and relationships with their rules, and the checks you run against the rows) and what is built from it:
   the GraphQL API, the semantic model, views, silver and gold layers, drift monitoring, the item files for Git, and a
   check of an existing model against the plan.
 
@@ -682,17 +684,16 @@ What the hosted server reads and asks for, and what to know when you run it your
 
 ### What it accesses
 
-The Entra app asks for delegated permissions only, all acting as the signed-in user: `User.Read` (sign-in),
-`Workspace.Read.All` and `Item.Read.All` (listing sources, reading metadata), `GraphQLApi.ReadWrite.All` (creating or
-updating the one item you ask for; it never deletes), `GraphQLApi.Execute.All` (your read-only queries) and Azure SQL
-`user_impersonation` (table and column names from the SQL analytics endpoint, and the checks and samples you ask for).
-The tools that create semantic models, ontologies, data agents, notebooks and pipelines need more (`Item.ReadWrite.All`
-or a narrower permission per item type), which the hosted app does not ask for today; they are marked *Available when
-enabled by the operator* below.
+The Entra app asks for delegated permissions only, all acting as the signed-in user. Each one, what the tools use it
+for, and whether anything runs or is scheduled with it (the same table as on [/it](/it) and [/start](/start)):
 
-**The data path.** Planning uses schema metadata: workspace, item, table and column names and types. `validate_plan`
-and `suggest_relationships` check keys and references against the rows in Fabric with counting queries and return only
-the counts. `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
+{{ACCESS_SCOPES}}
+
+Every creating tool is a dry run until you pass `dry_run=false`; then it creates or updates only the item named in the
+call, and never deletes.
+
+**The data path.** {{ACCESS_PLANNING}} `validate_plan` and `suggest_relationships` check keys and references against
+the rows in Fabric with counting queries and return only the counts. {{ACCESS_CHECKS}} `sample_rows` returns up to 20 example rows of one table, and `query_graphql` returns the results you ask
 for. `describe_backend`, `plan_drift`, `app_starter` and `lineage` read the definitions of items in the workspace.
 Metadata, requested samples and query results pass through {{PRODUCT}} on their way to your MCP client and are not kept
 after the request. From Claude, your tokens are exchanged on your behalf and held in memory only, never written to disk
@@ -704,6 +705,10 @@ is kept there encrypted too, used for at most 60 seconds to answer the client ag
 apart from those sign-in records there is no database and no file storage.{{/IF}}{{#IF NO_CLIENT_REGISTRATION}} There is no
 database and no file storage.{{/IF}} Each tool call leaves an anonymous usage record (the tool, how the call ended, how long it took), and the
 service writes technical logs. Details: [privacy policy](/privacy).
+
+**Where the answers go.** Hosted or self-hosted, the AI client receives the tools' answers:
+
+{{ACCESS_FLOWS}}
 
 **Server-wide switches.** For a server you run yourself (hosted or local), two settings, both off by default: `KRUSGRAPH_READ_ONLY=1` leaves out the tools that create or change something in Fabric, and `KRUSGRAPH_NO_ROW_VALUES=1` leaves out `sample_rows` and removes row values from the other answers, keeping names and counts. A tool that is left out is not in the tool list, and `/healthz` names the mode the server runs in.
 

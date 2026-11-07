@@ -26,7 +26,7 @@ DESCRIPTION = "See how your business tables really connect, with the proof behin
 USP = ("See how your business tables really connect – with the proof behind every link – so your reports, apps and agents "
        "get the numbers right.")
 USP_POINTS = (
-    "The proof: every key and link comes with the rule or source behind it, and is checked against your data.",
+    "The proof: every proposal shows its basis, and the checks you run show their results.",
     "The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.",
     "SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.",
     "One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.",

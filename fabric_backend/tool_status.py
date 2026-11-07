@@ -511,19 +511,25 @@ LOCAL_TOOLS = ("list_tables", "plan_backend", "validate_plan", "sample_rows", "j
                "semantic_model_draft", "ontology_draft", "silver_notebook_draft", "review_plan", "create_backend")
 
 # what is not a hosted tool: (name, status word, where, what it is)
+# n146, Gustav's decision of 7 November 2026: what ran against SQL Server 2022 in a container on 28 October 2026
+# (docs/LOCAL.md) is Tried live with this note, because SQL Server is its real target; what did not run stays
+# Experimental; the demo keeps its own wording.
+LOCAL_TRIED_NOTE = "SQL Server 2022 in a container, 28 Oct 2026; not run from Windows/Claude Desktop yet"
+LOCAL_TRIED_TOOLS = ("plan_backend", "validate_plan", "data_dictionary", "dbt_schema", "answer_query_draft")
 FUNCTIONS = (
-    ("`validate_plan` → `amount_levels`", "Experimental", "hosted, local demo, library",
+    ("`validate_plan` → `amount_levels`", TRIED, "hosted, local demo, library",
      "the total that doubles: header amounts a join with their line rows would repeat, with the line rows per header counted; "
-     "unit-tested, and run on 28 October 2026 against SQL Server 2022 in a container with synthetic data"),
-    ("`plan_sql_server`", "Experimental", "library",
-     "`from fabric_backend import plan_sql_server`: plan, validate, data dictionary and dbt schema over ODBC from your own Python; "
-     "run on 28 October 2026 against SQL Server 2022 in a container, not yet on Windows"),
+     f"unit-tested, and run with synthetic data ({LOCAL_TRIED_NOTE})"),
+    ("`plan_sql_server`", TRIED, "library",
+     "`from fabric_backend import plan_sql_server`: plan, validate, data dictionary and dbt schema over ODBC from your own Python "
+     f"({LOCAL_TRIED_NOTE})"),
     ("`fabric-backend demo`", "Experimental", "local demo",
      "the 20-minute demo on 127.0.0.1: SQL Server over ODBC, a folder of CSV / Excel files, a columns list (file or pasted), "
      "or the synthetic shop; step 1 ends with one of five answers; over ODBC run on 28 October 2026 against SQL Server 2022 in a container"),
-    ("`fabric-backend-mcp`", "Experimental", "local",
-     "the local stdio MCP server over one ODBC connection string; its tools run on 28 October 2026 against SQL Server 2022 in a "
-     "container; Claude Desktop starting it is not yet tried"),
+    ("`fabric-backend-mcp`", TRIED, "local",
+     "the local stdio MCP server over one ODBC connection string; " + ", ".join(f"`{t}`" for t in LOCAL_TRIED_TOOLS[:-1])
+     + f" and `{LOCAL_TRIED_TOOLS[-1]}` ran ({LOCAL_TRIED_NOTE}); its other tools are Experimental: unit-tested, not run "
+     "against a live SQL Server"),
     ("`plan_from` / `create`", "Experimental", "library", "the engine in a Fabric notebook (Spark catalog) or over any execute(sql)"),
     ("Claude plugin", "Planned", "—", "the connector with a skill and `/krusgraph` commands, built in the repository (`plugin/krusgraph`), not published; see *For agents*"),
     ("Databricks adapter", "Draft only", "library, local",
@@ -540,10 +546,7 @@ def overview_md(registration_on: bool = True) -> str:
     /mcp/connect cannot sign in, and the table says so."""
     # n146: each tool with separate fields: its status word, where it is available, its last operation tried live with
     # the date and the result, and what is still open
-    rows = [f"*{TRIED}*: an operation of the tool ran against a Fabric workspace with synthetic data after the run of "
-            f"{LIVE_RUN_DATE}, or only part of the way that day; *Experimental* is kept for a tool never tried live. The "
-            "date, the operation and the result of each row are recorded in docs/LIVE-TEST.md and "
-            "fabric_backend/tool_status.py.", "",
+    rows = [
             "| Tool | Status | Available | Last operation tried live | Date | Result | Still open |",
             "| --- | --- | --- | --- | --- | --- | --- |"]
     for t in STATUS:

@@ -2,7 +2,7 @@
 
 **See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.**
 
-- The proof: every key and link comes with the rule or source behind it, and is checked against your data.
+- The proof: every proposal shows its basis, and the checks you run show their results.
 - The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
 - SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. A second pack describes Younium subscription billing beside Salesforce (accounts and their External CRM Id, subscription versions, charges, invoices with lines, payments); its sources could not be opened from the session that wrote it and it is marked unverified throughout; the engine applies it since round n78 when a schema has a table of the systems' own (subscription versions, charge plans, opportunity line items), never on tables called accounts or invoices alone ([docs/YOUNIUM-SALESFORCE.md](docs/YOUNIUM-SALESFORCE.md)). The pack for the Nordic ERP systems is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
@@ -140,7 +140,7 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   amount copied onto lines, is never drawn (`left_out` says why); when nothing can be drawn the page is left blank.
   `empty_page=true` creates one blank page instead (`POST /reports` with `creationPayload.semanticModelReference`). A
   report of that name is left alone, never updated or deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`, and
-  `SemanticModel.ReadWrite.All` to read the model. Experimental; the blank-page report was created live on 30 October
+  `SemanticModel.ReadWrite.All` to read the model. Tried live: the blank-page report was created live on 30 October
   2026 (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day; the page
   with visuals is unit-tested against Microsoft's published PBIR schemas, not yet created in Fabric.
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
@@ -154,15 +154,18 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   blockers, is in [docs/LOVABLE-END-TO-END.md](docs/LOVABLE-END-TO-END.md).
 
 From understanding to building ([docs/NOTEBOOKS.md](docs/NOTEBOOKS.md); unit-tested, the generated notebooks also ran
-on a local PySpark; the drafts and `answer_query_draft` ran live on 27 October, no notebook has run in Fabric yet):
+on a local PySpark; the drafts and `answer_query_draft` ran live on 27 October; the silver and gold notebooks that
+`create_pipeline` writes from these drafts ran in Fabric on 7 November 2026, run 9de8bc49, all three steps succeeded;
+the notebooks the creating tools below made on 28 October have not been run in Fabric):
 
 - `silver_notebook_draft` / `create_silver_notebook` — a PySpark notebook for a lakehouse that writes silver tables in a
   schema of their own: de-duplicated on each key (latest row by `order_by` wins), every reference checked with the rows
   whose reference is missing in `krusgraph_quarantine` with the reason, each step commented with its rule, re-runnable,
-  never over a source table. The create is a notebook item (`Notebook.ReadWrite.All`, not granted today); it runs nothing.
+  never over a source table. The create is a notebook item (`Notebook.ReadWrite.All`, granted since 28 October 2026); it runs nothing.
 - `drift_monitor_draft` / `create_drift_monitor` — a notebook and a pipeline that every night compare the plan with the
   last one, save it in `krusgraph.plans`, and send a short summary of what changed and which APIs, models and views it
-  reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule (`DataPipeline.*`, not granted today).
+  reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule. The pipeline needs `DataPipeline.ReadWrite.All` (granted since 28 October 2026); the
+  schedule needs `DataPipeline.Execute.All`, which the app does not request, so use `schedule=false`.
 - `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
   step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
 - `gold_views_draft` / `create_gold_views` — materialized lake views in Spark SQL over the silver tables: one wide view
@@ -170,7 +173,7 @@ on a local PySpark; the drafts and `answer_query_draft` ran live on 27 October, 
   ON MISMATCH DROP` rules for the plan's keys and relationships, each commented with its rule; the notebook stops before
   a source, silver or foreign table (`fabric_backend/gold.py` cites the syntax and status from Microsoft Learn). The
   SQL ran on SQLite and a local PySpark 4.0.1 (open-source Spark has no materialized lake views, so the CREATE itself is
-  checked against the documented syntax); not yet in Fabric.
+  checked against the documented syntax); in Fabric, inside `create_pipeline`'s run of 7 November 2026 (run 9de8bc49).
 
 Existing models, Git and personal data (round n12, unit-tested; on 27 October `export_item_definitions` ran live as a
 draft and `compare_semantic_model` only as far as the model lookup, the demo workspace having no model):
@@ -178,8 +181,8 @@ draft and `compare_semantic_model` only as far as the model lookup, the demo wor
 - `compare_semantic_model` (read-only) — an existing Power BI semantic model against the plan: relationships the model
   lacks, ones a rule or the data contradicts, other cardinality, both-way filters, active against inactive, links the
   plan lacks (with a `confirmed` entry), columns summed against the `summarizeBy` rule, suggested measures it lacks. It
-  reads the model's TMDL through Fabric's getDefinition (`SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`, not
-  granted today: the read-only executeQueries is documented as not supporting the INFO functions), or the TMDL files you
+  reads the model's TMDL through Fabric's getDefinition (`SemanticModel.ReadWrite.All` or `Item.ReadWrite.All`; the app
+  has `Item.ReadWrite.All` since 28 October 2026, and the read-only executeQueries is documented as not supporting the INFO functions), or the TMDL files you
   pass from a PBIP folder or Git, which needs no permission. Fixture: `tests/fixtures/semantic_model_shop`.
 - `export_item_definitions` (read-only) — what the creating tools would create, as folders in Fabric's Git format
   (`<name>.<type>` with `.platform` and the definition files) for your own repository, so that Fabric's Git integration
@@ -235,8 +238,10 @@ The local stdio server (`fabric-backend-mcp`, ODBC string) stays for single-user
 a `resource_metadata` pointer that Claude needs, `/.well-known/oauth-protected-resource` describes the resource,
 each user's token is validated (issuer per tenant, audience = the app, signature) and exchanged on-behalf-of for
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
-Entra app asks for: `User.Read`, Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
-`GraphQLApi.Execute.All`, Azure SQL `user_impersonation`. Metadata, the counts from the checks, requested sample rows
+Entra app asks for (7 November 2026): `User.Read`; Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
+`GraphQLApi.Execute.All`, `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All`, `Item.ReadWrite.All` (the last three
+since 28 October 2026); Azure SQL `user_impersonation`. Not requested: `DataPipeline.Execute.All` or `Item.Execute.All`,
+so nothing is run or scheduled. What each tool uses them for: [docs/SCOPES.md](docs/SCOPES.md). Metadata, the counts from the checks, requested sample rows
 and query results pass through the server in memory only and are not kept; Claude's tokens stay in memory, and the only
 stored records are the encrypted sign-in records of other MCP clients described below. Each tool call leaves an anonymous
 usage record, and `/privacy` says which technical logs the deployment keeps. MCP clients other than Claude (VS Code, Cursor, Glama)
@@ -493,8 +498,10 @@ What is measured or recorded, and where; no claim beyond what these say.
 ## Status
 
 Version history: [CHANGELOG.md](CHANGELOG.md). The docs page gives every tool one status in the same words as the site
-(Tested end to end, Experimental, Draft only, Available when enabled by the operator, Planned), all rendered from
-`fabric_backend/tool_status.py`: https://krusgraph.com/docs#test-status. "Tested end to end" rests on the 27 October
+(Tested end to end, Tried live, Experimental, Draft only, Planned), all rendered from `fabric_backend/tool_status.py`,
+with each tool's last operation tried live, its date, its result and what is still open in separate fields:
+https://krusgraph.com/docs#test-status. "Tried live" is a dated live run after 27 October, or a partial one that day;
+"Experimental" is kept for what has never run live. "Tested end to end" rests on the 27 October
 run below and covers only the tools that ran in it, a draft as "(a draft; creates nothing)" and a dry run as "tested
 end to end as a dry run"; `create_backend` is tested end to end as an update in place of `shop_api`, and creating a
 new API with it has not run live. `docs/LIVE-TEST.md`
@@ -557,6 +564,11 @@ tenant setting for ontology items was on (reviewed in the Fabric portal on 29 Oc
 signed in at `/mcp/connect`, `shop_report`; Gustav opened `shop_report` in the portal, added a visualisation and saw
 data. Lovable also updated `shop_api` and `shop_model` in place that day, and a Lovable app reads `shop_api` live
 (orders, customers, ship-to addresses). Creating a new API with `create_backend` has still not run live.
+
+**7 November 2026: the first pipeline run.** `create_pipeline` created `pipeline_shop` with its silver, gold and check
+notebooks in `demo`, and the pipeline was run in Fabric: the first run's check failed on an import (fixed in n140, the
+check notebook is self-contained); a later run that day, 9de8bc49, succeeded in all three steps. The tool itself neither
+runs nor schedules the pipeline.
 
 Earlier: v0.1.1 ran end to end in a Fabric sandbox on synthetic tables (2026-10-21): create, update in place, nested
 queries across inferred relationships over four hops (customer → orders → lines → product → category). Findings and

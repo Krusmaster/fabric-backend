@@ -70,7 +70,7 @@ def test_every_status_comes_from_tool_status(client):
         if ts.STATUS[t].kind == ts.CREATES:
             assert re.sub(r"\s", "", f"{t}:{concepts.mark(t)[1]}") in re.sub(r"\s", "", plain), t
     word, _at, what = next((w, a, x) for n, w, a, x in ts.FUNCTIONS if n == "`fabric-backend-mcp`")
-    assert f"{word.lower()}; {what}" in plain
+    assert re.sub(r"\s", "", f"{word.lower()}; {what}".replace("`", "")) in re.sub(r"\s", "", plain)   # n146: code spans in it
     claude = next(c for c in ts.CLIENTS if c.name == "Claude")
     assert f"since {claude.works_since}" in plain
     # the local tools are the ones the local server has

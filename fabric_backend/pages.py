@@ -134,7 +134,7 @@ def _claude_code_connect(low: str, url: str, domain: str) -> str:
     if _registration_on():
         connect = url.split("/mcp")[0] + "/mcp/connect"
         return (f"`claude mcp add --transport http {low} {connect}`: Claude Code registers itself at /mcp/connect and signs in "
-                f"with Microsoft ({c.status}: not tried yet).")
+                f"with Microsoft. {c.status} (not tried yet).")
     return (f"`claude mcp add --transport http {low} {url}` takes the URL, but Claude Code's local sign-in redirect is not "
             f"registered on the Entra app, and client registration is off on this server, so it cannot sign in "
             f"to {domain} today.")
@@ -950,7 +950,7 @@ def _tool_statuses(md: str) -> str:
 
 def docs_md() -> str:
     from . import concepts
-    md = _conditional(_read("DOCS.md").replace("{{RULES_TABLE}}", _rules_table()), _vars())
+    md = _conditional(_access(_read("DOCS.md"), markdown=True).replace("{{RULES_TABLE}}", _rules_table()), _vars())
     return _fill(concepts.fill(_tool_statuses(md)), escape=False)          # n86b: the Concepts pages' examples and statuses
 
 
