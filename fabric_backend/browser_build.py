@@ -55,39 +55,74 @@ def _label_column(plan, table: str) -> str:
     return text[0] if text else (plan.keys.get(table, ([t.columns[0].name], ""))[0][0])
 
 
-_SUM = re.compile(r"^SUM\('?(.+?)'?\[(.+)\]\)$")         # the draft's measures: COUNTROWS('t') or SUM('t'[c])
+_COL = r"'((?:[^']|'')+)'\[((?:[^\]]|\]\])+)\]"                  # 'table'[column] as semantic_model.tmdl_name writes it
+_COUNTROWS = re.compile(r"^COUNTROWS\('((?:[^']|'')+)'\)$")
+_SUM = re.compile(rf"^SUM\({_COL}\)$")
+# level_measures: a header amount once per header row that has line rows in the filter (n150: counted as such, not as rows)
+_PER_HEADER = re.compile(rf"^CALCULATE\(SUM\({_COL}\), TREATAS\(VALUES\({_COL}\), {_COL}\)\)$")
+_name_of = lambda x: x.replace("''", "'")
+_col_of = lambda x: x.replace("]]", "]")
 
 
-def _measures(plan, src, measures: list[dict]) -> list[dict]:
+def _model(parts: dict[str, str]) -> dict:
+    """The draft's own TMDL read back the way compare_semantic_model and create_report read a model (from_tmdl)."""
+    from .model_compare import from_tmdl
+    return from_tmdl(parts)
+
+
+def _measures(plan, src, measures: list[dict], model: dict) -> list[dict]:
+    """The draft's measures that create_report would draw (report.measures, n144: never a plain SUM of a column the model
+    does not sum, such as a header amount repeated over its lines), each counted in the rows the way its DAX counts:
+    COUNTROWS, SUM of a column, or a header amount once per header row that has lines (n150). A measure of any other
+    form is left out rather than counted as something else."""
+    from . import report as rp
     from .dialects import of
     d = of(src.execute)
     schema = plan.schema.schema
+    drawn = {(m["table"], m["measure"]) for m in rp.measures(model)[0]}
     out = []
     for m in measures:
-        hit = _SUM.match(m.get("expression", ""))
-        m = {**m, "column": m.get("column") or (hit.group(2).replace("]]", "]") if hit else None)}
-        sql = (f"SELECT SUM({d.quote(m['column'])}) AS v FROM {d.table(schema, m['table'])}" if m.get("column")
-               else f"SELECT {d.count}(*) AS v FROM {d.table(schema, m['table'])}")
+        if (m.get("table"), m.get("name")) not in drawn:
+            continue
+        e = (m.get("expression") or "").strip()
+        if (hit := _COUNTROWS.match(e)):
+            agg, column = "count", None
+            sql = f"SELECT {d.count}(*) AS v FROM {d.table(schema, _name_of(hit.group(1)))}"
+        elif (hit := _SUM.match(e)):
+            agg, column = "sum", _col_of(hit.group(2))
+            sql = f"SELECT SUM({d.quote(column)}) AS v FROM {d.table(schema, _name_of(hit.group(1)))}"
+        elif (hit := _PER_HEADER.match(e)) and _name_of(hit.group(1)) == _name_of(hit.group(5)):
+            h, column, line, fk, hk = _name_of(hit.group(1)), _col_of(hit.group(2)), _name_of(hit.group(3)), _col_of(hit.group(4)), _col_of(hit.group(6))
+            agg = "per_header"
+            sql = (f"SELECT SUM(h.{d.quote(column)}) AS v FROM {d.table(schema, h)} AS h WHERE h.{d.quote(hk)} IN "
+                   f"(SELECT l.{d.quote(fk)} FROM {d.table(schema, line)} AS l)")
+        else:
+            continue
         try:
-            out.append({"name": m["name"], "table": m["table"], "column": m.get("column"), "value": _num(_one(src.execute, sql)), "dax": m["expression"]})
+            out.append({"name": m["name"], "table": m["table"], "column": column, "agg": agg, "value": _num(_one(src.execute, sql)), "dax": e})
         except Exception:                                          # noqa: BLE001 - one measure that cannot be counted is left out
             continue
     return out
 
 
-def _chart(plan, src, measures: list[dict]) -> dict | None:
-    """The first measure, by the dimension its table points at: at most eight bars, largest first."""
+def _chart(plan, src, measures: list[dict], model: dict) -> dict | None:
+    """The first measure, by the dimension its table points at: at most eight bars, largest first. Only a COUNTROWS or a
+    plain SUM on the measure's own table, and only along an active relationship of the model itself (n150: one the
+    draft did not build, such as one onto a key that is not unique, is never joined here)."""
     from .dialects import of
     d = of(src.execute)
     schema = plan.schema.schema
-    pairs = [(m, r) for m in sorted(measures, key=lambda x: not x.get("column")) for r in plan.relationships
-             if r.source == m["table"] and r.target != r.source and len(r.source_cols) == 1 and len(r.target_cols) == 1]
-    named = lambda r: _label_column(plan, r.target) not in plan.keys.get(r.target, ([], ""))[0]   # a name, not a key, on the bars
+    tables = {t.name for t in plan.schema}                       # the draft's Calendar is not in the rows
+    rels = [r for r in model.get("relationships", []) if r.get("active", True) and r.get("from_table") != r.get("to_table")
+            and {r.get("from_table"), r.get("to_table")} <= tables and (r.get("from_cardinality"), r.get("to_cardinality")) == ("many", "one")]
+    pairs = [(m, r) for m in sorted(measures, key=lambda x: x["agg"] != "sum") if m["agg"] in ("count", "sum")
+             for r in sorted(rels, key=lambda r: (r["to_table"], r["from_column"])) if r["from_table"] == m["table"]]
+    named = lambda r: _label_column(plan, r["to_table"]) not in plan.keys.get(r["to_table"], ([], ""))[0]   # a name, not a key, on the bars
     for m, rel in sorted(pairs, key=lambda x: not named(x[1])):
-        label = _label_column(plan, rel.target)
-        value = f"SUM(f.{d.quote(m['column'])})" if m.get("column") else f"{d.count}(*)"
+        label = _label_column(plan, rel["to_table"])
+        value = f"SUM(f.{d.quote(m['column'])})" if m["agg"] == "sum" else f"{d.count}(*)"
         sql = (f"SELECT g.{d.quote(label)} AS label, {value} AS v FROM {d.table(schema, m['table'])} AS f "
-               f"JOIN {d.table(schema, rel.target)} AS g ON f.{d.quote(rel.source_cols[0])} = g.{d.quote(rel.target_cols[0])} "
+               f"JOIN {d.table(schema, rel['to_table'])} AS g ON f.{d.quote(rel['from_column'])} = g.{d.quote(rel['to_column'])} "
                f"GROUP BY g.{d.quote(label)}")
         try:
             rows = [r for r in src.execute(sql) if r.get("v") is not None]
@@ -95,7 +130,7 @@ def _chart(plan, src, measures: list[dict]) -> dict | None:
             continue
         rows.sort(key=lambda r: -float(r["v"]))
         if rows:
-            return {"title": f"{m['name']} by {rel.target}.{label}", "measure": m["name"], "by": f"{rel.target}.{label}",
+            return {"title": f"{m['name']} by {rel['to_table']}.{label}", "measure": m["name"], "by": f"{rel['to_table']}.{label}",
                     "bars": [{"label": str(r["label"]), "value": _num(r["v"])} for r in rows[:8]], "more": max(0, len(rows) - 8)}
     return None
 
@@ -255,8 +290,9 @@ def build(kind: str = "sample", files: list | None = None, text: str = "") -> di
                         "has_data": src.has_data}
         app: dict = {"kpis": [], "list": None, "chart": None, "has_data": src.has_data}
         if src.has_data and len(p.schema):
-            ms = _measures(p, src, sm["summary"].get("measures", []))
-            report["measures"], report["chart"], report["doubled"] = ms[:4], _chart(p, src, ms), _doubled(p, src)
+            model = _model(sm["parts"])
+            ms = _measures(p, src, sm["summary"].get("measures", []), model)
+            report["measures"], report["chart"], report["doubled"] = ms[:4], _chart(p, src, ms, model), _doubled(p, src)
             from .dialects import of
             d = of(src.execute)
             for t in facts[:3]:
@@ -264,7 +300,7 @@ def build(kind: str = "sample", files: list | None = None, text: str = "") -> di
                     app["kpis"].append({"label": f"Rows in {t}", "value": _num(_one(src.execute, f"SELECT {d.count}(*) AS v FROM {d.table(p.schema.schema, t)}"))})
                 except Exception:                                  # noqa: BLE001
                     pass
-            app["kpis"] += [{"label": m["name"], "value": m["value"]} for m in ms if m.get("column")][:1]
+            app["kpis"] += [{"label": m["name"], "value": m["value"]} for m in ms if m["agg"] == "sum"][:1]
             try:
                 app["list"] = _app_rows(p, src, facts[0])
             except Exception:                                      # noqa: BLE001 - the downloads still come
