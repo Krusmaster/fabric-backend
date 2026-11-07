@@ -60,6 +60,7 @@ _NUMERIC = ("int", "bigint", "smallint", "tinyint", "decimal", "numeric", "float
 # is the amount when the line carries none of its own.
 _QUANTITY = ("quantity", "qty", "meng", "antal")
 _PRICE = ("price", "pris", "netpr")
+_HOURS = ("hours", "hrs", "timmar")       # n150: a duration on a header (courses.course_hours), repeated by a join like an amount
 _TOTAL = ("total", "extended", "amount", "summa", "belopp")   # TotalPrice, ExtendedPrice: an amount, not a price per unit
 _NOT_QUANTITY_END = _NOT_AMOUNT_END + ("unit", "uom", "flag")
 ORDER_AMOUNT = "Order amount"
@@ -108,6 +109,14 @@ def is_price(column: str, sql_type: str = "decimal") -> bool:
     return words[-1] in _PRICE or words[-1].endswith(_PRICE)
 
 
+def is_hours(column: str, sql_type: str = "decimal") -> bool:
+    """A numeric column whose name ends in a number of hours: course_hours, VacationHours, timmar (never hour_of_day)."""
+    if not is_numeric(sql_type) and (sql_type or "unknown").lower() != "unknown":
+        return False
+    words = _words(column)
+    return bool(words) and words[-1] in _HOURS
+
+
 def _one_to_one(plan: Plan, r) -> bool:
     key = plan.keys.get(r.source, ([], ""))[0]
     return bool(key) and {c.lower() for c in key} == {c.lower() for c in r.source_cols}
@@ -124,7 +133,7 @@ def header_amounts(plan: Plan) -> list[dict]:
         refs = {c.lower() for x in plan.relationships if x.source == r.target for c in x.source_cols}
         packed = {x["column"].lower() for x in (plan.pack or {}).get("amounts", []) if x["table"] == r.target}  # NETWR: the pack knows
         cols = [c.name for c in header.columns if c.name.lower() not in key | refs
-                and (looks_like_amount(c.name, c.data_type) or c.name.lower() in packed)]
+                and (looks_like_amount(c.name, c.data_type) or is_hours(c.name, c.data_type) or c.name.lower() in packed)]
         if cols:
             out.append({"header": r.target, "line": r.source, "line_columns": list(r.source_cols),
                         "header_columns": list(r.target_cols), "rule": r.rule, "amount_columns": cols})

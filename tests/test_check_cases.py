@@ -252,6 +252,7 @@ def test_05_the_export_panel_says_0_exported_and_why(browser):
     assert "2 tables and 1 relationship (0 exported, 1 needs a combined key column (see README)) from the plan" in o["model"]["text"]
     assert tmdl_relationships(model_files(o["model"]["zip"])) == []
 
+
 def test_05_the_fan_out_counts_only_headers_that_exist():
     """Bug 6: the text said VBAP has 1.25 rows per VBAK row over 4 referenced values (the orphan group among them); VBAK
     has 3 rows, 4 matching items: 4/3 ≈ 1.33, and the orphan is said apart."""
@@ -260,6 +261,7 @@ def test_05_the_fan_out_counts_only_headers_that_exist():
     assert "(3 VBAK row(s) with VBAP rows; apart from those, 1 VBAP row(s) point at 1 value(s) that are not in VBAK)" in f["saw"]
     assert "1.25" not in f["saw"] and "4 referenced" not in f["saw"]
     assert f["checked"] == "Counted on all rows of VBAK and VBAP: 3 VBAK rows with VBAP rows, at most 2 each."
+
 
 def test_05_sap_values_with_leading_zeros_stay_text():
     """The answer key: 0000000010 and 000010 are codes; read as numbers they became 10."""
@@ -272,3 +274,10 @@ def test_05_sap_values_with_leading_zeros_stay_text():
     assert {r["VBELN"] for r in rows} == {"0000000010", "0000000020"} and {r["POSNR"] for r in rows} == {"000010", "000020"}
     assert "For example MANDT+VBELN 100 + 0000000010:" in finding(check("05_sap_mandt"), "amount_level", "VBAK")["saw"]
 
+
+def test_02_course_hours_is_warned_like_annual_fee():
+    """60 course hours become 120 after the join with enrollments, as 600 in fees become 1200."""
+    r = check("02_many_to_many")
+    f = finding(r, "amount_level", "courses")
+    assert f and f["title"] == "courses.course_hours would be summed once per enrollments row"
+    assert (f["amount"]["right"], f["amount"]["wrong"]) == (60, 120)
