@@ -230,7 +230,9 @@ def columns(plan: Plan) -> set[tuple[str, str]]:
 def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Dialect = TSQL,
                          header: str | None = None, header_cols: list[str] | None = None) -> str:
     """Header values the line rows reference, how many of them the header table holds, average, smallest and largest
-    number of line rows per referenced value: read-only."""
+    number of line rows per referenced value: read-only. With the header table (n150) the average, smallest and largest
+    are over the header rows that exist, and the referenced values that are not in the header table (orphans) are counted
+    apart, with their line rows: 4 VBAP rows on 3 VBAK rows is 1.33 per header, whatever the orphan group holds."""
     q = dialect.quote
     cs = ", ".join(q(c) for c in cols)
     not_null = " AND ".join(f"{q(c)} IS NOT NULL" for c in cols)
@@ -241,8 +243,11 @@ def lines_per_header_sql(schema: str, line: str, cols: list[str], dialect: Diale
         on = " AND ".join(f"h.{q(b)} = g.{q(a)}" for a, b in zip(cols, header_cols))
         flagged = (f"(SELECT g.n, CASE WHEN EXISTS (SELECT 1 FROM {dialect.table(schema, header)} AS h WHERE {on}) "
                    f"THEN 1 ELSE 0 END AS in_header FROM {grouped}) AS f")
-        return (f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * f.n) AS avg_lines, MIN(f.n) AS min_lines, MAX(f.n) AS max_lines, "
-                f"SUM(f.in_header) AS headers_in_table FROM {flagged}")
+        found = lambda e: f"CASE WHEN f.in_header = 1 THEN {e} END"
+        return (f"SELECT SUM(f.in_header) AS headers, AVG({found('1.0 * f.n')}) AS avg_lines, MIN({found('f.n')}) AS min_lines, "
+                f"MAX({found('f.n')}) AS max_lines, SUM(f.in_header) AS headers_in_table, "
+                f"{dialect.count}(*) - SUM(f.in_header) AS orphan_values, SUM(CASE WHEN f.in_header = 1 THEN 0 ELSE f.n END) AS orphan_lines "
+                f"FROM {flagged}")
     return f"SELECT {dialect.count}(*) AS headers, AVG(1.0 * n) AS avg_lines, MIN(n) AS min_lines, MAX(n) AS max_lines FROM {grouped}"
 
 
@@ -272,6 +277,10 @@ def _explain(f: dict, counts: dict | None, label=None) -> str:
         many = (f"{line} has {avg} rows for each row of {header} on average and up to {counts['max_lines']} "
                 f"({counts['headers']} referenced header value(s)"
                 + (f", {counts['headers_in_table']} of them in {header})" if "headers_in_table" in counts else ")"))
+        if counts.get("orphan_values"):                                  # n150: only the headers that exist are averaged
+            many = (f"{line} has {avg} rows for each row of {header} on average and up to {counts['max_lines']} "
+                    f"({counts['headers']} {header} row(s) with {line} rows; apart from those, {counts['orphan_lines']} {line} row(s) "
+                    f"point at {counts['orphan_values']} value(s) that are not in {header})")
         if counts.get("min_lines") == counts["max_lines"] > 1:           # n89: every header has n lines: the factor is exact
             size = f"so SUM({header}.{first}) over the joined rows comes out {counts['max_lines']} times too large"
         else:                                                            # n89: the average of lines is not the ratio of the sums
@@ -431,6 +440,8 @@ def check(plan: Plan, execute=None, max_items: int = 20) -> dict:
                     counts["min_lines"] = int(row["min_lines"])
                 if row.get("headers_in_table") is not None:
                     counts["headers_in_table"] = int(row["headers_in_table"])
+                if int(row.get("orphan_values") or 0):                   # n150: line rows whose header is not there, apart
+                    counts["orphan_values"], counts["orphan_lines"] = int(row["orphan_values"]), int(row.get("orphan_lines") or 0)
             except Exception as e:                                       # noqa: BLE001 - one failed count never hides the finding
                 f["count_error"] = readable_count_error(e)
         f["rows_per_header"] = counts if counts and counts["headers"] else "unknown"

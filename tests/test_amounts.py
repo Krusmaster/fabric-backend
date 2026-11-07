@@ -56,9 +56,12 @@ def test_with_rows_the_lines_per_header_are_counted():
 
 def test_an_orphan_line_is_a_referenced_header_value_that_the_header_table_does_not_hold():
     [f] = amounts.check(plan(demo_schema()), demo_execute([(9, 1, 50.0)]))["findings"]
-    assert f["rows_per_header"] == {"headers": 2, "avg_lines": 1.5, "min_lines": 1, "max_lines": 2, "headers_in_table": 1}
-    assert "(2 referenced header value(s), 1 of them in orders)" in f["explanation"]
-    assert "times too large" not in f["explanation"] and "between 1 and 2 order_lines rows each" in f["explanation"]
+    # n150: the average is over the orders rows that exist; the orphan line is counted apart, not as a header with one line
+    assert f["rows_per_header"] == {"headers": 1, "avg_lines": 2.0, "min_lines": 2, "max_lines": 2, "headers_in_table": 1,
+                                    "orphan_values": 1, "orphan_lines": 1}
+    assert ("(1 orders row(s) with order_lines rows; apart from those, 1 order_lines row(s) point at 1 value(s) that are not "
+            "in orders)") in f["explanation"]
+    assert "comes out 2 times too large" in f["explanation"]                    # the inner join leaves the orphan out
 
 
 def test_before_2000_after_1000():

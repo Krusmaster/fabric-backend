@@ -252,3 +252,12 @@ def test_05_the_export_panel_says_0_exported_and_why(browser):
     assert "2 tables and 1 relationship (0 exported, 1 needs a combined key column (see README)) from the plan" in o["model"]["text"]
     assert tmdl_relationships(model_files(o["model"]["zip"])) == []
 
+def test_05_the_fan_out_counts_only_headers_that_exist():
+    """Bug 6: the text said VBAP has 1.25 rows per VBAK row over 4 referenced values (the orphan group among them); VBAK
+    has 3 rows, 4 matching items: 4/3 ≈ 1.33, and the orphan is said apart."""
+    f = finding(check("05_sap_mandt"), "amount_level", "VBAK")
+    assert "VBAP has 1.33 rows for each row of VBAK on average and up to 2" in f["saw"]
+    assert "(3 VBAK row(s) with VBAP rows; apart from those, 1 VBAP row(s) point at 1 value(s) that are not in VBAK)" in f["saw"]
+    assert "1.25" not in f["saw"] and "4 referenced" not in f["saw"]
+    assert f["checked"] == "Counted on all rows of VBAK and VBAP: 3 VBAK rows with VBAP rows, at most 2 each."
+

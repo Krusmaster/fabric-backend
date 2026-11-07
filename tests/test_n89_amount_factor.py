@@ -78,8 +78,9 @@ def test_the_ratio_is_from_the_sums():
 
 def test_the_counting_query_counts_lines_and_sums_no_amount():
     sql = amounts.lines_per_header_sql("sap", "sap_vbap", ["MANDT", "VBELN"], header="sap_vbak", header_cols=["MANDT", "VBELN"])
-    assert "MIN(f.n) AS min_lines" in sql and "NETWR" not in sql
-    assert "SUM(" in sql and sql.count("SUM(") == 1 and "SUM(f.in_header)" in sql     # the one SUM adds 0/1 flags
+    assert "MIN(CASE WHEN f.in_header = 1 THEN f.n END) AS min_lines" in sql and "NETWR" not in sql
+    # the SUMs add 0/1 flags and, since n150, the line counts of the orphan groups: never an amount
+    assert "SUM(f.in_header)" in sql and sql.count("SUM(") == sql.count("SUM(f.in_header)") + sql.count("SUM(CASE WHEN f.in_header = 1 THEN 0 ELSE f.n END)")
 
 
 def test_validate_plan_returns_counts_and_no_sums():
@@ -88,7 +89,7 @@ def test_validate_plan_returns_counts_and_no_sums():
     for f in v["amount_levels"]["findings"]:
         assert not {"summed_over_lines", "summed_per_header", "before", "after"} & set(f)
         rp = f["rows_per_header"]
-        assert set(rp) <= {"headers", "avg_lines", "min_lines", "max_lines", "headers_in_table"}
+        assert set(rp) <= {"headers", "avg_lines", "min_lines", "max_lines", "headers_in_table", "orphan_values", "orphan_lines"}
         assert "1 950" not in f["explanation"] and "750" not in f["explanation"]
     rep = evidence_report.report(plan(schema), v)
     counted = [c for c in rep["checks"] if c["check"] == "amount_level" and "counts" in c]
