@@ -469,8 +469,10 @@
       panes.forEach(function (p) { p.hidden = p.getAttribute('data-pane') !== n; });
     };
     stepBtns.forEach(function (b) { b.addEventListener('click', function () { showStep(b.getAttribute('data-step')); if (window.location.hash !== '#step-' + b.getAttribute('data-step')) history.replaceState(null, '', '#step-' + b.getAttribute('data-step')); }); });
-    var m = /^#step-([123])$/.exec(window.location.hash);
-    showStep(m ? m[1] : '1');
+    var fromHash = function () { var m = /^#step-([123])$/.exec(window.location.hash); showStep(m ? m[1] : '1'); return !!m; };
+    fromHash();
+    // n146: a link to #step-N on this page (the "Start with step 1" card) shows that step and scrolls to the steps
+    window.addEventListener('hashchange', function () { if (fromHash()) startPage.querySelector('.start-steps').scrollIntoView({ block: 'start' }); });
   }
 
   /* ------------------------------------------------------------------ partner workspace */

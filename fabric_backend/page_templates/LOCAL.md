@@ -20,9 +20,17 @@ or to Kruse Consulting AB. Keys and relationships are inferred the same way, wit
 The local server writes nothing to your disk; the drafts come back in the answer. The command line
 (`fabric-backend plan … --out …`, below) writes the files you name.
 
-Status: **Experimental.** The local server is unit-tested against recorded SQL Server metadata (declared keys, several
-schemas, names with spaces, `nvarchar(max)`, `datetimeoffset`, `uniqueidentifier`, computed columns, views) and against
-a Fabric SQL analytics endpoint in the test suite; it has not yet been run against a live SQL Server by us.
+Status: **Experimental.** What was tried, and what was not (docs/LOCAL.md):
+
+- **Tried on 28 October 2026:** SQL Server 2022 in a container (`mcr.microsoft.com/mssql/server:2022-latest`, on Linux)
+  with ODBC Driver 18 and a SQL login that has `db_datareader` only, on the synthetic shop data: the Python API (plan,
+  validate, data dictionary, dbt schema, the check for the total that doubles), the local server's `plan_backend`,
+  `validate_plan`, `data_dictionary`, `dbt_schema` and `answer_query_draft`, and `fabric-backend demo` with `--odbc`.
+  The login was refused a `CREATE TABLE`, as it should be.
+- **Not yet tried:** a SQL Server on Windows with Windows sign-in (`Trusted_Connection=yes`), `dbt test` on the
+  generated file, and Claude Desktop starting the local server.
+- **Unit tests:** recorded SQL Server metadata (declared keys, several schemas, names with spaces, `nvarchar(max)`,
+  `datetimeoffset`, `uniqueidentifier`, computed columns, views) and a Fabric SQL analytics endpoint.
 
 ## What you need
 
@@ -86,7 +94,8 @@ files (or try the synthetic shop schema), see the map with the rule behind every
 rows with Accept and Skip on each suggestion, and get five questions answered on the data with the SQL shown, plus the
 exports (data dictionary, dbt tests, a Lovable prompt). No account and no service of ours: the page is served on
 127.0.0.1, loads nothing from elsewhere, and talks only to the database or the files you choose. Status: Experimental
-(unit-tested). The script for running it with a customer is in the repository: `docs/DEMO-20-MIN.md`.
+(unit-tested; with `--odbc` run on 28 October 2026 against SQL Server 2022 in a container, all four steps and every
+export, as above). The script for running it with a customer is in the repository: `docs/DEMO-20-MIN.md`.
 
 ## Without any connection: the CSV path
 

@@ -90,7 +90,7 @@
 <section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
   <h2 id="data-h">What {{PRODUCT}} reads</h2>
   <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
-  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything in your tenant. <a href="/it#data-goes">Where your data goes</a>.</p>
+  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers. <a href="/it#data-goes">Where your data goes</a>.</p>
   <ul class="trust">
     <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
     <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
@@ -111,7 +111,7 @@
 <section class="wrap faq" id="faq" aria-labelledby="faq-h" style="padding-top:0">
   <h2 id="faq-h">Questions</h2>
   <details><summary>Do you touch my data?</summary>
-    <p>Planning reads schema metadata only: workspace, item, table and column names and types. The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
+    <p>{{ACCESS_PLANNING}} The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
   <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
     <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. <code>create_backend</code> creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
   <details><summary>What does my IT department need to approve?</summary>
@@ -119,7 +119,7 @@
   <details><summary>Can I try it without Fabric?</summary>
     <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/check?example=sample&amp;guide=1">guided demo</a> uses synthetic sample data.</p></details>
   <details><summary>How is this different from asking a chat assistant directly?</summary>
-    <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
+    <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks you run count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. What a check has not covered is listed in the <a href="/start#access">set-up guide</a>. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
 </section>
 
 <section class="wrap" style="padding-top:0">

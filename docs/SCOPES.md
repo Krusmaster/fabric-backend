@@ -9,17 +9,25 @@ repository root.
 
 ## What the app has today (README, deploy check `REQUIRED_SCOPES`)
 
-| Resource | Delegated permission | Used by |
-| --- | --- | --- |
-| Microsoft Graph | `User.Read` | sign-in |
-| Power BI Service / Fabric (`00000009-0000-0000-c000-000000000000`) | `Workspace.Read.All` | `list_workspaces`, workspace by name |
-| | `Item.Read.All` | `list_sources`, item lookups |
-| | `GraphQLApi.ReadWrite.All` | `create_backend`; also reading a GraphQL API's definition (`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `answer_query_draft` with `api`): getDefinition takes `GraphQLApi.ReadWrite.All` or `Item.ReadWrite.All`, no read-only scope |
-| | `GraphQLApi.Execute.All` | `query_graphql` |
-| | `Notebook.ReadWrite.All` | `create_silver_notebook`, `create_gold_views`, the notebook of `create_drift_monitor` (added 28 October 2026) |
-| | `DataPipeline.ReadWrite.All` | the pipeline of `create_drift_monitor` (added 28 October 2026) |
-| | `Item.ReadWrite.All` | `create_ontology`, `create_data_agent`, `create_semantic_model`, `create_report`, reading semantic model definitions (added 28 October 2026) |
-| Azure SQL Database (`022907d3-0f1b-48f7-badc-1ba6abab6d66`) | `user_impersonation` | every tool that reads the SQL analytics endpoint (`list_tables`, `plan_backend`, `validate_plan`, `sample_rows`, the drafts, `join_path`, `data_dictionary`, `dbt_schema`, `create_views`) |
+Generated from `fabric_backend/access.py`, the same table as on /start, /it and /privacy; `tests/test_n146_one_source.py` keeps it equal to `deploy/azure_containerapp.py` `REQUIRED_SCOPES` and to this file.
+
+<!-- access:table -->
+Delegated permissions of the hosted app, read from the code on 7 November 2026.
+
+| Permission | Granted | What the tools use it for | Runs or schedules anything? |
+| --- | --- | --- | --- |
+| `User.Read` (Microsoft Graph) | before 28 October 2026 | sign-in only; nothing else is read from Microsoft Graph | no |
+| `Workspace.Read.All` (Fabric) | before 28 October 2026 | `list_workspaces`, and finding a workspace by name for the tools that take a workspace | no |
+| `Item.Read.All` (Fabric) | before 28 October 2026 | `list_sources` and item lookups; `lineage` with `runs` reads a pipeline's or notebook's latest runs | no |
+| `GraphQLApi.ReadWrite.All` (Fabric) | before 28 October 2026 | `create_backend` creates or updates the one API for GraphQL item named in the call (never deletes); reading an existing API's definition (`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `lineage`, `answer_query_draft` with `api`), for which Fabric has no read-only permission | no |
+| `GraphQLApi.Execute.All` (Fabric) | before 28 October 2026 | `query_graphql` runs the read-only queries you ask for (mutations are refused); `app_readiness` sends one introspection query | yes: the GraphQL queries you ask for, during the call; nothing is scheduled |
+| `Notebook.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_silver_notebook`, `create_gold_views`, `create_drift_monitor` and `create_pipeline` create or update notebook definitions, only with `dry_run=false` | no: a notebook runs only when someone runs it in Fabric |
+| `DataPipeline.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; `lineage` with `runs` reads a pipeline's activities | no: a pipeline runs only when someone runs or schedules it in Fabric; adding a schedule needs `DataPipeline.Execute.All`, which the app does not request, so `create_drift_monitor` needs `schedule=false` |
+| `Item.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_semantic_model`, `create_ontology` and `create_data_agent` create or update one item, `create_report` creates one report, only with `dry_run=false`; `compare_semantic_model` and `lineage` read semantic model definitions | no: no model is refreshed and no item is run |
+| `user_impersonation` (Azure SQL Database) | before 28 October 2026 | reading table and column names from the SQL analytics endpoint; the counting queries of planning (rule R5) and of the checks (`validate_plan`, `suggest_relationships`, `data_dictionary` with `validate=true`); `sample_rows`; `create_views` creates a schema and views, only with `dry_run=false` | yes: SQL queries during the call (counts, up to 20 sample rows, and with `create_views` CREATE SCHEMA and CREATE OR ALTER VIEW); nothing is scheduled |
+
+Not requested: `DataPipeline.Execute.All` or `Item.Execute.All` (running or scheduling pipelines and notebooks); `Workspace.ReadWrite.All` (changing workspaces); `SensitivityLabel.Read` (reading a sensitivity label's name from Microsoft Graph (the label's id comes with the item)). The app has no application permissions: every call runs as the signed-in person.
+<!-- /access:table -->
 
 ## What each tool needs
 
@@ -32,6 +40,7 @@ repository root.
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | yes (since 28 October 2026) |
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | yes (since 28 October 2026); also the tenant setting "Users can create Ontology (preview) items"; created live on 28 October 2026 (`shop_ontology`) once it was on, after HTTP 403 `FeatureNotAvailable` while it was off |
 | `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (since 28 October 2026) |
+| `create_pipeline` (dry run by default) | `notebooks` create / `updateDefinition` for its three notebooks; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition` | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`); no execute permission: it neither runs nor schedules the pipeline | yes (since 28 October 2026); created `pipeline_shop`, which was then run in Fabric on 7 November 2026 (run 9de8bc49, all three steps succeeded) |
 | `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | yes for the notebook and the pipeline (since 28 October 2026); **no** for the schedule: `DataPipeline.Execute.All` is not added, so use `schedule=false` |
 | `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`GraphQLApi.ReadWrite.All` for the definition, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `GraphQLApi.ReadWrite.All` (getDefinition has no read-only scope) | yes |

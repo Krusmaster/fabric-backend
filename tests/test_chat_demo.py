@@ -299,8 +299,7 @@ def test_the_status_sentence_is_built_from_tool_status_and_says_no_more():
     """n93: instead of "Status of create_semantic_model: available when enabled by the operator; created live; reviewed
     in Fabric", a short sentence without the tool's name. Today's three, and each part following its field."""
     model = pages.chat_status("create_semantic_model")
-    assert model == ("Created in a live Fabric workspace and reviewed there. "
-                     "Creating it needs a permission the hosted service does not ask for today.")
+    assert model == "Created in a live Fabric workspace and reviewed there."      # n146: the hosted app has Item.ReadWrite.All
     assert pages.chat_status("create_ontology") == model
     assert pages.chat_status("domain_draft") == "Tested with unit tests, not yet against a live Fabric workspace."
     for key, draft, create in pages.CHAT_RESULTS:
@@ -316,10 +315,13 @@ def test_the_status_sentence_is_built_from_tool_status_and_says_no_more():
 def test_the_status_sentence_changes_when_tool_status_does(monkeypatch):
     """The sentence is not typed: change tool_status and it says something else (and the line above fails)."""
     monkeypatch.delitem(ts.REVIEWED, "create_semantic_model")
-    assert pages.chat_status("create_semantic_model").startswith("Created in a live Fabric workspace. ")
+    assert pages.chat_status("create_semantic_model") == "Created in a live Fabric workspace."
+    monkeypatch.setitem(ts.STATUS, "create_semantic_model", ts.STATUS["create_semantic_model"].__class__(
+        ts.OPERATOR, ts.CREATES, "x", "unit tests", name="create_semantic_model"))
+    assert pages.chat_status("create_semantic_model") == ("Created in a live Fabric workspace. "
+                                                          "Creating it needs a permission the hosted service does not ask for today.")
     monkeypatch.setitem(ts.STATUS, "create_semantic_model", ts.STATUS["create_semantic_model"].__class__(
         ts.HOSTED, ts.CREATES, "x", "unit tests", name="create_semantic_model"))
-    assert pages.chat_status("create_semantic_model") == "Created in a live Fabric workspace."
     monkeypatch.delitem(ts.LATER_LIVE, "create_semantic_model")
     monkeypatch.setattr(ts, "LIVE_RUN", tuple(t for t in ts.LIVE_RUN if t != "create_semantic_model"))
     assert pages.chat_status("create_semantic_model") == "Not yet created in a live Fabric workspace."

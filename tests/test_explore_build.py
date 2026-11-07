@@ -83,7 +83,8 @@ def test_status_words_come_from_tool_status(fresh, monkeypatch):
     html = _section(pages.render("/use-cases/build"))
     found = re.findall(r'data-tool="(\w+)">.*?<span class="build-status">([^<]+)</span>', html)
     assert [t for t, _ in found] == ["join_path", "semantic_model_draft", "rayfin_connector", "app_starter"]
-    assert all(word == tool_status.label(t) for t, word in found)
+    import html as _html
+    assert all(_html.unescape(word) == tool_status.label(t) for t, word in found)
     monkeypatch.setattr(tool_status, "label", lambda name: f"STATUS-OF-{name}")
     html = _section(pages.render("/use-cases/build"))
     assert all(f"STATUS-OF-{t}" in html for t, _ in found)

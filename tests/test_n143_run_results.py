@@ -173,7 +173,8 @@ def test_create_pipeline_says_it_ran_live_on_7_november_and_nothing_more():
     assert "7 November 2026" in note and "9de8bc49" in note and "all three steps succeeded" in note
     assert "Not yet run" not in note
     s = tool_status.STATUS["create_pipeline"]
-    assert "9de8bc49" in s.note and not s.live and tool_status.word("create_pipeline") == "Experimental"
+    # n146: a dated live run is not Experimental; the run is in the tool's fields, not in a free-text note
+    assert "9de8bc49" in tool_status.label("create_pipeline") and not s.live and tool_status.word("create_pipeline") == "Tried live"
 
 
 def test_the_docs_limits_table_has_a_row_for_every_limit_the_answer_gives():

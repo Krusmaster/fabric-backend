@@ -106,8 +106,10 @@ def test_start_page_has_real_instructions_and_no_fake_sign_in(client):
         assert step in html
     assert "The first goal is a plan you have read and checked" in html and "check the plan against the data" in html
     assert html.count('class="start-step"') == 3 and 'data-pane="3"' in html and "Explore a sample first" in html
-    assert "Why each one:" in html and "create_backend</code> alone" in html and "Item.ReadWrite.All" in html   # every scope with its reason
-    assert "notebooks and pipelines" in html and "available when enabled by the operator" in html
+    # n146: every scope with what the tools use it for and whether anything runs, from access.py (the same table as /it)
+    from fabric_backend import access
+    assert all(f"<code>{x}</code>" in html for x in access.scopes()) and "Runs or schedules anything?" in html
+    assert "DataPipeline.Execute.All" in html and "available when enabled by the operator" not in html
     assert "<code>sample_rows</code> returns up to 20 example rows" in html and "not kept after the request" in html
     assert "Design preview" not in html and 'type="password"' not in html                                       # no fake sign-in
 
@@ -363,7 +365,8 @@ def test_markdown_versions(client, path, needle):
 
 def test_start_md_keeps_the_permissions_table(client):
     t = client.get("/start.md").text
-    assert "| Permission | Used for |\n| --- | --- |\n| `User.Read` (Microsoft Graph) | sign-in only |" in t
+    assert ("| Permission | Granted | What the tools use it for | Runs or schedules anything? |\n| --- | --- | --- | --- |\n"
+            "| `User.Read` (Microsoft Graph) | before 28 October 2026 | sign-in only; nothing else is read from Microsoft Graph | no |") in t
     assert "```\nhttps://krusgraph.test/mcp\n```" in t and "](https://krusgraph.test/docs)" in t
 
 
@@ -512,7 +515,7 @@ def test_the_site_icon_is_served_at_the_root_where_directories_look():
 def test_local_page_registry_line_and_plugin_coming_soon(client):
     html = client.get("/local").text
     assert "Trusted_Connection=yes;TrustServerCertificate=yes" in html and "db_datareader" in html and "FABRIC_SOURCE_KIND" in html
-    assert "not yet been run against a live SQL Server" in html and 'href="/docs"' in html
+    assert "Tried on 28 October 2026:" in html and "Not yet tried:" in html and 'href="/docs"' in html    # n146
     assert 'href="/local"' in docs_all(client) and "/local" in client.get("/sitemap.xml").text
     assert "https://krusgraph.test/local.md" in client.get("/llms.txt").text and "/local.md -->" in client.get("/llms-full.txt").text
     for page in ("/", "/docs"):
@@ -526,10 +529,12 @@ def test_local_page_registry_line_and_plugin_coming_soon(client):
 
 # ------------------------------------------------------------------ status words and the data path (round n11) ----
 
-STATUS_WORDS = ("Tested end to end", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
+STATUS_WORDS = ("Tested end to end", "Tried live", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
 
 
 def test_docs_give_every_tool_a_status_in_the_shared_words(client):
+    """n146: the status word, then the fields: the last operation tried live (date, what, result) and what is still open.
+    Experimental only for a tool never tried live; no tool needs a permission the hosted app lacks (access.GRANTED)."""
     md = client.get("/docs.md").text
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
@@ -537,34 +542,33 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert len(tools) == 39, sorted(tools)
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
-    for tool in ("create_semantic_model", "create_data_agent", "create_ontology"):
-        assert tools[tool].startswith("Available when enabled by the operator"), tool
+        assert not status.startswith("Available when enabled by the operator"), tool
+        assert status.startswith("Experimental") is (ts.live_fields(tool) == ("", "", "") and ts.STATUS[tool].kind != ts.DRAFT), tool
     for tool in ("create_silver_notebook", "create_gold_views", "create_drift_monitor"):      # created live on 28 October 2026 (n33)
-        assert tools[tool].startswith("Experimental; created live on 28 October 2026") and "not yet run in Fabric" in tools[tool], tool
-    assert "created live on 28 October 2026 (shop_ontology), reviewed in the Fabric portal on 29 October 2026" in tools["create_ontology"]
-    assert "first stopped by HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md
+        assert tools[tool].startswith("Tried live; last tried live 28 October 2026: created") and "been run in Fabric" in tools[tool], tool
+    assert tools["create_pipeline"].startswith("Tried live; last tried live 7 November 2026") and "run 9de8bc49" in tools["create_pipeline"]
+    assert "all three steps succeeded" in tools["create_pipeline"]
+    assert "HTTP 403 FeatureNotAvailable" in tools["create_ontology"] and "cause unknown" not in md
     assert "## Test status" in md and "27 October 2026, through the hosted server's build src-df29c45febaec4b0" in md
     assert "one creating call that updated an existing API in place" in md
     assert "The first such run was on 26 October 2026 (14 steps)" in md
     assert "22 tools" not in md and "for real" not in md
-    assert tools["create_backend"] == ("Tested end to end (27 October 2026: update in place of shop_api with confirmed; updated in place again "
-                                       "from Lovable on 30 October 2026; consumed live by a Lovable app on 30 October 2026)")
-    assert tools["create_report"] == ("Experimental; created live on 30 October 2026 (shop_report_live, shop_report), opened and reviewed in "
-                                      "the Fabric portal by Gustav the same day")                   # n69
-    assert tools["create_views"] == "Tested end to end as a dry run; creating them: Experimental"
-    assert tools["create_data_agent"] == "Available when enabled by the operator; tested end to end as a dry run"
-    assert tools["create_semantic_model"] == ("Available when enabled by the operator; created live on 29 October 2026 "
-                                              "(shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day; "
-                                              "shop_model updated in place from Lovable (experimental) on 30 October 2026")
+    assert tools["create_backend"].startswith("Tested end to end as an update in place; last tried live 30 October 2026")
+    assert tools["create_backend"].endswith("still open: creating a new API is unit-tested only")
+    assert tools["create_report"].startswith("Tried live; last tried live 30 October 2026: created a report with one blank page")
+    assert tools["create_views"].startswith("Tested end to end as a dry run; last tried live 27 October 2026")
+    assert tools["create_views"].endswith("still open: creating them: Experimental; creating has no recorded live run")
+    assert tools["create_data_agent"].startswith("Tested end to end as a dry run")
+    assert "created live on 29 October 2026 as shop_model_live" in tools["create_semantic_model"]
     for tool in ("ontology_draft", "semantic_model_draft", "data_dictionary", "dbt_schema", "app_starter", "answer_query_draft",
                  "rayfin_connector", "export_item_definitions"):
-        assert tools[tool] == "Tested end to end (a draft; creates nothing)", tool
+        assert tools[tool].startswith("Tested end to end (a draft; creates nothing); last tried live 27 October 2026"), tool
     tested = {t for t, s in tools.items() if s.startswith("Tested end to end")}
     assert tested == {"list_workspaces", "list_sources", "list_tables", "sample_rows", "plan_backend", "validate_plan",
                       "suggest_relationships", "analyze_schema", "join_path", "describe_backend", "query_graphql",
                       "answer_query_draft", "app_readiness", "app_starter", "plan_drift", "lineage", "review_plan", "dbt_schema",
                       "data_dictionary", "semantic_model_draft", "ontology_draft", "rayfin_connector", "silver_notebook_draft",
-                      "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_views",
+                      "gold_views_draft", "drift_monitor_draft", "export_item_definitions", "create_views", "create_data_agent",
                       "create_backend"}   # the run of 27 October, create_backend as an update in place
     assert "`create_backend` does not run it for you" in md                               # validation is a step you ask for
 
@@ -651,7 +655,7 @@ _CREATE_CLAIMS = [
     # a table row ends the search, in Markdown (|) and in HTML (</tr>; n82: Lovable's client rows are Tested end to end)
     re.compile(r"\b(?:GraphQL API|SQL views)\b(?:(?!dry run|querying|existing|in place|\n\n|\||</tr>)[\s\S]){0,200}?\btested end to end\b(?!\s*(?:\(dry run\)|as a dry run))", re.I),
     # create_backend or create_views with the status word and no dry run
-    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run|\(27 October 2026: update in place))"),
+    re.compile(r"\bcreate_(?:backend|views)`?\s*\|\s*Tested end to end(?!\s*(?:\(dry run\)|as a dry run|\(27 October 2026: update in place|as an update in place))"),
     # create_backend said to have created something, or to have run live
     re.compile(r"\bcreate_backend`?\s+(?:created|ran live|was run live)\b|\bLive on 25 October; `create_backend", re.I),
     # create_views said to have created its schema or a view for real
@@ -845,8 +849,7 @@ def test_home_hub_shows_the_data_what_is_built_and_where_you_build_with_statuses
     assert groups["What Krusgraph builds in Fabric"] == [(n, "") for n, _ in ts.BUILDS]
     assert "hub-tag" not in row and "status-tag" not in row
     note, href, text = _note(row)                                                       # n95: the statuses, once, under the hub
-    assert note == ("Lakehouse is tested end to end; Warehouse and SQL database are experimental. "
-                    "Some items need a permission the hosted service does not ask for today.")
+    assert note == "Lakehouse is tested end to end; Warehouse and SQL database are experimental."     # n146: the app has every permission
     assert (href, text) == ("/docs#test-status", "Status per tool")
     assert groups["Where you build"] == [("Claude", '<span class="hub-via">via MCP</span>'),
                                          ("Lovable", '<span class="hub-via">via the GraphQL API</span>')]   # n82: Tested end to end
@@ -1232,8 +1235,8 @@ def test_the_old_demo_addresses_redirect_to_check(client):
 # ------------------------------------------------------------------ n58: /pricing, where the data goes, preview terms ---
 # n66: the review of 30 October 2026: no "stays in your tenant" (names, counts and requested sample rows reach the AI client)
 DATA_STAYS = ("Krusgraph stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory "
-              "and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything "
-              "in your tenant.")
+              "and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing "
+              "passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers.")
 
 
 def test_pricing_has_three_columns_without_amounts(client):
@@ -1367,7 +1370,7 @@ def test_the_dry_run_claim_matches_the_tool_signatures(client):
                                   "<code>dry_run=false</code>, and <code>create_backend</code> creates or updates only"),
                        ("/", "<code>create_backend</code> creates or updates only the GraphQL API you name."),
                        ("/it", "Every creating tool answers with what it would create until it is called with "
-                               "<code>dry_run=false</code>; <code>create_backend</code> then creates or updates"),
+                               "<code>dry_run=false</code>; it then creates or updates only the item named in the call"),
                        ("/docs", "Every creating tool answers with what it would create until you pass <code>dry_run=false</code>")):
         page = client.get(path).text
         assert text in page, path

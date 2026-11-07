@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n146: one source for permissions, data flow and test status, after the outside review of 7 November 2026.
+  `fabric_backend/access.py` holds the app's delegated permissions (equal to the deploy check's `REQUIRED_SCOPES`, read
+  7 November 2026), what each tool uses them for and whether anything runs or is scheduled, the tokens kept per client
+  with their lifetimes from the code, and the two data flows (hosted, self-hosted); /start, /it, /privacy, llms.txt and
+  docs/SCOPES.md render from it. create_semantic_model, create_ontology, create_data_agent and compare_semantic_model are
+  no longer "available when enabled by the operator": the app has had Item.ReadWrite.All since 28 October 2026. Each
+  tool now has separate fields (status word, where available, last operation tried live, date, result, still open);
+  "Experimental" is kept for tools never tried live, and tools with a dated live run after 27 October 2026 (or a partial
+  one that day) are "Tried live", create_pipeline among them. Planning is described with R5's bounded counting queries,
+  the checks with what stays unchecked, the analytics line as "no third-party analytics", /start's step anchors work,
+  /local separates what was tried on SQL Server 2022 from what was not, and Claude Code gets one connect instruction.
+  Text only: no behaviour, scope or storage changed. `tests/test_n146_one_source.py` fails when two pages state
+  different permission lists, status words or Claude Code advice; the texts in page_templates/DOCS.md and README.md that
+  still contradict it (held by another round) are strict xfails there.
 - Round n143: lineage with runs=<pipeline or notebook> reads the item's latest runs (Fabric's job-instance list), each
   Notebook activity's status (its notebook's own run in the pipeline run's time window, a heuristic), the error text as
   Fabric returns it, and a category with a next step from a catalog of Spark/Fabric errors (import, table not found,

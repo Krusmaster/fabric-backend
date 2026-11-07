@@ -126,6 +126,8 @@ class ToolStatus:
 
 _NO = "nothing"
 _ITEM = "creates/updates one item; never deletes"
+# n146: the qualifiers that used to follow the status word are now separate fields (LIVE: the last operation tried
+# live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
@@ -133,9 +135,7 @@ _RAW = {
     "plan_backend": (HOSTED, READS, "nothing (counting queries for rule R5)", "unit tests"),
     "validate_plan": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
     "sample_rows": (HOSTED, READS, _NO, "unit tests; the masking live since 27 October 2026"),
-    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only", False,
-                       " (27 October 2026: update in place of shop_api with confirmed; updated in place again from Lovable on 30 October 2026; "
-                       "consumed live by a Lovable app on 30 October 2026)"),
+    "create_backend": (HOSTED, CREATES, _ITEM, "unit tests; live as an update in place, a new item by unit tests only"),
     "describe_backend": (HOSTED, READS, _NO, "unit tests"),
     "query_graphql": (HOSTED, READS, _NO, "unit tests; with `question` live since 27 October 2026"),
     "rayfin_connector": (HOSTED, DRAFT, _NO, "unit tests"),
@@ -147,72 +147,133 @@ _RAW = {
     "domain_draft": (HOSTED, DRAFT, _NO, "unit tests (shop, the synthetic SAP demo, Salesforce + ERP)"),
     "sap_pack_draft": (HOSTED, DRAFT, _NO, "unit tests (synthetic SAP schema; no SAP system)"),
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
-    "create_semantic_model": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 29 October 2026", False,
-                              "; created live on 29 October 2026 (shop_model_live), refreshed and reviewed in the Fabric portal by Gustav the same day; "
-                              "shop_model updated in place from Lovable (experimental) on 30 October 2026"),
+    "create_semantic_model": (HOSTED, CREATES, _ITEM, "unit tests; created live on 29 October 2026", True),
     "create_report": (HOSTED, CREATES, "creates one item; never updates or deletes",
-                      "unit tests with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); created live on 30 October 2026",
-                      False, "; created live on 30 October 2026 (shop_report_live, shop_report), opened and reviewed in the Fabric portal by Gustav the same day"),
+                      "unit tests with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); created live on 30 October 2026"),
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",
-                     "unit tests; creating by unit tests only", True, "; creating them: Experimental"),
-    "create_data_agent": (OPERATOR, CREATES, "creates/updates one item and its staging config; never deletes",
+                     "unit tests; creating by unit tests only", True),
+    "create_data_agent": (HOSTED, CREATES, "creates/updates one item and its staging config; never deletes",
                           "unit tests; creating by unit tests only", True),
-    "create_ontology": (OPERATOR, CREATES, _ITEM, "unit tests; created live on 28 October 2026", False,
-                        "; created live on 28 October 2026 (shop_ontology), reviewed in the Fabric portal on 29 October 2026; first stopped by HTTP 403 "
-                        "FeatureNotAvailable while the ontology was turned off in that tenant's settings"),
+    "create_ontology": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026"),
     "app_starter": (HOSTED, DRAFT, _NO, "unit tests"),
     "app_readiness": (HOSTED, READS, "nothing (one introspection query)", "unit tests"),
     "analyze_schema": (HOSTED, READS, _NO, "unit tests"),
     "lineage": (HOSTED, READS, _NO, "unit tests"),
-    "silver_notebook_draft": (HOSTED, DRAFT, _NO, "unit tests and a local PySpark 4.0.1", False,
-                              "; the notebook ran on a local PySpark 4.0.1, not yet in Fabric"),
-    "create_silver_notebook": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026", False,
-                               "; created live on 28 October 2026 (silver_shop), not yet run in Fabric"),
-    "drift_monitor_draft": (HOSTED, DRAFT, _NO, "unit tests; the notebook ran two nights on a local PySpark", False,
-                            "; the notebook ran two nights on a local PySpark, not yet in Fabric"),
+    "silver_notebook_draft": (HOSTED, DRAFT, _NO, "unit tests and a local PySpark 4.0.1"),
+    "create_silver_notebook": (HOSTED, CREATES, _ITEM, "unit tests; created live on 28 October 2026"),
+    "drift_monitor_draft": (HOSTED, DRAFT, _NO, "unit tests; the notebook ran two nights on a local PySpark"),
     "create_drift_monitor": (HOSTED, CREATES, "creates/updates two items and a schedule; never deletes",
-                             "unit tests; created live with schedule=false on 28 October 2026", False,
-                             "; created live on 28 October 2026 with schedule=false (drift_shop, drift_shop_nightly), not yet run in "
-                             "Fabric; the schedule needs DataPipeline.Execute.All, which the app does not have"),
+                             "unit tests; created live with schedule=false on 28 October 2026"),
     "answer_query_draft": (HOSTED, DRAFT, _NO, "unit tests on the shop schema"),
     "suggest_relationships": (HOSTED, READS, "nothing (counting queries)", "unit tests"),
-    "compare_semantic_model": (OPERATOR, READS, _NO, "unit tests; live only as far as the model lookup", False,
-                               "; with `tmdl`: Experimental; live on 27 October 2026 only as far as the model lookup (the demo workspace had no model that day)"),
-    "gold_views_draft": (HOSTED, DRAFT, _NO, "unit tests; the SQL on SQLite and a local PySpark 4.0.1", False,
-                         "; the SQL ran on SQLite and a local PySpark 4.0.1, not yet in Fabric"),
-    "create_gold_views": (HOSTED, CREATES, "creates/updates one notebook; never deletes", "unit tests; created live on 28 October 2026",
-                          False, "; created live on 28 October 2026 (gold_shop), not yet run in Fabric"),
+    "compare_semantic_model": (HOSTED, READS, _NO, "unit tests; live only as far as the model lookup"),
+    "gold_views_draft": (HOSTED, DRAFT, _NO, "unit tests; the SQL on SQLite and a local PySpark 4.0.1"),
+    "create_gold_views": (HOSTED, CREATES, "creates/updates one notebook; never deletes", "unit tests; created live on 28 October 2026"),
     "create_pipeline": (HOSTED, CREATES, "creates/updates three notebooks and one pipeline; never deletes, runs or schedules",
-                        "unit tests; run live on 7 November 2026 (pipeline_shop, run 9de8bc49)", False,
-                        "; needs Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), which the hosted app has; "
-                        "run live in the demo workspace on 7 November 2026 (run 9de8bc49, all three steps succeeded)"),
+                        "unit tests; run live on 7 November 2026 (pipeline_shop, run 9de8bc49)"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests"),
-    "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only",
-                    False, "; reading a file back is unit-tested"),
+    "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only"),
 }
 STATUS: dict[str, ToolStatus] = {name: ToolStatus(*v, name=name) for name, v in _RAW.items()}
 
 
 DRY_RUN = "tested end to end as a dry run"
+TRIED = "Tried live"
+
+# n146: each tool's last operation tried against a live workspace, separate from its status word: (date, operation,
+# result). A tool of the run of LIVE_RUN_DATE without an entry here gets that run's row (live_fields()). Every entry is
+# a dated record of docs/LIVE-TEST.md or of the dicts above (LATER_LIVE, RAN_LIVE, LATEST_LIVE, LIVE_RUN_PARTLY).
+LIVE = {
+    "lineage": ("2 November 2026", "read-only call from Claude (build src-69aa8afa445e6c97)", "7 tables and 7 objects, none skipped"),
+    "validate_plan": ("2 November 2026", "read-only call from Claude, after round n87's deployment",
+                      "schema shop: 6 of 6 keys unique and 7 of 7 relationships without orphans; schema dbo: 17 of 17 keys and "
+                      "32 of 34 relationships"),
+    "join_path": ("2 November 2026", "read-only call from Claude, after round n87's deployment",
+                  "orders to addresses through ship_to_id, rule R5"),
+    "create_backend": ("30 October 2026", "update in place of shop_api from Lovable (as an MCP client)",
+                       "updated; the first update in place, from Claude on 27 October 2026, passed"),
+    "create_semantic_model": ("30 October 2026", "update in place of shop_model from Lovable (as an MCP client)",
+                              "updated; created live on 29 October 2026 as shop_model_live, refreshed and reviewed in the "
+                              "Fabric portal by Gustav the same day"),
+    "create_report": ("30 October 2026", "created a report with one blank page bound to a semantic model (shop_report_live; "
+                      "shop_report from Lovable)", "status Succeeded, mode created; shop_report was opened in the Fabric portal, "
+                      "given a visual and showed data"),
+    "create_ontology": ("2 November 2026", "created shop_ontology_n81 with dry_run=false, then updated it",
+                        "status Succeeded, mode created, then mode updated"),
+    "create_silver_notebook": ("28 October 2026", "created the notebook silver_shop with dry_run=false", "created"),
+    "create_gold_views": ("28 October 2026", "created the notebook gold_shop with dry_run=false", "created"),
+    "create_drift_monitor": ("28 October 2026", "created drift_shop and drift_shop_nightly with dry_run=false and schedule=false",
+                             "created"),
+    "create_pipeline": ("7 November 2026", "created pipeline_shop and its three notebooks, then the pipeline was run in Fabric "
+                        "(run 9de8bc49)", "all three steps succeeded"),
+    "compare_semantic_model": ("27 October 2026", "looking up a semantic model by name, from Claude",
+                               "not_found: the demo workspace had no model that day"),
+}
+_PIPELINE_RAN = "create_pipeline writes the same notebook and ran it in Fabric on 7 November 2026 (run 9de8bc49)"
+# n146: what is still open for each tool: what has not been tried live, or what it needs that the hosted app lacks.
+OPEN = {
+    "create_backend": "creating a new API is unit-tested only",
+    "create_views": "creating them: Experimental; creating has no recorded live run",
+    "create_data_agent": "creating: Experimental; creating has no recorded live run",
+    "create_report": "the page drawn from the model's measures (round n144) has not run live",
+    "create_ontology": "needs the tenant setting \"Users can create Ontology (preview) items\" (HTTP 403 FeatureNotAvailable "
+                       "while it was off, 28 October 2026)",
+    "create_silver_notebook": "the notebook it created has not been run in Fabric; " + _PIPELINE_RAN,
+    "create_gold_views": "the notebook it created has not been run in Fabric; " + _PIPELINE_RAN,
+    "silver_notebook_draft": "the notebook ran on a local PySpark 4.0.1; " + _PIPELINE_RAN,
+    "gold_views_draft": "the SQL ran on SQLite and a local PySpark 4.0.1; " + _PIPELINE_RAN,
+    "drift_monitor_draft": "the notebook ran two nights on a local PySpark, not yet in Fabric",
+    "create_drift_monitor": "neither item has been run in Fabric; the schedule needs DataPipeline.Execute.All, which the "
+                            "hosted app does not request",
+    "create_pipeline": "the tool neither runs nor schedules the pipeline; someone runs it in Fabric",
+    "compare_semantic_model": "comparing with a live model, and comparing from `tmdl` files, have not run live",
+    "review_plan": "reading a file back is unit-tested only",
+}
+
+
+def live_fields(name: str) -> tuple[str, str, str]:
+    """(date, operation, result) of the tool's last operation tried live, or ("", "", "") when it has none."""
+    if name in LIVE:
+        return LIVE[name]
+    s = STATUS[name]
+    if not s.live:
+        return "", "", ""
+    op = ("dry run from Claude; nothing created" if s.dry_run_only else
+          "draft from Claude; creates nothing" if s.kind == DRAFT else "read-only call from Claude")
+    return LIVE_RUN_DATE, op, "passed (docs/LIVE-TEST.md)"
 
 
 def word(name: str) -> str:
-    """The status word with its fixed qualifier: availability first, then whether it ran live, then what it changes."""
+    """The status word: availability first, then how far it has run live, then what it changes. n146: Experimental only
+    for a tool that has never been tried live; a tool tried live after the run of LIVE_RUN_DATE, or only partly that
+    day, is Tried live, with the operation, the date and the result in its fields."""
     s = STATUS[name]
     if s.available == OPERATOR:
         return "Available when enabled by the operator" + (f"; {DRY_RUN}" if s.live and s.dry_run_only else "")
+    if name in LIVE and name not in LIVE_RUN or name in LATER_LIVE or name in RAN_LIVE or \
+            (s.live and name in LIVE_RUN_PARTLY and s.kind != CREATES):
+        return TRIED
     if s.live:
         if s.dry_run_only:
             return DRY_RUN[0].upper() + DRY_RUN[1:]
+        if s.kind == CREATES and name in LIVE_RUN_PARTLY:        # create_backend: live only as an update in place
+            return "Tested end to end as an update in place"
         return "Tested end to end (a draft; creates nothing)" if s.kind == DRAFT else "Tested end to end"
     return "Draft only" if s.kind == DRAFT else "Experimental"
 
 
 def label(name: str) -> str:
-    return word(name) + STATUS[name].note
+    """The word with the fields: the last operation tried live (date, what, result) and what is still open."""
+    date, op, result = live_fields(name)
+    out = word(name)
+    if date:
+        out += f"; last tried live {date}: {op}; result: {result}"
+    if name in OPEN:
+        out += f"; still open: {OPEN[name]}"
+    return out
 
 
-WORDS = ("Tested end to end", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
+WORDS = ("Tested end to end", "Tried live", "Experimental", "Draft only", "Available when enabled by the operator", "Planned")
 # n79: the evidence report (evidence_report.py) is a file, not a tool: /check and fabric-backend demo offer it with this
 # status; the person who hands it over reads and signs it off.
 EVIDENCE_REPORT = "Draft"
@@ -285,6 +346,13 @@ def answer_note(name: str) -> str:
     return f"Tested end to end on {LIVE_RUN_DATE} {where}." + latest
 
 
+def later_sentence() -> str:
+    """n146: the tools whose status word is Tried live, each with the date of its last operation tried live."""
+    tried = [t for t in STATUS if word(t) == TRIED]
+    return ("Tried live, each with its own date and result: " + _listed(f"`{t}` ({LIVE[t][0]})" for t in tried) + "."
+            if tried else "")
+
+
 def instructions_sentence() -> str:
     """The test status in the server's instructions."""
     creating = [t for t in STATUS if STATUS[t].kind == CREATES]
@@ -292,7 +360,7 @@ def instructions_sentence() -> str:
     partly = "; ".join(f"{t} only {why.split(',')[0].split(';')[0]}" for t, why in LIVE_RUN_PARTLY.items())
     return (f"Test status: on {LIVE_RUN_DATE} every tool but {not_run_list().replace('`', '')} ran from Claude against a Fabric workspace "
             f"with synthetic data, read-only or as a draft, and {_listed(dry)} as dry runs" + (f" ({partly})" if partly else "")
-            + "; no new item was created that day. Since then " + _listed(LATER_LIVE)
+            + "; no new item was created that day. Since then " + _listed(list(LATER_LIVE) + list(RAN_LIVE))
             + " have created items live against the same workspace (status per tool: /docs#test-status).")
 
 
@@ -312,7 +380,7 @@ def create_api_word() -> str:
 
 def task_status(tools: list[str]) -> str:
     """One line for a group of tools: the live date when all ran live, otherwise each tool with its word."""
-    if all(STATUS[t].live and not STATUS[t].dry_run_only and not STATUS[t].note.startswith(";") for t in tools):
+    if all(word(t).startswith("Tested end to end") and not STATUS[t].dry_run_only and t not in OPEN for t in tools):
         drafts = [f"`{t}`" for t in tools if STATUS[t].kind == DRAFT]
         what = "" if not drafts else (f" ({_listed(drafts)}: a draft; creates nothing)" if len(drafts) == 1
                                       else f" ({_listed(drafts)}: drafts; they create nothing)")
@@ -470,8 +538,19 @@ def where(name: str) -> str:
 def overview_md(registration_on: bool = True) -> str:
     """The table, as Markdown. With client registration off (a server hosted elsewhere), the clients that would use
     /mcp/connect cannot sign in, and the table says so."""
-    rows = ["| Tool, function or client | Status | Where |", "| --- | --- | --- |"]
-    rows += [f"| `{t}` | {label(t)} | {where(t)} |" for t in STATUS]
+    # n146: each tool with separate fields: its status word, where it is available, its last operation tried live with
+    # the date and the result, and what is still open
+    rows = [f"*{TRIED}*: an operation of the tool ran against a Fabric workspace with synthetic data after the run of "
+            f"{LIVE_RUN_DATE}, or only part of the way that day; *Experimental* is kept for a tool never tried live. The "
+            "date, the operation and the result of each row are recorded in docs/LIVE-TEST.md and "
+            "fabric_backend/tool_status.py.", "",
+            "| Tool | Status | Available | Last operation tried live | Date | Result | Still open |",
+            "| --- | --- | --- | --- | --- | --- | --- |"]
+    for t in STATUS:
+        date, op, result = live_fields(t)
+        rows.append(f"| `{t}` | {word(t)} | {where(t)} | {op or 'none'} | {date or '—'} | {result or '—'} | "
+                    f"{OPEN.get(t, '') or ('not run against a live workspace' if not date else '—')} |")
+    rows += ["", "| Function or client | Status | Where |", "| --- | --- | --- |"]
     rows += [f"| {n} | {w}: {what} | {at} |" for n, w, at, what in FUNCTIONS]
     for c in CLIENTS:
         status = c.status + (f" (works since {c.works_since})" if c.works_since and c.status != "Tested end to end" else

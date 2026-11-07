@@ -17,11 +17,11 @@ it read rows, run a read-only GraphQL query, or create or update an item in your
 
 You sign in with your own Microsoft Entra work account. The service exchanges that sign-in for Microsoft Fabric and
 Azure SQL access tokens on your behalf (OAuth 2.0 on-behalf-of). It acts as you, within two limits: the delegated
-permissions your administrator granted (listed under [What it accesses](/docs#what-it-accesses): reading workspaces,
-items and the SQL analytics endpoint, running your GraphQL queries, and creating or updating the API for GraphQL item
-or the views you ask for), and what your own account may do in Fabric. It cannot reach anything your account cannot.
+permissions your administrator granted (the table below), and what your own account may do in Fabric. It cannot reach anything your account cannot.
 Your organization's administrator grants this once and can revoke it at any time in Microsoft Entra ID (Enterprise
 applications). A summary for your IT department, with each permission in plain words, is at [/it](/it).
+
+{{ACCESS_SCOPES}}
 
 ## Metadata, samples and query results
 
@@ -32,8 +32,8 @@ What the service reads from Fabric depends on the tool you ask for:
   agents, views) to describe them or to show what builds on a table.
 - **Counting for the plan.** The tools that build on the plan (`plan_backend`, `validate_plan`, the drafts, the
   creating tools, `join_path`, `answer_query_draft` and the others that take a source) applies rule R5: code and role
-  columns the names leave unlinked (such as `ship_to_id`) are counted against the table they may point at, at most 20
-  read-only counting queries per call over at most the first 200 distinct values of a column. Only the counts come
+  columns the names leave unlinked (such as `ship_to_id`) are counted against the table they may point at, at most {{R5_MAX_QUERIES}}
+  read-only counting queries per call over at most the first {{R5_SAMPLE}} distinct values of a column. Only the counts come
   back and are used in that call; nothing from them is kept between calls.
 - **Checks against the rows.** `validate_plan`, `suggest_relationships` and `data_dictionary` with `validate=true` run
   counting queries in Fabric. Only the counts come back, not the row values.
@@ -60,23 +60,18 @@ what you asked or what came back.
 
 ## Access tokens
 
-Your access tokens are validated and exchanged in memory. They are never written to disk, never logged, and are
-dropped shortly before they expire.
-{{#IF CLIENT_REGISTRATION}}
-When you sign in from an MCP client other than Claude, the service obtains the Microsoft tokens for that sign-in
-itself and hands the access token to your client. Until your client collects them (at most 60 seconds) they are kept
-encrypted; Microsoft's refresh token stays encrypted with the service for as long as your client keeps renewing its
-access, at most 90 days, and is never given to the client. Each time your client renews its access, the answer it gets
-(a Microsoft access token and the service's next refresh token) is also kept encrypted with the sign-in for up to 60
-seconds, so that a client which lost the answer and asks again gets the same one instead of being signed out. This
-happens at every renewal, also long after the first sign-in. After those 60 seconds the copy is never used again; it
-stays encrypted until the next renewal overwrites it or the sign-in ends. Details below.
-{{/IF}}
+What is kept depends on the client you sign in from. From Claude, the service holds no refresh token and writes no
+token anywhere: tokens live in memory only.{{#IF CLIENT_REGISTRATION}} From other MCP clients, which sign in through the service's own sign-in, a
+few records are kept encrypted. The 60-second window below is how long a stored answer may be reused; it is not when the
+record is deleted.{{/IF}} Each token, per client:
+
+{{ACCESS_TOKENS}}
+
 ## What we process
 
 | Data | Why | Kept |
 | --- | --- | --- |
-| Your access tokens | to call Fabric and SQL as you | in memory only, until shortly before they expire; never written to disk or logs |
+| Access tokens from Claude, and the Fabric and SQL tokens exchanged for you from any client | to call Fabric and SQL as you | in memory only, until 120 seconds before they expire; never written to disk or logs |
 | Workspace, item, table and column names, and item definitions | to build the plan, the draft or the definition you asked for | only for the duration of the request |
 | Counts from the checks, sample rows and query results you request | returned to your MCP client | not stored |
 {{#IF CLIENT_REGISTRATION}}| Sign-in records for MCP clients other than Claude: a sign-in in progress (the client's address, its redirect address and its request); the Microsoft tokens of a finished sign-in, encrypted; Microsoft's refresh token, encrypted, with a hash of the refresh token your client holds; after each renewal, the answer your client got (a Microsoft access token and the next refresh token), encrypted, with a hash of the refresh token it replaced | signing in from VS Code, Cursor and other MCP clients through {{DOMAIN}}/mcp/connect; answering a client's repeated renewal request the same way | in {{REGISTRATION_WHERE}}: 10 minutes, 60 seconds, and at most 90 days, each deleted once used; the answer to a renewal is used for at most 60 seconds and overwritten at the next renewal |
@@ -152,7 +147,13 @@ Entra ID, which ends every renewal.
 The service runs on Microsoft Azure in the EU (Sweden Central). It calls Microsoft Fabric, Microsoft Entra ID and Azure
 SQL on your behalf; Microsoft handles that under its own terms. Your MCP client receives the responses: when you use
 the service from Claude, Anthropic's privacy policy covers what Claude does with them. The website loads no third-party
-resources: fonts, scripts and images are served from {{DOMAIN}}, and there is no analytics or tracking.
+resources: fonts, scripts and images are served from {{DOMAIN}}, and there is no third-party analytics or tracking.
+The service counts only what *Usage statistics* above lists: the tool-call records, the page-view records of five pages and
+the two /check events, written by the service itself to its own console{{#IF LOGS_KEPT_DAYS}} and its own Log Analytics workspace{{/IF}}.
+
+Where the tools' answers go, hosted and self-hosted:
+
+{{ACCESS_FLOWS}}
 
 ## Contact and requests
 
@@ -161,4 +162,4 @@ about you beyond the console log described above{{#IF CLIENT_REGISTRATION}} and,
 sign-in records described above{{/IF}}, and the usage records carry no user id. Write to {{CONTACT}}. You can complain to the Swedish
 Authority for Privacy Protection (IMY).
 
-**Changes.** We date every change to this page. Last updated: 2026-11-02 (the counting queries of rule R5).
+**Changes.** We date every change to this page. Last updated: 2026-11-07 (tokens per client, the permissions table, what is counted, the two data flows).

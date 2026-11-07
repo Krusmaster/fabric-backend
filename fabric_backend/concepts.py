@@ -555,7 +555,7 @@ def mark(tool: str) -> tuple[str, str]:
     s, bw = ts.STATUS[tool], ts.build_word(tool)
     if bw == "creates":
         return "live", ("created live" + ("; reviewed in Fabric" if tool in ts.REVIEWED else "")
-                        + ("; not yet run in Fabric" if "not yet run in Fabric" in s.note else ""))
+                        + ("; not yet run in Fabric" if "been run in Fabric" in ts.OPEN.get(tool, "") else ""))
     if bw == "updates":
         return "live", "updated in place live"
     if s.kind == ts.CREATES and s.live and s.dry_run_only:
@@ -605,8 +605,8 @@ def _it_facts(key: tuple) -> dict:
     from . import pages
     src = pages._fill(pages._conditional(pages._read("it.html"), pages._vars()))
     plain = lambda s: html.unescape(re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", s))).strip()
-    scopes = [(plain(a), b.strip(), plain(c)) for a, b, c in
-              re.findall(r'<tr><td><code>([^<]+)</code> \(([^)]+)\)</td><td>(.*?)</td></tr>', src)]
+    from . import access                                   # n146: the permissions come from access.py, as /it shows them
+    scopes = [(g.scope, g.resource, plain(access.inline_html(g.tools))) for g in access.GRANTED]
     where = {plain(a): plain(b) for a, b in re.findall(r"<tr><td>(.*?)</td><td>(.*?)</td></tr>", src) if "<code>" not in a[:7]}
     stored = {}
     for li in re.findall(r"<li>(.*?)</li>", src, re.S):

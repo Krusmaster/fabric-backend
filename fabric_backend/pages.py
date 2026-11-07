@@ -107,6 +107,8 @@ def _vars() -> dict[str, str]:
         # the MCP clients the site names as working with the hosted service, and the address for those that register
         "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
         "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
+        # n146: one instruction for Claude Code on every page that gives one (llms.txt, and {{CLAUDE_CODE_CONNECT}} for /docs)
+        "CLAUDE_CODE_CONNECT": _claude_code_connect(product.lower(), url, domain),
         # n73: Lovable's two rows in tool_status.CLIENTS (as an MCP client, and reading the API), for /lovable
         "LOVABLE_MCP_STATUS": _client_status("Lovable", "via MCP"), "LOVABLE_API_STATUS": _client_status("Lovable", "via the GraphQL API"),
         # n68: where Microsoft sends the admin after the consent on /start (CONSENT_PATH); the encoded form goes in the link
@@ -123,6 +125,19 @@ def _vars() -> dict[str, str]:
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
+
+
+def _claude_code_connect(low: str, url: str, domain: str) -> str:
+    """How Claude Code connects to this server, from tool_status.CLIENTS and whether client registration is on."""
+    from .tool_status import CLIENTS
+    c = next(c for c in CLIENTS if c.name == "Claude Code")
+    if _registration_on():
+        connect = url.split("/mcp")[0] + "/mcp/connect"
+        return (f"`claude mcp add --transport http {low} {connect}`: Claude Code registers itself at /mcp/connect and signs in "
+                f"with Microsoft ({c.status}: not tried yet).")
+    return (f"`claude mcp add --transport http {low} {url}` takes the URL, but Claude Code's local sign-in redirect is not "
+            f"registered on the Entra app, and client registration is off on this server, so it cannot sign in "
+            f"to {domain} today.")
 
 
 def _counting_limits() -> dict[str, str]:
@@ -896,7 +911,7 @@ def render(path: str) -> str:
         from .use_cases import page_vars
         uv = page_vars()
         body = re.sub(r"\{\{(UC_\w+)\}\}", lambda m: uv.get(m.group(1), ""), body)
-    body = _fill(_conditional(body, v))
+    body = _fill(_conditional(_access(body), v))
     head = json_ld() if path == "/" else ""
     return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
                   chat=path not in CHAT_OFF)
@@ -908,7 +923,7 @@ LOVABLE_DESC = "Plan and create a GraphQL API in Microsoft Fabric from Lovable's
 
 
 def privacy_md() -> str:
-    md = _conditional(_read("PRIVACY.md"), _vars())
+    md = _conditional(_access(_read("PRIVACY.md"), markdown=True), _vars())
     return _fill(re.sub(r"^\*Template\..*?\*\n", "", md, flags=re.S | re.M), escape=False)   # drop the template note
 
 
@@ -1310,7 +1325,32 @@ def blog_index_html() -> str:
 def start_md() -> str:
     """The get-started page as Markdown, converted from the same template the HTML page uses."""
     v = _vars()
-    return _html_to_md(_fill(_conditional(_read("start.html"), v)), "https://" + v["DOMAIN"])
+    return _html_to_md(_fill(_conditional(_access(_read("start.html")), v)), "https://" + v["DOMAIN"])
+
+
+def access_vars(markdown: bool = False) -> dict[str, str]:
+    """n146: the permissions, the tokens kept per client, the two data flows and the planning and checking sentences,
+    from fabric_backend/access.py and server.py's limits: the same text on /start, /it, /privacy and llms.txt."""
+    from . import access
+    v = _vars()
+    reg, where = _registration_on(), v["REGISTRATION_WHERE"]
+    lim = {k: int(v[k]) for k in ("R5_SAMPLE", "R5_MAX_QUERIES", "VALIDATE_MAX_ITEMS")}
+    if markdown:
+        return {"ACCESS_SCOPES": access.table_md(), "ACCESS_TOKENS": access.tokens_md(reg, where),
+                "ACCESS_FLOWS": access.flows_md(v["PRODUCT"], v["DOMAIN"]),
+                "ACCESS_PLANNING": access.planning_sentence(**lim), "ACCESS_CHECKS": access.checks_sentence(**lim)}
+    return {"ACCESS_SCOPES": access.table_html(), "ACCESS_TOKENS": access.tokens_html(reg, where),
+            "ACCESS_FLOWS": access.flows_html(v["PRODUCT"], v["DOMAIN"]),
+            "ACCESS_PLANNING": access.inline_html(access.planning_sentence(**lim)),
+            "ACCESS_CHECKS": access.inline_html(access.checks_sentence(**lim))}
+
+
+def _access(body: str, markdown: bool = False) -> str:
+    """{{ACCESS_...}} → the generated tables and sentences (HTML, or Markdown for the Markdown pages)."""
+    if "{{ACCESS_" not in body:
+        return body
+    av = access_vars(markdown)
+    return re.sub(r"\{\{(ACCESS_\w+)\}\}", lambda m: av[m.group(1)], body)
 
 
 def _html_to_md(src: str, origin: str) -> str:

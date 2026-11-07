@@ -292,14 +292,14 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert "audit_log stays out, because it has no key" in products, v
         for r in (model, onto, products):
             assert "This is a demo, so nothing was created." in r, (v, r)
-        # n94: not "creates" next to the permission the hosted service does not ask for
-        assert "your agent drafts this from your own tables when you ask." in model and "Creating it needs a permission" in model, v
-        assert "your agent drafts this from your own tables when you ask." in onto and "Creating it needs a permission" in onto, v
-        assert "creates this in your Fabric workspace" not in model + onto, v
+        # n94: "creates" only where tool_status says the hosted service creates it live; n146: the hosted app has
+        # Item.ReadWrite.All since 28 October 2026, so the model and the ontology are created, without a permission note
+        assert "your agent creates this in your Fabric workspace when you ask." in model and "Creating it needs a permission" not in model, v
+        assert "your agent creates this in your Fabric workspace when you ask." in onto and "Creating it needs a permission" not in onto, v
         # n93: a plain sentence from tool_status, no tool's name
         m_note, o_note, d_note = f["notes"]
         for note in (m_note, o_note):
-            assert note.endswith("Created in a live Fabric workspace and reviewed there. Creating it needs a permission the hosted service does not ask for today."), (v, note)
+            assert note.endswith("Created in a live Fabric workspace and reviewed there."), (v, note)
         assert d_note.endswith("the draft creates nothing in Fabric. Tested with unit tests, not yet against a live Fabric workspace."), (v, d_note)
         for tool in ("create_semantic_model", "create_ontology", "domain_draft", "semantic_model_draft", "ontology_draft", "Status of"):
             assert tool not in f["allText"], (v, tool)

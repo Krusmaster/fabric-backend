@@ -6,16 +6,18 @@
   <p class="it-print-note"><button type="button" class="btn ghost small" data-print>Print this page</button> <span class="muted tiny">Or save it as a PDF from the print dialog.</span></p>
 
   <h2 id="data-goes">Where your data goes</h2>
-  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure to keep everything in your tenant.</p>
+  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers.</p>
   <div class="table-wrap" tabindex="0"><table class="it-data">
     <thead><tr><th>Where you use it</th><th>Where the data goes</th></tr></thead>
     <tbody>
       <tr><td><a href="/check">/check</a></td><td>In the browser. The files are read there and nothing in them leaves it.</td></tr>
       <tr><td>Hosted ({{DOMAIN}})</td><td>Azure, Sweden Central. Answers pass through memory during the call; no table contents are saved.{{#IF LOGS_KEPT_DAYS}} Logs are kept {{LOGS_KEPT_DAYS}} days, without content (no table contents, query text or tokens).{{/IF}}{{#IF LOGS_NOT_KEPT}} Console logs are not stored.{{/IF}}</td></tr>
-      <tr><td>In your own Azure</td><td>The same open-source code and script (<code>deploy/krusgraph.sh</code>), in your tenant and your region. Nothing passes through Kruse Consulting.</td></tr>
+      <tr><td>In your own Azure</td><td>The same open-source code and script (<code>deploy/krusgraph.sh</code>), in your tenant and your region. Nothing passes through Kruse Consulting; the answers still go to your AI client.</td></tr>
       <tr><td>Your AI client (such as Claude)</td><td>Receives the tools’ answers (names, counts, sample rows when asked for), under your organisation’s agreement with the AI provider.</td></tr>
     </tbody>
   </table></div>
+  <p>The two data flows, and what the AI client receives in each:</p>
+  {{ACCESS_FLOWS}}
   <p class="muted tiny">{{PRODUCT}} does not host your data or apps. What it creates in Fabric is created in your workspace, with your permissions.</p>
 
   <h2 id="who">Who stands behind it</h2>
@@ -30,32 +32,21 @@
   </ul>
 
   <h2 id="permissions">What the Entra app asks for, and why</h2>
-  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions. Every creating tool answers with what it would create until it is called with <code>dry_run=false</code>; <code>create_backend</code> then creates or updates the one API for GraphQL named in the call.</p>
-  <div class="table-wrap" tabindex="0"><table class="it-scopes">
-    <thead><tr><th>Permission</th><th>In plain words</th></tr></thead>
-    <tbody>
-      <tr><td><code>User.Read</code> (Microsoft Graph)</td><td>Signing in. Nothing else is read from Microsoft Graph.</td></tr>
-      <tr><td><code>Workspace.Read.All</code> (Fabric)</td><td>Listing the workspaces the person can open.</td></tr>
-      <tr><td><code>Item.Read.All</code> (Fabric)</td><td>Listing lakehouses, warehouses and other items in a workspace, and reading their metadata.</td></tr>
-      <tr><td><code>GraphQLApi.ReadWrite.All</code> (Fabric)</td><td>Creating or updating the one API for GraphQL item the person asks for, and reading an existing API’s definition (Fabric has no read-only permission for that). Never deleting.</td></tr>
-      <tr><td><code>GraphQLApi.Execute.All</code> (Fabric)</td><td>Running the read-only GraphQL queries the person asks for. Mutations are refused.</td></tr>
-      <tr><td><code>Notebook.ReadWrite.All</code> (Fabric)</td><td>Creating the notebooks the person asks for (silver tables, gold views, a drift check), only on a call with <code>dry_run=false</code>.</td></tr>
-      <tr><td><code>DataPipeline.ReadWrite.All</code> (Fabric)</td><td>Creating the pipeline of the drift check the person asks for, only on a call with <code>dry_run=false</code>.</td></tr>
-      <tr><td><code>Item.ReadWrite.All</code> (Fabric)</td><td>Creating a Power BI semantic model, a Fabric IQ ontology or a data agent the person asks for, only on a call with <code>dry_run=false</code>; reading a semantic model’s definition to compare it with the plan.</td></tr>
-      <tr><td><code>user_impersonation</code> (Azure SQL Database)</td><td>Reading table and column names from the SQL analytics endpoint, running the counting checks, returning sample rows when asked, and creating the views the person asks for.</td></tr>
-    </tbody>
-  </table></div>
+  <p>An administrator approves the {{PRODUCT}} app once (admin consent). All its permissions are <strong>delegated</strong>: every call runs as the signed-in person, with that person’s own Fabric rights, so {{PRODUCT}} can reach nothing that person cannot already reach. The app asks for no application permissions. Every creating tool answers with what it would create until it is called with <code>dry_run=false</code>; it then creates or updates only the item named in the call.</p>
+  {{ACCESS_SCOPES}}
   <p id="verified-publisher"><strong>Verified publisher: Kruse Consulting AB (Microsoft Entra publisher verification).</strong> The publisher domain is {{DOMAIN}}. Publisher verification confirms who publishes the app; it says nothing about its security. Your administrator can still require admin consent before anyone uses it.</p>
-  <p class="muted tiny">The app does not ask for <code>DataPipeline.Execute.All</code>: it cannot run or schedule pipelines. The full list per tool, with the Fabric REST operation behind each permission, is in <a href="{{GITHUB}}/blob/main/docs/SCOPES.md" rel="noopener">docs/SCOPES.md</a>.</p>
+  <p class="muted tiny">The full list per tool, with the Fabric REST operation behind each permission, is in <a href="{{GITHUB}}/blob/main/docs/SCOPES.md" rel="noopener">docs/SCOPES.md</a>.</p>
 
   <h2 id="stored">What is stored, where and for how long</h2>
   <ul>
     <li><strong>No table contents.</strong> Metadata (workspace, item, table and column names and types), the counts from checks, sample rows and query results pass through {{PRODUCT}} to the person’s MCP client and are not kept after the request.</li>
-    <li><strong>Tokens.</strong> From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs.{{#IF CLIENT_REGISTRATION}} From MCP clients other than Claude (VS Code, Cursor, Glama and others, which sign in through {{DOMAIN}}/oauth), the Microsoft tokens of a sign-in are kept encrypted in {{REGISTRATION_WHERE}} until the client collects them (at most 60 seconds), and Microsoft’s refresh token stays there encrypted for as long as the client keeps renewing its access, at most 90 days, and is never given to the client; after each renewal the answer given (an access token and the next refresh token) is kept there encrypted too, used for at most 60 seconds to answer the client again if it asks again; the <a href="/privacy#sign-in-from-mcp-clients-other-than-claude">privacy policy</a> has the details.{{/IF}}</li>
+    <li><strong>Tokens.</strong> From Claude, tokens are exchanged on the person’s behalf (OAuth 2.0 on-behalf-of) and held in memory only, never written to disk or logs.{{#IF CLIENT_REGISTRATION}} From MCP clients other than Claude, which sign in through {{DOMAIN}}/oauth, the sign-in records are kept encrypted in {{REGISTRATION_WHERE}}; the <a href="/privacy#sign-in-from-mcp-clients-other-than-claude">privacy policy</a> has the details.{{/IF}} The table below gives each token and how long it lives.</li>
     <li><strong>A usage record per tool call</strong>: the tool’s name, the outcome, the duration and, for creating tools, whether it was a dry run{{#IF USAGE_ORG}}, plus a salted hash of the organisation’s tenant id{{/IF}}. No user id, no table or column names.</li>
     <li><strong>Where</strong>: the service runs in Azure, Sweden Central (EU).{{#IF LOGS_KEPT_DAYS}} The usage records and the technical console log (no IP addresses, headers, tokens or query text) go to a Log Analytics workspace in the same region and are deleted after {{LOGS_KEPT_DAYS}} days.{{/IF}}{{#IF LOGS_NOT_KEPT}} Console logs are not sent to any storage; nothing persists beyond the live console stream.{{/IF}}</li>
     <li>Microsoft Entra ID records sign-ins in your own tenant, as for any app.</li>
   </ul>
+  <h3 id="tokens">Tokens, per client</h3>
+  {{ACCESS_TOKENS}}
   <p>The <a href="/privacy">privacy policy</a> has each record with its purpose and how long it is kept.</p>
 
   <h2 id="check">/check runs in the browser</h2>

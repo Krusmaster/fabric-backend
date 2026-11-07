@@ -163,5 +163,6 @@ def test_three_different_notebook_names(lakehouse):  # noqa: F811
 def test_scopes_and_status_say_the_hosted_app_has_them():
     s = tool_status.STATUS["create_pipeline"]
     assert s.available == tool_status.HOSTED and s.kind == tool_status.CREATES and not s.live
-    assert "DataPipeline.ReadWrite.All" in s.note and "Notebook.ReadWrite.All" in s.note
-    assert tool_status.word("create_pipeline") == "Experimental"
+    from fabric_backend import access                     # n146: the permissions are in access.py, not in the status note
+    assert {"DataPipeline.ReadWrite.All", "Notebook.ReadWrite.All"} <= set(access.scopes())
+    assert tool_status.word("create_pipeline") == "Tried live"           # n146: run live on 7 November 2026, so not Experimental
