@@ -136,6 +136,62 @@ def test_write_rayfin_keeps_the_projects_own_tsconfig(shop, tmp_path, capsys):
     assert (fresh / RAYFIN_TSCONFIG_PATH).read_text(encoding="utf-8") == RAYFIN_TSCONFIG
 
 
+@pytest.fixture(scope="module")
+def shop_rows():
+    """The synthetic shop of fabric_backend.seed planned with its rows: R5 links orders.ship_to_id to addresses."""
+    from fabric_backend import demo
+    from fabric_backend.seed import schema
+    return plan(schema("shop"), keys=demo.DEMO_KEYS, execute=demo._demo_db())
+
+
+def _commands(readme: str) -> list[str]:
+    return [c for c in re.findall(r"`([^`]*)`", readme) if c.startswith(("npx rayfin", "npm "))]
+
+
+def test_the_connector_is_read_only_by_default(shop, shop_rows):
+    """n141: no generated file lets the app create, update or delete rows unless the caller asks."""
+    for p in (shop, shop_rows):
+        files = rayfin_files(p, "shop")
+        readme = files["rayfin/connectors/shop/README.generated.md"]
+        adds = [c for c in _commands(readme) if c.startswith("npx rayfin connector add")]
+        assert adds and all(c.endswith("--operations read") for c in adds), adds
+        assert "Read-only" in readme
+        for path in ("rayfin/connectors/shop/schema.ts", "src/lib/connectors.ts"):
+            ops = re.findall(r"operations: \[([^\]]*)\]", files[path])
+            assert ops == ["'read'"], (path, ops)
+        for ts in files.values():
+            assert not re.search(r"'(create|update|delete)'", ts)
+            assert "mutation" not in ts.lower()
+        for path, ts in files.items():
+            if path.endswith(".ts") and "@role(" in ts:
+                assert re.findall(r"@role\('[^']*', \[([^\]]*)\]\)", ts) == ["'read'"], path
+
+
+def test_operations_widen_only_when_asked(shop):
+    files = rayfin_files(shop, "shop", operations=["create", "read"])
+    assert "operations: ['read', 'create']" in files["rayfin/connectors/shop/schema.ts"]
+    assert "operations: ['read', 'create']" in files["src/lib/connectors.ts"]
+    assert "--operations read,create`" in files["rayfin/connectors/shop/README.generated.md"]
+    with pytest.raises(ValueError):
+        rayfin_files(shop, "shop", operations=["mutate"])
+
+
+def test_the_r5_relationship_is_in_the_generated_schema(shop_rows):
+    """orders.ship_to_id -> addresses.address_id is counted in the rows (R5) and generated like any other."""
+    assert any(r.rule == "R5" and r.source == "orders" and r.source_cols == ["ship_to_id"] and r.target == "addresses"
+               for r in shop_rows.relationships)
+    files = rayfin_files(shop_rows, "shop")
+    orders = files["rayfin/connectors/shop/Orders.ts"]
+    assert "@one(() => Addresses, { sourceFields: ['shipToId'], targetFields: ['addressId'] }) shipTo?: Addresses;" in orders
+    assert "import { Addresses } from './Addresses.js';" in orders
+    assert "@many(() => Orders, { sourceFields: ['addressId'], targetFields: ['shipToId'] })" in \
+        files["rayfin/connectors/shop/Addresses.ts"]
+    assert "7 entities, 7 relationships" in files["rayfin/connectors/shop/README.generated.md"]
+    confirmed = plan(shop_rows.schema, keys=__import__("fabric_backend.demo").demo.DEMO_KEYS, confirmed=[
+        {"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}])
+    assert "shipTo?: Addresses;" in rayfin_files(confirmed, "shop")["rayfin/connectors/shop/Orders.ts"]
+
+
 def test_the_example_is_the_generated_output(shop):
     """examples/rayfin/ is an app root: what `fabric-backend rayfin examples/columns.csv --keys examples/keys.csv
     --connector shop --out examples/rayfin` writes."""
@@ -225,13 +281,16 @@ def test_the_rayfin_tsconfig_is_the_templates(node_modules):
     assert (TEMPLATE / "rayfin" / "tsconfig.json").read_text(encoding="utf-8") == RAYFIN_TSCONFIG
 
 
-@pytest.mark.parametrize("case", ["shop", "northwind"])
-def test_the_generated_project_compiles_with_the_pinned_versions(case, shop, node_modules, tmp_path):
+@pytest.mark.parametrize("case", ["shop", "shop_rows", "northwind"])
+def test_the_generated_project_compiles_with_the_pinned_versions(case, shop, shop_rows, node_modules, tmp_path):
     """`tsc -p rayfin/tsconfig.json` is the compile `rayfin up` runs (it emits the entity classes it applies);
     `tsc -p tsconfig.json` is the app's type check, over src/: the wiring, the page, and through the page's and the
     wiring's `import type` the connector's schema.ts and entity classes."""
     if case == "shop":
         files = rayfin_files(shop, "shop")
+        page = "src/pages/OrderItemsPage.tsx"
+    elif case == "shop_rows":                    # with the R5 relationship orders.ship_to_id -> addresses
+        files = rayfin_files(shop_rows, "shop")
         page = "src/pages/OrderItemsPage.tsx"
     else:
         fx = json.loads((SCHEMAS / "northwind.json").read_text(encoding="utf-8"))

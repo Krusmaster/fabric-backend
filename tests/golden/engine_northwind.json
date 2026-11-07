@@ -1455,8 +1455,8 @@
   "synonyms": []
  },
  "rayfin": {
-  "bytes": 31917,
-  "sha256": "09174b7a677c7a6685118ec0ce4699e3ca303924b1c325fe7b66dd93fee61edb"
+  "bytes": 32276,
+  "sha256": "6ee18b04f2af2f8234fb4d34024f58f834bbae1a7ef7a4aa548126a7d74a7343"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[CustomerID] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[Orders] AS s LEFT JOIN (SELECT DISTINCT [CustomerID] FROM [dbo].[Customers]) AS t ON s.[CustomerID] = t.[CustomerID] WHERE s.[CustomerID] IS NOT NULL",

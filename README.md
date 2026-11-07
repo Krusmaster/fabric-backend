@@ -347,6 +347,13 @@ rayfin/connectors/shop/metadata.json --schema shop ...`) — it has columns and 
 so inference still runs. The full output for the synthetic schema is in `examples/rayfin/`. From
 an agent: the MCP tool `rayfin_connector`.
 
+The generated connector is **read-only by default**: `schema.ts` and `src/lib/connectors.ts` set
+`operations: ['read']`, and the README's `npx rayfin connector add` step passes `--operations read`. Rayfin 1.36.2
+allows every CRUD verb (`read`, `create`, `update`, `delete`) when `operations` is left out, so the files always name
+it; `rayfin_files(..., operations=["read", "create"])` widens it where an app must write. Relationships confirmed by
+the caller or counted in the rows (rule R5, such as `orders.ship_to_id` → `addresses.address_id` in the synthetic
+shop) are generated as `@one` / `@many` like the name rules' ones.
+
 Two things the Rayfin docs do not say, learned from running it: `@one`/`@many` work on connector
 entities **only with `sourceFields`/`targetFields`** — without them Rayfin invents a column
 (`customer_customer_id`) and the query fails; and `@date()` properties are typed `Date`, not

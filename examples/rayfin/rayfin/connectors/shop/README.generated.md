@@ -2,6 +2,9 @@
 
 7 entities, 6 relationships, connector type `fabric-sqlanalytics`.
 
+Read-only: the connector allows `read` alone (`--operations read`, `operations: ['read']` in schema.ts and src/lib/connectors.ts), so the app cannot create, update or delete rows through it. Rayfin allows every CRUD verb when `operations` is left out (`connector add` without `--operations`, a
+`ConnectorConfig` without `operations`), so keep it in both.
+
 ## The files
 
 - `rayfin/connectors/shop/*.ts` and `schema.ts`: one entity class per table, with keys and relationships.

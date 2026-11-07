@@ -940,8 +940,8 @@
   ]
  },
  "rayfin": {
-  "bytes": 20703,
-  "sha256": "edf102e788b8b7c151976b4124cf5c220dd1c424a7808092f6008b2b9061d1f9"
+  "bytes": 21062,
+  "sha256": "2d7796341750110e17601bb1160f7be69d6ef5c0919a19638d3d86312283923b"
  },
  "relationship_sql": [
   "SELECT COUNT_BIG(*) AS with_value, SUM(CASE WHEN t.[DepartmentId] IS NULL THEN 1 ELSE 0 END) AS orphans FROM [dbo].[employees] AS s LEFT JOIN (SELECT DISTINCT [DepartmentId] FROM [dbo].[departments]) AS t ON s.[DeptId] = t.[DepartmentId] WHERE s.[DeptId] IS NOT NULL",
