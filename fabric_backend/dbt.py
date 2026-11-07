@@ -242,6 +242,21 @@ def _summable(plan: Plan, table: str) -> list[str]:
             and (amounts.is_quantity(c.name, c.data_type) or amounts.looks_like_amount(c.name, c.data_type) or c.name.lower() in packed)]
 
 
+def _note(text: str) -> str:
+    """A line comment's text on one line: a newline in a description would end the comment and leave the rest as SQL."""
+    return " ".join(str(text).splitlines())
+
+
+def _select_list(items: list[tuple[str, str | None]], indent: str) -> str:
+    """Select items, one per line, each optionally with a trailing `-- note`. The separating comma comes before the
+    comment: after it, the comment would swallow the comma and the next item would follow without one (n139)."""
+    lines = []
+    for i, (sql, note) in enumerate(items):
+        line = sql + ("," if i < len(items) - 1 else "")
+        lines.append(line + (f"  -- {_note(note)}" if note else ""))
+    return f"\n{indent}".join(lines)
+
+
 def _yaml_doc(lines: list[str]) -> str:
     return "\n".join(lines) + "\n"
 
@@ -259,9 +274,9 @@ def _staging(plan: Plan, table: str, model: str, source_name: str, validation: d
     for c in t.columns:
         target, why = fabric_type(c.data_type)
         if target:
-            casts.append(f"cast({_sq(c.name)} as {target}) as {_sq(c.name)}")
+            casts.append((f"cast({_sq(c.name)} as {target}) as {_sq(c.name)}", None))
         else:
-            casts.append(f"{_sq(c.name)}  -- {c.data_type}: {why}")
+            casts.append((_sq(c.name), f"{c.data_type}: {why}"))
             if why.startswith("no "):
                 not_templated.append({"table": table, "model": model, "part": f"type of {c.name}", "why": why})
     checked = {k["table"]: k for k in (validation or {}).get("keys", [])}
@@ -269,7 +284,7 @@ def _staging(plan: Plan, table: str, model: str, source_name: str, validation: d
         not_templated.append({"table": table, "model": model, "part": "de-duplication",
                               "why": "no key in the plan (rule K3): there is nothing to de-duplicate on, so every source row is kept"})
         head.append("-- No key in the plan: not de-duplicated (there is nothing to de-duplicate on).")
-        body = "select\n    " + ",\n    ".join(casts) + f"\nfrom {{{{ source({_q(source_name)}, {_q(table)}) }}}}"
+        body = "select\n    " + _select_list(casts, "    ") + f"\nfrom {{{{ source({_q(source_name)}, {_q(table)}) }}}}"
     else:
         order, how = _order_column(t, None)
         order = [order] if order else _pack_delta(plan, table)
@@ -288,12 +303,13 @@ def _staging(plan: Plan, table: str, model: str, source_name: str, validation: d
             order_sql = "(select null)"
             todo.append({"table": table, "model": model, "what": "which duplicate to keep",
                          "why": f"no load or change time column in {table}; the staging model keeps an arbitrary row per key"})
-        inner = ",\n        ".join(casts + [f"row_number() over (partition by {', '.join(_sq(c) for c in key)} order by {order_sql}) as {_sq(ROW)}"])
+        inner = _select_list(casts + [(f"row_number() over (partition by {', '.join(_sq(c) for c in key)} order by {order_sql}) as {_sq(ROW)}", None)],
+                             "        ")
         outer = ",\n    ".join(_sq(c.name) for c in t.columns)
         not_null = " and ".join(f"{_sq(c)} is not null" for c in key)
         body = (f"select\n    {outer}\nfrom (\n    select\n        {inner}\n    from {{{{ source({_q(source_name)}, {_q(table)}) }}}}\n"
                 f"    where {not_null}\n) as deduplicated\nwhere {_sq(ROW)} = 1")
-    return "\n".join(head) + "\n\n{{ config(materialized='view') }}\n\n" + body + "\n"
+    return "\n".join(_note(h) for h in head) + "\n\n{{ config(materialized='view') }}\n\n" + body + "\n"
 
 
 def _mart(plan: Plan, checked_plan: Plan, fact: str, model: str, models: dict[str, str], domain: dict | None,
@@ -369,7 +385,7 @@ def _mart(plan: Plan, checked_plan: Plan, fact: str, model: str, models: dict[st
                 "cancelled or returned rows, currency); add them as filters and columns here.")
     todo.append({"table": fact, "model": model, "what": "business rules",
                  "why": "what counts as revenue, which statuses and which rows count are the customer's to decide"})
-    sql = ("\n".join(head) + "\n\n{{ config(materialized='table') }}\n\n" + f"select\n    {select}\nfrom {{{{ ref({_q(models[fact])}) }}}} as f"
+    sql = ("\n".join(_note(h) for h in head) + "\n\n{{ config(materialized='table') }}\n\n" + f"select\n    {select}\nfrom {{{{ ref({_q(models[fact])}) }}}} as f"
            + "".join("\n" + j for j in joins) + "".join("\n" + j for j in agg_sql) + "\n")
     info = {"model": model, "fact": fact, "grain": list(key), "domain": domain["slug"] if domain else None,
             "joins": [_rel_text(s["rel"]) for s in steps],

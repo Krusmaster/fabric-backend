@@ -9,6 +9,16 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n139: dbt_schema project=true writes valid staging SQL. Seen live on 7 November 2026 on the shop schema: a
+  column the draft keeps as the source has it (varchar without a length in the endpoint's metadata) carried a trailing
+  comment, and the separating comma came after it, inside the comment, so the next select item followed without one
+  (stg_shop__addresses, audit_log, categories, customers, products). `dbt._select_list` now writes the comma before
+  the comment, and comment text is kept on one line. Only the staging models of the dbt project draft had the problem;
+  the marts, the T-SQL views, gold views, join paths, evidence queries, data agent examples, answer drafts and fixes put
+  their comments on lines of their own. `tests/test_n139_sql_parses.py` parses every SQL file and SQL draft for the shop
+  schema (as the seed and as a SQL endpoint reports it), n138's synthetic 15-table fixture and every schema fixture
+  (4 to 71 tables) with sqlglot's T-SQL parser (gold's Spark SQL with its spark dialect), 1 968 pieces, so a dropped
+  comma or bracket fails CI.
 - Round n138: MCP Apps card polish after the first live run (Claude desktop app, 6 November 2026, demo_lh/shop), still
   only with `KRUSGRAPH_MCP_APPS=1`. review_plan's ER diagram drew orders.customer_id → customers through the audit_log
   box and put labels on top of each other; it is now a layered layout (`mcp_apps_review.LAYOUT_JS`, inline SVG, no

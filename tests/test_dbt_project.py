@@ -210,7 +210,7 @@ def test_untemplatable_tables_and_types_are_reported_not_guessed(shop):
     [x] = [x for x in out["not_templated"] if x["part"].startswith("type")]
     assert x["table"] == "things" and x["part"] == "type of shape" and "no type in Fabric Data Warehouse for geography" in x["why"]
     sql = out["files"]["models/staging/x/stg_x__things.sql"]
-    assert "[note]  -- varchar: varchar without a length" in sql and "cast([note]" not in sql
+    assert "[note],  -- varchar: varchar without a length" in sql and "cast([note]" not in sql
 
 
 def test_a_pack_gives_business_names_and_the_dedup_order():
