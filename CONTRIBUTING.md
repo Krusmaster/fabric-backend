@@ -35,7 +35,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n150: `static/check.js` only |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n150: `static/check.js` and `static/check-worker.js` only |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n150: `platforms/local.py` only |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
