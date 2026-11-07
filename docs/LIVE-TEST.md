@@ -80,6 +80,22 @@ in 7791941, the three views of `create_views` in 961f8b6) passed on 27 October.
 | `create_backend shop_api` with the ship-to relationship confirmed (`field_name: "address"`) stopped with `would_remove`: the plan named the reverse field `orders_as_ship_to`, the API has `orders`, and `keep_with_confirmed` was empty | 2aeb238 | *"Update shop_api from demo_lh, schema shop, and keep orders.ship_to_id → addresses.address_id."* | `Succeeded`, `updated`, with `names_kept_from_api` naming `addresses.orders`; the API's fields unchanged; `plan_drift` first says no drift | | |
 | `drift_monitor_draft` installed the library from `main` by default | cfee096 | *"Draft a nightly drift monitor for demo_lh, schema shop."* | the `%pip` cell installs `@v<version>`; the tag must exist on GitHub (docs/PUBLISHING.md) | | |
 
+The first pipeline run, 7 November 2026 (`create_pipeline` of n120 created `pipeline_shop` in `demo`, default lakehouse
+`demo_lh`; run in Fabric Runtime 2.0: Spark 4.1, Delta 4.2, Python 3.13):
+`silver_shop` succeeded (1m59s), `gold_shop` succeeded (1m36s), `pipeline_shop_check` failed with `ImportError: cannot
+import name 'pipeline' from 'fabric_backend'`: its `%pip` installed the published release, which is older than `main` and
+has no `pipeline` module. Fixed in n140: the check notebook is self-contained (plain PySpark and Python, no `%pip`, no
+import of the library), unit-tested on SQLite and on a local Spark.
+
+| What the run showed | Fixed in | Question in Claude | Expected now | Result | Date |
+| --- | --- | --- | --- | --- | --- |
+| `pipeline_shop_check` failed importing `fabric_backend.pipeline` | n140 | *"Create the pipeline pipeline_shop for demo_lh, schema shop."*, then run `pipeline_shop` in Fabric | all three activities succeed; the check's output starts with `Keys in silver: 6 of 6` and ends with `The check holds.` | | |
+
+Still open after n140: the drift monitor's notebook (`drift_monitor_draft`, `create_drift_monitor`) installs the library
+with `%pip` from GitHub at the tag of the server's version and imports it, so a run needs internet access and the tag, and
+runs that release's inference, not `main`'s. It cannot be inlined the way the check was (it runs the whole inference,
+lineage and `plan_drift`); left for a round of its own.
+
 Seen, not changed: `demo_lh` already holds the view `krusgraph.vw_order_items`, so `create_views` has created a view
 there at some point, but no protocol of that run exists. Creating with `create_views` stays Experimental until row 20
 is run and written down.

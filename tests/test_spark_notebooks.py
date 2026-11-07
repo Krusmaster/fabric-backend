@@ -346,11 +346,15 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
 def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path):
     """n110: the pipeline's last step, the check notebook, on a local Spark: the silver notebook writes the silver tables,
     the gold views' SELECTs with their rules stand in for the materialized lake views (open-source Spark has none), and the
-    check notebook's own cells (all but %pip) count keys, orphans, rows and sums with spark.sql. It passes on what the steps
-    produce, and raises, which fails the notebook and so the pipeline run, when a gold view repeats a row."""
+    check notebook's own cells count keys, orphans, rows and sums with spark.sql. It passes on what the steps produce, and
+    raises, which fails the notebook and so the pipeline run, when a gold view repeats a row, and with a readable message
+    on an orphan and a gold sum mismatch.
+    n140: the notebook is self-contained (the first live run failed importing a pipeline module the published release did
+    not have): every cell runs as written, with no %pip to skip, and an import of fabric_backend fails the test."""
     pytest.importorskip("pyspark")
+    import builtins
     from pyspark.sql import SparkSession
-    from fabric_backend import gold, pipeline
+    from fabric_backend import gold, notebook, pipeline
     spark = (SparkSession.builder.master("local[1]").appName("krusgraph-pipeline-check-test")
              .config("spark.sql.warehouse.dir", str(tmp_path / "warehouse")).config("spark.ui.enabled", "false")
              .config("spark.sql.shuffle.partitions", "2").getOrCreate())
@@ -370,20 +374,41 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
         for v in g["views"]:
             spark.sql(f"SELECT * FROM ({gold.select_sql(v, g['silver_schema'])}) AS v WHERE "
                       + (" AND ".join(f"({c['check']})" for c in v["constraints"]) or "1 = 1")).write.format("parquet").saveAsTable(v["name"])
-        cells = pipeline.check_cells(pipeline.check_spec(shop_plan(), s, g), "shop_lh.shop")
+        text = pipeline.check_source(pipeline.check_spec(shop_plan(), s, g), "shop_lh.shop")
+        assert "%pip" not in text and "fabric_backend" not in text
+
+        def guarded(name, *a, **k):
+            if name.split(".")[0] == "fabric_backend":
+                raise ImportError(f"the check notebook imported {name}")
+            return builtins.__import__(name, *a, **k)
 
         def run():
-            nb = {"spark": spark}
-            for kind, code in cells:
-                if kind != "markdown" and not code.startswith("%pip"):
-                    exec(compile(code, "<notebook>", "exec"), nb)
+            nb = {"spark": spark, "__builtins__": dict(vars(builtins), __import__=guarded)}
+            for kind, code in notebook.parse(text):
+                if kind != "markdown":
+                    exec(compile(code, "<pipeline_shop_check>", "exec"), nb)
             return nb
         nb = run()
         assert nb["result"]["passed"] and nb["result"]["lines"][-1] == "The check holds."
         assert len(nb["result"]["keys"]) == 6 and len(nb["result"]["relationships"]) == 6
+        assert all(k["holds"] for k in nb["result"]["keys"]) and all(r["holds"] for r in nb["result"]["relationships"])
         spark.sql("INSERT INTO gold.order_items SELECT * FROM gold.order_items LIMIT 1")      # the join repeated a row
-        with pytest.raises(pipeline.CheckFailed, match="gold.order_items: .* rows after the join"):
+        with pytest.raises(Exception, match="gold.order_items: .* rows after the join") as e:
             run()
+        assert type(e.value).__name__ == "CheckFailed"
+        # an orphan in silver and a gold sum that does not match its fact table
+        spark.sql("DROP TABLE gold.order_items")
+        items = next(v for v in g["views"] if v["fact"] == "order_items")
+        spark.sql(f"SELECT * FROM ({gold.select_sql(items, g['silver_schema'])}) AS v").createOrReplaceTempView("items_v")
+        spark.sql("SELECT order_id, line_no, product_id, quantity + CASE WHEN line_no = 1 THEN 1 ELSE 0 END AS quantity, "
+                  "* EXCEPT (order_id, line_no, product_id, quantity) FROM items_v").write.format("parquet").saveAsTable("gold.order_items")
+        spark.sql("INSERT INTO silver.order_items SELECT 4242, 1, product_id, 1.0 FROM silver.order_items LIMIT 1")
+        with pytest.raises(Exception) as e:
+            run()
+        msg = str(e.value)
+        assert type(e.value).__name__ == "CheckFailed" and msg.startswith("The check failed, so the pipeline stops: ")
+        assert "order_items.order_id -> orders: 1 of " in msg and "(orphans)" in msg
+        assert "gold.order_items: SUM(quantity) is " in msg
     finally:
         spark.stop()
 

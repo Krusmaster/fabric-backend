@@ -9,6 +9,13 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n140: create_pipeline's check notebook is self-contained. Seen live on 7 November 2026: pipeline_shop's
+  silver_shop and gold_shop succeeded, pipeline_shop_check failed with "ImportError: cannot import name 'pipeline' from
+  'fabric_backend'", because its %pip installed the published release, which is older than main and has no pipeline
+  module. The check (keys unique and never NULL, orphans, gold rows and sums against the silver fact table) is now plain
+  PySpark and Python in the notebook (`pipeline.CHECK_CODE`), with no %pip and no import of the library; it still raises
+  on a failed check, so the pipeline run fails, and prints a summary when the check holds. The check activity no
+  longer sets _inlineInstallationEnabled. The drift monitor's notebook still installs the library (docs/LIVE-TEST.md).
 - Round n139: dbt_schema project=true writes valid staging SQL. Seen live on 7 November 2026 on the shop schema: a
   column the draft keeps as the source has it (varchar without a length in the endpoint's metadata) carried a trailing
   comment, and the separating comma came after it, inside the comment, so the next select item followed without one

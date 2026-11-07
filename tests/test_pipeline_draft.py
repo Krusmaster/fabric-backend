@@ -215,14 +215,124 @@ def test_a_missing_silver_table_fails_the_check():
 def test_the_check_notebook_stops_before_it_reports_success():
     cells = pipeline.check_cells(spec(), "shop_lh.shop")
     kinds = [k for k, _ in cells]
-    assert kinds == ["markdown", "code", "parameters", "code", "code", "code"]
-    assert cells[1][1].startswith("%pip install") and "_inlineInstallationEnabled" in json.dumps(
-        pipeline.pipeline_content("s", "g", "c", "x")["properties"]["activities"][2])
+    assert kinds == ["markdown", "parameters", "code", "code", "code", "code"]
+    assert "_inlineInstallationEnabled" not in json.dumps(pipeline.pipeline_content("s", "g", "c", "x"))   # nothing to install
     last = cells[-1][1]
-    assert last.index("pipeline.raise_if_failed(result)") < last.index("notebookutils.notebook.exit")
-    assert "only reads" in cells[0][1]
+    assert last.index("raise_if_failed(result)") < last.index("notebookutils.notebook.exit")
+    assert "only reads" in cells[0][1] and "nothing is installed" in cells[0][1]
+    assert cells[3][1].endswith(pipeline.CHECK_CODE)                              # the code the tests below run, verbatim
     # the setup cell is valid Python that holds the spec as data
-    ns = {}
-    exec(cells[3][1].replace("from fabric_backend import pipeline\nfrom fabric_backend.schema import Schema\n", "")
-         .replace("CHECK.update(silver_schema=SILVER_SCHEMA, gold_schema=GOLD_SCHEMA)", ""), ns)
-    assert ns["CHECK"] == {k: spec()[k] for k in ("keys", "relationships", "views")}
+    ns = {"SILVER_SCHEMA": "silver", "GOLD_SCHEMA": "gold"}
+    exec(cells[2][1], ns)
+    assert ns["CHECK"] == dict({k: spec()[k] for k in ("keys", "relationships", "views")}, silver_schema="silver", gold_schema="gold")
+
+
+# ------------------------------------------------------------------ n140: the check notebook is self-contained --------
+# The first live run (7 November 2026): silver_shop and gold_shop succeeded, pipeline_shop_check failed with
+# "ImportError: cannot import name 'pipeline' from 'fabric_backend'": its %pip installed the published release, which is
+# older than main and has no pipeline module. The notebook now carries the check as plain Python and installs nothing.
+
+def check_source():
+    p = shop_plan()
+    return pipeline.check_source(pipeline.check_spec(p, silver.spec(p, INFO), gold.spec(p, INFO)), "shop_lh.shop", WS, "lh-1", "shop_lh")
+
+
+def test_the_check_notebook_installs_nothing_and_imports_nothing_of_the_library():
+    text = check_source()
+    assert "%pip" not in text and "pip install" not in text.lower() and "fabric_backend" not in text and "fabric-backend" not in text
+    assert "github" not in text.lower() and "http" not in text.lower()         # nothing is fetched at run time
+    for kind, code in notebook.parse(text):
+        if kind == "markdown":
+            continue
+        assert not code.lstrip().startswith(("%", "!")), code[:40]
+        imported = {n.split(".")[0] for line in code.splitlines() for n in
+                    (line.split()[1:2] if line.lstrip().startswith(("import ", "from ")) else [])}
+        assert imported <= {"json", "math"}, imported                              # the standard library only
+
+
+class FakeSpark:
+    """spark.sql and spark.catalog.tableExists over the SQLite lakehouse above, for the notebook's own cells."""
+    def __init__(self, execute, tables):
+        self._execute = execute
+        silver = {f"`silver`.`{t}`".lower() for t in tables}
+
+        class Catalog:
+            @staticmethod
+            def tableExists(name):
+                if name.lower().startswith("`silver`."):
+                    return name.lower() in silver
+                try:
+                    execute(f"SELECT 1 FROM {name} LIMIT 1")
+                    return True
+                except Exception:  # noqa: BLE001
+                    return False
+        self.catalog = Catalog()
+
+    def sql(self, text):
+        rows = self._execute(text)
+        return type("DF", (), {"collect": lambda _self: [type("Row", (), {"asDict": lambda _r, d=d: dict(d)})() for d in rows]})()
+
+
+def guarded_builtins():
+    import builtins
+
+    def guarded(name, *a, **k):
+        if name.split(".")[0] == "fabric_backend":
+            raise ImportError(f"the check notebook imported {name}")
+        return builtins.__import__(name, *a, **k)
+    return dict(vars(builtins), __import__=guarded)
+
+
+def run_notebook(break_with=None):
+    schema, execute = lakehouse(break_with)
+    ns = {"spark": FakeSpark(execute, [t.name for t in schema]), "__builtins__": guarded_builtins()}
+    for kind, code in notebook.parse(check_source()):
+        if kind != "markdown":
+            exec(compile(code, "<pipeline_shop_check>", "exec"), ns)
+    return ns
+
+
+def test_the_check_notebooks_own_cells_pass_on_what_the_steps_produce(capsys):
+    ns = run_notebook()
+    assert ns["result"]["passed"] and ns["result"]["lines"][-1] == "The check holds."
+    out = capsys.readouterr().out
+    assert "Keys in silver: 6 of 6 unique and never NULL." in out and "References in silver: 6 of 6 without orphans." in out
+    assert "Gold views: 3 of 3 keep the rows and sums of their fact table." in out and out.rstrip().endswith("passed")
+
+
+def test_the_check_notebook_raises_a_readable_error_on_an_orphan_and_a_sum_mismatch():
+    def spoil(sim, views):
+        sim["order_items"].append({"order_id": 4242, "line_no": 1, "product_id": 1, "quantity": 1.0})      # an orphan
+        views["order_items"][1][0] = dict(views["order_items"][1][0], quantity=99.0)                      # a gold sum mismatch
+    with pytest.raises(Exception) as e:
+        run_notebook(spoil)
+    assert type(e.value).__name__ == "CheckFailed"
+    msg = str(e.value)
+    assert msg.startswith("The check failed, so the pipeline stops: ")
+    assert "order_items.order_id -> orders: 1 of " in msg and "find no row in orders(order_id) (orphans)" in msg
+    assert "gold.order_items: SUM(quantity) is " in msg and " in silver.order_items" in msg
+
+
+def test_the_check_reads_the_names_the_silver_and_gold_notebooks_write():
+    """The silver notebook writes `<silver_schema>`.`<table>` (silver.target_parts) and the gold notebook creates
+    `<gold_schema>`.`<fact, lowercased>` (gold.spec's view names); the check asks for exactly those."""
+    p = shop_plan()
+    s, g = silver.spec(p, INFO, order_by={"orders": "order_date"}), gold.spec(p, INFO)
+    c = pipeline.check_spec(p, s, g)
+    asked = []
+    pipeline._CHECK["check"](c, lambda sql: [{"n": 0, "nulls": 0, "d": 0, "o": 0}], lambda name: asked.append(name) or True)
+    written = {f"`{s['silver_schema']}`.`{t['table']}`" for t in s["tables"]}
+    created = {".".join(f"`{x}`" for x in v["name"].split(".", 1)) for v in g["views"]}
+    assert created <= set(asked) and set(asked) - created <= written
+
+
+def test_a_missing_gold_view_fails_the_check_notebook_with_its_name():
+    schema, execute = lakehouse()
+    spark = FakeSpark(execute, [t.name for t in schema])
+    spark.catalog.tableExists = lambda name, real=spark.catalog.tableExists: name != "`gold`.`orders`" and real(name)
+    ns = {"spark": spark, "__builtins__": guarded_builtins()}
+    with pytest.raises(Exception, match="gold views missing in gold: orders; the gold notebook did not create them") as e:
+        for kind, code in notebook.parse(check_source()):
+            if kind != "markdown":
+                exec(compile(code, "<pipeline_shop_check>", "exec"), ns)
+    assert type(e.value).__name__ == "CheckFailed"

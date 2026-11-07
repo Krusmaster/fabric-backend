@@ -90,7 +90,9 @@ def test_the_pipeline_runs_silver_then_gold_then_the_check_and_stops_on_a_failed
     assert all(a["policy"]["retry"] == 0 for a in acts)
     check = [b for m, u, b in fabric["calls"] if m == "POST" and b and b.get("displayName") == "pipeline_shop_check"][0]
     source = decoded(check)["notebook-content.py"]
-    assert source.index("pipeline.run(") < source.index("pipeline.raise_if_failed(result)") < source.index("notebookutils.notebook.exit")
+    assert source.index("result = check(CHECK, execute, spark.catalog.tableExists)") < source.index("\nraise_if_failed(result)") \
+        < source.index("notebookutils.notebook.exit")
+    assert "pip install" not in source and "fabric_backend" not in source                    # n140: self-contained
 
 
 def test_nothing_runs_or_schedules_and_the_answer_says_so(fabric):
