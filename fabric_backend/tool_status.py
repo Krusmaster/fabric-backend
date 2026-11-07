@@ -67,6 +67,11 @@ LATER_LIVE_ANSWER = {
                      "data (one blank page bound to shop_model_live; status Succeeded, mode created); a report made the same "
                      "way was opened in the Fabric portal, given a visual and showed data.",
 }
+# n143: a creating tool whose created item has been run in Fabric, as its own answer says it; nothing more is claimed.
+RAN_LIVE = {
+    "create_pipeline": "Run live in the demo workspace (synthetic data) on 7 November 2026: the pipeline pipeline_shop, "
+                       "run 9de8bc49, all three steps succeeded.",
+}
 # n88: a later live run of a tool that ran on LIVE_RUN_DATE, as docs/LIVE-TEST.md records it: `said` goes into the tool's
 # own answer, `evidence` is the words of docs/LIVE-TEST.md that record it (tests/test_n88_live_notes.py checks both).
 LATEST_LIVE = {
@@ -178,8 +183,9 @@ _RAW = {
     "create_gold_views": (HOSTED, CREATES, "creates/updates one notebook; never deletes", "unit tests; created live on 28 October 2026",
                           False, "; created live on 28 October 2026 (gold_shop), not yet run in Fabric"),
     "create_pipeline": (HOSTED, CREATES, "creates/updates three notebooks and one pipeline; never deletes, runs or schedules",
-                        "unit tests; creating by unit tests only", False,
-                        "; needs Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), which the hosted app has"),
+                        "unit tests; run live on 7 November 2026 (pipeline_shop, run 9de8bc49)", False,
+                        "; needs Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), which the hosted app has; "
+                        "run live in the demo workspace on 7 November 2026 (run 9de8bc49, all three steps succeeded)"),
     "export_item_definitions": (HOSTED, DRAFT, _NO, "unit tests"),
     "review_plan": (HOSTED, READS, "nothing (counting queries with validate=true)", "unit tests; reading a file back by unit tests only",
                     False, "; reading a file back is unit-tested"),
@@ -264,6 +270,8 @@ def answer_note(name: str) -> str:
     s, where = STATUS[name], "against a Fabric workspace with synthetic data"
     if name in LATER_LIVE:
         return LATER_LIVE_ANSWER.get(name, LATER_LIVE[name])
+    if name in RAN_LIVE:
+        return RAN_LIVE[name]
     if not s.live:
         return "Not yet run against a live workspace."
     if name in LIVE_RUN_PARTLY:

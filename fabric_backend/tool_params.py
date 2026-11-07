@@ -155,6 +155,9 @@ LineageTable = Annotated[str | None, _d('One table to trace: the answer adds wha
 LineageFormat = Annotated[Literal["graph", "openlineage"], _d('"graph" (default) or "openlineage": one OpenLineage '
                                     'RunEvent per object, tables as datasets with column names and types, relationship '
                                     'rules and counts in a custom facet; no row values.')]
+LineageRuns = Annotated[str | None, _d('A data pipeline or notebook in the workspace, by name or id: the answer is then its '
+                                       'latest runs, each activity\'s status, Fabric\'s error text and a heuristic category '
+                                       'with a next step, instead of the graph. Default: none. Example: "pipeline_shop".')]
 Question = Annotated[str, _d('The question, in Swedish or English. Example: "total amount per customer last month".')]
 QuestionTables = Annotated[list[str], _d('Tables the question is about, exact names. Example: ["orders", "customers"].')]
 QuestionApi = Annotated[str | None, _d('API for GraphQL item over the source; when given, a GraphQL query is drafted too. '

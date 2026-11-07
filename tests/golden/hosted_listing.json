@@ -2453,7 +2453,7 @@
     "read_only_hint": true,
     "title": "Lineage: what builds on a source's tables"
    },
-   "description": "Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the\nSQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per\ntable, tables nothing uses, items that could not be read, and with table, what a change to it reaches; format=\"openlineage\" returns OpenLineage events\ninstead. Read-only. Errors: {error, kind, hint}.",
+   "description": "Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the\nSQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per\ntable, tables nothing uses, items that could not be read, and with table, what a change to it reaches; format=\"openlineage\" returns OpenLineage events\ninstead; runs=<pipeline or notebook> returns its latest runs, per-activity status and Fabric's error text with a\nheuristic category and next step. Read-only: starts, cancels and fixes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "format": {
@@ -2465,6 +2465,19 @@
       ],
       "title": "Format",
       "type": "string"
+     },
+     "runs": {
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "A data pipeline or notebook in the workspace, by name or id: the answer is then its latest runs, each activity's status, Fabric's error text and a heuristic category with a next step, instead of the graph. Default: none. Example: \"pipeline_shop\".",
+      "title": "Runs"
      },
      "schema": {
       "default": "dbo",

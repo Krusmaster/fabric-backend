@@ -2163,11 +2163,14 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
 @mcp.tool(title="Lineage: what builds on a source's tables", annotations=RO)
 @safe
 def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", table: _p.LineageTable = None,
-            format: _p.LineageFormat = "graph", ctx: Context = None) -> str:
+            format: _p.LineageFormat = "graph", runs: _p.LineageRuns = None, ctx: Context = None) -> str:
     """Shows which Fabric objects in the workspace build on a source's tables: GraphQL APIs, semantic models, views on the
     SQL endpoint and data agents. Requires workspace and source. Returns JSON: a graph (nodes, edges), objects per
     table, tables nothing uses, items that could not be read, and with table, what a change to it reaches; format="openlineage" returns OpenLineage events
-    instead. Read-only. Errors: {error, kind, hint}."""
+    instead; runs=<pipeline or notebook> returns its latest runs, per-activity status and Fabric's error text with a
+    heuristic category and next step. Read-only: starts, cancels and fixes nothing. Errors: {error, kind, hint}."""
+    if runs:                                                                # n143: run results, no SQL connection
+        return _run_results(workspace, runs, ctx)
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         headers = _headers(ctx)
@@ -2188,6 +2191,34 @@ def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo
     out = _lineage.graph(item, schema, tables, edges, skipped)
     if table:
         out["impact"] = _lineage.impact(out, table)
+    return json.dumps(out, indent=2, default=str)
+
+
+def _job_instances(workspace: str, item_id: str, headers: dict) -> list[dict]:
+    """GET /v1/workspaces/{ws}/items/{id}/jobs/instances, following continuationUri for at most three pages
+    (fabric-rest-api-specs platform/swagger.json, JobScheduler_ListItemJobInstances). A read: 429/503 are asked again."""
+    from .deploy import send, Budget
+    out, url, pages = [], f"{FABRIC}/v1/workspaces/{workspace}/items/{item_id}/jobs/instances", 0
+    while url and pages < 3:
+        r = send("get", url, headers, write=False, budget=Budget(60), timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += body.get("value", [])
+        url, pages = body.get("continuationUri"), pages + 1
+    return out
+
+
+def _run_results(workspace: str, name: str, ctx) -> str:
+    """lineage with runs=: the run results of a pipeline or notebook (run_results.py). Only GETs and getDefinition."""
+    from . import run_results as _rr
+    headers = _headers(ctx)
+    ws = _workspace_id(workspace, headers)
+    hosted = _tool_status.STATUS["lineage"].available == _tool_status.HOSTED
+    out = _rr.answer(ws, name, _workspace_items(ws, headers), lambda w, i: _job_instances(w, i, headers),
+                     lambda w, route, i: _item_definition_parts(w, route, i, headers), hosted)
+    if "error" not in out:
+        out["note"] = ("Run results: unit-tested with Fabric's REST API replaced by a test double; not yet run against a "
+                       "live workspace (lineage's graph has its own status in docs and tool_status).")
     return json.dumps(out, indent=2, default=str)
 
 

@@ -9,6 +9,13 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n143: lineage with runs=<pipeline or notebook> reads the item's latest runs (Fabric's job-instance list), each
+  Notebook activity's status (its notebook's own run in the pipeline run's time window, a heuristic), the error text as
+  Fabric returns it, and a category with a next step from a catalog of Spark/Fabric errors (import, table not found,
+  permission, capacity paused or throttled, timeout), marked as a heuristic. Only GETs and getDefinition; Item.Read.All,
+  which the hosted app has. Unit-tested only (docs/RUN-RESULTS.md). The catalog's layout follows FreelexHo/power-bi-mcp
+  8d2e873 (MIT). create_pipeline's status now says pipeline_shop ran live on 7 November 2026 (run 9de8bc49, all three
+  steps succeeded).
 - Round n140: create_pipeline's check notebook is self-contained. Seen live on 7 November 2026: pipeline_shop's
   silver_shop and gold_shop succeeded, pipeline_shop_check failed with "ImportError: cannot import name 'pipeline' from
   'fabric_backend'", because its %pip installed the published release, which is older than main and has no pipeline
