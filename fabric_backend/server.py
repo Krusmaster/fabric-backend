@@ -78,7 +78,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "create_backend (the API for GraphQL), create_semantic_model (a Power BI semantic model item from the TMDL draft), "
     "create_ontology (a Fabric IQ ontology item: entity types with keys, relationship types, bindings), create_views (wide T-SQL views in a schema of "
     "their own on the SQL endpoint), create_data_agent (a Fabric data agent with the plan as instructions and examples) — all "
-    "answer with what they would create until dry_run=false. create_report adds an empty Power BI report (one blank page, no visuals) bound to an existing semantic model; a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
+    "answer with what they would create until dry_run=false. create_report adds a Power BI report bound to an existing semantic model, its page drawn from the model's own measures (cards, a column chart by month, a bar chart, a table; empty_page=true for a blank page); a report of that name is left alone. Creating a semantic model, ontology, data agent, notebook "
     "or pipeline needs a permission the operator may not have granted the app; without it the tool answers kind consent naming "
     "the scope, and the dry run still works. app_starter gives a Lovable prompt, connection details, queries and "
     "the Supabase edge function for an app on a created API; app_readiness lists what that API still needs before an app can use "
@@ -1251,16 +1251,18 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
 
 
-@mcp.tool(title="Create an empty Power BI report on a semantic model (dry run by default)", annotations=WRITE)
+@mcp.tool(title="Create a Power BI report on a semantic model (dry run by default)", annotations=WRITE)
 @safe
-def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, dry_run: _p.DryRun = True,
-                  ctx: Context = None) -> str:
-    """Creates an empty Power BI report item (one blank page, no visuals) bound to an existing semantic model, through
-    Fabric's creationPayload; no report definition is sent. Requires workspace, model and name; Report.ReadWrite.All or
-    Item.ReadWrite.All, Contributor on the workspace and read permission on the model. Returns JSON with the REST call
-    and the next steps; with dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false, and
-    only by adding one item: a report of that name is left as it is (kind already_exists), nothing is updated or
-    deleted. Errors: {error, kind, hint}."""
+def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, empty_page: _p.EmptyPage = False,
+                  dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+    """Creates a Power BI report item bound to an existing semantic model: one page with cards, a column chart by
+    month, a bar chart and a table built only on the model's measures and columns (PBIR definition), or one blank
+    page with empty_page=true. Requires workspace, model and name; Report.ReadWrite.All or Item.ReadWrite.All,
+    Contributor, and to read the model SemanticModel.ReadWrite.All. Returns JSON with the visuals, the REST call and
+    next steps; with dry_run=false also the result, or kind consent. Changes Fabric only with dry_run=false, and only by
+    adding one item: a report of that name is left as it is (kind already_exists), nothing is updated or deleted.
+    Errors: {error, kind, hint}."""
+    from . import model_compare as _mc
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     if _GUID.match(model.strip()):
@@ -1277,22 +1279,58 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
                            "kind": "already_exists", "existing": {"id": existing, "name": name},
                            "hint": "Choose another name, or open the existing report in the Fabric portal. This tool never updates or "
                                    "deletes a report."}, indent=2)
-    body = _report.payload(name, model_item["id"], workspace_id, f"Created by Krusgraph on the semantic model {model_item['displayName']}")
-    out = {"dry_run": dry_run,
-           "report": {"name": name, "pages": 1, "visuals": 0, "bound_to": {"semantic_model": model_item["displayName"], "id": model_item["id"]},
+    description = f"Created by Krusgraph on the semantic model {model_item['displayName']}"
+    drawn = None
+    if not empty_page:
+        try:
+            tmdl = _mc.from_tmdl(_item_definition_parts(workspace_id, "semanticModels", model_item["id"], headers, fmt="TMDL"))
+        except requests.HTTPError as e:
+            status = int(getattr(e.response, "status_code", 0) or 0)
+            if status in (401, 403):
+                return json.dumps({"error": f"Fabric refused reading the definition of {model_item['displayName']!r} (HTTP {status}): the "
+                                            f"visuals are built from the model's measures and columns, and reading them needs {MODEL_READ_SCOPE} "
+                                            "and write permission on the model. Nothing was created.",
+                                   "kind": "consent", "scope": MODEL_READ_SCOPE,
+                                   "hint": "The operator adds the permission to the Entra app and an administrator consents (docs/SCOPES.md); "
+                                           "it is the one create_semantic_model and compare_semantic_model need. Meanwhile empty_page=true "
+                                           "creates the report with one blank page without reading the model."}, indent=2)
+            raise
+        drawn = _report.definition_parts(tmdl, model_item["id"])
+        if not drawn["visuals"]:
+            drawn = {**drawn, "why_empty": "The model has no count, quantity or amount measure that can be drawn (see left_out), so "
+                                           "the page is left blank."}
+    if drawn and drawn["visuals"]:
+        body = _report.definition_payload(name, drawn["parts"], description)
+        report_out = {"name": name, "pages": 1, "visuals": drawn["visuals"],
+                      "bound_to": {"semantic_model": model_item["displayName"], "id": model_item["id"]},
+                      "drawn_from": "the model's own measures and columns, read with getDefinition (TMDL)"}
+        rest_body = {"displayName": body["displayName"], "description": body["description"],
+                     "definition": {"parts": "<base64 PBIR parts, see parts>"}}
+        spec = _report.DEFINITION_SPEC
+    else:
+        body = _report.payload(name, model_item["id"], workspace_id, description)
+        report_out = {"name": name, "pages": 1, "visuals": [], "bound_to": {"semantic_model": model_item["displayName"], "id": model_item["id"]},
                       "empty": "The report has one blank page and no visuals; it is bound to the model, so its tables and measures are "
-                               "ready in the field list."},
-           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": body,
-                    "delegated_scope": _report.SCOPE, "spec": _report.SPEC},
-           "after_creation": ["Open the report in the Fabric portal (the workspace's item list) and add visuals from the model's tables "
-                              "and measures; or build it in Power BI Desktop connected live to the same semantic model.",
+                               "ready in the field list."}
+        if drawn:
+            report_out["why_empty"] = drawn["why_empty"]
+        rest_body, spec = body, _report.SPEC
+    if drawn and drawn["left_out"]:
+        report_out["left_out"] = [{"measure": f"{m['table']}[{m['measure']}]", "why": m["why"]} for m in drawn["left_out"]]
+    out = {"dry_run": dry_run, "report": report_out,
+           "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": rest_body,
+                    "delegated_scope": _report.SCOPE, "spec": spec},
+           "after_creation": ["Open the report in the Fabric portal (the workspace's item list) and check the page; edit it there or "
+                              "in Power BI Desktop connected live to the same semantic model.",
                               "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
-                              "A report definition with pages and visuals (PBIR) is not sent by this version; export_item_definitions does "
-                              "not include reports."],
-           "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken). "
+                              "export_item_definitions does not include reports."],
+           "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); the "
+                   "page with visuals (n144) is unit-tested against Microsoft's published PBIR schemas, not yet created in Fabric. "
                    + _tool_status.answer_note("create_report")
                    + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
     if dry_run:
+        if drawn and drawn["visuals"]:
+            out["parts"] = drawn["parts"]
         return json.dumps(out, indent=2)
     result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
     return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}")

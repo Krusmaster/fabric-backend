@@ -97,6 +97,8 @@ ReportModel = Annotated[str, _d('Semantic model the report is bound to, name or 
                                 'Example: "shop_model".')]
 ReportName = Annotated[str, _d('Display name of the report; a report of this name in the workspace is left alone and the call '
                                'refused. Example: "shop_report".')]
+EmptyPage = Annotated[bool, _d('true creates the report with one blank page and reads nothing of the model; false (default) '
+                              'draws a page from its measures and columns. Example: false.')]
 CompareModel = Annotated[str, _d('Existing semantic model in the workspace, by name or id. Default "" (only with '
                                  'tmdl). Example: "Sales model".')]
 CheckData = Annotated[bool, _d('true counts the plan\'s keys and relationships and the model\'s extra links against the '
