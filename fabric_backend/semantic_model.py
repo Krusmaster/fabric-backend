@@ -229,6 +229,26 @@ def not_expressible_why(plan: Plan, r: Relationship) -> str:
             f"matching column to `{r.source}` in the lakehouse, for example in a gold view (gold_views_draft / create_gold_views), and relate on it")
 
 
+def keys_not_unique(plan: Plan, validation: dict | None) -> dict[str, dict]:
+    """n150: table -> validate_plan's count of its key, for every key of the plan that the rows show is not unique or has
+    NULLs. Such a column is no `isKey`, and nothing is related onto it: Power BI refuses a one side with duplicates, and a
+    join onto it repeats the many side's rows (4 customers rows with 3 distinct customer_id: an order of the duplicated
+    customer counts twice)."""
+    out = {}
+    for k in (validation or {}).get("keys", []):
+        key = plan.keys.get(k.get("table"), ([], ""))[0]
+        if key and [c.lower() for c in k.get("columns", [])] == [c.lower() for c in key] and not str(k.get("verdict", "")).startswith("unique"):
+            out[k["table"]] = k
+    return out
+
+
+def not_unique_why(table: str, k: dict) -> str:
+    cols = "+".join(k["columns"])
+    return (f"`{table}.{cols}` is not unique in the rows ({k['rows']} rows, {k['distinct']} distinct values, {k['nulls']} NULLs), so it "
+            f"cannot be the one side: a relationship onto it would count each duplicated {table} row's matches more than once. Give the "
+            f"real key of `{table}` (or keep one row per value in silver) and relate on it")
+
+
 def active_relationships(plan: Plan, rels: list[Relationship], validation: dict | None = None) -> tuple[list[Relationship], list[tuple[Relationship, str]]]:
     """Which relationships can be active at once: the maximum spanning forest by certainty from graphs.py (a tabular
     model allows one active path between two tables). The rest are inactive with the reason."""
@@ -279,9 +299,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     schemas_enabled = info.get("schemas_enabled")
     with_schema = bool(schemas_enabled) if schemas_enabled is not None else not (kind == "Lakehouse" and schema.lower() == "dbo")
 
-    single = [r for r in plan.relationships if r.source in names and r.target in names
+    dup = keys_not_unique(plan, validation)                      # n150: a key the rows show is not unique is no one side
+    single = [r for r in plan.relationships if r.source in names and r.target in names and r.target not in dup
               and len(r.source_cols) == 1 and len(r.target_cols) == 1 and len(plan.keys.get(r.target, ([], ""))[0]) == 1]
     composite = [r for r in plan.relationships if r.source in names and r.target in names and r not in single]
+    why_not = lambda r: not_unique_why(r.target, dup[r.target]) if r.target in dup else not_expressible_why(plan, r)
     active, inactive = active_relationships(plan, single, validation)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
@@ -350,7 +372,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                       f"\t\tformatString: {m['format']}", f"\t\tlineageTag: {_tag(name, 'measure', t.name, m['name'])}", ""]
         for c in t.columns:
             dt = data_type(c.data_type)
-            is_key = len(key) == 1 and c.name == key[0]
+            is_key = len(key) == 1 and c.name == key[0] and t.name not in dup
             summarize = summarize_by(c.name, c.data_type, (t.name, c.name.lower()) in ref_cols or c.name in key)
             if (t.name, c.name) in feeds:
                 summarize = "none"
@@ -456,7 +478,11 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         readme.append(f"- `{r.source}.{r.source_cols[0]} -> {r.target}` is inactive: {why}. Use USERELATIONSHIP in DAX or pick another active one.")
     for r in composite:
         readme.append(f"- `{r.source}.{'+'.join(r.source_cols)} -> {r.target}.{'+'.join(r.target_cols)}` ({plan.label(r.rule)}) is not in the model: "
-                      f"{not_expressible_why(plan, r)}.")
+                      f"{why_not(r)}.")
+    for t, k in dup.items():
+        if t in names:
+            readme.append(f"- `{t}.{'+'.join(k['columns'])}` is the plan's key of `{t}` but not unique in the rows ({k['verdict']}): no `isKey`, "
+                          "and no relationship is built onto it.")
     for t in keyless:
         readme.append(f"- `{t}` has no key: it is in the model but nothing relates to it (rule K3). Give `keys` to change that.")
     for t in multi_key:
@@ -525,7 +551,9 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
                "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive],
                "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
-                                    "rule": r.rule, "why": not_expressible_why(plan, r)} for r in composite],
+                                    "rule": r.rule, "why": why_not(r), **({"key_not_unique": True} if r.target in dup else {})}
+                                   for r in composite],
+
                "measures": [{k: m[k] for k in ("table", "name", "expression", "why")} for m in measures],
                "header_amounts": [{"table": t, "column": c, "lines": ls, "summarize_by": "none"} for (t, c), ls in header_level.items()],
                "order_amount": {"measures": [{k: m[k] for k in ("table", "name", "expression", "dimension", "price", "via", "rule", "price_note")}
@@ -536,4 +564,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}
     if flat:
         summary["flat_amounts"] = [{"table": t, "column": c, "header": h, "summarize_by": "none"} for (t, c), h in flat.items()]
+    if dup.keys() & names:                                         # n150: only when the rows showed one
+        summary["keys_not_unique"] = [{"table": t, "columns": list(k["columns"]), "rows": k["rows"], "distinct": k["distinct"],
+                                       "nulls": k["nulls"]} for t, k in dup.items() if t in names]
     return {"parts": parts, "summary": summary}

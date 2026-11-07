@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import base64
 import io
+import json
 import re
+import subprocess
+import sys
 import zipfile
 from pathlib import Path
 
@@ -16,7 +19,10 @@ import pytest
 from fabric_backend import browser_build as bb
 from fabric_backend import browser_check as bc
 
-CASES = Path(__file__).resolve().parent / "fixtures" / "check_cases"
+ROOT = Path(__file__).resolve().parents[1]
+CASES = ROOT / "tests" / "fixtures" / "check_cases"
+sys.path.insert(0, str(ROOT / "tests"))
+from test_browser import CHROMIUM, _playwright_available, site  # noqa: E402,F401  the same local server fixture
 
 
 def files(case: str) -> list[tuple[str, bytes]]:
@@ -36,10 +42,30 @@ def build(case: str, **kw) -> dict:
     return bb.build("files", files(case), **kw)
 
 
-def model_files(b: dict) -> dict[str, str]:
-    name = next(n for n in b["downloads"] if n.endswith("_model.zip"))
-    z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b["downloads"][name])))
+def model_files(b) -> dict[str, str]:
+    """The files of the model zip: from build()'s answer, or a zip the page saved (its path)."""
+    if isinstance(b, dict):
+        name = next(n for n in b["downloads"] if n.endswith("_model.zip"))
+        z = zipfile.ZipFile(io.BytesIO(base64.b64decode(b["downloads"][name])))
+    else:
+        z = zipfile.ZipFile(b)
     return {n: z.read(n).decode("utf-8") for n in z.namelist()}
+
+
+def table_tmdl(mf: dict[str, str], table: str) -> str:
+    return next(c for n, c in mf.items() if n.endswith(f"definition/tables/{table}.tmdl"))
+
+
+@pytest.fixture(scope="module")
+def browser(site, tmp_path_factory):  # noqa: F811
+    """The page itself on 04, 05 and 06 (tests/check_cases_browser.js): what it shows and the files it saves."""
+    if not _playwright_available():
+        pytest.skip("node + playwright not available")
+    saved = tmp_path_factory.mktemp("check_cases")
+    out = subprocess.run(["node", str(ROOT / "tests" / "check_cases_browser.js"), site, str(CASES), str(saved)] + ([CHROMIUM] if CHROMIUM else []),
+                         capture_output=True, text=True, timeout=600)
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout.strip().splitlines()[-1])
 
 
 def tmdl_relationships(mf: dict[str, str]) -> list[tuple[str, str]]:
@@ -124,3 +150,50 @@ def test_01_the_preview_never_counts_a_header_amount_as_rows():
     assert "Total order_total" not in m and 3 not in [v for k, v in m.items() if "order_total" in k]
     assert m["Rows in order_items"] == 6 and m["Total line_amount"] == 600
     assert rep["doubled"]["right"] == 600 and rep["doubled"]["wrong"] == 1300
+
+
+def test_04_a_key_that_is_not_unique_is_no_key_and_nothing_relates_onto_it():
+    """Bug 2: after the duplicate warning the export marked customers.customer_id as isKey, built the relationship onto
+    it, and the chart summed 700 against 600. Now the model is drafted with validate_plan's counts, as
+    semantic_model_draft is: no isKey, the relationship is not built and says why, and no visual counts an order twice."""
+    b = build("04_duplicate_parent")
+    rep, mf = b["report"], model_files(b)
+    assert "isKey" not in table_tmdl(mf, "customers") and "isKey" in table_tmdl(mf, "orders")
+    assert tmdl_relationships(mf) == []
+    assert rep["relationships"] == 0 and rep["plan_relationships"] == 1
+    assert [(x["what"], x["reason"]) for x in rep["not_built"]] == [("orders.customer_id → customers", "key_not_unique")]
+    assert "`customers.customer_id` is not unique in the rows (4 rows, 3 distinct values, 0 NULLs)" in rep["not_built"][0]["why"]
+    assert rep["keys_not_unique"] == [{"table": "customers", "columns": ["customer_id"], "rows": 4, "distinct": 3, "nulls": 0}]
+    readme = mf["data_model.SemanticModel/README.generated.md"]
+    assert "`orders.customer_id -> customers.customer_id` (R1) is not in the model: `customers.customer_id` is not unique in the rows" in readme
+    assert "no `isKey`, and no relationship is built onto it" in readme
+    for chart in (rep["chart"], b["app"]["chart"]):                      # 600 in the rows; a join on the duplicate gives 700
+        assert chart is None or sum(x["value"] for x in chart["bars"]) == 600, chart
+    assert {m["name"]: m["value"] for m in rep["measures"]}["Total order_total"] == 600
+
+
+def test_04_the_export_panel_says_the_key_is_not_exported(browser):
+    o = browser["04_duplicate_parent"]
+    assert "error" not in o and browser["errors"] == [], (o.get("error"), browser["errors"])
+    text = o["model"]["text"]
+    assert "2 tables and 1 relationship (0 exported, 1 not built: the key on the one side is not unique) from the plan" in text, text
+    assert "customers.customer_id is not exported as a key: 4 rows, 3 distinct." in text
+    assert "orders.customer_id → customers is not built: the key it points at is not unique in the rows (see README)." in text
+    mf = model_files(o["model"]["zip"])                                  # the zip the page saved, not build()'s answer
+    assert "isKey" not in table_tmdl(mf, "customers") and tmdl_relationships(mf) == []
+
+
+def test_05_the_export_counts_what_the_model_holds():
+    """Bug 5: the panel said 1 relationship while the model held 0: VBAP.MANDT+VBELN → VBAK needs a combined key column."""
+    b = build("05_sap_mandt")
+    rep, mf = b["report"], model_files(b)
+    assert rep["relationships"] == 0 and rep["plan_relationships"] == 1 and tmdl_relationships(mf) == []
+    assert [(x["what"], x["reason"]) for x in rep["not_built"]] == [("VBAP.MANDT+VBELN → VBAK", "combined_key")]
+
+
+def test_05_the_export_panel_says_0_exported_and_why(browser):
+    o = browser["05_sap_mandt"]
+    assert "error" not in o, o.get("error")
+    assert "2 tables and 1 relationship (0 exported, 1 needs a combined key column (see README)) from the plan" in o["model"]["text"]
+    assert tmdl_relationships(model_files(o["model"]["zip"])) == []
+

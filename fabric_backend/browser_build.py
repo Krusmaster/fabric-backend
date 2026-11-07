@@ -282,15 +282,29 @@ def build(kind: str = "sample", files: list | None = None, text: str = "") -> di
     try:
         p = make_plan(src.schema)
         name = _name(src)
-        sm = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{name}_model")
+        validation = None
+        if src.has_data and len(p.schema):                        # n150: the model is drafted with the counts, as semantic_model_draft is
+            from . import evidence
+            try:
+                validation = evidence.validate(p, src.execute)
+            except Exception:                                      # noqa: BLE001 - the draft by names still comes
+                validation = None
+        sm = semantic_model.draft(p, {"schema": p.schema.schema, "item_kind": "Lakehouse"}, f"{name}_model", validation=validation)
         roles = graphs.analyze(p)["roles"]
         facts = [t.name for t in p.schema if roles.get(t.name, {}).get("role") == "fact" and t.name in p.keys] or \
                 [t.name for t in p.schema if t.name in p.keys] or [t.name for t in p.schema]
-        report: dict = {"tables": len(p.schema), "relationships": len(p.relationships), "measures": [], "chart": None, "doubled": None,
-                        "has_data": src.has_data}
+        summ, model = sm["summary"], _model(sm["parts"])           # n150: what the model holds, not what the plan found
+        tnames = {t.name for t in p.schema}
+        report: dict = {"tables": len(p.schema), "relationships": summ["relationships_active"] + summ["relationships_inactive"],
+                        "plan_relationships": len(p.relationships),
+                        "not_built": [{"what": f"{x['source']}.{'+'.join(x['columns'])} → {x['target']}", "why": x["why"],
+                                       "reason": "key_not_unique" if x.get("key_not_unique") else "combined_key"} for x in summ["not_expressible"]],
+                        "keys_not_unique": summ.get("keys_not_unique", []),
+                        "built": sorted(f"{x['from_table']}.{x['from_column']} → {x['to_table']}" for x in model["relationships"]
+                                        if {x.get("from_table"), x.get("to_table")} <= tnames),
+                        "measures": [], "chart": None, "doubled": None, "has_data": src.has_data}
         app: dict = {"kpis": [], "list": None, "chart": None, "has_data": src.has_data}
         if src.has_data and len(p.schema):
-            model = _model(sm["parts"])
             ms = _measures(p, src, sm["summary"].get("measures", []), model)
             report["measures"], report["chart"], report["doubled"] = ms[:4], _chart(p, src, ms, model), _doubled(p, src)
             from .dialects import of

@@ -254,11 +254,29 @@
     }
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
     kids.push(el("h3", null, "The model as a Power BI project"),
-      el("p", null, r.tables + " tables and " + r.relationships + " relationships from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
+      el("p", null, r.tables + " tables and " + modelRelationships(r) + " from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
+      notBuilt(r),
       ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
     panels.model.replaceChildren(...kids);
+  }
+  // n150: the count is what the model holds; a relationship of the plan that is not in it is said with its reason
+  const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
+  function modelRelationships(r) {
+    const nb = r.not_built || [];
+    if (!nb.length) return plural(r.relationships, "relationship");
+    const dup = nb.filter((x) => x.reason === "key_not_unique").length, comb = nb.length - dup;
+    return plural(r.plan_relationships, "relationship") + " (" + r.relationships + " exported"
+      + (dup ? ", " + dup + " not built: the key on the one side is not unique" : "")
+      + (comb ? ", " + comb + (comb === 1 ? " needs" : " need") + " a combined key column (see README)" : "") + ")";
+  }
+  function notBuilt(r) {
+    const keys = (r.keys_not_unique || []).map((k) => el("li", null, code(k.table + "." + k.columns.join(" + ")),
+      " is not exported as a key: " + plural(k.rows, "row") + ", " + k.distinct + " distinct" + (k.nulls ? ", " + k.nulls + " NULL" : "") + "."));
+    const rels = (r.not_built || []).filter((x) => x.reason === "key_not_unique").map((x) => el("li", null, code(x.what),
+      " is not built: the key it points at is not unique in the rows (see README)."));
+    return keys.length || rels.length ? el("ul", { class: "tiny check-not-built" }, ...keys, ...rels) : null;
   }
   function drawApp(b) {
     const a = b.app;
