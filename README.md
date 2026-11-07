@@ -133,10 +133,16 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   relationship; needs no new scope, only the SQL right to create objects.
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (granted since 28 October 2026).
-- `create_report` — an empty Power BI report (one blank page, no visuals) bound to an existing semantic model
-  (`POST /reports` with `creationPayload.semanticModelReference`); a report of that name is left alone, never updated or
-  deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`. Experimental; created live on 30 October 2026
-  (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day.
+- `create_report` — a Power BI report bound to an existing semantic model, with one page drawn from the model's own
+  measures and columns (PBIR definition, built from the model's TMDL read with getDefinition): a card per count measure,
+  a clustered column chart by the date table's Month, a clustered bar chart by the most-referenced dimension, and a
+  table of the nearest dimension sorted by a measure. A plain SUM of a column the model does not sum, or of a header
+  amount copied onto lines, is never drawn (`left_out` says why); when nothing can be drawn the page is left blank.
+  `empty_page=true` creates one blank page instead (`POST /reports` with `creationPayload.semanticModelReference`). A
+  report of that name is left alone, never updated or deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`, and
+  `SemanticModel.ReadWrite.All` to read the model. Experimental; the blank-page report was created live on 30 October
+  2026 (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day; the page
+  with visuals is unit-tested against Microsoft's published PBIR schemas, not yet created in Fabric.
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
   backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
   app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
