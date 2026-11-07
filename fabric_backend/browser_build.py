@@ -269,9 +269,10 @@ def zip_bytes(files: dict[str, str]) -> bytes:
 
 # ------------------------------------------------------------------ the one call the page makes ---------------------
 
-def build(kind: str = "sample", files: list | None = None, text: str = "") -> dict:
+def build(kind: str = "sample", files: list | None = None, text: str = "", confirmed: list | None = None) -> dict:
     """Both previews and both downloads for one input of /check: {"report", "app", "status", "downloads": {file name:
-    base64}}. The input is read again from the same bytes (files stay in the worker, never on a server)."""
+    base64}}. The input is read again from the same bytes (files stay in the worker, never on a server). `confirmed`
+    (n150): the relationships accepted on the page, plan_backend's `confirmed` entries, so the model holds them too."""
     import shutil
 
     from . import graphs, semantic_model
@@ -280,7 +281,7 @@ def build(kind: str = "sample", files: list | None = None, text: str = "") -> di
     src, folder = _source(kind, files, text)
     src._kind = kind
     try:
-        p = make_plan(src.schema)
+        p = make_plan(src.schema, confirmed=list(confirmed or []) or None)
         name = _name(src)
         validation = None
         if src.has_data and len(p.schema):                        # n150: the model is drafted with the counts, as semantic_model_draft is

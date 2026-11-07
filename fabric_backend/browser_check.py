@@ -110,7 +110,9 @@ def _finding(f: dict, validation: dict | None = None, has_data: bool = True) -> 
     return {"severity": f["severity"], "check": f["kind"], "rules": sorted(set(_RULE.findall(f.get("saw", "") + " " + f.get("title", "")))),
             "table": f["table"], "title": f["title"], "saw": f["saw"], "means": f["means"], "next": f.get("next_text", ""),
             "sql": f.get("next", {}).get("sql", ""), "link": _link(f), "amount": f.get("amount"),
-            "checked": _checked(f, validation, has_data)}
+            "checked": _checked(f, validation, has_data),
+            # n150: what Accept adds to the plan (a `confirmed` entry); the page passes it back to the engine
+            "confirmed": f.get("next", {}).get("confirmed") if f["kind"] == "suggestion" else None}
 
 
 def _n(n, word: str) -> str:
@@ -307,7 +309,8 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
                "summary": p.summary() if hasattr(p, "summary") else "", "tables": tables, "relationships": rels, "ambiguous": p.ambiguous,
                "health": validation["summary"] if validation else "No rows to check: a columns list gives the plan only.",
                "findings": findings, "suggestions": sugg, "domains": dom, "coverage": _coverage(p, validation, src.has_data),
-               "evidence_report": _evidence_report(p, src, validation, kind), "ontology_rdfxml": _ontology_rdfxml(p, src, kind)}
+               "evidence_report": _evidence_report(p, src, validation, kind, _open_candidates(found, suggestions)),
+               "ontology_rdfxml": _ontology_rdfxml(p, src, kind)}
         step("findings", "Findings and the five states", t, f"{len(findings)} wrong or unclear, {len(sugg)} to decide on; {out['verdict']['headline']['title']}",
              result=out)
         return out
@@ -318,15 +321,70 @@ def analyze(kind: str = "sample", files: list | None = None, text: str = "", emi
             src.close()
 
 
+def _rel_key(x: dict) -> tuple:
+    return (x["source"], tuple(c.lower() for c in x["source_cols"]), x["target"])
+
+
+def _open_candidates(found: list[dict], suggestions: dict | None, decided: list[dict] | tuple = ()) -> list[dict]:
+    """n150: the relationships the page offers to Accept or Skip (the suggestion findings) that are not decided yet, with
+    suggest_relationships' counts: the evidence report lists each as an open question."""
+    ev = {_rel_key(s): s.get("evidence") or {} for s in (suggestions or {}).get("candidates", [])}
+    done = {_rel_key(x) for x in decided}
+    out = []
+    for f in found:
+        c = (f.get("next") or {}).get("confirmed")
+        if f.get("kind") != "suggestion" or not c or not str(f.get("id", "")).startswith("sug:") or _rel_key(c) in done:
+            continue
+        e = ev.get(_rel_key(c), {})
+        out.append({**c, "counted": {k: e.get(k) for k in ("rows_with_value", "matched", "distinct_values")}})
+    return out
+
+
+def decide(kind: str = "sample", files: list | None = None, text: str = "", accepted: list | None = None, rejected: list | None = None) -> dict:
+    """n150: the run again with the decisions taken on the page: each accepted relationship is a `confirmed` entry of
+    the plan (plan_backend's own parameter), so validate_plan counts it and the evidence report lists it among the
+    relationships and the checks; a rejected one stays out and is no longer an open question. Returns the evidence
+    report and the plan's relationships; browser_build.build takes the same `confirmed` for the model."""
+    from . import evidence, graphs
+    from .demo_app import Session
+    from .infer import plan
+    accepted, rejected = list(accepted or []), list(rejected or [])
+    src, folder = _source(kind, files, text)
+    try:
+        p = plan(src.schema, confirmed=accepted or None)
+        validation = suggestions = None
+        if src.has_data:
+            try:
+                validation = evidence.validate(p, src.execute)
+            except Exception:                                      # noqa: BLE001 - the report says not checked
+                validation = None
+            try:
+                suggestions = graphs.suggest(p, src.execute, check=15)
+            except Exception:                                      # noqa: BLE001
+                suggestions = None
+        else:
+            suggestions = graphs.suggest(p, None)
+        found = Session(src).findings(p, validation, suggestions)
+        rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": p.label(r.rule)}
+                for r in p.relationships]
+        return {"relationships": rels, "health": validation["summary"] if validation else "",
+                "evidence_report": _evidence_report(p, src, validation, kind, _open_candidates(found, suggestions, accepted + rejected))}
+    finally:
+        if folder is not None:
+            shutil.rmtree(folder, ignore_errors=True)
+        if src.close:
+            src.close()
+
+
 NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing"}   # the downloads' file names
 
 
-def _evidence_report(p, src, validation: dict | None, kind: str) -> dict:
+def _evidence_report(p, src, validation: dict | None, kind: str, candidates: list[dict] | None = None) -> dict:
     """n79: the evidence report of this run as a Markdown file for the page to save (evidence_report.py): the plan and
     validate_plan's counts only, so none of the example rows the findings quote is in it."""
     from . import evidence_report, tool_status as ts
     base = NAMES.get(kind) or re.sub(r"\W+", "_", getattr(src.schema, "schema", "") or "data")
-    rep = evidence_report.report(p, validation, source=src.label)
+    rep = evidence_report.report(p, validation, source=src.label, candidates=candidates)
     return {"name": f"{base}_evidence_report.md", "markdown": evidence_report.markdown(rep), "status": ts.EVIDENCE_REPORT,
             "summary": rep["summary"]}
 

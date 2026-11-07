@@ -102,12 +102,13 @@ def checklist(findings: list[dict], review=None) -> list[dict]:
 
 
 def report(plan, validation: dict | None = None, decisions: list[dict] | None = None, created: list[dict] | None = None,
-           source: str = "", generated_at: str | None = None, review=None, dialect=None) -> dict:
+           source: str = "", generated_at: str | None = None, review=None, dialect=None, candidates: list[dict] | None = None) -> dict:
     """The evidence report as JSON. `decisions`: [{"what", "decision", "by"?, "at"?, "note"?}] as the caller recorded
     them; `created`: [{"kind", "id", "name"?}] the ids the creating tools returned. Both are copied as given.
     `review`: a review file as review_plan wrote it (text or parsed); its accepted and rejected items set the status
     of the checklist rows they are about. `dialect` (T-SQL by default): the dialect of the counting queries the fix
-    suggestions quote."""
+    suggestions quote. `candidates` (n150): relationships suggested from the rows that nobody has accepted or rejected
+    yet, [{"source", "source_cols", "target", "target_cols", "counted"?}]; each is an open question until decided."""
     from . import __version__, evidence, fixes
     from .dialects import TSQL
     from .review import key_id, rel_id
@@ -211,6 +212,14 @@ def report(plan, validation: dict | None = None, decisions: list[dict] | None = 
         find("proposed_not_applied",
              f"{x['source']}.{'+'.join(x['source_cols'])} -> {x['target']} was proposed by R5 and not applied: {x.get('why', '')}".rstrip(": "),
              x["source"], x["source_cols"], None, rel_id(x["source"], x["source_cols"], x["target"]))
+    for x in candidates or []:                                          # n150: suggested from the rows, not decided yet
+        c = x.get("counted") or {}
+        seen = (f" ({c['matched']} of {c['rows_with_value']} rows with a value found in {x['target']}'s key)"
+                if c.get("rows_with_value") is not None and c.get("matched") is not None else "")
+        find("proposed_not_applied",
+             f"{_ref(x['source'], x['source_cols'], x['target'])} was suggested from the rows{seen} and not applied: nobody has accepted or rejected it yet.",
+             x["source"], x["source_cols"], {k: c[k] for k in ("rows_with_value", "matched", "distinct_values") if c.get(k) is not None},
+             rel_id(x["source"], x["source_cols"], x["target"]))
     for n in (plan.pack or {}).get("not_applied", []):
         cols = n.get("source_cols") or n.get("pack_source_cols") or []
         find("pack_not_applied", f"{n['source']} -> {n['target']} is listed by the pack and not applied: {n['why']}",

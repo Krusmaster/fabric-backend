@@ -1,6 +1,8 @@
 """Round n85: /check's evidence report carries the decisions taken on the page (the guided demo's Accept and Reject):
 what, the decision, the browser's time and "by: not recorded", the latest choice when it changes, nothing sent or
-stored, and an accepted relationship still not checked. Without a decision the report is the worker's, unchanged.
+stored. Without a decision the report is the worker's, unchanged. Since n150 a decision reaches the engine: an accepted
+relationship is a confirmed entry of the plan, among the relationships and counted in the checks; a rejected one is not,
+and neither is an open question any more (browser_check.decide).
 Also the four example buttons: each description on at most two lines at 375 px, at 1280 px and at the narrowest width
 where the four sit in one row. In a browser (tests/check_decisions_browser.js), skipped where there is none."""
 from __future__ import annotations
@@ -57,25 +59,31 @@ def test_the_report_carries_each_decision_taken_on_the_page(run, width):
     assert {x["name"] for x in d.values()} == {"shop_evidence_report.md"} and r["step"] == "A suggestion to decide on"
     # accepted: what, the decision, the browser's time, by: not recorded; and not checked by being accepted
     acc = _decisions(d["accepted"]["text"])
-    assert len(acc) == 1 and acc[0][:3] == [WHAT, "accepted, not checked in the rows", "not recorded"], acc
+    assert len(acc) == 1 and acc[0][:3] == [WHAT, "accepted, in the plan as confirmed", "not recorded"], acc
     _at(acc[0], r)
     md = d["accepted"]["text"]
-    assert "- 2 open question(s), 1 decision(s), 0 created object(s)" in md
-    assert "An accepted relationship is not checked: accepting it counts nothing in the rows" in md
+    assert "- 2 open question(s), 1 decision(s), 0 created object(s)" in md                         # no longer an open question
+    assert "An accepted relationship is in the plan as confirmed (rule confirmed): it is among the relationships and the checks above" in md
     rels, checks = md.split("## Relationships", 1)[1].split("## Checks against the rows", 1)
-    assert "ship_to_id" not in rels and "ship_to_id" not in checks.split("## Open questions")[0]   # neither a relationship nor a check
-    assert "- 13 checks: 13 counted in the rows, 0 not checked" in md                               # accepting counted nothing
+    assert "| orders | ship_to_id | addresses | address_id | confirmed | confirmed by a person |" in rels   # n150: a relationship
+    assert "| relationship | orders.ship_to_id -> addresses | holds for all " in checks.split("## Open questions")[0]   # and counted
+    assert "- 14 checks: 14 counted in the rows, 0 not checked" in md
     # changed after that download: the next download has the latest choice, once
     rej = _decisions(d["rejected"]["text"])
     assert len(rej) == 1 and rej[0][:3] == [WHAT, "rejected, the column stays unlinked", "not recorded"], rej
     assert _at(rej[0], r) >= _at(acc[0], r) and "An accepted relationship" not in d["rejected"]["text"]
     assert d["again"]["text"] == d["rejected"]["text"] and r["saidAfterBack"] == r["saidRejected"]   # back on the step: kept
-    assert "Accepted on this page" in r["saidAccepted"] and "not checked" in r["saidAccepted"] and "Rejected on this page" in r["saidRejected"]
-    # without a decision: the worker's report as it is, and with the table taken out each later one is that report
+    assert "Accepted on this page" in r["saidAccepted"] and "in the plan as confirmed" in r["saidAccepted"] and "Rejected on this page" in r["saidRejected"]
+    # without a decision: the worker's report as it is, the suggestion an open question; with the table taken out each
+    # later one is the engine's report with that decision (browser_check.decide), made in the browser
     assert "## Decisions\n\nNone recorded." in d["none"]["text"] and "0 decision(s)" in d["none"]["text"]
-    assert _without_decisions(d["accepted"]["text"]) == d["none"]["text"] == _without_decisions(d["rejected"]["text"])
+    assert "- 3 open question(s), 0 decision(s)" in d["none"]["text"] and "orders.ship_to_id -> addresses was suggested from the rows" in d["none"]["text"]
     gen = re.compile(r"^Status: \*\*Draft\*\*\. Generated .*$", re.M)
     assert gen.sub("", d["none"]["text"]) == gen.sub("", bc.analyze("sample")["evidence_report"]["markdown"])
+    link = {"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}
+    engine = lambda **kw: gen.sub("", bc.decide("sample", **kw)["evidence_report"]["markdown"])
+    assert gen.sub("", _without_decisions(d["accepted"]["text"])) == engine(accepted=[link])
+    assert gen.sub("", _without_decisions(d["rejected"]["text"])) == engine(rejected=[link])
     # nothing sent or stored: no request after the run, no request with a body, nothing in storage or cookies
     assert r["requestsAfter"] == [] and r["requestBodies"] == [] and r["storage"] == {"local": "{}", "session": "{}", "cookie": ""}
     # on the screen at both widths

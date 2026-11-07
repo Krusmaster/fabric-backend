@@ -30,9 +30,11 @@ const fs = require("fs");
     r.step = await page.textContent("#check-guide-h");
     r.before = Date.now();
     await page.click("#check-guide-text >> text=Accept");
+    await until(() => document.documentElement.dataset.decided === "done");   // n150: the engine has the decision
     r.saidAccepted = await page.textContent(".check-guide-said");
     r.downloads.accepted = await save();
     await page.click("#check-guide-text >> text=Reject");
+    await until(() => document.documentElement.dataset.decided === "done");
     r.saidRejected = await page.textContent(".check-guide-said");
     r.downloads.rejected = await save();
     r.after = Date.now();

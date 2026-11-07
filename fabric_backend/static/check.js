@@ -18,8 +18,11 @@
 // tool_status is said once above the list (n95).
 // n85: the decisions taken on this page (the guided demo's Accept and Reject) go into the evidence report when it is
 // downloaded, each with what, the decision, the browser's time and "by: not recorded". They stay in this browser:
-// nothing is sent or saved, and a new run starts without them. Accepting a suggestion checks nothing: the report says
-// "not checked" beside it, and the relationship stays out of the plan's relationships and the checks.
+// nothing is sent or saved, and a new run starts without them.
+// n150: Accept and Skip sit under each suggestion in the plain list as well as in the guide, and a decision reaches the
+// engine: an accepted relationship is a `confirmed` entry of the plan (browser_check.decide, browser_build.build), so it
+// is among the evidence report's relationships and checks, counted in the rows, and in the Power BI model; a skipped
+// one stays out of both. The export panel says where each decision went.
 (function () {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -161,7 +164,7 @@
       busy = true;
       $("check-build-status").textContent = "Drafting from your rows in this browser…";
       try {
-        const r = await call({ kind: "build", input: last.kind, files: last.files, text: last.text });
+        const r = await call({ kind: "build", input: last.kind, files: last.files, text: last.text, confirmed: acceptedLinks() });
         if (!r.ok) { $("check-build-status").textContent = "The engine stopped: " + r.error; return; }
         built = r.result;
         drawModel(built); drawApp(built);
@@ -255,7 +258,7 @@
     const zip = Object.keys(b.downloads).find((n) => n.endsWith("_model.zip"));
     kids.push(el("h3", null, "The model as a Power BI project"),
       el("p", null, r.tables + " tables and " + modelRelationships(r) + " from the plan, as TMDL (Direct Lake) in a Power BI project (.pbip) with an empty report page. Before it shows data, the tables have to be in a Fabric lakehouse; the README in the zip says what to fill in. Opened in Power BI Desktop on 30 October 2026: the empty report page opens, and the data shows once the tables are in a Fabric lakehouse."),
-      notBuilt(r),
+      notBuilt(r), decisionsInModel(r),
       ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
@@ -277,6 +280,18 @@
     const rels = (r.not_built || []).filter((x) => x.reason === "key_not_unique").map((x) => el("li", null, code(x.what),
       " is not built: the key it points at is not unique in the rows (see README)."));
     return keys.length || rels.length ? el("ul", { class: "tiny check-not-built" }, ...keys, ...rels) : null;
+  }
+  // n150: each decision taken on this page, beside what the model holds
+  function decisionsInModel(r) {
+    const ds = [...decisions.values()].filter((d) => d.confirmed);
+    if (!ds.length) return null;
+    const ref = (c) => c.source + "." + c.source_cols.join("+") + " → " + c.target;
+    return el("ul", { class: "tiny check-model-decisions" }, ...ds.map((d) => {
+      const what = ref(d.confirmed), nb = (r.not_built || []).find((x) => x.what === what);
+      if (d.decision !== "accepted") return el("li", null, "Skipped on this page: ", code(what), " is not in the model.");
+      if (nb) return el("li", null, "Accepted on this page: ", code(what), " is not in the model: " + nb.why + ".");
+      return el("li", null, "Accepted on this page: ", code(what), (r.built || []).includes(what) ? " is in the model as a confirmed relationship." : " is not in the model.");
+    }));
   }
   function drawApp(b) {
     const a = b.app;
@@ -361,6 +376,7 @@
       el("p", { class: "tiny check-tags" }, code(f.check), ...f.rules.map((x) => code("rule " + x)), " ", f.severity),
       el("p", null, f.saw), el("p", { class: "muted" }, f.means), f.next ? el("p", null, el("strong", null, "Next: "), f.next) : null,
       f.checked ? el("p", { class: "muted tiny check-checked" }, f.checked) : null,           // n75: what the check read
+      f.confirmed && f.link ? decideButtons(f, "Skip") : null,                                // n150: Accept or Skip, here too
       f.sql ? el("details", null, el("summary", null, "SQL to look for yourself"), el("pre", null, f.sql)) : null));
     $("check-findings").replaceChildren(...(r.findings.length ? list(r.findings) : [el("li", null, r.tables.length ? "Nothing the engine counts as wrong or unclear." : "Nothing could be read.")]));
     $("check-suggestions-h").hidden = !r.suggestions.length;
@@ -396,14 +412,11 @@
     } });
     if (sug) steps.push({ title: "A suggestion to decide on", at: sug.link, body: () => {
       const said = el("p", { class: "check-guide-said", role: "status" });
-      const what = "suggested relationship " + sug.link.source + "." + sug.link.source_cols.join("+") + " -> " + sug.link.target;
-      const tell = (d) => { said.textContent = !d ? "" : d.decision === "accepted"
-        ? "Accepted on this page. In Claude, the review keeps your decision and its reason. The evidence report lists it as accepted and not checked: accepting counts nothing in the rows."
-        : "Rejected on this page: the column stays unlinked. The evidence report lists the decision."; };
-      const decide = (yes) => tell(decideOn(what, yes ? "accepted" : "rejected"));
+      const tell = (d) => { said.textContent = saidFor(d); };
+      const decide = async (yes) => tell(await decideRel(sug, yes ? "accepted" : "rejected"));
       const yes = el("button", { type: "button", class: "btn secondary small" }, "Accept"), no = el("button", { type: "button", class: "btn ghost small" }, "Reject");
       yes.addEventListener("click", () => decide(true)); no.addEventListener("click", () => decide(false));
-      tell(decisions.get(what));                     // back on this step: the latest choice is still shown
+      tell(decisions.get(relWhat(sug)));             // back on this step: the latest choice is still shown
       return [el("p", null, code(sug.link.source + "." + sug.link.source_cols.join(" + ")), " names no table, so no naming rule links it. The values point at ", code(sug.link.target), ": the dashed line."),
         el("p", null, sug.saw), el("p", { class: "muted" }, sug.means || "What it means is your decision: a delivery address, or something else?"),
         el("p", { class: "ctas" }, yes, no), said];
@@ -486,10 +499,44 @@
   }
 
   // n85: the decisions taken on this page (`decisions`, declared at the top), latest choice per item
-  function decideOn(what, decision) {
-    const d = { what, decision, at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") };
+  function decideOn(what, decision, confirmed) {
+    const d = { what, decision, confirmed: confirmed || null, at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") };
     decisions.delete(what); decisions.set(what, d);
     return d;
+  }
+  // n150: one decision for a suggested relationship, wherever it was taken (the list or the guide), sent to the engine
+  // in this browser: the evidence report and the model are made again with it
+  const relWhat = (f) => "suggested relationship " + f.link.source + "." + f.link.source_cols.join("+") + " -> " + f.link.target;
+  const acceptedLinks = () => [...decisions.values()].filter((d) => d.decision === "accepted" && d.confirmed).map((d) => d.confirmed);
+  const saidFor = (d) => !d ? "" : d.decision === "accepted"
+    ? "Accepted on this page: the relationship is in the plan as confirmed, counted in the rows and in the Power BI model. In Claude, the review keeps your decision and its reason. The evidence report lists it."
+    : "Rejected on this page: the column stays unlinked. The evidence report lists the decision.";
+  let deciding = Promise.resolve();
+  function decideRel(f, decision) {
+    const d = decideOn(relWhat(f), decision, f.confirmed);
+    const run = last;
+    document.documentElement.dataset.decided = "running";
+    deciding = deciding.then(async () => {
+      const r = await call({ kind: "decide", input: run.kind, files: run.files, text: run.text, accepted: acceptedLinks(),
+                             rejected: [...decisions.values()].filter((x) => x.decision !== "accepted" && x.confirmed).map((x) => x.confirmed) });
+      if (run !== last) return;                       // a new run started meanwhile: its own result stands
+      if (r.ok && lastResult) lastResult.evidence_report = r.result.evidence_report;
+      built = null;
+      const open = Object.keys(panels).find((k) => !panels[k].hidden);
+      if (open) {                                      // the preview on the screen is drawn again with the decision
+        const b = await call({ kind: "build", input: run.kind, files: run.files, text: run.text, confirmed: acceptedLinks() });
+        if (b.ok && run === last) { built = b.result; drawModel(built); drawApp(built); }
+      }
+    }).finally(() => { if (run === last) document.documentElement.dataset.decided = "done"; });
+    return deciding.then(() => d);
+  }
+  function decideButtons(f, noWord) {
+    const said = el("p", { class: "muted tiny check-decided", role: "status" }, saidFor(decisions.get(relWhat(f))));
+    const yes = el("button", { type: "button", class: "btn secondary small", "data-decide": "accepted" }, "Accept");
+    const no = el("button", { type: "button", class: "btn ghost small", "data-decide": "rejected" }, noWord);
+    const go = async (decision) => { said.textContent = await decideRel(f, decision).then(saidFor); };
+    yes.addEventListener("click", () => go("accepted")); no.addEventListener("click", () => go("rejected"));
+    return el("div", { class: "check-decide" }, el("p", { class: "ctas" }, yes, no), said);
   }
   // The worker's report says "None recorded." under Decisions; with decisions taken here that section becomes their
   // table (evidence_report.markdown's columns) and the summary counts them. Without any, the report is the worker's, as is.
@@ -497,11 +544,11 @@
   function withDecisions(md) {
     if (!decisions.size) return md;
     const cell = (x) => String(x).replace(/\|/g, "\\|").replace(/\n/g, " ");
-    const said = (d) => d.decision === "accepted" ? "accepted, not checked in the rows" : "rejected, the column stays unlinked";
+    const said = (d) => d.decision === "accepted" ? "accepted, in the plan as confirmed" : "rejected, the column stays unlinked";
     const accepted = [...decisions.values()].some((d) => d.decision === "accepted");
     const block = ["## Decisions", "",
       "Taken on /check in this browser, which sent and saved none of them; the time is the browser's clock."
-        + (accepted ? " An accepted relationship is not checked: accepting it counts nothing in the rows, and it is not among the relationships or the checks above." : ""), "",
+        + (accepted ? " An accepted relationship is in the plan as confirmed (rule confirmed): it is among the relationships and the checks above, counted in the rows." : ""), "",
       "| What | Decision | By | When |", "| --- | --- | --- | --- |",
       ...[...decisions.values()].map((d) => "| " + cell(d.what) + " | " + said(d) + " | not recorded | " + cell(d.at) + " |")].join("\n");
     const out = md.includes(NONE) ? md.replace(NONE, () => block) : md.replace(/\n*$/, "\n\n" + block + "\n");
@@ -518,7 +565,7 @@
     const o = r.ontology_rdfxml;
     const files = [{ what: "the evidence report", status: e.status }].concat(o ? [{ what: "the ontology", status: o.status }] : []);
     box.append(...statusLines(files));
-    box.append(saveText(e.name, () => withDecisions(e.markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
+    box.append(saveText(e.name, () => withDecisions((lastResult && lastResult.evidence_report || e).markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
       + (r.source && r.source.has_data ? "each check with its counts" : "every check marked not checked") + ", open questions and this page's decisions; no row values.", "text/markdown"));
     if (o) {
       const item = saveText(o.name, o.xml, "ontology", "For Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")

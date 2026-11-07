@@ -33,11 +33,24 @@ self.onmessage = async (event) => {
       py.runPython("import os, shutil\nshutil.rmtree('/upload', ignore_errors=True)\nos.makedirs('/upload')");
       (files || []).forEach((f, i) => py.FS.writeFile("/upload/" + i, new Uint8Array(f.bytes)));
       py.globals.set("build_args", py.toPy({ input: event.data.input, names: (files || []).map((f) => f.name), text: text || "" }));
+      py.globals.set("build_confirmed", JSON.stringify(event.data.confirmed || []));   // n150: the relationships accepted on the page
       const built = py.runPython(
         "import json, shutil\nfrom fabric_backend.browser_build import build\n_b = build_args\n"
         + "_bf = [(n, open('/upload/%d' % i, 'rb').read()) for i, n in enumerate(_b['names'])]\n"
-        + "shutil.rmtree('/upload', ignore_errors=True)\njson.dumps(build(_b['input'], _bf, _b['text']), default=str)");
+        + "shutil.rmtree('/upload', ignore_errors=True)\njson.dumps(build(_b['input'], _bf, _b['text'], json.loads(build_confirmed)), default=str)");
       self.postMessage({ id, ok: true, result: JSON.parse(built) });
+      return;
+    }
+    if (kind === "decide") {                 // n150: the plan again with the page's decisions: the evidence report as of now
+      py.runPython("import os, shutil\nshutil.rmtree('/upload', ignore_errors=True)\nos.makedirs('/upload')");
+      (files || []).forEach((f, i) => py.FS.writeFile("/upload/" + i, new Uint8Array(f.bytes)));
+      py.globals.set("decide_args", JSON.stringify({ input: event.data.input, names: (files || []).map((f) => f.name), text: text || "",
+                                                     accepted: event.data.accepted || [], rejected: event.data.rejected || [] }));
+      const decided = py.runPython(
+        "import json, shutil\nfrom fabric_backend.browser_check import decide\n_d = json.loads(decide_args)\n"
+        + "_df = [(n, open('/upload/%d' % i, 'rb').read()) for i, n in enumerate(_d['names'])]\n"
+        + "shutil.rmtree('/upload', ignore_errors=True)\njson.dumps(decide(_d['input'], _df, _d['text'], _d['accepted'], _d['rejected']), default=str)");
+      self.postMessage({ id, ok: true, result: JSON.parse(decided) });
       return;
     }
     py.runPython("import os, shutil\nshutil.rmtree('/upload', ignore_errors=True)\nos.makedirs('/upload')");

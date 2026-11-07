@@ -183,6 +183,61 @@ def test_04_the_export_panel_says_the_key_is_not_exported(browser):
     assert "isKey" not in table_tmdl(mf, "customers") and tmdl_relationships(mf) == []
 
 
+SHIP_TO = {"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}
+SHIP_TO_ROW = "| orders | ship_to_id | addresses | address_id | confirmed | confirmed by a person |"
+
+
+def test_06_an_undecided_candidate_is_an_open_question():
+    """Bug 4: before any decision the evidence report said 0 open questions; the candidate the page asks about is one."""
+    e = check("06_mismatched_names")["evidence_report"]
+    assert e["summary"]["open_questions"] == 1 and e["summary"]["relationships"] == 0
+    assert ("- orders.ship_to_id -> addresses was suggested from the rows (4 of 4 rows with a value found in addresses's key) "
+            "and not applied: nobody has accepted or rejected it yet.") in e["markdown"]
+
+
+def test_06_accept_puts_the_relationship_in_the_report_and_the_model_and_reject_keeps_it_out():
+    """Bug 3: Accept and Reject changed the page but not the export (all model files identical, no relationship). The
+    decision now goes to the engine: accepted, the relationship is a confirmed entry of the plan, counted, and in the
+    TMDL; rejected, it is in neither, and in both cases it is no longer an open question."""
+    acc = bc.decide("files", files("06_mismatched_names"), accepted=[SHIP_TO])
+    assert acc["health"] == "2 of 2 keys unique, 1 of 1 relationships hold without orphans"
+    md = acc["evidence_report"]["markdown"]
+    assert SHIP_TO_ROW in md and "| relationship | orders.ship_to_id -> addresses | holds for all 4 rows with a value |" in md
+    assert acc["evidence_report"]["summary"]["open_questions"] == 0
+    assert tmdl_relationships(model_files(build("06_mismatched_names", confirmed=[SHIP_TO]))) == [("orders.ship_to_id", "addresses.address_id")]
+    rej = bc.decide("files", files("06_mismatched_names"), rejected=[SHIP_TO])
+    assert "ship_to_id | addresses" not in rej["evidence_report"]["markdown"] and rej["evidence_report"]["summary"]["open_questions"] == 0
+    assert rej["relationships"] == [] and tmdl_relationships(model_files(build("06_mismatched_names"))) == []
+
+
+def test_06_on_the_page_accept_and_skip_are_in_the_plain_list(browser):
+    """Bug 7: the plain CSV view said "Accept ...; Skip ..." with no buttons unless the guide was opened."""
+    o = browser["06_mismatched_names"]
+    assert "error" not in o and browser["errors"] == [], (o.get("error"), browser["errors"])
+    assert o["buttons"] == ["Accept", "Skip"] and "Suggested: orders.ship_to_id → addresses.address_id" in o["suggestions"]
+
+
+def test_06_on_the_page_the_report_and_the_model_follow_the_decision(browser):
+    """Bugs 3 and 4 on the page itself: the files it saves before a decision, after Accept and after Skip."""
+    o = browser["06_mismatched_names"]
+    assert "error" not in o, o.get("error")
+    before = Path(o["report_before"]).read_text()
+    assert "- 1 open question(s), 0 decision(s)" in before and "orders.ship_to_id -> addresses was suggested from the rows" in before
+    assert tmdl_relationships(model_files(o["model_before"]["zip"])) == []
+    a = o["accepted"]
+    md = Path(a["report"]).read_text()
+    assert SHIP_TO_ROW in md and "- 0 open question(s), 1 decision(s)" in md and "accepted, in the plan as confirmed" in md
+    assert tmdl_relationships(model_files(a["model"]["zip"])) == [("orders.ship_to_id", "addresses.address_id")]
+    assert "2 tables and 1 relationship from the plan" in a["model"]["text"]
+    assert "Accepted on this page: orders.ship_to_id → addresses is in the model as a confirmed relationship." in a["model"]["text"]
+    assert a["said"].startswith("Accepted on this page: the relationship is in the plan as confirmed")
+    j = o["rejected"]
+    md = Path(j["report"]).read_text()
+    assert "ship_to_id | addresses" not in md and "- 0 open question(s), 1 decision(s)" in md and "rejected, the column stays unlinked" in md
+    assert tmdl_relationships(model_files(j["model"]["zip"])) == []
+    assert "Skipped on this page: orders.ship_to_id → addresses is not in the model." in j["model"]["text"]
+
+
 def test_05_the_export_counts_what_the_model_holds():
     """Bug 5: the panel said 1 relationship while the model held 0: VBAP.MANDT+VBELN → VBAK needs a combined key column."""
     b = build("05_sap_mandt")

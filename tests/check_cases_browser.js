@@ -40,6 +40,21 @@ const path = require("path");
   }
   await withPage("04_duplicate_parent", async ({ o, model }) => { o.model = await model(); });
   await withPage("05_sap_mandt", async ({ page, o, model }) => { o.model = await model(); o.findings = await page.textContent("#check-findings"); });
+  await withPage("06_mismatched_names", async ({ page, until, o, report, model }) => {
+    // the plain view, no guide: "Show all 1 finding" opened, the suggestion is listed with its buttons
+    await page.click("#check-all-sum");
+    o.suggestions = await page.textContent("#check-suggestions");
+    o.buttons = await page.$$eval("#check-suggestions button[data-decide]", (n) => n.map((x) => x.textContent));
+    o.report_before = await report();
+    o.model_before = await model();
+    const decide = async (which) => {
+      await page.click(`#check-suggestions button[data-decide="${which}"]`);
+      await until(() => document.documentElement.dataset.decided === "done");
+      return { said: await page.textContent("#check-suggestions .check-decided"), report: await report(), model: await model() };
+    };
+    o.accepted = await decide("accepted");
+    o.rejected = await decide("rejected");
+  });
   await b.close();
   console.log(JSON.stringify(out));
 })();

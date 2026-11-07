@@ -170,6 +170,7 @@ const { chromium } = require("playwright");
   out.guide_overflow_375 = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   await page.focus("#check-guide-back"); await page.keyboard.press("Enter");
   await page.click("#check-guide-text >> text=Accept");
+  await until(() => document.documentElement.dataset.decided === "done");   // n150: said once the engine has the decision
   out.guide_decided = await page.textContent(".check-guide-said");
   await page.evaluate(() => window.Mascots.setEnabled(false));
   out.guide_plain = await page.evaluate(() => ({ figure: getComputedStyle(document.querySelector(".check-guide-figure")).display, text: document.getElementById("check-guide-text").textContent.length }));
