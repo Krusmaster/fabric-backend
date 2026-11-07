@@ -286,7 +286,8 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
+PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
+          "/blog", "/blog/fabric-totals-double-after-join"]                                                  # n145
 
 
 def test_every_public_page_has_canonical_open_graph_and_twitter_tags(client):

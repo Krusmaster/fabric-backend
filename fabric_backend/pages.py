@@ -549,7 +549,7 @@ def _tips_json() -> str:
 
 
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
-           path: str = "", chat: bool = False) -> str:
+           path: str = "", chat: bool = False, og_type: str = "website") -> str:
     v = _vars()
     links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
@@ -574,7 +574,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
 <meta name="description" content="{d}">
 {robots}
 {"" if noindex else f'<link rel="canonical" href="{canonical}">'}
-<meta property="og:type" content="website">
+<meta property="og:type" content="{og_type}">
 <meta property="og:site_name" content="{html.escape(v['PRODUCT'])}">
 <meta property="og:url" content="{canonical}">
 <meta property="og:title" content="{t}">
@@ -630,7 +630,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/#connect">Connect</a><a href="/docs">Docs</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/#connect">Connect</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -1195,6 +1195,116 @@ def docs_html() -> str:
 def lovable_html() -> str:
     body = f'<article class="wrap prose docs">{_md_to_html(lovable_md())}</article>'
     return _shell("Build a Lovable app on your Fabric tables — {{PRODUCT}}", LOVABLE_DESC, body, page="lovable", nav="docs", path="/lovable", chat=True)
+
+
+# ------------------------------------------------------------------ n145: the blog -----------------------------------
+# Each post is a Markdown file in page_templates (BLOG-<slug>.md), served unchanged at <path>.md and rendered the way the
+# docs are. Its title, meta description and JSON-LD (Article, FAQPage) are read from the file, never written twice.
+
+BLOG_AUTHOR = "Gustav Kruse"
+BLOG_PUBLISHER = "Kruse Consulting AB"
+BLOG_POSTS = [{"slug": "fabric-totals-double-after-join", "date": "2026-11-07"}]
+BLOG_DESC = "Articles on keys, grain and relationships between Microsoft Fabric tables, by Gustav Kruse, Kruse Consulting AB."
+BLOG_OWN_HOSTS = ("krusgraph.com",)
+
+
+def _long_date(iso: str) -> str:
+    y, m, d = (int(x) for x in iso.split("-"))
+    return f"{d} {('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December')[m - 1]} {y}"
+
+
+def _md_inline_plain(s: str) -> str:
+    """Markdown inline text as plain text: links become their text, code and emphasis marks go."""
+    s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
+    return re.sub(r"\s+", " ", s.replace("**", "").replace("`", "")).strip()
+
+
+def blog_md(slug: str) -> str:
+    return _read(f"BLOG-{slug}.md")
+
+
+def blog_post(slug: str) -> dict:
+    meta = next(x for x in BLOG_POSTS if x["slug"] == slug)
+    md = blog_md(slug)
+    lines = md.splitlines()
+    title = _md_inline_plain(next(ln[2:] for ln in lines if ln.startswith("# ")))
+    quick = _md_inline_plain(next(ln for ln in lines if ln.startswith("**Quick answer:**"))[len("**Quick answer:**"):])
+    quick = quick[:1].upper() + quick[1:]
+    if len(quick) >= 160:                                       # cut at a word, under 160 characters with the ellipsis
+        quick = quick[:158].rsplit(" ", 1)[0].rstrip(",;:") + "…"
+    faq, q, fence, in_faq = [], None, False, False
+    for ln in lines:
+        if ln.startswith("```"):
+            fence = not fence
+        if fence:
+            continue
+        if ln.startswith("## "):
+            in_faq = ln.strip() == "## FAQ"; q = None; continue
+        if in_faq and ln.startswith("### "):
+            q = {"q": _md_inline_plain(ln[4:]), "a": []}; faq.append(q); continue
+        if q is not None and ln.strip():
+            q["a"].append(ln.strip())
+    faq = [{"q": x["q"], "a": _md_inline_plain(" ".join(x["a"]))} for x in faq]
+    return dict(meta, path="/blog/" + slug, md=md, title=title, description=quick, faq=faq,
+                author=BLOG_AUTHOR, publisher=BLOG_PUBLISHER, date_text=_long_date(meta["date"]))
+
+
+def blog_json_ld(post: dict) -> str:
+    url = site_url() + post["path"]
+    data = [
+        {"@context": "https://schema.org", "@type": "Article", "headline": post["title"], "description": post["description"],
+         "datePublished": post["date"], "inLanguage": "en", "url": url, "mainEntityOfPage": url,
+         "author": {"@type": "Person", "name": post["author"], "worksFor": {"@type": "Organization", "name": post["publisher"]}},
+         "publisher": {"@type": "Organization", "name": post["publisher"], "url": site_url() + "/"}},
+        {"@context": "https://schema.org", "@type": "FAQPage", "url": url,
+         "mainEntity": [{"@type": "Question", "name": x["q"], "acceptedAnswer": {"@type": "Answer", "text": x["a"]}} for x in post["faq"]]},
+    ]
+    safe = lambda d: json.dumps(d, ensure_ascii=False).replace("&", "\\u0026").replace("<", "\\u003c").replace(">", "\\u003e")
+    return "".join('<script type="application/ld+json">' + safe(d) + "</script>" for d in data)
+
+
+def _offsite_noopener(body: str) -> str:
+    """Links to other sites get rel="noopener", as the header's and footer's GitHub links do."""
+    from urllib.parse import urlsplit
+    own = set(BLOG_OWN_HOSTS) | {_vars()["DOMAIN"].lower()}
+
+    def fix(m):
+        host = (urlsplit(html.unescape(m.group(1))).hostname or "").lower()
+        return m.group(0) if host in own else f'<a href="{m.group(1)}" rel="noopener">'
+    return re.sub(r'<a href="(https?://[^"]+)">', fix, body)
+
+
+def _byline(post: dict) -> str:
+    return (f'<p class="blog-meta muted"><time datetime="{post["date"]}">{post["date_text"]}</time> · '
+            f'{html.escape(post["author"])}, {html.escape(post["publisher"])}</p>')
+
+
+def blog_post_html(slug: str) -> str:
+    post = blog_post(slug)
+    body = _offsite_noopener(_md_to_html(post["md"]))
+    body = re.sub(r"^(<h1>.*?</h1>)", lambda m: m.group(1) + "\n" + _byline(post), body, count=1)
+    main = f"""<article class="wrap prose docs blog">
+<nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="/blog">Blog</a></li><li aria-current="page">{html.escape(post["title"])}</li></ol></nav>
+{body}
+<p class="blog-foot muted tiny"><a href="/blog">All articles</a> · <a href="{post["path"]}.md">This article as Markdown</a></p>
+</article>"""
+    md_link = f'<link rel="alternate" type="text/markdown" href="{post["path"]}.md" title="Markdown version">'
+    return _shell(post["title"] + " — {{PRODUCT}} blog", post["description"], main, page="blog", nav="",
+                  path=post["path"], head=md_link + blog_json_ld(post), og_type="article")
+
+
+def blog_index_html() -> str:
+    items = []
+    for meta in sorted(BLOG_POSTS, key=lambda x: x["date"], reverse=True):
+        post = blog_post(meta["slug"])
+        items.append(f'<li class="blog-item"><h2><a href="{post["path"]}">{html.escape(post["title"])}</a></h2>{_byline(post)}'
+                     f'<p>{html.escape(post["description"])}</p></li>')
+    main = f"""<article class="wrap prose docs blog">
+<h1>Blog</h1>
+<p class="lead">{html.escape(BLOG_DESC)}</p>
+<ul class="blog-list">{"".join(items)}</ul>
+</article>"""
+    return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="", path="/blog")
 
 
 def start_md() -> str:

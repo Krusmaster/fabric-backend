@@ -76,6 +76,7 @@ from starlette.testclient import TestClient
 from fabric_backend import server, pages
 assert pages.__file__.startswith(img), pages.__file__
 paths = ["/", "/docs", "/docs.md", "/llms.txt", "/llms-full.txt", "/check", "/privacy", "/it", "/sitemap.xml", "/healthz"]
+paths += ["/blog"] + [f"/blog/{x['slug']}{e}" for x in pages.BLOG_POSTS for e in ("", ".md")]     # n145
 menu = [p["path"] for p in pages.docs_pages()]
 paths += menu + list(pages.PAGES)
 bad = {}
@@ -106,7 +107,8 @@ def test_every_page_renders_from_the_image_files_alone(tmp_path):
     res = json.loads(line[len("RESULT "):])
     assert res["bad"] == {}, (res["bad"], r.stderr[-6000:])
     assert len(res["menu"]) > 5 and set(res["menu"]) <= set(res["checked"])
-    for p in ("/", "/docs", "/docs.md", "/llms.txt", "/llms-full.txt", "/check", "/privacy", "/it", "/sitemap.xml", "/healthz"):
+    for p in ("/", "/docs", "/docs.md", "/llms.txt", "/llms-full.txt", "/check", "/privacy", "/it", "/sitemap.xml", "/healthz",
+              "/blog", "/blog/fabric-totals-double-after-join", "/blog/fabric-totals-double-after-join.md"):
         assert p in res["checked"]
     assert res["outside"] == [], "rendering read files outside the package: " + ", ".join(res["outside"])
 

@@ -2528,6 +2528,11 @@ def build_app(host: str = "0.0.0.0"):
     app.router.routes.append(Route("/docs/{part:path}", docs_sub))
     page_route("/lovable", lovable_html)
     page_route("/local", local_html)
+    # n145: the blog, its posts and each post's Markdown file as it was written
+    from .pages import BLOG_POSTS, blog_index_html, blog_md, blog_post_html
+    page_route("/blog", blog_index_html)
+    for _post in BLOG_POSTS:
+        page_route("/blog/" + _post["slug"], (lambda slug: lambda: blog_post_html(slug))(_post["slug"]))
 
     # n68: the return page of the admin consent link on /start; it depends on the query string, so it is not cached
     from .pages import CONSENT_PATH, consent_done_html
@@ -2545,6 +2550,8 @@ def build_app(host: str = "0.0.0.0"):
     for path, fn in (("/docs.md", docs_md), ("/privacy.md", privacy_md), ("/start.md", start_md), ("/lovable.md", lovable_md),
                      ("/local.md", local_md), ("/use-cases.md", use_cases_md)):
         md_route(path, fn)
+    for _post in BLOG_POSTS:
+        md_route("/blog/" + _post["slug"] + ".md", (lambda slug: lambda: blog_md(slug))(_post["slug"]))
 
     async def llms(request):
         return compressed(request, discovery.llms_txt().encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})

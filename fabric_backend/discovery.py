@@ -16,7 +16,7 @@ import json
 import os
 import re
 
-from .pages import GITHUB, _vars, site_url
+from .pages import BLOG_POSTS as _BLOG_POSTS, GITHUB, _vars, site_url
 
 SERVER_CARD_SCHEMA = "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json"
 SERVER_CARD_TYPE = "application/mcp-server-card+json"
@@ -33,7 +33,8 @@ USP_POINTS = (
 )
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 
 def package_version() -> str:
@@ -103,7 +104,9 @@ def lastmod() -> str:
 def sitemap_xml() -> str:
     origin, d = site_url(), lastmod()
     from .pages import docs_pages
-    urls = "".join(f"  <url><loc>{origin}{p}</loc><lastmod>{d}</lastmod></url>\n"
+    dated = {"/blog/" + x["slug"]: x["date"] for x in _BLOG_POSTS}                      # n145: a post's date is its lastmod,
+    dated["/blog"] = max(dated.values())                                                # the newest post's is the blog's
+    urls = "".join(f"  <url><loc>{origin}{p}</loc><lastmod>{dated.get(p, d)}</lastmod></url>\n"
                    for p in PUBLIC_PAGES + [x["path"] for x in docs_pages()[1:]])          # n86a: the docs' sub-pages
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n'
 
@@ -165,6 +168,8 @@ def llms_txt() -> str:
             f"Claude's sign-in redirect is registered on the hosted app, so Cursor and other local clients cannot sign in to it today. Other "
             f"MCP clients should work when you host {p} yourself (not tested yet).")
     usp = "\n".join("- " + x for x in USP_POINTS)
+    from .pages import blog_post as _bp
+    blog_line = "; ".join(f"[{q['title']}]({o}{q['path']}.md) ({q['date_text']})" for q in (_bp(x["slug"]) for x in _BLOG_POSTS))
     from .pages import docs_pages as _dp                       # n86a: the same docs as HTML pages, one per heading
     docs_pages = "\n".join(f"  - [{x['group'] + ': ' if x['depth'] == 2 else ''}{x['title']}]({o}{x['path']})" for x in _dp())
     return f"""# {p}
@@ -186,6 +191,7 @@ It reads table and column names, infers keys and relationships from names (decla
 - [For your IT department]({o}/it): the Entra app's delegated permissions in plain words, what is stored, where and for how long, that /check runs in the browser, how to revoke access, the MIT source, and who stands behind it
 - [Pricing]({o}/pricing): Check (free, in the browser, no account) and {p} in Claude (MCP; free, open source, MIT); a pilot with named deliveries and Team, both on request and invoiced; where your data goes on {o}/it#data-goes
 - [Preview terms]({o}/terms): the draft terms of the preview
+- [Blog]({o}/blog): articles by Gustav Kruse, Kruse Consulting AB: {blog_line}
 - [Privacy policy]({o}/privacy.md): sign-in, metadata, sample rows and query results, access tokens, usage records and technical logs
 
 ## Connect
