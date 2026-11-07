@@ -42,6 +42,7 @@
     var setNav = function (open) { nav.classList.toggle('open', open); document.body.classList.toggle('nav-open', open); toggle.setAttribute('aria-expanded', open ? 'true' : 'false'); };
     toggle.addEventListener('click', function () { setNav(!nav.classList.contains('open')); });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) { setNav(false); toggle.focus(); } });
+    nav.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('a')) setNav(false); });   // n148: a link, in-page too, closes the menu
     document.addEventListener('click', function (e) { if (nav.classList.contains('open') && !nav.contains(e.target) && !toggle.contains(e.target)) setNav(false); });
   }
   // <details data-open-wide>: open by default where there is room (the permissions table on /start)

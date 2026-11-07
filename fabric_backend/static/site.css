@@ -108,6 +108,14 @@ pre code{background:none;border:0;padding:0}
   body.nav-open::after{content:"";position:fixed;inset:0;background:rgba(27,27,31,.28);z-index:4}
   .tagline{display:none}
 }
+/* n148: on a phone the header (and its menu button) stays at the top while the page scrolls; solid in both themes, as
+   compact as before (18 px + 44 px button + 18 px = 80 px), and anchors land below it */
+@media (max-width:760px){
+  .site-header{position:sticky;top:0;background:var(--bg);box-shadow:0 1px 0 var(--line)}
+  body{overflow-x:clip}   /* hidden would make body a scroll container, and sticky would stop at it */
+  html{scroll-padding-top:80px}
+  :target,h1[id],h2[id],h3[id],h4[id],[id].anchor{scroll-margin-top:80px}
+}
 
 main{position:relative;z-index:1}
 section{padding-top:40px;padding-bottom:40px}

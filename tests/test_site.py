@@ -1503,3 +1503,14 @@ def test_n147_live_example_link_on_lovable_and_docs():
     lov = pages.lovable_html()
     assert "See a live example" in lov and "See the live example →" in lov and 'class="btn primary"' in lov
     assert "Click Demo in the app for a guided tour" in lov and "synthetic" in lov and "<iframe" not in lov
+
+
+def test_n148_header_sticky_on_mobile_and_anchors_clear_it():
+    import re
+    from pathlib import Path
+    css = (Path(__file__).parent.parent / "fabric_backend" / "static" / "site.css").read_text()
+    block = css[css.index("/* n148"):]
+    assert re.search(r"\.site-header\{position:sticky;top:0;background:var\(--bg\)", block)
+    assert "scroll-margin-top:80px" in block and "h2[id]" in block
+    js = (Path(__file__).parent.parent / "fabric_backend" / "static" / "site.js").read_text()
+    assert "nav.addEventListener('click'" in js and "e.key === 'Escape' && nav.classList.contains('open')" in js
