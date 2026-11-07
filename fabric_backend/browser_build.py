@@ -3,9 +3,9 @@ visitor's own rows and downloaded as files, all in the browser (Pyodide), nothin
 
 Both are drafts and say so with the status words of `tool_status`:
 - the model is `semantic_model.draft` unchanged (the TMDL that semantic_model_draft returns), packed as a Power BI
-  project (.pbip): the semantic model folder plus an empty report that points at it by path. There is no report tool in
-  Krusgraph, so the report preview here is drawn from the rows by this module, with the draft's own measures; where the
-  plan has a total that doubles (amounts.py), the right sum stands beside the wrong one, both counted in the rows.
+  project (.pbip): the semantic model folder plus a report with one blank page that points at it by path. The report
+  preview here is drawn from the rows by this module, with the draft's own measures (create_report, n144, draws a page
+  only in Fabric, from a model there); where the plan has a total that doubles (amounts.py), the right sum stands beside the wrong one, both counted in the rows.
 - the app is `rayfin.rayfin_files` (the Rayfin connector) and `app_starter.starter` (a Lovable prompt, queries, the
   edge function) for an API that does not exist yet: its description comes from `graphql.definition` over the same plan,
   read the way describe_backend reads a created API's definition, with placeholders for the workspace and endpoint.
@@ -169,7 +169,8 @@ def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
         f"Status: {ts.label('semantic_model_draft')} (the model, from semantic_model_draft); the report: {DRAFT_WORD}, an empty page.",
         "Made in your browser from the plan /check showed; nothing was sent anywhere.", "",
         f"- `{sm}/`: the semantic model in TMDL, Direct Lake on a Fabric SQL analytics endpoint, exactly as semantic_model_draft writes it.",
-        f"- `{rp}/`: an empty report bound to the model by path. Krusgraph has no report tool; the preview on /check was drawn there, not here.",
+        f"- `{rp}/`: a report with one blank page, bound to the model by path; the preview on /check was drawn there, not here.",
+        "  In Fabric, create_report adds a report to a semantic model there with a default page drawn from the model's measures.",
         "", "Before it shows data: Direct Lake reads Delta tables in Fabric, so the tables must be in a lakehouse first, and",
         f"`{sm}/definition/expressions.tmdl` must name its SQL analytics endpoint and lakehouse (now placeholders).",
         "Create it in your own Fabric (krusgraph.com/start) does that with create_semantic_model.", "",
