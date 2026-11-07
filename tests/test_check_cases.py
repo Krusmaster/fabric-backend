@@ -261,3 +261,14 @@ def test_05_the_fan_out_counts_only_headers_that_exist():
     assert "1.25" not in f["saw"] and "4 referenced" not in f["saw"]
     assert f["checked"] == "Counted on all rows of VBAK and VBAP: 3 VBAK rows with VBAP rows, at most 2 each."
 
+def test_05_sap_values_with_leading_zeros_stay_text():
+    """The answer key: 0000000010 and 000010 are codes; read as numbers they became 10."""
+    from fabric_backend.platforms.local import folder_source
+    src = folder_source(CASES / "05_sap_mandt")
+    try:
+        rows = list(src.execute(f"SELECT VBELN, POSNR FROM {src.schema.schema}.[VBAP] ORDER BY POSNR DESC, VBELN"))
+    finally:
+        src.close()
+    assert {r["VBELN"] for r in rows} == {"0000000010", "0000000020"} and {r["POSNR"] for r in rows} == {"000010", "000020"}
+    assert "For example MANDT+VBELN 100 + 0000000010:" in finding(check("05_sap_mandt"), "amount_level", "VBAK")["saw"]
+

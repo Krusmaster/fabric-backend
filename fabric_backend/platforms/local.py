@@ -32,6 +32,7 @@ from .base import Platform, Unsupported, connection
 _SAFE_NAME = re.compile(r"[^A-Za-z0-9_]+")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$")
 _INT_RE = re.compile(r"^[+-]?\d{1,18}$")
+_LEADING_ZERO = re.compile(r"^[+-]?0\d")              # n150: 0000000010 (SAP's VBELN), 000010: a code, kept as text
 _FLOAT_RE = re.compile(r"^[+-]?(\d+[.,]\d*|\d*[.,]\d+|\d+)([eE][+-]?\d+)?$")
 
 
@@ -99,7 +100,8 @@ def _table_name(stem: str, used: set[str]) -> str:
 
 
 def _guess_type(values: list) -> str:
-    """int, real, date or text from the non-empty values; a column with mixed content is text."""
+    """int, real, date or text from the non-empty values; a column with mixed content is text, and so is one where a
+    value starts with a zero before another digit (a code such as 0000000010, which a number would turn into 10)."""
     vals = [v for v in values if v not in (None, "")]
     if not vals:
         return "text"
@@ -108,6 +110,8 @@ def _guess_type(values: list) -> str:
     if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
         return "int" if all(float(v).is_integer() and abs(v) < 2 ** 63 for v in vals) else "real"
     s = [str(v).strip() for v in vals]
+    if any(_LEADING_ZERO.match(x) for x in s):
+        return "text"
     if all(_INT_RE.match(x) for x in s):
         return "int"
     if all(_FLOAT_RE.match(x) for x in s):
