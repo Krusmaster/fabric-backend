@@ -65,8 +65,14 @@ const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && 
       links: [...document.querySelectorAll('.kgc-pick[data-pick="Fix data issues"], .kgc-pick[data-pick="Draft a dbt project"]')].map((a) => ({
         label: a.getAttribute('data-pick'), tag: a.tagName, href: a.getAttribute('href'), why: (a.querySelector('small') || {}).textContent || '',
         planned: a.classList.contains('planned') })) }));
+    // n162: both are steps; on /check they run on the plan in the page, still without a request
+    await page.click('.kgc-pick[data-pick="Fix data issues"]');
+    await page.waitForSelector('.kgc-pick[data-pick="Draft a dbt project"]', { timeout: 15000 });
+    await page.click('.kgc-pick[data-pick="Draft a dbt project"]');
+    await page.waitForFunction(() => document.querySelectorAll('.kgc-msg.win').length >= 3, null, { timeout: 15000 });
+    out['checkChat' + width].results = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win h3')].map((h) => h.textContent));
     out['checkChat' + width].requests = requests.filter((p) => !p.startsWith('/static/chat-demo.'));
-    // a deep page, in a fresh tab state: the link goes where it says
+    // a deep page, in a fresh tab state: n162: Fix data issues runs there (no navigation; until n162 a link to the docs)
     await page.evaluate(() => sessionStorage.clear());
     await page.goto(base + '/docs/reference/tools', { waitUntil: 'load' });
     await page.click('#kgcLaunch');
@@ -75,8 +81,10 @@ const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && 
     await page.waitForSelector('.kgc-pick[data-pick="Yes, add the link"]', { timeout: 15000 });
     await page.click('.kgc-pick[data-pick="Yes, add the link"]');
     await page.waitForSelector('.kgc-pick[data-pick="Fix data issues"]', { timeout: 15000 });
-    await Promise.all([page.waitForNavigation(), page.click('.kgc-pick[data-pick="Fix data issues"]')]);
-    out['deepLink' + width] = { path: new URL(page.url()).pathname, h1: await page.evaluate(() => (document.querySelector('h1') || {}).textContent || '') };
+    await page.click('.kgc-pick[data-pick="Fix data issues"]');
+    await page.waitForFunction(() => document.querySelectorAll('.kgc-msg.win').length >= 2, null, { timeout: 15000 });
+    out['deepLink' + width] = { path: new URL(page.url()).pathname,
+      result: await page.evaluate(() => { const h = document.querySelectorAll('.kgc-msg.win h3'); return h[h.length - 1].textContent; }) };
     await ctx.close();
   }
   await browser.close();

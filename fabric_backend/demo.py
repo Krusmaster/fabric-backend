@@ -85,6 +85,76 @@ def demo_suggestions() -> list[dict]:
     return found
 
 
+def _fix_result(p, db) -> dict:
+    """n161: the chat's "Fix data issues": what validate_plan(fixes=true) answers on the synthetic rows, computed when the
+    plan JSON is built. The same counts (evidence.validate with validate_plan's ceiling of 200 items) and the same
+    proposal (fix_plan.propose with the two extra read-only counts); per finding its fix, its counts before and after,
+    whether it is mechanical or a business decision, and the decision's question with its options. Nothing is applied:
+    the demo shows the proposal only."""
+    from . import evidence, evidence_report, fix_plan
+    v = evidence.validate(p, db, max_items=200)
+    pr = fix_plan.propose(p, v, db)
+    rep = evidence_report.report(p, v, generated_at="-")              # the table a repeated amount is joined with
+    joined = {fix_plan._id(r["fix"]): r["fix"].get("line", "") for r in rep["checklist"]}
+    keys = v["keys"]
+    unique = [k for k in keys if k.get("nulls") == 0 and k.get("distinct") == k.get("rows")]
+    held = [r for r in v["relationships"] if r.get("orphans") == 0]
+    return {"tool": "validate_plan", "option": "fixes=true", "status": pr["status"], "summary": v["summary"],
+            "keys": len(keys), "keys_unique": len(unique), "relationships": len(v["relationships"]), "hold": len(held),
+            "counts": pr["counts"],
+            "findings": [{"id": e["id"], "finding": e["finding"], "type": e["type"], "table": e["table"], "column": e["column"],
+                          "joined_with": joined.get(e["id"], ""), "what_is_wrong": e["what_is_wrong"], "proposed_fix": e["proposed_fix"],
+                          "before": e["counts"].get("before", {}), "expected_after": e["counts"].get("expected_after", {}),
+                          "sums": e["counts"].get("sums", {}),
+                          "questions": [{"ask": q["ask"], "options": q.get("options", [])} for q in e["questions"]]}
+                         for e in pr["fixes"]]}
+
+
+def _yaml_block(text: str, table: str, column: str) -> list[str]:
+    """The lines of one column of one table in a sources file (dbt.schema_yml): its `- name:` line and everything indented
+    under it, up to the next column or table."""
+    lines, out, in_table, indent = text.splitlines(), [], False, None
+    for line in lines:
+        stripped, lead = line.lstrip(), len(line) - len(line.lstrip())
+        if indent is not None:
+            if stripped and lead <= indent:
+                break
+            out.append(line)
+        elif stripped == f"- name: {table}":
+            in_table, table_indent = True, lead
+        elif in_table and stripped.startswith("- name: ") and lead <= table_indent:
+            in_table = False
+        elif in_table and stripped == f"- name: {column}":
+            indent = lead
+            out.append(line)
+    pad = min((len(x) - len(x.lstrip()) for x in out if x.strip()), default=0)
+    return [x[pad:] for x in out]
+
+
+def _dbt_result(p, db) -> dict:
+    """n161: the chat's "Draft a dbt project": what dbt_schema(project=true, check_rows=true) writes for the demo plan,
+    computed when the plan JSON is built. The file tree, the first lines of one staging model (its select, without the
+    comment header) and the tests the sources file has for one relationship: the first single-column relationship of the
+    plan, and the staging model of its source table. Files only: nothing runs."""
+    from . import dbt, evidence
+    v = evidence.validate(p, db)                             # check_rows: the marts join over relationships counted many-to-one
+    out = dbt.project(p, "shop", p.schema.schema or "shop", "shop", v)
+    files = out["files"]
+    rel = next(r for r in p.relationships if len(r.source_cols) == 1 and len(r.target_cols) == 1)
+    sources = dbt.sources_path("shop")
+    stg = next(k for k in files if k.startswith("models/staging/") and k.endswith(f"__{rel.source}.sql"))
+    body = [x for x in files[stg].splitlines() if x.strip() and not x.lstrip().startswith("--")]
+    head = 12
+    return {"tool": "dbt_schema", "option": "project=true", "project": out["project"], "files": sorted(files),
+            "staging": len(out["models"]["staging"]), "marts": len(out["models"]["marts"]),
+            "adapter": f'{out["adapter"]["package"]} {out["adapter"]["version"]}',
+            "model": {"file": stg, "lines": body[:head], "more": max(0, len(body) - head)},
+            "relationship": {"source": rel.source, "column": rel.source_cols[0], "target": rel.target, "field": rel.target_cols[0],
+                             "file": sources, "lines": _yaml_block(files[sources], rel.source, rel.source_cols[0])},
+            "not_templated": [{"table": x["table"], "part": x["part"], "why": x["why"]} for x in out["not_templated"]],
+            "created": out["created"]}
+
+
 def _drafts(p) -> dict:
     """What the engine's drafts say about one plan, in counts: ontology_draft, semantic_model_draft, domain_draft, and
     validate_plan on the synthetic rows."""
@@ -118,6 +188,8 @@ def _drafts(p) -> dict:
         "domains": {"tool": "domain_draft", "domains": [{"name": x["name"], "tables": x["tables"]} for x in d["domains"]],
                     "interfaces": [{"source": i["source"], "source_cols": i["source_cols"], "target": i["target"]} for i in d["interfaces"]],
                     "unassigned": [u["table"] for u in d["unassigned"]]},
+        "fixes": _fix_result(p, _demo_db()),                                                      # n161
+        "dbt": _dbt_result(p, _demo_db()),                                                        # n161
     }
 
 

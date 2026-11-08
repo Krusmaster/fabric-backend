@@ -189,12 +189,17 @@ is.
   plain sentence without a tool's name, built by `pages.chat_status()` from `tool_status` and saying no more than it:
   "Created in a live Fabric workspace and reviewed there." (`build_word` and `REVIEWED`), "Creating it needs a permission
   the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet
-  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Draft a dbt project" (n154 and n156;
-  until n154 "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
-  since n155 the fixes `validate_plan` proposes with `fixes=true`, applied by the silver notebook
-  (`/docs/explore-and-check/fix-data-issues`), and
-  since n156 "Draft a dbt project", `dbt_schema`'s whole project with `project=true`
-  (`/docs/build-from-a-plan/create-a-dbt-flow`); nothing is said to be planned; no dates. The chat does not say that its bubbles appear in the agent.
+  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Draft a dbt project" are steps
+  like the others since n162 (n154 to n161 links to the docs, before that marked Planned), offered after the three drafts
+  and at the end until they have run. Each shows what the engine answered on the example when the plan JSON was built
+  (`demo._fix_result`, `demo._dbt_result`, in `drafts.as_is` and `drafts.with_suggestion`): `validate_plan` with
+  `fixes=true` (the counts, then per finding its proposed fix, its counts before and after, mechanical or a business
+  decision, a decision as its question with the options; on the example the keys and links hold, so 0 mechanical and 2
+  questions: the level of `products.list_price` with its two sums, and `audit_log` without a key; the chat answers and
+  applies none), and `dbt_schema` with `project=true` and the rows counted (the file tree, the start of one staging model,
+  one relationship's tests in the sources file; "Files only; nothing runs."). Their end texts say what the agent does in
+  the visitor's Fabric, from `tool_status`: for fixes the status of `validate_plan` (`data-draft-status-fixes`) and of
+  `create_silver_notebook`, which applies the accepted ones; for dbt the status of `dbt_schema`. No dates. The chat does not say that its bubbles appear in the agent.
   The sales-word test covers its text.
 - **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat
   opens and to the first new choice after each step; Esc (from inside the chat) and Close close it and give the focus

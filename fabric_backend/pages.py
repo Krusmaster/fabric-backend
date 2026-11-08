@@ -843,7 +843,12 @@ def before_after_mini_html() -> str:
 # and the tool that creates them in Fabric; what the chat says about creating comes from tool_status, not from the chat's
 # own text.
 CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("ontology", "ontology_draft", "create_ontology"),
-                ("domains", "domain_draft", ""))
+                ("domains", "domain_draft", ""),
+                # n161: the two runnable steps after them. Fixes: validate_plan proposes them, create_silver_notebook
+                # applies the accepted ones; dbt: dbt_schema writes the project's files and nothing creates or runs it.
+                ("fixes", "validate_plan", "create_silver_notebook"), ("dbt", "dbt_schema", ""))
+# n161: the results whose end text also says how far the drafting tool has been tried (data-draft-status-*)
+CHAT_DRAFT_STATUS = ("fixes",)
 # n93: the pages that never get the chat's button: /demo (a redirect to /check). n154: the button is on every other page,
 # the home page and /check included (Gustav's decision of 8 November 2026, undoing n149's PILL_OFF). /check's policy says
 # connect-src 'none', so the page carries the demo plan inline (chat_plan_html) and the chat fetches nothing there.
@@ -909,6 +914,8 @@ def chat_launch_html() -> str:
         tool = create or draft
         attrs += [f'data-status-{key}="{e(chat_status(tool))}"',
                   f'data-does-{key}="{chat_does(create)}"']
+        if key in CHAT_DRAFT_STATUS:
+            attrs.append(f'data-draft-status-{key}="{e(chat_status(draft))}"')
     return (f'<button class="kgc-launch" id="kgcLaunch" type="button" aria-expanded="false" hidden '
             f'{" ".join(attrs)}><span class="kgc-fig" aria-hidden="true"></span>Try a demo</button>')
 
@@ -924,10 +931,12 @@ def strip_chat(page: str) -> str:
 
 def chat_plan_html() -> str:
     """n154: the demo plan as an inert JSON block, for /check, whose policy lets the page fetch nothing (connect-src
-    'none'); chat-demo.js reads it instead of GET /demo/plan.json. The same bytes as /demo/plan.json, with "<" escaped so
-    the block cannot end early."""
+    'none'); chat-demo.js reads it instead of GET /demo/plan.json. The same data as /demo/plan.json, with "<" escaped so
+    the block cannot end early (and "{{", n162)."""
     from .demo import demo_plan_json
-    return '<script type="application/json" id="kgcPlan">' + demo_plan_json().replace("<", "\\u003c") + "</script>"
+    # n162: "{{" only occurs inside strings (the dbt excerpt's Jinja), escaped so the page has no template marker left
+    return ('<script type="application/json" id="kgcPlan">'
+            + demo_plan_json().replace("<", "\\u003c").replace("{{", "\\u007b\\u007b") + "</script>")
 
 
 def _home_vars() -> dict[str, str]:

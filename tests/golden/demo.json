@@ -3,6 +3,81 @@
   "ambiguous": [],
   "drafts": {
    "as_is": {
+    "dbt": {
+     "adapter": "dbt-fabric 1.12.0",
+     "created": "A draft: these files were written from the plan and nothing was created or run, in Fabric or anywhere else. Review them, put them in a dbt project folder with a profile for a Fabric Warehouse, and run dbt yourself when you decide to.",
+     "files": [
+      "README.md",
+      "dbt_project.yml",
+      "models/marts/customers/_customers__models.yml",
+      "models/marts/customers/fct_order_items.sql",
+      "models/marts/customers/fct_orders.sql",
+      "models/marts/products/_products__models.yml",
+      "models/sources/shop.yml",
+      "models/staging/shop/_stg_shop__models.yml",
+      "models/staging/shop/stg_shop__addresses.sql",
+      "models/staging/shop/stg_shop__audit_log.sql",
+      "models/staging/shop/stg_shop__categories.sql",
+      "models/staging/shop/stg_shop__customers.sql",
+      "models/staging/shop/stg_shop__order_items.sql",
+      "models/staging/shop/stg_shop__orders.sql",
+      "models/staging/shop/stg_shop__products.sql",
+      "profiles.example.yml",
+      "tests/fct_order_items__unique_order_id_line_no.sql",
+      "tests/stg_shop__order_items__unique_order_id_line_no.sql"
+     ],
+     "marts": 2,
+     "model": {
+      "file": "models/staging/shop/stg_shop__products.sql",
+      "lines": [
+       "{{ config(materialized='view') }}",
+       "select",
+       "    [product_id],",
+       "    [name],",
+       "    [category_id],",
+       "    [list_price]",
+       "from (",
+       "    select",
+       "        cast([product_id] as int) as [product_id],",
+       "        cast([name] as varchar(8000)) as [name],",
+       "        cast([category_id] as int) as [category_id],",
+       "        cast([list_price] as float) as [list_price],"
+      ],
+      "more": 5
+     },
+     "not_templated": [
+      {
+       "part": "de-duplication",
+       "table": "audit_log",
+       "why": "no key in the plan (rule K3): there is nothing to de-duplicate on, so every source row is kept"
+      },
+      {
+       "part": "mart",
+       "table": "audit_log",
+       "why": "audit_log is a fact table without a key: the grain of a mart is unknown, so none is written"
+      }
+     ],
+     "option": "project=true",
+     "project": "krusgraph_shop",
+     "relationship": {
+      "column": "category_id",
+      "field": "id",
+      "file": "models/sources/shop.yml",
+      "lines": [
+       "- name: category_id",
+       "  description: \"\"  # int",
+       "  data_tests:",
+       "    - relationships:  # rule R1",
+       "        arguments:",
+       "          to: source('shop', 'categories')",
+       "          field: id"
+      ],
+      "source": "products",
+      "target": "categories"
+     },
+     "staging": 7,
+     "tool": "dbt_schema"
+    },
     "domains": {
      "domains": [
       {
@@ -35,6 +110,73 @@
      "unassigned": [
       "audit_log"
      ]
+    },
+    "fixes": {
+     "counts": {
+      "business_decision": 2,
+      "findings": 2,
+      "mechanical": 0
+     },
+     "findings": [
+      {
+       "before": {
+        "avg_lines": 16.75,
+        "headers": 8,
+        "max_lines": 27,
+        "min_lines": 13
+       },
+       "column": "list_price",
+       "expected_after": {},
+       "finding": "amount_repeated",
+       "id": "level:products.list_price",
+       "joined_with": "order_items",
+       "proposed_fix": "None in silver: products.list_price already sits on products, one row per products row. Sum it once per products row (the query summed_per_header), never over the joined order_items rows. Which level the amount belongs to is the business decision below.",
+       "questions": [
+        {
+         "ask": "Is products.list_price a value of each products row (sum it once per products row), or does it belong to each order_items row?",
+         "options": [
+          "of products: reports sum it on products (summed_per_header)",
+          "of each order_items row: it belongs in order_items, and the source owner says how it splits",
+          "not summed at all (a price or a rate)"
+         ]
+        }
+       ],
+       "sums": {
+        "summed_over_lines": 22610.9,
+        "summed_per_header": 1666.6
+       },
+       "table": "products",
+       "type": "business_decision",
+       "what_is_wrong": "products.list_price sits on products, and order_items has up to 27 row(s) per products row: a report that joins the two and sums list_price counts it once per order_items row (a fan-out)."
+      },
+      {
+       "before": {},
+       "column": "",
+       "expected_after": {},
+       "finding": "no_key",
+       "id": "no_key:audit_log",
+       "joined_with": "",
+       "proposed_fix": "None: Without a key there is nothing to de-duplicate on; the silver draft copies the rows as they are.",
+       "questions": [
+        {
+         "ask": "Does audit_log have a key, and which columns are it?",
+         "options": []
+        }
+       ],
+       "sums": {},
+       "table": "audit_log",
+       "type": "business_decision",
+       "what_is_wrong": "Without a key there is nothing to de-duplicate on; the silver draft copies the rows as they are."
+      }
+     ],
+     "hold": 6,
+     "keys": 6,
+     "keys_unique": 6,
+     "option": "fixes=true",
+     "relationships": 6,
+     "status": "proposed: nothing ran and nothing was written",
+     "summary": "6 of 6 keys unique, 6 of 6 relationships hold without orphans",
+     "tool": "validate_plan"
     },
     "ontology": {
      "entities": [
@@ -180,6 +322,81 @@
     }
    },
    "with_suggestion": {
+    "dbt": {
+     "adapter": "dbt-fabric 1.12.0",
+     "created": "A draft: these files were written from the plan and nothing was created or run, in Fabric or anywhere else. Review them, put them in a dbt project folder with a profile for a Fabric Warehouse, and run dbt yourself when you decide to.",
+     "files": [
+      "README.md",
+      "dbt_project.yml",
+      "models/marts/customers/_customers__models.yml",
+      "models/marts/customers/fct_order_items.sql",
+      "models/marts/customers/fct_orders.sql",
+      "models/marts/products/_products__models.yml",
+      "models/sources/shop.yml",
+      "models/staging/shop/_stg_shop__models.yml",
+      "models/staging/shop/stg_shop__addresses.sql",
+      "models/staging/shop/stg_shop__audit_log.sql",
+      "models/staging/shop/stg_shop__categories.sql",
+      "models/staging/shop/stg_shop__customers.sql",
+      "models/staging/shop/stg_shop__order_items.sql",
+      "models/staging/shop/stg_shop__orders.sql",
+      "models/staging/shop/stg_shop__products.sql",
+      "profiles.example.yml",
+      "tests/fct_order_items__unique_order_id_line_no.sql",
+      "tests/stg_shop__order_items__unique_order_id_line_no.sql"
+     ],
+     "marts": 2,
+     "model": {
+      "file": "models/staging/shop/stg_shop__orders.sql",
+      "lines": [
+       "{{ config(materialized='view') }}",
+       "select",
+       "    [order_id],",
+       "    [customer_id],",
+       "    [order_date],",
+       "    [ship_to_id]",
+       "from (",
+       "    select",
+       "        cast([order_id] as int) as [order_id],",
+       "        cast([customer_id] as int) as [customer_id],",
+       "        cast([order_date] as date) as [order_date],",
+       "        cast([ship_to_id] as int) as [ship_to_id],"
+      ],
+      "more": 5
+     },
+     "not_templated": [
+      {
+       "part": "de-duplication",
+       "table": "audit_log",
+       "why": "no key in the plan (rule K3): there is nothing to de-duplicate on, so every source row is kept"
+      },
+      {
+       "part": "mart",
+       "table": "audit_log",
+       "why": "audit_log is a fact table without a key: the grain of a mart is unknown, so none is written"
+      }
+     ],
+     "option": "project=true",
+     "project": "krusgraph_shop",
+     "relationship": {
+      "column": "ship_to_id",
+      "field": "address_id",
+      "file": "models/sources/shop.yml",
+      "lines": [
+       "- name: ship_to_id",
+       "  description: \"\"  # int",
+       "  data_tests:",
+       "    - relationships:  # rule confirmed",
+       "        arguments:",
+       "          to: source('shop', 'addresses')",
+       "          field: address_id"
+      ],
+      "source": "orders",
+      "target": "addresses"
+     },
+     "staging": 7,
+     "tool": "dbt_schema"
+    },
     "domains": {
      "domains": [
       {
@@ -212,6 +429,73 @@
      "unassigned": [
       "audit_log"
      ]
+    },
+    "fixes": {
+     "counts": {
+      "business_decision": 2,
+      "findings": 2,
+      "mechanical": 0
+     },
+     "findings": [
+      {
+       "before": {
+        "avg_lines": 16.75,
+        "headers": 8,
+        "max_lines": 27,
+        "min_lines": 13
+       },
+       "column": "list_price",
+       "expected_after": {},
+       "finding": "amount_repeated",
+       "id": "level:products.list_price",
+       "joined_with": "order_items",
+       "proposed_fix": "None in silver: products.list_price already sits on products, one row per products row. Sum it once per products row (the query summed_per_header), never over the joined order_items rows. Which level the amount belongs to is the business decision below.",
+       "questions": [
+        {
+         "ask": "Is products.list_price a value of each products row (sum it once per products row), or does it belong to each order_items row?",
+         "options": [
+          "of products: reports sum it on products (summed_per_header)",
+          "of each order_items row: it belongs in order_items, and the source owner says how it splits",
+          "not summed at all (a price or a rate)"
+         ]
+        }
+       ],
+       "sums": {
+        "summed_over_lines": 22610.9,
+        "summed_per_header": 1666.6
+       },
+       "table": "products",
+       "type": "business_decision",
+       "what_is_wrong": "products.list_price sits on products, and order_items has up to 27 row(s) per products row: a report that joins the two and sums list_price counts it once per order_items row (a fan-out)."
+      },
+      {
+       "before": {},
+       "column": "",
+       "expected_after": {},
+       "finding": "no_key",
+       "id": "no_key:audit_log",
+       "joined_with": "",
+       "proposed_fix": "None: Without a key there is nothing to de-duplicate on; the silver draft copies the rows as they are.",
+       "questions": [
+        {
+         "ask": "Does audit_log have a key, and which columns are it?",
+         "options": []
+        }
+       ],
+       "sums": {},
+       "table": "audit_log",
+       "type": "business_decision",
+       "what_is_wrong": "Without a key there is nothing to de-duplicate on; the silver draft copies the rows as they are."
+      }
+     ],
+     "hold": 7,
+     "keys": 6,
+     "keys_unique": 6,
+     "option": "fixes=true",
+     "relationships": 7,
+     "status": "proposed: nothing ran and nothing was written",
+     "summary": "6 of 6 keys unique, 7 of 7 relationships hold without orphans",
+     "tool": "validate_plan"
     },
     "ontology": {
      "entities": [

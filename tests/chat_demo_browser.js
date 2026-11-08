@@ -98,10 +98,10 @@ async function flowByMouse(page, f, v) {
   await waitPick(page, 'Create a semantic model');
   f.linkAdded = await lastText(page, '.kgc-msg.win .kgc-bub');
   f.nextPicks = await picks(page);
-  // n154: Fix data issues and Write dbt tests are links to the docs of what exists today, with that in one line
+  // n162: Fix data issues and Draft a dbt project are steps (buttons), like the three before them
   f.further = await page.evaluate(() => ['Fix data issues', 'Draft a dbt project'].map((l) => {
     const a = document.querySelector(`.kgc-pick[data-pick="${l}"]`);
-    return a ? { tag: a.tagName, href: a.getAttribute('href'), planned: a.classList.contains('planned'), why: (a.querySelector('small') || {}).textContent || '' } : null;
+    return a ? { tag: a.tagName, key: a.getAttribute('data-key'), href: a.getAttribute('href'), planned: a.classList.contains('planned'), why: (a.querySelector('small') || {}).textContent || '' } : null;
   }));
   await shot(page, `chat-further@${v}`);
   for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products']) {
@@ -139,6 +139,23 @@ async function flowByMouse(page, f, v) {
   await page.keyboard.press('Escape');
   f.bigClosed = await page.evaluate(() => ({ big: !!document.querySelector('.kgc-big'), open: !document.getElementById('kgcBox').hidden,
     focus: document.activeElement.className, pic: document.activeElement.getAttribute('data-pic') }));
+  // n162: after the end, the two further steps: what validate_plan with fixes=true and dbt_schema with project=true
+  // answered on the example, from the plan already loaded (no request: the requests are checked over the whole flow)
+  await page.click('.kgc-pick[data-pick="Fix data issues"]');
+  await waitPick(page, 'Draft a dbt project');
+  f.afterFixPicks = await picks(page);
+  await shot(page, `chat-fixes@${v}`);
+  await page.click('.kgc-pick[data-pick="Draft a dbt project"]');
+  await waitPick(page, 'Check my tables');
+  f.afterDbtPicks = await picks(page);
+  await shot(page, `chat-dbt@${v}`);
+  f.extra = (await wins(page)).slice(4);
+  f.extraHtml = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win .kgc-bub')].slice(4).map((b) => ({
+    asks: [...b.querySelectorAll('.kgc-ask')].map((x) => x.textContent), opts: [...b.querySelectorAll('.kgc-opts li')].map((x) => x.textContent),
+    facts: [...b.querySelectorAll('.kgc-facts b')].map((x) => x.textContent), pre: [...b.querySelectorAll('pre')].map((x) => x.textContent),
+    links: b.querySelectorAll('a').length, pics: b.querySelectorAll('.kgc-pic').length,
+    inside: [...b.querySelectorAll('pre, ul, p')].every((x) => x.getBoundingClientRect().right <= b.getBoundingClientRect().right + 0.5) })));
+  f.extraLogOverflowX = await page.evaluate(() => { const l = document.querySelector('.kgc-log'); return l.scrollWidth - l.clientWidth; });
   f.allText = await page.evaluate(() => document.getElementById('kgcBox').innerText);
   f.notes = await page.evaluate(() => [...document.querySelectorAll('.kgc-note')].map((n) => n.textContent));
   f.box = await page.evaluate(() => { const r = document.getElementById('kgcBox').getBoundingClientRect(); return { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom }; });
@@ -170,7 +187,7 @@ async function flowByKeyboard(page, f, v) {
   };
   await enterOn('Check the tables');
   await enterOn('Yes, add the link');
-  // n154: Tab reaches the link to what exists for fixing data (Enter would follow it; the flow goes on here)
+  // n162: Tab reaches Fix data issues, a step (it runs at the end of this flow)
   await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Create a semantic model', 'focus on Create a semantic model');
   for (let i = 0; i < 10; i++) {
     if ((await focusInfo(page)).pick === 'Fix data issues') break;
@@ -193,6 +210,16 @@ async function flowByKeyboard(page, f, v) {
   await enterOn('Create an ontology');
   await enterOn('Draft data products');
   await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Check my tables', 'focus on Check my tables');
+  // n162: Tab to the two further steps and Enter, from the end's first choice each time
+  for (const label of ['Fix data issues', 'Draft a dbt project']) {
+    for (let i = 0; i < 10; i++) {
+      if ((await focusInfo(page)).pick === label) break;
+      await page.keyboard.press('Tab');
+    }
+    steps.push(label);
+    await page.keyboard.press('Enter');
+    await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Check my tables', 'focus on Check my tables');
+  }
   f.keyboardSteps = steps;
   f.keyboardResults = await wins(page);
   f.keyboardEndFocus = (await focusInfo(page)).pick;

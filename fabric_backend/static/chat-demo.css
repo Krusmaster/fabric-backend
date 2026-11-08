@@ -71,6 +71,18 @@
 .kgc-steps li.did::before { content: "✓ " }
 .kgc-links { list-style: none; padding: 0; display: grid; gap: 2px; font-size: 13.5px }
 .kgc-note { font-size: 13px; color: var(--muted) }
+/* n162: Fix data issues and Draft a dbt project: findings, questions with their options, files and excerpts */
+.kgc-fixes { padding-left: 18px; display: grid; gap: 8px; font-size: 13.5px }
+.kgc-fixes p { margin: 0 }
+.kgc-count { color: var(--muted); font-size: 13px }
+.kgc-ask { font-weight: 700 }
+.kgc-opts { padding-left: 18px; font-size: 13px }
+.kgc-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45;
+  white-space: pre; overflow-x: auto; max-width: 100%; padding: 7px 9px; border-radius: 8px;
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+}
+.kgc-code:focus-visible { outline: 2px solid var(--lav-ink); outline-offset: 2px }
 
 .kgc-picks { grid-column: 2; display: flex; flex-wrap: wrap; gap: 6px; padding-top: 3px }
 .kgc-pick {

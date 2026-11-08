@@ -248,7 +248,7 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "try {" in write and "catch (e)" in write
     # what is written: open as a boolean, and step names from the fixed list; nothing from the page or the plan
     assert "JSON.stringify({ open: !!(box && !box.hidden), steps: steps.filter(function (s) { return STEPS.indexOf(s) >= 0; }) })" in write
-    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains'];" in CHAT_JS   # n154: fix and dbt are links
+    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fixes', 'dbt'];" in CHAT_JS   # n162: fix and dbt run
     # what is read back is checked: an object, open a boolean, steps known names at most once, a short string at all
     for check in ("raw.length > 400", "typeof o.open !== 'boolean'", "!Array.isArray(o.steps)", "STEPS.indexOf(o.steps[i]) < 0",
                   "o.steps.indexOf(o.steps[i]) !== i", "Array.isArray(o)"):
@@ -257,35 +257,107 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "button.kgc-pick[data-key=\"' + restore[i] + '\"]" in CHAT_JS and "if (!b) break;" in CHAT_JS
     # the links: the check page, its example and the set-up guide, in the same tab
     hrefs = set(re.findall(r"href: '([^']+)'", CHAT_JS))
-    assert hrefs == {"/check", "/check?example=sample", "/start", "/docs/explore-and-check/fix-data-issues", "/docs/build-from-a-plan/create-a-dbt-flow"}
+    assert hrefs == {"/check", "/check?example=sample", "/start"}
     # n158 (review L20): the two exits take pages.CHECK_LABEL and CONNECT_LABEL from the launch button
     assert "launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
     assert "launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' }" in CHAT_JS
 
 
-def test_fix_data_issues_and_dbt_say_what_exists_and_link_its_docs(client):
-    """n154: "Fix data issues" and "Write dbt tests" (until n154 "Create a dbt flow", both "Planned") are links to the docs
-    of what exists today, with one line saying what that is; only the whole dbt project is still planned. No dates."""
+def test_fix_data_issues_and_dbt_are_steps_that_run_and_link_nothing(client):
+    """n162: "Fix data issues" and "Draft a dbt project" (n154 to n161 links to the docs, before that "Planned") are steps
+    like the others: buttons with a step name, offered until they have run, that show what the plan JSON carries. They
+    link nothing and say nothing about the future."""
     block = CHAT_JS[CHAT_JS.index("function further()"):CHAT_JS.index("function drafts()")]
-    picks = re.findall(r"\{ label: '([^']+)', href: '([^']+)',\s*why: '([^']+)' \}", block)
-    assert [(a, b) for a, b, _ in picks] == [("Fix data issues", "/docs/explore-and-check/fix-data-issues"),
-                                             ("Draft a dbt project", "/docs/build-from-a-plan/create-a-dbt-flow")]
-    fix, dbt = picks[0][2], picks[1][2]
-    assert fix.startswith("Today: a proposed fix for each problem") and "source tables stay as they are" in fix   # n155
-    assert "business decisions stay yours" in fix and "counts before and after" in fix
-    assert dbt.startswith("Today: a dbt project from the checked plan") and "nothing runs" in dbt and "planned" not in dbt   # n156
-    assert "planned:" not in block and "Create a dbt flow" not in CHAT_JS
-    # what the lines say is what the docs and tool_status say: the tools exist and the pages they link are served
+    picks = re.findall(r"\{ key: '(\w+)', label: '([^']+)', why: '([^']+)', go: (\w+) \}", block)
+    assert [(k, label, go) for k, label, _, go in picks] == [("fixes", "Fix data issues", "fixes"), ("dbt", "Draft a dbt project", "dbtProject")]
+    assert "href" not in block and "planned" not in block and "return !S[p.key];" in block
+    assert "function fixes()" in CHAT_JS and "function dbtProject()" in CHAT_JS
+    assert "drafts().fixes" in CHAT_JS and "drafts().dbt" in CHAT_JS
+    assert "Files only; nothing runs." in CHAT_JS and "nothing was applied and no question was answered" in CHAT_JS
+    assert "Create a dbt flow" not in CHAT_JS
+    # what the step says exists: the tools, and the docs pages about them
     from fabric_backend import tool_status as ts
-    for tool in ("silver_notebook_draft", "create_silver_notebook", "gold_views_draft", "create_pipeline", "dbt_schema"):
+    for tool in ("validate_plan", "create_silver_notebook", "dbt_schema"):
         assert tool in ts.STATUS, tool
     fixes = client.get("/docs/explore-and-check/fix-data-issues").text
     assert "fixes=true" in fixes and "create_silver_notebook" in fixes and "krusgraph_quarantine" in fixes
     flow = client.get("/docs/build-from-a-plan/create-a-dbt-flow").text                    # n156
-    assert "project=true" in flow and "profiles.example.yml" in flow and "unique_combination_of_columns" in flow
-    tools = client.get("/docs/reference/tools").text
-    assert "dbt_schema" in tools and "krusgraph_quarantine" in tools and "create_pipeline" in tools
+    assert "project=true" in flow and "profiles.example.yml" in flow
     assert not re.search(r"\b(soon|coming|shortly|later this|next (week|month|quarter|year)|Q[1-4]|20\d\d|in \d+ (days|weeks|months))\b", _strings(CHAT_JS), re.I)
+
+
+def test_the_fixes_in_the_plan_are_what_validate_plan_with_fixes_answers():
+    """n162: the plan JSON carries, for the plan as it is and with the suggestion confirmed, what validate_plan with
+    fixes=true answers on the synthetic rows: the same counts (evidence.validate, validate_plan's ceiling of 200) and the
+    same proposal (fix_plan.propose with the read-only counts), computed when the JSON is built. On the example the keys
+    and links hold, so no fix is mechanical; what is left are two business decisions: the level of products.list_price,
+    which a join with order_items repeats (with its options and the two sums), and audit_log without a key."""
+    from fabric_backend import fix_plan
+    d = demo_plan()["drafts"]
+    sug = demo_plan()["suggestions"][0]["confirmed"]
+    for name, confirmed in (("as_is", None), ("with_suggestion", [sug])):
+        p = plan(schema("shop"), keys=DEMO_KEYS, confirmed=confirmed)
+        v = evidence.validate(p, _demo_db(), max_items=200)
+        pr = fix_plan.propose(p, v, _demo_db())
+        got = d[name]["fixes"]
+        assert got["tool"] == "validate_plan" and got["option"] == "fixes=true" and got["status"] == pr["status"]
+        assert got["summary"] == v["summary"] and got["counts"] == pr["counts"]
+        assert (got["keys"], got["relationships"]) == (len(v["keys"]), len(v["relationships"]))
+        assert [(f["id"], f["type"], f["table"], f["column"], f["what_is_wrong"], f["proposed_fix"]) for f in got["findings"]] == [
+            (e["id"], e["type"], e["table"], e["column"], e["what_is_wrong"], e["proposed_fix"]) for e in pr["fixes"]]
+        for f, e in zip(got["findings"], pr["fixes"]):
+            assert f["before"] == e["counts"].get("before", {}) and f["sums"] == e["counts"].get("sums", {})
+            assert f["expected_after"] == e["counts"].get("expected_after", {})
+            assert f["questions"] == [{"ask": q["ask"], "options": q.get("options", [])} for q in e["questions"]]
+    a, w = d["as_is"]["fixes"], d["with_suggestion"]["fixes"]
+    assert (a["keys_unique"], a["keys"], a["hold"], a["relationships"]) == (6, 6, 6, 6)
+    assert (w["hold"], w["relationships"]) == (7, 7)
+    for x in (a, w):
+        assert x["counts"] == {"findings": 2, "mechanical": 0, "business_decision": 2}
+        level, nokey = x["findings"]
+        assert (level["id"], level["joined_with"]) == ("level:products.list_price", "order_items")
+        assert level["before"]["headers"] == 8 and (level["before"]["min_lines"], level["before"]["max_lines"]) == (13, 27)
+        assert level["sums"] == {"summed_over_lines": 22610.9, "summed_per_header": 1666.6}
+        assert len(level["questions"][0]["options"]) == 3
+        assert nokey["id"] == "no_key:audit_log" and nokey["questions"][0]["ask"].startswith("Does audit_log have a key")
+    # the figures are summed again here over seed.rows(), outside the engine
+    cols = {t.name: [c.name for c in t.columns] for t in schema("shop")}
+    price = {r[cols["products"].index("product_id")]: r[cols["products"].index("list_price")] for r in rows()["products"]}
+    lines = [r[cols["order_items"].index("product_id")] for r in rows()["order_items"]]
+    assert round(sum(price[x] for x in lines if x in price), 1) == 22610.9
+    assert round(sum(v for k, v in price.items() if k in set(lines)), 1) == 1666.6
+
+
+def test_the_dbt_project_in_the_plan_is_what_dbt_schema_with_project_writes():
+    """n162: the plan JSON carries what dbt_schema with project=true (and check_rows) writes for the demo plan: the file
+    tree, the first lines of the staging model of the first single-column relationship's source, and that
+    relationship's tests in the sources file, each cut from the engine's own files, never typed."""
+    from fabric_backend import dbt
+    d = demo_plan()["drafts"]
+    sug = demo_plan()["suggestions"][0]["confirmed"]
+    for name, confirmed in (("as_is", None), ("with_suggestion", [sug])):
+        p = plan(schema("shop"), keys=DEMO_KEYS, confirmed=confirmed)
+        out = dbt.project(p, "shop", "shop", "shop", evidence.validate(p, _demo_db()))
+        got = d[name]["dbt"]
+        assert got["tool"] == "dbt_schema" and got["option"] == "project=true" and got["project"] == out["project"]
+        assert got["files"] == sorted(out["files"]) and got["created"] == out["created"]
+        assert (got["staging"], got["marts"]) == (len(out["models"]["staging"]), len(out["models"]["marts"]))
+        m, r = got["model"], got["relationship"]
+        body = [x for x in out["files"][m["file"]].splitlines() if x.strip() and not x.lstrip().startswith("--")]
+        assert m["lines"] == body[:len(m["lines"])] and m["more"] == len(body) - len(m["lines"]) and m["lines"]
+        rel = next(x for x in p.relationships if len(x.source_cols) == 1 and len(x.target_cols) == 1)
+        assert (r["source"], r["column"], r["target"], r["field"]) == (rel.source, rel.source_cols[0], rel.target, rel.target_cols[0])
+        assert m["file"].endswith(f"__{rel.source}.sql")
+        text = out["files"][r["file"]]
+        assert r["lines"][0] == f"- name: {r['column']}" and "relationships:" in "\n".join(r["lines"])
+        assert f"to: source('shop', '{r['target']}')" in r["lines"][-2] and r["lines"][-1].endswith(f"field: {r['field']}")
+        src = text.splitlines()                     # a block of the sources file, as it is there (only dedented)
+        starts = [i for i, x in enumerate(src) if x.strip() == r["lines"][0]]
+        assert any([x[len(src[i]) - len(src[i].lstrip()):] for x in src[i:i + len(r["lines"])]] == r["lines"] for i in starts)
+    a = d["as_is"]["dbt"]
+    assert {"dbt_project.yml", "models/sources/shop.yml", "profiles.example.yml"} <= set(a["files"])
+    assert any(f.startswith("models/staging/") for f in a["files"]) and any(f.startswith("models/marts/") for f in a["files"])
+    assert a["relationship"]["source"] == "products" and a["model"]["file"] == "models/staging/shop/stg_shop__products.sql"
 
 
 def test_every_result_says_nothing_was_created_and_what_the_agent_does_by_tool_status(client):
@@ -297,6 +369,9 @@ def test_every_result_says_nothing_was_created_and_what_the_agent_does_by_tool_s
         does = pages.chat_does(create)
         assert f'data-does-{key}="{does}"' in button
     assert 'data-does-domains="drafts"' in button
+    # n162: fixes are proposed by validate_plan and applied by create_silver_notebook; dbt only drafts
+    assert f'data-draft-status-fixes="{pages.chat_status("validate_plan")}"' in button and "data-draft-status-model" not in button
+    assert 'data-does-dbt="drafts"' in button
     assert "This is a demo, so nothing was created. " in CHAT_JS
     assert "your agent creates this in your Fabric workspace when you ask." in CHAT_JS
     assert "your agent drafts this from your own tables when you ask; the draft creates nothing in Fabric." in CHAT_JS

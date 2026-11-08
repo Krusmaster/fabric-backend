@@ -278,7 +278,7 @@ def test_chat_makes_no_request_but_the_plan_and_keeps_only_its_steps_in_the_tab(
         assert f["storeAfter"]["local"] == {} and f["storeAfter"]["cookie"] == "" and list(f["storeAfter"]["session"]) == ["krusgraph.chat"], v
         st = _stored(f)
         assert st == {"open": False, "steps": st["steps"]} and st["open"] is False, (v, st)
-        assert st["steps"] == ["scan", "yes", "model", "ontology", "domains"], (v, st)     # n154: fix and dbt are links
+        assert st["steps"] == ["scan", "yes", "model", "ontology", "domains", "fixes", "dbt"], (v, st)     # n162: fix and dbt run
         assert f["cookies"] == [], v
 
 
@@ -292,7 +292,7 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert "All 15 of its values exist in addresses.address_id, in 60 of 60 rows." in f["question"], v
         assert "The plan now has 7 links." in f["linkAdded"], v
         assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Draft a dbt project"], v
-        model, onto, products = f["results"][1:]
+        model, onto, products = f["results"][1:4]
         assert "7 tables and 7 relationships; all 7 hold" in model and "1 inactive: addresses.customer_id → customers would close a cycle" in model, v
         assert "7 entity types (5 with a key) and 7 relationship types" in onto, v
         assert "2 data products drafted" in products and "customers and products, with an interface between them" in products, v
@@ -304,14 +304,14 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert "your agent creates this in your Fabric workspace when you ask." in model and "Creating it needs a permission" not in model, v
         assert "your agent creates this in your Fabric workspace when you ask." in onto and "Creating it needs a permission" not in onto, v
         # n93: a plain sentence from tool_status, no tool's name
-        m_note, o_note, d_note = f["notes"]
+        m_note, o_note, d_note = f["notes"][:3]
         for note in (m_note, o_note):
             assert note.endswith("Created in a live Fabric workspace and reviewed there."), (v, note)
         assert d_note.endswith("the draft creates nothing in Fabric. Tested with unit tests, not yet against a live Fabric workspace."), (v, d_note)
         for tool in ("create_semantic_model", "create_ontology", "domain_draft", "semantic_model_draft", "ontology_draft", "Status of"):
             assert tool not in f["allText"], (v, tool)
-        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None},
-                                                                   {"href": FIX_DOCS, "target": None}, {"href": DBT_DOCS, "target": None}], v
+        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
+        assert f["endPicks"] == ["Check my tables", "Connect to my Fabric", "Fix data issues", "Draft a dbt project"], v
         assert f["endWhy"] == "Opens the set-up guide.", v
         assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
         assert f["overflowX"] <= 0 and f["logOverflowX"] <= 0 and f["pageOverflowX"] <= 0, v
@@ -360,18 +360,51 @@ def test_chat_larger_picture_opens_inside_the_chat(chat):
         assert f["bigClosed"] == {"big": False, "open": True, "focus": "kgc-zoom", "pic": "4"}, (v, f["bigClosed"])
 
 
-FIX_DOCS, DBT_DOCS = "/docs/explore-and-check/fix-data-issues", "/docs/build-from-a-plan/create-a-dbt-flow"
-
-
-def test_chat_fix_and_dbt_link_what_exists_today(chat):
-    """n154: until n154 these two were "Planned" and ran nothing; now they link the docs of what exists today."""
+def test_chat_fix_and_dbt_run_as_steps_with_the_engines_output(chat):
+    """n162: "Fix data issues" and "Draft a dbt project" are buttons that run (n154 to n161 links to the docs). Fix data
+    issues shows what validate_plan with fixes=true answered on the example: the keys and links hold, so 0 mechanical
+    fixes, and the two business decisions as questions with their options (the level of products.list_price, with its
+    two sums; audit_log without a key), none answered or applied. Draft a dbt project shows the files, the start of a
+    staging model and one relationship's tests, and says that nothing runs. Neither has a link or a picture, both stay
+    inside their bubbles, and the end text says what the agent does, from tool_status. No request beyond the plan: that
+    is checked over the whole flow (test_chat_makes_no_request_but_the_plan_...)."""
+    from fabric_backend.demo import demo_plan
+    d = demo_plan()["drafts"]["with_suggestion"]                          # the flow said yes to the link
+    fx, db = d["fixes"], d["dbt"]
     for v, f in _chat_runs(chat).items():
         if v.endswith("mouse"):
             fix, dbt = f["further"]
-            assert fix["tag"] == "A" and fix["href"] == FIX_DOCS and not fix["planned"] and fix["why"].startswith("Today: a proposed fix for each problem"), (v, fix)
-            assert dbt["tag"] == "A" and dbt["href"] == DBT_DOCS and not dbt["planned"] and dbt["why"].startswith("Today: a dbt project"), (v, dbt)
+            assert fix == {"tag": "BUTTON", "key": "fixes", "href": None, "planned": False, "why": "A proposed fix for each problem, with counts before and after."}, (v, fix)
+            assert dbt["tag"] == "BUTTON" and dbt["key"] == "dbt" and dbt["href"] is None, (v, dbt)
+            assert f["afterFixPicks"] == ["Check my tables", "Connect to my Fabric", "Draft a dbt project"], v
+            assert f["afterDbtPicks"] == ["Check my tables", "Connect to my Fabric"], v
+            fixes, project = f["extra"]
+            h_fix, h_dbt = f["extraHtml"]
+            assert "No data to fix in the example" in fixes and f"{fx['keys_unique']} of {fx['keys']} keys unique" in fixes, (v, fixes)
+            assert f"{fx['hold']} of {fx['relationships']} links without orphans" in fixes and "nothing needs a mechanical fix" in fixes, v
+            assert h_fix["facts"] == [str(fx["counts"]["findings"]), str(fx["counts"]["mechanical"]), str(fx["counts"]["business_decision"])] == ["2", "0", "2"], v
+            assert h_fix["asks"] == [q["ask"] for x in fx["findings"] for q in x["questions"]], v
+            assert h_fix["opts"] == [o for x in fx["findings"] for q in x["questions"] for o in q["options"]] and len(h_fix["opts"]) == 3, v
+            assert "summed over the joined rows: 22,610.9; once per products row: 1,666.6" in fixes, v
+            assert "8 products rows, each joined with 13 to 27 order_items rows" in fixes, v
+            assert "nothing was applied and no question was answered" in fixes and "business decisions stay yours" in fixes, v
+            assert "dbt project drafted" in project and "Files only; nothing runs." in project, (v, project)
+            assert f"{len(db['files'])} files for dbt-fabric" in project and f"{db['staging']} staging models and {db['marts']} marts" in project, v
+            tree, model, tests = h_dbt["pre"]
+            assert "dbt_project.yml" in tree and "staging/" in tree and "marts/" in tree and "shop.yml" in tree, (v, tree)
+            assert model.split("\n")[:len(db["model"]["lines"])] == db["model"]["lines"], v
+            assert tests.split("\n") == db["relationship"]["lines"] and "relationships:" in tests, v
+            for h in (h_fix, h_dbt):
+                assert h["links"] == 0 and h["pics"] == 0 and h["inside"], (v, h)
+            assert f["extraLogOverflowX"] <= 0, v
+            fx_note, dbt_note = f["notes"][3:]
+            assert fx_note.endswith("business decisions stay yours. Created in a live Fabric workspace."), (v, fx_note)
+            assert "Run against a live Fabric workspace." in fx_note and "silver notebook it creates in your Fabric workspace" in fx_note, (v, fx_note)
+            assert "your agent drafts these files" in dbt_note and dbt_note.endswith("Run against a live Fabric workspace as a draft."), (v, dbt_note)
+            for tool in ("validate_plan", "dbt_schema", "create_silver_notebook", "fixes=true", "project=true"):
+                assert tool not in f["allText"], (v, tool)
         else:
-            assert f["furtherFocused"] == {"pick": "Fix data issues", "tag": "A", "href": FIX_DOCS}, v
+            assert f["furtherFocused"] == {"pick": "Fix data issues", "tag": "BUTTON", "href": None}, v
 
 
 def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
@@ -381,8 +414,9 @@ def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
         assert f["tabbedToLaunch"] == "kgcLaunch" and f["launchFocus"].startswith("solid"), v
         assert f["openFocus"]["cls"] == "kgc-close" and f["openFocus"]["outline"].startswith("solid"), v
         assert f["firstTab"]["pick"] == "Check the tables" and f["firstTab"]["outline"].startswith("solid"), v
-        assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "Create an ontology", "Draft data products"], v
-        assert len(f["keyboardResults"]) == 4 and f["keyboardEndFocus"] == "Check my tables", v
+        assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "Create an ontology", "Draft data products",
+                                      "Fix data issues", "Draft a dbt project"], v
+        assert len(f["keyboardResults"]) == 6 and f["keyboardEndFocus"] == "Check my tables", v
         assert f["escape"] == {"hidden": True, "focus": "kgcLaunch"} and f["reopenedKept"] > 0, v
         assert f["escapeEnd"] == {"hidden": True, "focus": "kgcLaunch"}, v
         if v.startswith("375"):

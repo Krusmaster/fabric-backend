@@ -4,7 +4,9 @@
    makes is GET /demo/plan.json, the engine's output on the synthetic shop (fabric_backend/demo.py; n154: on /check,
    which fetches nothing, the same plan is in the page). Every number, name and picture below comes from that file;
    what the chat says about creating something comes from tool_status, through the button's data attributes
-   (pages.chat_launch_html). It keeps the steps clicked and whether it is open in sessionStorage, under one key, in
+   (pages.chat_launch_html). n162: Fix data issues and Draft a dbt project are steps too, from the same file: what
+   validate_plan with fixes=true and dbt_schema with project=true answered on the example when it was built; the chat
+   applies, answers and runs nothing. It keeps the steps clicked and whether it is open in sessionStorage, under one key, in
    this tab only: known step names, never HTML or text, checked when read. No cookie,
    no localStorage, no logged event. Links open in the same tab and close the chat. Esc and Close close it and give the
    focus back to the button. Under 560 px the chat covers nearly the whole screen, the page behind it does not scroll and
@@ -13,7 +15,7 @@
   'use strict';
   var PLAN_URL = '/demo/plan.json';
   var KEY = 'krusgraph.chat';                                   // the one sessionStorage key: {open, steps}
-  var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains'];
+  var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fixes', 'dbt'];
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var narrow = window.matchMedia('(max-width: 560px)');
   var NAMES = { onto: 'Onto', thinker: 'Thinker', builder: 'Builder' };
@@ -474,15 +476,14 @@
     return [{ label: launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' },
             { label: launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }];
   }
-  // n154, n155: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
-  // nothing here is planned (n156: the whole dbt project exists as a draft)
+  // n162: fixing data and the dbt project are steps like the others (until n162 links to the docs, n154): each shows
+  // what the engine answered on the example when the plan JSON was built (validate_plan with fixes=true, dbt_schema
+  // with project=true), and is offered until it has run
   function further() {
     return [
-      { label: 'Fix data issues', href: '/docs/explore-and-check/fix-data-issues',
-        why: 'Today: a proposed fix for each problem the check finds, with counts before and after; the silver notebook applies the ones you accept, business decisions stay yours, and your source tables stay as they are.' },
-      { label: 'Draft a dbt project', href: '/docs/build-from-a-plan/create-a-dbt-flow',
-        why: 'Today: a dbt project from the checked plan, as files: staging and mart models, tests, a profile without a secret; nothing runs.' }
-    ];
+      { key: 'fixes', label: 'Fix data issues', why: 'A proposed fix for each problem, with counts before and after.', go: fixes },
+      { key: 'dbt', label: 'Draft a dbt project', why: 'Staging and mart models with tests, as files.', go: dbtProject }
+    ].filter(function (p) { return !S[p.key]; });
   }
   function drafts() { return S.linked ? P.drafts.with_suggestion : P.drafts.as_is; }
   function data(key, what) { return launch.getAttribute('data-' + what + '-' + key) || ''; }
@@ -500,22 +501,26 @@
     var left = suggestions();
     later(500, function () {
       if (left.length) say('onto', 'point', '<p>What next?</p>', left.concat(further()), '', true);
-      else say('onto', 'explain', '<h3>That is the demo</h3><p>The next step is real: your own files stay in your browser on the check page.</p>',
-               leave().concat(further()), '', true);
+      else if (!S.ended) {
+        S.ended = true;
+        say('onto', 'explain', '<h3>That is the demo</h3><p>The next step is real: your own files stay in your browser on the check page.</p>',
+            leave().concat(further()), '', true);
+      } else say('onto', 'point', '<p>What next?</p>', leave().concat(further()), '', true);
     });
   }
 
   // The result of a step: nothing was created here; what the agent does in the visitor's Fabric, and how far that has
   // been tried, are tool_status's (data-does-* and data-status-* on the button: a plain sentence, no tool's name).
-  function done(key, html, pic) {
+  // n162: note, where given, replaces the first sentences (fixes and dbt say it in their own words); the status stays
+  function done(key, html, pic, note) {
     S[key] = true;
     var does = data(key, 'does');
-    var note = 'This is a demo, so nothing was created. ' + (does === 'creates'
+    note = note || 'This is a demo, so nothing was created. ' + (does === 'creates'
       ? 'Connected to ' + product + ', your agent creates this in your Fabric workspace when you ask.'
       : does === 'drafts-gated'
         ? 'Connected to ' + product + ', your agent drafts this from your own tables when you ask.'
         : 'Connected to ' + product + ', your agent drafts this from your own tables when you ask; the draft creates nothing in Fabric.');
-    var el = say('builder', 'celebrate', html + pic + '<p class="kgc-note">' + esc(note) + ' ' + esc(data(key, 'status')) + '</p>', null, 'win');
+    var el = say('builder', 'celebrate', html + (pic || '') + '<p class="kgc-note">' + esc(note) + ' ' + esc(data(key, 'status')) + '</p>', null, 'win');
     cheer(el);
     next();
   }
@@ -551,6 +556,95 @@
            (d.interfaces.length ? ', with ' + (d.interfaces.length === 1 ? 'an interface' : d.interfaces.length + ' interfaces') + ' between them' : '') + '. ' +
            (out.length ? list(out.map(code)) + (out.length === 1 ? ' stays out, because it has no key. ' : ' stay out, because they have no key. ') : '') +
            'You choose the owners, and your admin creates the Fabric domains.</p>', pictureOfDomains(d));
+    });
+  }
+
+  // n162: validate_plan with fixes=true on the example's rows (demo.py, when the plan JSON is built): per finding its
+  // proposed fix, its counts before and after, and whether it is mechanical or a business decision. A decision is a
+  // question with its options; the demo answers none and applies nothing.
+  function num(x) { return typeof x === 'number' ? x.toLocaleString('en-GB') : esc(x); }
+  function counted(c, f) {
+    var b = f.before || {}, out = [];
+    if (b.headers !== undefined && f.joined_with) {
+      out.push(plural(b.headers, f.table + ' row') + ', each joined with ' + num(b.min_lines) + ' to ' + num(b.max_lines) + ' ' + f.joined_with + ' rows');
+    } else {
+      Object.keys(b).forEach(function (k) { out.push(esc(k.replace(/_/g, ' ')) + ' ' + num(b[k])); });
+    }
+    var a = f.expected_after || {};
+    if (Object.keys(a).length) out.push('after: ' + Object.keys(a).map(function (k) { return esc(k.replace(/_/g, ' ')) + ' ' + num(a[k]); }).join(', '));
+    var s = f.sums || {};
+    if (s.summed_over_lines !== undefined) {
+      out.push(code(f.table + '.' + f.column) + ' summed over the joined rows: ' + num(s.summed_over_lines) + '; once per ' + esc(f.table) +
+               ' row: ' + num(s.summed_per_header));
+    }
+    return out.length ? '<p class="kgc-count">' + out.join('. ') + '.</p>' : '';
+  }
+  function fixes() {
+    work('thinker', ['Counting keys and links in the rows', 'Proposing a fix per finding'], function () {
+      var x = drafts().fixes, c = x.counts;
+      var mech = x.findings.filter(function (f) { return f.type === 'mechanical'; });
+      var asks = x.findings.filter(function (f) { return f.type !== 'mechanical'; });
+      var clean = x.keys_unique === x.keys && x.hold === x.relationships;
+      var html = '<h3>' + (mech.length ? plural(mech.length, 'fix', 'fixes') + ' proposed' : 'No data to fix in the example') + '</h3>' +
+        '<p>' + x.keys_unique + ' of ' + x.keys + ' keys unique and ' + x.hold + ' of ' + x.relationships + ' links without orphans in the example’s rows' +
+        (clean && !mech.length ? ', so nothing needs a mechanical fix.' : '.') + '</p>' +
+        '<div class="kgc-facts"><div><b>' + c.findings + '</b>' + (c.findings === 1 ? 'finding' : 'findings') + '</div>' +
+        '<div><b>' + c.mechanical + '</b>mechanical</div><div><b>' + c.business_decision + '</b>' +
+        (c.business_decision === 1 ? 'decision' : 'decisions') + ' for you</div></div>';
+      if (mech.length) {
+        html += '<ul class="kgc-fixes">' + mech.map(function (f) {
+          return '<li><p>' + esc(f.what_is_wrong) + '</p><p><b>Fix:</b> ' + esc(f.proposed_fix) + '</p>' + counted(c, f) + '</li>';
+        }).join('') + '</ul>';
+      }
+      if (asks.length) {
+        html += '<p>' + (asks.length === 1 ? 'The one open question' : 'The open questions') + ', for a person to answer:</p><ul class="kgc-fixes">' +
+          asks.map(function (f) {
+            return '<li><p>' + esc(f.what_is_wrong) + '</p>' + counted(c, f) + f.questions.map(function (q) {
+              return '<p class="kgc-ask">' + esc(q.ask) + '</p>' + (q.options.length ? '<ul class="kgc-opts">' + q.options.map(function (o) {
+                return '<li>' + esc(o) + '</li>';
+              }).join('') + '</ul>' : '');
+            }).join('') + '</li>';
+          }).join('') + '</ul>';
+      }
+      var does = data('fixes', 'does');
+      var note = 'This is a demo, so nothing was applied and no question was answered. Connected to ' + product +
+        ', your agent proposes these from the counts on your own tables when you ask. ' + data('fixes', 'draft-status') + ' ' +
+        (does === 'creates' ? 'The fixes you accept go into a silver notebook it creates in your Fabric workspace'
+                            : 'The fixes you accept go into a silver notebook it drafts') +
+        '; your source tables stay as they are, and business decisions stay yours.';
+      done('fixes', html, '', note);
+    });
+  }
+
+  // n162: dbt_schema with project=true on the example (demo.py): the file tree, the first lines of one staging model
+  // and the tests the sources file has for one relationship. Files only; nothing runs.
+  function tree(paths) {
+    var lines = [], seen = {};
+    paths.forEach(function (p) {
+      var parts = p.split('/');
+      for (var i = 0; i < parts.length; i++) {
+        var at = parts.slice(0, i + 1).join('/');
+        if (seen[at]) continue;
+        seen[at] = true;
+        lines.push(new Array(i + 1).join('  ') + parts[i] + (i < parts.length - 1 ? '/' : ''));
+      }
+    });
+    return lines.join('\n');
+  }
+  function dbtProject() {
+    work('builder', ['Writing staging models', 'Writing marts and tests'], function () {
+      var x = drafts().dbt, m = x.model, r = x.relationship;
+      var html = '<h3>dbt project drafted</h3><p>' + plural(x.files.length, 'file') + ' for ' + esc(x.adapter) + ': ' +
+        plural(x.staging, 'staging model') + ' and ' + plural(x.marts, 'mart') + ', with tests. Files only; nothing runs.</p>' +
+        '<pre class="kgc-code kgc-tree" tabindex="0">' + esc(tree(x.files)) + '</pre>' +
+        '<p>The start of ' + code(m.file.split('/').pop()) + ':</p>' +
+        '<pre class="kgc-code" tabindex="0">' + esc(m.lines.join('\n') + (m.more ? '\n… ' + plural(m.more, 'more line') : '')) + '</pre>' +
+        '<p>The tests for ' + code(r.source + '.' + r.column) + ' → ' + code(r.target + '.' + r.field) + ', in ' + code(r.file.split('/').pop()) + ':</p>' +
+        '<pre class="kgc-code" tabindex="0">' + esc(r.lines.join('\n')) + '</pre>' +
+        (x.not_templated.length ? '<p>Left for you: ' + x.not_templated.map(function (n) { return code(n.table) + ' (' + esc(n.part) + '): ' + esc(n.why); }).join('; ') + '.</p>' : '');
+      var note = 'This is a demo, so nothing was created. Connected to ' + product +
+        ', your agent drafts these files from your own tables when you ask. Files only; nothing runs: you run dbt when you decide to.';
+      done('dbt', html, '', note);
     });
   }
 
