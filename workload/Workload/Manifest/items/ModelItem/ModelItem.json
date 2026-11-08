@@ -1,0 +1,34 @@
+{
+  "name": "Model",
+  "version": "1.100",
+  "displayName": "ModelItem_DisplayName",
+  "displayNamePlural": "ModelItem_DisplayName_Plural",
+  "editor": {
+    "path": "/ModelItem-editor"
+  },
+  "icon": {
+    "name": "assets/images/ModelItem_Icon.png"
+  },
+  "activeIcon": {
+    "name": "assets/images/ModelItem_Icon.png"
+  },
+  "contextMenuItems": [],
+  "quickActionItems": [],
+  "supportedInMonitoringHub": false,
+  "supportedInDatahubL1": true,
+  "editorTab": {
+    "onDeactivate": "item.tab.onDeactivate",
+    "canDeactivate": "item.tab.canDeactivate",
+    "canDestroy": "item.tab.canDestroy",
+    "onDestroy": "item.tab.onDestroy",
+    "onDelete": "item.tab.onDelete"
+  },
+  "createItemDialogConfig": {
+    "onCreationFailure": {
+      "action": "item.onCreationFailure"
+    },
+    "onCreationSuccess": {
+      "action": "item.onCreationSuccess"
+    }
+  }
+}

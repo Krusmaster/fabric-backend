@@ -81,6 +81,13 @@ the second:
 - Reading another project's documentation to learn how an API behaves is fine and is cited the way `docs/` does it
   (source, file, date); reading its code to reproduce it is copying and follows the rules above.
 
+The Fabric workload in `workload/` is a fork of Microsoft's starter kit `microsoft/fabric-extensibility-toolkit` at commit
+`dacab1b391d03010ba61a0446126d05515c487f0` (6 August 2026), whose `LICENSE` (MIT, Copyright (c) Microsoft Corporation)
+was opened and read at that commit and is kept as `workload/LICENSE`. The kit's `Workload/`, `scripts/` and `tools/` were
+copied; the HelloWorld item became the Model item and its editor was rewritten; other changes carry a `Krusgraph:`
+comment. It is listed in `THIRD_PARTY_NOTICES.md` (vendored section). The development workload name is `Org.Krusgraph`;
+no round uploads or uses a `Krusgraph.*` name (the first upload reserves it for good; `docs/WORKLOAD-DEV.md`).
+
 `docs/ECOSYSTEM-WATCHLIST.md` keeps the related MCP servers with their licence as observed or "not verified".
 
 ## Issues, pull requests and conduct

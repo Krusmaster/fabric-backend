@@ -1,0 +1,52 @@
+// Krusgraph Model editor styles. Fabric design tokens only (no colours of our own inside Fabric's frame).
+.krusgraph-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalL);
+  padding: var(--spacingHorizontalXXL);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.krusgraph-empty-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalM);
+  max-width: 360px;
+}
+
+.krusgraph-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalXS);
+}
+
+.krusgraph-row {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr 6rem auto auto;
+  align-items: center;
+  gap: var(--spacingHorizontalS);
+  padding: var(--spacingVerticalS) var(--spacingHorizontalS);
+  border-bottom: 1px solid var(--colorNeutralStroke2);
+}
+
+.krusgraph-row-open {
+  background: var(--colorPaletteYellowBackground1);
+}
+
+.krusgraph-row-rejected .krusgraph-row-what {
+  text-decoration: line-through;
+  color: var(--colorNeutralForeground3);
+}
+
+.krusgraph-row-status {
+  color: var(--colorNeutralForeground2);
+}
+
+.krusgraph-question {
+  padding: var(--spacingVerticalS) var(--spacingHorizontalS);
+  border-left: 3px solid var(--colorPaletteYellowBorder2);
+}

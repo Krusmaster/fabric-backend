@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- Krusgraph: renamed from the starter kit's HelloWorldItem.xml (microsoft/fabric-extensibility-toolkit dacab1b, MIT). -->
+<ItemManifestConfiguration SchemaVersion="2.0.0">
+  <Item TypeName="{{WORKLOAD_NAME}}.Model" Category="Data">
+    <Workload WorkloadName="{{WORKLOAD_NAME}}" />
+  </Item>
+</ItemManifestConfiguration>

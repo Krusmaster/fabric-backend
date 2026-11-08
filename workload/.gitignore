@@ -1,0 +1,11 @@
+# Krusgraph: from the starter kit's .gitignore (microsoft/fabric-extensibility-toolkit dacab1b), the lines that apply here
+/build/
+Workload/node_modules/
+Workload/dist/
+tools/DevGateway/
+tools/DevGatewayContainer/.env
+config/DevGateway/
+scripts/Build/Manifest/ValidationScripts/ValidationErrors.txt
+# per-environment settings hold app ids and URLs of one tenant; the template is committed
+Workload/.env.*
+!Workload/.env.template
