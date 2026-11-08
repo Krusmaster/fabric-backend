@@ -359,8 +359,10 @@ def test_draft_answers_as_short_summaries_with_details_closed(tmp_path, live_sho
     ]
     notes = [ln for ln in first["lines"] if ln.startswith("Note: ")]
     assert "Note: No key: audit_log." in notes and "Note: Composite key: order_items." in notes
-    assert any(n.startswith("Note: Inactive: orders.ship_to_id → addresses: it would close a cycle") for n in notes)
-    assert f"Note: {smd['note']}" in notes and first["questions"] == []
+    # n172: the rule instead of a certainty number, and no note on how the tool was tested (both in the text answer)
+    assert any(n.startswith("Note: Inactive: orders.ship_to_id → addresses (R5): it would close a cycle") for n in notes)
+    assert not any("certainty" in n or "Unit-tested" in n or "tested end to end" in n for n in notes)
+    assert f"Note: {smd['note']}" not in notes and first["questions"] == []
 
     assert second["lines"][0] == "Entity types: 7, 5 with a key"
     entities = [ln for ln in second["lines"] if ln.startswith("Entity: ")]

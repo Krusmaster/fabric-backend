@@ -3646,6 +3646,7 @@
       "columns": [
        "ship_to_id"
       ],
+      "rule": "R5",
       "source": "orders",
       "target": "addresses",
       "why": "it would close a cycle with orders - customers - addresses; the active path has certainty 0.8, this link 0.5"
@@ -4639,6 +4640,7 @@
       "columns": [
        "ship_to_id"
       ],
+      "rule": "R5",
       "source": "orders",
       "target": "addresses",
       "why": "it would close a cycle with orders - customers - addresses; the active path has certainty 0.8, this link 0.5"
@@ -4833,6 +4835,7 @@
       "columns": [
        "ship_to_id"
       ],
+      "rule": "R5",
       "source": "orders",
       "target": "addresses",
       "why": "it would close a cycle with orders - customers - addresses; the active path has certainty 0.8, this link 0.5"

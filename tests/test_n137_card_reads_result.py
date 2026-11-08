@@ -129,7 +129,7 @@ def test_structured_content_with_the_flag_and_the_text_unchanged(live_shop):
         [part] = r["content"]
         assert part["type"] == "text" and json.loads(part["text"]) == json.loads(plain)
         # n170: structuredContent is the answer plus the picture's data (`map`), which the text does not carry
-        assert {k: v for k, v in r["structuredContent"].items() if k != "map"} == json.loads(plain) and not r.get("isError")
+        assert {k: v for k, v in r["structuredContent"].items() if k not in ("map", "kg_card")} == json.loads(plain) and not r.get("isError")   # n172: + the card's words
         assert "map" in r["structuredContent"] and "map" not in json.loads(plain)
 
 
@@ -164,7 +164,15 @@ print(json.dumps({t.name: t.model_dump(by_alias=True, exclude_none=True, mode="j
 
 # ------------------------------------------------------------------ the validate_plan card ----------------------------
 
-def _check_validate(view: dict, data: dict):
+def _check_validate(view: dict, data: dict, words: dict | None = None):
+    if words:                                                                # n172: the server's own words for the card
+        assert view["verdict"] == " ".join(words["lines"]) and not view["resultShown"]
+        said = {f["kind"]: f for f in view["figures"] if f["shown"]}
+        assert said["onto"]["text"] == words["onto"] and said["onto"]["glad"]
+        assert said["builder"]["text"] == data["next_steps"][0]["why"]     # no builds offered here: the draft step, open
+        assert "Run semantic_model_draft" in view["buttons"]
+        _no_json(view)
+        return
     assert view["verdict"] == data["summary"]
     assert view["counts"] == [["Keys", "6 of 6 passed"], ["Relationships", "7 of 7 passed"], ["Needs attention", "0"]]
     assert view["attention"] == [] and view["attentionShown"]              # n138: "Nothing needs attention."
@@ -184,12 +192,12 @@ def test_validate_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("validate_plan", SRC)                    # what the server now returns, flag on
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k != "map"} == data   # n170: + the map
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card")} == data   # n170: + the map; n172: + the words
     drafted = json.dumps({"tmdl": "model Model", "note": "a draft; nothing was created."})
     for name, result in shapes.items():
         out = _browse(tmp_path, "validate_plan", SRC, result,
                       reply={"content": [{"type": "text", "text": drafted}], "structuredContent": {"result": drafted}})
-        _check_validate(out["before"], data)
+        _check_validate(out["before"], data, result.get("structuredContent", {}).get("kg_card") if isinstance(result, dict) else None)
         [call] = out["calls"]                                                 # the button asked the host for the step
         assert call["params"]["name"] == "semantic_model_draft"
         assert call["params"]["arguments"] == {k: SRC[k] for k in ("workspace", "source", "schema")}, name
@@ -254,7 +262,7 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("review_plan", args)
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k != "map"} == data   # n170: + the map
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card")} == data   # n170: + the map; n172: + the words
     for name, result in shapes.items():
         probe = _browse(tmp_path, "review_plan", args, result)
         _check_review(probe["before"], data)

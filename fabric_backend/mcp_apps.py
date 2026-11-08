@@ -523,13 +523,16 @@ __READ_JS__
       row.appendChild(b); row.appendChild(out); steps.appendChild(row);
     });
     document.getElementById("next").hidden = !steps.children.length;
+    // n172: folded under "More" when the card has its own words and the Builder's builds; an answer without them (a
+    // text result, an older server) keeps the drafts open, so the Builder's sentence stays on the card.
+    document.getElementById("next").open = !readable(words.builder);
 
     // n169: the Builder's buttons from the answer's `actions`: each build is a dry run first, Create only on its card
     var build = document.getElementById("build"); build.textContent = "";
     renderActions(data, build, null);
     build.hidden = !build.children.length;
     if (!firstStep && build.children.length && Array.isArray(data.actions) && isObj(data.actions[0])) firstStep = readable(data.actions[0].say);
-    if (isObj(data.kg_card)) firstStep = readable(words.builder);   // n172: what can be built, not the next step's text
+    if (readable(words.builder)) firstStep = words.builder;         // n172: what can be built, not the next step's text
 
     // n136: Onto says the counts, the Thinker what needs attention, the Builder the next step; every sentence is a
     // string of the answer and is on the card above. Glad only when every check passed and nothing needs attention.

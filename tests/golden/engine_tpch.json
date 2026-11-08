@@ -1109,8 +1109,8 @@
   "SUPPLIER": "SELECT TOP (10) [S_SUPPKEY], [S_NAME], [S_ADDRESS], [S_NATIONKEY], [S_PHONE], [S_ACCTBAL], [S_COMMENT] FROM [dbo].[SUPPLIER]"
  },
  "semantic_model": {
-  "bytes": 46558,
-  "sha256": "bf0c6efb3fcbcae7ba1c13059a8e008d31c43bb33f63c14dd7e4741f297a1ac7"
+  "bytes": 46586,
+  "sha256": "3d87ed88bc1c829484fbe8e8d63f359f32c0432ce243c2117ff0fdce00277fa0"
  },
  "silver": {
   "bytes": 21616,

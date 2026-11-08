@@ -240,7 +240,8 @@ def test_the_cards_load_nothing_and_use_only_the_host_calls_of_the_spec(html):
         assert method in html, method
     assert "a.arguments.dry_run === true" in html                     # a build button is a dry run
     assert 'a.kind === "create"' in html and "fromDryRun === true" in html   # Create only from a dry run's answer
-    assert "sameArgs(want, a.arguments)" in html                      # ... with exactly that dry run's arguments
+    assert "sameArgs(effective(want, a.defaults), effective(a.arguments, a.defaults))" in html   # ... with exactly that dry
+    # run's arguments (n172: as the tool runs them; the MCP SDK fills in defaults, test_n172_card_polish.py)
 
 
 def test_the_card_allows_no_tool_but_the_ones_the_actions_name():

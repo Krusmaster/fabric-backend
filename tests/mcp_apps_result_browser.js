@@ -46,7 +46,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
   await page.setContent(host);
   const frame = page.frameLocator("#view");
-  await frame.locator("#verdict").filter({ hasNotText: "Waiting for" }).waitFor({ timeout: 10000 });
+  await frame.locator("#verdict").filter({ hasNotText: "Waiting for" }).waitFor({ state: "attached", timeout: 10000 });   // n172: filled; hidden while Onto says it
   const f = page.frames().find((x) => x !== page.mainFrame());
   const read = () => f.evaluate(() => {
     const shown = (e) => !!e && !e.closest("[hidden]") && !!(e.offsetWidth || e.offsetHeight || e.getClientRects().length);
@@ -78,6 +78,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   });
   const before = await read();
   let after = null;
+  if (await frame.locator("details#next").count()) await frame.locator("details#next").evaluate((d) => { d.open = true; });   // n172: the drafts are under "More"
   const first = frame.locator("#steps button, button[data-item]").first();
   if (await first.count()) {
     await first.click();

@@ -102,6 +102,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   if (shot) await page.screenshot({ path: shot, fullPage: true });
   let after = null;
   if (mode === "bytool") {
+    if (await frame.locator("details#next").count()) await frame.locator("details#next").evaluate((d) => { d.open = true; });   // n172: the drafts are under "More"
     const buttons = frame.locator(".step button");
     for (let i = 0; i < await buttons.count(); i++) {
       await buttons.nth(i).click();
@@ -110,6 +111,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
     after = await read();
     if (shot) await page.screenshot({ path: shot.replace(/\.png$/, "-after.png"), fullPage: true });
   }
+  if (await frame.locator("details#next").count()) await frame.locator("details#next").evaluate((d) => { d.open = true; });   // n172: the drafts are under "More"
   const first = frame.locator("#steps button, button[data-item]").first();
   if (mode !== "bytool" && await first.count()) {
     await first.click();

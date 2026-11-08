@@ -43,6 +43,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   await page.setContent(host);
   const frame = page.frameLocator("#view");
   await frame.locator("#counts").waitFor({ state: "visible", timeout: 10000 });
+  if (await frame.locator("details#next").count()) await frame.locator("details#next").evaluate((d) => { d.open = true; });   // n172: the drafts are under "More"
   const buttons = frame.locator(".step button");   // n136: not the Mascots switch
   const n = await buttons.count();
   for (let i = 0; i < n; i++) {
