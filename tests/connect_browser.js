@@ -1,6 +1,6 @@
 // n80: the Connect menu in a browser, with client registration on (all four clients), at 375 and 1280 px.
 // Usage: node tests/connect_browser.js <base url> [chromium path]. Prints one JSON object the Python test asserts on.
-// Everything by keyboard: Tab to the hero's Connect, Enter opens it; the Tab order through the panel; Enter on
+// n149: the chooser is on /start, step 3 ("Choose your client"). Everything by keyboard: Tab to it, Enter opens it; the Tab order through the panel; Enter on
 // "Other clients"; each copy button pressed with the keyboard and the clipboard read back; Escape closes. n91: then Tab on
 // to the hub, which has no Connect button: its node is a link to /start, opened with Enter.
 const { chromium } = require('playwright');
@@ -14,17 +14,17 @@ const exe = process.argv[3];
     const page = await ctx.newPage();
     page.on('pageerror', e => out.errors.push(`${width}: pageerror ${e.message}`));
     page.on('console', m => { if (m.type() === 'error') out.errors.push(`${width}: console ${m.text()}`); });
-    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await page.goto(base + '/start#step-3', { waitUntil: 'networkidle' });
     const r = {};
-    // Tab from the top of the page until the hero's Connect has the focus
+    // Tab from the top of the page until the chooser's button has the focus
     let tabs = 0;
     for (; tabs < 40; tabs++) {
       await page.keyboard.press('Tab');
-      if (await page.evaluate(() => document.activeElement === document.querySelector('.hero-ctas summary'))) break;
+      if (await page.evaluate(() => document.activeElement === document.querySelector('.connect-start summary'))) break;
     }
     r.reachedByTab = tabs < 40;
     await page.keyboard.press('Enter'); await page.waitForTimeout(150);
-    const panel = '.hero-ctas .connect-panel';
+    const panel = '.connect-start .connect-panel';
     r.closedView = await page.evaluate((sel) => {
       const p = document.querySelector(sel), box = p.getBoundingClientRect();
       // checkVisibility: a closed <details> hides its content with content-visibility, which a box size does not show
@@ -72,16 +72,16 @@ const exe = process.argv[3];
       r.copies[where + ': ' + label] = { clip: await page.evaluate(() => navigator.clipboard.readText()), after: (await b.textContent()).trim() };
       await page.waitForTimeout(1700);                               // the label comes back ("Copied" for 1.6 s)
     }
-    await page.focus('.hero-ctas summary');
+    await page.focus('.connect-start summary');
     await page.keyboard.press('Escape');
-    r.afterEscape = await page.evaluate(() => ({ open: document.querySelector('.hero-ctas details').open, focus: document.activeElement === document.querySelector('.hero-ctas summary') }));
+    r.afterEscape = await page.evaluate(() => ({ open: document.querySelector('details.connect-start').open, focus: document.activeElement === document.querySelector('.connect-start summary') }));
     if (!r.afterEscape.open) { await page.keyboard.press('Enter'); await page.waitForTimeout(100); }
     await page.keyboard.press('Escape');
-    r.afterEscape2 = await page.evaluate(() => ({ open: document.querySelector('.hero-ctas details').open, focus: document.activeElement === document.querySelector('.hero-ctas summary') }));
-    // n91: past the hero, the hub has no Connect button of its own: Tab from the closed chooser reaches the hub's node,
-    // a link named for the guide, and Enter on it opens /start
-    if (await page.evaluate(() => document.querySelector('.hero-ctas details').open)) { await page.keyboard.press('Escape'); }
-    await page.focus('.hero-ctas summary');
+    r.afterEscape2 = await page.evaluate(() => ({ open: document.querySelector('details.connect-start').open, focus: document.activeElement === document.querySelector('.connect-start summary') }));
+    // n91: past the hero, the hub has no Connect button of its own: Tab from the hero's way to /start (n149: a plain
+    // link, "Connect to my Fabric") reaches the hub's node, a link named for the guide, and Enter on it opens /start
+    await page.goto(base + '/', { waitUntil: 'networkidle' });
+    await page.focus('.hero-ctas a[href="/start"]');
     let hub = null;
     for (let i = 0; i < 80 && !hub; i++) {
       await page.keyboard.press('Tab');

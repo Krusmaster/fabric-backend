@@ -43,7 +43,7 @@ def test_page_renders_indexable_with_the_examples_the_industries_and_the_footnot
     for ind in use_cases.INDUSTRIES:
         assert f'id="{ind["slug"]}"' in html and f"<h3>{htmllib.escape(ind['name'], quote=False)}</h3>" in html, ind["slug"]
     assert use_cases.FOOTNOTE in html
-    assert "For Fabric consultancies" in html and 'href="/#connect">Connect<' in html and 'href="/docs"' in html     # n73: the chooser
+    assert "For Fabric consultancies" in html and 'href="/start">Connect to my Fabric<' in html and 'href="/docs"' in html     # n73: the chooser
     assert "mailto:hello@krusgraph.test" in html
     assert 'id="problem-total-doubles"' in html                            # linked from /check
     assert html.count('data-mascot="') == 1                                 # one mascot moment

@@ -172,7 +172,7 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
         assert r.headers["content-type"].startswith("text/html"), path
         text = r.text
         assert 'class="site-header"' in text, path
-        if path == "/check":
+        if path in ("/check",) + pages.PILL_OFF:                   # n149: nor on the home page
             assert "kgc" not in text and "chat-demo" not in text, path
             continue
         button = _launcher(text)
@@ -183,7 +183,7 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
         assert "chat-demo" not in text.replace(button, ""), path
         assert not [x for x in re.findall(r'<(?:script src|link rel="stylesheet" href)="([^"?]+)', text) if "chat" in x], path
         with_button.append(path)
-    assert set(with_button) == set(pages.PAGES) - {"/check"} | {"/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"}
+    assert set(with_button) == set(pages.PAGES) - {"/check", "/"} | {"/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"}
     # /demo is a redirect to /check, which has no button
     r = client.get("/demo", follow_redirects=False)
     assert r.status_code == 301 and r.headers["location"].startswith("/check") and "kgc" not in r.text
@@ -211,7 +211,7 @@ def test_no_page_policy_changed_and_the_button_only_where_the_chat_may_fetch_its
         csp = r.headers["content-security-policy"]
         assert csp == {"/": CSP_HOME, "/check": CSP_CHECK}.get(path, CSP_PAGE), path
         allowed = "connect-src 'self'" in csp or "/demo/plan.json" in csp
-        assert ('id="kgcLaunch"' in r.text) == allowed, path
+        assert ('id="kgcLaunch"' in r.text) == (allowed and path not in pages.PILL_OFF), path     # n149: not on the home page
         assert allowed == (path != "/check"), path
     r = client.get("/", headers={"host": "bad host!"})
     assert "connect-src 'none'" in r.headers["content-security-policy"] and "kgc" not in r.text
@@ -277,7 +277,7 @@ def test_the_planned_choices_run_nothing():
 
 
 def test_every_result_says_nothing_was_created_and_what_the_agent_does_by_tool_status(client):
-    button = _launcher(client.get("/").text)
+    button = _launcher(client.get("/use-cases").text)
     for key, draft, create in pages.CHAT_RESULTS:
         tool = create or draft
         assert f'data-status-{key}="{pages.chat_status(tool)}"' in button
@@ -332,7 +332,7 @@ def test_the_status_sentence_changes_when_tool_status_does(monkeypatch):
 
 def test_the_sales_word_test_covers_the_chat(client):
     from tests.test_site import SALES
-    text = (_strings(CHAT_JS) + " " + _launcher(client.get("/").text) + " " +
+    text = (_strings(CHAT_JS) + " " + _launcher(client.get("/use-cases").text) + " " +
             " ".join(pages.chat_status(c or d) for _, d, c in pages.CHAT_RESULTS)).lower()
     for word in SALES:
         assert word not in text, word

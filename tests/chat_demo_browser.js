@@ -230,7 +230,7 @@ async function flowByKeyboard(page, f, v) {
         page.on('pageerror', (e) => f.errors.push(String(e)));
         let clicked = false;
         page.on('request', (r) => { const u = new URL(r.url()); if (clicked) f.requests.push(u.origin === base ? u.pathname + (u.pathname.startsWith('/static/chat') ? '' : u.search) : r.url()); else f.before = (f.before || []).concat(u.pathname); });
-        await page.goto(base + '/', { waitUntil: 'load' });
+        await page.goto(base + '/use-cases', { waitUntil: 'load' });
         await wait(1500);                                   // the chat never opens by itself
         f.onLoad = await page.evaluate(() => ({ box: !!document.getElementById('kgcBox'), launch: !!document.getElementById('kgcLaunch') && !document.getElementById('kgcLaunch').hidden,
           text: document.getElementById('kgcLaunch').innerText.trim(), chatScript: !!window.KrusgraphChat,
@@ -281,7 +281,7 @@ async function flowByKeyboard(page, f, v) {
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await page.click('[data-mascot-toggle]');
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     const f = {};
@@ -305,7 +305,7 @@ async function flowByKeyboard(page, f, v) {
   {
     const ctx = await browser.newContext({ viewport: { width: 375, height: 812 }, colorScheme: 'dark' });
     const page = await ctx.newPage();
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await page.click('[data-mascot-toggle]');
     await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
     await page.click('#kgcLaunch');
@@ -321,7 +321,7 @@ async function flowByKeyboard(page, f, v) {
   for (const w of [375, 1280]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: w === 375 ? 812 : 800 }, reducedMotion: 'reduce' });
     const page = await ctx.newPage();
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     const f = {};
     f.launchTransition = await page.evaluate(() => getComputedStyle(document.getElementById('kgcLaunch')).transitionDuration);
     await page.hover('#kgcLaunch');
@@ -346,7 +346,7 @@ async function flowByKeyboard(page, f, v) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.route('**/demo/plan.json', (r) => r.abort());
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await page.click('#kgcLaunch');
     await page.waitForSelector('.kgc-msg');
     out.planFails = await page.evaluate(() => ({ text: document.querySelector('.kgc-log').innerText.replace(/\s+/g, ' ').trim(),
@@ -358,7 +358,7 @@ async function flowByKeyboard(page, f, v) {
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, javaScriptEnabled: false });
     const page = await ctx.newPage();
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     out.noJs = await page.evaluate(() => { const b = document.getElementById('kgcLaunch'); return { exists: !!b, shown: !!(b && b.getBoundingClientRect().width), padded: document.body.classList.contains('has-kgc') }; });
     await page.goto(base + '/docs', { waitUntil: 'load' });
     out.noJsDocs = await page.evaluate(() => { const b = document.getElementById('kgcLaunch'); return { exists: !!b, shown: !!(b && b.getBoundingClientRect().width) }; });
@@ -387,7 +387,7 @@ async function flowByKeyboard(page, f, v) {
       const f = { errors: [] };
       page.on('console', (m) => { if (m.type() === 'error') f.errors.push(m.text()); });
       page.on('pageerror', (e) => f.errors.push(String(e)));
-      await page.goto(base + '/', { waitUntil: 'load' });
+      await page.goto(base + '/use-cases', { waitUntil: 'load' });
       await stepsToLink(page);
       await wait(1200);
       f.before = await chatState(page);
@@ -526,7 +526,7 @@ async function flowByKeyboard(page, f, v) {
     const f = { errors: [] };
     page.on('console', (m) => { if (m.type() === 'error') f.errors.push(m.text()); });
     page.on('pageerror', (e) => f.errors.push(String(e)));
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await stepsToLink(page);
     await page.click('.kgc-pick[data-pick="Create a semantic model"]');
     await waitPick(page, 'Create an ontology');
@@ -553,7 +553,7 @@ async function flowByKeyboard(page, f, v) {
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
     const page = await ctx.newPage();
-    await page.goto(base + '/', { waitUntil: 'load' });
+    await page.goto(base + '/use-cases', { waitUntil: 'load' });
     await page.click('[data-mascot-toggle]');
     await stepsToLink(page);
     await page.click('.site-nav a[href="/use-cases"]');

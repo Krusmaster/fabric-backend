@@ -2,7 +2,8 @@
 <section class="hero wrap" style="padding-bottom:12px;text-align:center">
   <span class="kicker">Get started</span>
   <h1>Connect {{PRODUCT}}</h1>
-  <p class="lede" style="margin-left:auto;margin-right:auto">You’ll need a Microsoft work account, access to a Fabric workspace with capacity, and your organisation’s approval for {{PRODUCT}}’s permissions.</p>
+  <p class="start-from-check">Coming from /check? <a href="#step-3">Go to step 3: Add the connector ↓</a></p>
+  <details class="start-needs"><summary>What you need</summary><p>You’ll need a Microsoft work account, access to a Fabric workspace with capacity, and your organisation’s approval for {{PRODUCT}}’s permissions.</p></details>
 </section>
 <section class="wrap" style="padding-top:0;padding-bottom:20px" aria-label="Two ways to start">
   <div class="grid-2 start-paths">
@@ -36,9 +37,10 @@
         <p>In Claude, open <strong>Customize → Connectors → Add → Add custom connector</strong>. Give it a name and paste this URL:</p></div>
         <div class="start-figure" aria-hidden="true"><span data-mascot="maker" data-pose="celebrate" data-label=""></span></div></div>
         <div class="copy-row"><pre><code id="mcp-url">{{MCP_URL}}</code></pre><button type="button" class="btn ghost small" data-copy="#mcp-url">Copy URL</button></div>
+        {{START_CONNECT}}
         <p>Sign in with your Microsoft work account. Your first prompt: <em>“List the data sources in workspace …”</em>, then <em>“Plan the shop lakehouse and check the plan against the data.”</em></p>
         <p>The first goal is a plan you have read and checked: the suggested keys and relationships, the rule behind each, and the counts from your data. Correct what doesn’t match how your business works, and keep the result: <em>“Keep this review as a file.”</em> gives you the plan, your decisions and the checks to commit to your own repository and read back next time ({{STATUS_REVIEW_PLAN}}; <a href="/docs#keep-your-review">how it works</a>). Creating a GraphQL API from it can be the next step: <em>“Create it as shop_api.”</em> {{CREATE_API_STATUS}} (<a href="/docs#test-status">test status</a>). Five first questions for a lakehouse nobody has documented are in the <a href="/docs#what-you-can-ask">docs</a>.</p>
-        {{#IF CLIENT_REGISTRATION}}<p class="muted">Two addresses: <code>{{MCP_URL}}</code> for Claude, and <code>{{CONNECT_URL}}</code> for clients that register themselves (VS Code, Cursor, Lovable and other MCP clients), where {{PRODUCT}} first shows its own approval page for the client and then you sign in with Microsoft. {{CONNECT_TESTED}}; set-up for each client is in the <a href="/docs#other-mcp-clients">docs</a>, and the one-click install links are behind the Connect button on <a href="/#connect">the start page</a>.</p>{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}<p class="muted">The hosted service at {{DOMAIN}} supports Claude, and that is the client it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra app yet, so they can’t sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet). Full usage notes are in the <a href="/docs">docs</a>.</p>{{/IF}}
+        {{#IF CLIENT_REGISTRATION}}<p class="muted">Two addresses: <code>{{MCP_URL}}</code> for Claude, and <code>{{CONNECT_URL}}</code> for clients that register themselves (VS Code, Cursor, Lovable and other MCP clients), where {{PRODUCT}} first shows its own approval page for the client and then you sign in with Microsoft. {{CONNECT_TESTED}}; set-up for each client is in the <a href="/docs#other-mcp-clients">docs</a>, and the one-click install links are under “Choose your client” above.</p>{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}<p class="muted">The hosted service at {{DOMAIN}} supports Claude, and that is the client it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra app yet, so they can’t sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself (not tested yet). Full usage notes are in the <a href="/docs">docs</a>.</p>{{/IF}}
       </div>
       <p class="start-sample"><a href="/check?example=sample#check-map">Explore a sample first →</a></p>
       <details id="access" data-open-wide>

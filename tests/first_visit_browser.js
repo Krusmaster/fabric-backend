@@ -19,7 +19,7 @@ const { chromium } = require('playwright');
         }));
         if (v.endsWith('light-no-preference')) {
           const seen = [];
-          for (let i = 0; i < 18; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
+          for (let i = 0; i < 20; i++) { await page.keyboard.press('Tab'); seen.push(await page.evaluate(() => document.activeElement.getAttribute('href'))); }
           out[`tab@${w}`] = seen;
         }
         await page.goto(base + '/check', { waitUntil: 'load' });

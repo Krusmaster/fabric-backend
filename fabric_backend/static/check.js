@@ -635,7 +635,7 @@
         el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
         ...statusLines([{ what: "the data contract", status: r.domains.status }]),
         el("div", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract", "ODCS 3.2 YAML: schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : "") + "."),
-          el("a", { class: "btn primary small", href: "/start" }, "Create it in your own Fabric"))];
+          el("a", { class: "btn primary small", href: "/start" }, "Connect to my Fabric"))];
     } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {
       setTimeout(() => openBuild("model"), 0);
@@ -643,7 +643,7 @@
     } });
     qs.push({ id: "own", q: "Can I ask my own questions?", a: () => [
       el("p", null, el("strong", null, "Yes, in Claude."), " Connect " + $("check-ask").dataset.product + " to Claude and ask about your own lakehouse; the answers come with the same rules and are checked against the rows. Here on /check nothing leaves the browser, so there is no question box."),
-      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/#connect" }, "Connect"))] });
+      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect to my Fabric"))] });
     listEl.replaceChildren(...qs.map((x) => {
       const b = el("button", { type: "button", class: "check-ask-q", "aria-expanded": "false", "aria-controls": "check-ask-answer", "data-ask": x.id }, x.q);
       b.addEventListener("click", () => {

@@ -1,4 +1,4 @@
-"""n80: the Connect menu in a browser with client registration on, at 375 and 1280 px, by keyboard
+"""n80: the Connect menu in a browser (n149: on /start, step 3, "Choose your client") with client registration on, at 375 and 1280 px, by keyboard
 (tests/connect_browser.js): Claude first and open with one large button and Copy URL beside it, a first question to
 copy, Lovable under it, "Other clients" closed at the bottom (VS Code, then Cursor), the admin line last with its note;
 no address printed; each copy button puts its client's address, the question or the admin note on the clipboard."""
@@ -64,7 +64,7 @@ def test_the_menu_by_keyboard(report, note, width):
     assert not v["printedUrl"], v["text"]
     assert v["mainBigger"] and v["besideCopy"], v
     assert r["tabOrder"] == ["Open Claude’s connectors", "Copy URL", "Copy a first question", "Copy URL", "Other clients", "Add to VS Code",
-                             "Insiders", "Add to Cursor", "Copy a note to your admin", "the set-up guide"], r["tabOrder"]
+                             "Insiders", "Add to Cursor", "Copy a note to your admin"], r["tabOrder"]     # n149: on /start, no link to itself
     o = r["otherOpened"]
     assert o["open"] and o["outerOpen"] and o["clients"] == ["VS Code", "Cursor"] and o["inside"] and o["wide"] <= int(width), o
     assert o["links"] == ["vscode:mcp/install", "vscode-insiders:mcp/install", "cursor://anysphere.cursor-deeplink/mcp/install"], o

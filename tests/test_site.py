@@ -68,16 +68,22 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     html = client.get("/").text
     assert "Good things happen when data connects." not in html
     h1 = re.search(r"<h1>(.*?)</h1>", html).group(1)
-    assert "Fabric tables" in h1 and "MCP" not in h1 and "GraphQL" not in h1
-    first = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
+    # n149 (the UX review of 7 November 2026): the hero leads with the problem; the n39 promise follows above the points
+    assert h1 == "Why is your total twice what finance says?" and "MCP" not in h1 and "GraphQL" not in h1
+    lede = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
+    assert lede == "Krusgraph checks keys and joins in your Fabric tables, and shows the rule and the row counts behind every link."
+    first = re.search(r'<p class="usp-lead">(.*?)</p>', html).group(1)
     assert first.startswith("See how your business tables really connect – with the proof behind every link")      # n39: the USP
     usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
     assert usp == ["The proof.", "The errors before anyone sees them.", "SAP knowledge from public sources.", "One plan for what you build."]
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
-    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="#connect">Connect<' in html       # n73: the chooser
-    assert "No account needed" in html and "through MCP" in html                        # MCP explained further down
+    assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to my Fabric<' in html
+    assert "through MCP" in html                                                         # MCP explained further down
+    # n149: the status is said once, by the tools list, not in the steps
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
-    assert "API" in step3 and "experimental" in step3 and 'href="/docs#test-status"' in step3
+    assert "API" in step3 and "xperimental" not in step3
+    status = re.search(r'<p class="muted tiny build-status" id="status">(.*?)</p>', html, re.S).group(1)
+    assert "experimental" in status and 'href="/docs#test-status"' in status
     assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
 
 
@@ -743,11 +749,13 @@ def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):
 def test_experimental_status_sits_next_to_the_creating_step(client):
     """Wherever a page offers creating the API as a step, the step itself says it is experimental and links the test
     status, so the claim and its status cannot drift apart on different parts of the page."""
+    # n149 (the UX review of 7 November 2026): on the home page the status is said once, in the tools list's section,
+    # where the creating tools are offered; the steps above it make no claim about creating
     home = client.get("/").text
-    step = re.search(r'<section[^>]*id="how".*?</section>', home, re.S).group(0)
-    items = re.findall(r"<li.*?</li>", step, re.S)
-    creating = [i for i in items if "create" in i.lower() or "build" in i.lower()]
-    assert creating and all("xperimental" in i and 'href="/docs#test-status"' in i for i in creating[-1:])
+    tools = re.search(r'<section[^>]*id="build-on".*?</section>', home, re.S).group(0)
+    assert "xperimental" in tools and 'href="/docs#test-status"' in tools and "API" in tools
+    pitch = home[:home.index('id="build-on"')]
+    assert "xperimental" not in pitch and "Tested end to end on" not in pitch
     start = client.get("/start").text
     assert re.search(r"create_backend[^<]{0,200}", start) and "xperimental" in start
     lovable = client.get("/lovable").text
@@ -886,8 +894,9 @@ def test_the_hub_has_no_connect_button_and_its_node_links_to_the_guide(client, m
     row, visual, _, _ = _hub(client)
     assert "<details" not in row and "data-connect" not in row and "<summary" not in row and ">Connect<" not in row
     assert "connect-inline" not in html and 'connect_menu_html("inline")' not in (Path(__file__).resolve().parents[1] / "fabric_backend/pages.py").read_text()
-    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</details>", 1)[0]
-    assert '<details class="connect connect-pop" data-connect>' in hero and '<summary class="btn secondary">Connect' in hero
+    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
+    # n149: the hero's secondary way in is a plain link to /start; the client chooser is on /start
+    assert "<details" not in hero and '<a class="btn secondary" href="/start">Connect to my Fabric</a>' in hero
     focusable = re.findall(r"<(a|button|summary|input|select|textarea)\b([^>]*)>", visual)
     assert len(focusable) == 1 and focusable[0][0] == "a", focusable                 # the node, and nothing else in the hub
     node = re.search(r'<span class="hub-node">(.*?)</span><span class="hub-sub"', visual, re.S).group(1)
@@ -1054,7 +1063,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
-    assert "403" not in text and "cause unknown" not in text and "Creating the semantic model: created live; reviewed in Fabric" in text
+    assert "403" not in text and "cause unknown" not in text and "The semantic model: created live; reviewed in Fabric" in text
     assert "the ontology: created live; reviewed in Fabric" in text and "not yet reviewed" not in text
 
 
@@ -1081,7 +1090,8 @@ def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
     n49: two of them now create (an ontology, a semantic model), and the caption says which and when."""
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
-    assert html.index("<h1") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
+    # n149: the replay starts empty, so it sits further down, after the steps, not in the hero
+    assert html.index("<h1") < html.index('class="usp"') < html.index('id="example"') < html.index('id="how"') < html.index('<figure class="session"')
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
     assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert "synthetic" in box and "29 October 2026" in box and "read only" in box and "created" in box
@@ -1095,7 +1105,7 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     assert "A replay of a session in Claude" in box and "You type in Claude" not in box
-    assert '<a href="/check">Check your files</a>' in box and '<a href="#connect">Connect</a>' in box
+    assert '<a href="/check">Check my tables</a>' in box and '<a href="/start">Connect to my Fabric</a>' in box
     assert "<input" not in box and "29 October 2026" in box
 
 
@@ -1112,7 +1122,9 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
     assert tools == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert "7 entity types (5 with a key) and 7 relationship types, 0 skipped" in box and "shop_ontology" in box
     assert "shop_model_live" in box and "6 active relationships and 1 inactive" in box and "4 measures" in box
-    assert ts.short("create_ontology") in box and ts.short("create_semantic_model") in box
+    # n149: the creating tools' status is said once, by the tools list, from tool_status
+    status = re.search(r'<p class="muted tiny build-status" id="status">(.*?)</p>', html, re.S).group(1)
+    assert ts.short("create_ontology") in status and ts.short("create_semantic_model") in status
     assert "report" not in box.lower() and "visual" not in box.lower()
     cap = re.search(r"<figcaption.*?</figcaption>", box, re.S).group(0)
     assert "read only (29 October 2026)" in cap and "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap
@@ -1124,18 +1136,21 @@ def test_one_name_for_each_way_in_across_the_site(client):
     pilot", /demo "Try the guided demo", /explore "Explore the demo graph". n73: "Connect" everywhere (the footer, the
     session links, the closing card, /check's answer), pointing at the n68 chooser (#connect on the start page); /start is
     "the set-up guide" or, from /check's build step, "Create it in your own Fabric" (named in browser_build.py's drafts)."""
-    names = {"/check": {"Check your files", "Check your files – no account"}, "/start": {"Create it in your own Fabric", "The set-up guide", "the set-up guide"},
-             "/#connect": {"Connect"}, "#connect": {"Connect"},
+    # n149: "Check my tables" (/check) and "Connect to my Fabric" (/start) on every button, the menu and the footer;
+    # the consent pages keep "The set-up guide" for /start#step-1
+    names = {"/check": {"Check my tables"}, "/start": {"Connect to my Fabric"}, "/start#step-3": {"Connect to my Fabric"},
+             "/start#step-1": {"The set-up guide"},
              "/support": {"Get help"}, "/partners": {"Try a pilot"}, "/demo": {"Try the guided demo"},
              "/explore": {"Explore the demo graph"}}
-    for path in ("/", "/demo", "/check", "/start", "/use-cases", "/support", "/partners", "/explore"):
+    for path in ("/", "/demo", "/check", "/start", "/use-cases", "/support", "/partners", "/explore", "/blog", "/it"):
         html = client.get(path).text
         links = re.findall(r'<a class="btn [^"]*" href="([^"]+)">([^<]+)</a>', html)
         for nav in re.findall(r'<nav[^>]*>(.*?)</nav>', html, re.S):
             links += re.findall(r'<a href="([^"]+)"[^>]*>([^<]+)</a>', nav)
         for href, text in links:
             if href in names:
-                assert text.strip() in names[href], (path, href, text)
+                assert text.strip().rstrip(" →") in names[href], (path, href, text)
+            assert href not in ("#connect", "/#connect"), (path, href, text)
     for gone in ("Discuss your schema", "Get help with a question", "Explore the demo<", "Try it with your own files"):
         assert gone not in client.get("/").text, gone
     for path in PUBLIC_PAGES + ["/consent/done", "/consent/done?admin_consent=True", "/llms.txt", "/docs.md", "/start.md", "/lovable.md"]:
@@ -1222,7 +1237,9 @@ def test_the_old_demo_addresses_redirect_to_check(client):
     assert client.get("/demo/plan.json").status_code == 200                                 # the data stays
     home = client.get("/").text
     hero = re.search(r'<section class="hero">.*?</section>', home, re.S).group(0)
-    assert 'href="/check?example=sample&amp;guide=1"' in hero and "Try the guided demo" in hero
+    assert 'href="/check?example=sample&amp;guide=1"' not in hero                      # n149: one demo button, after the example
+    buttons = re.findall(r'<a class="btn [^"]*" href="/check\?example=sample&amp;guide=1">Try the guided demo</a>', home)
+    assert len(buttons) == 1 and home.index('id="example"') < home.index(buttons[0])
     js = client.get("/static/check.js").text
     assert 'guided = query.get("guide") === "1"' in js and '["sample", "sap", "crm", "billing"].includes(query.get("example"))' in js
     for step in ("How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"):
@@ -1315,7 +1332,7 @@ def test_the_home_page_offers_two_paths_after_the_demo(client):
     assert html.index('id="demo"') < html.index('id="paths"') < html.index('id="how"')
     paths = html[html.index('id="paths"'):html.index("</section>", html.index('id="paths"'))]
     assert "<h3>Try it yourself</h3>" in paths and "<h3>Get help with one number</h3>" in paths
-    assert 'href="/check">Check your files</a>' in paths and 'href="#connect">Connect</a>' in paths and 'href="/partners">Try a pilot</a>' in paths
+    assert 'href="/check">Check my tables</a>' in paths and 'href="/start">Connect to my Fabric</a>' in paths and 'href="/partners">Try a pilot</a>' in paths
     for card in re.findall(r'<div class="card soft">(.*?)</div>', paths, re.S):
         sentences = [x for x in re.split(r"(?<=[.!?])\s+", re.sub(r"<[^>]+>", "", re.search(r'<p class="muted">(.*?)</p>', card).group(1))) if x]
         assert len(sentences) == 1, sentences
@@ -1423,7 +1440,7 @@ def test_the_admin_consent_link_returns_to_consent_done_which_reads_both_answers
     from fabric_backend import pages
     nxt = ok.text.split('id="next"', 1)[1]
     assert nxt.startswith(">Next step: connect, then ask a first question</h2>") and f"<p>{pages.FIRST_QUESTION}</p>" in nxt
-    assert '<a class="btn primary" href="/#connect">Connect</a>' in nxt and f'data-copy-text="{pages.FIRST_QUESTION}">Copy the question</button>' in nxt
+    assert '<a class="btn primary" href="/start#step-3">Connect to my Fabric</a>' in nxt and f'data-copy-text="{pages.FIRST_QUESTION}">Copy the question</button>' in nxt
 
 
 @pytest.mark.parametrize("registration", ["", "1"])
@@ -1435,15 +1452,20 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     import json
     from urllib.parse import unquote
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
-    html = client.get("/").text
-    assert html.count("<details class=\"connect connect-pop\" data-connect>") == 1 and html.count("data-connect") == 1 and "connect-inline" not in html
-    hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
-    assert '<a class="btn primary" href="/check">Check your files – no account</a>' in hero and "<summary" in hero and 'href="/start">Connect to Claude' not in hero
-    hub = html.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
-    assert "<details" not in hub and "Connect" not in hub and '<div class="hub" aria-hidden' not in html and '<ul aria-hidden="true">' in hub
-    pop = html.split("connect-pop", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
+    # n149: the chooser moved from the home page's hero to step 3 of /start ("Choose your client"); the hero links /start
+    home = client.get("/").text
+    assert "data-connect" not in home and "connect-inline" not in home
+    hero = home.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
+    assert '<a class="btn primary" href="/check">Check my tables</a>' in hero and "<summary" not in hero and 'href="/start">Connect to my Fabric</a>' in hero
+    hub = home.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
+    assert "<details" not in hub and "Connect" not in hub and '<div class="hub" aria-hidden' not in home and '<ul aria-hidden="true">' in hub
+    html = client.get("/start").text
+    assert html.count('<details class="connect connect-start" data-connect id="connect">') == 1 and html.count("data-connect") == 1
+    step3 = html.split('data-pane="3" id="step-3"', 1)[1].split('data-pane=', 1)[0]
+    assert "connect-start" in step3 and '<summary class="btn secondary">Choose your client' in step3
+    pop = html.split("connect-start", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
     assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/customize/connectors" rel="noopener"' in pop
-    assert 'href="/start">the set-up guide</a>' in pop and "Add Krusgraph to" in pop
+    assert 'href="/start">the set-up guide</a>' not in pop and "Add Krusgraph to" in pop
     # n80: Claude first, open, with one large button, Copy URL beside it and a first question to copy; the admin line
     # last, with a note to copy; no address printed anywhere in the panel, every one inside a copy button or a link
     from fabric_backend import pages
@@ -1474,7 +1496,7 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     assert '<details class="connect-other" open' not in pop
     start = client.get("/start").text
     assert "Two addresses: <code>https://krusgraph.test/mcp</code> for Claude, and <code>https://krusgraph.test/mcp/connect</code> for clients that register themselves" in start
-    assert 'href="/#connect"' in start
+    assert 'href="/#connect"' not in start and "under “Choose your client” above" in start
 
 
 def test_the_first_question_only_reads_and_needs_no_workspace_name():

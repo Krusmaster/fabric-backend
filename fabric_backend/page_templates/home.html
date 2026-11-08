@@ -2,50 +2,20 @@
 <section class="hero">
   <div class="wrap hero-copy">
     <p class="eyebrow">For teams working in Microsoft Fabric</p>
-    <h1>Understand how your Fabric tables fit together.</h1>
-    <p class="lede">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
+    <h1>Why is your total twice what finance says?</h1>
+    <p class="lede">{{PRODUCT}} checks keys and joins in your Fabric tables, and shows the rule and the row counts behind every link.</p>
     <div class="ctas hero-ctas" id="connect">
-      <a class="btn primary" href="/check">Check your files – no account</a>
-      {{HOME_CONNECT}}
+      <a class="btn primary" href="/check">{{LABEL_CHECK}}</a>
+      <a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a>
     </div>
-    <figure class="session" aria-labelledby="session-cap">
-      <button type="button" class="session-pause" aria-pressed="false">Pause</button>
-      <p class="session-head">A replay of a session in Claude</p>
-      <ol class="session-turns">
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
-          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
-          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
-          <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>. <span class="session-status">{{SHORT_CREATE_ONTOLOGY}}</span></p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
-          <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet. <span class="session-status">{{SHORT_CREATE_SEMANTIC_MODEL}}</span></p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
-        </li>
-      </ol>
-      <p class="session-links"><a href="/check">Check your files</a><a href="#connect">Connect</a></p>
-      <figcaption id="session-cap">Answers shortened from real runs in Claude against synthetic shop data in a Fabric lakehouse: questions 1 and 2 read only (29 October 2026), question 3 created an ontology (28 October 2026) and question 4 a semantic model (29 October 2026).</figcaption>
-    </figure>
+{{HOME_BEFORE_AFTER_MINI}}
+    <p class="usp-lead">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
     <ul class="usp">
       <li><strong>The proof.</strong> Every proposal shows its basis, and the checks you run show their results.</li>
       <li><strong>The errors before anyone sees them.</strong> The total that doubles, keys that are not unique, references with no matching row.</li>
       <li><strong>SAP knowledge from public sources.</strong> Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.</li>
       <li><strong>One plan for what you build.</strong> The same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.</li>
     </ul>
-    <div class="ctas">
-      <a class="btn secondary" href="/check?example=sample&amp;guide=1">Try the guided demo</a>
-    </div>
-    <p class="sources-line">The demo uses sample data. No account needed.</p>
   </div>
 </section>
 
@@ -61,7 +31,7 @@
 <section class="wrap two-paths" id="paths" aria-labelledby="paths-h">
   <h2 id="paths-h">Then: on your own, or with help on one number.</h2>
   <div class="grid-2">
-    <div class="card soft"><h3>Try it yourself</h3><p class="muted">Drop your own exports on the check page, with no account, or connect {{PRODUCT}} to your AI client and read your own lakehouse.</p><p class="ctas"><a class="btn primary small" href="/check">Check your files</a><a class="btn secondary small" href="#connect">Connect</a></p></div>
+    <div class="card soft"><h3>Try it yourself</h3><p class="muted">Drop your own exports on the check page, with no account, or connect {{PRODUCT}} to your AI client and read your own lakehouse.</p><p class="ctas"><a class="btn primary small" href="/check">{{LABEL_CHECK}}</a><a class="btn secondary small" href="/start">{{LABEL_CONNECT}}</a></p></div>
     <div class="card soft"><h3>Get help with one number</h3><p class="muted">Bring a number your team cannot agree on: a first assessment says what it would take, and a pilot explains the number with the counts behind it.</p><p class="ctas"><a class="btn secondary small" href="/partners">Try a pilot</a></p></div>
   </div>
 </section>
@@ -71,18 +41,49 @@
   <ol class="steps">
     <li><span class="step-n coral">1</span><h3>Explore your tables</h3><p>Choose a lakehouse in Claude. {{PRODUCT}} reads the schema and suggests keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span><p class="step-more tiny"><a href="/docs/concepts/how-it-works">How it works</a></p></li>
     <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span><p class="step-more tiny"><a href="/docs/concepts/how-they-connect">Why everything comes from one plan</a></p></li>
-    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-status"><span class="status-tag">{{CREATE_API_WORD}}</span> {{CREATE_API_STATUS}}. <a href="/docs#test-status">See current test status</a>.</p><p class="step-more tiny">Concepts: <a href="/docs/concepts/ontologies">ontologies</a> and <a href="/docs/concepts/data-products">data products</a></p></li>
+    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-more tiny">Concepts: <a href="/docs/concepts/ontologies">ontologies</a> and <a href="/docs/concepts/data-products">data products</a></p></li>
   </ol>
-  <p class="muted tiny" style="margin:14px 6px 0">Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
+</section>
+
+<section class="wrap replay" id="replay" aria-label="A replay of a session in Claude">
+  <figure class="session" aria-labelledby="session-cap">
+    <button type="button" class="session-pause" aria-pressed="false">Pause</button>
+    <p class="session-head">A replay of a session in Claude</p>
+    <ol class="session-turns">
+      <li class="session-turn">
+        <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
+        <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
+        <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
+      </li>
+      <li class="session-turn">
+        <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
+        <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
+        <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
+      </li>
+      <li class="session-turn">
+        <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
+        <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>.</p></div></div>
+        <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
+      </li>
+      <li class="session-turn">
+        <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
+        <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet.</p></div></div>
+        <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
+      </li>
+    </ol>
+    <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
+    <figcaption id="session-cap">Answers shortened from real runs in Claude against synthetic shop data in a Fabric lakehouse: questions 1 and 2 read only (29 October 2026), question 3 created an ontology (28 October 2026) and question 4 a semantic model (29 October 2026).</figcaption>
+  </figure>
 </section>
 
 <section class="wrap" id="build-on" aria-labelledby="build-on-h">
   <h2 id="build-on-h">Build on the relationships you’ve reviewed.</h2>
   <ul class="build-rows">
     <li><h3>Document the schema</h3><p>A data dictionary in Markdown or dbt tests from the plan, with the checks you ran. <a href="/docs#what-you-can-ask">What you can ask</a>.</p></li>
-    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. {{CREATE_API_STATUS}}. <a href="/lovable">Use it with Lovable</a>.</p></li>
-    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. Creating the semantic model: {{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
+    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. <a href="/lovable">Use it with Lovable</a>.</p></li>
+    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
   </ul>
+  <p class="muted tiny build-status" id="status">Status: {{PRODUCT}} is a preview service; a tool that has not run against a live Fabric workspace is marked experimental. Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. {{CREATE_API_STATUS}}. The semantic model: {{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
 </section>
 
 {{HOME_HUB}}
@@ -125,7 +126,7 @@
 <section class="wrap" style="padding-top:0">
   <div class="card ready" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
     <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to your client, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need; <a href="/it">a page for your IT department</a> lists what the admin approves and why.</p></div>
-    <div class="ctas"><a class="btn primary" href="#connect">Connect</a><a class="btn ghost" href="/check?example=sample#check-map">See the example’s map</a></div>
+    <div class="ctas"><a class="btn primary" href="/check">{{LABEL_CHECK}}</a><a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a></div>
   </div>
   <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/docs">read the docs</a> · <a href="/support">get help</a> · <a href="/partners">try a pilot</a></p>
 </section>

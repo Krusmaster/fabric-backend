@@ -1435,3 +1435,28 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .blog table{min-width:0}
 .blog table:has(th:nth-child(4)){min-width:520px}
 @media (max-width:520px){.blog th,.blog td{padding:8px 10px;font-size:15px}.blog td code,.blog th code{font-size:13px}.blog pre{font-size:13px;padding:12px}}
+
+/* n149: the hero's small before and after, the replay further down, the status line by the tools list */
+.ba-mini{display:inline-flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:4px 10px;margin:-10px auto 22px;padding:10px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);font-size:15px}
+.ba-mini-what{color:var(--muted)}
+.ba-mini-before,.ba-mini-after{font:600 20px/1.2 var(--font-head)}
+.ba-mini-before{color:var(--coral-ink);text-decoration:line-through;text-decoration-thickness:2px}
+.ba-mini-after{color:var(--sage-ink)}
+.ba-mini a{font-weight:700}
+.before-after .ba-more{margin:8px 0 0;font-weight:700}
+.replay{padding-top:8px}
+.replay .session{margin:0 auto}
+.build-status{margin:14px 6px 0}
+/* n149: on a phone, /check shows the drop area and the privacy line first, the examples under them */
+@media (max-width:759px){.check-start-inner{display:flex;flex-direction:column}.check-start-inner>.check-examples{order:1;margin-top:18px}.check-start-inner>.check-ex-more{order:1}
+  .check-start-inner>.check-engine-size,.check-start-inner>.check-loading,.check-start-inner>.check-status{order:2}}
+.check-ex-more{margin:-8px 0 14px;font-size:14.5px;text-align:left}
+.check-live{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;margin-top:16px}
+.check-live h3{margin:0 0 4px}
+.check-live p{margin:0}
+.start-from-check{margin:0 auto 6px;font-weight:700}
+.start-needs{max-width:62ch;margin:0 auto;text-align:left}
+.start-needs>summary{cursor:pointer;font-weight:600;text-align:center}
+.connect-start{display:block;margin:14px 0}
+.connect-start .connect-panel{width:auto;box-shadow:none}
+.usp-lead{max-width:60ch;margin:0 auto 10px;font-weight:600}

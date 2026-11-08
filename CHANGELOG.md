@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n149: the home page and /check lead with the problem (the UX review of 7 November 2026). The home hero asks
+  "Why is your total twice what finance says?" and shows the 2 000 → 1 000 before and after as a small card under its
+  two buttons; the replay moved down, after the steps. One primary and one secondary way in with the same labels
+  everywhere: "Check my tables" (/check) and "Connect to my Fabric" (/start), in the hero, the middle section, the
+  closing card, after a /check result, on /pricing, in the navigation and the footer. The client chooser (Claude,
+  Lovable, VS Code, Cursor) moved from the hero's "Connect ▾" to step 3 of /start ("Choose your client"); /start opens
+  with "Coming from /check?" and a jump to that step, the requirements folded under it. No floating "Try a demo" on the
+  home page (nor /check, as before); one "Try the guided demo" button, after the total that doubles. The test status is
+  said once, by the tools list. /check: a card after a result leads to /start and says what it needs (a Microsoft work
+  account; an admin approves once, linking /it); the footer's "Run it locally" is a text link and its demo button is
+  gone; at 375 px the drop area and the privacy line come before the example cards. Blog is in the main navigation; the
+  article on the total that doubles is linked from the home page's example and /check's example cards (there is no
+  /join-validation page). The data line on the home page and /pricing is n146's. `tests/test_n149_lead_with_problem.py`.
+
 - Round n146: one source for permissions, data flow and test status, after the outside review of 7 November 2026.
   `fabric_backend/access.py` holds the app's delegated permissions (equal to the deploy check's `REQUIRED_SCOPES`, read
   7 November 2026), what each tool uses them for and whether anything runs or is scheduled, the tokens kept per client

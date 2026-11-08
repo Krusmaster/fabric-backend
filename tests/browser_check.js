@@ -52,23 +52,6 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
       }
       if (path === '/') {
         facts[`homeCtas@${vname}`] = await page.evaluate(() => [...document.querySelectorAll('.hero .ctas a')].map(a => a.getAttribute('href')));
-        // n68: the Connect chooser beside the first button (n91: the hero's only; the hub has none): opened by keyboard, its
-        // panel on the screen, its links the clients' install links, Escape closes it and returns the focus; no horizontal scroll
-        facts[`connect@${vname}`] = await (async () => {
-          const out = {};
-          for (const where of ['.hero-ctas']) {
-            await page.focus(where + ' summary'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
-            out[where] = await page.evaluate((w) => {
-              const d = document.querySelector(w + ' details'), r = d.querySelector('.connect-panel').getBoundingClientRect();
-              return { open: d.open, inside: r.left >= 0 && r.right <= window.innerWidth, wide: document.documentElement.scrollWidth,
-                       links: [...d.querySelectorAll('a')].map(a => (a.getAttribute('href') || '').split('?')[0].split('#')[0]),
-                       copies: [...d.querySelectorAll('[data-copy-text]')].map(b => b.getAttribute('data-copy-text')) };
-            }, where);
-            await page.keyboard.press('Escape');
-            out[where].afterEscape = await page.evaluate((w) => ({ open: document.querySelector(w + ' details').open, focus: document.activeElement === document.querySelector(w + ' summary') }), where);
-          }
-          return out;
-        })();
         // the hub under the hero: every card and the product inside the screen, none on top of another, no name cut
         // off, the text version for screen readers in the page (visually hidden, not display:none), and the layout:
         // three columns side by side on a wide screen, stacked with the product in the middle on a narrow one
@@ -122,8 +105,8 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
           out.hitIsLink = await page.evaluate(([x, y]) => !!(document.elementFromPoint(x, y) || document.body).closest('a.hub-go'), nb);
           await page.mouse.move(0, 0); await page.waitForTimeout(250);
           out.backToRest = JSON.stringify(await look()) === JSON.stringify(out.rest);
-          // by keyboard: from the hero's Connect button, Tab until the focus is in the hub
-          await page.focus('.hero-ctas summary');
+          // by keyboard: from the hero's "Connect to my Fabric" (n149: a link to /start), Tab until the focus is in the hub
+          await page.focus('.hero-ctas a[href="/start"]');
           let reached = null;
           for (let i = 0; i < 80 && !reached; i++) {
             await page.keyboard.press('Tab');
@@ -132,6 +115,24 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
           out.tabbedTo = reached;
           out.focus = await look(); out.stillOnFocus = JSON.stringify(await boxes()) === JSON.stringify(atRest);
           await page.evaluate(() => document.activeElement.blur());
+          return out;
+        })();
+        // n68: the Connect chooser (n149: on /start, step 3, "Choose your client"; the home page links there): opened by keyboard, its
+        // panel on the screen, its links the clients' install links, Escape closes it and returns the focus; no horizontal scroll
+        facts[`connect@${vname}`] = await (async () => {
+          const out = {};
+          await page.goto(base + '/start#step-3', { waitUntil: 'load' });
+          for (const where of ['.start-pane[data-pane="3"]']) {
+            await page.focus(where + ' summary'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
+            out[where] = await page.evaluate((w) => {
+              const d = document.querySelector(w + ' details'), r = d.querySelector('.connect-panel').getBoundingClientRect();
+              return { open: d.open, inside: r.left >= 0 && r.right <= window.innerWidth, wide: document.documentElement.scrollWidth,
+                       links: [...d.querySelectorAll('a')].map(a => (a.getAttribute('href') || '').split('?')[0].split('#')[0]),
+                       copies: [...d.querySelectorAll('[data-copy-text]')].map(b => b.getAttribute('data-copy-text')) };
+            }, where);
+            await page.keyboard.press('Escape');
+            out[where].afterEscape = await page.evaluate((w) => ({ open: document.querySelector(w + ' details').open, focus: document.activeElement === document.querySelector(w + ' summary') }), where);
+          }
           return out;
         })();
       }

@@ -84,11 +84,11 @@ def test_the_theme_button_switches_and_the_choice_survives_a_reload(report):
 def test_the_home_buttons_and_a_visible_focus_ring(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        assert f[f"homeCtas@{v}"][0] == "/check", v                      # n68: the Connect chooser follows it (a <details>, not a link)
-        for where in (".hero-ctas",):                                    # n91: the hub has no Connect button
+        assert f[f"homeCtas@{v}"] == ["/check", "/start"], v              # n149: "Check my tables", then "Connect to my Fabric"
+        for where in ('.start-pane[data-pane="3"]',):                    # n149: the chooser is on /start, step 3
             c = f[f"connect@{v}"][where]
             assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
-            assert c["links"] == ["https://claude.ai/customize/connectors", "/start"], (v, where, c)   # this server: no client registration
+            assert c["links"] == ["https://claude.ai/customize/connectors"], (v, where, c)   # this server: no client registration
             assert c["copies"][:2] == ["https://krusgraph.test/mcp", pages.FIRST_QUESTION] and len(c["copies"]) == 3 and "/it" in c["copies"][2], (v, where, c)   # n80
             assert c["afterEscape"] == {"open": False, "focus": True}, (v, where, c)
     assert f["ctaFocusOutline"] not in ("none", "")
@@ -153,7 +153,7 @@ def test_the_hub_node_links_to_the_guide_and_nothing_moves(report):
     for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
         n, w = f[f"hubNode@{v}"], int(v.split("-")[0])
         assert n["href"] == "/start" and n["name"] == "Connect Krusgraph to Claude: the guide" and n["hasMark"], (v, n)
-        assert n["connectInHub"] == 0 and n["choosers"] == 1 and n["links"] == 1, (v, n)          # the hero's chooser only
+        assert n["connectInHub"] == 0 and n["choosers"] == 0 and n["links"] == 1, (v, n)          # n149: no chooser on the home page
         assert n["hiddenAround"] == [] and n["tabIndex"] == 0 and n["tabbedTo"] == "c-hub c-hub-logo hub-go", (v, n)
         assert n["inside"] and n["wide"] <= w and n["hitIsLink"], (v, n)
         assert n["stillAfterWait"] and n["stillOnHover"] and n["stillOnFocus"], (v, n)
@@ -179,7 +179,7 @@ def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report
     for w in (375, 1280):
         s = report["facts"][f"session@{w}"]
         assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
-        assert s["links"] == ["/check", "#connect"] and s["wide"] <= w and s["hidden"], (w, s)      # n73: "Connect" opens the chooser
+        assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)      # n149: the two ways in
         assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
 
 
@@ -199,31 +199,36 @@ def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
     second is the Connect chooser's button (one click per client; /start is the long guide, linked from the chooser)."""
     for v, ctas in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("hero@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check your files – no account"), (None, "Connect")], v
+        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check my tables"), ("/start", "Connect to my Fabric")], v   # n149
         assert all(c["bottom"] <= height for c in ctas), (v, ctas)
 
 
 def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
-    """n73: the session's second link is "Connect" (#connect, the chooser); /start is no longer among the first Tabs."""
+    """n73: the hero's two ways in come early on the keyboard (n149: "Check my tables", then "Connect to my Fabric")."""
     for w in (1280, 375):
         seen = first_visit[f"tab@{w}"]
-        assert "/check" in seen and seen.index("/check") < seen.index("#connect"), (w, seen)
+        assert "/check" in seen and "/start" in seen and seen.index("/check") < seen.index("/start"), (w, seen)
 
 
-def test_the_check_examples_are_above_the_fold_on_a_phone(first_visit):
+def test_the_check_drop_area_comes_first_on_a_phone(first_visit):
     """n52: at 375 x 812 the examples sat at y 1078, below the drop box and the privacy note. Now the heading and all
     three examples are on the first screen (four since n78), and the privacy sentence is still next to the drop box."""
+    # n149 (the UX review of 7 November 2026): on a phone the drop area and the privacy line come first, the examples
+    # under them; on a wide screen the examples stay on the first screen above the drop area
     for v, e in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("examples@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert e["heading"]["bottom"] <= height and len(e["buttons"]) == 4, v
-        assert all(b["bottom"] <= height for b in e["buttons"]), (v, e["buttons"])
+        assert len(e["buttons"]) == 4, v
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
+        if v.startswith("375"):
+            assert e["drop"]["top"] <= height and e["privacy"]["bottom"] < e["heading"]["top"], v
+        else:
+            assert e["heading"]["bottom"] <= height and all(b["bottom"] <= height for b in e["buttons"]), (v, e["buttons"])
 
 
 # ------------------------------------------------------------------ round n92: the chat demo (n93: every ordinary page) --
 CHAT_FILES = ["/static/chat-demo.css", "/static/chat-demo.js", "/demo/plan.json"]
 # n93: the pages with the button, as the server renders them (tests/test_chat_demo.py checks the same list on the HTML)
-CHAT_PAGES = [p for p in pages.PAGES if p not in pages.CHAT_OFF] + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"]
+CHAT_PAGES = [p for p in pages.PAGES if p not in pages.CHAT_OFF + pages.PILL_OFF] + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"]
 
 
 @pytest.fixture(scope="module")

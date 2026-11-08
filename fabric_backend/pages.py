@@ -93,6 +93,7 @@ def _vars() -> dict[str, str]:
         "CLIENT_ID": os.environ.get("ENTRA_CLIENT_ID", "<client id>"),
         "GITHUB": GITHUB,
         "TERMS_UPDATED": TERMS_UPDATED,
+        "LABEL_CHECK": CHECK_LABEL, "LABEL_CONNECT": CONNECT_LABEL,          # n149: the two ways in, one label each
         # n75: how much the hosted tools count, read from server.py (R5's sample and query budget, validate_plan's default)
         **_counting_limits(),
         "ASSET_V": asset_version(),
@@ -250,7 +251,8 @@ def admin_note() -> str:
 
 
 def connect_menu_html(where: str) -> str:
-    """The Connect button and its chooser: `where` is "pop" (the hero: the panel opens over the page; n91: the hub's
+    """The Connect button and its chooser: `where` is "start" (n149: step 3 of /start, "Choose your client"; the home
+    page's hero has a plain link to /start instead) or "pop" (the panel opens over the page; n91: the hub's
     inline chooser is gone, the hub's node links to /start instead). A <details>, so it works without JavaScript; the copy buttons
     need it (site.js). n80, Gustav's brief of 2 November 2026: Claude first and open (its connectors page, the address
     to copy, a first question to copy), Lovable under it, the other clients folded at the bottom (VS Code, then Cursor),
@@ -286,12 +288,14 @@ def connect_menu_html(where: str) -> str:
                      f'<span class="muted tiny">{cap("Cursor", "opens Cursor’s install dialog; then you sign in with Microsoft.")}</span></div>')
     if other:
         items.append(f'<details class="connect-other"><summary>Other clients<span class="connect-caret" aria-hidden="true"></span></summary>{"".join(other)}</details>')
-    return (f'<details class="connect connect-{where}" data-connect>\n'
-            f'<summary class="btn secondary">Connect<span class="connect-caret" aria-hidden="true"></span></summary>\n'
+    guide = "" if where == "start" else '<span>Step by step: <a href="/start">the set-up guide</a>.</span>'
+    label = "Choose your client" if where == "start" else "Connect"
+    return (f'<details class="connect connect-{where}" data-connect id="connect">\n'
+            f'<summary class="btn secondary">{label}<span class="connect-caret" aria-hidden="true"></span></summary>\n'
             f'<div class="connect-panel" role="group" aria-label="Add {p} to your client">\n<p class="connect-h">Add {p} to</p>\n{"".join(items)}\n'
             f'<p class="tiny connect-foot">Your admin approves {p} once; every call runs with your own Fabric permissions.'
             f'<span class="connect-row"><button type="button" class="btn ghost small connect-admin" data-copy-text="{e(admin_note())}">Copy a note to your admin</button>'
-            f'<span>Step by step: <a href="/start">the set-up guide</a>.</span></span></p>\n'
+            f'{guide}</span></p>\n'
             f'</div>\n</details>')
 
 
@@ -555,6 +559,7 @@ def before_after_html() -> str:
       <div class="ba-after"><dt>After: once per order, as the plan says</dt><dd>{n(amount)}</dd></div>
     </dl>
     <p class="muted tiny"><code>validate_plan</code> points out the order amount as a header amount and counts the lines per order: order amount and line amount are different levels. <a href="/use-cases#problem-total-doubles">The total that doubles</a>.</p>
+    <p class="ba-more"><a href="{BLOG_TOTALS}">Read the full walkthrough →</a></p>
   </div>
 </section>"""
 
@@ -570,7 +575,7 @@ def _tips_json() -> str:
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "", chat: bool = False, og_type: str = "website") -> str:
     v = _vars()
-    links = [("product", "/", "Product"), ("check", "/check", "Check your files"), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
+    links = [("product", "/", "Product"), ("check", "/check", CHECK_LABEL), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("blog", "/blog", "Blog"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
     nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
@@ -649,7 +654,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">Check your files</a><a href="/use-cases">Use cases</a><a href="/#connect">Connect</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">{CHECK_LABEL}</a><a href="/use-cases">Use cases</a><a href="/start">{CONNECT_LABEL}</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -793,6 +798,19 @@ def partners_vars() -> dict[str, str]:
             "DEMO_ORDER_LINES": str(d["finding"]["rows_per_header"]["max_lines"])}
 
 
+def before_after_mini_html() -> str:
+    """n149: the same before and after as before_after_html, as a small card under the hero's buttons, with a link down
+    to the section that explains it. The numbers come from seed.AMOUNT_DEMO, as there."""
+    from .seed import AMOUNT_DEMO
+    (order_id, _, amount), = AMOUNT_DEMO["orders"][1]
+    lines = [r[2] for r in AMOUNT_DEMO["order_lines"][1] if r[0] == order_id]
+    n = lambda x: f"{x:,.0f}".replace(",", "\u00a0")
+    return (f'    <p class="ba-mini"><span class="ba-mini-what">One order, {len(lines)} lines, sample data:</span> '
+            f'<span class="ba-mini-before">{n(amount * len(lines))}</span> <span aria-hidden="true">→</span>'
+            f'<span class="visually-hidden">becomes</span> <span class="ba-mini-after">{n(amount)}</span> '
+            f'<a href="#example">why</a></p>')
+
+
 # n92: the chat demo (on every ordinary page since n93). The three results it can show, with the tool that drafts them
 # and the tool that creates them in Fabric; what the chat says about creating comes from tool_status, not from the chat's
 # own text.
@@ -801,6 +819,20 @@ CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("on
 # n93: the pages that never get the chat's button: /check (its policy has connect-src 'none') and /demo (a redirect to
 # /check). Any other page whose policy says connect-src 'none' loses it in server.py (strip_chat).
 CHAT_OFF = ("/check", "/demo")
+# n149: the floating "Try a demo" button is not shown on the start page either (the UX review of 7 November 2026: the
+# start page has one guided demo button, after the total that doubles); deeper pages keep it.
+PILL_OFF = ("/",)
+
+# n149: the blog article on the total that doubles, linked from the start page's before and after and /check's example
+BLOG_TOTALS = "/blog/fabric-totals-double-after-join"
+
+# n149: the blog article on the total that doubles, linked from the start page's before and after and /check's example
+BLOG_TOTALS = "/blog/fabric-totals-double-after-join"
+
+# n149: the two ways in, with the same labels wherever they are offered (the hero, the middle of the start page, after a
+# /check result, /pricing, the navigation and the footer): the primary to /check, the secondary to /start.
+CHECK_LABEL = "Check my tables"
+CONNECT_LABEL = "Connect to my Fabric"
 
 
 def chat_status(tool: str) -> str:
@@ -868,7 +900,7 @@ def strip_chat(page: str) -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_CONNECT": connect_menu_html("pop")}
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html()}
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -908,6 +940,8 @@ def render(path: str) -> str:
         if "{{DEMO_ORDER_" in body:                                        # n75: the synthetic order on /partners
             dv.update(partners_vars())
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
+    if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
+        body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{CHECK_" in body:
         cv = check_vars()
         body = re.sub(r"\{\{(CHECK_\w+)\}\}", lambda m: cv.get(m.group(1), ""), body)
@@ -917,8 +951,9 @@ def render(path: str) -> str:
         body = re.sub(r"\{\{(UC_\w+)\}\}", lambda m: uv.get(m.group(1), ""), body)
     body = _fill(_conditional(_access(body), v))
     head = json_ld() if path == "/" else ""
-    return _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
-                  chat=path not in CHAT_OFF)
+    out = _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
+                 chat=path not in CHAT_OFF)
+    return strip_chat(out) if path in PILL_OFF else out
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
@@ -1001,9 +1036,9 @@ def consent_done_html(params) -> str:
         q = e(FIRST_QUESTION)
         body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
 <h2 class="h3" id="next">Next step: connect, then ask a first question</h2>
-<p>Open Connect, add {p} to Claude and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>
+<p>Add {p} to Claude (step 3 of the set-up guide) and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>
 <blockquote class="consent-question"><p>{q}</p></blockquote>
-<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><button type="button" class="btn secondary" data-copy-text="{q}">Copy the question</button></div>
+<div class="ctas"><a class="btn primary" href="/start#step-3">{CONNECT_LABEL}</a><button type="button" class="btn secondary" data-copy-text="{q}">Copy the question</button></div>
 <p class="muted">Each person signs in with their own account, and every call runs with that person’s own Fabric permissions; {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>
 {tenant_line}"""
         pose = "celebrate"
@@ -1028,7 +1063,7 @@ def consent_done_html(params) -> str:
         title, kicker, h1 = "Admin consent — {{PRODUCT}}", "Admin consent", "Nothing to show yet."
         body = f"""<p class="lede">This is where Microsoft Entra sends an administrator after the admin consent for {p}. Opened directly, there is nothing to report.</p>
 <p>The consent link, what it approves and the rest of the set-up are on <a href="/start#step-1">the set-up page</a>.</p>
-<div class="ctas"><a class="btn primary" href="/#connect">Connect</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
+<div class="ctas"><a class="btn primary" href="/start">{CONNECT_LABEL}</a><a class="btn ghost" href="/it">For your IT department</a></div>"""
         pose = "look"
     section = f"""<section class="wrap hero"><div class="hero-grid"><div>
 <span class="kicker">{kicker}</span><h1>{h1}</h1>
@@ -1309,7 +1344,7 @@ def blog_post_html(slug: str) -> str:
 <p class="blog-foot muted tiny"><a href="/blog">All articles</a> · <a href="{post["path"]}.md">This article as Markdown</a></p>
 </article>"""
     md_link = f'<link rel="alternate" type="text/markdown" href="{post["path"]}.md" title="Markdown version">'
-    return _shell(post["title"] + " — {{PRODUCT}} blog", post["description"], main, page="blog", nav="",
+    return _shell(post["title"] + " — {{PRODUCT}} blog", post["description"], main, page="blog", nav="blog",
                   path=post["path"], head=md_link + blog_json_ld(post), og_type="article")
 
 
@@ -1324,13 +1359,14 @@ def blog_index_html() -> str:
 <p class="lead">{html.escape(BLOG_DESC)}</p>
 <ul class="blog-list">{"".join(items)}</ul>
 </article>"""
-    return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="", path="/blog")
+    return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="blog", path="/blog")
 
 
 def start_md() -> str:
     """The get-started page as Markdown, converted from the same template the HTML page uses."""
     v = _vars()
-    return _html_to_md(_fill(_conditional(_access(_read("start.html")), v)), "https://" + v["DOMAIN"])
+    body = _read("start.html").replace("{{START_CONNECT}}", "")         # n149: the chooser's buttons need the page; the steps say the same
+    return _html_to_md(_fill(_conditional(_access(body), v)), "https://" + v["DOMAIN"])
 
 
 def access_vars(markdown: bool = False) -> dict[str, str]:

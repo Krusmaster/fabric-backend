@@ -24,7 +24,7 @@ import zipfile
 from . import tool_status as ts
 
 DRAFT_WORD = "Draft only"            # the status word for the report part: there is no report tool to give it another
-ENDPOINT = "<your API for GraphQL endpoint, after Create it in your own Fabric>"
+ENDPOINT = "<your API for GraphQL endpoint, after Connect to my Fabric>"
 WORKSPACE = "<workspace id>"
 
 
@@ -208,7 +208,7 @@ def pbip_files(name: str, parts: dict[str, str]) -> dict[str, str]:
         "  In Fabric, create_report adds a report to a semantic model there with a default page drawn from the model's measures.",
         "", "Before it shows data: Direct Lake reads Delta tables in Fabric, so the tables must be in a lakehouse first, and",
         f"`{sm}/definition/expressions.tmdl` must name its SQL analytics endpoint and lakehouse (now placeholders).",
-        "Create it in your own Fabric (krusgraph.com/start) does that with create_semantic_model.", "",
+        "Connect to my Fabric (krusgraph.com/start) does that with create_semantic_model.", "",
         f"Extract the whole zip first, then open `{name}.pbip` from the extracted folder. Opening the .pbip from inside the zip extracts",
         "that one file only, and Power BI Desktop stops with \"definition.pbism is missing\".", "",
         "Opened in Power BI Desktop on 30 October 2026 (the shop project from /check): the empty report page opens, and the data shows",

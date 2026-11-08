@@ -11,6 +11,7 @@
       <button type="button" class="check-ex sage" data-example="crm" id="check-crm"><strong>Salesforce + ERP</strong><span>Accounts here, customers there</span><em>Synthetic Data</em></button>
       <button type="button" class="check-ex mustard" data-example="billing" id="check-billing"><strong>Subscription billing</strong><span>Younium + Salesforce invoices</span><em>Synthetic Data</em></button>
     </div>
+    <p class="check-ex-more"><a href="/blog/fabric-totals-double-after-join">“A total that doubles”: read the full walkthrough →</a></p>
 
     <div class="check-box" id="check-drop">
       <input type="file" id="check-files" class="visually-hidden" multiple accept=".csv,.xlsx,.txt,text/csv">
@@ -88,6 +89,11 @@
       <div class="check-ask-answer" id="check-ask-answer" role="region" aria-live="polite" aria-label="Onto's answer" hidden></div>
     </div>
   </section>
+  <div class="card soft check-live" id="check-live">
+    <div><h3 class="h3">Run the same check on your live lakehouse</h3>
+    <p class="muted">It needs a Microsoft work account, and an admin approves {{PRODUCT}} once (<a href="/it">what the admin approves</a>).</p></div>
+    <a class="btn primary" href="/start">{{LABEL_CONNECT}} →</a>
+  </div>
   <p class="check-pilot" id="check-pilot" hidden><strong>Have a similar question in your own data?</strong> A total that is wrong, a customer link nobody is sure of, a report no one trusts: <a href="/partners">a pilot</a> starts from one question like that.</p>
 </section>
 
@@ -95,14 +101,14 @@
   <p class="check-status" id="check-build-status" role="status" aria-live="polite"></p>
   <div class="card check-preview" id="check-model" hidden></div>
   <div class="card check-preview" id="check-app" hidden></div>
-  <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">Create it in your own Fabric</a><a class="btn secondary" href="/support">Get help</a></div>
+  <div class="ctas check-build-next" id="check-build-next" hidden><a class="btn primary" href="/start">{{LABEL_CONNECT}}</a><a class="btn secondary" href="/support">Get help</a></div>
 </section>
 
 <section class="wrap demo-next" aria-labelledby="check-next-h">
   <div class="card">
     <div><h2 id="check-next-h">Next: the guided demo, your own database, or a question.</h2><p class="muted">The same engine runs the <a href="/check?example=sample&amp;guide=1">guided demo</a>, the 20-minute demo on your laptop over a read-only database sign-in (<a href="/local">run it locally</a>), and the hosted tools in Claude on your Fabric lakehouse.</p>
     <p class="muted tiny">Measured on “A total that doubles”, from opening the page to the result (Chromium, 28 October 2026): {{CHECK_TIMES}}. With your own files, choosing them is most of the two minutes.</p></div>
-    <div class="ctas"><a class="btn primary" href="/check?example=sample&amp;guide=1">Try the guided demo</a><a class="btn secondary" href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help</a></div>
+    <div class="ctas"><a href="/local">Run it locally</a><a class="btn ghost" href="/support">Get help</a></div>
   </div>
 </section>
 <script src="/static/map.js?v={{ASSET_V}}" defer></script>
