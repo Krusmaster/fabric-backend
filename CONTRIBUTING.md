@@ -42,6 +42,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
 | Tests | `tests/` | n161 |
+| Chat demo (inside Website and Tests, at the maintainer's request) | `fabric_backend/demo.py`, `fabric_backend/static/chat-demo.js`, `fabric_backend/static/chat-demo.css`, `CHAT_RESULTS` and `chat_launch_html` in `pages.py`, `tests/test_chat_demo.py`, `tests/chat_demo_browser.js`, the chat tests in `tests/test_browser.py`, the chat's part of `docs/SITE.md` | n162 |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
