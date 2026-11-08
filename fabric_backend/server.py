@@ -448,13 +448,18 @@ def _connected(workspace: str, source: str, schema: str, ctx):
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
-                  profile: _p.Profile = False, sql_sums: _p.SqlSums = False, ctx: Context = None) -> str:
+                  profile: _p.Profile = False, sql_sums: _p.SqlSums = False, fixes: _p.Fixes = False, review: _p.Review = None,
+                  tables: _p.TablesShown = None, ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
     Requires workspace and source; keys, confirmed as in plan_backend. Returns JSON counts, no row values: failing
     checks in full, passing as totals. Read-only. create_backend does not run it. Errors: {error, kind, hint}."""
     from . import privacy as _privacy, profile as _profile
     detail = _evidence.pick_detail(detail)
     _profile.options(profile)
+    if review is not None and fixes:                                    # n155: the review file's keys and decisions
+        from . import review as _review
+        rv = _review.read(review)
+        keys, confirmed = _review.merge_arguments(_review.carried_arguments(rv), keys, confirmed)
     s, execute = _connected(workspace, source, schema, ctx)
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
@@ -463,6 +468,11 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         if sql_sums:                                                    # n134: view definitions only, no rows
             from . import sql_sums as _sql_sums
             sums = _sql_sums.check_connection(p, execute)
+        if fixes:                                                       # n155: proposes; applies nothing
+            from . import fix_plan as _fix_plan
+            keep = _compact.match_tables(p.schema, tables)
+            proposal = _fix_plan.propose(p, out, execute, review=review,
+                                         tables=sorted(keep) if keep is not None else None)
     finally:
         getattr(execute, "close", lambda: None)()
     checked = {(k["table"], c.lower()) for k in out["keys"] for c in k["columns"]} | \
@@ -477,6 +487,14 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         out["column_profile"] = prof
     if sql_sums:
         out["sql_sums"] = sums
+    if fixes:
+        out["fix_plan"] = proposal
+        text = json.dumps(out, indent=2, default=str)
+        if len(text) > MAX_RESULT_CHARS:                               # the snippets go first; ids, counts and questions stay
+            for e in proposal["fixes"]:
+                e["snippet"] = {k: v for k, v in e["snippet"].items() if k in ("parameter", "pyspark")}
+            proposal["omitted"] = "the counting queries were left out to fit one answer; pass tables=[...] for them"
+        return json.dumps(out, indent=2, default=str)
     return json.dumps(out, indent=2, default=str)
 
 
@@ -1498,13 +1516,23 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
                                "the notebook then reads them through the shortcuts and writes the silver tables beside them."}, indent=2)
 
 
-def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False):
+def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):
     from . import silver as _silver_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     refusal = _lakehouse_only(info, "The silver notebook")
     if refusal:
         return None, None, None, refusal
     spec = _silver_mod.spec(p, info, silver_schema, order_by, tables, show_personal_data)
+    if fixes:                                                           # n155: the fixes accepted from validate_plan(fixes=true)
+        from . import fix_plan as _fix_plan
+        _fix_plan.parse_accepted(fixes)                                 # a malformed list fails before any query
+        s, execute = _connected(workspace, source, schema, ctx)
+        try:
+            counted = _hosted_plan(s, keys, confirmed, execute)
+            proposal = _fix_plan.propose(counted, _evidence.validate(counted, execute), execute)
+        finally:
+            getattr(execute, "close", lambda: None)()
+        spec = _fix_plan.accept(spec, proposal["fixes"], fixes, counted)
     return p, info, spec, None
 
 
@@ -1525,6 +1553,13 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
            "note": ("Unit-tested: the steps run in Python on the shop seed with duplicates and broken references added, and the generated "
                     "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026). The notebook "
                     "it writes has not yet been run in Fabric. " + _tool_status.answer_note(tool))}
+    if spec.get("fixes"):                                               # n155: exactly the accepted fixes, with their counts
+        out["fixes"] = [{"id": f.get("id"), "type": f.get("type"), "table": f["table"], "finding": f["finding"],
+                         "before": f["before"], "expected_after": c["expected_after"], "draft": f["draft"]}
+                        for f, c in zip(spec["fixes"], _silver_mod.fix_counts(spec))]
+        out["fixes_note"] = ("Counted again now with validate_plan's queries (read-only). The notebook applies exactly these fixes, "
+                             "puts every row it removes in krusgraph_quarantine and prints a table of counts per fix at the end; a "
+                             "decision still open stops it before anything is written. It has not run.")
     if len(json.dumps(out)) > MAX_RESULT_CHARS:
         out["notebook"].pop("content")
         out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; pass tables=[...] for a few at a "
@@ -1537,11 +1572,11 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
 def silver_notebook_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver",
                           order_by: _p.OrderBy = None, keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
-                          ctx: Context = None) -> str:
+                          fixes: _p.AcceptedFixes = None, ctx: Context = None) -> str:
     """Drafts a PySpark notebook writing de-duplicated silver Delta tables: one row per key, references checked, broken
     rows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the
     notebook source. Changes nothing. Errors: {error, kind, hint}."""
-    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data, fixes)
     if refusal:
         return refusal
     return json.dumps(_silver_answer(p, info, spec, f"silver_{schema}"), indent=2)
@@ -1552,7 +1587,7 @@ def silver_notebook_draft(workspace: _p.Workspace, source: _p.Source, schema: _p
 def create_silver_notebook(workspace: _p.Workspace, source: _p.Source, name: _p.SilverName, schema: _p.Schema = "dbo", silver_schema: _p.SilverSchema = "silver",
                            order_by: _p.OrderBy = None, keys: _p.Keys = None,
                            confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
-                           dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+                           fixes: _p.AcceptedFixes = None, dry_run: _p.DryRun = True, ctx: Context = None) -> str:
     """Creates a Fabric notebook item with silver_notebook_draft's notebook, attached to the lakehouse, or updates the
     notebook of that name in place. Requires workspace, a lakehouse source and name; Notebook.ReadWrite.All or
     Item.ReadWrite.All and Contributor. Returns JSON with the notebook and the REST call; with dry_run=false also
@@ -1560,7 +1595,7 @@ def create_silver_notebook(workspace: _p.Workspace, source: _p.Source, name: _p.
     is deleted, and nothing runs; when run, it writes only in silver_schema. Errors: {error, kind, hint}."""
     from . import notebook as _notebook
     from .deploy import create_item_with_definition
-    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data)
+    p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data, fixes)
     if refusal:
         return refusal
     out = _silver_answer(p, info, spec, name, "create_silver_notebook")

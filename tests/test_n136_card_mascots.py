@@ -151,7 +151,7 @@ print(json.dumps({"n": len(tools), "ro_size": len(json.dumps({"tools": ro}, sepa
                                    capture_output=True, text=True, check=True).stdout)
     off = json.loads(subprocess.run([sys.executable, "-c", code], env=env, cwd=ROOT,
                                     capture_output=True, text=True, check=True).stdout)
-    assert on["n"] == off["n"] and on["ro_size"] <= 64_000 and on["ro_size"] - off["ro_size"] < 400
+    assert on["n"] == off["n"] and on["ro_size"] <= 64_500 and on["ro_size"] - off["ro_size"] < 400
 
 
 # ------------------------------------------------------------------ only the image's files ----------------------------

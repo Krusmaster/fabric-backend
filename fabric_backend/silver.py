@@ -404,13 +404,15 @@ def _target_of(s: dict, table: str) -> list:
 
 def _winner_line(t: dict) -> str:
     fk = t["fix_key"]
-    hint = (f" (given in order_by)" if fk["winner"] else
+    hint = (f" ({fk['accepted']})" if fk.get("accepted") else f" (given in order_by)" if fk["winner"] else
             f" ({fk['named']} is named like a change time: write it here if the latest by it should win)" if fk["named"] else "")
     return (f"DUPLICATE_WINNER[{_py(t['table'])}] = {_py(fk['winner'])}   # rows that share {', '.join(t['key'])} and differ: the "
             f"column whose latest value wins{hint}; None stops the run if there are such rows")
 
 
 def _orphan_line(c: dict) -> str:
+    if c.get("fix_choice"):                                              # n155: accepted with validate_plan(fixes=true)
+        return f"ORPHANS[{_py(c['fix_id'])}] = {_py(c['fix_choice'])}   # accepted in fixes; \"quarantine\" or \"set_null\""
     return f"ORPHANS[{_py(c['fix_id'])}] = None   # \"quarantine\" or \"set_null\": your choice; None stops the run"
 
 
@@ -604,7 +606,34 @@ def cells(s: dict) -> list[tuple[str, str]]:
     out += [("parameters", params), ("code", setup.strip("\n"))] + ([("code", _decisions_cell(s))] if fixed else [])
     out += [("code", _table_cell(t)) for t in s["tables"]]
     out.append(("code", FINISH.format(quarantine=_py(QUARANTINE)).strip("\n")))
+    if fixed:                                                            # n155: the counts per fix, after the run
+        out.append(("code", _fix_counts_cell(s)))
     return out
+
+
+FIX_COUNTS = """# ---- counts per fix: the check's counts before, what was expected after, and what this run wrote ----
+# Expected after is what validate_plan's counts say silver holds once the fix has run; an earlier step (a parent row put in
+# quarantine, say) can change it, and the columns read, silver and quarantined show what this run did per table.
+FIX_COUNTS = __FIXES__
+_fix_rows = []
+for _f in FIX_COUNTS:
+    _t = _f["table"]
+    _q = sum(x["rows"] for x in summary.get(_t, {}).get("quarantined", []))
+    _fix_rows.append((_f["id"], _t, json.dumps(_f["before"]), json.dumps(_f["expected_after"]), read_counts.get(_t),
+                      silver[_t].count() if _t in silver else None, _q))
+spark.createDataFrame(_fix_rows, "fix string, table string, before string, expected_after string, read long, silver long, "
+                                 "quarantined long").show(max(len(_fix_rows), 1), False)"""
+
+
+def fix_counts(s: dict) -> list[dict]:
+    """n155: per fix in the draft, its id, table, the check's counts before and the counts expected after."""
+    return [{"id": f.get("id") or f"{f['finding']}:{f['table']}.{f['column']}", "table": f["table"], "before": f["before"],
+             "expected_after": f["after"] or next((c["after"] for c in f["choices"] if c["id"] == "quarantine"), {})}
+            for f in s.get("fixes", [])]
+
+
+def _fix_counts_cell(s: dict) -> str:
+    return "import json\n" + FIX_COUNTS.replace("__FIXES__", json.dumps(fix_counts(s), indent=1))
 
 
 def notebook_source(s: dict) -> str:
@@ -665,7 +694,7 @@ def decisions(s: dict, data: dict[str, list[dict]], given: dict | None = None) -
     given = given or {}
     winners = {t["table"]: t["fix_key"]["winner"] for t in s["tables"] if t.get("fix_key")}
     winners.update(given.get("DUPLICATE_WINNER") or {})
-    orphans = {c["fix_id"]: None for t in s["tables"] for c in t["checks"] if c.get("fix_id")}
+    orphans = {c["fix_id"]: c.get("fix_choice") for t in s["tables"] for c in t["checks"] if c.get("fix_id")}
     orphans.update(given.get("ORPHANS") or {})
     still = sorted(k for k, v in orphans.items() if v not in ("quarantine", "set_null"))
     if still:

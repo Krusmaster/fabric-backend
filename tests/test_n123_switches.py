@@ -82,7 +82,7 @@ def test_with_both_off_the_hosted_listing_is_unchanged(hosted):
     golden = json.loads((GOLDEN / "hosted_listing.json").read_text(encoding="utf-8"))["tools"]
     assert hosted["off"]["tools"] == golden and hosted["zero"]["tools"] == golden
     assert {t["name"] for t in golden} >= {"create_backend", "sample_rows"}  # the tool count is test_tool_count_texts.py's
-    assert hosted["off"]["ro_size"] <= 64_000                                # the read-only listing cap (n26)
+    assert hosted["off"]["ro_size"] <= 64_500                                # the read-only listing cap (n26)
 
 
 def test_read_only_removes_exactly_the_creating_tools(hosted):
@@ -92,7 +92,7 @@ def test_read_only_removes_exactly_the_creating_tools(hosted):
     assert {"create_backend", "create_views", "create_report", "create_semantic_model"} <= creating
     assert ro == off - creating and "sample_rows" in ro
     assert all(t["annotations"]["read_only_hint"] is True for t in hosted["ro"]["tools"])
-    assert hosted["ro"]["ro_size"] == hosted["off"]["ro_size"] <= 64_000    # the read tools are as they were
+    assert hosted["ro"]["ro_size"] == hosted["off"]["ro_size"] <= 64_500    # the read tools are as they were
     assert [t for t in hosted["ro"]["tools"]] == [t for t in hosted["off"]["tools"] if t["name"] in ro]
 
 

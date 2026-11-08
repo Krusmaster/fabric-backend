@@ -360,7 +360,7 @@ def test_chat_larger_picture_opens_inside_the_chat(chat):
         assert f["bigClosed"] == {"big": False, "open": True, "focus": "kgc-zoom", "pic": "4"}, (v, f["bigClosed"])
 
 
-FIX_DOCS, DBT_DOCS = "/docs/build-from-a-plan/one-plan-five-fabric-pieces", "/docs/reference/tools"
+FIX_DOCS, DBT_DOCS = "/docs/explore-and-check/fix-data-issues", "/docs/reference/tools"
 
 
 def test_chat_fix_and_dbt_link_what_exists_today(chat):
@@ -368,7 +368,7 @@ def test_chat_fix_and_dbt_link_what_exists_today(chat):
     for v, f in _chat_runs(chat).items():
         if v.endswith("mouse"):
             fix, dbt = f["further"]
-            assert fix["tag"] == "A" and fix["href"] == FIX_DOCS and not fix["planned"] and fix["why"].startswith("Today: a silver notebook"), (v, fix)
+            assert fix["tag"] == "A" and fix["href"] == FIX_DOCS and not fix["planned"] and fix["why"].startswith("Today: a proposed fix for each problem"), (v, fix)
             assert dbt["tag"] == "A" and dbt["href"] == DBT_DOCS and not dbt["planned"] and "whole dbt project is planned" in dbt["why"], (v, dbt)
         else:
             assert f["furtherFocused"] == {"pick": "Fix data issues", "tag": "A", "href": FIX_DOCS}, v

@@ -191,7 +191,8 @@ is.
   the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet
   against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Write dbt tests" (n154; until
   then "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
-  the silver notebook with its quarantine table (`/docs/build-from-a-plan/one-plan-five-fabric-pieces`) and
+  since n155 the fixes `validate_plan` proposes with `fixes=true`, applied by the silver notebook
+  (`/docs/explore-and-check/fix-data-issues`), and
   `dbt_schema`'s schema.yml with tests (`/docs/reference/tools`); only a whole dbt project is said to be planned; no dates. The chat does not say that its bubbles appear in the agent.
   The sales-word test covers its text.
 - **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat

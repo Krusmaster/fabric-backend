@@ -66,4 +66,5 @@ def test_read_only_listing_stays_small():
         t["description"] = inspect.cleandoc(t.get("description", ""))
     size = len(json.dumps({"tools": ro}, separators=(",", ":"), ensure_ascii=False))
     # 64 000: our own growth guard (n26), not an external limit; about 4 300 above the n102 size (59 680) for headroom
-    assert size <= 64_000, f"read-only tools/list is {size} characters"
+    # 64 500 since n155/n156: validate_plan's fixes, review and tables and the fixes of three tools took the last headroom
+    assert size <= 64_500, f"read-only tools/list is {size} characters"

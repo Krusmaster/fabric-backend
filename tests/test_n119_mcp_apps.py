@@ -205,7 +205,7 @@ print(json.dumps({"names": sorted(t.name for t in tools),
     assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True)}
     assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"]]
-    assert on["ro_size"] <= 64_000 and on["ro_size"] - off["ro_size"] < 400, (on["ro_size"], off["ro_size"])
+    assert on["ro_size"] <= 64_500 and on["ro_size"] - off["ro_size"] < 400, (on["ro_size"], off["ro_size"])
 
 
 # ------------------------------------------------------------------ the card in a browser -----------------------------

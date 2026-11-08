@@ -139,7 +139,7 @@ def for_amount_repeated(schema: str, f: dict, counts: dict, dialect: Dialect = T
     per header row: nothing moves, so this is a question about the reports, with the two sums to compare."""
     header, line, col = f["header"], f["line"], f["amount_columns"][0]
     before_sql, after_sql = amounts.before_after_sql(schema, f, col, dialect)
-    return _entry(QUESTION, "amount_repeated", header, _key(f["amount_columns"]), rule="",
+    return _entry(QUESTION, "amount_repeated", header, _key(f["amount_columns"]), rule="", line=line,
                   counts={"query": amounts.lines_per_header_sql(schema, line, f["line_columns"], dialect, header, f["header_columns"]),
                           "before": dict(counts)},
                   why_not_a_fix=(f"In silver, {header}.{col} already sits on {header}, one row per {header} row: there is "

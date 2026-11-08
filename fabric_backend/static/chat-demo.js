@@ -470,12 +470,12 @@
   /* ------------------------------------------------------------------ the flow */
   var LEAVE = [{ label: 'Try your own files', href: '/check' },
                { label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }];
-  // n154: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
+  // n154, n155: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
   // nothing here is planned except the whole dbt project, and the line says so
   function further() {
     return [
-      { label: 'Fix data issues', href: '/docs/build-from-a-plan/one-plan-five-fabric-pieces',
-        why: 'Today: a silver notebook that de-duplicates on each key and moves rows with a missing reference to a quarantine table; your source tables stay as they are.' },
+      { label: 'Fix data issues', href: '/docs/explore-and-check/fix-data-issues',
+        why: 'Today: a proposed fix for each problem the check finds, with counts before and after; the silver notebook applies the ones you accept, business decisions stay yours, and your source tables stay as they are.' },
       { label: 'Write dbt tests', href: '/docs/reference/tools',
         why: 'Today: a dbt schema.yml with unique, not_null and relationships tests from the plan; a whole dbt project is planned.' }
     ];

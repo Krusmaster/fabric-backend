@@ -437,6 +437,12 @@ __READ_JS__
         list.appendChild(el("li", who + ": " + what));
       });
     });
+    // n155: validate_plan with fixes=true: each proposed fix, or the decision it leaves to a person, as one line
+    var fixes = isObj(data.fix_plan) && Array.isArray(data.fix_plan.fixes) ? data.fix_plan.fixes : [];
+    fixes.forEach(function (x) {
+      if (!isObj(x) || !readable(x.proposed_fix)) return;
+      list.appendChild(el("li", (x.type === "mechanical" ? "Proposed fix, " : "To decide, ") + (x.id || x.table || "") + ": " + x.proposed_fix));
+    });
     document.getElementById("attention-none").hidden = !!list.children.length;
     document.getElementById("attention").hidden = false;
 

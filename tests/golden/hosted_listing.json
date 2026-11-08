@@ -1386,6 +1386,20 @@
       "title": "Dry Run",
       "type": "boolean"
      },
+     "fixes": {
+      "anyOf": [
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Ids from validate_plan(fixes=true).",
+      "title": "Fixes"
+     },
      "keys": {
       "anyOf": [
        {
@@ -3695,6 +3709,20 @@
       "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
       "title": "Confirmed"
      },
+     "fixes": {
+      "anyOf": [
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Ids from validate_plan(fixes=true).",
+      "title": "Fixes"
+     },
      "keys": {
       "anyOf": [
        {
@@ -3923,6 +3951,12 @@
       "title": "Detail",
       "type": "string"
      },
+     "fixes": {
+      "default": false,
+      "description": "true: a fix per finding; applies nothing.",
+      "title": "Fixes",
+      "type": "boolean"
+     },
      "keys": {
       "anyOf": [
        {
@@ -3962,6 +3996,23 @@
       "description": "true adds per column of the checked tables: NULL share, distinct count, number min/max below/above zero; {\"numbers\": [lo, hi], \"dates\": [from, to]} states ranges. One query per table within max_items; never values. Default false.",
       "title": "Profile"
      },
+     "review": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "With fixes: a review_plan file.",
+      "title": "Review"
+     },
      "schema": {
       "default": "dbo",
       "description": "Schema in the source. Default \"dbo\".",
@@ -3978,6 +4029,22 @@
       "description": "true also reads the SQL views' definitions (no rows) and lists views that SUM a header amount after joining its line table, and views it could not read. Default false.",
       "title": "Sql Sums",
       "type": "boolean"
+     },
+     "tables": {
+      "anyOf": [
+       {
+        "items": {
+         "type": "string"
+        },
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Table names or globs to show. Default all. Example: [\"sales_*\"].",
+      "title": "Tables"
      },
      "workspace": {
       "description": "Fabric workspace, name or id.",
