@@ -36,7 +36,8 @@ def test_the_film_section_follows_the_hero(client):
     assert "<video" not in hero.group(0)                             # the replay in the hero is untouched
     sec = _film(html)
     assert '<h2 id="film-h">See how it works</h2>' in sec
-    assert "About 45 seconds. Synthetic demo data. AI-generated voice." in sec
+    assert "About 45 seconds" not in sec and "film-note" not in sec    # n160: the visible note is gone
+    assert 'aria-label="Krusgraph overview film, synthetic demo data, AI-generated voice"' in sec
 
 
 def test_the_video_element(client):
@@ -106,7 +107,8 @@ def test_docs_landing_page_has_the_same_film_at_the_top(client):
     assert "autoplay" not in video and "muted" not in video
     track = re.search(r"<track([^>]*)>", film).group(1)
     assert 'kind="captions"' in track and 'srclang="en"' in track and " default" in track
-    assert "About 45 seconds. Synthetic demo data. AI-generated voice." in film
+    assert "About 45 seconds" not in film and "film-note" not in film  # n160: the visible note is gone
+    assert 'aria-label="Krusgraph overview film, synthetic demo data, AI-generated voice"' in video
     article = docs[docs.index('<article class="prose docs">'):]
     assert article.index("<h1") < article.index('id="film"') < article.index("<h2")      # at the top, before the first section
     assert _video_urls(film) == _video_urls(_film(client.get("/").text))                  # the same files as the home page

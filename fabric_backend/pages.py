@@ -404,21 +404,23 @@ NEW_TAB = ' target="_blank" rel="noopener"'
 FILM_MP4 = "/static/media/krusgraph-overview-web.mp4"
 FILM_POSTER = "/static/media/krusgraph-overview-poster.webp"
 FILM_VTT = "/static/media/krusgraph-overview.en.vtt"
-FILM_NOTE = "About 45 seconds. Synthetic demo data. AI-generated voice."
+# n160: no visible note under the heading; the film's end card carries the disclosure, and the video says it to
+# assistive technology through its aria-label.
+FILM_LABEL = "Krusgraph overview film, synthetic demo data, AI-generated voice"
 
 
 def film_html(heading: bool = True) -> str:
     """The overview film: a native <video> with controls, preload="none", a poster and an English captions track."""
     video = (f'<figure class="film-frame">\n'
-             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}">\n'
+             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}">\n'
              f'      <source src="{FILM_MP4}" type="video/mp4">\n'
              f'      <track kind="captions" srclang="en" label="English" src="{FILM_VTT}" default>\n'
              f'      <p>Your browser cannot play this film. <a href="{FILM_MP4}">Download it as MP4</a>.</p>\n'
              f'    </video>\n  </figure>')
     if heading:
         return (f'<section class="wrap film" id="film" aria-labelledby="film-h">\n  <h2 id="film-h">See how it works</h2>\n'
-                f'  <p class="muted film-note">{FILM_NOTE}</p>\n  {video}\n</section>')
-    return f'<div class="film film-docs" id="film">\n  <p class="muted film-note">{FILM_NOTE}</p>\n  {video}\n</div>'
+                f'  {video}\n</section>')
+    return f'<div class="film film-docs" id="film">\n  {video}\n</div>'
 
 
 def _md_to_html(md: str, figures: dict | None = None) -> str:

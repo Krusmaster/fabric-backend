@@ -1486,7 +1486,6 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 /* n157: the overview film directly after the hero; a native video, nothing loads before play (preload=none) */
 .film{padding-top:8px}
 .film h2{margin-bottom:6px}
-.film-note{margin:0 0 16px}
 .film-frame{margin:0;max-width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
 .film-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--card-2)}
 .film-docs{margin:4px 0 28px}
