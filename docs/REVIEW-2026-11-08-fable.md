@@ -271,3 +271,47 @@ Rayfin examples; `sap_mirror.py`, `pack_manifest.py` and the Younium/Salesforce 
 `run_results.py` beyond its message cap; the MCP Apps cards (`mcp_apps*.py`, off unless `KRUSGRAPH_MCP_APPS=1`, not
 set by the deploy script); `examples/benchmark/`; Databricks drafts; the Dependabot and SBOM workflows. Nothing was run
 against Fabric, Entra or Azure.
+
+## Fixed in n158
+
+Round n158 (8 November 2026), three pushes to `main`, each with tests in `tests/test_n158_review_fixes.py` that fail
+on the code before it; the whole suite was green on Python 3.12 before every push (2 642, 2 649 and 2 675 passed, 4 skipped; after the
+last rebase onto n157's and n159's releases the suite was run again on `e5be622`: 2 698 passed, 4 skipped). Nothing was written to Fabric or any other service.
+
+| Finding | Outcome |
+| --- | --- |
+| H1 | fixed (`6369ca8`): `fabric_backend/codegen.py` `one_line()` on every name written into a generated comment (silver, gold incl. the view SQL, the pipeline's check notebook through those, dbt, Databricks drafts, SodaCL, ODCS); the Databricks quarantine and comment literals go through `DATABRICKS.literal` |
+| M1 | fixed (`122b391`): `views.statements()` refuses `views_schema` equal to the source schema |
+| M2 | fixed (`122b391`): `fix_plan.accept()` and `dbt.project()` raise `PlanInputError` for an accepted id outside `tables=` |
+| M3 | fixed (`122b391`): `fill()` for the model and app panels; checked in Chromium on `/check?example=sample` |
+| M4 | fixed (`122b391`): digit strings read with `int()`; 19 digits or more stay text |
+| M5 | fixed (`122b391`): the three README sentences; README in `test_n146_one_source`'s status parametrisation. On R5, README was right about `/check` (it plans by names; `browser_check.py` calls `plan(src.schema)`), wrong about plan_backend |
+| L1 | fixed (`e5be622`): `schedule=False` by default on the hosted server; `schedule=true` unchanged |
+| L2 | fixed (`e5be622`): a failed schedule listing stops the step, nothing is posted |
+| L3 | fixed (`e5be622`): `requires-python >=3.12`, README and `docs/LOCAL.md` |
+| L4 | fixed (`e5be622`): `read_from_rows` without the dates under `KRUSGRAPH_NO_ROW_VALUES`. The calendar's whole years stay in the TMDL parts, which are the model being created |
+| L5 | fixed (`e5be622`): `max_items=200` in the silver tools and `dbt_schema(fixes=)` |
+| L6 | fixed (`e5be622`): `dbt.sources_path()` (a slug), also in the hosted, local and SAP pack answers |
+| L7 | fixed (`e5be622`): relationship views keep (expression, alias) pairs |
+| L8 | fixed in part (`e5be622`): the M `Sql.Database` strings are M text literals (confirmed: a `"` in the lakehouse name produced an unterminated string). Left open: the bare TMDL property values (`sourceColumn`, `entityName`, `sourceLineageTag`) for names with control characters; whether Fabric allows such names and how TMDL quotes them was not verified |
+| L9 | fixed (`e5be622`): `codegen.py_literal()` for the notebooks' Python literals |
+| L10 | fixed (`e5be622`): findings say `keys` / `confirmed` in Claude where `/check` has no Accept button |
+| L11 | fixed (`e5be622`): `decide()` returns `not_in_model` and the Accept line follows it. The `decideButtons`/guided demo mirroring (by code reading) was not changed |
+| L12 | fixed (`e5be622`): `.txt` dropped from the file chooser |
+| L13 | fixed (`e5be622`): `/explore` out of the page-view paths, `/privacy`, `USAGE.md`, `OPERATIONS.md`, README. Left open: `deploy/usage_report.py` `PAGES` still lists it (prints "/explore 0"); Deployment was claimed by n159 while this round ran |
+| L14 | fixed (`e5be622`): `/privacy` and `access.py` |
+| L15 | fixed (`e5be622`): `access.OFFLINE_ACCESS` under the permissions table (not a `GRANTED` row, which must equal the deploy script's scopes) |
+| L16 | fixed (`e5be622`): the llms.txt clause only with client registration on |
+| L17 | fixed (`e5be622`): `install()` records the effective state, keyed to the `KRUSGRAPH_` settings |
+| L18 | fixed (`e5be622`): the Cursor step names `KRUSGRAPH_CLIENT_REGISTRATION_DCR=1` |
+| L19 | fixed in part (`e5be622`): `NOTEBOOKS.md`, `SEGMENTATION.md`, `DEPLOY-NEXT.md`, `INFERENCE.md`, `SITE.md`, the risk register. Left open: `deploy/azure_containerapp.py` still sets and reads back `KRUSGRAPH_ONTOLOGY_WRITE` and `deploy/KRUSGRAPH-START.md` still describes it; n159 claimed Deployment and changed those files the same hour, so they are left to a Deployment round |
+| L20 | fixed (`e5be622`): `data-label-check` / `data-label-connect` on the launch button |
+| L21 | not reproduced: the repository's records do not show a 29 October run of questions 1 and 2, and whether the operations features are switched on at krusgraph.com is not in the repository; neither could be confirmed from here. `home.html` was n157's until its release; no change made. Left for Gustav |
+
+Probes: the review's probes as a script (H1, M1, M2, M4, M5, L1, L3, L4, L6, L7, L8, L9, L13, L16, L17) reproduce all
+fifteen on `b2bcb84` and none on n158; M3, L10 and L12 were rechecked in Chromium by the new browser tests, which
+fail on the old `check.js`, `browser_check.py` and `check.html`. Also found and fixed under H1: the Databricks
+quarantine selects wrote table names into `'...'` literals unescaped, and gold's `COMMENT`/`TBLPROPERTIES` literals did
+not escape a backslash.
+
+Ready to deploy: bash deploy/krusgraph.sh --from-azure --update
