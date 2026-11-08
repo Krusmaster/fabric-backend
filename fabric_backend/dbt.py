@@ -45,7 +45,7 @@ from __future__ import annotations
 import re
 
 from .codegen import one_line as _one_line
-from .infer import Plan
+from .infer import Plan, PlanInputError
 
 _SAFE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
@@ -543,6 +543,9 @@ def project(plan: Plan, source_name: str, schema: str, database: str | None = No
     ren = {t: renames(plan, t) for t in chosen}
     by_table: dict[str, list[dict]] = {}
     for f in fixes or []:
+        if f["entry"]["silver"]["table"] not in ren:                  # review M2: never dropped without a word
+            raise PlanInputError(f"fixes: {f['entry']['id']!r} is for table {f['entry']['silver']['table']}, which is not "
+                                 "in tables; add it to tables or leave the fix out")
         by_table.setdefault(f["entry"]["silver"]["table"], []).append(f)
     applied = [{"id": f["entry"]["id"], "table": f["entry"]["silver"]["table"], "step": f["entry"]["silver"]["step"],
                 **({"winner": f["winner"]} if f.get("winner") else {}), **({"choice": f["choice"]} if f.get("choice") else {})}

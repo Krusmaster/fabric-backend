@@ -262,7 +262,7 @@
       ...statusLines([{ what: "the Power BI project", status: b.status.model }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "Power BI project", "The model (.pbip) with the plan's keys and relationships" + (r.has_data ? " as checked in the rows" : "") + ", and an empty report page.")),
       el("p", { class: "muted tiny" }, "Creating the model in Fabric (create_semantic_model): ", tag(b.status.create_model), "."));
-    panels.model.replaceChildren(...kids);
+    fill(panels.model, ...kids);       // review M3: notBuilt and decisionsInModel give null when there is nothing to say
   }
   // n150: the count is what the model holds; a relationship of the plan that is not in it is said with its reason
   const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
@@ -311,7 +311,7 @@
       el("p", null, "Rayfin connector entities with the plan's keys and relationships, and an app starter for Lovable: a prompt, GraphQL queries and the server function that keeps the secrets out of the browser, for an API over the same plan. The API does not exist until you create it in your own Fabric; the README in the zip says what to fill in."),
       ...statusLines([{ what: "the app starter", status: b.status.app_starter }]),
       el("div", { class: "ctas" }, download(zip, b.downloads[zip], "app starter", "For Lovable, with Rayfin connector entities from the same plan; the API itself does not exist yet.")));
-    panels.app.replaceChildren(...kids);
+    fill(panels.app, ...kids);
   }
 
   // ------------------------------------------------------------------ drawing (textContent only: names come from files)

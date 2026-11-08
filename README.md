@@ -147,7 +147,8 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
   report of that name is left alone, never updated or deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`, and
   `SemanticModel.ReadWrite.All` to read the model. Tried live: the blank-page report was created live on 30 October
   2026 (`shop_report_live`, `shop_report`), opened and reviewed in the Fabric portal by Gustav the same day; the page
-  with visuals is unit-tested against Microsoft's published PBIR schemas, not yet created in Fabric.
+  with visuals was created live on 7 November 2026 (`shop_report_visuals` on `shop_model`, every figure checked in Power
+  BI) and is unit-tested against Microsoft's published PBIR schemas; the n151 look has not run live.
 - `app_starter` (read-only) — a Lovable prompt, connection details, five GraphQL queries, the portal checklist and the
   backend an app needs so that no secret reaches the browser: a Supabase edge function that gets the token with the
   app's service principal and forwards the queries, the secrets as Supabase secrets, the frontend helper, and the
@@ -254,8 +255,9 @@ register themselves as OAuth clients, which Entra cannot do; `KRUSGRAPH_CLIENT_R
 `/mcp/connect` through Krusgraph's own authorization server at `/oauth` in front of Entra: Client ID Metadata Documents,
 optional strict dynamic registration, a consent page of Krusgraph's own per client, PKCE S256, and the same token
 validation as `/mcp`, with a few short-lived sign-in records in Azure Table Storage; Claude's sign-in at `/mcp` is
-unchanged either way ([docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md); off by default, unit-tested, not yet
-tried with a real client). The same process serves the website (`/`, `/explore`, `/start`,
+unchanged either way ([docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md); off by default; switched on at
+krusgraph.com since 27 October 2026, where VS Code, Cursor and Glama signed in on 27 October and Lovable on 30 October
+2026, while Claude Code has not been tried: the status per client is on https://krusgraph.com/docs#test-status). The same process serves the website (`/`, `/explore`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed): fair-use limits per user and per
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
@@ -285,7 +287,7 @@ carries the rule that produced it, and you can overrule any of them.
 | K2 | `id`, `<table>_id`, `<singular>_id`, `<table>_key`, `<table>_code`, or an abbreviation of four letters or more (`cust_key`) | | R2 | same name as another table's single key (`werks` → plant); plain `id` never matches |
 | K3 | none → query only, nothing can point at it | | R3 | all columns of another table's composite key are present |
 | K4 | junction: the table starts with two or more reference columns (`film_actor`: `actor_id` + `film_id`) | | R4 | weaker match when R1/R2 find nothing: a role before the name (`manager_staff_id` → staff) or an abbreviation (`o_custkey` → customer) |
-| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | R5 | only with rows (`plan(..., execute=...)`; plan_backend and `/check` do not pass them yet): a code column `<stem>_code`/`_no`/`_key` (`currency_code` → `currencies.code`, `ERP_Customer_No__c` → `customers.customer_no`) or a role name (`ship_to_id` → addresses, `created_by` → users), planned when every value is in the target's key, same type family, two or more distinct values and one table fits; otherwise `plan.proposed` with the reason |
+| K5 | line: the header reference plus a line-number column (`order_items`: `order_id` + `line_no`) | | R5 | only with rows (`plan(..., execute=...)`, which plan_backend and every hosted tool pass since round n87; `/check` plans by the names and counts the plan with validate_plan): a code column `<stem>_code`/`_no`/`_key` (`currency_code` → `currencies.code`, `ERP_Customer_No__c` → `customers.customer_no`) or a role name (`ship_to_id` → addresses, `created_by` → users), planned when every value is in the target's key, same type family, two or more distinct values and one table fits; otherwise `plan.proposed` with the reason |
 
 Names are compared without case, separators or a table-wide column prefix (`N_NATIONKEY` in `NATION` reads as
 `nationkey`), and `<X>Header` also answers to `<X>`. How well this works on Northwind, Chinook, TPC-H,

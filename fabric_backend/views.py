@@ -173,6 +173,10 @@ def statements(plan: Plan, target: str = DEFAULT_SCHEMA, dialect: Dialect = TSQL
     reason as its comment where the dialect has view comments. The columns privacy.py flags are left out of every view
     (n87: the same rule as sample_rows, the drafted queries and the gold views) unless show_personal_data."""
     from . import privacy
+    if (plan.schema.schema or "").lower() == (target or "").lower():
+        # as silver.spec and gold.spec refuse theirs: CREATE OR ALTER VIEW in the source schema would replace a view of
+        # the same name there (vw_orders), against "in a schema of their own" (review of 8 November 2026, M1)
+        raise PlanInputError(f"views_schema {target!r} is the source schema; the views need a schema of their own")
     flagged = {} if show_personal_data else privacy.personal_columns(plan.schema)
     hidden = set(flagged)
     views = []

@@ -141,3 +141,106 @@ def test_h1_one_line_leaves_printable_names_alone_and_escapes_every_line_end():
         out = codegen.one_line(f"a{brk}b")
         assert len(out.splitlines()) == 1 and out.isprintable(), repr(out)
     assert codegen.comment("x\ny") == "# x\\ny"
+
+
+# ------------------------------------------------------------------ group 2: M1 to M5 ----------------------------
+
+from test_browser import CHROMIUM, _playwright_available, site  # noqa: E402,F401  the same local server fixture
+
+KEYLESS = "event,city,amount\nopen,Lund,1\nopen,Lund,1\nclose,Malmo,2\nclose,Lund,3\n"
+
+
+def _check_browser(site_url: str) -> dict:
+    import json
+    import os
+    import subprocess
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    out = subprocess.run(["node", str(root / "tests/check_n158_browser.js"), site_url] + ([CHROMIUM] if CHROMIUM else []),
+                         capture_output=True, text=True, timeout=300, env=os.environ | {"CHECK_KEYLESS": KEYLESS})
+    assert out.returncode == 0, out.stderr[-2000:]
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+@pytest.fixture(scope="module")
+def check_page(site):
+    return _check_browser(site)
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_m3_the_power_bi_and_app_panels_never_say_null(check_page):
+    assert check_page["errors"] == []
+    assert "Power BI project" in check_page["model_text"] and "null" not in check_page["model_text"]
+    assert "null" not in check_page["app_text"]
+
+
+def test_m1_views_in_the_source_schema_are_refused():
+    from fabric_backend import views
+    from fabric_backend.infer import PlanInputError
+    p = plan(seed.schema("shop"))
+    for target in (p.schema.schema, p.schema.schema.upper()):
+        with pytest.raises(PlanInputError, match="source schema"):
+            views.statements(p, target)
+    assert views.statements(p, "krusgraph")["views"]                        # another schema still works
+
+
+
+def _shop_proposal():
+    from fabric_backend import evidence, fix_plan
+    from silver_cases import seed_rows, sqlite_execute
+    p = plan(seed.schema("shop"))
+    ex = sqlite_execute(seed_rows())
+    return p, fix_plan.propose(p, evidence.validate(p, ex), ex), ex
+
+
+def test_m2_an_accepted_fix_for_a_table_outside_tables_is_refused_by_the_silver_notebook():
+    from fabric_backend import fix_plan
+    from fabric_backend.infer import PlanInputError
+    p, prop, _ = _shop_proposal()
+    ids = {e["id"] for e in prop["fixes"]}
+    assert "key:orders" in ids
+    with pytest.raises(PlanInputError, match="is for table orders, which is not in tables"):
+        fix_plan.accept(silver.spec(p, INFO, tables=["products"]), prop["fixes"], [{"id": "key:orders", "winner": "order_date"}], p)
+    s = fix_plan.accept(silver.spec(p, INFO, tables=["orders"]), prop["fixes"], [{"id": "key:orders", "winner": "order_date"}], p)
+    assert [f["id"] for f in s["fixes"]] == ["key:orders"]               # inside tables it is applied as before
+
+
+def test_m2_an_accepted_fix_for_a_table_outside_tables_is_refused_by_the_dbt_project():
+    from fabric_backend import evidence, fix_plan
+    from fabric_backend.infer import PlanInputError
+    p, prop, ex = _shop_proposal()
+    resolved = fix_plan.resolve(prop["fixes"], [{"id": "key:orders", "winner": "order_date"}], p)
+    v = evidence.validate(p, ex)
+    with pytest.raises(PlanInputError, match="is for table orders, which is not in tables"):
+        dbt.project(p, "shop", "shop", "lh", v, tables=["products"], fixes=resolved)
+    out = dbt.project(p, "shop", "shop", "lh", v, tables=["orders"], fixes=resolved)
+    assert [f["id"] for f in out["fixes"]] == ["key:orders"]
+
+
+def test_m4_long_integer_ids_keep_their_exact_values(tmp_path):
+    from fabric_backend.platforms import local
+    (tmp_path / "accounts.csv").write_text("account_id,name\n9007199254740993,a\n9007199254740992,b\n", encoding="utf-8")
+    (tmp_path / "events.csv").write_text("event_id,account_id\n1234567890123456789,9007199254740993\n"
+                                         "1234567890123456788,9007199254740992\n", encoding="utf-8")
+    src = local.folder_source(tmp_path)
+    try:
+        acc = [r["account_id"] for r in src.execute("SELECT account_id FROM [data].[accounts] ORDER BY name")]
+        assert acc == [9007199254740993, 9007199254740992]                 # not one value twice
+        ev = [r["event_id"] for r in src.execute("SELECT event_id FROM [data].[events] ORDER BY event_id")]
+        assert ev == ["1234567890123456788", "1234567890123456789"]          # 19 digits: text, every digit kept
+        types = {c.name: c.data_type for c in src.schema["events"].columns}
+        assert types["event_id"] not in ("real", "float")
+    finally:
+        src.close()
+    assert local._guess_type(["1234567890123456789"]) == "text" and local._guess_type(["123456789012345678"]) == "int"
+    assert local._coerce("9007199254740993", "int") == 9007199254740993 and local._coerce(12.0, "int") == 12
+
+
+def test_m5_readme_states_the_live_facts_of_tool_status():
+    from pathlib import Path
+    from fabric_backend import tool_status
+    readme = " ".join((Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8").split())
+    assert "not yet created in Fabric" not in readme and "shop_report_visuals" in tool_status.LIVE["create_report"][1]
+    assert "created live on 7 November 2026 (`shop_report_visuals`" in readme
+    assert "not yet tried with a real client" not in readme
+    assert "do not pass them yet" not in readme and "every hosted tool pass since round n87" in readme

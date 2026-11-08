@@ -34,6 +34,7 @@ _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2})?)?$")
 _INT_RE = re.compile(r"^[+-]?\d{1,18}$")
 _LEADING_ZERO = re.compile(r"^[+-]?0\d")              # n150: 0000000010 (SAP's VBELN), 000010: a code, kept as text
 _FLOAT_RE = re.compile(r"^[+-]?(\d+[.,]\d*|\d*[.,]\d+|\d+)([eE][+-]?\d+)?$")
+_LONG_DIGITS = re.compile(r"^[+-]?\d{19,}$")          # review M4: past an INTEGER's 18 safe digits, an id stays text
 
 
 # ------------------------------------------------------------------ the demo's sources -----------------------------
@@ -110,7 +111,7 @@ def _guess_type(values: list) -> str:
     if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
         return "int" if all(float(v).is_integer() and abs(v) < 2 ** 63 for v in vals) else "real"
     s = [str(v).strip() for v in vals]
-    if any(_LEADING_ZERO.match(x) for x in s):
+    if any(_LEADING_ZERO.match(x) or _LONG_DIGITS.match(x) for x in s):
         return "text"
     if all(_INT_RE.match(x) for x in s):
         return "int"
@@ -125,9 +126,15 @@ def _coerce(v, t: str):
     if v in (None, ""):
         return None
     if t == "int":
+        # review M4: int(float("9007199254740993")) is 9007199254740992; a digit string and an int are read exactly,
+        # only a float (an Excel number, 12.0) goes through float
         try:
-            return int(float(v)) if not isinstance(v, bool) else int(v)
-        except (TypeError, ValueError):
+            if isinstance(v, (bool, int)):
+                return int(v)
+            if isinstance(v, str) and _INT_RE.match(v.strip()):
+                return int(v.strip())
+            return int(float(v))
+        except (TypeError, ValueError, OverflowError):
             return None
     if t == "real":
         try:

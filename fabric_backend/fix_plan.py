@@ -345,6 +345,18 @@ def accept(spec: dict, entries: list[dict], accepted, plan=None) -> dict:
     chosen = resolve(entries, accepted, plan)
     out = silver.apply_fixes(spec, [_suggestion_of(c["entry"]) for c in chosen])
     by_table = {t["table"]: t for t in out["tables"]}
+    # every accepted id is in the notebook, or the call stops: "applies exactly the accepted ones" (review M2)
+    taken = {f["at"] for f in out["fixes"]}
+    for at, c in enumerate(chosen):
+        if at in taken:
+            continue
+        e = c["entry"]
+        table = e["silver"].get("table")
+        if table not in by_table:
+            raise PlanInputError(f"fixes: {e['id']!r} is for table {table}, which is not in tables; add {table} to tables "
+                                 "or leave the fix out")
+        raise PlanInputError(f"fixes: {e['id']!r} has no step in this notebook (its key or reference is not in the plan "
+                             "the notebook is built from); run validate_plan(fixes=true) again")
     for c in chosen:
         e, st = c["entry"], c["entry"]["silver"]
         t = by_table.get(st["table"])

@@ -153,7 +153,7 @@ def _wrong(tool, phrase):
                for q in (" as a dry run", " as an update in place"))
 
 
-@pytest.mark.parametrize("name", _all_paths())
+@pytest.mark.parametrize("name", _all_paths() + ["README.md"])   # n158: README too (review M5)
 def test_every_page_gives_each_tool_the_status_word_of_tool_status(client, name):  # noqa: F811
     wrong = sorted({(t, p[:80]) for t, p in _statements(client, name) if _wrong(t, p)})
     assert not wrong, wrong[:5]
