@@ -30,7 +30,7 @@ Commits: `b93a440` (claim), `c72624d` (the round), `f67b05b` (release), `72db6e7
 CI: run 696 (`c72624d`) and 697 (`f67b05b`) failed in `tests/test_browser.py::test_no_console_errors_external_requests_or_overflow`:
 the browser check's new step navigated the home page's tab to /start while the page was still prefetching /check's
 engine, and the aborted request counted as a failed one (timing-dependent; it passed locally). `72db6e7` opens /start in
-its own tab. Result of run 699 (`72db6e7`): see the last section.
+its own tab; run 699 (`72db6e7`) is green.
 
 | Item of the brief | What changed |
 | --- | --- |
@@ -52,7 +52,7 @@ Open: none in code. Wording of the status line by the tools list may want Gustav
 
 ## Round n151: create_report's default page looks like a report
 
-Commits: `f67b05b` (claim), `7df0098` (the round). CI: see the last section.
+Commits: `f67b05b` (claim), `7df0098` (the round), `4e4f6ae` (release and these notes). CI: run 698 (`7df0098`) failed only in the n149 browser check above (2585 passed), fixed by `72db6e7`; run 699 green.
 
 | Item of the brief | What changed |
 | --- | --- |
@@ -122,4 +122,16 @@ releases them with these notes.
 
 ## CI and deploy
 
-CI results for the pushes after n150, as read from GitHub Actions while writing this: see the lines added below.
+| Run | Commit | Result |
+| --- | --- | --- |
+| 693 | `dc724de` n150 releases | green |
+| 694 | `b93a440` n149 claims | green |
+| 696, 697 | `c72624d`, `f67b05b` n149 | red: one browser check (a cut-off prefetch, see n149) |
+| 698 | `7df0098` n151 | red: the same browser check only |
+| 699 | `72db6e7` the browser-check fix | green (n149 and n151 together) |
+| 700 | `4e4f6ae` release and notes | running when this was written (docs and CONTRIBUTING.md only; the suite was green locally) |
+
+Nothing was deployed and nothing was sent to Fabric. Gustav's live checks after deploy: section 6 of docs/LIVE-TEST.md
+(7 November 2026, "For the next run") for n151; the four portal steps under n152 above before n152 is taken up again.
+
+Ready to deploy: bash deploy/krusgraph.sh --from-azure --update
