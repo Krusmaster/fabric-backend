@@ -249,6 +249,8 @@ def with_actions(name: str, fn, item_names, workspace_id):
     `actions_note`). `item_names(workspace, ctx)` gives the workspace's item names or raises; `workspace_id(workspace,
     ctx)` its id. Neither runs for an answer that gets no buttons; a failure in either never changes the answer."""
     sig = inspect.signature(fn)
+    defaults = {k: p.default for k, p in sig.parameters.items()
+                if k != "ctx" and p.default is not inspect.Parameter.empty and isinstance(p.default, (str, int, float, bool))}
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -266,7 +268,12 @@ def with_actions(name: str, fn, item_names, workspace_id):
         except TypeError:
             return out
         ctx = bound.get("ctx")
-        call = {k: v for k, v in bound.items() if k != "ctx"}
+        # n172: the MCP SDK calls a tool with every parameter, its defaults included (keys=None, writable=False ...),
+        # where a direct call has only what was given. The buttons are built from what the call changed: an argument
+        # equal to the tool's own default, or null, is left out, so a Create carries the dry run's arguments as the
+        # card sent them (founder, 8 November 2026: the dry run drew no Create in Claude).
+        call = {k: v for k, v in bound.items() if k != "ctx" and v is not None
+                and not (k in defaults and k != "dry_run" and v == defaults[k])}
         if "workspace" not in call:
             return out
         needs_names = not (name == "plan_backend" and data.get("choose_schema")) and not (
@@ -284,6 +291,9 @@ def with_actions(name: str, fn, item_names, workspace_id):
             except Exception:                                        # noqa: BLE001
                 ws_id = None
         acts, note = actions_for(name, call, data, taken, ws_id)
+        for a in acts:                                               # the card compares a Create's arguments modulo these
+            if a.get("kind") == "create":
+                a["defaults"] = {k: v for k, v in defaults.items() if k != "dry_run"}
         if not acts and not note:
             return out
         if acts:
@@ -309,6 +319,18 @@ ACTIONS_JS = r"""
     return JSON.stringify(x === undefined ? null : x);
   }
   function sameArgs(a, b) { return canon(a) === canon(b); }
+  // n172: the arguments as the tool runs them: a null, or a value equal to the tool's own default (the Create action's
+  // `defaults`), is the same as leaving the argument out. The MCP SDK fills in defaults; the card sends only what it set.
+  function effective(x, defs) {
+    var out = {};
+    Object.keys(x || {}).forEach(function (k) {
+      var v = x[k];
+      if (v === null || v === undefined) return;
+      if (k !== "dry_run" && isObj(defs) && Object.prototype.hasOwnProperty.call(defs, k) && canon(defs[k]) === canon(v)) return;
+      out[k] = v;
+    });
+    return out;
+  }
   function okAction(a, fromDryRun) {
     if (!isObj(a) || typeof a.label !== "string") return false;
     if (a.kind === "link") return typeof a.url === "string" && /^https:\/\/app\.fabric\.microsoft\.com\//.test(a.url);
@@ -378,7 +400,7 @@ ACTIONS_JS = r"""
       if ((isObj(a) && a.product ? String(a.product) : "") !== (product ? String(product) : "")) return;
       if (a.kind === "create" && callArgs) {                      // Create carries the dry run's own arguments
         var want = JSON.parse(JSON.stringify(callArgs)); want.dry_run = false;
-        if (!sameArgs(want, a.arguments)) return;
+        if (!sameArgs(effective(want, a.defaults), effective(a.arguments, a.defaults))) return;
       }
       var who = WHO[a.who] ? a.who : "builder";
       if (!groups[who]) {

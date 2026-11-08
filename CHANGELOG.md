@@ -20,7 +20,10 @@ next deploy.
   English and never show arguments (the buttons carry them; text clients keep each action's `say`); the titles are
   "Plan" and "Plan check"; the Plan check card shows the Builder's three builds with the drafts under **More**; how a
   tool was tested and "certainty" are left out of the cards (still in the text answer), the rule shown instead;
-  `create_semantic_model`'s inactive relationships now carry their `rule`.
+  `create_semantic_model`'s inactive relationships now carry their `rule`. Fixed: in Claude no **Create** appeared under
+  a build's dry run (all four builds): the MCP SDK passes every default to the tool, so the Create action carried
+  arguments the card had not sent; buttons are now built from the arguments the call changed, and the card compares
+  effective arguments.
 - Round n171: Krusgraph can be bought through Microsoft Marketplace, all off by default (`KRUSGRAPH_MARKETPLACE`,
   `docs/MARKETPLACE-SETUP.md`). `/marketplace/landing` signs the buyer in (the existing Entra app, `openid profile`
   only), resolves the purchase with the SaaS fulfilment API v2 and activates on the buyer's click (nothing to activate

@@ -41,7 +41,8 @@ The server adds `actions` to the answer (with the flag on only); the card draws 
 
 - **Dry run first, always.** A build button's arguments have `dry_run: true` (the card refuses one that does not).
   Only an answer with `dry_run: true` carries Create, and the card shows Create only when its arguments equal the dry
-  run's with `dry_run: false` (compared key by key). There is no create without a visible dry run and a click on Create.
+  run's with `dry_run: false` (compared key by key; since n172 a null argument or one equal to the tool's default
+  counts as not given, because the MCP SDK fills in defaults: `docs/MCP-APPS-POLISH.md`, 9). There is no create without a visible dry run and a click on Create.
 - **Names.** Each build gets a free name derived from the source: the schema, or the source's name when the schema is
   `dbo` (`shop_model`, then `shop_model_2`, `shop_model_3` ...), checked against every item name in the workspace, any
   type, case-insensitive. The button shows the name before the click. When the item names cannot be read, no build

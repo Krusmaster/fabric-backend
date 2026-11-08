@@ -73,6 +73,26 @@ first) come right after "Needs attention"; the n103 drafts (`semantic_model_draf
 folded under **More** ("Drafts that only read; nothing is created"). "Next steps (each reads or drafts; nothing is
 created)" is gone.
 
+## 9. Create under the dry run (founder, 8 November 2026, 21:45 CET)
+
+Seen: in Claude, **Build a semantic model (shop_model_2)** drew its dry run on the Plan card, with no **Create** under
+it, so nothing could be created. Cause: the MCP SDK calls a tool with every parameter, defaults included (`keys`,
+`confirmed`, `tables` as null; `create_backend`'s `writable` and `allow_removals` false; `create_report`'s
+`empty_page`), where the n169 tests called the tools directly with only the given arguments. The dry run's Create
+action therefore carried arguments the card had not sent, and the card, which shows Create only for exactly the dry
+run's arguments, left it out, for all four builds.
+
+Fix (`mcp_apps_build.with_actions`, `ACTIONS_JS`): the buttons are built from what the call changed: a null argument,
+or one equal to the tool's own default, is left out; the Create action carries the tool's `defaults`, and the card
+compares the effective arguments (null or default = not given). The rule stays: Create is shown only for the dry run's
+own arguments with `dry_run: false`, and sends exactly the dry run's arguments with `dry_run: false`.
+
+Tests: `test_through_the_sdk_a_dry_runs_create_carries_the_cards_arguments` (the three plan builds, through the SDK's
+own client and server) and `test_build_then_create_on_the_plan_card_for_all_four_builds` (Chromium, fake host running
+`tools/call` with answers the SDK produced: click the build, the dry run shows, Create is visible, click it, the call
+carries `dry_run: false` and the same arguments; then **Create a report on it** under the created model, the same way).
+Both fail without the fix.
+
 ## 8. Themes
 
 Both themes use the host's colour variables with light/dark fallbacks, as before; the tests run the cards in light and

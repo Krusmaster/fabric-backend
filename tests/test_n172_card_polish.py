@@ -416,3 +416,87 @@ def test_the_dry_run_card_has_no_maintainer_notes_and_no_certainty(fabric, tmp_p
         assert gone not in shown, gone
     assert re.search(r"ship_to_id → addresses \(R5\)", shown)
     assert not words.WORDS_WITH_ARGUMENTS.search(out["bubbles"].get("builder", ""))
+
+
+# ------------------------------------------------------------------ 9. Create under the dry run ------------------------
+# Founder, 8 November 2026, 21:45 CET: in Claude, "Build a semantic model (shop_model_2)" drew its dry run on the Plan
+# card, but no Create appeared under it. Cause: the MCP SDK calls a tool with every parameter, defaults included
+# (keys=None, confirmed=None, tables=None; create_backend's writable=False ...), so the Create action carried arguments
+# the card had not sent, and the card, which shows Create only for exactly the dry run's arguments, dropped it. The
+# n169 tests called the tools directly and never saw the defaults. These tests go through the SDK.
+
+BUILD_TOOLS = ("plan_backend", "create_semantic_model", "create_ontology", "create_backend", "create_report")
+
+
+def _sdk_server():
+    """The hosted registration with the flag on (server._titled_tool): actions, then structuredContent, behind the SDK."""
+    from mcp.server.mcpserver import MCPServer
+    m = MCPServer("n172", extensions=mcp_apps.extensions(on=True))
+    for t in BUILD_TOOLS:
+        fn = build.with_actions(t, getattr(server, t), server._item_names, server._workspace_id_ctx)
+        m.add_tool(mcp_apps.structured(fn, t), name=t, **mcp_apps.registration(t, on=True))
+    return m
+
+
+def _sdk_call(tool: str, args: dict) -> dict:
+    import asyncio
+    from mcp import Client
+
+    async def go():
+        async with Client(_sdk_server()) as c:
+            return await c.call_tool(tool, args)
+    return asyncio.run(go()).model_dump(by_alias=True, exclude_none=True, mode="json")
+
+
+def _creates(answer: dict) -> list[dict]:
+    return [a for a in answer.get("actions") or [] if a.get("kind") == "create"]
+
+
+@pytest.mark.parametrize("tool", ["create_semantic_model", "create_ontology", "create_backend"])
+def test_through_the_sdk_a_dry_runs_create_carries_the_cards_arguments(fabric, tool):
+    plan = _sdk_call("plan_backend", SRC)["structuredContent"]
+    button = next(a for a in plan["actions"] if a["kind"] == "dry_run" and a["tool"] == tool)
+    dry = _sdk_call(tool, button["arguments"])["structuredContent"]
+    (create,) = _creates(dry)
+    assert create["arguments"] == {**button["arguments"], "dry_run": False}          # nothing the card did not send
+    assert all(v is not None for v in create["arguments"].values())
+    assert "null" not in create["say"] and "writable" not in create["say"]
+
+
+@needs_browser
+def test_build_then_create_on_the_plan_card_for_all_four_builds(fabric, monkeypatch, tmp_path):
+    plan = _sdk_call("plan_backend", SRC)
+    acts = {a["tool"]: a for a in plan["structuredContent"]["actions"] if a["kind"] == "dry_run"}
+    answers, sent = {}, {}
+    for tool in ("create_semantic_model", "create_ontology", "create_backend"):
+        args = acts[tool]["arguments"]
+        sent[tool] = args
+        answers[tool + ":dry"] = _sdk_call(tool, args)
+        answers[tool + ":create"] = _sdk_call(tool, {**args, "dry_run": False})
+    created = answers["create_semantic_model:create"]["structuredContent"]
+    report = next(a for a in created["actions"] if a.get("tool") == "create_report")
+    model = report["arguments"]["model"]                                       # the fake keeps no item it created
+    monkeypatch.setattr(gs, "ITEMS", gs.ITEMS + [{"id": gs.SM, "displayName": model, "type": "SemanticModel"}])
+    sent["create_report"] = report["arguments"]
+    answers["create_report:dry"] = _sdk_call("create_report", report["arguments"])
+    assert _creates(answers["create_report:dry"]["structuredContent"])
+    answers["create_report:create"] = _sdk_call("create_report", {**report["arguments"], "dry_run": False})
+
+    (tmp_path / "card.html").write_text(build.card_html(), encoding="utf-8")
+    (tmp_path / "plan.json").write_text(json.dumps({**plan, "__args": SRC}), encoding="utf-8")
+    (tmp_path / "answers.json").write_text(json.dumps(answers), encoding="utf-8")
+    steps = [{"build": "Build a semantic model"}, {"build": "Create an ontology"}, {"build": "Create an API for GraphQL"},
+             {"build": "Create a report on it", "within": "Build a semantic model"}]
+    (tmp_path / "steps.json").write_text(json.dumps(steps), encoding="utf-8")
+    run = subprocess.run(["node", str(TESTS / "mcp_apps_n172_create_browser.js")] + [str(tmp_path / f) for f in ("card.html", "plan.json", "answers.json", "steps.json")],
+                         capture_output=True, text=True, timeout=180)
+    assert run.returncode == 0, run.stderr[-2000:]
+    out = json.loads(run.stdout)
+    assert out["errors"] == []
+    for s in out["steps"]:
+        assert s["dryShown"] and s["createVisible"] and s["created"], s
+    for tool in ("create_semantic_model", "create_ontology", "create_backend", "create_report"):
+        mine = [c for c in out["calls"] if c["name"] == tool]
+        assert [c["arguments"].get("dry_run") for c in mine] == [True, False], (tool, mine)
+        assert mine[0]["arguments"] == sent[tool]
+        assert mine[1]["arguments"] == {**sent[tool], "dry_run": False}      # Create: the same arguments, dry_run=false
