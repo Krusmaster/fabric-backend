@@ -263,6 +263,33 @@ def admin_note() -> str:
             f"Each permission and why, what is stored, and how to revoke it: {site_url()}/it")
 
 
+# n170: "Try in Claude" on /start and the home page. The first question, word for word as the founder asked for it.
+TRY_QUESTION = FIRST_QUESTION                    # the same question the connect chooser copies
+CLAUDE_NEW = "https://claude.ai/new"
+# Claude Desktop opens claude://claude.ai/new?q=... with q in the prompt field, for the person to read before sending.
+# Source: Anthropic's support article "Open Claude Desktop with a link"
+# (https://support.claude.com/en/articles/14729294-open-claude-desktop-with-a-link, dated 30 June 2026, read on
+# 8 November 2026): "New chat ... q: Text to prefill in the prompt field"; "All parameter values must be URL-encoded".
+# No Anthropic page documents a prefilled prompt for https://claude.ai/new in a browser, so the web button copies the
+# question and opens a new chat, and says so.
+CLAUDE_DESKTOP_NEW = "claude://claude.ai/new?q="
+
+
+def try_in_claude_html(connect_href: str) -> str:
+    """The Try in Claude button: copies TRY_QUESTION (site.js, [data-try-claude]) and opens claude.ai/new in a new tab
+    (a plain link, so it opens without JavaScript too); next to it the Claude Desktop link that fills the question in,
+    and "connect Krusgraph first" pointing at step 3 of /start."""
+    from urllib.parse import quote
+    e = lambda x: html.escape(x, quote=True)
+    p = e(_vars()["PRODUCT"])
+    return (f'<div class="try-claude"><p class="ctas try-claude-row">'
+            f'<a class="btn primary" href="{CLAUDE_NEW}" target="_blank" rel="noopener" data-try-claude data-question="{e(TRY_QUESTION)}">Try in Claude</a>'
+            f'<a class="btn ghost small" href="{e(CLAUDE_DESKTOP_NEW + quote(TRY_QUESTION, safe=""))}" data-desktop-link>Open in Claude Desktop</a></p>'
+            f'<p class="muted tiny try-claude-note" role="status" aria-live="polite">Connect {p} first (<a href="{e(connect_href)}">step 3 of the set-up guide</a>). '
+            f'The button copies the first question, <q>{e(TRY_QUESTION)}</q>, and opens a new chat on claude.ai: paste it there. '
+            f'claude.ai has no documented way to fill in a chat from a link; Claude Desktop does, and its link fills the question in for you to send.</p></div>')
+
+
 def connect_menu_html(where: str) -> str:
     """The Connect button and its chooser: `where` is "start" (n149: step 3 of /start, "Choose your client"; the home
     page's hero has a plain link to /start instead) or "pop" (the panel opens over the page; n91: the hub's
@@ -997,6 +1024,8 @@ def render(path: str) -> str:
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
+    if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude
+        body = body.replace("{{TRY_IN_CLAUDE}}", try_in_claude_html("#step-3" if path == "/start" else "/start#step-3"))
     if "{{CHECK_" in body:
         cv = check_vars()
         body = re.sub(r"\{\{(CHECK_\w+)\}\}", lambda m: cv.get(m.group(1), ""), body)
@@ -1428,7 +1457,8 @@ def blog_index_html() -> str:
 def start_md() -> str:
     """The get-started page as Markdown, converted from the same template the HTML page uses."""
     v = _vars()
-    body = _read("start.html").replace("{{START_CONNECT}}", "")         # n149: the chooser's buttons need the page; the steps say the same
+    body = (_read("start.html").replace("{{START_CONNECT}}", "")        # n149: the chooser's buttons need the page; the steps say the same
+            .replace("{{TRY_IN_CLAUDE}}", f"<p>Try it in Claude: open <a href=\"{CLAUDE_NEW}\">a new chat</a> and ask: <em>“{TRY_QUESTION}”</em></p>"))
     return _html_to_md(_fill(_conditional(_access(body), v)), "https://" + v["DOMAIN"])
 
 

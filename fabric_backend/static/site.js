@@ -442,6 +442,24 @@
     });
   });
 
+  /* ------------------------------------------------------------------ n170: Try in Claude */
+  // The link opens claude.ai/new in a new tab by itself; the click also copies the first question, because claude.ai has
+  // no documented way to fill a chat in from a link (Claude Desktop has: the link next to it). The note says what happened.
+  document.querySelectorAll('[data-try-claude]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var q = a.getAttribute('data-question') || '', note = a.closest('.try-claude') && a.closest('.try-claude').querySelector('.try-claude-note');
+      var said = function (ok) {
+        if (!note) return;
+        note.textContent = ok ? 'Copied the question. Paste it in the new Claude chat (Ctrl+V or Cmd+V) and send it.'
+                              : 'Could not copy. Type this in the new Claude chat: ' + q;
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(q).then(function () { said(true); }, function () { said(false); });
+        else said(false);
+      } catch (e) { said(false); }
+    });
+  });
+
   /* ------------------------------------------------------------------ n68: the Connect chooser (a <details>; open and close work without JS) */
   // Escape closes it and puts the focus back on its button; a click outside closes it; one open at a time.
   var choosers = document.querySelectorAll('details[data-connect]');

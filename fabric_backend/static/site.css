@@ -1496,3 +1496,7 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 /* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
    the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */
 @media (max-width:640px){.film-frame video{aspect-ratio:4/5;object-fit:cover}}
+/* n170: Try in Claude (the home page's "Try it yourself" card, step 3 of /start) */
+.try-claude{display:grid;gap:6px;justify-items:start;margin:12px 0 0}
+.try-claude .try-claude-row{margin:0;justify-content:flex-start}
+.try-claude-note{max-width:62ch;margin:0}
