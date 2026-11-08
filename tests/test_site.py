@@ -1090,12 +1090,12 @@ def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
     n49: two of them now create (an ontology, a semantic model), and the caption says which and when."""
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
-    # n154: back in the hero, under the buttons (n149 had moved it after the steps); its first round starts with question 1
-    # already sent and answered (site.css), so it no longer opens on an empty thread
+    # n154: back in the hero, under the buttons (n149 had moved it after the steps); n165: turn 1 plays from 0 s like the
+    # others (tests/test_n165_replay_progress.py)
     assert html.index("<h1") < html.index("hero-ctas") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
     assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
-    assert "synthetic" in box and "29 October 2026" in box and "read only" in box and "created" in box
+    assert "synthetic" in box and "8 November 2026" in box and "29 October 2026" in box and "read only" in box and "created" in box
 
 
 def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(client):
@@ -1105,9 +1105,9 @@ def test_the_played_session_pauses_only_by_its_button_and_says_it_is_a_replay(cl
     assert not re.search(r"\.session[^{,]*:hover[^{]*\{[^}]*animation-play-state", css)
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
-    assert "A replay of a session in Claude" in box and "You type in Claude" not in box
+    assert "A replay of Krusgraph's answers" in box and "You type in Claude" not in box     # n165: no Claude session claimed for 1 and 2
     assert '<a href="/check">Check my tables</a>' in box and '<a href="/start">Connect to my Fabric</a>' in box
-    assert "<input" not in box and "29 October 2026" in box
+    assert "<input" not in box and "8 November 2026" in box
 
 
 def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_status(client):
@@ -1128,7 +1128,9 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
     assert ts.short("create_ontology") in status and ts.short("create_semantic_model") in status
     assert "report" not in box.lower() and "visual" not in box.lower()
     cap = re.search(r"<figcaption.*?</figcaption>", box, re.S).group(0)
-    assert "read only (29 October 2026)" in cap and "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap
+    # n165: questions 1 and 2 are the engine's answers on the synthetic shop data, run on 8 November 2026
+    assert "plan_backend and validate_plan run read only on that data (8 November 2026)" in cap
+    assert "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap
 
 
 def test_one_name_for_each_way_in_across_the_site(client):

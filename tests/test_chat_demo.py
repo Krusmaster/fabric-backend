@@ -186,7 +186,7 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
     r = client.get("/demo", follow_redirects=False)
     assert r.status_code == 301 and r.headers["location"].startswith("/check") and "kgc" not in r.text
     # the replay stays, and the chat's files are served
-    assert "A replay of a session in Claude" in client.get("/").text
+    assert '<p class="session-head">A replay of Krusgraph' in client.get("/").text            # n165: the head says whose answers
     for name, kind in (("chat-demo.js", "text/javascript"), ("chat-demo.css", "text/css")):
         r = client.get(f"/static/{name}?v={v}")
         assert r.status_code == 200 and r.headers["content-type"].startswith(kind)

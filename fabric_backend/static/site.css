@@ -1068,13 +1068,21 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 .session-turn:nth-child(3),.session-turn:nth-child(3) *{animation-delay:12s}
 .session-turn:nth-child(4),.session-turn:nth-child(4) *{animation-delay:18s}
 .session-text::after{animation-delay:0s!important}
+/* n165: where the replay is: four dots under the box, the current turn's filled, on the turns' own timeline (no script) */
+.session-dots{display:flex;justify-content:center;gap:8px;margin:12px 0 0}
+.session-dots span{width:8px;height:8px;border-radius:50%;box-sizing:border-box;border:1.5px solid var(--line-strong);animation:session-dot 24s step-end infinite}
+.session-dots span:nth-child(2){animation-delay:6s}
+.session-dots span:nth-child(3){animation-delay:12s}
+.session-dots span:nth-child(4){animation-delay:18s}
+.session.is-paused .session-dots span{animation-play-state:paused}
+@keyframes session-dot{0%{background:var(--coral-ink);border-color:var(--coral-ink)}25%{background:transparent;border-color:var(--line-strong)}}
 @keyframes session-turn{0%{opacity:0}1.5%,23.25%{opacity:1}25%,100%{opacity:0}}
 .session-thread{display:flex;flex-direction:column;gap:12px;min-height:150px;justify-content:flex-end}
 .session-sent{align-self:flex-end;max-width:85%;margin:0;padding:10px 16px;border-radius:16px 16px 4px 16px;background:var(--coral-soft);
   color:var(--ink);font-weight:700;opacity:0;animation:session-sent 24s infinite}
-@keyframes session-sent{0%,8.25%{opacity:0;transform:translateY(10px)}9.75%,100%{opacity:1;transform:none}}
+@keyframes session-sent{0%,5.25%{opacity:0;transform:translateY(10px)}6.5%,100%{opacity:1;transform:none}}
 .session-answer{border-left:3px solid var(--sage);padding:2px 0 2px 14px;font-size:16px;color:var(--muted);opacity:0;animation:session-answer 24s infinite}
-@keyframes session-answer{0%,11.25%{opacity:0;transform:translateY(6px)}13.5%,100%{opacity:1;transform:none}}
+@keyframes session-answer{0%,6.5%{opacity:0;transform:translateY(6px)}8.25%,100%{opacity:1;transform:none}}
 .session-answer p{margin:0}
 .session-tool{font:600 13px/1.5 var(--mono);color:var(--sage-ink)}
 .session-status{font:600 12px/1.4 var(--font-head);color:var(--sage-ink);white-space:nowrap}
@@ -1082,17 +1090,17 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 .session-ask{margin:0;display:flex;align-items:center;gap:12px;min-height:58px;padding:12px 12px 12px 18px;
   border:2px solid var(--coral);border-radius:16px;background:var(--card-2);font-size:clamp(17px,2.2vw,20px);font-weight:700}
 .session-text{flex:1;display:inline-block;clip-path:inset(0 100% 0 0);animation:session-type 24s infinite steps(28,end)}
-@keyframes session-type{0%{clip-path:inset(0 100% 0 0);opacity:1}6.75%,7.9%{clip-path:inset(0 0 0 0);opacity:1}8.25%,100%{opacity:0}}
+@keyframes session-type{0%{clip-path:inset(0 100% 0 0);opacity:1}4.5%,5.25%{clip-path:inset(0 0 0 0);opacity:1}5.5%,100%{opacity:0}}
 .session-text::after{content:"";display:inline-block;width:2px;height:1.1em;margin-left:2px;vertical-align:-.15em;background:var(--coral-ink);animation:session-caret 1s step-end infinite}
 @keyframes session-caret{50%{opacity:0}}
 .session-send{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--coral);color:#fff;font-weight:800;animation:session-press 24s infinite}
-@keyframes session-press{0%,7.5%,9%,100%{transform:none}8.25%{transform:scale(.85)}}
+@keyframes session-press{0%,4.75%,6%,100%{transform:none}5.25%{transform:scale(.85)}}
 .session figcaption{margin-top:14px;font-size:12px;color:var(--muted)}
 /* a question that wraps would be typed on both lines at once: on narrow screens it fades in whole instead */
 @media (max-width:719px){.session{padding:18px 16px 12px}.session-text{animation-name:session-show;clip-path:none}}
-@keyframes session-show{0%{opacity:0}1.5%,7.9%{opacity:1}8.25%,100%{opacity:0}}
+@keyframes session-show{0%{opacity:0}1.5%,5.25%{opacity:1}5.5%,100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.session-turns{gap:18px}.session-turn{grid-area:auto;opacity:1;animation:none}
-  .session-thread{min-height:0}.session-sent,.session-answer{opacity:1;animation:none}.session-ask,.session-pause{display:none}}
+  .session-thread{min-height:0}.session-sent,.session-answer{opacity:1;animation:none}.session-ask,.session-pause,.session-dots{display:none}}
 
 /* n49: Onto hops beside the step under way while the engine loads or runs (still with reduced motion; the mascot goes
    with the mascots switch, the text stays) */
@@ -1467,23 +1475,10 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .connect-start .connect-panel{width:auto;box-shadow:none}
 .usp-lead{max-width:60ch;margin:0 auto 10px;font-weight:600}
 
-/* n154: the replay is back in the hero, and its first round starts with question 1 already sent and answered, so the
-   panel does not open on an empty thread; from the second round on (24 s) all four turns play as before. The thread
-   starts at the top, under the heading, and the field stays at the bottom: the panel's height is the longest turn's,
-   and the room a shorter turn leaves is between its answer and the field, not above its first line */
-.session-turn:first-child{animation:session-turn-first 24s,session-turn 24s 24s infinite}
-.session-turn:first-child .session-sent,.session-turn:first-child .session-answer{animation:session-first-on 24s,session-sent 24s 24s infinite}
-.session-turn:first-child .session-answer{animation-name:session-first-on,session-answer}
-.session-turn:first-child .session-text{animation:session-first-off 24s,session-type 24s 24s infinite steps(28,end)}
-.session-turn:first-child .session-send{animation:session-first-none 24s,session-press 24s 24s infinite}
-@keyframes session-turn-first{0%,23.25%{opacity:1}25%,100%{opacity:0}}
-@keyframes session-first-on{0%,100%{opacity:1;transform:none}}
-@keyframes session-first-off{0%,100%{opacity:0}}
-@keyframes session-first-none{0%,100%{transform:none}}
-@media (max-width:719px){.session-turn:first-child .session-text{animation-name:session-first-off,session-show}}
-@media (prefers-reduced-motion:reduce){.session-turn:first-child,.session-turn:first-child .session-sent,
-  .session-turn:first-child .session-answer,.session-turn:first-child .session-text,.session-turn:first-child .session-send{animation:none}
-  .session-turn:first-child{opacity:1}}
+/* n154: the replay is back in the hero. The thread starts at the top, under the heading, and the field stays at the
+   bottom: the panel's height is the longest turn's, and the room a shorter turn leaves is between its answer and the
+   field, not above its first line. n165: turn 1 plays like the others from 0 s (n154's first round showed it finished
+   and still for 6 s, so the first motion a visitor saw was turn 2); its answer is in by 2 s */
 .session-turn{justify-content:flex-start}
 .session-thread{justify-content:flex-start}
 .session-ask{margin-top:auto}

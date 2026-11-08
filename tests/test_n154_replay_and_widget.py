@@ -62,8 +62,9 @@ def test_the_hero_has_the_replay_under_the_buttons_and_keeps_n149(client):
     assert order == sorted(order)
     assert ">Check my tables</a>" in hero and ">Connect to my Fabric</a>" in hero
     fig = hero[hero.index('<figure class="session"'):hero.index("</figure>")]
-    assert "A replay of a session in Claude" in fig and "Create an ontology from my shop data." in fig
-    assert "Answers shortened from real runs in Claude against synthetic shop data" in fig
+    # n165: questions 1 and 2 are the engine's checks run here, so the head and caption no longer claim a Claude session
+    assert "A replay of Krusgraph's answers" in fig and "Create an ontology from my shop data." in fig
+    assert "Answers shortened from Krusgraph's checks on synthetic shop data" in fig
     assert re.findall(r'class="session-tool">(\w+)<', fig) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert html.count('<figure class="session"') == 1 and ".replay{" not in CSS
     # what n149 kept: Blog in the navigation, /check's card after a result, /start's line for people from /check
@@ -71,17 +72,12 @@ def test_the_hero_has_the_replay_under_the_buttons_and_keeps_n149(client):
     assert 'id="check-live"' in client.get("/check").text and "Coming from /check?" in client.get("/start").text
 
 
-def test_the_replay_starts_with_its_first_message_shown():
-    """The first turn's first round shows the question and answer from the start (no empty thread above the field);
-    from 24 s on it plays as the other turns do; with reduced motion all four show as before."""
+def test_the_replay_keeps_its_layout():
+    """n154: the thread starts under the heading and the field stays at the bottom. n165 removed n154's first round (turn 1
+    shown finished and still for 6 s): tests/test_n165_replay_progress.py covers how turn 1 plays now."""
     first = CSS[CSS.index("/* n154: the replay is back in the hero"):]
-    assert ".session-turn:first-child{animation:session-turn-first 24s,session-turn 24s 24s infinite}" in first
-    assert "@keyframes session-turn-first{0%,23.25%{opacity:1}25%,100%{opacity:0}}" in first
-    assert "@keyframes session-first-on{0%,100%{opacity:1;transform:none}}" in first
-    assert ".session-turn:first-child .session-text{animation:session-first-off 24s,session-type 24s 24s infinite steps(28,end)}" in first
-    assert "animation-name:session-first-off,session-show" in first           # the narrow screen's variant
-    assert "@media (prefers-reduced-motion:reduce)" in first and "{animation:none}" in first
     assert ".session-turn{justify-content:flex-start}" in first and ".session-ask{margin-top:auto}" in first
+    assert "session-turn-first" not in CSS and "session-first-" not in CSS
 
 
 @pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
@@ -95,10 +91,13 @@ def test_in_a_browser_the_hero_and_the_button_everywhere(site):
         h = r[f"hero{w}"]
         assert h["inHero"] and h["ctas"]["bottom"] <= h["session"]["top"] <= h["ctas"]["bottom"] + 40, h
         assert h["session"]["bottom"] <= h["mini"]["top"] <= h["usp"]["top"], h
-        # the first message is there at once, close under the panel's heading: no empty thread before the first line
-        assert h["sentOpacity"] == 1 and h["answerOpacity"] == 1 and h["turnsShown"] == 1, h
-        assert h["sent"]["top"] - h["head"]["bottom"] < 40, h
-        assert r[f"later{w}"][1] == 1 and r[f"later{w}"][0] == 0, r[f"later{w}"]
+        # n165: turn 1 plays from 0 s: its question is typing at 0.5 s, its answer is in by 2.5 s, close under the heading
+        assert 500 <= h["at"] < 1300 and h["turnsShown"] == 1 and h["questionShown"], h
+        assert h["late"]["at"] >= 2500 and h["late"]["sentOpacity"] == 1 and h["late"]["answerOpacity"] == 1 and h["late"]["turnsShown"] == 1, h
+        assert h["late"]["sent"]["top"] - h["head"]["bottom"] < 40, h
+        assert h["dots"] == [True, False, False, False] and h["late"]["dots"] == [True, False, False, False], h
+        assert r[f"later{w}"]["turns"][1] == 1 and r[f"later{w}"]["turns"][0] == 0, r[f"later{w}"]
+        assert r[f"later{w}"]["dots"] == [False, True, False, False], r[f"later{w}"]
         for path in ("/", "/check", "/start", "/pricing", "/docs/reference/tools", "/blog/fabric-totals-double-after-join", "/lovable", "/it"):
             f = r[f"{path}@{w}"]
             # shown in its corner, except that it steps aside while it would cover /check's drop area (a phone's width)
