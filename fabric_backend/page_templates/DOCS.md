@@ -1,5 +1,9 @@
 # {{PRODUCT}} docs
 
+<!-- figure:overview-film -->
+About 45 seconds. Synthetic demo data. AI-generated voice.
+<!-- /figure -->
+
 See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
 
 - The proof: every proposal shows its basis, and the checks you run show their results.

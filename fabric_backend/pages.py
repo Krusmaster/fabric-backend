@@ -35,7 +35,8 @@ STATIC_DIR = HERE / "static"
 STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml",
                 ".png": "image/png", ".woff2": "font/woff2", ".txt": "text/plain; charset=utf-8", ".json": "application/json",
                 ".ico": "image/x-icon", ".mjs": "text/javascript; charset=utf-8", ".wasm": "application/wasm",
-                ".zip": "application/zip", ".whl": "application/zip"}
+                ".zip": "application/zip", ".whl": "application/zip",
+                ".mp4": "video/mp4", ".webp": "image/webp", ".vtt": "text/vtt; charset=utf-8"}   # n157: the overview film
 
 PAGES = {
     # path: (template, title, description, nav key)
@@ -396,6 +397,28 @@ _FIGURE = re.compile(r"^<!-- figure:([a-z0-9-]+) -->$")
 
 DEMO_APP_URL = "https://demo.krusgraph.com"   # n147: the live Shop Desk example opens in a new tab
 NEW_TAB = ' target="_blank" rel="noopener"'
+
+
+# n157: the overview film. One element, used on the home page (after the hero) and at the top of /docs; the files are
+# the compressed web version in static/media (the masters stay out of the repository). Nothing loads before play.
+FILM_MP4 = "/static/media/krusgraph-overview-web.mp4"
+FILM_POSTER = "/static/media/krusgraph-overview-poster.webp"
+FILM_VTT = "/static/media/krusgraph-overview.en.vtt"
+FILM_NOTE = "About 45 seconds. Synthetic demo data. AI-generated voice."
+
+
+def film_html(heading: bool = True) -> str:
+    """The overview film: a native <video> with controls, preload="none", a poster and an English captions track."""
+    video = (f'<figure class="film-frame">\n'
+             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}">\n'
+             f'      <source src="{FILM_MP4}" type="video/mp4">\n'
+             f'      <track kind="captions" srclang="en" label="English" src="{FILM_VTT}" default>\n'
+             f'      <p>Your browser cannot play this film. <a href="{FILM_MP4}">Download it as MP4</a>.</p>\n'
+             f'    </video>\n  </figure>')
+    if heading:
+        return (f'<section class="wrap film" id="film" aria-labelledby="film-h">\n  <h2 id="film-h">See how it works</h2>\n'
+                f'  <p class="muted film-note">{FILM_NOTE}</p>\n  {video}\n</section>')
+    return f'<div class="film film-docs" id="film">\n  <p class="muted film-note">{FILM_NOTE}</p>\n  {video}\n</div>'
 
 
 def _md_to_html(md: str, figures: dict | None = None) -> str:
@@ -903,7 +926,8 @@ def chat_plan_html() -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html()}
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html(),
+            "HOME_FILM": film_html()}                                             # n157
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -1198,7 +1222,9 @@ def docs_page_html(path: str) -> str:
     pg = pages[idx]
     where = docs_anchors(pages)
     from . import concepts
-    body = _md_to_html(pg["md"], concepts.figures())
+    figs = concepts.figures()
+    figs["overview-film"] = lambda _rendered: film_html(heading=False)        # n157: the overview film at the top of /docs
+    body = _md_to_html(pg["md"], figs)
     # links between the parts of the old page go to the page that has the heading now
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
                   else m.group(0), body)

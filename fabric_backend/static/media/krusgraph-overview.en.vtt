@@ -1,0 +1,67 @@
+WEBVTT
+
+1
+00:00:00.284 --> 00:00:03.794
+Getting an AI agent to work with
+your company's data can be tricky.
+
+2
+00:00:04.418 --> 00:00:06.398
+Your data lives in OneLake.
+
+3
+00:00:06.368 --> 00:00:10.168
+Connecting your agent to it,
+in a way your IT team can approve,
+
+4
+00:00:10.138 --> 00:00:10.958
+is the hard part.
+
+5
+00:00:11.537 --> 00:00:13.502
+Krusgraph is the bridge.
+
+6
+00:00:13.472 --> 00:00:15.732
+Sign in with Microsoft Entra.
+
+7
+00:00:15.702 --> 00:00:17.232
+Krusgraph reads your tables
+
+8
+00:00:17.202 --> 00:00:19.492
+with your permissions and
+maps how they connect.
+
+9
+00:00:20.073 --> 00:00:21.883
+Then it checks that map against your data.
+
+10
+00:00:22.539 --> 00:00:25.109
+From one checked plan,
+you get what you need:
+
+11
+00:00:25.079 --> 00:00:30.329
+a report, a semantic model, an API,
+and an ontology your agents can use.
+
+12
+00:00:30.961 --> 00:00:32.780
+Everything is read-only by default,
+
+13
+00:00:32.750 --> 00:00:35.890
+and you see a dry run
+before anything is created.
+
+14
+00:00:35.860 --> 00:00:38.800
+Your agent. Your data. Connected.
+
+15
+00:00:41.350 --> 00:00:43.520
+Krusgraph, for Microsoft Fabric.
