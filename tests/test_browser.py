@@ -291,7 +291,7 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert f["facts"] == ["7", "6", "1"] and len(f["links"]) == 6, v
         assert "All 15 of its values exist in addresses.address_id, in 60 of 60 rows." in f["question"], v
         assert "The plan now has 7 links." in f["linkAdded"], v
-        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Write dbt tests"], v
+        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Draft a dbt project"], v
         model, onto, products = f["results"][1:]
         assert "7 tables and 7 relationships; all 7 hold" in model and "1 inactive: addresses.customer_id → customers would close a cycle" in model, v
         assert "7 entity types (5 with a key) and 7 relationship types" in onto, v
@@ -360,7 +360,7 @@ def test_chat_larger_picture_opens_inside_the_chat(chat):
         assert f["bigClosed"] == {"big": False, "open": True, "focus": "kgc-zoom", "pic": "4"}, (v, f["bigClosed"])
 
 
-FIX_DOCS, DBT_DOCS = "/docs/explore-and-check/fix-data-issues", "/docs/reference/tools"
+FIX_DOCS, DBT_DOCS = "/docs/explore-and-check/fix-data-issues", "/docs/build-from-a-plan/create-a-dbt-flow"
 
 
 def test_chat_fix_and_dbt_link_what_exists_today(chat):
@@ -369,7 +369,7 @@ def test_chat_fix_and_dbt_link_what_exists_today(chat):
         if v.endswith("mouse"):
             fix, dbt = f["further"]
             assert fix["tag"] == "A" and fix["href"] == FIX_DOCS and not fix["planned"] and fix["why"].startswith("Today: a proposed fix for each problem"), (v, fix)
-            assert dbt["tag"] == "A" and dbt["href"] == DBT_DOCS and not dbt["planned"] and "whole dbt project is planned" in dbt["why"], (v, dbt)
+            assert dbt["tag"] == "A" and dbt["href"] == DBT_DOCS and not dbt["planned"] and dbt["why"].startswith("Today: a dbt project"), (v, dbt)
         else:
             assert f["furtherFocused"] == {"pick": "Fix data issues", "tag": "A", "href": FIX_DOCS}, v
 

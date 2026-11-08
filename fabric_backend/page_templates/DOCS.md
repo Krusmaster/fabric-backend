@@ -483,6 +483,30 @@ available in Fabric since September 2026) whose data quality rules are the plan'
 already have is checked against the plan with `compare_semantic_model`. And when changes go through Git rather than
 straight into the workspace, `export_item_definitions` gives every piece as the files Fabric's Git integration reads.
 
+### Create a dbt flow
+
+`dbt_schema` with `project=true` writes a dbt project as files, for dbt-fabric 1.12 on dbt-core 1.12 and a Fabric
+Warehouse; it creates nothing and runs no dbt. With `check_rows=true` the keys and relationships are counted first,
+and the project is built from that checked plan:
+
+- `dbt_project.yml`, `profiles.example.yml` (placeholders and `authentication: CLI`, no secret) and a `README.md` that
+  says how to run it (`dbt debug`, `dbt parse`, then `dbt build`, the step that changes the Warehouse).
+- `models/sources/`: the source tables with `unique` and `not_null` on single-column keys and `relationships` on
+  single-column relationships.
+- `models/staging/`: one view per table, columns renamed to snake_case (the README lists the renames), cast to a Fabric
+  Warehouse type only where the metadata gives one, and de-duplicated on the key.
+- `models/marts/`: a table per fact table, joined only over relationships whose target key was counted unique; the
+  others are left out and listed with the reason. A header amount is never in a mart at line grain, and child rows are
+  summed to the header before the join.
+- `tests/`: a key or a relationship over several columns as a singular test. dbt_utils' `unique_combination_of_columns`
+  is not used, because dbt-fabric's documentation says dbt-utils is not supported; no package is needed.
+
+`fixes` takes the ids accepted from `validate_plan(fixes=true)` (see *Fix data issues*) and writes them as staging
+logic: the latest row by the accepted column, a row whose reference has no parent left out (a NULL reference is kept),
+or the reference set to NULL with `{"id": ..., "choice": "set_null"}`. Moving a header amount stays with the silver
+notebook. The SQL of each file is checked to parse as T-SQL and the YAML to load, in unit tests on the shop example and
+the /check datasets (tests/test_n156_dbt_flow.py, 8 November 2026); dbt itself has not been run on these files.
+
 ### Fabric IQ: the same graph as an ontology
 
 Fabric IQ's **ontology (preview)** item describes a business as entity types with properties and a key, relationship
@@ -638,7 +662,7 @@ unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries
 | `semantic_model_draft` | {{status}} | {{changes}} | a Power BI semantic model in TMDL (`definition/` files) with suggested measures (the row count of each fact table, sums only where `summarizeBy` sums, each with its reason) and a calendar marked as the date table when fact tables have date columns: one Direct Lake table per source table on the SQL analytics endpoint, relationships with cardinality and one active path per table pair, keyless tables unrelated, `README.generated.md` with every decision to check; unit-tested against Microsoft's sample definitions | `workspace`, `source`, `name`, `schema`, `keys`, `confirmed`, `tables` |
 | `join_path` | {{status}} | {{changes}} | the shortest chain of relationships between two tables with the rule per hop and a ready T-SQL `SELECT … JOIN …`; equally short paths all listed; with no path, which relationship is missing as a `confirmed` entry | `workspace`, `source`, `start`, `end`, `schema`, `keys`, `confirmed` |
 | `data_dictionary` | {{status}} | {{changes}} | hand-over documentation in Markdown: tables, columns and types, keys and relationships with rules, keyless and ambiguous items, the ER diagram, an empty Description column; `validate=true` adds the counts from `validate_plan`; `tables` (names or patterns) documents one part of a large schema at a time, with the roles and subject areas of the whole schema, and an answer over 60 000 characters is cut on a line and says so | `workspace`, `source`, `schema`, `keys`, `confirmed`, `validate`, `max_items`, `tables` |
-| `dbt_schema` | {{status}} | {{changes}} | a dbt `schema.yml` with sources: `unique` and `not_null` on key columns, `relationships` on single-column relationships, in the syntax of the dbt documentation; composite keys noted as comments; `tables` takes names or patterns, an answer over 60 000 characters is cut and says so | `workspace`, `source`, `schema`, `source_name`, `keys`, `confirmed`, `tables`, `arguments_block` |
+| `dbt_schema` | {{status}} | {{changes}} | a dbt `schema.yml` with sources: `unique` and `not_null` on key columns, `relationships` on single-column relationships, in the syntax of the dbt documentation; composite keys noted as comments; `tables` takes names or patterns, an answer over 60 000 characters is cut and says so; `project=true` writes a whole dbt project ([Create a dbt flow](#create-a-dbt-flow)), with `fixes` as staging logic | `workspace`, `source`, `schema`, `source_name`, `keys`, `confirmed`, `tables`, `arguments_block`, `project`, `check_rows`, `quality`, `profile`, `fixes` |
 | `domain_draft` | {{status}} | {{changes}} | proposed domains (candidate data products) from the plan's graph: deterministic Leiden-style communities weighted by each relationship's rule, a name and a reason per table, the relationships that cross domains (interfaces), unassigned tables, and one ODCS v3.2.0 contract per domain; the customer's Fabric admin creates the domains | `workspace`, `source`, `schema`, `confirmed`, `check_rows` (inferred keys) |
 | `sap_pack_draft` | {{status}} | {{changes}} | which tables the SAP pack recognises (with or without a prefix such as `sap_`), their keys with `MANDT`, the order-to-cash relationships it applies with the public source of each, what it lists but does not apply (`VBFA` is many-to-many), what is missing, and the traps; optionally one export: Krusgraph keys/confirmed, Data API builder config, an extraction list with open-mirroring `keyColumns`, or dbt sources. See [SAP on Fabric](#sap-on-fabric) | `workspace`, `source`, `schema`, `keys`, `confirmed`, `variant`, `export` |
 | `plan_drift` | {{status}} | {{changes}} | today's plan against an existing API for GraphQL item: new tables and columns, columns the API still maps that are gone, relationships the plan no longer supports, and whether `create_backend` with that name would change anything | `workspace`, `source`, `api`, `schema`, `keys`, `confirmed`, `tables`, `writable` |

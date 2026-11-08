@@ -257,7 +257,7 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "button.kgc-pick[data-key=\"' + restore[i] + '\"]" in CHAT_JS and "if (!b) break;" in CHAT_JS
     # the links: the check page, its example and the set-up guide, in the same tab
     hrefs = set(re.findall(r"href: '([^']+)'", CHAT_JS))
-    assert hrefs == {"/check", "/check?example=sample", "/start", "/docs/explore-and-check/fix-data-issues", "/docs/reference/tools"}
+    assert hrefs == {"/check", "/check?example=sample", "/start", "/docs/explore-and-check/fix-data-issues", "/docs/build-from-a-plan/create-a-dbt-flow"}
     assert "{ label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
 
 
@@ -267,11 +267,11 @@ def test_fix_data_issues_and_dbt_say_what_exists_and_link_its_docs(client):
     block = CHAT_JS[CHAT_JS.index("function further()"):CHAT_JS.index("function drafts()")]
     picks = re.findall(r"\{ label: '([^']+)', href: '([^']+)',\s*why: '([^']+)' \}", block)
     assert [(a, b) for a, b, _ in picks] == [("Fix data issues", "/docs/explore-and-check/fix-data-issues"),
-                                             ("Write dbt tests", "/docs/reference/tools")]
+                                             ("Draft a dbt project", "/docs/build-from-a-plan/create-a-dbt-flow")]
     fix, dbt = picks[0][2], picks[1][2]
     assert fix.startswith("Today: a proposed fix for each problem") and "source tables stay as they are" in fix   # n155
     assert "business decisions stay yours" in fix and "counts before and after" in fix
-    assert dbt.startswith("Today: a dbt schema.yml") and "unique, not_null and relationships tests" in dbt and "whole dbt project is planned" in dbt
+    assert dbt.startswith("Today: a dbt project from the checked plan") and "nothing runs" in dbt and "planned" not in dbt   # n156
     assert "planned:" not in block and "Create a dbt flow" not in CHAT_JS
     # what the lines say is what the docs and tool_status say: the tools exist and the pages they link are served
     from fabric_backend import tool_status as ts
@@ -279,6 +279,8 @@ def test_fix_data_issues_and_dbt_say_what_exists_and_link_its_docs(client):
         assert tool in ts.STATUS, tool
     fixes = client.get("/docs/explore-and-check/fix-data-issues").text
     assert "fixes=true" in fixes and "create_silver_notebook" in fixes and "krusgraph_quarantine" in fixes
+    flow = client.get("/docs/build-from-a-plan/create-a-dbt-flow").text                    # n156
+    assert "project=true" in flow and "profiles.example.yml" in flow and "unique_combination_of_columns" in flow
     tools = client.get("/docs/reference/tools").text
     assert "dbt_schema" in tools and "krusgraph_quarantine" in tools and "create_pipeline" in tools
     assert not re.search(r"\b(soon|coming|shortly|later this|next (week|month|quarter|year)|Q[1-4]|20\d\d|in \d+ (days|weeks|months))\b", _strings(CHAT_JS), re.I)

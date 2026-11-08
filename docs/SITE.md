@@ -193,7 +193,8 @@ is.
   then "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
   since n155 the fixes `validate_plan` proposes with `fixes=true`, applied by the silver notebook
   (`/docs/explore-and-check/fix-data-issues`), and
-  `dbt_schema`'s schema.yml with tests (`/docs/reference/tools`); only a whole dbt project is said to be planned; no dates. The chat does not say that its bubbles appear in the agent.
+  since n156 "Draft a dbt project", `dbt_schema`'s whole project with `project=true`
+  (`/docs/build-from-a-plan/create-a-dbt-flow`); nothing is said to be planned; no dates. The chat does not say that its bubbles appear in the agent.
   The sales-word test covers its text.
 - **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat
   opens and to the first new choice after each step; Esc (from inside the chat) and Close close it and give the focus

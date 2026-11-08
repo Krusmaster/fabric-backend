@@ -62,7 +62,7 @@ const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && 
     await page.click('.kgc-pick[data-pick="Yes, add the link"]');
     await page.waitForSelector('.kgc-pick[data-pick="Fix data issues"]', { timeout: 15000 });
     out['checkChat' + width] = await page.evaluate(() => ({
-      links: [...document.querySelectorAll('.kgc-pick[data-pick="Fix data issues"], .kgc-pick[data-pick="Write dbt tests"]')].map((a) => ({
+      links: [...document.querySelectorAll('.kgc-pick[data-pick="Fix data issues"], .kgc-pick[data-pick="Draft a dbt project"]')].map((a) => ({
         label: a.getAttribute('data-pick'), tag: a.tagName, href: a.getAttribute('href'), why: (a.querySelector('small') || {}).textContent || '',
         planned: a.classList.contains('planned') })) }));
     out['checkChat' + width].requests = requests.filter((p) => !p.startsWith('/static/chat-demo.'));

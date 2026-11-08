@@ -89,7 +89,9 @@ def test_the_shop_project_has_its_files_and_every_yaml_file_parses(shop):
         "models/marts/customers/_customers__models.yml", "models/marts/customers/fct_order_items.sql",
         "models/marts/customers/fct_orders.sql", "models/marts/products/_products__models.yml",
         "models/sources/shop.yml", "models/staging/shop/_stg_shop__models.yml",
-        *[f"models/staging/shop/stg_shop__{t}.sql" for t in sorted(seed.SCHEMAS)]]
+        *[f"models/staging/shop/stg_shop__{t}.sql" for t in sorted(seed.SCHEMAS)],
+        "profiles.example.yml",                                                   # n156: a profile without a secret
+        "tests/fct_order_items__unique_order_id_line_no.sql", "tests/stg_shop__order_items__unique_order_id_line_no.sql"]
     docs = {k: yaml.safe_load(v) for k, v in files.items() if k.endswith(".yml")}
     proj = docs["dbt_project.yml"]
     assert proj["name"] == proj["profile"] == "krusgraph_shop" and proj["config-version"] == 2
@@ -104,7 +106,8 @@ def test_the_shop_project_has_its_files_and_every_yaml_file_parses(shop):
     assert out["models"]["marts"] == ["fct_order_items", "fct_orders"]
     for k, v in files.items():
         if k.endswith(".sql"):
-            assert "with " not in v.lower().split("{{ config")[1], f"{k}: no CTE (dbt-fabric: nested CTEs are not supported)"
+            sql = "\n".join(x for x in v.lower().splitlines() if not x.startswith("--"))
+            assert "with " not in sql, f"{k}: no CTE (dbt-fabric: nested CTEs are not supported)"
     assert out["created"] == dbt.NOTHING_CREATED and "nothing was created or run" in files["README.md"]
     assert out["adapter"] == {"package": "dbt-fabric", "version": "1.12.0", "dbt_core": "1.12", "target": "Fabric Data Warehouse (T-SQL)"}
 

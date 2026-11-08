@@ -99,7 +99,7 @@ async function flowByMouse(page, f, v) {
   f.linkAdded = await lastText(page, '.kgc-msg.win .kgc-bub');
   f.nextPicks = await picks(page);
   // n154: Fix data issues and Write dbt tests are links to the docs of what exists today, with that in one line
-  f.further = await page.evaluate(() => ['Fix data issues', 'Write dbt tests'].map((l) => {
+  f.further = await page.evaluate(() => ['Fix data issues', 'Draft a dbt project'].map((l) => {
     const a = document.querySelector(`.kgc-pick[data-pick="${l}"]`);
     return a ? { tag: a.tagName, href: a.getAttribute('href'), planned: a.classList.contains('planned'), why: (a.querySelector('small') || {}).textContent || '' } : null;
   }));

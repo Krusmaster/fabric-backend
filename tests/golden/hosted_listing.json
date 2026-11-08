@@ -1761,6 +1761,20 @@
       "description": "Relationships the user confirmed, added to the plan. Default none. Example: [{\"source\": \"orders\", \"source_cols\": [\"ship_to_id\"], \"target\": \"addresses\", \"target_cols\": [\"address_id\"]}].",
       "title": "Confirmed"
      },
+     "fixes": {
+      "anyOf": [
+       {
+        "items": {},
+        "type": "array"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Ids from validate_plan(fixes=true).",
+      "title": "Fixes"
+     },
      "keys": {
       "anyOf": [
        {

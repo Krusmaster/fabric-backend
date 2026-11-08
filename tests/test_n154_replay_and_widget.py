@@ -109,5 +109,5 @@ def test_in_a_browser_the_hero_and_the_button_everywhere(site):
         assert "/demo/plan.json" not in chat["requests"], chat                  # the plan came from the page
         assert [(x["label"], x["tag"], x["href"], x["planned"]) for x in chat["links"]] == [
             ("Fix data issues", "A", "/docs/explore-and-check/fix-data-issues", False),
-            ("Write dbt tests", "A", "/docs/reference/tools", False)], chat
+            ("Draft a dbt project", "A", "/docs/build-from-a-plan/create-a-dbt-flow", False)], chat
         assert r[f"deepLink{w}"]["path"] == "/docs/explore-and-check/fix-data-issues", r[f"deepLink{w}"]

@@ -471,13 +471,13 @@
   var LEAVE = [{ label: 'Try your own files', href: '/check' },
                { label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }];
   // n154, n155: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
-  // nothing here is planned except the whole dbt project, and the line says so
+  // nothing here is planned (n156: the whole dbt project exists as a draft)
   function further() {
     return [
       { label: 'Fix data issues', href: '/docs/explore-and-check/fix-data-issues',
         why: 'Today: a proposed fix for each problem the check finds, with counts before and after; the silver notebook applies the ones you accept, business decisions stay yours, and your source tables stay as they are.' },
-      { label: 'Write dbt tests', href: '/docs/reference/tools',
-        why: 'Today: a dbt schema.yml with unique, not_null and relationships tests from the plan; a whole dbt project is planned.' }
+      { label: 'Draft a dbt project', href: '/docs/build-from-a-plan/create-a-dbt-flow',
+        why: 'Today: a dbt project from the checked plan, as files: staging and mart models, tests, a profile without a secret; nothing runs.' }
     ];
   }
   function drafts() { return S.linked ? P.drafts.with_suggestion : P.drafts.as_is; }

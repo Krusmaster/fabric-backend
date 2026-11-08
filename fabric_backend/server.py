@@ -1003,7 +1003,7 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
                keys: _p.Keys = None, confirmed: _p.Confirmed = None,
                tables: _p.TablesShown = None, arguments_block: _p.ArgumentsBlock = True, project: _p.DbtProject = False,
                check_rows: _p.CheckRows = False, quality: _p.Quality = None, profile: _p.DbtProfile = False,
-               ctx: Context = None) -> str:
+               fixes: _p.AcceptedFixes = None, ctx: Context = None) -> str:
     """Writes a dbt sources file: unique and not_null on key columns, relationships tests on single-column relationships,
     composite ones as comments. project=true: a dbt project draft for dbt-fabric 1.12 on dbt-core 1.12 (Fabric
     Warehouse T-SQL): typed, de-duplicated staging models; marts per domain joined only over relationships check_rows
@@ -1011,13 +1011,22 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     checks as Great Expectations and/or Soda drafts; profile: a Fabric profiles.yml. Can sit beside dbt Labs' dbt-mcp,
     which runs dbt. Requires workspace and source. Returns YAML text, or JSON files for a project.
     Read-only (check_rows counts rows); creates nothing, runs no dbt. Errors: {error, kind, hint}."""
-    validation = None
+    validation, resolved = None, None
+    if fixes:                                                           # n156: the accepted fixes need the counts
+        from . import fix_plan as _fix_plan
+        from .infer import PlanInputError
+        if not project:
+            raise PlanInputError("fixes: only with project=true; the sources file has no models to put them in")
+        _fix_plan.parse_accepted(fixes)
+        check_rows = True
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
         try:
             p = _hosted_plan(s, keys, confirmed, execute)
             validation = _evidence.validate(p, execute)
             item = getattr(execute, "source_item", None) or {}
+            if fixes:
+                resolved = _fix_plan.resolve(_fix_plan.propose(p, validation, execute)["fixes"], fixes, p)
         finally:
             getattr(execute, "close", lambda: None)()
     else:
@@ -1027,7 +1036,7 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
     src = source_name or schema
     database = item.get("sql_db") or item.get("displayName") or source
     if project:
-        out = {"summary": p.summary().splitlines()[0], **_dbt.project(p, src, schema, database, validation, tables, arguments_block)}
+        out = {"summary": p.summary().splitlines()[0], **_dbt.project(p, src, schema, database, validation, tables, arguments_block, resolved)}
         if quality:
             out["files"] = dict(sorted({**out["files"], **_quality.suites(p, schema, quality, validation, tables)}.items()))
         if profile:
