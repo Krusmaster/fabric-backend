@@ -2937,7 +2937,7 @@ def build_app(host: str = "0.0.0.0"):
         return PlainTextResponse("not found", status_code=404)
     app.add_exception_handler(404, not_found)
 
-    # n166: the Fabric workload's engine API (/workload/v1/review and /build), behind its own Entra app. Off unless the
+    # n166: the Fabric workload's engine API (/workload/v1/review, /check (n173) and /build), behind its own Entra app. Off unless the
     # KRUSGRAPH_WORKLOAD_* variables are set; /mcp and /mcp/connect below are untouched by it.
     from .entra import WorkloadConfig
     workload = WorkloadConfig.from_env(cfg)

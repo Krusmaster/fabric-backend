@@ -6,6 +6,9 @@ host issued for the workload's own Entra app (entra.WorkloadConfig, a separate a
 
   POST /workload/v1/review   source -> the review file (review.py): keys and relationships with their rules, review
                              and check status; with `previous` (the item's saved review.json) the decisions carry over
+  POST /workload/v1/check    n173: the review checked against the rows (validate_plan's counting queries): each key and
+                             relationship passed, failed (with its orphans, duplicates or empty keys) or not checked,
+                             written into the review file; with the map and Thinker's questions
   POST /workload/v1/build    the reviewed plan -> an API for GraphQL item (create_backend's path); dry_run defaults to
                              true and then nothing is written
 
@@ -20,6 +23,12 @@ n171: with KRUSGRAPH_ENTITLEMENTS=1, /build with dry_run=false runs the same lic
 (entitlements.check for create_backend on the token's tid); with KRUSGRAPH_MARKETPLACE=1 as well, a tenant without an
 active Marketplace subscription gets `kind: upgrade` (HTTP 402) with the offer's link, which the editor shows as it shows
 every error (error and hint). /review and every dry run stay free. With the flags off nothing here changes.
+
+n173: /review takes the person's own `keys` and `confirmed` (the editor's inline answers to Thinker's questions: a key
+for a table the rules found none for, the table an ambiguous column points at); every answer carries `map`, the MCP
+Apps cards' map data (mcp_apps_pictures.map_from_review) with each key's check state added, which the editor draws
+with the cards' own drawing code (workload/scripts/build_card_map.py). /check is free like /review: it counts, it
+never writes to Fabric, and its answer holds counts and verdicts, never a row value.
 """
 from __future__ import annotations
 
@@ -73,7 +82,33 @@ def review_request(body) -> dict:
         raise BadRequest("'previous' must be the saved review.json object or null")
     if not isinstance(decisions, list) or not all(isinstance(d, dict) and isinstance(d.get("item"), str) for d in decisions):
         raise BadRequest("'decisions' must be a list of {item, review, reason}")
-    return {**req, "previous": prev, "decisions": decisions}
+    return {**req, "previous": prev, "decisions": decisions, **_keys_and_confirmed(body)}
+
+
+def _keys_and_confirmed(body: dict) -> dict:
+    keys, confirmed = body.get("keys"), body.get("confirmed")
+    if keys is not None and not (isinstance(keys, dict) and all(
+            isinstance(t, str) and isinstance(c, list) and c and all(isinstance(x, str) for x in c) for t, c in keys.items())):
+        raise BadRequest("'keys' must be {table: [column, ...]} or null")
+    fields = ("source", "source_cols", "target", "target_cols")
+    if confirmed is not None and not (isinstance(confirmed, list) and all(
+            isinstance(c, dict) and isinstance(c.get("source"), str) and isinstance(c.get("target"), str)
+            and all(isinstance(c.get(f), list) and c[f] for f in fields[1::2]) for c in confirmed)):
+        raise BadRequest("'confirmed' must be a list of {source, source_cols, target, target_cols} or null")
+    return {"keys": keys or None, "confirmed": [{f: c[f] for f in fields} for c in confirmed] if confirmed else None}
+
+
+def check_request(body) -> dict:
+    """n173: the source, the item's review.json (the decisions and corrections to check) and max_items (default 60)."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = _source(body)
+    if not isinstance(body.get("review"), dict):
+        raise BadRequest("'review' (the item's review.json) is required: the check counts what the review holds")
+    n = body.get("max_items", 60)
+    if not isinstance(n, int) or isinstance(n, bool) or not 1 <= n <= 200:
+        raise BadRequest("'max_items' must be a whole number from 1 to 200 (default 60)")
+    return {**req, "review": body["review"], "max_items": n}
 
 
 def build_request(body) -> dict:
@@ -129,14 +164,69 @@ def _counts(rv: dict) -> dict:
             "review": by(lambda it: it["review"]), "open_questions": len(rv.get("open_questions", []))}
 
 
-# ------------------------------------------------------------------ the two calls ------------------------------------
+def check_totals(rv: dict) -> dict:
+    """What the check found, per kind: passed, failed, stale and not checked, and each failed item with its counts in
+    words the editor shows (orphans for a relationship; duplicates and empty keys for a key). Counts only."""
+    out = {"checked_at": None, "checked": 0}
+    for kind in ("key", "relationship"):
+        t = {"passed": 0, "failed": 0, "stale": 0, "not_checked": 0}
+        for it in rv["items"]:
+            if it["type"] != kind:
+                continue
+            c = it.get("check") or {}
+            st = c.get("status") if c.get("status") in t else "not_checked"
+            t[st] += 1
+            if st in ("passed", "failed"):
+                out["checked"] += 1
+                if c.get("checked_at") and (out["checked_at"] or "") < c["checked_at"]:
+                    out["checked_at"] = c["checked_at"]
+        out[kind + "s"] = t
+    failed = []
+    for it in rv["items"]:
+        c = it.get("check") or {}
+        if c.get("status") != "failed":
+            continue
+        res = c.get("result") or {}
+        f = {"id": it["id"], "type": it["type"], "verdict": c.get("verdict", "")}
+        if it["type"] == "key":
+            rows, nulls, distinct = (int(res.get(k) or 0) for k in ("rows", "nulls", "distinct"))
+            f.update(rows=rows, nulls=nulls, duplicates=max(rows - nulls - distinct, 0))
+        else:
+            f.update(orphans=int(res.get("orphans") or 0), rows_with_value=int(res.get("rows_with_value") or 0))
+        failed.append(f)
+    out["failed"] = failed
+    return out
+
+
+def map_of(rv: dict) -> dict | None:
+    """The MCP Apps cards' map of the review (n170, mcp_apps_pictures.map_from_review), with each table's key check
+    added (key_check: passed, failed, stale, not_checked) so the editor can mark it on the table."""
+    from .mcp_apps_pictures import map_from_review
+    m = map_from_review({"review": rv})
+    if not m:
+        return None
+    checks = {it["table"]: (it.get("check") or {}).get("status") or "not_checked" for it in rv["items"] if it["type"] == "key"}
+    for t in m["tables"]:
+        if t["name"] in checks:
+            t["key_check"] = checks[t["name"]]
+    return m
+
+
+def _answer(rv: dict, note: str = NOTHING_CHANGED) -> dict:
+    from . import review as R
+    return {"review": rv, "summary": R.summary(rv), "attention": R.attention(rv), "counts": _counts(rv),
+            "map": map_of(rv), "note": note}
+
+
+# ------------------------------------------------------------------ the three calls ----------------------------------
 
 def run_review(req: dict) -> dict:
     """review_plan's work for the editor. The review file's source names the lakehouse and schema, not ids, so the
     saved review.json stays the same across workspaces (Git, deployment pipelines)."""
     from . import server as S, review as R
     prev = R.read(req["previous"]) if req["previous"] else None
-    k, c = R.merge_arguments(R.carried_arguments(prev), None, None) if prev else (None, None)
+    keys, confirmed = req.get("keys"), req.get("confirmed")
+    k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
     s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
     try:
         counted = S._within_call(execute)
@@ -145,8 +235,30 @@ def run_review(req: dict) -> dict:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]},
                  decisions=req["decisions"], previous=prev)
-    return {"review": rv, "summary": R.summary(rv), "attention": R.attention(rv), "counts": _counts(rv),
-            "note": NOTHING_CHANGED}
+    return _answer(rv)
+
+
+def run_check(req: dict) -> dict:
+    """validate_plan's counting queries on the reviewed plan (review_plan with validate=true): the review file comes back
+    with each item's check status, the decisions unchanged. Read-only; nothing in Fabric changes."""
+    from datetime import datetime, timezone
+    from . import server as S, review as R, evidence as E
+    prev = R.read(req["review"])
+    carried = R.carried_arguments(prev)
+    k, c = carried["keys"] or None, carried["confirmed"] or None
+    s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    try:
+        counted = S._within_call(execute)
+        p, base = S._hosted_plan(s, k, c, counted), S._hosted_plan(s, None, None, counted)
+        checks = E.validate(p, execute, max_items=req["max_items"])
+    finally:
+        getattr(execute, "close", lambda: None)()
+    rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]}, previous=prev,
+                 checks=checks, checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
+    out = _answer(rv, NOTHING_CHANGED + " The check counted rows; it returns counts, never a value.")
+    out["check"] = check_totals(rv)
+    out["questions"] = rv.get("open_questions", [])
+    return out
 
 
 def run_build(req: dict) -> dict:
@@ -163,6 +275,10 @@ def run_build(req: dict) -> dict:
                                                  False, req["dry_run"], token_provider=lambda: S.auth.fabric(None)))
     out["output"] = "graphql"
     out["left_out_by_review"] = left_out
+    totals = check_totals(rv)                        # n173: the review's own check, so the dry run says what passed
+    out["row_check"] = totals
+    if totals["checked"]:
+        out.pop("not_checked", None)
     if "error" in out:
         return out
     if req["dry_run"]:
@@ -203,7 +319,7 @@ def cors_headers(origin: str | None) -> dict:
 
 
 def routes(cfg, validator=None, obo=None) -> list:
-    """The two routes, bound to the workload app's validator and on-behalf-of exchange (doubles in tests)."""
+    """The three routes, bound to the workload app's validator and on-behalf-of exchange (doubles in tests)."""
     from starlette.concurrency import run_in_threadpool
     from starlette.responses import JSONResponse, Response
     from starlette.routing import Route
@@ -261,4 +377,5 @@ def routes(cfg, validator=None, obo=None) -> list:
         return handler
 
     return [Route(f"{PREFIX}/review", endpoint(review_request, run_review, "review"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/check", endpoint(check_request, run_check, "check"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"])]

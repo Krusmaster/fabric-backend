@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n173: the Krusgraph Model editor in Fabric (workload.krusgraph.com), from the founder's run on 8 November
+  2026. **Check against the rows** in the review (Home ribbon and a button): a new route, `POST /workload/v1/check`
+  (same workload audience and on-behalf-of path as `/review`), runs the counting queries on the reviewed plan and
+  writes each key's and link's check into `review.json`: passed (green), failed with its orphans, duplicates or empty
+  values (red), not checked (grey); the dry run then says what passed instead of "Not checked: validate_plan". The
+  review draws the plan as the MCP Apps cards' map (the cards' own code, copied by `workload/scripts/build_card_map.py`
+  and checked current by a test) with the review and check states; **List** keeps the rows. Onto, Thinker and Builder
+  speak in the editor with the site's figures and colours; Thinker's question about a table without a key comes with
+  its choices inline (`/review` takes the person's `keys` and `confirmed`). **Accept all** and **Accept all that passed
+  the check**. Plain-English summary and rows; rule codes stay as pills with a tooltip. Needs a redeploy, then a new
+  package version in Fabric (`docs/WORKLOAD-DEV.md`, Hosted, step 6). The MCP cards, the site and Marketplace are
+  unchanged.
 - Round n172: the MCP Apps cards polished for the film (`docs/MCP-APPS-POLISH.md`), from the founder's try in Claude on
   8 November 2026. A read on the SQL analytics endpoint that fails with a transient connection error (SQLSTATE 08S01,
   the TCP Provider's 0x2714 and other socket errors, Azure SQL's transient error numbers) is tried again on a fresh

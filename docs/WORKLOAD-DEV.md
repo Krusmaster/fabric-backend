@@ -374,6 +374,68 @@ to enable the workload for; note the screens.
 *Undo:* in the same place, deactivate the version and remove the workload; delete the Krusgraph Model items first
 (section 7, step 1). An `Org.` name reserves nothing.
 
+### 6. After each deploy: a new package version
+
+Round n173 (the editor's check against the rows, the map, the mascots, Accept all). The editor and the engine API are in
+the image, so a round that changes `workload/Workload/app/` or `fabric_backend/workload_api.py` reaches Fabric with a
+redeploy. The package (`.nupkg`) holds only the manifest: the item's name, the frontend address and the app id. Fabric
+keeps the uploaded version until a new one is added, and every upload must carry a higher version than the last. After
+a deploy, do all four steps, in this order:
+
+1. **Redeploy** (Cloud Shell, in `~/fabric-backend`):
+
+   ```bash
+   git pull --rebase origin main
+   bash deploy/krusgraph.sh --update --dry-run      # what will change; nothing is built
+   bash deploy/krusgraph.sh --update                # builds the image (editor included) and starts a new revision
+   ```
+
+   `--update` keeps the `workload_*` settings from section 3 (deploy/krusgraph.json and the app's variables), so
+   `--workload-host` is not needed again. Check that the new route answers (401 without a token is the right answer):
+   `curl -s -o /dev/null -w "%{http_code}\n" -X POST https://workload.krusgraph.com/workload/v1/check`.
+2. **Build the package again** (same shell, after the pull, so the commit count and the version have grown):
+
+   ```bash
+   bash workload/scripts/build-package --frontend-app-id <Application (client) ID>
+   ls workload/build/package/                       # Org.Krusgraph.1.0.<N>.nupkg, N higher than the version in Fabric
+   ```
+
+   The version is `1.0.<number of commits on this checkout>`, so it is higher than 1.0.877 (the version uploaded on
+   8 November 2026) after any later pull. Do not pass `--version` by hand. Download the file (**Manage files →
+   Download**, `fabric-backend/workload/build/package/Org.Krusgraph.1.0.<N>.nupkg`).
+3. **Add the new version in Fabric** (as a Fabric administrator, `app.fabric.microsoft.com`): **OneLake catalog → Govern
+   → Workloads** (on some tenants **Govern → Configurations → Workloads**) → **Org.Krusgraph** → **Upload** (the upload
+   of section 5, on the workload that already exists) → choose the new `.nupkg`. Check that the dialog names
+   **Org.Krusgraph** and the new version; cancel if it names anything else.
+4. **Activate it**: the workload's page → the new version → **Activate**. Then reload the Fabric tab and open
+   **shop_krusgraph** in workspace **demo**: the review shows **Check against the rows** in the Home ribbon, the map, and
+   Onto, Thinker and Builder.
+
+**Check on the first run:** whether the existing workload's page offers the upload of a version directly or only
+through **Upload workload** (both end in the same version list), and whether the old version must be deactivated first;
+note the screens.
+
+*Undo:* activate the previous version again on the same page; the image keeps working with either version, since n173
+changed no manifest file.
+
+### What the editor does since n173
+
+- **Check against the rows** (Home ribbon and a button in the review): `POST /workload/v1/check` runs validate_plan's
+  counting queries on the reviewed plan, on-behalf-of the signed-in user with the workload app's audience, as `/review`
+  does. Each key and link comes back passed (green), failed (red, with its orphans, duplicates or empty values) or not
+  checked (grey), written into `review.json`, so a re-opened item shows its last check and the dry run says what passed
+  instead of "Not checked: validate_plan". Counts only, never a row value; nothing in Fabric changes.
+- **The map** is the MCP Apps cards' own drawing (n170/n172): `workload/scripts/build_card_map.py` copies
+  `fabric_backend/mcp_apps_pictures.py` and the mascots into `cardMap.generated.ts`, and
+  `tests/test_workload_check.py` fails when the copy is stale. The editor adds a table's key check and accepted links on
+  top (`cardMap.ts`). **List** shows the same keys and links as rows, for the keyboard and screen readers.
+- **Onto** (green) says the numbers, **Thinker** (violet) the check and the questions, **Builder** (coral) what comes
+  next; the site's figures, a switch turns them off and their sentences are then shown as plain text. Thinker's open
+  question (audit_log has no key) comes with its choices inline: keep it without a key, or pick its key column.
+- **Accept all** and **Accept all that passed the check**; Accept and Reject per row as before. Accept all never
+  overturns a rejection.
+- Words: `modelWords.ts`; rule codes stay as pills, with a tooltip that says what the rule means.
+
 ### Wednesday: the first pilot tenant
 
 The pilot needs the workload published to their tenant id, which in `docs/WORKLOAD-FEASIBILITY.md`, section 5, step 4,
@@ -399,10 +461,12 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | `workload/` | Fork of `microsoft/fabric-extensibility-toolkit` at commit `dacab1b` (MIT; `workload/LICENSE`) with the HelloWorld item renamed to the Model item |
 | `workload/Workload/app/items/ModelItem/` | The editor, the item definition (`review.json`, `source.json`, `outputs.json`, `item.json`, all version 1) and its unit tests |
 | `workload/Workload/Manifest/items/ModelItem/` | The item manifest: type `{{WORKLOAD_NAME}}.Model`, display name "Krusgraph Model" |
-| `fabric_backend/workload_api.py` | The engine API: `POST /workload/v1/review` and `/build` (API for GraphQL only, dry run by default) |
+| `fabric_backend/workload_api.py` | The engine API: `POST /workload/v1/review`, `/check` (n173) and `/build` (API for GraphQL only, dry run by default) |
 | `fabric_backend/entra.py` (`WorkloadConfig`) | The workload app's separate audience |
 | `tests/test_workload_api.py` | Audience, routes on and off, CORS and frame-ancestors, the review and build answers on the shop schema |
 | `fabric_backend/workload_host.py` | n168: the hosted editor on `KRUSGRAPH_WORKLOAD_HOST`: its files, `/close`, the engine API, and the headers |
+| `workload/scripts/build_card_map.py` | n173: copies the MCP Apps cards' map and the mascots into the editor (`cardMap.generated.ts`); `--check` says whether the copy is current |
+| `tests/test_workload_check.py` | n173: `/check` (shape, audience, on-behalf-of, a failing check's counts), the inline answers, the copy of the cards' map |
 | `workload/scripts/build-package` | n168: the `Org.Krusgraph` package for the hosted editor (Python standard library; uploads nothing) |
 | `deploy/azure_containerapp.py` | n168: `--update --workload-host [--dry-run]`, the `workload_*` keys of `deploy/krusgraph.json` |
 | `tests/test_workload_host.py`, `tests/test_deploy_workload.py` | n168: host routing and headers; the deploy flags and the package |

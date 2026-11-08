@@ -6,6 +6,11 @@
  * Fabric's own create dialog (createItemDialogConfig in the manifest); this editor opens on an item that exists.
  * Views: empty state (choose a lakehouse) -> review -> choose outputs -> preview (dry run) -> result.
  * Re-opening an item re-plans with the saved review.json as `previous`, so decisions carry over.
+ *
+ * n173: in the review, Check against the rows (/workload/v1/check) writes each item's check into the review file; the
+ * map (the MCP Apps cards' drawing) and the list show passed, failed and not checked; Accept all and Accept all that
+ * passed the check; Thinker's questions answered inline (a key for a keyless table, the table a column points to, or
+ * keep it as it is). The ribbon stays one sticky ribbon with Home first.
  */
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -14,6 +19,7 @@ import {
   ArrowClockwise24Regular,
   ArrowLeft24Regular,
   ArrowRight24Regular,
+  CheckmarkStarburst24Regular,
   Database24Regular,
   Open24Regular,
   Play24Regular,
@@ -37,6 +43,8 @@ import {
   toParts,
 } from "./ModelItemDefinition";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
+import { MapData } from "./cardMap";
+import { Choice, acceptAll } from "./modelWords";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
 
@@ -52,7 +60,8 @@ export function ModelItemEditor(props: PageProps) {
   const [dirty, setDirty] = useState(false);
   const [schema, setSchema] = useState("dbo");
   const [apiName, setApiName] = useState("");
-  const [answer, setAnswer] = useState<{ summary?: string; attention?: string[] }>({});
+  const [map, setMap] = useState<MapData>();
+  const [mascotsOn, setMascotsOn] = useState(true);
   const [preview, setPreview] = useState<engine.BuildAnswer>();
   const [result, setResult] = useState<engine.BuildAnswer>();
   const [setView, setSetView] = useState<(v: string) => void>();
@@ -83,12 +92,12 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
-  async function plan(d: ModelDefinition) {
-    const a = await runEngine("Reading the lakehouse and finding keys and relationships…", () =>
-      engine.review(workloadClient, sourceRequest(d), d.review)
+  async function plan(d: ModelDefinition, corrections: engine.Corrections = {}) {
+    const a = await runEngine("Reading the lakehouse and finding keys and links…", () =>
+      engine.review(workloadClient, sourceRequest(d), d.review, corrections)
     );
     if (!a) return;
-    setAnswer({ summary: a.summary, attention: a.attention });
+    setMap(a.map);
     setDef({ ...d, review: a.review, item: { ...d.item, view: "review" } });
     setDirty(true);
     setView?.("review");
@@ -155,6 +164,38 @@ export function ModelItemEditor(props: PageProps) {
     setDirty(true);
   }
 
+  function onAcceptAll(onlyPassed: boolean) {
+    setDef((d) => (d.review ? { ...d, review: acceptAll(d.review, onlyPassed) } : d));
+    setDirty(true);
+  }
+
+  async function checkRows() {
+    const a = await runEngine("Counting the rows: is each key unique, does each link find its table…", () =>
+      engine.check(workloadClient, sourceRequest(def), def.review)
+    );
+    if (!a) return;
+    setMap(a.map);
+    setDef((d) => ({ ...d, review: a.review }));
+    setDirty(true);
+  }
+
+  /** Thinker's question answered inline: a key or a link goes to the engine (a new review with it); keeping things as
+   * they are is remembered in the item (item.json answers). */
+  async function onChoice(c: Choice) {
+    if (c.action.kind === "keep") {
+      const about = c.action.about;
+      setDef((d) => ({ ...d, item: { ...d.item, answers: { ...(d.item.answers ?? {}), [about]: "keep" } } }));
+      setDirty(true);
+      return;
+    }
+    if (c.action.kind === "key") {
+      await plan(def, { keys: { [c.action.table]: c.action.columns } });
+    } else {
+      const { source, column, target, targetColumns } = c.action;
+      await plan(def, { confirmed: [{ source, source_cols: [column], target, target_cols: targetColumns }] });
+    }
+  }
+
   async function previewBuild() {
     const d = { ...def, outputs: { ...def.outputs, outputs: [{ type: "graphql" as const, name: apiName, enabled: true, writable: false as const }] } };
     setDef(d);
@@ -185,7 +226,8 @@ export function ModelItemEditor(props: PageProps) {
     const actions: RibbonAction[] = [createSaveAction(() => save(), !dirty || !itemMeta)];
     actions.push({ key: "choose-source", icon: Database24Regular, label: "Choose source", onClick: () => go("empty") });
     if (view === "review") {
-      actions.push({ key: "refresh", icon: ArrowClockwise24Regular, label: "Refresh plan", onClick: () => plan(def), disabled: !!busy });
+      actions.push({ key: "check", icon: CheckmarkStarburst24Regular, label: "Check against the rows", onClick: checkRows, disabled: !!busy || !def.review });
+      actions.push({ key: "refresh", icon: ArrowClockwise24Regular, label: "Read the lakehouse again", onClick: () => plan(def), disabled: !!busy });
       actions.push({ key: "next", icon: ArrowRight24Regular, label: "Next", onClick: () => go("outputs") });
     }
     if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: create, disabled: !!busy });
@@ -221,13 +263,25 @@ export function ModelItemEditor(props: PageProps) {
       name: "review",
       component: wrap(
         def.source && def.review ? (
-          <ReviewView source={def.source} review={def.review} summary={answer.summary} attention={answer.attention} onDecide={onDecide} />
+          <ReviewView
+            source={def.source}
+            review={def.review}
+            map={map}
+            answered={def.item.answers ?? {}}
+            checking={!!busy}
+            mascotsOn={mascotsOn}
+            onToggleMascots={() => setMascotsOn((on) => !on)}
+            onDecide={onDecide}
+            onAcceptAll={onAcceptAll}
+            onCheck={checkRows}
+            onChoice={onChoice}
+          />
         ) : null
       ),
     },
     { name: "outputs", component: wrap(<OutputsView name={apiName} onNameChange={setApiName} onPreview={previewBuild} />) },
-    { name: "preview", component: wrap(preview ? <PreviewView answer={preview} onCreate={create} /> : null) },
-    { name: "result", component: wrap(result ? <ResultView answer={result} onOpen={openCreated} /> : null) },
+    { name: "preview", component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} /> : null) },
+    { name: "result", component: wrap(result ? <ResultView answer={result} onOpen={openCreated} mascotsOn={mascotsOn} /> : null) },
   ];
 
   return (

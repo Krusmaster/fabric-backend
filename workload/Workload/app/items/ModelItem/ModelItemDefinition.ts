@@ -36,7 +36,7 @@ export interface ReviewItem {
   target_columns?: string[];
   review: ReviewStatus;
   reason?: string;
-  check?: { status: string; verdict?: string };
+  check?: { status: string; verdict?: string; checked_at?: string; result?: Record<string, number> };
   proposed?: { columns: string[]; rule: string };
 }
 
@@ -85,6 +85,9 @@ export interface ItemSettings {
   version: number;
   format: typeof ITEM_FORMAT;
   view: ModelView;
+  /** n173: Thinker's questions the person answered by keeping things as they are ({about: "keep"}). Optional, so a
+   * version 1 definition without it reads as before. */
+  answers?: Record<string, string>;
 }
 
 export interface ModelDefinition {
@@ -161,7 +164,12 @@ function versionOf(obj: { version?: unknown } | undefined, part: string): number
 /** Version 1 is the first format, so migrating means filling defaults. Later versions add a step here per version. */
 export function migrate(def: ModelDefinition): ModelDefinition {
   return {
-    item: { version: DEFINITION_VERSION, format: ITEM_FORMAT, view: def.item?.view ?? (def.review ? "review" : "empty") },
+    item: {
+      version: DEFINITION_VERSION,
+      format: ITEM_FORMAT,
+      view: def.item?.view ?? (def.review ? "review" : "empty"),
+      ...(def.item?.answers && typeof def.item.answers === "object" ? { answers: def.item.answers } : {}),
+    },
     source: def.source ? { ...def.source, version: DEFINITION_VERSION, schema: def.source.schema || "dbo" } : undefined,
     outputs: {
       version: DEFINITION_VERSION,

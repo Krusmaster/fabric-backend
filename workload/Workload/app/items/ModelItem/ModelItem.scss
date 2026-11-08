@@ -1,4 +1,6 @@
-// Krusgraph Model editor styles. Fabric design tokens only (no colours of our own inside Fabric's frame).
+// Krusgraph Model editor styles. Fabric design tokens (Fluent UI CSS variables), so light and dark themes both work.
+// n173: the one exception is the mascots' own colours (Onto green, Thinker violet, Builder coral, from the site's
+// mascots.js via cardMap.generated.ts), used only for the figures and the bubbles' edge, never to carry information.
 .krusgraph-view {
   display: flex;
   flex-direction: column;
@@ -26,7 +28,7 @@
 
 .krusgraph-row {
   display: grid;
-  grid-template-columns: 5.5rem 1fr 6rem auto auto;
+  grid-template-columns: 5.5rem minmax(0, 1fr) 7rem 7.5rem auto auto;
   align-items: center;
   gap: var(--spacingHorizontalS);
   padding: var(--spacingVerticalS) var(--spacingHorizontalS);
@@ -49,4 +51,148 @@
 .krusgraph-question {
   padding: var(--spacingVerticalS) var(--spacingHorizontalS);
   border-left: 3px solid var(--colorPaletteYellowBorder2);
+}
+
+.krusgraph-row-what {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.krusgraph-row-check {
+  color: var(--colorNeutralForeground3);
+}
+
+.krusgraph-check-failed .krusgraph-row-check {
+  color: var(--colorPaletteRedForeground1);
+}
+
+.krusgraph-check-passed .krusgraph-row-check {
+  color: var(--colorPaletteGreenForeground1);
+}
+
+.krusgraph-pill {
+  cursor: help;
+  justify-self: start;
+}
+
+.krusgraph-actions,
+.krusgraph-legend,
+.krusgraph-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacingHorizontalS);
+  align-items: center;
+}
+
+// ------------------------------------------------------------------ the mascots (n173)
+.krusgraph-mascots-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalS);
+}
+
+.krusgraph-mascots {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalS);
+}
+
+.krusgraph-say {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: var(--spacingHorizontalS);
+  align-items: start;
+}
+
+.krusgraph-fig {
+  width: 48px;
+  height: 48px;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+}
+
+.krusgraph-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacingVerticalXXS);
+  min-width: 0;
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  background: var(--colorNeutralBackground2);
+  border: 1px solid var(--colorNeutralStroke2);
+  border-left: 4px solid var(--kg-mascot, var(--colorNeutralStroke1));
+  border-radius: var(--borderRadiusMedium) var(--borderRadiusXLarge) var(--borderRadiusXLarge) var(--borderRadiusXLarge);
+}
+
+.krusgraph-say.glad .krusgraph-bubble {
+  border-color: var(--colorPaletteGreenBorder2);
+  border-left-color: var(--kg-mascot);
+}
+
+.krusgraph-who {
+  font-weight: var(--fontWeightSemibold);
+  color: var(--colorNeutralForeground2);
+}
+
+// ------------------------------------------------------------------ the map: the cards' drawing on Fluent tokens
+.krusgraph-map {
+  --kg-font: var(--fontFamilyBase);
+  --kg-bg: var(--colorNeutralBackground1);
+  --kg-card: var(--colorNeutralBackground2);
+  --kg-ink: var(--colorNeutralForeground1);
+  --kg-muted: var(--colorNeutralForeground3);
+  --kg-line: var(--colorNeutralStroke1);
+  --kg-ok: var(--colorPaletteGreenForeground1);
+  --kg-bad: var(--colorPaletteRedForeground1);
+  --kg-warn: var(--colorPaletteMarigoldForeground1);
+  --kg-radius: var(--borderRadiusMedium);
+  --kg-pic-edge: var(--colorNeutralForeground2);
+  --kg-pic-accent: var(--colorBrandForeground1);
+  --kg-pic-grp-a: var(--colorPaletteRedBackground1);
+  --kg-pic-grp-b: var(--colorPaletteGreenBackground1);
+  color: var(--colorNeutralForeground1);
+  font-family: var(--fontFamilyBase);
+
+  h2 {
+    margin: 0 0 var(--spacingVerticalS);
+    font-size: var(--fontSizeBase300);
+    font-weight: var(--fontWeightSemibold);
+  }
+
+  .muted {
+    color: var(--colorNeutralForeground3);
+  }
+
+  .kg-list {
+    list-style: none;
+    padding: 0;
+  }
+
+  // the editor's additions on top of the cards' drawing (cardMap.ts stateClasses)
+  .kgc-n.kg-key-passed rect:first-of-type {
+    stroke: var(--colorPaletteGreenForeground1);
+    stroke-width: 2;
+  }
+
+  .kgc-n.kg-key-failed rect:first-of-type {
+    stroke: var(--colorPaletteRedForeground1);
+    stroke-width: 2.6;
+  }
+
+  .kgc-e.kg-rv-accepted line {
+    stroke-width: 2.6;
+  }
+
+  .kgc-n.kg-rv-accepted rect:first-of-type {
+    stroke-width: 2;
+  }
 }

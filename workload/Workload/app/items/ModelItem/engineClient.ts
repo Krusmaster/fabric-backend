@@ -15,6 +15,8 @@
  */
 import { WorkloadClientAPI } from "@ms-fabric/workload-client";
 import { ReviewFile } from "./ModelItemDefinition";
+import { MapData } from "./cardMap";
+import { CheckTotals } from "./modelWords";
 
 export interface EngineError {
   error: string;
@@ -27,7 +29,23 @@ export interface ReviewAnswer {
   summary: string;
   attention: string[];
   counts: { keys: number; relationships: number; review: Record<string, number>; open_questions: number };
+  /** n173: the MCP Apps cards' map of the review (workload_api.map_of) */
+  map?: MapData;
   note: string;
+}
+
+/** n173: /workload/v1/check, the review checked against the rows. */
+export interface CheckAnswer extends ReviewAnswer {
+  check: CheckTotals & {
+    failed: { id: string; type: "key" | "relationship"; verdict: string; orphans?: number; duplicates?: number; nulls?: number }[];
+  };
+  questions: { about: string; question: string }[];
+}
+
+/** The person's own answers to Thinker's questions, sent with /review. */
+export interface Corrections {
+  keys?: Record<string, string[]>;
+  confirmed?: { source: string; source_cols: string[]; target: string; target_cols: string[] }[];
 }
 
 export interface LeftOut {
@@ -46,6 +64,8 @@ export interface BuildAnswer {
   changes?: Record<string, unknown[]>;
   checks_passed?: string[];
   not_checked?: string;
+  /** n173: the review's own check against the rows, so the dry run says what passed */
+  row_check?: CheckTotals;
   skipped_relationships?: unknown[];
   left_out_by_review: LeftOut[];
   note?: string;
@@ -77,7 +97,7 @@ export function engineScope(built: string | undefined, doc?: { querySelector(sel
   return (meta?.getAttribute("content") || "").trim();
 }
 
-async function call<T>(workloadClient: WorkloadClientAPI, route: "review" | "build", body: object): Promise<T> {
+async function call<T>(workloadClient: WorkloadClientAPI, route: "review" | "check" | "build", body: object): Promise<T> {
   const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document);
   if (!scope) {
     throw new EngineCallError({ error: "No engine scope: set KRUSGRAPH_ENGINE_SCOPE in the workload's .env file, or KRUSGRAPH_WORKLOAD_APP_ID_URI on the hosting server", kind: "server_config" }, 0);
@@ -104,9 +124,15 @@ async function call<T>(workloadClient: WorkloadClientAPI, route: "review" | "bui
 export function review(
   workloadClient: WorkloadClientAPI,
   source: SourceRequest,
-  previous?: ReviewFile
+  previous?: ReviewFile,
+  corrections: Corrections = {}
 ): Promise<ReviewAnswer> {
-  return call<ReviewAnswer>(workloadClient, "review", { ...source, previous: previous ?? null });
+  return call<ReviewAnswer>(workloadClient, "review", { ...source, previous: previous ?? null, ...corrections });
+}
+
+/** Counts the review's keys and relationships in the rows (validate_plan's queries). Read-only; changes nothing. */
+export function check(workloadClient: WorkloadClientAPI, source: SourceRequest, reviewFile: ReviewFile): Promise<CheckAnswer> {
+  return call<CheckAnswer>(workloadClient, "check", { ...source, review: reviewFile });
 }
 
 export function build(
