@@ -476,10 +476,10 @@ def test_l17_the_site_offers_mcp_connect_only_when_the_layer_started(env, monkey
     monkeypatch.delenv("KRUSGRAPH_REGISTRATION_KEY")                      # switched on, but not configured
     c = client(env=env)
     assert c.get("/mcp/connect").status_code == 404
-    assert "Two addresses" not in c.get("/start").text
+    assert "One address for every client" not in c.get("/start").text      # n169: the sentence that names /mcp/connect
     monkeypatch.setenv("KRUSGRAPH_REGISTRATION_KEY", __import__("test_client_registration").KEY)
     c = client(env=env)                                                     # configured: the layer starts, the site says so
-    assert c.get("/mcp/connect").status_code != 404 and "Two addresses" in c.get("/start").text
+    assert c.get("/mcp/connect").status_code != 404 and "One address for every client" in c.get("/start").text
 
 
 def test_l18_the_cursor_register_step_says_it_needs_dynamic_registration():

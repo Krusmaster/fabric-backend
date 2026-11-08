@@ -70,7 +70,7 @@ def test_the_menu_by_keyboard(report, note, width):
     assert o["links"] == ["vscode:mcp/install", "vscode-insiders:mcp/install", "cursor://anysphere.cursor-deeplink/mcp/install"], o
     assert r["otherFocusRing"] not in ("none", "")
     c = r["copies"]
-    assert c["Claude: Copy URL"]["clip"] == "https://krusgraph.test/mcp" and c["Claude: Copy URL"]["after"] == "Copied"
+    assert c["Claude: Copy URL"]["clip"] == "https://krusgraph.test/mcp/connect" and c["Claude: Copy URL"]["after"] == "Copied"
     assert c["Lovable: Copy URL"]["clip"] == "https://krusgraph.test/mcp/connect"
     assert c["Claude: Copy a first question"]["clip"] == pages.FIRST_QUESTION
     assert c["foot: Copy a note to your admin"]["clip"] == note and "adminconsent?client_id=00000000-0000-0000-0000-000000000000" in note

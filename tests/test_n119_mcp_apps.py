@@ -113,7 +113,7 @@ def test_the_html_is_self_contained_with_no_external_load_and_no_tracking():
     for banned in ("http://", "https://", "//cdn", "url(", "@import", "fetch(", "xmlhttprequest", "websocket",
                    "eventsource", "sendbeacon", "import(", "importscripts", "localstorage", "sessionstorage",
                    "document.cookie", "indexeddb", "navigator.", "innerhtml", "outerhtml", "insertadjacenthtml",
-                   "document.write", "eval(", "new function", "ui/open-link", "ui/message", "ui/update-model-context"):
+                   "document.write", "eval(", "new function", "ui/update-model-context"):   # n169: ui/message, ui/open-link for the buttons
         assert banned not in low, banned
     # n136: the only pictures are the mascots, inline SVG with no reference of any kind (tests/test_n136_card_mascots.py)
     assert not {"image", "use", "foreignobject"} & set(p.tags)
@@ -128,7 +128,8 @@ def test_the_view_uses_the_spec_method_names():
         assert name in html, name
     assert set(re.findall(r'"((?:ui|tools|resources)/[a-z/-]+)"', html)) == {
         "ui/initialize", "ui/notifications/initialized", "ui/notifications/tool-input", "ui/notifications/tool-result",
-        "ui/notifications/tool-cancelled", "ui/resource-teardown", "ui/notifications/size-changed", "tools/call"}
+        "ui/notifications/tool-cancelled", "ui/resource-teardown", "ui/notifications/size-changed", "tools/call",
+        "ui/message", "ui/open-link"}                                       # n169: the Builder's buttons (mcp_apps_build)
 
 
 # ------------------------------------------------------------------ the buttons ---------------------------------------
@@ -147,7 +148,11 @@ def test_buttons_map_only_to_read_and_draft_tools():
         assert not name.startswith(("create_", "delete_", "update_")), name
         assert set(carried) <= set(tool.input_schema["properties"]), (name, carried)
     creating = [n for n, t in listing.items() if not t.annotations.read_only_hint]
-    assert creating and not [n for n in creating if n in mcp_apps.card_html()]
+    # n169: a creating tool appears only in the build buttons' list (mcp_apps_build.ALLOWED), as a dry run or a Create
+    # after one (tests/test_n169_clickable_cards.py); none is reachable through the n103 next steps
+    from fabric_backend import mcp_apps_build
+    named = [n for n in creating if n in mcp_apps.card_html()]
+    assert creating and set(named) <= set(mcp_apps_build.BUILD_TOOLS) and not set(named) & set(allowed)
     assert "hasOwnProperty.call(ALLOWED, s.tool)" in mcp_apps.card_html()     # a step outside ALLOWED gets no button
 
 
@@ -202,10 +207,13 @@ print(json.dumps({"names": sorted(t.name for t in tools),
     assert on["names"] == off["names"]                                      # the tool count does not change
     assert off["meta"] == {} and off["resources"] == []
     from fabric_backend import mcp_apps_review                           # n124: the second card, review_plan's
-    assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True)}
+    from fabric_backend import mcp_apps_build                            # n169: the build card
+    assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True),
+                          **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS}}
     assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
-                               [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"]]
-    assert on["ro_size"] <= 64_500 and on["ro_size"] - off["ro_size"] < 400, (on["ro_size"], off["ro_size"])
+                               [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"],
+                               [mcp_apps_build.CARD_URI, "text/html;profile=mcp-app"]]
+    assert on["ro_size"] <= 64_500 and on["ro_size"] - off["ro_size"] < 500, (on["ro_size"], off["ro_size"])
 
 
 # ------------------------------------------------------------------ the card in a browser -----------------------------

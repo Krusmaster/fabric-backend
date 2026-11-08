@@ -2814,7 +2814,7 @@
     "read_only_hint": true,
     "title": "Plan keys and relationships (nothing deployed)"
    },
-   "description": "Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and\nsource. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous\ncolumns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns\nthe names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values\nof a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan\nchecks it against the rows; create_backend builds the API. Errors: {error, kind, hint}.",
+   "description": "Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and\nsource. Returns JSON: summary, keys and relationships each with the rule behind it (K0–K5, R0–R5), ambiguous\ncolumns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns\nthe names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values\nof a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan\nchecks it against the rows; create_backend builds the API. Without schema, a source with several schemas that\nhold tables gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned (n169).\nErrors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -2866,10 +2866,17 @@
       "type": "boolean"
      },
      "schema": {
-      "default": "dbo",
-      "description": "Schema in the source. Default \"dbo\".",
-      "title": "Schema",
-      "type": "string"
+      "anyOf": [
+       {
+        "type": "string"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "Schema in the source; leave it out unless the user named one. Default: the only schema with tables; when the source has several, the answer lists them and asks which (choose_schema), and nothing is planned.",
+      "title": "Schema"
      },
      "source": {
       "description": "Lakehouse, warehouse or SQL database, name or id.",

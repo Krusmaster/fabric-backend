@@ -107,7 +107,8 @@ print(json.dumps({"cards": asyncio.run(go()), "listing": json.dumps([t.model_dum
     off = json.loads(subprocess.run([sys.executable, "-c", code], env=env, cwd=ROOT,
                                     capture_output=True, text=True, check=True).stdout)
     assert off["cards"] == [] and "mascot" not in off["listing"].lower()
-    assert [u for u, _ in on["cards"]] == [mcp_apps.CARD_URI, mcp_apps_review.CARD_URI]
+    from fabric_backend import mcp_apps_build                            # n169: the build card has them too
+    assert [u for u, _ in on["cards"]] == [mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI]
     for _, html in on["cards"]:
         assert html.count('<svg class="mascot ') == 3 and 'id="kg-toggle"' in html
     assert "mascot" not in on["listing"].lower()                            # nothing about them in the tool listing

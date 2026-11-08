@@ -57,7 +57,8 @@ def test_flag_off_means_no_resource_and_no_meta_on_review_plan():
 def test_the_resource_is_declared_like_the_n119_card():
     m = _app_server()
     res = {str(r.uri): r for r in asyncio.run(m.list_resources())}
-    assert set(res) == {mcp_apps.CARD_URI, mcp_apps_review.CARD_URI}
+    from fabric_backend import mcp_apps_build                            # n169: the build card
+    assert set(res) == {mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI}
     card = res[mcp_apps_review.CARD_URI]
     assert mcp_apps_review.CARD_URI.startswith("ui://krusgraph/")
     assert card.mime_type == "text/html;profile=mcp-app" == mcp_apps.APP_MIME_TYPE

@@ -1467,14 +1467,15 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     step3 = html.split('data-pane="3" id="step-3"', 1)[1].split('data-pane=', 1)[0]
     assert "connect-start" in step3 and '<summary class="btn secondary">Choose your client' in step3
     pop = html.split("connect-start", 1)[1].split("</div>\n</details>", 1)[0]          # the panel (it holds a <details> of its own)
-    assert 'data-copy-text="https://krusgraph.test/mcp"' in pop and 'href="https://claude.ai/customize/connectors" rel="noopener"' in pop
+    claude_url = "https://krusgraph.test/mcp/connect" if registration else "https://krusgraph.test/mcp"   # n169
+    assert f'data-copy-text="{claude_url}"' in pop and 'href="https://claude.ai/customize/connectors" rel="noopener"' in pop
     assert 'href="/start">the set-up guide</a>' not in pop and "Add Krusgraph to" in pop
     # n80: Claude first, open, with one large button, Copy URL beside it and a first question to copy; the admin line
     # last, with a note to copy; no address printed anywhere in the panel, every one inside a copy button or a link
     from fabric_backend import pages
     claude = pop.split('<div class="connect-item connect-claude">', 1)[1].split("</div>", 1)[0]
     assert re.search(r'<a class="btn primary connect-main" href="https://claude.ai/customize/connectors" rel="noopener">Open Claude’s connectors</a>'
-                     r'<button type="button" class="btn secondary small" data-copy-text="https://krusgraph.test/mcp">Copy URL</button>', claude)
+                     r'<button type="button" class="btn secondary small" data-copy-text="' + re.escape(claude_url) + r'">Copy URL</button>', claude)
     assert f'data-copy-text="{pages.FIRST_QUESTION}">Copy a first question</button>' in claude and "it only reads" in claude
     shown = re.sub(r"<[^>]+>", " ", re.sub(r'(data-copy-text|href)="[^"]*"', "", pop))
     assert "krusgraph.test" not in shown and "<code>" not in pop and "https://" not in shown, shown
@@ -1498,7 +1499,9 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     assert order == sorted(order), order
     assert '<details class="connect-other" open' not in pop
     start = client.get("/start").text
-    assert "Two addresses: <code>https://krusgraph.test/mcp</code> for Claude, and <code>https://krusgraph.test/mcp/connect</code> for clients that register themselves" in start
+    assert ("One address for every client: Claude and the clients that register themselves (VS Code, Cursor, Lovable and other "
+            "MCP clients) all use <code>https://krusgraph.test/mcp/connect</code>") in start                     # n169
+    assert "added earlier with <code>https://krusgraph.test/mcp</code> keep working" in start
     assert 'href="/#connect"' not in start and "under “Choose your client” above" in start
 
 
