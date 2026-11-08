@@ -31,15 +31,21 @@ const caps = process.argv[4] === 'tools' ? { serverTools: {}, openLinks: {} } : 
   const fr = page.frameLocator('#f');
   await fr.locator('button', { hasText: 'Build a semantic model' }).click({ timeout: 10000 });
   await page.waitForTimeout(300);
-  let reportButtons = 0;
+  let reportButtons = 0, createEnabled = null;
   if (caps.serverTools) {
     await fr.locator('button.act-create').click({ timeout: 10000 });
     await page.waitForTimeout(300);
-    await fr.locator('button', { hasText: 'Open in Fabric' }).click({ timeout: 10000 });
-    await page.waitForTimeout(200);
-    reportButtons = await fr.locator('button', { hasText: 'Create a report on it' }).count();
+    if (data.created && data.created.kind === 'upgrade') {        // n171: Create refused for want of a subscription
+      createEnabled = await fr.locator('button.act-create').isEnabled();
+      await fr.locator('button', { hasText: 'See the subscription' }).click({ timeout: 10000 });
+      await page.waitForTimeout(200);
+    } else {
+      await fr.locator('button', { hasText: 'Open in Fabric' }).click({ timeout: 10000 });
+      await page.waitForTimeout(200);
+      reportButtons = await fr.locator('button', { hasText: 'Create a report on it' }).count();
+    }
   }
   const text = await fr.locator('main').innerText();
   await browser.close();
-  process.stdout.write(JSON.stringify({ log: log.filter(m => m.method !== 'ui/notifications/size-changed'), text, errors, reportButtons }));
+  process.stdout.write(JSON.stringify({ log: log.filter(m => m.method !== 'ui/notifications/size-changed'), text, errors, reportButtons, createEnabled }));
 })().catch(e => { process.stderr.write(String(e)); process.exit(1); });

@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n171: Krusgraph can be bought through Microsoft Marketplace, all off by default (`KRUSGRAPH_MARKETPLACE`,
+  `docs/MARKETPLACE-SETUP.md`). `/marketplace/landing` signs the buyer in (the existing Entra app, `openid profile`
+  only), resolves the purchase with the SaaS fulfilment API v2 and activates on the buyer's click (nothing to activate
+  with auto activation); `/marketplace/webhook` checks Microsoft's bearer token (issuer and `tid` our tenant, `aud` the
+  fulfilment app, `appid`/`azp` the Marketplace SaaS API), confirms each event with Get operation, records it once per
+  operation id and acknowledges ChangePlan, ChangeQuantity and Reinstate. One row per beneficiary tenant in the
+  entitlements table (subscription id, offer, plan, status, updated_at; no user data). With `KRUSGRAPH_ENTITLEMENTS=1`
+  as well, creating calls (`dry_run=false`) in the MCP tools and the Fabric editor's Create (`/workload/v1/build`, HTTP
+  402) answer `kind: upgrade` with the offer's link when the tenant has no active subscription; reads and dry runs stay
+  free; the card's Create shows the message and a button to the offer. `deploy/krusgraph.sh --update` carries the new
+  variables over and lists by name what is still missing. Not tried against a real offer yet.
 - Round n170: the chat demo's pictures in the MCP Apps cards (the founder's ask of 8 November 2026,
   `docs/MCP-APPS-PICTURES.md`). With `KRUSGRAPH_MCP_APPS=1`: `plan_backend`, `validate_plan` and `review_plan` draw the
   map of tables and links (key columns, rule and column pair on each link, passed green, failed red with the orphan

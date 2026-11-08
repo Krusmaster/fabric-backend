@@ -120,3 +120,11 @@ Steps, in order, when the decision is taken:
 4. Say on `/privacy` and the pricing page that the tenant id is used to look up the plan (it is already processed in
    memory for the fair-use limits).
 
+## Microsoft Marketplace (n171)
+
+With `KRUSGRAPH_MARKETPLACE=1` next to `KRUSGRAPH_ENTITLEMENTS=1`, the entitlement is the organisation's Marketplace
+subscription: a tenant whose best subscription is `Subscribed` has every paid feature, the upgrade answer links to the
+offer (`KRUSGRAPH_MARKETPLACE_OFFER_URL`, also returned as `upgrade_url`), and `create_backend` with `dry_run=false` is
+paid too (the Fabric editor's Create is that call, and the free tier's count of APIs per workspace does not exist).
+Dry runs and the read-only tools stay free. Prices live in Partner Center only. Setup, the fields to fill in and the
+DEV offer test: `docs/MARKETPLACE-SETUP.md`.

@@ -2943,6 +2943,12 @@ def build_app(host: str = "0.0.0.0"):
         from . import workload_api
         app.router.routes.extend(workload_api.routes(workload))
 
+    # n171: Microsoft Marketplace (marketplace.py): /marketplace/landing, /callback, /activate and /webhook. Off unless
+    # KRUSGRAPH_MARKETPLACE=1, and then no route exists at all; on, a missing setting stops startup (marketplace.Config).
+    from . import marketplace as _marketplace
+    if _marketplace.enabled():
+        app.router.routes.extend(_marketplace.routes(cfg))
+
     # n168: on KRUSGRAPH_WORKLOAD_HOST (workload.krusgraph.com) only the hosted editor, /close and /workload/v1;
     # every other host name reaches the app below unchanged (workload_host.py). Unset, nothing is wrapped.
     from . import workload_host

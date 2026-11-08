@@ -22,6 +22,12 @@ Where the entitlements come from (KRUSGRAPH_ENTITLEMENTS_SOURCE):
          Data Reader" on the table) and kept in memory for five minutes
 A source that cannot be read answers as "not entitled" for that call and says so in the error, so a storage outage
 never hands out paid features and never takes the free ones away.
+
+Microsoft Marketplace (n171, marketplace.py, also off unless KRUSGRAPH_MARKETPLACE=1): with both flags on, a tenant with
+an active Marketplace subscription has every paid feature, the upgrade answer links to the offer
+(KRUSGRAPH_MARKETPLACE_OFFER_URL) and carries it as `upgrade_url`, and `create_backend` with dry_run=false is paid as
+well (the Fabric editor's Create, /workload/v1/build, is that call): the subscription is the licence, and "one API per
+workspace" for free needs a count nobody keeps. Dry runs and every read-only tool stay free.
 """
 from __future__ import annotations
 
@@ -45,8 +51,15 @@ def enabled() -> bool:
     return os.environ.get("KRUSGRAPH_ENTITLEMENTS", "0").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _marketplace() -> bool:
+    from . import marketplace
+    return marketplace.enabled()
+
+
 def feature_of(tool: str, dry_run: bool | None) -> str | None:
     """The paid feature a call uses, or None when the call is free (every read-only tool, every dry run)."""
+    if tool == "create_backend" and dry_run is False and _marketplace():
+        return "create"
     for feature, tools in FEATURES.items():
         if tool in tools and (tool in ALWAYS_PAID or dry_run is False):
             return feature
@@ -54,7 +67,11 @@ def feature_of(tool: str, dry_run: bool | None) -> str | None:
 
 
 def upgrade_url() -> str:
-    """KRUSGRAPH_UPGRADE_URL, else /pricing on the operator's domain (a page that does not exist yet)."""
+    """The Marketplace offer when KRUSGRAPH_MARKETPLACE=1 and KRUSGRAPH_MARKETPLACE_OFFER_URL is set; else
+    KRUSGRAPH_UPGRADE_URL, else /pricing on the operator's domain (a page that does not exist yet)."""
+    offer = os.environ.get("KRUSGRAPH_MARKETPLACE_OFFER_URL", "").strip()
+    if offer.startswith("https://") and _marketplace():
+        return offer
     explicit = os.environ.get("KRUSGRAPH_UPGRADE_URL", "").strip()
     if explicit:
         return explicit
@@ -158,8 +175,23 @@ def check(tool: str, dry_run: bool | None, tid: str | None) -> dict | None:
             have, note = set(), f" (the entitlement could not be read: {str(e)[:120]})"
         if "*" in have or feature in have:
             return None
+        if _marketplace():
+            from . import marketplace
+            try:
+                if marketplace.features(tid):
+                    return None
+            except Exception as e:  # noqa: BLE001 — the same rule for the Marketplace rows
+                note = f" (the subscription could not be read: {str(e)[:120]})"
     what = {"create": "Creating items in Fabric", "lineage": "Lineage across the workspace",
             "drift_monitor": "The nightly drift monitor"}[feature]
+    if _marketplace():
+        url = upgrade_url()
+        return {"error": f"{what} needs a Krusgraph subscription for your organisation, and it has none that is active{note}.",
+                "kind": "upgrade", "feature": feature, "upgrade_url": url,
+                "hint": (f"Subscribe through Microsoft Marketplace: {url} (Microsoft bills; an administrator or purchaser "
+                         "of your organisation subscribes once for everyone). "
+                         + ("The dry run (dry_run=true) is free and shows exactly what would be created. "
+                            if feature == "create" else "") + "Planning, validation and the drafts stay free.")}
     return {"error": f"{what} is part of the paid plan, and your organisation does not have it on this server{note}.",
             "kind": "upgrade", "feature": feature,
             "hint": (f"See {upgrade_url()} for the plans. " + ("The dry run (dry_run=true) is free and shows exactly what would be created. "

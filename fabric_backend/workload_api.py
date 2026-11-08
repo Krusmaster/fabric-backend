@@ -15,6 +15,11 @@ Nothing is stored here. Answers carry names, types, rules, decisions and counts,
 
 Browsers may call these routes only from Fabric's own domains (CORS) and the answers may only be framed by them (CSP
 frame-ancestors). The routes exist only when the KRUSGRAPH_WORKLOAD_* variables are set (server.build_app).
+
+n171: with KRUSGRAPH_ENTITLEMENTS=1, /build with dry_run=false runs the same licence check as the MCP tools
+(entitlements.check for create_backend on the token's tid); with KRUSGRAPH_MARKETPLACE=1 as well, a tenant without an
+active Marketplace subscription gets `kind: upgrade` (HTTP 402) with the offer's link, which the editor shows as it shows
+every error (error and hint). /review and every dry run stay free. With the flags off nothing here changes.
 """
 from __future__ import annotations
 
@@ -35,7 +40,7 @@ LATER = {"semantic_model": "Semantic model", "report": "Report", "pipeline": "Pi
 STATUS = {"bad_request": 400, "bad_input": 400, "sign_in": 401, "sql_sign_in": 401, "mfa": 401, "consent": 403,
           "no_access": 403, "feature_disabled": 403, "not_found": 404, "schema_not_found": 404, "table_not_found": 404,
           "would_remove": 409, "already_exists": 409, "capacity": 409, "source_not_ready": 409, "rate_limited": 429,
-          "throttled": 429, "server_config": 500, "timeout": 504}
+          "throttled": 429, "server_config": 500, "timeout": 504, "upgrade": 402}
 NOTHING_CHANGED = "Nothing was created or changed in Fabric."
 _NAME = re.compile(r"^[A-Za-z0-9_]{1,123}$")
 
@@ -211,7 +216,13 @@ def routes(cfg, validator=None, obo=None) -> list:
     def reply(body: dict, status: int, origin: str | None, extra: dict | None = None) -> Response:
         return JSONResponse(body, status_code=status, headers={**SECURITY_HEADERS, **cors_headers(origin), **(extra or {})})
 
-    def endpoint(parse, run, where: str):
+    def licence(req: dict, tid: str) -> dict | None:
+        from . import entitlements
+        if not entitlements.enabled():
+            return None
+        return entitlements.check("create_backend", req["dry_run"], tid)
+
+    def endpoint(parse, run, where: str, gate=None):
         async def handler(request):
             origin = request.headers.get("origin")
             if origin and not FABRIC_ORIGIN.match(origin.lower()) and not same_host_origin(origin):
@@ -233,6 +244,10 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply({"error": str(e) if isinstance(e, BadRequest) else "the body is not valid JSON",
                               "kind": "bad_request"}, 400, origin)
 
+            refusal = await run_in_threadpool(gate, req, str(claims.get("tid") or "")) if gate is not None else None
+            if refusal is not None:
+                return reply(refusal, STATUS["upgrade"], origin)
+
             def work():
                 from .server import workload_tokens
                 with workload_tokens(Tokens(obo, token, claims["tid"])):
@@ -246,4 +261,4 @@ def routes(cfg, validator=None, obo=None) -> list:
         return handler
 
     return [Route(f"{PREFIX}/review", endpoint(review_request, run_review, "review"), methods=["POST", "OPTIONS"]),
-            Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build"), methods=["POST", "OPTIONS"])]
+            Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"])]

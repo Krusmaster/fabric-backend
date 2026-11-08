@@ -26,5 +26,13 @@
   "workload_client_id": "",
   "workload_app_id_uri": "",
   "workload_allowed_tenants": "",
-  "workload_host": ""
+  "workload_host": "",
+  "marketplace": false,
+  "entitlements": false,
+  "marketplace_tenant_id": "",
+  "marketplace_client_id": "",
+  "marketplace_offer_url": "",
+  "marketplace_secret_keyvault_uri": "",
+  "entitlements_source": "",
+  "entitlements_table": ""
 }

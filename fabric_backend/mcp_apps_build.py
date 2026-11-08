@@ -332,8 +332,9 @@ ACTIONS_JS = r"""
     out.textContent = a.kind === "create" ? "Asked the host to create it; it may ask you first." : "Asked the host to run " + a.tool + "; it may ask you first.";
     callTool(a.tool, args, function () { out.textContent = stillWaiting(a.say); }).then(function (r) {
       out.textContent = "";
-      out.appendChild(resultView(a.tool, r));
       var d = answerOf(r);
+      if (isObj(d) && d.kind === "upgrade") { upgradeView(d, out); button.disabled = false; return; }   // n171
+      out.appendChild(resultView(a.tool, r));
       if (d) renderActions(d, out, args);
       if (a.kind !== "create") button.disabled = false;
     }, function (e) {
@@ -341,6 +342,22 @@ ACTIONS_JS = r"""
       out.textContent = callProblem(e, a.tool, a.say);
       button.disabled = false;
     });
+  }
+  // n171: a Create refused because the organisation has no active subscription (entitlements.py with
+  // KRUSGRAPH_MARKETPLACE=1): the reason, the hint, and a button to the offer (https only), instead of a bare error.
+  function upgradeView(d, out) {
+    out.textContent = "";
+    out.appendChild(el("p", readable(d.error) ? d.error : "Creating needs a subscription for your organisation.", "warn"));
+    if (readable(d.hint)) out.appendChild(el("p", d.hint, "muted"));
+    var url = typeof d.upgrade_url === "string" && /^https:\/\/[^\s"<>]+$/.test(d.upgrade_url) ? d.upgrade_url : "";
+    if (!url) return;
+    var b = el("button", "See the subscription", "act-b"), said = el("p", "", "muted"); b.type = "button";
+    b.addEventListener("click", function () {
+      if (!canOpenLinks()) { said.textContent = "Open this address: " + url; return; }
+      request("ui/open-link", { url: url }).then(function () { said.textContent = "Opened in your browser."; },
+        function () { said.textContent = "The host did not open it. The address: " + url; });
+    });
+    out.appendChild(b); out.appendChild(said);
   }
   // d: an answer; box: where its buttons go; callArgs: the arguments of the call that gave d (a dry run's, for Create)
   // n170: product: draw only the actions of that data product (its card); without it, only the actions of none

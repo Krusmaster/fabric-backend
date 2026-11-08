@@ -265,6 +265,78 @@ def workload_secret_commands(config) -> str:
             f'  az containerapp secret set -n {config["app"]} -g {config["resource_group"]} --secrets {WORKLOAD_SECRET}="$WS" --output none; unset WS\n')
 
 
+# n171: Microsoft Marketplace (fabric_backend/marketplace.py, docs/MARKETPLACE-SETUP.md). Two switches, true -> "1" (an
+# explicit false leaves them out, and --update sets "0" when the running app has one on), and the fulfilment app's settings. Like the workload, a
+# value set by hand on the app whose key is missing from the config is carried over, with one line asking for the key.
+# The secret is never here: it is the container-app secret marketplace-secret (KRUSGRAPH_MARKETPLACE_CLIENT_SECRET) or a
+# Key Vault reference (marketplace_secret_keyvault_uri), which also survives a full run.
+MARKETPLACE_FLAGS = {"marketplace": "KRUSGRAPH_MARKETPLACE", "entitlements": "KRUSGRAPH_ENTITLEMENTS"}
+MARKETPLACE_ENV = {"marketplace_tenant_id": "KRUSGRAPH_MARKETPLACE_TENANT_ID", "marketplace_client_id": "KRUSGRAPH_MARKETPLACE_CLIENT_ID",
+                   "marketplace_offer_url": "KRUSGRAPH_MARKETPLACE_OFFER_URL",
+                   "marketplace_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI",
+                   "entitlements_source": "KRUSGRAPH_ENTITLEMENTS_SOURCE", "entitlements_table": "KRUSGRAPH_ENTITLEMENTS_TABLE"}
+MARKETPLACE_SECRET_ENV, MARKETPLACE_SECRET = "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET", "marketplace-secret"
+
+
+def marketplace_env(config) -> dict:
+    """The Marketplace variables the config names: the two switches when true, the settings when non-empty."""
+    env = {variable: "1" for key, variable in MARKETPLACE_FLAGS.items() if config.get(key) is True}
+    env.update({variable: str(config[key]).strip() for key, variable in MARKETPLACE_ENV.items() if str(config.get(key) or "").strip()})
+    return env
+
+
+def carried_marketplace(config, old_env: dict) -> dict:
+    """The Marketplace variables set on the running app whose key is absent (switches) or empty (settings) in the config."""
+    carried = {}
+    for key, variable in MARKETPLACE_FLAGS.items():
+        if not isinstance(config.get(key), bool) and flag_on(variable, old_env.get(variable)):
+            carried[variable] = old_env[variable].strip()
+            print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": true i deploy/krusgraph.json.",
+                  flush=True)
+    for key, variable in MARKETPLACE_ENV.items():
+        if not str(config.get(key) or "").strip() and (old_env.get(variable) or "").strip():
+            carried[variable] = old_env[variable].strip()
+            print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": \"{carried[variable]}\" "
+                  "i deploy/krusgraph.json.", flush=True)
+    return carried
+
+
+def has_marketplace_secret(app: dict) -> bool:
+    secrets = ((app.get("properties") or {}).get("configuration") or {}).get("secrets") or []
+    return any(x.get("name") == MARKETPLACE_SECRET for x in secrets)
+
+
+def marketplace_secret_commands(config) -> str:
+    """The commands that store the fulfilment app's client secret in the container app, typed hidden; nothing else changes."""
+    return (f'  read -rsp "Marketplace-appens klienthemlighet (VÄRDE, döljs): " MS; echo\n'
+            f'  az containerapp secret set -n {config["app"]} -g {config["resource_group"]} --secrets {MARKETPLACE_SECRET}="$MS" --output none; unset MS\n')
+
+
+def marketplace_checklist(config, env: dict, has_secret: bool) -> list[str]:
+    """What the founder must set for Marketplace, by name only (never a value): each line "ok" or "saknas"."""
+    def state(ok: bool) -> str:
+        return "ok     " if ok else "saknas "
+    vault = bool(env.get("KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI"))
+    return [
+        state(flag_on("KRUSGRAPH_ENTITLEMENTS", env.get("KRUSGRAPH_ENTITLEMENTS"))) + "KRUSGRAPH_ENTITLEMENTS=1 (\"entitlements\": true), annars spärras inget",
+        state(bool(env.get("KRUSGRAPH_MARKETPLACE_TENANT_ID"))) + "KRUSGRAPH_MARKETPLACE_TENANT_ID (\"marketplace_tenant_id\"): Entra-katalogens id, samma som i Partner Center",
+        state(bool(env.get("KRUSGRAPH_MARKETPLACE_CLIENT_ID"))) + "KRUSGRAPH_MARKETPLACE_CLIENT_ID (\"marketplace_client_id\"): fulfilment-appens id, samma som i Partner Center",
+        state(vault or has_secret) + "Klienthemligheten: \"marketplace_secret_keyvault_uri\" (Key Vault) eller container-apphemligheten "
+        f"{MARKETPLACE_SECRET}",
+        state(bool(env.get("KRUSGRAPH_MARKETPLACE_OFFER_URL"))) + "KRUSGRAPH_MARKETPLACE_OFFER_URL (\"marketplace_offer_url\"): erbjudandets sida, uppgraderingslänken",
+        state(env.get("KRUSGRAPH_ENTITLEMENTS_SOURCE") == "table" and bool(env.get("KRUSGRAPH_ENTITLEMENTS_TABLE")))
+        + "KRUSGRAPH_ENTITLEMENTS_SOURCE=table och KRUSGRAPH_ENTITLEMENTS_TABLE (\"entitlements_source\", \"entitlements_table\")",
+        "manuellt Rollen \"Storage Table Data Contributor\" på tabellen för appens identitet (webhooken skriver)",
+        f"manuellt Omdirigerings-URI https://{config['domain']}/marketplace/callback (Web) på Entra-appen {config['client_id']}",
+    ]
+
+
+def print_marketplace_checklist(config, env: dict, has_secret: bool) -> None:
+    print("\nMarketplace (KRUSGRAPH_MARKETPLACE=1) – det här ska vara satt (inga värden visas; docs/MARKETPLACE-SETUP.md):", flush=True)
+    for line in marketplace_checklist(config, env, has_secret):
+        print("  " + line, flush=True)
+
+
 def workload_host_name(config, given) -> str:
     """--workload-host with no value → workload.<domain>; a value must be a subdomain of the domain."""
     host = (given if isinstance(given, str) and given.strip() else f"workload.{config['domain']}").strip().lower().rstrip(".")
@@ -338,6 +410,7 @@ def plain_env(config, build=None):
     if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
         env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
     env.update(workload_env(config))          # n168: the hosted editor and its engine API (workload_client_id, ...)
+    env.update(marketplace_env(config))       # n171: Microsoft Marketplace and the licence check (marketplace, entitlements, ...)
     days = int(config.get("log_retention_days") or 0)
     if days:                                  # console logs are kept in Log Analytics: say so on /privacy, keep no IP addresses
         env["KRUSGRAPH_LOG_RETENTION_DAYS"] = str(days)
@@ -400,7 +473,16 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         plain = {e.get("name"): e.get("value") or "" for e in old_env if not e.get("secretRef")}
         env += [{"name": key, "value": value} for key, value in carried_flags(config, plain).items()]
         env += [{"name": key, "value": value} for key, value in carried_workload(config, plain).items()]
+        env += [{"name": key, "value": value} for key, value in carried_marketplace(config, plain).items()]
     names = {e["name"] for e in env}
+    values = {e["name"]: e.get("value") or "" for e in env}
+    if flag_on("KRUSGRAPH_MARKETPLACE", values.get("KRUSGRAPH_MARKETPLACE")) and not values.get("KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI"):
+        # The manifest keeps entra-secret alone, so marketplace-secret is gone after a full run and the server would not
+        # start with the switch on. Switch it off for this revision and say what to run next.
+        env = [e if e["name"] != "KRUSGRAPH_MARKETPLACE" else {"name": "KRUSGRAPH_MARKETPLACE", "value": "0"} for e in env]
+        print("En full körning tar bort container-appens hemlighet marketplace-secret, så KRUSGRAPH_MARKETPLACE sätts till 0 nu. "
+              "Kör därefter dessa och sedan --update (eller använd marketplace_secret_keyvault_uri):\n"
+              + marketplace_secret_commands(config), flush=True)
     if names & {"KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI"}:
         # The manifest replaces the secret list with entra-secret alone, so workload-secret is gone after a full run; the
         # server refuses to start with a workload id but no secret. Keep only the host (the editor's files) and say so.
@@ -665,8 +747,28 @@ def update(az, config, keep_settings=False, workload_host=None, dry_run=False):
     else:                                     # a hand-set switch stays (--set-env-vars removes nothing); say so once
         env.update(carried_flags(config, old_env))
         env.update(carried_workload(config, old_env))
+        env.update(carried_marketplace(config, old_env))
+        for key, variable in MARKETPLACE_FLAGS.items():     # false in the config switches off what the app has on
+            if config.get(key) is False and flag_on(variable, old_env.get(variable)):
+                env[variable] = "0"
+                print(f"Stänger av {variable} (\"{key}\": false i deploy/krusgraph.json).", flush=True)
     if host:
         env["KRUSGRAPH_WORKLOAD_HOST"] = host
+    after = {**old_env, **env}
+    if not keep_settings and flag_on("KRUSGRAPH_MARKETPLACE", after.get("KRUSGRAPH_MARKETPLACE")):
+        secret = has_marketplace_secret(existing)
+        if not after.get("KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI"):
+            if not secret:
+                message = ("KRUSGRAPH_MARKETPLACE=1 men varken marketplace_secret_keyvault_uri eller container-apphemligheten "
+                           f"{MARKETPLACE_SECRET} finns, och servern startar inte utan den. Kör först (värdet skrivs dolt):\n"
+                           + marketplace_secret_commands(config))
+                if not dry_run:
+                    print_marketplace_checklist(config, after, secret)
+                    raise DeploymentError(message)
+                print("OBS: " + message, flush=True)
+            else:
+                env[MARKETPLACE_SECRET_ENV] = f"secretref:{MARKETPLACE_SECRET}"
+        print_marketplace_checklist(config, {**after, **env}, secret)
     engine = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
     if any(env.get(v) or old_env.get(v) for v in engine):
         if not all(env.get(v) or old_env.get(v) for v in engine):
@@ -1033,6 +1135,8 @@ def config_from_azure(az, app=None, resource_group=None):
         "budget_amount": 0, "budget_email": "",            # --budget's keys; a budget is not read back from Azure
         **{key: flag_on(variable, env.get(variable)) for key, variable in OPERATOR_FLAGS.items()},
         **{key: env.get(variable, "").strip() for key, variable in WORKLOAD_ENV.items() if key != "workload_scope"},
+        **{key: flag_on(variable, env.get(variable)) for key, variable in MARKETPLACE_FLAGS.items()},
+        **{key: env.get(variable, "").strip() for key, variable in MARKETPLACE_ENV.items()},
     }
 
 
