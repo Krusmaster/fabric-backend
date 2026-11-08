@@ -121,6 +121,8 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
         // panel on the screen, its links the clients' install links, Escape closes it and returns the focus; no horizontal scroll
         facts[`connect@${vname}`] = await (async () => {
           const out = {};
+          // its own tab: leaving the home page would cut off its prefetch of /check's engine (a failed request)
+          const page = await ctx.newPage(); watch(page, `/start#step-3@${vname}`);
           await page.goto(base + '/start#step-3', { waitUntil: 'load' });
           for (const where of ['.start-pane[data-pane="3"]']) {
             await page.focus(where + ' summary'); await page.keyboard.press('Enter'); await page.waitForTimeout(150);
@@ -133,6 +135,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
             await page.keyboard.press('Escape');
             out[where].afterEscape = await page.evaluate((w) => ({ open: document.querySelector(w + ' details').open, focus: document.activeElement === document.querySelector(w + ' summary') }), where);
           }
+          await page.close();
           return out;
         })();
       }
