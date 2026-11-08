@@ -1,5 +1,11 @@
 # Sign-in for MCP clients other than Claude: client registration
 
+**Claude, since 8 November 2026 (n169):** Claude's new custom-connector dialog registers itself, so new Claude
+connectors use `https://krusgraph.com/mcp/connect` with "Register automatically" (at `/mcp` the dialog answered
+"Automatic client registration isn't supported"; with the Entra client id as its own OAuth client, Entra answered
+AADSTS7000218, the app being confidential). `/start`, `/docs`, `/consent/done` and `llms.txt` say so. Connectors added
+earlier at `https://krusgraph.com/mcp` keep working; Entra and the OAuth flows are unchanged.
+
 Status: switched on at krusgraph.com on 27 October 2026 (`KRUSGRAPH_CLIENT_REGISTRATION`; code in
 `fabric_backend/registration.py`, `registration_flow.py`, `registration_store.py`; tests in
 `tests/test_client_registration.py`). In the maintainer's live test that day, Glama (with its client ID metadata

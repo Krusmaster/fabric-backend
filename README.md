@@ -7,9 +7,10 @@
 - SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source. A second pack describes Younium subscription billing beside Salesforce (accounts and their External CRM Id, subscription versions, charges, invoices with lines, payments); its sources could not be opened from the session that wrote it and it is marked unverified throughout; the engine applies it since round n78 when a schema has a table of the systems' own (subscription versions, charge plans, opportunity line items), never on tables called accounts or invoices alone ([docs/YOUNIUM-SALESFORCE.md](docs/YOUNIUM-SALESFORCE.md)). The pack for the Nordic ERP systems is a spike so far ([docs/NORDIC-PACK-SPIKE.md](docs/NORDIC-PACK-SPIKE.md)).
 - One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
 
-Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp` for Claude, and
-`https://krusgraph.com/mcp/connect` for VS Code, Cursor and other MCP clients that register themselves (signed in and
-used on 27 October 2026 from VS Code, Cursor and Glama); sign-in with your Microsoft work account, every call with
+Hosted as **[Krusgraph](https://krusgraph.com)**: `https://krusgraph.com/mcp/connect` for Claude (with "Register
+automatically") and for VS Code, Cursor and other MCP clients that register themselves (signed in and used on
+27 October 2026 from VS Code, Cursor and Glama); Claude connectors added earlier at `https://krusgraph.com/mcp` keep
+working; sign-in with your Microsoft work account, every call with
 your own Fabric permissions. The [guided demo](https://krusgraph.com/demo)
 and the [demo graph](https://krusgraph.com/explore) run the same engine on a synthetic schema and need no account. This
 repository is the whole thing: engine, MCP server, website and deployment. Krusgraph is independent and not affiliated
@@ -86,10 +87,12 @@ The agent can then say *"give me a GraphQL API over orders, customers and produc
 
 ## Remote server (Krusgraph: Claude, VS Code, Cursor and other MCP clients)
 
-The hosted instance is `https://krusgraph.com/mcp`. Add it in Claude under Customize → Connectors → Add → Add
-custom connector and sign in with your Microsoft work account; your Entra admin consents once
-(https://krusgraph.com/start has the steps, https://krusgraph.com/docs the details). VS Code, Cursor and other MCP
-clients that register themselves use `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
+Add `https://krusgraph.com/mcp/connect` in Claude under Customize → Connectors → Add → Add custom connector, keep
+"Register automatically" selected and sign in with your Microsoft work account; your Entra admin consents once
+(https://krusgraph.com/start has the steps, https://krusgraph.com/docs the details). Why /mcp/connect: on 8 November
+2026 Claude's new connector dialog registers itself as a client, which `https://krusgraph.com/mcp` does not offer
+("Automatic client registration isn't supported"); connectors added there earlier keep working. VS Code, Cursor and
+other MCP clients that register themselves use the same `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
 the client, then the Microsoft sign-in (https://krusgraph.com/docs#other-mcp-clients; tested on 27 October 2026 with
 VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). To run your own:
 

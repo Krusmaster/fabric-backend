@@ -346,8 +346,11 @@ What it is: `docs/CLIENT-REGISTRATION.md`. In short, with `KRUSGRAPH_CLIENT_REGI
 themselves use **`https://krusgraph.com/mcp/connect`**, whose metadata names Krusgraph's authorization server
 `https://krusgraph.com/oauth`. It accepts Client ID Metadata Documents (VS Code, Claude Code, ChatGPT) and, with
 `KRUSGRAPH_CLIENT_REGISTRATION_DCR=1`, strict dynamic registration (Cursor, Glama), shows Krusgraph's own approval page
-per client, then sends the user to Microsoft. Claude keeps `https://krusgraph.com/mcp` and signs in exactly as today
-whether the flag is on or off. Switched on at krusgraph.com on 27 October 2026; Glama, VS Code and Cursor signed in
+per client, then sends the user to Microsoft. Since n169 (8 November 2026) new Claude connectors use
+`https://krusgraph.com/mcp/connect` too, with "Register automatically": Claude's new custom-connector dialog registers
+itself and fails at `/mcp` ("Automatic client registration isn't supported"; with the Entra client id as its own OAuth
+client, Entra answers AADSTS7000218 because the app is confidential). Connectors added earlier at
+`https://krusgraph.com/mcp` keep signing in exactly as before; neither Entra nor the OAuth flows changed. Switched on at krusgraph.com on 27 October 2026; Glama, VS Code and Cursor signed in
 and worked that day (`docs/LIVE-TEST.md` section 4).
 
 What the first run taught, for the next time these steps are run:

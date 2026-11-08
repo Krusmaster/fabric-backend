@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n169: the mascots' next steps on the MCP Apps cards are buttons (the founder's ask of 8 November 2026,
+  `docs/MCP-APPS-BUTTONS.md`). With `KRUSGRAPH_MCP_APPS=1`, `plan_backend` and the creating tools (`create_semantic_model`,
+  `create_ontology`, `create_backend`, `create_report`) get a build card and every card ends with the Thinker's and the
+  Builder's buttons, built from the answer's new `actions`: "Check against the rows", "Build a semantic model", "Create
+  an ontology", "Create an API for GraphQL", each a dry run under a free name derived from the source (shop_model_2,
+  never one the workspace has), then "Create" on the dry run's card only, with the same arguments and `dry_run=false`;
+  after a create "Open in Fabric" and, after a semantic model, "Create a report on it". A host without app tool calls
+  gets the button's prompt as a chat message (`ui/message`). `plan_backend` without `schema` on a source with several
+  schemas asks which (`choose_schema`) instead of planning one. Claude's sign-in: `/start`, `/docs`, the connect
+  chooser, `llms.txt` and `/consent/done` give Claude `https://krusgraph.com/mcp/connect` with "Register automatically",
+  with one line on why; `/mcp` keeps working for existing connectors. Not tried in Claude yet.
 - Round n164: the mascots' names follow their colours differently (the founder's decision of 7-8 November 2026).
   Onto is green (the wide, low figure; maps how the data connects and says the numbers), the Thinker violet (the round
   pear; checks against the rows, finds what does not hold, asks the questions), the Builder coral (the upright egg;
