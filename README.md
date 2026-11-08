@@ -600,7 +600,8 @@ one boundary, with Fabric as the first adapter and the local ODBC, SQLite and fi
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) says what a new adapter implements. The website pages are templates in `fabric_backend/page_templates/`, the stylesheet and scripts in
 `fabric_backend/static/` (fonts Fredoka and Nunito, SIL OFL, self-hosted). `/demo/plan.json` is `plan()` run on
 `fabric_backend.seed.schema()`, so the demo shows what the engine says. `/mascots` is an unlinked, `noindex`
-review page for the three figures. Screenshots used for the visual review are in `docs/screenshots/`.
+review page for the three figures: Onto (green) maps how the data connects and says the numbers, the Thinker
+(violet) checks against the rows and asks the questions, the Builder (coral) builds, always with a dry run first. Screenshots used for the visual review are in `docs/screenshots/`.
 
 Contributing: the rules (claim an area, own worktree, green suite, no customer data, the sales-word test, commit
 identity) are in [CONTRIBUTING.md](CONTRIBUTING.md); the pull request template

@@ -55,8 +55,10 @@
 .kgc-bub > * { min-width: 0; margin: 0 }
 .kgc-msg.win .kgc-bub { border: 2px solid var(--sage-ink) }
 .kgc-who { font-family: var(--font-head); font-weight: 600; font-size: 13px; color: var(--lav-ink) }
-.kgc-msg.onto .kgc-who { color: var(--coral-ink) }
-.kgc-msg.thinker .kgc-who { color: var(--sage-ink) }
+/* n164: each name in its own colour (site.css --onto, --thinker, --builder) */
+.kgc-msg.onto .kgc-who { color: var(--onto-ink) }
+.kgc-msg.thinker .kgc-who { color: var(--thinker-ink) }
+.kgc-msg.builder .kgc-who { color: var(--builder-ink) }
 .kgc-bub h3 { font-family: var(--font-head); font-weight: 600; font-size: 17.5px; line-height: 1.2 }
 .kgc-bub code { font-size: 13px; overflow-wrap: anywhere }
 .kgc-facts { display: flex; flex-wrap: wrap; gap: 4px 18px }

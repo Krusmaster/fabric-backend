@@ -56,6 +56,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
       confetti: getComputedStyle(li.querySelector(".m-confetti")).opacity, heart: getComputedStyle(li.querySelector(".m-heart")).opacity,
       bubble: getComputedStyle(li.querySelector(".kg-bub")).backgroundColor, ink: getComputedStyle(li.querySelector(".kg-line")).color,
       figWidth: li.querySelector(".kg-fig").getBoundingClientRect().width,
+      fill: li.querySelector(".m-body path").getAttribute("fill"),          // n164: which colour the figure wears
       right: li.getBoundingClientRect().right }));
     const t = document.getElementById("kg-toggle");
     return { figures, boxShown: shown(box), toggle: { shown: shown(t), text: t.textContent, pressed: t.getAttribute("aria-pressed") },

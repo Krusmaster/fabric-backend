@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n164: the mascots' names follow their colours differently (the founder's decision of 7-8 November 2026).
+  Onto is green (the wide, low figure; maps how the data connects and says the numbers), the Thinker violet (the round
+  pear; checks against the rows, finds what does not hold, asks the questions), the Builder coral (the upright egg;
+  builds, always after a dry run). Each role stays where it was; `KINDS` in `static/mascots.js` is the one place where a
+  name meets its colour and figure, `site.css` has `--onto`, `--thinker` and `--builder` (with `-soft`, `-ink`, `-d`)
+  from the palette, and the chat demo's names, the notes on `/demo`, `/mascots`, the MCP Apps cards and the alt texts
+  follow. Two placeholders that named a "maker" (no such mascot; they drew Onto) now draw the Builder. The logo is
+  unchanged. `docs/MASCOTS-RENAME-LOVABLE.md` has the prompt for the Shop Desk app in Lovable and what to change by hand.
 - Round n154: n149 partly undone after the founder's feedback of 8 November 2026. The replay ("A replay of a session in
   Claude") is back in the home page's hero, under the two buttons as before n149 (on a phone directly under them), with
   the small 2 000 → 1 000 card under it; its first round starts with question 1 already sent and answered, and the

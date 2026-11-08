@@ -6,25 +6,34 @@
   'use strict';
   /* Shapes live in a 120×120 box with the ground at y=108. Each body is a soft matte stone: a radial gradient (lighter
      top-left, tinted darker lower edge), a faint highlight oval, a blurred contact shadow, short stub arms resting
-     against the body (about 30 % of the body height) and small bead eyes with a glint. No legs, fingers, noses or mouths. */
+     against the body (about 30 % of the body height) and small bead eyes with a glint. No legs, fingers, noses or mouths.
+     n164 (the founder's decision of 7-8 November 2026): KINDS is the one place where a name meets its colour and its
+     artwork. `colour` names the figure, `token` the site's CSS token for it (site.css: --onto, --thinker, --builder and
+     their -soft, -ink and -d variants), the rest is the figure. The roles stay with the names:
+       onto     green  — maps how the data connects and says the numbers (the wide, low cushion)
+       thinker  violet — checks against the rows, finds what does not hold, asks the questions (the round pear)
+       builder  coral  — creates the API, model, report or ontology, always after a dry run (the upright egg) */
   var KINDS = {
-    onto: { // the guide: an upright egg, leaning forward
-      fill: '#F2735C', light: '#FFB29A', dark: '#D9604B', cheek: '#FFD0C4', name: 'Onto, the coral guide', tilt: 6,
-      body: 'M60 20 C79 20 92 46 92 72 C92 95 78 108 60 108 C42 108 28 95 28 72 C28 46 41 20 60 20 Z',
-      eyes: [[53, 58], [70, 57]], eyeR: 3.6, blush: [[45, 67], [78, 66]],
-      armL: [31, 70, -14], armR: [89, 70, 14], armRX: 7.4, armRY: 13, hl: [46, 40, 9, 5.5, -30], shadow: [60, 109, 30, 4.5]
-    },
-    thinker: { // the thinker: wide, low and settled, like a cushion
-      fill: '#9DB8A0', light: '#CDDFCD', dark: '#84A188', cheek: '#F6B7A6', name: 'The thinker, the sage one', tilt: 0,
+    onto: { // the guide, green: wide, low and settled, like a cushion
+      colour: 'green', token: '--onto',
+      fill: '#9DB8A0', light: '#CDDFCD', dark: '#84A188', cheek: '#F6B7A6', name: 'Onto, the green one who maps how the data connects and says the numbers', tilt: 0,
       body: 'M60 50 C88 50 106 58 106 80 C106 100 90 108 60 108 C30 108 14 100 14 80 C14 58 32 50 60 50 Z',
       eyes: [[49, 72], [71, 72]], eyeR: 3.6, blush: [[38, 82], [82, 82]],
       armL: [17, 84, -24], armR: [103, 84, 24], armRX: 7.6, armRY: 11.5, hl: [38, 61, 11, 4.5, -12], shadow: [60, 109, 40, 4.5]
     },
-    builder: { // the maker: a soft rounded pear, slightly tapered toward a round top, leaning
-      fill: '#A99AD8', light: '#D4CBF0', dark: '#9282C6', cheek: '#F4BCD0', name: 'The builder, the lavender one', tilt: 10,
+    thinker: { // the thinker, violet: a soft rounded pear, slightly tapered toward a round top, leaning
+      colour: 'violet', token: '--thinker',
+      fill: '#A99AD8', light: '#D4CBF0', dark: '#9282C6', cheek: '#F4BCD0', name: 'Thinker, the violet one who checks against the rows and asks the questions', tilt: 10,
       body: 'M60 29 C75 29 85 45 90 64 C96 88 85 108 60 108 C35 108 24 88 30 64 C35 45 45 29 60 29 Z',
       eyes: [[52, 66], [69, 66]], eyeR: 3.5, blush: [[44, 76], [77, 76]],
       armL: [31, 78, -14], armR: [89, 78, 14], armRX: 7.2, armRY: 12, hl: [49, 45, 7.5, 4.5, -35], shadow: [60, 109, 33, 4.5]
+    },
+    builder: { // the builder, coral: an upright egg, leaning forward
+      colour: 'coral', token: '--builder',
+      fill: '#F2735C', light: '#FFB29A', dark: '#D9604B', cheek: '#FFD0C4', name: 'Builder, the coral one who builds, always after a dry run', tilt: 6,
+      body: 'M60 20 C79 20 92 46 92 72 C92 95 78 108 60 108 C42 108 28 95 28 72 C28 46 41 20 60 20 Z',
+      eyes: [[53, 58], [70, 57]], eyeR: 3.6, blush: [[45, 67], [78, 66]],
+      armL: [31, 70, -14], armR: [89, 70, 14], armRX: 7.4, armRY: 13, hl: [46, 40, 9, 5.5, -30], shadow: [60, 109, 30, 4.5]
     }
   };
   var uid = 0;

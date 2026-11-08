@@ -7,6 +7,8 @@ arms, cheeks, highlight and eyes in flat colours.
 
 How the cards use them (`mcp_apps.py`, `mcp_apps_review.py`), in the way the site's chat demo does:
 
+- Which colour and figure goes with which name is `KINDS` in mascots.js (n164: Onto green, the Thinker violet, the
+  Builder coral); nothing here repeats it.
 - Onto says the counts, the Thinker what needs attention, the Builder the next steps. Each says one sentence taken
   word for word from the tool's text answer, and that sentence is also on the card outside the figures; a figure with
   nothing from the answer to say is not shown. Mascots are decoration, never the only carrier of information (docs/SITE.md).

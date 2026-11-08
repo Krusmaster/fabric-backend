@@ -9,6 +9,11 @@
   --lav:#A99AD8; --lav-soft:#ECE7F7; --lav-ink:#5B4A9E;
   --mustard:#E3A93B; --mustard-soft:#FBF0D9; --mustard-ink:#7F5404;
   --coral-d:#E2604A; --sage-d:#6F9775; --lav-d:#8A79C8; --mustard-d:#B07A12;
+  /* n164: the mascots' colours, one per name (mascots.js KINDS has the same mapping): Onto green, Thinker violet,
+     Builder coral. They point at the palette, so the dark values below follow without a second list. */
+  --onto:var(--sage); --onto-soft:var(--sage-soft); --onto-ink:var(--sage-ink); --onto-d:var(--sage-d);
+  --thinker:var(--lav); --thinker-soft:var(--lav-soft); --thinker-ink:var(--lav-ink); --thinker-d:var(--lav-d);
+  --builder:var(--coral); --builder-soft:var(--coral-soft); --builder-ink:var(--coral-ink); --builder-d:var(--coral-d);
   --focus:#5B4A9E; --shadow:0 18px 40px -18px rgba(90,60,40,.22),0 2px 6px rgba(90,60,40,.05);
   --radius:22px; --radius-s:12px;
   --font-head:"Fredoka",ui-rounded,"Segoe UI",system-ui,sans-serif;
@@ -160,7 +165,7 @@ section{padding-top:40px;padding-bottom:40px}
 @media (min-width:900px){.hero-grid{grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px}}
 .hero-figure{display:flex;justify-content:center;align-items:flex-end;gap:18px;min-height:150px}
 .hero-figure .mascot{width:112px;height:112px}
-.hero-figure .mascot.thinker{width:124px;height:124px}
+.hero-figure .mascot.onto{width:124px;height:124px}  /* the wide, low figure */
 @media (max-width:899px){.hero-figure{min-height:0;justify-content:flex-start}.hero-figure .mascot{width:96px;height:96px}}
 .hero-copy{text-align:center;display:flex;flex-direction:column;align-items:center}
 .hero-copy h1{max-width:20ch;margin-left:auto;margin-right:auto}
@@ -289,6 +294,9 @@ section{padding-top:40px;padding-bottom:40px}
 .note.sage{background:var(--sage-soft)}
 .note.lav{background:var(--lav-soft)}
 .note.coral{background:var(--coral-soft)}
+/* n164: a note one of the mascots gives takes that mascot's colour */
+.note.onto{background:var(--onto-soft)}.note.thinker{background:var(--thinker-soft)}.note.builder{background:var(--builder-soft)}
+.pill.onto{background:var(--onto-soft);color:var(--onto-ink);border-color:transparent}.pill.thinker{background:var(--thinker-soft);color:var(--thinker-ink);border-color:transparent}.pill.builder{background:var(--builder-soft);color:var(--builder-ink);border-color:transparent}
 .choice{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .ex-panel .status{font-size:13.5px;color:var(--muted);margin-top:8px}
 

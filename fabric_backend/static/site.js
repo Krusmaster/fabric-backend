@@ -264,7 +264,7 @@
         var sf = 104; d.style.width = d.style.height = sf + 'px';
         d.style.left = (near.x + near.w / 2 - sf / 2) + 'px'; d.style.top = (floor - sf * 0.93) + 'px';
       } else if (!narrow && e && e.horizontal) { // sits on the rule chip of a top-row wire
-        var sz = d.kind === 'thinker' ? 104 : 100; d.style.width = d.style.height = sz + 'px';
+        var sz = d.kind === 'onto' ? 104 : 100;   // n164: Onto is the wide, low figure d.style.width = d.style.height = sz + 'px';
         d.style.left = (e.mid.x - sz / 2) + 'px'; d.style.top = (e.mid.y - 9 - sz * 0.9 + 1) + 'px';
       } else { // narrow: a small row above the first card, clear of its border
         var first = self.nodes[(auto ? [] : STACK).filter(function (n) { return self.nodes[n]; })[0]] || self.nodes[Object.keys(self.nodes)[0]];
@@ -527,7 +527,7 @@
     var poses = ['rest', 'look', 'listen', 'point', 'celebrate', 'heart', 'notice', 'think', 'explain', 'aside', 'working', 'failure', 'calm'];
     ['onto', 'thinker', 'builder'].forEach(function (k) {
       var grid = document.getElementById('grid-' + k);
-      grid.innerHTML = poses.map(function (p) { return '<div class="m-cell">' + M.svg(k, { pose: p, label: k + ', ' + p }) + '<span class="lbl">' + p + '</span></div>'; }).join('');
+      grid.innerHTML = poses.map(function (p) { return '<div class="m-cell">' + M.svg(k, { pose: p, label: M.KINDS[k].name + ', ' + p }) + '<span class="lbl">' + p + '</span></div>'; }).join('');
     });
     loadPlan(function (data) {
       var area = document.getElementById('m-follow');
@@ -542,7 +542,7 @@
     var seq = [['notice', 'notice'], ['think', 'consider'], ['explain', 'explain: "Accept this example relationship, or leave it unlinked."']], i = 0;
     function stepThinker() { if (i < seq.length) { M.setPose(tk, seq[i][0]); tkState.textContent = 'state: ' + seq[i][1]; i++; setTimeout(stepThinker, M.motionOK() ? 900 : 0); } else { tkState.textContent = 'state: your choice'; document.getElementById('m-choice').hidden = false; } }
     document.getElementById('m-think-start').addEventListener('click', function () { i = 0; document.getElementById('m-choice').hidden = true; wire.setAttribute('class', 'wire-demo'); stepThinker(); });
-    document.getElementById('m-accept').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo accepted'); tkState.textContent = 'accepted in this demo (thin sage line); the data has not been checked.'; M.setPose(tk, 'rest'); });
+    document.getElementById('m-accept').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo accepted'); tkState.textContent = 'accepted in this demo (thin green line); the data has not been checked.'; M.setPose(tk, 'rest'); });
     document.getElementById('m-skip').addEventListener('click', function () { wire.setAttribute('class', 'wire-demo'); tkState.textContent = 'left unlinked (stays dashed).'; M.setPose(tk, 'rest'); });
     // Builder: ready → you start → working → success | failure → calm. Demo states only; no Fabric call is made.
     var bd = document.getElementById('m-build'), bdState = document.getElementById('m-build-state'), ok = document.getElementById('m-ok'), err = document.getElementById('m-err'), cancel = null;

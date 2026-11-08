@@ -5,11 +5,12 @@
   <p class="intro">Three soft, matte clay stones with bead eyes and short stub arms. No legs, fingers, noses or mouths: the expression comes from the gaze, the tilt and the rhythm. Every figure below is inline SVG with separate layers for the blurred contact shadow, the shaded body, the arms and the eyes; poses are CSS, behaviours are a little JS. The eyes follow the pointer on devices that have one. Turn them off with the footer switch; <code>prefers-reduced-motion</code> gives stills.</p>
 </section>
 <section class="wrap" style="padding-top:8px">
-  <h2>Onto <span class="pill coral">coral · the guide</span></h2><p class="muted">An upright egg, leaning forward. Explore, listen, thank you (holds a heart).</p>
+  <p class="muted">Each name has one colour and one role (since 8 November 2026): Onto is green, the Thinker violet, the Builder coral. They are glad only when every check passes.</p>
+  <h2>Onto <span class="pill onto">green · ontology and numbers</span></h2><p class="muted">Wide, low and steady, like a cushion. Maps how the data connects and says the numbers: the tables, the keys, the links found.</p>
   <div class="m-grid" id="grid-onto"></div>
-  <h2 style="margin-top:32px">The thinker <span class="pill sage">sage</span></h2><p class="muted">Wide, low and steady, like a cushion. Nods quietly.</p>
+  <h2 style="margin-top:32px">The Thinker <span class="pill thinker">violet · checks and questions</span></h2><p class="muted">A soft round pear, a little narrower at the top, leaning. Checks the plan against the rows, finds what does not hold and asks the questions.</p>
   <div class="m-grid" id="grid-thinker"></div>
-  <h2 style="margin-top:32px">The builder <span class="pill demo">lavender</span></h2><p class="muted">A soft round pear, a little narrower at the top, leaning. Gets a little extra bounce.</p>
+  <h2 style="margin-top:32px">The Builder <span class="pill builder">coral · building</span></h2><p class="muted">An upright egg, leaning forward. Creates the API, the semantic model, the report or the ontology, always with a dry run first.</p>
   <div class="m-grid" id="grid-builder"></div>
 </section>
 <section class="wrap" style="padding-top:8px">
@@ -20,10 +21,10 @@
     <p id="m-follow-state" class="state-line">state: rest</p>
   </div>
   <div class="scene">
-    <h2 style="font-size:24px">The thinker: Accept or leave unlinked <span class="pill demo">demo</span></h2>
-    <p class="muted">notice → consider → explain (“Accept this example relationship, or leave it unlinked.”) → your choice. Accept draws a thin sage line; Leave unlinked keeps it dashed. Accepting is a choice in the demo, not a check of the data.</p>
+    <h2 style="font-size:24px">The Thinker: Accept or leave unlinked <span class="pill demo">demo</span></h2>
+    <p class="muted">notice → consider → explain (“Accept this example relationship, or leave it unlinked.”) → your choice. Accept draws a thin green line; Leave unlinked keeps it dashed. Accepting is a choice in the demo, not a check of the data.</p>
     <div class="stage">
-      <span id="m-think" data-mascot="thinker" data-pose="rest" data-label="The thinker"></span>
+      <span id="m-think" data-mascot="thinker" data-pose="rest" data-label="The Thinker, violet: checks and asks"></span>
       <svg id="m-wire" class="wire-demo" viewBox="0 0 240 60" width="240" height="60" aria-label="A connection between orders.ship_to_id and addresses.address_id"><text x="0" y="14" class="mono" style="font:700 11px monospace;fill:currentColor">orders.ship_to_id</text><path d="M10 30 C70 30 150 30 230 30"/><text x="80" y="56" style="font:700 11px monospace;fill:currentColor">addresses.address_id</text></svg>
       <div>
         <button type="button" class="btn ghost small" id="m-think-start">Start the sequence</button>
@@ -33,10 +34,10 @@
     <p id="m-think-state" class="state-line">state: rest</p>
   </div>
   <div class="scene">
-    <h2 style="font-size:24px">The builder: Create API <span class="pill demo">demo · no Fabric call is made</span></h2>
-    <p class="muted">ready → you start → working → success (a small celebration) or failure (helpful: View details, Try again) → back to calm. The status stays after the figure calms down. No celebration on failure.</p>
+    <h2 style="font-size:24px">The Builder: Create API <span class="pill demo">demo · no Fabric call is made</span></h2>
+    <p class="muted">ready → you start → working → success (a small celebration) or failure (helpful: View details, Try again) → back to calm. In the real tools every create call is a dry run until you say otherwise. The status stays after the figure calms down. No celebration on failure.</p>
     <div class="stage">
-      <span id="m-build" data-mascot="builder" data-pose="rest" data-label="The builder"></span>
+      <span id="m-build" data-mascot="builder" data-pose="rest" data-label="The Builder, coral: builds after a dry run"></span>
       <div class="choice"><button type="button" class="btn primary small" id="m-sim-ok">Simulate success</button><button type="button" class="btn ghost small" id="m-sim-err">Simulate failure</button></div>
     </div>
     <p id="m-build-state" class="state-line">state: ready</p>

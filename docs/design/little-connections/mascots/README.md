@@ -1,5 +1,9 @@
 # Krusgraphs tre maskotar
 
+> **Namn sedan 8 november 2026 (n164):** Onto är grön (ontologi och siffror), Thinker violett (kontroller och
+> frågor), Builder korall (bygger, alltid med en torrkörning först). Skisserna nedan är äldre och bär de tidigare namnen
+> i bilderna; de sparas som underlag. Webbplatsens figurer följer `fabric_backend/static/mascots.js`.
+
 Fyra skissblad som utvecklar figurerna från den valda Little Connections-designen. Bilderna är skapade med den inbyggda bildgeneratorn; de fullständiga prompterna finns i IMAGE-PROMPTS.md.
 
 ## Familjen

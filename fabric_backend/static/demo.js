@@ -89,7 +89,7 @@
 
   function whyDefault() {
     $('why-body').innerHTML = '<h2>Why this connection?</h2><p class="muted">Select a wire to read the rule that made it, or a table to see its key. Dashed wires are suggestions to review in step 3.</p>' +
-      '<div class="note coral"><span data-mascot="onto" data-pose="look" data-label=""></span><div><strong>Onto\u2019s note:</strong> a suggestion, not a guarantee. Names made these links; the plan shows its reasoning so you can overrule it.</div></div>';
+      '<div class="note onto"><span data-mascot="onto" data-pose="look" data-label=""></span><div><strong>Onto\u2019s note:</strong> a suggestion, not a guarantee. Names made these links; the plan shows its reasoning so you can overrule it.</div></div>';
     if (M) M.mount($('why-body'));
   }
   function fields(r) {
@@ -116,7 +116,7 @@
       out.innerHTML = '<h2><span class="why-rule">' + esc(r.rule) + '</span> Why this connection?</h2><p class="why-path"><code>' + esc(r.source + '.' + r.source_cols.join('+')) + ' \u2192 ' + esc(r.target + '.' + r.target_cols.join('+')) + '</code></p>' +
         '<p>' + (conf ? 'Confirmed by you on this page (Accept in step 3). The data check agreed; the meaning is your call.' : esc(rule(r.rule)) + '. Review it before an API is created on it.') + '</p>' + fields(r) +
         '<p class="status">GraphQL fields: <code>' + esc(r.field) + '</code> on ' + esc(r.source) + ', <code>' + esc(r.reverse) + '</code> on ' + esc(r.target) + '.</p>' +
-        '<div class="note coral"><span data-mascot="onto" data-pose="explain" data-label=""></span><div><strong>Onto\u2019s note:</strong> ' + (conf ? 'you accepted this one; accepted is a decision, not a proof.' : 'a suggestion, not a guarantee. Names made this link; you can overrule it.') + '</div></div>';
+        '<div class="note onto"><span data-mascot="onto" data-pose="explain" data-label=""></span><div><strong>Onto\u2019s note:</strong> ' + (conf ? 'you accepted this one; accepted is a decision, not a proof.' : 'a suggestion, not a guarantee. Names made this link; you can overrule it.') + '</div></div>';
       $('graph-line').textContent = r.rule + ': ' + r.source + '.' + r.source_cols.join('+') + ' \u2192 ' + r.target + '.' + r.target_cols.join('+');
     }
     if (M) M.mount(out);
@@ -144,7 +144,7 @@
       '<label id="lbl-schema" hidden><span>Schema</span><input id="src-schema" type="text" value="dbo" autocomplete="off"></label>' +
       '<p class="muted tiny" id="src-help">The synthetic shop schema from the hosted demo: seven tables, invented names, one column the engine leaves unlinked on purpose.</p>' +
       '<div><button type="button" class="btn" id="btn-connect">Connect</button></div>' +
-      '<div class="note sage"><span data-mascot="thinker" data-pose="look" data-label=""></span><div>If the customer only has Excel: export each sheet, or point the demo at the folder with the workbook. The first row is the header; a workbook with several sheets gives one table per sheet.</div></div>' +
+      '<div class="note thinker"><span data-mascot="thinker" data-pose="look" data-label=""></span><div>If the customer only has Excel: export each sheet, or point the demo at the folder with the workbook. The first row is the header; a workbook with several sheets gives one table per sheet.</div></div>' +
       '</div>' + verdictHtml();
   }
   function verdictHtml() {
@@ -216,7 +216,7 @@
   function healthHtml() {
     if (!state.health) return '<p class="muted">Connect a source first.</p>';
     var h = state.health, open = h.findings.filter(function (f) { return !f.accepted && !f.skipped; }), done = h.findings.filter(function (f) { return f.accepted || f.skipped; });
-    return '<div class="note sage"><span id="thinker" data-mascot="thinker" data-pose="' + thinkerPose + '" data-label=""></span><div><strong>' + esc(h.summary) + '</strong><br>' + esc(h.note) + (h.checked ? '' : ' Without rows, only the names can be judged.') + '</div></div>' +
+    return '<div class="note thinker"><span id="thinker" data-mascot="thinker" data-pose="' + thinkerPose + '" data-label=""></span><div><strong>' + esc(h.summary) + '</strong><br>' + esc(h.note) + (h.checked ? '' : ' Without rows, only the names can be judged.') + '</div></div>' +
       (open.length ? '<h3>To review (' + open.length + ')</h3>' + open.map(function (f) { return findingHtml(f); }).join('') : '<p class="muted">Nothing left to review.</p>') +
       (done.length ? '<details><summary>Decided (' + done.length + ')</summary>' + done.map(function (f) { return findingHtml(f); }).join('') + '</details>' : '') +
       '<p><button type="button" class="btn" data-go="4">Show the value \u2192</button> <button type="button" class="btn ghost small" id="btn-reset">Reset decisions</button></p>';
@@ -231,7 +231,7 @@
       return '<div class="q-card"><h3>' + esc(q.title) + '</h3><p class="muted tiny">' + esc(q.why) + '</p>' + table + '<details><summary class="muted tiny">SQL, run on this machine</summary><pre class="mono" style="white-space:pre-wrap;font-size:12.5px">' + esc(q.sql) + '</pre></details></div>';
     }).join('');
     var exports = state.exports.map(function (x) { return '<a class="btn ghost small" href="' + esc(x.href) + '" download>' + esc(x.name) + '</a> '; }).join('');
-    return '<div class="note lav"><span data-mascot="maker" data-pose="calm" data-label=""></span><div>Five questions proposed from the graph and answered here, with the SQL. The exports are the hand-over: the data dictionary, dbt tests, a prompt for Lovable, the plan and the ER diagram.</div></div>' +
+    return '<div class="note builder"><span data-mascot="builder" data-pose="calm" data-label=""></span><div>Five questions proposed from the graph and answered here, with the SQL. The exports are the hand-over: the data dictionary, dbt tests, a prompt for Lovable, the plan and the ER diagram.</div></div>' +
       '<div class="q-grid">' + cards + '</div><h3>Exports</h3><p>' + exports + '</p>' +
       '<p class="muted tiny">Next with the hosted connector: create_backend makes the GraphQL API from this plan, create_semantic_model the Power BI model, create_views the wide views, create_data_agent the data agent.</p>';
   }

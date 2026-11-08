@@ -105,6 +105,20 @@ deep links.
 
 ## Mascots
 
+Each name has one colour and one role (the founder's decision of 7-8 November 2026, round n164):
+
+| Name | Colour | Role | Figure |
+| --- | --- | --- | --- |
+| Onto | green (`--onto`, the palette's sage) | maps how the data connects (the ontology) and says the numbers | wide and low, like a cushion |
+| Thinker | violet (`--thinker`, the palette's lavender) | checks against the rows, finds what does not hold, asks the questions | a round pear, leaning |
+| Builder | coral (`--builder`, the palette's coral) | creates the API, model, report or ontology, always with a dry run first | an upright egg, leaning forward |
+
+The mapping lives in one place: `KINDS` in `mascots.js` (name → `colour`, `token`, figure, default label); `site.css`
+defines `--onto`, `--thinker`, `--builder` and their `-soft`, `-ink` and `-d` variants from the palette (so dark mode
+follows), and the MCP Apps cards read `KINDS` from the same file. `tests/test_n164_mascot_colours.py` fails when a page,
+a stylesheet or a card pairs a name with another colour. The mascots are glad (`celebrate`, `heart`) only when every
+check passes. The logo's three dots are not the mascots and stay as they are.
+
 `Mascots.svg(kind, {pose, idle, label})` returns the markup for `onto`, `thinker` or `builder`. Poses are set
 with `data-pose` and styled in `site.css`: rest, look, listen, point, celebrate, heart, notice, think, explain,
 aside, working, failure, calm. `data-idle` (`breathe`, `nod`, `bounce`) adds the one quiet motion a page may

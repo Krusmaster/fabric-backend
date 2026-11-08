@@ -1,5 +1,10 @@
 # Krusgraph mascot sketches - prompt set
 
+> **Names since 8 November 2026 (n164):** Onto is green (ontology and numbers), the Thinker violet (checks and
+> questions), the Builder coral (building). The sketches and prompts below are older and still carry the earlier
+> names (coral Onto, sage thinker, lavender maker) in their pixels and text; they are kept as the record of the
+> design work. The site's figures follow `fabric_backend/static/mascots.js`.
+
 Mode: built-in image generation. Four character exploration boards based on the selected Little Connections partner-entry image as style and character reference. Onto is a working name; no final names are assigned to the sage and lavender characters.
 
 ## 1. De tre tillsammans
