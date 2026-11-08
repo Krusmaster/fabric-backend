@@ -65,6 +65,7 @@ from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_M
 from . import switches as _switches  # noqa: E402  (n123: both off unless the operator sets them)
 from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same flag)
 from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
+from . import mcp_apps_pictures as _pictures  # noqa: E402  (n170: the cards' pictures; keeps nothing unless a card listens)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -391,7 +392,7 @@ def _titled_tool(register):
                 if name in _mcp_apps_build.ACTION_TOOLS:        # n169: the Builder's and the Thinker's buttons
                     shown = _mcp_apps_build.with_actions(name, guarded, _item_names, _workspace_id_ctx)
                 kw = {**kwargs, **extra}
-                register(*args, title=title, annotations=annotations, **kw)(_mcp_apps.structured(shown))
+                register(*args, title=title, annotations=annotations, **kw)(_mcp_apps.structured(shown, name))
                 return guarded                                  # the module's function still answers text
             return register(*args, title=title, annotations=annotations, **kwargs)(guarded)
         return wrap
@@ -470,6 +471,7 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
+    _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         text = _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
@@ -579,6 +581,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         getattr(execute, "close", lambda: None)()
     checked = {(k["table"], c.lower()) for k in out["keys"] for c in k["columns"]} | \
               {(r[t], c.lower()) for r in out["relationships"] for t, cs in (("source", r["columns"]), ("target", r["target_columns"])) for c in cs}
+    _pictures.keep("map", lambda: _pictures.map_from_plan(p, out))              # n170: the map with each check's state
     flagged = [f for f in _privacy.findings(_privacy.personal_columns(p.schema)) if (f["table"], f["column"].lower()) in checked]
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
@@ -833,6 +836,8 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
+                                                               _ontology.summary(p, tables)))   # n170: the proposal on the card
     out = {
         "summary": _ontology.summary(p, tables),
         "bindings": _ontology.bindings(p, args["item_name"], schema, tables),
@@ -873,6 +878,8 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
     body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema})")
+    _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
+                                                               _ontology.summary(p, tables)))   # n170: the dry run's picture
     out = {"summary": _ontology.summary(p, tables), "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies",
                     "update": f"{FABRIC}/v1/workspaces/{args['workspace_id']}/ontologies/{{id}}/updateDefinition",
@@ -1187,6 +1194,7 @@ def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
             getattr(execute, "close", lambda: None)()
     else:
         p, _, _ = _plan(workspace, source, schema, None, confirmed, ctx)
+    _pictures.keep("map", lambda: _pictures.map_from_plan(p))                   # n170: the products' picture places these
     out = _domains.draft(p, schema, source, validation)
     out["note"] = ("A proposal from keys and relationships, not a decision: review the names and the boundaries. "
                    "Krusgraph creates no Fabric domain; that is POST /v1/admin/domains, which needs a Fabric administrator "

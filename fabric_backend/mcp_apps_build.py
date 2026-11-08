@@ -56,8 +56,11 @@ from . import mcp_apps_mascots as mascots
 CARD_URI = "ui://krusgraph/build-card.html"
 # The tools whose answer is drawn on the build card (validate_plan and review_plan keep their own cards).
 CARD_TOOLS = ("plan_backend", "create_semantic_model", "create_ontology", "create_backend", "create_report")
-# The tools whose answer gets `actions` (validate_plan's card draws them under its own next steps).
-ACTION_TOOLS = CARD_TOOLS + ("validate_plan",)
+# n170: the drafts with a picture (mcp_apps_pictures) are drawn on the build card too.
+PICTURE_CARD_TOOLS = ("ontology_draft", "domain_draft")
+# The tools whose answer gets `actions` (validate_plan's card draws them under its own next steps; n170: domain_draft's
+# per data product).
+ACTION_TOOLS = CARD_TOOLS + ("validate_plan", "domain_draft")
 BUILD_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report")
 # What a button may ask for: the read tools by name, the creating tools only as a dry run or as Create after one.
 ALLOWED = {"validate_plan": "call", "plan_backend": "call", **{t: "build" for t in BUILD_TOOLS}}
@@ -124,7 +127,7 @@ def _shown(args: dict) -> str:
 
 
 def action(kind: str, label: str, who: str, tool: str | None = None, arguments: dict | None = None,
-           name: str | None = None, url: str | None = None) -> dict:
+           name: str | None = None, url: str | None = None, product: str | None = None) -> dict:
     """One button: {kind, label, who, tool, arguments, name, say}. `say` is the exact prompt the card sends to the chat
     when the host does not run tools from the card, and what a text client reads as the next step."""
     out = {"kind": kind, "label": label, "who": who}
@@ -132,6 +135,8 @@ def action(kind: str, label: str, who: str, tool: str | None = None, arguments: 
         out["tool"], out["arguments"] = tool, dict(arguments or {})
     if name:
         out["name"] = name
+    if product:
+        out["product"] = product                                     # n170: drawn on that data product's card
     if kind == "link":
         out["url"] = url
         out["say"] = f"Open it in Fabric: {url}"
@@ -162,6 +167,30 @@ def _builds(args: dict, schema: str | None, taken) -> list[dict]:
     return out
 
 
+def _product_builds(args: dict, answer: dict, taken) -> tuple[list[dict], str | None]:
+    """n170: per data product of domain_draft's answer, the Builder's two dry runs over that product's tables: a
+    semantic model and an API for GraphQL, each under a free name derived from the product. Only the products the
+    answer holds; a product without tables gets none."""
+    products = [d for d in answer.get("domains") or [] if isinstance(d, dict) and d.get("tables")]
+    if not products:
+        return [], None
+    if taken is None:
+        return [], ("The workspace's item names could not be read, so no name is suggested and nothing can be created "
+                    "from the card; ask in the chat.")
+    common = {**_carried(args, "workspace", "source", "schema", "confirmed")}
+    out = []
+    for d in products:
+        slug = str(d.get("slug") or d.get("name"))
+        base = name_base(slug, None)
+        for tool in ("create_backend", "create_semantic_model"):
+            name = free_name(f"{base}_{SUFFIX[tool]}", taken)
+            taken = set(taken) | {name}
+            label = LABEL[tool] + " for " + str(d.get("name") or slug)
+            out.append(action("dry_run", label, "builder", tool, {**common, "tables": list(d["tables"]), "name": name, "dry_run": True},
+                              name=name, product=slug))
+    return out, None
+
+
 def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: str | None = None) -> tuple[list[dict], str | None]:
     """(actions, note) for one answer. `args` are the call's arguments as given (no ctx); `taken` the workspace's item
     names, or None when they could not be read (then no build button and no Create, and `note` says why)."""
@@ -182,6 +211,8 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
         if taken is None:
             return out, unreadable
         return out + _builds(args, schema, taken), None
+    if tool == "domain_draft":
+        return _product_builds(args, answer, taken)
     if tool in BUILD_TOOLS and answer.get("dry_run") is True:
         if taken is None:
             return [], unreadable
@@ -312,11 +343,13 @@ ACTIONS_JS = r"""
     });
   }
   // d: an answer; box: where its buttons go; callArgs: the arguments of the call that gave d (a dry run's, for Create)
-  function renderActions(d, box, callArgs) {
+  // n170: product: draw only the actions of that data product (its card); without it, only the actions of none
+  function renderActions(d, box, callArgs, product) {
     var list = Array.isArray(d.actions) ? d.actions : [], fromDry = d.dry_run === true, groups = {};
-    if (readable(d.actions_note)) box.appendChild(el("p", d.actions_note, "muted act-note"));
+    if (readable(d.actions_note) && !product) box.appendChild(el("p", d.actions_note, "muted act-note"));
     list.forEach(function (a) {
       if (!okAction(a, fromDry)) return;
+      if ((isObj(a) && a.product ? String(a.product) : "") !== (product ? String(product) : "")) return;
       if (a.kind === "create" && callArgs) {                      // Create carries the dry run's own arguments
         var want = JSON.parse(JSON.stringify(callArgs)); want.dry_run = false;
         if (!sameArgs(want, a.arguments)) return;
@@ -355,10 +388,14 @@ def actions_js() -> str:
 
 def card_html() -> str:
     """The build card: one self-contained HTML5 document, no external load. It draws the answer of a tool in CARD_TOOLS
-    (resultView's summary, a dry run's checks, a schema choice) and its actions."""
+    (resultView's summary, a dry run's checks, a schema choice) and its actions; since n170 also the pictures
+    (mcp_apps_pictures): the map, the ontology proposal and the data products."""
+    from . import mcp_apps_pictures as pictures
+    pic = pictures.html_parts()
     return (_HTML.replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + actions_js())
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + ACTIONS_CSS)
+            .replace("__PICTURES__", pic["section"])
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + actions_js() + pic["js"])
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + ACTIONS_CSS + pic["css"])
             .replace("__MASCOT_TOGGLE__", mascots.TOGGLE).replace("__MASCOTS__", mascots.section())
             .replace("__MASCOT_JS__", mascots.JS))
 
@@ -402,6 +439,7 @@ __RESULT_CSS__
   <div class="kg-head"><h1 id="title">Plan and build</h1>__MASCOT_TOGGLE__</div>
   <p class="muted" role="status" id="verdict">Waiting for the tool's answer.</p>
   __MASCOTS__
+  __PICTURES__
   <div id="answer"></div>
   <div id="next"></div>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run the tool, and the host may ask you first; a build always shows its dry run before Create.</p>
@@ -410,7 +448,8 @@ __RESULT_CSS__
 (function () {
   "use strict";
   var TITLES = { plan_backend: "Plan", create_semantic_model: "Semantic model", create_ontology: "Ontology",
-                 create_backend: "API for GraphQL", create_report: "Report" };
+                 create_backend: "API for GraphQL", create_report: "Report", ontology_draft: "Ontology proposal",
+                 domain_draft: "Data products" };
   var input = {}, tool = "";
   var nextId = 1, pending = {};
   function send(msg) { window.parent.postMessage(msg, "*"); }
@@ -425,6 +464,8 @@ __MASCOT_JS__
 
 __READ_JS__
   function guessTool(d) {
+    if (Array.isArray(d.domains) && "interfaces" in d) return "domain_draft";
+    if (Array.isArray(d.bindings) && isObj(d.summary) && "entity_types" in d.summary) return "ontology_draft";
     if (d.choose_schema || "relationships" in d || "keys" in d) return "plan_backend";
     if (isObj(d.report)) return "create_report";
     if ("would" in d || "checks_passed" in d) return "create_backend";
@@ -454,12 +495,20 @@ __READ_JS__
       var st = isObj(d.result) ? d.result.status : "";
       verdict.textContent = st === "Succeeded" ? "Created in Fabric." : "Fabric answered: " + (st || "no status") + ".";
       answer.appendChild(resultView(t, { structuredContent: d }));
+    } else if (t === "domain_draft") {
+      var n = (Array.isArray(d.domains) ? d.domains : []).length;
+      verdict.textContent = n + (n === 1 ? " data product" : " data products") + " proposed from the keys and relationships; nothing was created." + (readable(d.note) ? " " + d.note : "");
+    } else if (t === "ontology_draft") {
+      verdict.textContent = "A draft: nothing was created." + (readable(d.note) ? " " + d.note : "");
     } else {
       var s = isObj(d.summary) ? "" : firstLine(d.summary);
       verdict.textContent = s || "The plan is in the answer.";
       answer.appendChild(resultView(t, { structuredContent: d }));
       onto = s;
     }
+    // n170: the chat demo's pictures; Onto presents them (the picture's own description, which the list under it repeats)
+    var pictured = drawPictures(d, isObj(input) ? input : null);
+    if (pictured) onto = onto || pictured;
     renderActions(d, next, isObj(input) ? input : null);
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(isObj);   // each mascot says its first step, word for word
     var mine = function (who) { var a = acts.filter(function (x) { return x.who === who; })[0]; return a ? readable(a.say) : ""; };

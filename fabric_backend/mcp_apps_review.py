@@ -68,12 +68,15 @@ def card_html() -> str:
     """One self-contained HTML5 document: no src, href, url(), @import, fetch or other load. The diagram is SVG built in
     the page from the answer; every word on the card is in review_plan's text answer or is a label of the card itself."""
     allowed = json.dumps({TOOL: list(CARRIED)}, separators=(",", ":"))
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
+    from . import mcp_apps_pictures as pictures              # n170: the map above the column diagram
+    pic = pictures.html_parts()
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS).replace("__LAYOUT_JS__", LAYOUT_JS))
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + pic["js"]).replace("__LAYOUT_JS__", LAYOUT_JS)
+            .replace("__PICTURE_CSS__", pic["css"]))
 
 
 # n138: the ER diagram's layout as a pure function (erLayout), placed into the card. tests/test_n138_card_polish.py
@@ -414,6 +417,7 @@ button:disabled { cursor: default; opacity: .6 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important } }
 __MASCOT_CSS__
 __RESULT_CSS__
+__PICTURE_CSS__
 </style>
 </head>
 <body>
@@ -422,6 +426,7 @@ __RESULT_CSS__
   <p id="verdict" class="muted" role="status">Waiting for review_plan's answer.</p>
   __MASCOTS__
   <section id="attention" hidden><h2>Needs attention</h2><ul id="attention-list"></ul></section>
+  __PICTURES__
   <section id="er" hidden><h2>Tables and relationships</h2><div id="diagram"></div>
     <p class="muted">Arrows point from the referencing table to the table it refers to; the label is the rule and, when checked, the counts.</p></section>
   <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div></section>
@@ -601,6 +606,7 @@ __LAYOUT_JS__
 
     document.getElementById("er").hidden = false;
     drawDiagram(rv, findingsOf(rv));
+    drawPictures(data, isObj(input) ? input : null);                 // n170: the map, as in the chat demo
 
     var box = document.getElementById("items"); box.textContent = "";
     (rv.items || []).forEach(function (it) {
