@@ -169,7 +169,8 @@ def _date_table(model: dict) -> tuple[str, str] | None:
     for r in sorted(_active(model), key=lambda r: (r["to_table"], r.get("to_column", ""))):
         t = model["tables"][r["to_table"]]
         col = t["columns"].get(r.get("to_column", ""))
-        month = next((c for c in sorted(t["columns"]) if c.lower() == "month"), None)
+        names = {c.lower(): c for c in t["columns"]}
+        month = names.get("year month") or names.get("month")             # n151: "Year Month" keeps the years apart
         if col and col.get("data_type") == "dateTime" and month:
             return r["to_table"], month
     return None
@@ -235,24 +236,151 @@ def _projection(kind: str, table: str, prop: str, active: bool | None = None) ->
     return p
 
 
-def visuals(model: dict) -> dict:
-    """The visuals of the default page, as plain dicts ({type, title, fields, ...}) before they become visual.json, and
-    the measures left out with the reason."""
+# ------------------------------------------------------------------ n151: a page that reads like a report ------------
+# On 7 November 2026 create_report ran live with visuals for the first time (shop_report_visuals on shop_model). Every
+# figure was right; the page read like a draft: titles such as "Rows in audit_log", a log table among the cards, "59,00"
+# for a count, a column chart left out with nothing in its place. The rules below change what the page looks like and
+# nothing about what may be drawn (n144's rules above stay).
+
+LOG_WORDS = {"log", "logs", "audit"}          # a table named like this is no business figure for a card
+MARGIN, GAP = 16, 12
+TITLE_H, CARD_H, FOOT_H, SLICER_W = 44, 96, 24, 220
+THEME_NAME = "Krusgraph"
+THEME_FILE = f"{THEME_NAME}.json"
+# The colours of the site's CSS tokens (fabric_backend/static/site.css :root): ink and muted on white, the four accent
+# colours in their darker "-d" and "-ink" forms for bars, so a data label next to a bar stays readable.
+THEME = {"name": THEME_NAME,
+         "dataColors": ["#E2604A", "#6F9775", "#8A79C8", "#B07A12", "#B23A24", "#3F6A46", "#5B4A9E", "#7F5404"],
+         "foreground": "#1B1B1F", "foregroundNeutralSecondary": "#5B5660", "background": "#FFFFFF",
+         "backgroundLight": "#FBF8F5", "tableAccent": "#E2604A",
+         "textClasses": {"title": {"fontFace": "Segoe UI Semibold", "fontSize": 14, "color": "#1B1B1F"},
+                         "label": {"fontFace": "Segoe UI", "fontSize": 12, "color": "#1B1B1F"},
+                         "callout": {"fontFace": "Segoe UI Semibold", "fontSize": 32, "color": "#1B1B1F"},
+                         "header": {"fontFace": "Segoe UI Semibold", "fontSize": 12, "color": "#1B1B1F"}}}
+
+
+def _words_of(name: str) -> list[str]:
+    from .infer import _words
+    return _words(name) or [name]
+
+
+def _singular(word: str) -> str:
+    w = word.lower()
+    if w.endswith("ies") and len(w) > 4:
+        return word[:-3] + "y"
+    if w.endswith(("sses", "xes", "ches", "shes")):
+        return word[:-2]
+    if w.endswith("s") and not w.endswith(("ss", "us", "is")) and len(w) > 3:
+        return word[:-1]
+    return word
+
+
+def plain_table(model: dict, table: str) -> str:
+    """A table's name in plain words: order_items -> "Order lines" when orders is in the model and order_items points at
+    it (the lines of an order), audit_log -> "Audit log", DimCustomer -> "Dim customer". Nothing else is renamed."""
+    words = _words_of(table)
+    if len(words) >= 2 and words[-1] in ("items", "item", "lines", "line"):
+        head = words[:-1]
+        targets = {r["to_table"] for r in model.get("relationships", []) if r.get("from_table") == table}
+        heads = {"_".join(head), "_".join(head) + "s", "".join(head), "".join(head) + "s"}
+        if any(_words_of(t) in (head, head[:-1] + [head[-1] + "s"]) or t.lower() in heads for t in targets):
+            words = head + ["lines"]
+    text = " ".join(words)
+    return text[:1].upper() + text[1:]
+
+
+def title_of(model: dict, m: dict) -> str:
+    """The plain title of a measure. "Rows in X" (COUNTROWS of X itself) -> X in plain words; a SUM of a quantity column
+    (amounts.is_quantity) -> "Units"; any other measure keeps its own name: no meaning is invented."""
+    expr = m.get("expression") or ""
+    c = re.match(r"^\s*COUNTROWS\s*\(\s*('(?:[^']|'')+'|[A-Za-z_][A-Za-z0-9_]*)\s*\)\s*$", expr, re.I)
+    if c and _unquote(c.group(1)) == m["table"] and m["measure"].lower() in (f"rows in {m['table']}".lower(), f"rows in {m['table']} ({m['table']})".lower()):
+        return plain_table(model, m["table"])
+    if m.get("kind") == "quantity":
+        return "Units"
+    return m["measure"]
+
+
+def _dim_title(model: dict, table: str, singular: bool) -> str:
+    words = plain_table(model, table).split(" ")
+    if singular:
+        words[-1] = _singular(words[-1])
+    return " ".join(words)
+
+
+def _is_log(table: str) -> bool:
+    return any(w in LOG_WORDS for w in _words_of(table))
+
+
+def _has_key(model: dict, table: str) -> bool:
+    """An isKey column, or a part in an active relationship: TMDL marks only one-column keys, so a table with a composite
+    key (order_items: order_id + line_no) shows its key only through the relationships it takes part in."""
+    return (any(c.get("is_key") for c in model["tables"][table]["columns"].values())
+            or any(table in (r["from_table"], r["to_table"]) for r in _active(model)))
+
+
+def _whole(model: dict, m: dict) -> bool:
+    """A count, or a SUM of an int64 column: shown without decimals."""
+    if m["kind"] == "count":
+        return True
+    s = _SUM.match(m.get("expression") or "")
+    if not s:
+        return False
+    col = model["tables"].get(_unquote(s.group(1)), {}).get("columns", {}).get(s.group(2).replace("]]", "]"))
+    return bool(col) and col.get("data_type") == "int64"
+
+
+def _format_of(model: dict, m: dict) -> dict:
+    """What the dry run says about a measure's number format, and whether the visual sets it (labelPrecision 0): only for
+    a whole-number measure whose model gives it no whole-number formatString (a model not made by Krusgraph)."""
+    fs = model["tables"][m["table"]]["measures"].get(m["measure"], {}).get("format_string")
+    whole = _whole(model, m)
+    sets = whole and (not fs or "." in fs)
+    return {"format_string": fs, "whole_number": whole, "visual_sets_no_decimals": sets}
+
+
+def _cards(model: dict, usable: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(cards, skipped): row counts of business tables, the tables others point at first, then the units; at most four.
+    A table without a key or named like a log (audit_log) gets no card unless nothing else would."""
+    counts = [m for m in usable if m["kind"] == "count"]
+    business = [m for m in counts if _has_key(model, m["table"]) and not _is_log(m["table"])]
+    skipped = [{"visual": "card", "measure": f"{m['table']}[{m['measure']}]",
+                "why": f"{m['table']} " + ("is named like a log" if _is_log(m["table"]) else "has no key and no relationship") + ": not a business figure for a card"}
+               for m in counts if m not in business] if business else []
+    inbound = lambda t: sum(1 for r in _active(model) if r["to_table"] == t)
+    chosen = sorted(business or counts, key=lambda m: (-inbound(m["table"]), m["table"], m["measure"]))
+    qty = next((m for m in usable if m["kind"] == "quantity"), None)
+    chosen = chosen[:MAX_CARDS - (1 if qty else 0)] + ([qty] if qty else [])
+    return chosen[:MAX_CARDS], skipped
+
+
+def visuals(model: dict, model_name: str = "") -> dict:
+    """The visuals of the default page, as plain dicts ({type, title, fields, ...}) before they become visual.json; the
+    measures left out with the reason (left_out, n144) and the visuals not drawn with the reason (not_drawn, n151)."""
     usable, left = measures(model)
     has_measures = {m["table"] for m in usable} | {m["table"] for m in left}
     date = _date_table(model)
     is_dim = lambda t: t not in has_measures and (not date or t != date[0])
     out: list[dict] = []
-    for m in [m for m in usable if m["kind"] == "count"][:MAX_CARDS]:
-        out.append({"type": "card", "title": m["measure"], "measure": m, "fields": [f"{m['table']}[{m['measure']}]"]})
+    not_drawn: list[dict] = []
+    cards, skipped = _cards(model, usable)
+    not_drawn += skipped
+    for m in cards:
+        out.append({"type": "card", "title": title_of(model, m), "measure": m, "fields": [f"{m['table']}[{m['measure']}]"]})
     charted = [m for m in usable if m["kind"] == "quantity"] + [m for m in usable if m["kind"] == "count"]
+    month = None
     if date:
         m = next((m for m in charted if date[0] in _reach(model, m["table"])), None)
         if m:
-            out.append({"type": "clusteredColumnChart", "title": f"{m['measure']} by {date[0]} {date[1]}", "measure": m,
-                        "category": (date[0], date[1]), "sort": "category",
-                        "fields": [f"{date[0]}[{date[1]}]", f"{m['table']}[{m['measure']}]"]})
-    bar_measure = None
+            month = {"type": "clusteredColumnChart", "title": f"{title_of(model, m)} by month", "measure": m,
+                     "category": (date[0], date[1]), "sort": "category", "labels": True,
+                     "fields": [f"{date[0]}[{date[1]}]", f"{m['table']}[{m['measure']}]"]}
+            out.append(month)
+        else:
+            not_drawn.append({"visual": "clusteredColumnChart", "why": f"no count or quantity measure whose table reaches {date[0]} through active relationships"})
+    else:
+        not_drawn.append({"visual": "clusteredColumnChart", "why": "the model has no date table with a Month column on the one side of an active relationship"})
+    bar_measure, bar_dim = None, None
     for m in charted:
         dims = [(t, d) for t, d in _reach(model, m["table"], through=is_dim).items() if is_dim(t) and _label(model, t)]
         if not dims:
@@ -260,9 +388,9 @@ def visuals(model: dict) -> dict:
         inbound = lambda t: sum(1 for r in _active(model) if r["to_table"] == t)
         t, _ = sorted(dims, key=lambda x: (-inbound(x[0]), -x[1], x[0]))[0]
         lab = _label(model, t)
-        bar_measure = m
-        out.append({"type": "clusteredBarChart", "title": f"{m['measure']} by {t} {lab}", "measure": m, "category": (t, lab),
-                    "sort": "measure", "fields": [f"{t}[{lab}]", f"{m['table']}[{m['measure']}]"]})
+        bar_measure, bar_dim = m, (t, lab)
+        out.append({"type": "clusteredBarChart", "title": f"{title_of(model, m)} by {_dim_title(model, t, True).lower()}", "measure": m,
+                    "category": (t, lab), "sort": "measure", "labels": True, "fields": [f"{t}[{lab}]", f"{m['table']}[{m['measure']}]"]})
         break
     base = bar_measure or (charted[0] if charted else None)
     if base:
@@ -270,69 +398,175 @@ def visuals(model: dict) -> dict:
         if near:
             t = near[0][1]
             lab = _label(model, t)
-            pick = [m for m in usable if m["kind"] == "amount" and t in _reach(model, m["table"])]
-            pick = sorted(pick, key=lambda m: (m["table"] != base["table"], m["table"], m["measure"]))
+            reach = lambda m: t in _reach(model, m["table"])
+            pick = ([m for m in usable if m["kind"] == "quantity" and reach(m)] + [m for m in usable if m["kind"] == "amount" and reach(m)]
+                    + [m for m in usable if m["kind"] == "count" and reach(m)])
             m = pick[0] if pick else base
-            out.append({"type": "tableEx", "title": f"{t} by {m['measure']}, largest first", "measure": m, "category": (t, lab),
-                        "sort": "measure", "fields": [f"{t}[{lab}]", f"{m['table']}[{m['measure']}]"]})
-    return {"visuals": out, "left_out": left}
+            out.append({"type": "tableEx", "title": f"{_dim_title(model, t, False)} by {title_of(model, m).lower()}", "measure": m,
+                        "category": (t, lab), "sort": "measure", "total": True, "fields": [f"{t}[{lab}]", f"{m['table']}[{m['measure']}]"]})
+    if out:
+        if month:
+            out.append({"type": "slicer", "title": "Month", "category": month["category"], "fields": [f"{month['category'][0]}[{month['category'][1]}]"]})
+        dim = bar_dim or next(((v["category"]) for v in out if v["type"] == "tableEx"), None)
+        if dim:
+            out.append({"type": "slicer", "title": _dim_title(model, dim[0], True), "category": dim, "fields": [f"{dim[0]}[{dim[1]}]"]})
+    return {"visuals": out, "left_out": left, "not_drawn": not_drawn}
 
 
-def _positions(vs: list[dict]) -> list[dict]:
-    """Cards across the top, the two charts side by side, the table below; within a 1280 x 720 page."""
-    cards = [v for v in vs if v["type"] == "card"]
-    gap, out, z = 20, [], 0
-    for v in vs:
-        if v["type"] == "card":
-            i, n = cards.index(v), len(cards)
-            w = (PAGE_W - gap * (n + 1)) / n
-            pos = {"x": gap + i * (w + gap), "y": gap, "width": w, "height": 120}
-        elif v["type"] == "clusteredColumnChart":
-            pos = {"x": gap, "y": 160, "width": (PAGE_W - 3 * gap) / 2, "height": 260}
-        elif v["type"] == "clusteredBarChart":
-            pos = {"x": gap * 2 + (PAGE_W - 3 * gap) / 2, "y": 160, "width": (PAGE_W - 3 * gap) / 2, "height": 260}
-        else:
-            pos = {"x": gap, "y": 440, "width": PAGE_W - 2 * gap, "height": 260}
-        z += 1000
-        out.append(pos | {"z": z, "tabOrder": z})
+def _rows(vs: list[dict]) -> dict[str, tuple[float, float]]:
+    """The page's rows, top to bottom, filling 1280 x 720 between even margins: the title (with the slicers beside it),
+    the cards, the charts and the table share what is left, the footnote at the bottom."""
+    present = {v["type"] for v in vs}
+    fixed = [("title", TITLE_H)] + ([("cards", CARD_H)] if "card" in present else [])
+    flex = [r for r, ts in (("charts", ("clusteredColumnChart", "clusteredBarChart")), ("table", ("tableEx",))) if present & set(ts)]
+    rows = fixed + [(r, 0) for r in flex] + [("foot", FOOT_H)]
+    free = PAGE_H - 2 * MARGIN - GAP * (len(rows) - 1) - sum(h for _, h in rows)
+    out, y = {}, MARGIN
+    for r, h in rows:
+        h = h or free / len(flex)
+        out[r] = (y, h)
+        y += h + GAP
     return out
 
 
-def _visual_json(v: dict, name: str, pos: dict) -> dict:
+def _positions(vs: list[dict]) -> list[dict]:
+    """A grid within the page's margins: cards side by side, the column chart and the bar chart side by side (the bar
+    chart takes the whole width when there is no column chart, and the other way round), the table across the page."""
+    rows, inner = _rows(vs), PAGE_W - 2 * MARGIN
+    cards = [v for v in vs if v["type"] == "card"]
+    charts = [v for v in vs if v["type"] in ("clusteredColumnChart", "clusteredBarChart")]
+    slicers = [v for v in vs if v["type"] == "slicer"]
+    out, z = [], 0
+    for v in vs:
+        if v["type"] == "card":
+            i, n = cards.index(v), len(cards)
+            w = (inner - GAP * (n - 1)) / n
+            y, h = rows["cards"]
+            pos = {"x": MARGIN + i * (w + GAP), "y": y, "width": w, "height": h}
+        elif v in charts:
+            i, n = charts.index(v), len(charts)
+            w = (inner - GAP * (n - 1)) / n
+            y, h = rows["charts"]
+            pos = {"x": MARGIN + i * (w + GAP), "y": y, "width": w, "height": h}
+        elif v["type"] == "tableEx":
+            y, h = rows["table"]
+            pos = {"x": MARGIN, "y": y, "width": inner, "height": h}
+        elif v["type"] == "slicer":
+            i, n = slicers.index(v), len(slicers)
+            y, h = rows["title"]
+            pos = {"x": PAGE_W - MARGIN - (n - i) * SLICER_W - (n - i - 1) * GAP, "y": y, "width": SLICER_W, "height": h}
+        elif v["type"] == "title":
+            y, h = rows["title"]
+            pos = {"x": MARGIN, "y": y, "width": inner - len(slicers) * (SLICER_W + GAP), "height": h}
+        else:                                                              # the footnote
+            y, h = rows["foot"]
+            pos = {"x": MARGIN, "y": y, "width": inner, "height": h}
+        z += 1000
+        out.append({k: round(x, 2) for k, x in pos.items()} | {"z": z, "tabOrder": z})
+    return out
+
+
+def _lit(value) -> dict:
+    """A literal in a visual's formatting objects: 'text' (single quotes doubled), true/false, 12L (integer), 12.5D."""
+    if isinstance(value, bool):
+        v = "true" if value else "false"
+    elif isinstance(value, int):
+        v = f"{value}L"
+    elif isinstance(value, float):
+        v = f"{value:g}D"
+    else:
+        v = "'" + str(value).replace("'", "''") + "'"
+    return {"expr": {"Literal": {"Value": v}}}
+
+
+def _text_box(text: str, size: str, bold: bool, color: str) -> dict:
+    style = {"fontSize": size, "color": color} | ({"fontWeight": "bold"} if bold else {})
+    return {"general": [{"properties": {"paragraphs": [{"textRuns": [{"value": text, "textStyle": style}]}]}}]}
+
+
+def _visual_json(v: dict, name: str, pos: dict, model: dict) -> dict:
+    if v["type"] in ("title", "footnote"):
+        big = v["type"] == "title"
+        return {"$schema": SCHEMA["visual"], "name": name, "position": pos,
+                "visual": {"visualType": "textbox", "objects": _text_box(v["text"], "18pt" if big else "9pt", big, THEME["foreground"] if big
+                                                                         else THEME["foregroundNeutralSecondary"])}}
+    title = {"title": [{"properties": {"show": _lit(True), "text": _lit(v["title"])}}]}
+    if v["type"] == "slicer":
+        col = _projection("Column", *v["category"], active=True)
+        return {"$schema": SCHEMA["visual"], "name": name, "position": pos,
+                "visual": {"visualType": "slicer", "query": {"queryState": {"Values": {"projections": [col]}}},
+                           "objects": {"data": [{"properties": {"mode": _lit("Dropdown")}}]},
+                           "visualContainerObjects": title, "drillFilterOtherVisuals": True}}
     m = v["measure"]
     measure = _projection("Measure", m["table"], m["measure"])
+    fmt = _format_of(model, m)
+    objects: dict = {}
     if v["type"] == "card":
         state = {"Values": {"projections": [measure]}}
+        if fmt["visual_sets_no_decimals"]:
+            objects["labels"] = [{"properties": {"labelPrecision": _lit(0)}}]
     elif v["type"] == "tableEx":
-        state = {"Values": {"projections": [_projection("Column", *v["category"]), measure]}}
+        cat = _projection("Column", *v["category"])
+        state = {"Values": {"projections": [cat, measure]}}
+        usable_w = pos["width"] - 40                                   # the row headers' padding and a scroll bar
+        objects["columnWidth"] = [{"properties": {"value": _lit(round(usable_w * 0.6, 2))}, "selector": {"metadata": cat["queryRef"]}},
+                                  {"properties": {"value": _lit(round(usable_w * 0.4, 2))}, "selector": {"metadata": measure["queryRef"]}}]
+        objects["total"] = [{"properties": {"totals": _lit(True)}}]
+        if fmt["visual_sets_no_decimals"]:
+            objects["columnFormatting"] = [{"properties": {"labelPrecision": _lit(0)}, "selector": {"metadata": measure["queryRef"]}}]
     else:
         state = {"Category": {"projections": [_projection("Column", *v["category"], active=True)]}, "Y": {"projections": [measure]}}
+        objects["labels"] = [{"properties": {"show": _lit(True)} | ({"labelPrecision": _lit(0)} if fmt["visual_sets_no_decimals"] else {})}]
     query: dict = {"queryState": state}
     if v.get("sort") == "measure":
         query["sortDefinition"] = {"sort": [{"field": _field("Measure", m["table"], m["measure"]), "direction": "Descending"}]}
     elif v.get("sort") == "category":
         query["sortDefinition"] = {"sort": [{"field": _field("Column", *v["category"]), "direction": "Ascending"}]}
-    return {"$schema": SCHEMA["visual"], "name": name, "position": pos,
-            "visual": {"visualType": v["type"], "query": query, "drillFilterOtherVisuals": True}}
+    visual = {"visualType": v["type"], "query": query}
+    if objects:
+        visual["objects"] = objects
+    visual |= {"visualContainerObjects": title, "drillFilterOtherVisuals": True}
+    return {"$schema": SCHEMA["visual"], "name": name, "position": pos, "visual": visual}
 
 
-def definition_parts(model: dict, model_id: str, page_name: str = "Overview") -> dict:
-    """{"parts": {path: text}, "visuals": [...], "left_out": [...]} of a PBIR report bound to the model by id."""
-    chosen = visuals(model)
+def definition_parts(model: dict, model_id: str, page_name: str = "Overview", model_name: str = "", created: str = "") -> dict:
+    """{"parts": {path: text}, "visuals": [...], "left_out": [...], "not_drawn": [...]} of a PBIR report bound to the
+    model by id: the page "Overview · <model name>" with a title, the visuals, a footnote with the creation date
+    (`created`, "8 November 2026"; today in UTC when empty) and the Krusgraph theme."""
+    import datetime as _dt
+    chosen = visuals(model, model_name)
     page = _name(model_id, "page", page_name)
+    label = model_name or model_id
+    created = created or _dt.datetime.now(_dt.timezone.utc).strftime("%-d %B %Y")
+    vs = list(chosen["visuals"])
+    if vs:
+        vs = [{"type": "title", "title": f"{page_name} · {label}", "text": f"{page_name} · {label}", "fields": ["title"]}] + vs + \
+             [{"type": "footnote", "title": "Footnote", "text": f"{created}. Created by Krusgraph from the checked plan.", "fields": ["footnote"]}]
+    version = {"visual": "2.0.0", "page": "2.0.0", "report": "3.1.0"}           # the schema versions these parts are written in
     parts = {"definition.pbir": {"$schema": SCHEMA["pbir"], "version": "4.0",
                                  "datasetReference": {"byConnection": {"connectionString": f"semanticmodelid={model_id}"}}},
              "definition/version.json": {"$schema": SCHEMA["version"], "version": "2.0.0"},
-             "definition/report.json": {"$schema": SCHEMA["report"], "themeCollection": {}},
+             "definition/report.json": {"$schema": SCHEMA["report"],
+                                        "themeCollection": {"customTheme": {"name": THEME_FILE, "reportVersionAtImport": version,
+                                                                            "type": "RegisteredResources"}},
+                                        "resourcePackages": [{"name": "RegisteredResources", "type": "RegisteredResources",
+                                                              "items": [{"name": THEME_FILE, "path": THEME_FILE, "type": "CustomTheme"}]}]},
+             f"StaticResources/RegisteredResources/{THEME_FILE}": THEME,
              "definition/pages/pages.json": {"$schema": SCHEMA["pages"], "pageOrder": [page], "activePageName": page},
              f"definition/pages/{page}/page.json": {"$schema": SCHEMA["page"], "name": page, "displayName": page_name,
                                                     "displayOption": "FitToPage", "height": PAGE_H, "width": PAGE_W}}
     listed = []
-    for v, pos in zip(chosen["visuals"], _positions(chosen["visuals"])):
+    for v, pos in zip(vs, _positions(vs)):
         name = _name(model_id, page, v["type"], *v["fields"])
-        parts[f"definition/pages/{page}/visuals/{name}/visual.json"] = _visual_json(v, name, pos)
-        listed.append({"type": v["type"], "title": v["title"], "fields": v["fields"], "name": name})
-    return {"parts": {k: json.dumps(val, indent=2) for k, val in parts.items()}, "visuals": listed, "left_out": chosen["left_out"]}
+        parts[f"definition/pages/{page}/visuals/{name}/visual.json"] = _visual_json(v, name, pos, model)
+        entry = {"type": v["type"] if v["type"] not in ("title", "footnote") else "textbox", "title": v.get("text") or v["title"],
+                 "fields": v["fields"] if v["type"] not in ("title", "footnote") else [], "name": name,
+                 "position": {k: pos[k] for k in ("x", "y", "width", "height")}}
+        if "measure" in v:
+            entry["format"] = _format_of(model, v["measure"])
+        listed.append(entry)
+    return {"parts": {k: json.dumps(val, indent=2) for k, val in parts.items()}, "visuals": listed, "left_out": chosen["left_out"],
+            "not_drawn": chosen["not_drawn"]}
 
 
 def definition_payload(name: str, parts: dict[str, str], description: str = "") -> dict:

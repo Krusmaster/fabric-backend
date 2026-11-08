@@ -53,7 +53,11 @@ LATER_LIVE = {
     "create_report": "On 30 October 2026 it created the report shop_report_live live against a Fabric workspace with synthetic data "
                      "(dry run first, then dry_run=false; one blank page bound to shop_model_live; status Succeeded, mode created). "
                      "Later that day Lovable (as an MCP client at /mcp/connect) created shop_report on shop_model; Gustav opened "
-                     "shop_report in the Fabric portal, added a visualisation (Calendar) and saw data.",
+                     "shop_report in the Fabric portal, added a visualisation (Calendar) and saw data. On 7 November 2026 it "
+                     "created shop_report_visuals on shop_model with the page drawn from the model's measures (round n144; status "
+                     "Succeeded); Gustav opened it in Power BI and every figure was right (60 orders, 134 order lines, 40 audit_log "
+                     "rows; units by category; products by units, total 324). shop_report_lovable was created the same way from "
+                     "Lovable through the Krusgraph connector.",
 }
 # n87: the same runs as a tool's own answer says them: no person's or client's name, no counts of that day's item that
 # today's draft need not have.
@@ -65,7 +69,8 @@ LATER_LIVE_ANSWER = {
                              "was updated in place on 30 October 2026. The counts in this answer are today's draft's.",
     "create_report": "On 30 October 2026 it created the report shop_report_live live against a Fabric workspace with synthetic "
                      "data (one blank page bound to shop_model_live; status Succeeded, mode created); a report made the same "
-                     "way was opened in the Fabric portal, given a visual and showed data.",
+                     "way was opened in the Fabric portal, given a visual and showed data. On 7 November 2026 it created a report "
+                     "with the page drawn from the model's measures (status Succeeded); its figures were checked in Power BI.",
 }
 # n143: a creating tool whose created item has been run in Fabric, as its own answer says it; nothing more is claimed.
 RAN_LIVE = {
@@ -149,7 +154,8 @@ _RAW = {
     "plan_drift": (HOSTED, READS, _NO, "unit tests"),
     "create_semantic_model": (HOSTED, CREATES, _ITEM, "unit tests; created live on 29 October 2026", True),
     "create_report": (HOSTED, CREATES, "creates one item; never updates or deletes",
-                      "unit tests with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); created live on 30 October 2026"),
+                      "unit tests with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); created live on 30 October 2026, "
+                      "the page with visuals on 7 November 2026"),
     "create_views": (HOSTED, CREATES, "creates/alters views in that schema only; never drops",
                      "unit tests; creating by unit tests only", True),
     "create_data_agent": (HOSTED, CREATES, "creates/updates one item and its staging config; never deletes",
@@ -195,9 +201,9 @@ LIVE = {
     "create_semantic_model": ("30 October 2026", "update in place of shop_model from Lovable (as an MCP client)",
                               "updated; created live on 29 October 2026 as shop_model_live, refreshed and reviewed in the "
                               "Fabric portal by Gustav the same day"),
-    "create_report": ("30 October 2026", "created a report with one blank page bound to a semantic model (shop_report_live; "
-                      "shop_report from Lovable)", "status Succeeded, mode created; shop_report was opened in the Fabric portal, "
-                      "given a visual and showed data"),
+    "create_report": ("7 November 2026", "created shop_report_visuals on shop_model with the page drawn from the model's "
+                      "measures (round n144), and shop_report_lovable the same way from Lovable", "status Succeeded; every figure "
+                      "checked in Power BI was right; the first blank-page report was created on 30 October 2026"),
     "create_ontology": ("2 November 2026", "created shop_ontology_n81 with dry_run=false, then updated it",
                         "status Succeeded, mode created, then mode updated"),
     "create_silver_notebook": ("28 October 2026", "created the notebook silver_shop with dry_run=false", "created"),
@@ -215,7 +221,7 @@ OPEN = {
     "create_backend": "creating a new API is unit-tested only",
     "create_views": "creating them: Experimental; creating has no recorded live run",
     "create_data_agent": "creating: Experimental; creating has no recorded live run",
-    "create_report": "the page drawn from the model's measures (round n144) has not run live",
+    "create_report": "the page's look of round n151 (plain titles, layout, theme, slicers, the date table's Year Month) has not run live",
     "create_ontology": "needs the tenant setting \"Users can create Ontology (preview) items\" (HTTP 403 FeatureNotAvailable "
                        "while it was off, 28 October 2026)",
     "create_silver_notebook": "the notebook it created has not been run in Fabric; " + _PIPELINE_RAN,

@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n151: create_report's default page reads like a report, after the first live run with visuals on 7 November
+  2026 (`shop_report_visuals` on `shop_model`, every figure right; `shop_report_lovable` from Lovable; both recorded in
+  docs/LIVE-TEST.md, and create_report's own note no longer says the page was not yet created in Fabric). Plain titles
+  from a tested mapping ("Rows in orders" -> "Orders", "Rows in order_items" -> "Order lines" when order_items points at
+  orders, a sum of a quantity column -> "Units"; any other measure keeps its name); cards only for business tables (not
+  `audit_log`), at most four; a grid that fills 1280 × 720 between even margins, the category chart taking the month
+  chart's width when there is none, the table across the page with its columns sized to fill it and a total row; data
+  labels; a month and a category slicer when the fields exist; the page title "Overview · <model>", a dated footnote
+  "Created by Krusgraph from the checked plan", and a Krusgraph theme in the site's colours (`StaticResources/
+  RegisteredResources/Krusgraph.json`, registered in report.json). create_semantic_model formats counts and sums of whole
+  numbers as `#,0`, reads (read-only) the first and last date of the related date columns so the calendar spans the
+  data's years, and whether a decimal quantity column holds whole numbers only (the shop's `quantity` is DOUBLE), and its
+  calendar has `Year Month`. Every PBIR part is validated against Microsoft's schemas, copied from microsoft/json-schemas
+  eecc60d into tests/fixtures/pbir_schemas (MIT). Not run live yet. `tests/test_n151_report_look.py`.
 - Round n149: the home page and /check lead with the problem (the UX review of 7 November 2026). The home hero asks
   "Why is your total twice what finance says?" and shows the 2 000 → 1 000 before and after as a small card under its
   two buttons; the replay moved down, after the steps. One primary and one secondary way in with the same labels

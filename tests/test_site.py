@@ -561,7 +561,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     assert "22 tools" not in md and "for real" not in md
     assert tools["create_backend"].startswith("Tested end to end as an update in place; last tried live 30 October 2026")
     assert tools["create_backend"].endswith("still open: creating a new API is unit-tested only")
-    assert tools["create_report"].startswith("Tried live; last tried live 30 October 2026: created a report with one blank page")
+    assert tools["create_report"].startswith("Tried live; last tried live 7 November 2026: created shop_report_visuals on shop_model")   # n151
     assert tools["create_views"].startswith("Tested end to end as a dry run; last tried live 27 October 2026")
     assert tools["create_views"].endswith("still open: creating them: Experimental; creating has no recorded live run")
     assert tools["create_data_agent"].startswith("Tested end to end as a dry run")

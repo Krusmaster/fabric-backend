@@ -1213,6 +1213,44 @@ def _model_replacement(workspace_id: str, name: str, parts: dict[str, str], head
             "measures_gone": gone_measures}
 
 
+def _model_reads(workspace, source, schema, p, tables, ctx) -> dict:
+    """n151: two read-only counts for create_semantic_model: the first and last value of the date columns the calendar
+    relates to (its range), and whether a quantity column of a decimal type holds whole numbers only (its sum is then
+    formatted "#,0"). When the endpoint cannot be read the calendar keeps its placeholder range and the format stays."""
+    dates, qty = _semantic_model.related_date_columns(p, tables), _semantic_model.quantity_columns(p, tables)
+    out = {"date_range": None, "whole": set(), "said": []}
+    if not dates and not qty:
+        return out
+    try:
+        _, execute = _connected(workspace, source, schema, ctx)
+    except Exception as e:                                            # noqa: BLE001  the model is still drafted, with the placeholder
+        out["said"].append(f"Not read ({type(e).__name__}): the calendar keeps its placeholder range and quantities keep two decimals.")
+        return out
+    try:
+        firsts, lasts = [], []
+        for t, c in dates:
+            row = (execute(_semantic_model.range_sql(p.schema.schema, t, c)) or [{}])[0]
+            if row.get("first_date") and row.get("last_date"):
+                firsts.append(str(row["first_date"])[:10]); lasts.append(str(row["last_date"])[:10])
+        if firsts:
+            out["date_range"] = (min(firsts), max(lasts))
+            out["said"].append(f"Dates: {min(firsts)} to {max(lasts)} in {', '.join(f'{t}.{c}' for t, c in dates)}; the calendar spans those whole years.")
+        for t, c in qty:
+            rows = execute(_semantic_model.whole_sql(p.schema.schema, t, c))
+            if not rows:
+                continue
+            n = int(rows[0].get("fractions") or 0)
+            if n == 0:
+                out["whole"].add((t, c))
+            out["said"].append(f"{t}.{c}: " + ("whole numbers only, so its sum is formatted as a whole number." if n == 0
+                                                else f"{n} rows with a fraction, so its sum keeps two decimals."))
+    except Exception as e:                                            # noqa: BLE001
+        out["said"].append(f"Stopped reading ({type(e).__name__}); what was read before is used.")
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return out
+
+
 @mcp.tool(title="Create or update a Power BI semantic model (dry run by default)", annotations=WRITE)
 @safe
 def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.ModelName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
@@ -1225,11 +1263,12 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     relationships and measures added outside the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
-    draft = _semantic_model.draft(p, info, name, tables)
+    read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
+    draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
     body = _semantic_model.envelope(draft["parts"], name, description=f"Created by Krusgraph from {source} ({schema})")
     replaces = _model_replacement(info["workspace_id"], name, draft["parts"], _headers(ctx))
     out = {"replaces": replaces} if replaces else {}
-    out |= {"summary": draft["summary"], "dry_run": dry_run,
+    out |= {"summary": draft["summary"], "read_from_rows": read["said"], "dry_run": dry_run,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels",
                     "update": f"{FABRIC}/v1/workspaces/{info['workspace_id']}/semanticModels/{{id}}/updateDefinition",
                     "delegated_scope": "SemanticModel.ReadWrite.All or Item.ReadWrite.All", "parts": [x["path"] for x in body["definition"]["parts"]]},
@@ -1295,7 +1334,7 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
                                            "it is the one create_semantic_model and compare_semantic_model need. Meanwhile empty_page=true "
                                            "creates the report with one blank page without reading the model."}, indent=2)
             raise
-        drawn = _report.definition_parts(tmdl, model_item["id"])
+        drawn = _report.definition_parts(tmdl, model_item["id"], model_name=model_item["displayName"])
         if not drawn["visuals"]:
             drawn = {**drawn, "why_empty": "The model has no count, quantity or amount measure that can be drawn (see left_out), so "
                                            "the page is left blank."}
@@ -1317,6 +1356,8 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
         rest_body, spec = body, _report.SPEC
     if drawn and drawn["left_out"]:
         report_out["left_out"] = [{"measure": f"{m['table']}[{m['measure']}]", "why": m["why"]} for m in drawn["left_out"]]
+    if drawn and drawn.get("not_drawn"):                               # n151: a visual or a card the page goes without, and why
+        report_out["not_drawn"] = drawn["not_drawn"]
     out = {"dry_run": dry_run, "report": report_out,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": rest_body,
                     "delegated_scope": _report.SCOPE, "spec": spec},
@@ -1325,7 +1366,8 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
                               "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
                               "export_item_definitions does not include reports."],
            "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); the "
-                   "page with visuals (n144) is unit-tested against Microsoft's published PBIR schemas, not yet created in Fabric. "
+                   "page with visuals (n144) was created in Fabric on 7 November 2026; its look of round n151 (titles, layout, theme, "
+                   "slicers) is validated against Microsoft's published PBIR schemas and has not run live. "
                    + _tool_status.answer_note("create_report")
                    + " Without the permission the create answers kind=consent naming it, see docs/SCOPES.md."}
     if dry_run:

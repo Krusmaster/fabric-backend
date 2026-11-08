@@ -63,7 +63,7 @@ The status words follow from this file through `fabric_backend/tool_status.py` (
 | 36 | `create_gold_views` | *"Create the gold notebook gold_shop. Dry run first."* | dry run: the notebook and the call; create: `kind: consent` naming `Notebook.ReadWrite.All` | — | | |
 | 37 | `export_item_definitions` | *"Export what you would create for demo_lh, schema shop, in Fabric's Git format."* | folders `demo_lh_api.GraphQLApi`, `demo_lh_model.SemanticModel`, `silver_shop.Notebook`, `drift_monitor_shop.Notebook`, `drift_monitor_shop_nightly.DataPipeline`, `gold_shop.Notebook`, `krusgraph-sql/`; the largest file named under `omitted` | 27 Oct | | |
 | 38 | `review_plan` | *"Keep this review as a file: confirm orders.ship_to_id → addresses.address_id as the ship-to address, reject audit_log → customers as log only, and run the checks."* Save the file; then add a column to `orders` in the lakehouse and ask *"Read back the review file and tell me what changed."* | first answer: 6 keys and 7 relationships, the ship-to relationship `accepted` with its reason, `audit_log` as an open question, every check `passed` with the time, no row values in the file; second answer: the new column under `since_previous`, the checks on `orders` and its relationships `stale`, the others `passed` with their first date, the decisions still there | 27 Oct (first answer only) | | |
-| 39 | `create_report` | *"Create the report shop_report_visuals on shop_model_live. Dry run first, then create."* Then *"Create the report shop_report_blank on shop_model_live with an empty page."* | dry run: the call with a `definition` (PBIR parts) and `visuals`: cards per count measure, a clustered column chart by `Calendar` Month, a clustered bar chart (for shop: Total quantity by `categories.name`) and a table sorted by a measure, with `left_out` naming any header amount; create: status Succeeded, mode created, the page shows those visuals bound to the model; with `empty_page=true`: the call with `creationPayload.semanticModelReference`, one blank page; a second call with the same name answers `kind: already_exists` | 30 Oct, before the page with visuals (dry run, then created `shop_report_live` with one blank page; `shop_report` from Lovable: section 6) | | |
+| 39 | `create_report` | *"Create the report shop_report_visuals on shop_model_live. Dry run first, then create."* Then *"Create the report shop_report_blank on shop_model_live with an empty page."* | dry run: the call with a `definition` (PBIR parts) and `visuals`: cards per count measure, a clustered column chart by `Calendar` Month, a clustered bar chart (for shop: Total quantity by `categories.name`) and a table sorted by a measure, with `left_out` naming any header amount; create: status Succeeded, mode created, the page shows those visuals bound to the model; with `empty_page=true`: the call with `creationPayload.semanticModelReference`, one blank page; a second call with the same name answers `kind: already_exists` | 30 Oct, before the page with visuals (dry run, then created `shop_report_live` with one blank page; `shop_report` from Lovable: section 6). 7 Nov: the page with visuals of n144, `shop_report_visuals` on `shop_model`, and `shop_report_lovable` from Lovable (section 6). Next: the page of n151 (plain titles, the theme, slicers, the date table's Year Month; see section 6) | | |
 
 ## 2. Fixed after the 27 October run, unit-tested only
 
@@ -277,6 +277,28 @@ lakehouse (synthetic data):
 The same run found that a negation such as *"customers who have not placed any orders"* still gave a plain join and
 that `amount_levels` said "about 1 times too large" where every header has one line; both are fixed in round n88 and
 covered by unit tests only, not yet run live.
+
+### 7 November 2026: `create_report` with visuals
+
+Workspace `demo` (id `6c07e0a5-cea9-4749-846b-69dc30201a17`), synthetic data, after round n144 was deployed.
+
+- **`create_report` from Claude.** Through the hosted connector, `create_report` created `shop_report_visuals` on
+  `shop_model` with the page drawn from the model's measures (round n144): status Succeeded. Gustav opened it in Power BI
+  and every figure was right: 60 orders, 134 order lines and 40 `audit_log` rows on the cards; units by category (Tea,
+  Accessories, Bikes); a table of products by units (59 at the top down to 24, total 324). This is the first time a page
+  with visuals was created in Fabric.
+- **`create_report` from Lovable.** The same way, Lovable created `shop_report_lovable` (id
+  `832e3687-ac27-449f-8ded-696129dfeb91`) through the Krusgraph connector.
+- **What the review found, fixed in round n151 and unit-tested only:** the titles were the measures' names ("Rows in
+  audit_log", "Total quantity"), a log table had a card, the counts and units showed decimals ("59,00"), the column chart
+  by month was not on the page and nothing took its place, and the page had no title, theme or slicers. Not run live
+  since: the n151 page (plain titles, cards of business tables, the grid, whole-number formats, the Krusgraph theme, the
+  page title and footnote, the date table's range from the data and its Year Month, the slicers, data labels and the
+  table's total row). Existing reports in Fabric were not touched.
+- **For the next run.** `create_semantic_model` on `demo_lh` (schema `shop`) as a new model, then `create_report` on
+  it: check that the calendar's range is 2026 (`read_from_rows` in the answer), that Units shows 324 without decimals,
+  that the month chart and both slicers are on the page, and that Fabric accepts the theme (the first definition with a
+  `StaticResources` part sent to Fabric).
 
 ## Databricks
 

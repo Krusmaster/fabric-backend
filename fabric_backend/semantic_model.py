@@ -61,6 +61,17 @@ _PLAIN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _OBJECT = re.compile(r"^(database|model|table|expression|relationship|role|perspective|culture|function|namespace|entity)\b")
 
 
+# n151: the format of a count and of a sum of whole numbers. On 7 November 2026 Power BI showed such a measure of a live
+# model as "59,00"; "#,0" is a whole number with a thousands separator, in the culture of the report.
+WHOLE = "#,0"
+DECIMAL = "#,##0.00"
+
+
+def number_format(data_type: str) -> str:
+    """The formatString of a SUM measure: whole numbers for an int64 column, two decimals otherwise."""
+    return WHOLE if data_type == "int64" else DECIMAL
+
+
 # The last word of a column that identifies, codes or labels something rather than measuring it: never summed.
 _NOT_ADDITIVE = {"id", "key", "code", "no", "nr", "num", "number", "status", "type", "year", "month"}
 
@@ -87,8 +98,11 @@ def summarize_by(column: str, sql_type: str, is_ref: bool) -> str:
 # which Direct Lake on SQL allows ("calculated tables that don't reference Direct Lake columns or tables are supported in
 # all scenarios", MicrosoftDocs/fabric-docs a2de7f9 docs/fundamentals/direct-lake-overview.md, ms.date 09/02/2026), marked
 # as the date table with `dataCategory: Time` and `isKey` on its Date column, as Calendar.tmdl in microsoft/Analysis-Services
-# d3ccb50 pbidevmode/fabricps-pbip/SamplePBIP does. The range is a placeholder written in the README: the draft reads no
-# rows, so it cannot know the first and last date.
+# d3ccb50 pbidevmode/fabricps-pbip/SamplePBIP does. The draft reads no rows, so without `date_range` the range is a
+# placeholder written in the README. n151: create_semantic_model reads the first and last value of the related date
+# columns (MIN and MAX, read-only) and passes them as `date_range`; the calendar then spans the whole years from the first
+# to the last date. It also has "Year Month" ("2026-10", text that sorts in time order), so a chart by month does not add
+# up the same month of different years.
 CALENDAR_FIRST_YEAR, CALENDAR_LAST_YEAR = 2020, 2030
 _DATE_TABLE_NAMES = {"date", "dates", "calendar", "kalender", "datum", "dimdate", "datedim", "calendardim", "time", "tid"}
 
@@ -101,7 +115,8 @@ def _sql_base(sql_type: str) -> str:
     return (sql_type or "").lower().split("(")[0].strip()
 
 
-def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: set[tuple[str, str]]) -> list[dict]:
+def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: set[tuple[str, str]],
+                       whole: set[tuple[str, str]] = frozenset()) -> list[dict]:
     """Measures worth having from the start, each with the reason: the row count of every fact table, and a sum of each
     of its columns that summarizeBy sums (never an id, code, year or reference). Dimensions get none: their numbers
     (a list price, a weight) are attributes of one row, and adding them up is a decision for whoever builds the report."""
@@ -117,7 +132,7 @@ def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: se
             continue
         key = plan.keys.get(t.name, ([], ""))[0]
         out.append({"table": t.name, "column": None, "name": unique(f"Rows in {t.name}", t.name), "expression": f"COUNTROWS({_dax_table(t.name)})",
-                    "format": "#,##0", "why": f"{t.name} is a fact table (role from the plan's graph): its row count is the first number a report asks for"})
+                    "format": WHOLE, "why": f"{t.name} is a fact table (role from the plan's graph): its row count is the first number a report asks for"})
         for c in t.columns:
             if c.name not in t.column_names:
                 continue
@@ -127,7 +142,7 @@ def suggested_measures(plan: Plan, chosen, role_of: dict[str, str], ref_cols: se
             dt = data_type(c.data_type)
             out.append({"table": t.name, "column": c.name, "name": unique(f"Total {c.name}", t.name),
                         "expression": f"SUM({_dax_table(t.name)}[{_dax_column(c.name)}])",
-                        "format": "#,##0" if dt == "int64" else "#,##0.00",
+                        "format": WHOLE if (t.name, c.name) in whole else number_format(dt),
                         "why": f"{t.name}.{c.name} is a number in a fact table and neither a key, a reference nor an id, code or year, "
                                "so its default summarization is sum (summarizeBy: sum); the measure makes that sum explicit"})
     return out
@@ -169,14 +184,68 @@ def date_columns(plan: Plan, chosen, role_of: dict[str, str]) -> tuple[list[tupl
     return dates, timed
 
 
-def calendar_tmdl(name: str, model: str) -> str:
-    source = (f'ADDCOLUMNS(CALENDAR(DATE({CALENDAR_FIRST_YEAR}, 1, 1), DATE({CALENDAR_LAST_YEAR}, 12, 31)), '
-              '"Year", YEAR([Date]), "Month", MONTH([Date]))')
+def quantity_columns(plan: Plan, tables: list[str] | None = None) -> list[tuple[str, str]]:
+    """(fact table, column) of the quantity columns of a decimal type the draft would sum: create_semantic_model counts
+    whether their rows hold whole numbers only (n151; the shop's order_items.quantity is DOUBLE and holds 1, 2, 3)."""
+    from . import amounts, graphs
+    role_of = {t: r["role"] for t, r in graphs.analyze(plan, None)["roles"].items()}
+    wanted = {t.lower() for t in tables} if tables else None
+    out = []
+    for t in plan.schema:
+        if role_of.get(t.name) != "fact" or (wanted and t.name.lower() not in wanted):
+            continue
+        for c in t.columns:
+            if c.name in t.column_names and data_type(c.data_type) in ("double", "decimal") and amounts.is_quantity(c.name, c.data_type):
+                out.append((t.name, c.name))
+    return out
+
+
+def related_date_columns(plan: Plan, tables: list[str] | None = None) -> list[tuple[str, str]]:
+    """(fact table, column) of the `date` columns the calendar relates to: create_semantic_model reads their first and
+    last value for the calendar's range (n151)."""
+    from . import graphs
+    role_of = {t: r["role"] for t, r in graphs.analyze(plan, None)["roles"].items()}
+    wanted = {t.lower() for t in tables} if tables else None
+    chosen = [t for t in plan.schema if not wanted or t.name.lower() in wanted]
+    return date_columns(plan, chosen, role_of)[0]
+
+
+def range_sql(schema: str, table: str, column: str) -> str:
+    """The first and last value of a date column (the caller keeps the first ten characters, YYYY-MM-DD). Read-only."""
+    from .dialects import TSQL
+    q = TSQL.quote(column)
+    return f"SELECT MIN({q}) AS first_date, MAX({q}) AS last_date FROM {TSQL.table(schema, table)}"
+
+
+def whole_sql(schema: str, table: str, column: str) -> str:
+    """How many rows of a decimal column hold a number with a fraction. Read-only."""
+    from .dialects import TSQL
+    q = TSQL.quote(column)
+    return f"SELECT COUNT(*) AS fractions FROM {TSQL.table(schema, table)} WHERE {q} <> CAST({q} AS BIGINT)"
+
+
+def calendar_years(date_range: tuple[str, str] | None) -> tuple[int, int, bool]:
+    """(first year, last year, from the data?): the years of `date_range` ("YYYY-MM-DD" first and last date), else the
+    placeholder."""
+    if date_range:
+        try:
+            first, last = int(str(date_range[0])[:4]), int(str(date_range[1])[:4])
+            if 1900 <= first <= last <= 2200:
+                return first, last, True
+        except (TypeError, ValueError, IndexError):
+            pass
+    return CALENDAR_FIRST_YEAR, CALENDAR_LAST_YEAR, False
+
+
+def calendar_tmdl(name: str, model: str, date_range: tuple[str, str] | None = None) -> str:
+    first, last, _ = calendar_years(date_range)
+    source = (f'ADDCOLUMNS(CALENDAR(DATE({first}, 1, 1), DATE({last}, 12, 31)), '
+              '"Year", YEAR([Date]), "Month", MONTH([Date]), "Year Month", FORMAT([Date], "yyyy-mm"))')
     lines = [f"/// The model's date table, generated because fact tables have date columns; marked as the date table (dataCategory: Time).",
              f"table {tmdl_name(name)}", f"\tlineageTag: {_tag(model, 'table', name)}", "\tdataCategory: Time", ""]
     for col, dt, extra in (("Date", "dateTime", ["\t\tisKey", "\t\tformatString: yyyy-mm-dd"]), ("Year", "int64", ["\t\tformatString: 0"]),
-                           ("Month", "int64", ["\t\tformatString: 0"])):
-        lines += [f"\tcolumn {col}", f"\t\tdataType: {dt}", *extra, f"\t\tlineageTag: {_tag(model, 'column', name, col)}",
+                           ("Month", "int64", ["\t\tformatString: 0"]), ("Year Month", "string", [])):
+        lines += [f"\tcolumn {tmdl_name(col)}", f"\t\tdataType: {dt}", *extra, f"\t\tlineageTag: {_tag(model, 'column', name, col)}",
                   "\t\tsummarizeBy: none", "\t\tisDataTypeInferred", f"\t\tsourceColumn: [{col}]", "", "\t\tannotation SummarizationSetBy = Automatic", ""]
     lines += [f"\tpartition {tmdl_name(name)} = calculated", "\t\tmode: import", f"\t\tsource = {source}", ""]
     return "\n".join(lines)
@@ -279,10 +348,14 @@ def envelope(parts: dict[str, str], name: str, description: str = "") -> dict:
     return body
 
 
-def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None) -> dict:
+def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str] | None = None, validation: dict | None = None,
+          date_range: tuple[str, str] | None = None, whole_quantities: set[tuple[str, str]] = frozenset()) -> dict:
     """info: item_name, item_kind, schema, sql_endpoint, sql_db, schemas_enabled (from server._source_inputs); returns
     {"parts": {path: content}, "summary": {...}}. `validation` (evidence.validate's answer) raises the certainty of the
-    links it confirmed when the active set is chosen."""
+    links it confirmed when the active set is chosen. `date_range` (first, last date of the related date columns, read
+    by create_semantic_model) sets the calendar's range; without it the range is a placeholder (n151).
+    `whole_quantities`: (table, column) of quantity columns of a decimal type whose rows hold whole numbers only (counted
+    by create_semantic_model, `quantity_columns` and `whole_sql`); their sum is formatted as a whole number (n151)."""
     from . import graphs
     analysis = graphs.analyze(plan, validation)
     role_of = {t: r["role"] for t, r in analysis["roles"].items()}
@@ -307,7 +380,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     active, inactive = active_relationships(plan, single, validation)
     ref_cols = {(r.source, r.source_cols[0].lower()) for r in single}
 
-    measures = suggested_measures(plan, chosen, role_of, ref_cols)
+    measures = suggested_measures(plan, chosen, role_of, ref_cols, set(whole_quantities))
     header_level = header_amount_columns(plan, names)
     for (t, c), lines_of in header_level.items():                 # the total that doubles (amounts.py): a measure on the header
         why = (f"{t}.{c} is an amount at the level of {t}, and {', '.join(lines_of)} has several rows per {t} row: the measure sums it "
@@ -322,7 +395,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         mname = f"Total {c}" if f"total {c}".lower() not in taken else f"Total {c} ({t})"
         dt = data_type(next(col.data_type for col in plan.schema[t].columns if col.name == c))
         measures.append({"table": t, "column": c, "name": mname, "expression": f"SUM({_dax_table(t)}[{_dax_column(c)}])",
-                         "format": "#,##0" if dt == "int64" else "#,##0.00", "why": why})
+                         "format": number_format(dt), "why": why})
     # the amount that is not there (amounts.py): a line with a quantity and no amount, the price on the table it points at
     from . import amounts as _amounts
     order_amount = _amounts.order_amount_measures(plan, active, names)
@@ -344,6 +417,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     for m in measures:
         by_table.setdefault(m["table"], []).append(m)
     dates, timed = date_columns(plan, chosen, role_of)
+    cal_first, cal_last, cal_from_data = calendar_years(date_range)
     lookalike = [t.name for t in chosen if _norm_name(t.name) in _DATE_TABLE_NAMES]
     calendar = None
     if (dates or timed) and not lookalike:
@@ -402,7 +476,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                   f"\tannotation Krusgraph_Role = {role_of.get(t.name, 'other')}", ""]
         parts[f"definition/tables/{t.name}.tmdl"] = "\n".join(lines)
     if calendar:
-        parts[f"definition/tables/{calendar}.tmdl"] = calendar_tmdl(calendar, name)
+        parts[f"definition/tables/{calendar}.tmdl"] = calendar_tmdl(calendar, name, date_range)
 
     rel_lines: list[str] = []
     for r in active + [x for x, _ in inactive]:
@@ -519,11 +593,16 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
     readme += ["", "No measure sums an id, a code, a year or a reference: they use the same rule as `summarizeBy`. Dimension tables get "
                "no sums; their numbers describe one row.", "", "## Date table", ""]
     if calendar:
-        readme += [f"`{calendar}` is a calculated table (`CALENDAR` with `Year` and `Month`) marked as the date table (`dataCategory: Time`, "
+        readme += [f"`{calendar}` is a calculated table (`CALENDAR` with `Year`, `Month` and `Year Month`) marked as the date table (`dataCategory: Time`, "
                    "`isKey` on `Date`); a calculated table that references no Direct Lake table is allowed in Direct Lake on SQL "
-                   "(direct-lake-overview.md).",
-                   f"- The range {CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 is a placeholder: this draft reads no rows. Set it to "
-                   "your data's first and last year in the partition's `source`, or rows outside it have no date to filter by."]
+                   "(direct-lake-overview.md). `Year Month` is text such as 2026-10, so a chart by month keeps the years apart."]
+        if cal_from_data:
+            readme.append(f"- The range {cal_first}-01-01 to {cal_last}-12-31: the whole years from the first to the last date in the related "
+                          f"date columns ({date_range[0]} to {date_range[1]}, read when the model was made). Rows added later outside it "
+                          "have no date to filter by until the range is widened in the partition's `source`.")
+        else:
+            readme.append(f"- The range {CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 is a placeholder: this draft reads no rows. Set it to "
+                          "your data's first and last year in the partition's `source`, or rows outside it have no date to filter by.")
         readme += [f"- `{d['fact']}.{d['column']} -> {calendar}.Date`" + (" (active)" if d["active"] else f" (inactive: {d['why']}; use USERELATIONSHIP)")
                    for d in date_rels]
         readme += [f"- `{f}.{c}` carries a time of day and is not related: Direct Lake on SQL does not relate on the date part of a datetime "
@@ -561,7 +640,8 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                                 "own_amounts": order_amount["own_amounts"], "not_created": order_amount["not_created"]},
                "date_table": ({"name": calendar, "marked_as_date_table": True, "related": date_rels,
                                "not_related": [{"fact": f, "column": c, "why": "datetime with a time of day"} for f, c in timed],
-                               "range": f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)"} if calendar else None)}
+                               "range": (f"{cal_first}-01-01 to {cal_last}-12-31 (the data's years, {date_range[0]} to {date_range[1]})" if cal_from_data
+                                         else f"{CALENDAR_FIRST_YEAR}-01-01 to {CALENDAR_LAST_YEAR}-12-31 (placeholder; see README)")} if calendar else None)}
     if flat:
         summary["flat_amounts"] = [{"table": t, "column": c, "header": h, "summarize_by": "none"} for (t, c), h in flat.items()]
     if dup.keys() & names:                                         # n150: only when the rows showed one

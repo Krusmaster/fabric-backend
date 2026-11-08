@@ -2183,8 +2183,8 @@
   "store": "SELECT TOP (10) [store_id], [manager_staff_id], [address_id], [last_update] FROM [dbo].[store]"
  },
  "semantic_model": {
-  "bytes": 52181,
-  "sha256": "34ee5449e17ea64c741bec5a8c0d7c55a4af0d631637aab1a3e000c0f4349257"
+  "bytes": 52546,
+  "sha256": "492f2451a4c3d2b3bb7dfc6e0df8dd8085abbd765ec74243765e199228d9eef5"
  },
  "silver": {
   "bytes": 36017,

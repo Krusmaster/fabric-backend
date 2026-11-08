@@ -122,7 +122,7 @@ same plan into the week's deliverables, all unit-tested and run against the demo
 
 Four more tools create things from the same plan, each `dry_run=true` by default so the first answer is exactly what
 would be created, each creating or updating in place under a name and never deleting (`create_report` only creates); all unit-tested with Fabric
-mocked. On 27 October 2026 the first three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day; `shop_model` updated in place from Lovable on 30 October 2026) and `create_report` created `shop_report_live` and `shop_report` live on 30 October 2026 (opened and reviewed in the Fabric portal the same day), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
+mocked. On 27 October 2026 the first three ran as dry runs against the demo lakehouse; `create_semantic_model` then created `shop_model_live` live on 29 October 2026 (reviewed in the Fabric portal the same day; `shop_model` updated in place from Lovable on 30 October 2026) and `create_report` created `shop_report_live` and `shop_report` live on 30 October 2026 (opened and reviewed in the Fabric portal the same day) and its first page with visuals, `shop_report_visuals`, on 7 November 2026 (every figure checked in Power BI; the n151 look has not run live), while creating with `create_views` or `create_data_agent` is unit-tested only (the status per tool: https://krusgraph.com/docs#test-status). The delegated permissions they need, against what the app has today, and
 the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 
 - `create_semantic_model` — a SemanticModel item from the TMDL draft (`POST /semanticModels`, `updateDefinition`); needs
@@ -134,10 +134,15 @@ the `az` commands to add them are in [docs/SCOPES.md](docs/SCOPES.md):
 - `create_data_agent` — a Fabric data agent through the public staging API: the plan as instructions, the source as
   data source, 5–10 example questions with T-SQL, published; needs `Item.ReadWrite.All` (granted since 28 October 2026).
 - `create_report` — a Power BI report bound to an existing semantic model, with one page drawn from the model's own
-  measures and columns (PBIR definition, built from the model's TMDL read with getDefinition): a card per count measure,
-  a clustered column chart by the date table's Month, a clustered bar chart by the most-referenced dimension, and a
-  table of the nearest dimension sorted by a measure. A plain SUM of a column the model does not sum, or of a header
-  amount copied onto lines, is never drawn (`left_out` says why); when nothing can be drawn the page is left blank.
+  measures and columns (PBIR definition, built from the model's TMDL read with getDefinition): cards for the row counts
+  of business tables and the units (a table without a key or relationship, or named like a log, gets none), a clustered
+  column chart by the date table's Year Month (or Month), a clustered bar chart by the most-referenced dimension, and a
+  table of the nearest dimension sorted by a measure with a total row. Since round n151 the page has plain titles
+  ("Orders", "Order lines", "Units", "Units by category"; any other measure keeps its own name), fills 1280 × 720 in a
+  grid, carries a page title "Overview · <model>", a footnote with the date, data labels, a month and a category slicer
+  when those fields exist, and the Krusgraph theme from the site's colours (a `StaticResources` part). A plain SUM of a
+  column the model does not sum, or of a header amount copied onto lines, is never drawn (`left_out` says why;
+  `not_drawn` names a visual or card the page goes without); when nothing can be drawn the page is left blank.
   `empty_page=true` creates one blank page instead (`POST /reports` with `creationPayload.semanticModelReference`). A
   report of that name is left alone, never updated or deleted; needs `Report.ReadWrite.All` or `Item.ReadWrite.All`, and
   `SemanticModel.ReadWrite.All` to read the model. Tried live: the blank-page report was created live on 30 October

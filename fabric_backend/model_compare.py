@@ -164,6 +164,8 @@ def from_tmdl(parts: dict[str, str]) -> dict:
                     current["cross_filter"] = value
                 elif prop in ("fromCardinality", "toCardinality"):
                     current["from_cardinality" if prop == "fromCardinality" else "to_cardinality"] = value.lower()
+            elif kind == "measure" and prop == "formatString":           # n151: create_report reads it
+                current["format_string"] = value.strip('"')
             elif kind == "column":
                 if prop == "sourceColumn":
                     current["source_column"] = value.strip("[]")

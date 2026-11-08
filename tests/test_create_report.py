@@ -7,10 +7,16 @@ model is semantic_model_draft's shop_model, read back with model_compare.from_tm
 Checked here: every part parses and has the shape of the Microsoft schemas report.py cites (required fields, no
 top-level field the schemas leave out), every visual names a measure or column the model has, no visual draws a
 header amount over lines (amount_levels, n106), the same model gives the same parts, and empty_page=true keeps the
-blank page of n64."""
+blank page of n64.
+
+Round n151: every part with a `$schema` is validated against that schema, copied from microsoft/json-schemas eecc60d
+into tests/fixtures/pbir_schemas (jsonschema, Draft 7, the `$ref`s resolved to those files); the theme under
+StaticResources has no published per-file schema in the PBIR definition structure and is checked in
+tests/test_n151_report_look.py."""
 import asyncio
 import importlib
 import json
+from pathlib import Path
 
 import pytest
 import requests
@@ -113,7 +119,8 @@ def test_201_creates_once_and_returns_the_id(fabric, empty):
         assert "creationPayload" not in body and {p["payloadType"] for p in body["definition"]["parts"]} == {"InlineBase64"}
         paths = {p["path"] for p in body["definition"]["parts"]}
         assert {"definition.pbir", "definition/version.json", "definition/report.json", "definition/pages/pages.json"} <= paths
-        assert sum(p.endswith("/visual.json") for p in paths) == len(out["report"]["visuals"]) == 6
+        assert sum(p.endswith("/visual.json") for p in paths) == len(out["report"]["visuals"]) == 10
+        assert "StaticResources/RegisteredResources/Krusgraph.json" in paths
     assert len(fabric["posts"]) == 1 and not any("updateDefinition" in u for u in fabric["gets"])
     assert "fabric-token" not in json.dumps(out)
 
@@ -199,12 +206,35 @@ TOP = {   # top-level fields per file: (required, allowed), from microsoft/json-
     "visual.json": ({"$schema", "name", "position"}, {"$schema", "name", "position", "visual", "visualGroup", "parentGroupName", "filterConfig",
                                                       "isHidden", "annotations", "howCreated"}),
 }
-ROLES = {"card": {"Values"}, "clusteredColumnChart": {"Category", "Y"}, "clusteredBarChart": {"Category", "Y"}, "tableEx": {"Values"}}
+ROLES = {"card": {"Values"}, "clusteredColumnChart": {"Category", "Y"}, "clusteredBarChart": {"Category", "Y"}, "tableEx": {"Values"},
+         "slicer": {"Values"}}
+SCHEMAS = Path(__file__).resolve().parent / "fixtures" / "pbir_schemas"
+_BASE = "https://developer.microsoft.com/json-schemas/fabric/item/report/"
+
+
+def _registry():
+    from referencing import Registry, Resource
+    from referencing.jsonschema import DRAFT7
+    reg = Registry()
+    for f in sorted(SCHEMAS.rglob("*.json")):
+        reg = reg.with_resource(_BASE + f.relative_to(SCHEMAS).as_posix(),
+                                Resource.from_contents(json.loads(f.read_text(encoding="utf-8-sig")), default_specification=DRAFT7))
+    return reg
+
+
+REGISTRY = _registry()
+
+
+def schema_errors(doc: dict) -> list[str]:
+    """The messages of every way the document breaks the schema its `$schema` names (one of the copied files)."""
+    from jsonschema import Draft7Validator
+    schema = REGISTRY.get_or_retrieve(doc["$schema"]).value.contents
+    return [f"{list(e.absolute_path)}: {e.message}" for e in Draft7Validator(schema, registry=REGISTRY).iter_errors(doc)]
 
 
 def _fields(v: dict) -> list[tuple[str, str, str]]:
     """(Column|Measure, table, property) of every field a visual.json names: projections and sorts."""
-    out, q = [], v["visual"]["query"]
+    out, q = [], v["visual"].get("query", {"queryState": {}})                      # a text box has no query
     for role in q["queryState"].values():
         for pr in role["projections"]:
             out.append(pr["field"])
@@ -216,13 +246,20 @@ def _check_against_model(parts: dict[str, str], model: dict) -> list[dict]:
     visuals = []
     for path, text in parts.items():
         doc = json.loads(text)
+        if path.startswith("StaticResources/"):                       # the theme (n151): no $schema, checked in test_n151
+            continue
+        assert schema_errors(doc) == [], path
         required, allowed = TOP[path.rsplit("/", 1)[-1]]
         assert required <= set(doc) <= allowed, path
         assert doc["$schema"].startswith("https://developer.microsoft.com/json-schemas/fabric/item/report/"), path
         if path.endswith("/visual.json"):
             assert path.split("/")[-2] == doc["name"] and set(doc["position"]) == {"x", "y", "z", "width", "height", "tabOrder"}
             assert doc["position"]["x"] + doc["position"]["width"] <= report.PAGE_W and doc["position"]["y"] + doc["position"]["height"] <= report.PAGE_H
-            assert set(doc["visual"]) == {"visualType", "query", "drillFilterOtherVisuals"}
+            if doc["visual"]["visualType"] == "textbox":                # the page's title and footnote (n151): no data
+                assert set(doc["visual"]) == {"visualType", "objects"}
+                continue
+            assert {"visualType", "query", "drillFilterOtherVisuals", "visualContainerObjects"} <= set(doc["visual"]) <= \
+                {"visualType", "query", "drillFilterOtherVisuals", "visualContainerObjects", "objects"}
             assert set(doc["visual"]["query"]["queryState"]) == ROLES[doc["visual"]["visualType"]]
             for role in doc["visual"]["query"]["queryState"].values():
                 for pr in role["projections"]:
@@ -242,17 +279,25 @@ def _check_against_model(parts: dict[str, str], model: dict) -> list[dict]:
 
 def test_shop_model_gets_cards_a_column_chart_by_month_a_bar_chart_by_category_and_a_table():
     d = report.definition_parts(SHOP, MODEL_ID)
+    # n151: the cards of the business tables (orders first: order_items points at it) and the units; the title and the
+    # footnote as text boxes; the table by the same units; a slicer for the month and one for the category
     assert [(v["type"], v["fields"]) for v in d["visuals"]] == [
-        ("card", ["audit_log[Rows in audit_log]"]),
-        ("card", ["order_items[Rows in order_items]"]),
+        ("textbox", []),
         ("card", ["orders[Rows in orders]"]),
-        ("clusteredColumnChart", ["Calendar[Month]", "order_items[Total quantity]"]),
+        ("card", ["order_items[Rows in order_items]"]),
+        ("card", ["order_items[Total quantity]"]),
+        ("clusteredColumnChart", ["Calendar[Year Month]", "order_items[Total quantity]"]),
         ("clusteredBarChart", ["categories[name]", "order_items[Total quantity]"]),
-        ("tableEx", ["products[name]", "order_items[Order amount]"]),
+        ("tableEx", ["products[name]", "order_items[Total quantity]"]),
+        ("slicer", ["Calendar[Year Month]"]),
+        ("slicer", ["categories[name]"]),
+        ("textbox", []),
     ]
-    assert d["left_out"] == []
+    assert [v["title"] for v in d["visuals"]][1:-1] == ["Orders", "Order lines", "Units", "Units by month", "Units by category",
+                                                         "Products by units", "Month", "Category"]
+    assert d["left_out"] == [] and [x["measure"] for x in d["not_drawn"]] == ["audit_log[Rows in audit_log]"]
     visuals = _check_against_model(d["parts"], SHOP)
-    assert len(visuals) == 6 and len({v["name"] for v in visuals}) == 6
+    assert len(visuals) == 8 and len({v["name"] for v in visuals}) == 8           # the two text boxes hold no data
     bar = next(v for v in visuals if v["visual"]["visualType"] == "clusteredBarChart")
     assert bar["visual"]["query"]["sortDefinition"]["sort"][0]["direction"] == "Descending"
 
@@ -266,10 +311,14 @@ def test_the_definition_is_deterministic():
 
 def test_the_dry_run_lists_the_visuals_and_the_parts(fabric):
     out = json.loads(server.create_report("Sales", "shop_model", "shop_report"))
-    assert [v["type"] for v in out["report"]["visuals"]] == ["card"] * 3 + ["clusteredColumnChart", "clusteredBarChart", "tableEx"]
-    assert out["report"]["visuals"][4]["title"] == "Total quantity by categories name"
+    assert [v["type"] for v in out["report"]["visuals"]] == (["textbox"] + ["card"] * 3 + ["clusteredColumnChart", "clusteredBarChart", "tableEx"]
+                                                             + ["slicer"] * 2 + ["textbox"])
+    assert out["report"]["visuals"][5]["title"] == "Units by category" and out["report"]["visuals"][0]["title"] == "Overview · shop_model"
+    assert all({"x", "y", "width", "height"} == set(v["position"]) for v in out["report"]["visuals"])     # n151: titles, positions, formats
+    assert out["report"]["visuals"][1]["format"] == {"format_string": "#,0", "whole_number": True, "visual_sets_no_decimals": False}
+    assert out["report"]["not_drawn"][0]["why"] == "audit_log is named like a log: not a business figure for a card"
     assert out["rest"]["body"]["definition"] == {"parts": "<base64 PBIR parts, see parts>"} and "creationPayload" not in out["rest"]["body"]
-    assert out["parts"] == report.definition_parts(SHOP, MODEL_ID)["parts"] and fabric["posts"] == []
+    assert out["parts"] == report.definition_parts(SHOP, MODEL_ID, model_name="shop_model")["parts"] and fabric["posts"] == []
     assert "PBIR" in out["rest"]["spec"] and "empty" not in out["report"]
 
 
@@ -310,10 +359,15 @@ def test_an_amount_copied_onto_lines_and_a_header_measure_out_of_reach_are_not_d
     d = report.definition_parts(model, MODEL_ID)
     _check_against_model(d["parts"], model)
     assert [(v["type"], v["fields"]) for v in d["visuals"]] == [
+        ("textbox", []),
         ("card", ["order_lines[Lines]"]),
+        ("card", ["order_lines[Qty]"]),
         ("clusteredBarChart", ["products[title]", "order_lines[Qty]"]),
         ("tableEx", ["products[title]", "order_lines[Qty]"]),
+        ("slicer", ["products[title]"]),
+        ("textbox", []),
     ]
+    assert [v["title"] for v in d["visuals"]][1:-1] == ["Lines", "Units", "Units by product", "Products by units", "Product"]
     assert [(m["measure"], "orders has a column order_amount too" in m["why"]) for m in d["left_out"]] == [("Amount on lines", True)]
 
 

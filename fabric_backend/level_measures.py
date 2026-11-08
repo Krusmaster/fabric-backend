@@ -58,7 +58,8 @@ def _dax_col(table: str, column: str) -> str:
 
 
 def _fmt(data_type: str) -> str:
-    return "#,##0" if data_type == "int64" else "#,##0.00"
+    from .semantic_model import number_format          # n151: "#,0" for whole numbers
+    return number_format(data_type)
 
 
 def flat_amounts(validation: dict | None, names: set[str]) -> dict[tuple[str, str], str]:

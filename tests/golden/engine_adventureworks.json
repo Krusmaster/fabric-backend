@@ -227,8 +227,8 @@
   "WorkOrderRouting": "SELECT TOP (10) [WorkOrderID], [ProductID], [OperationSequence], [LocationID], [ScheduledStartDate], [ScheduledEndDate], [ActualStartDate], [ActualEndDate], [ActualResourceHrs], [PlannedCost], [ActualCost], [ModifiedDate] FROM [dbo].[WorkOrderRouting]"
  },
  "semantic_model": {
-  "bytes": 318294,
-  "sha256": "9633a406be33741f3160a632ccaef6bc6cb12b1de6679cbc1f5be27d03dd60a5"
+  "bytes": 318593,
+  "sha256": "d11505b25815280e83e40b17468842b3e0bf9d0b93874019929a393a2c924686"
  },
  "silver": {
   "bytes": 121666,
