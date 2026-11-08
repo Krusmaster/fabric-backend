@@ -15,8 +15,18 @@ const base = process.argv[2], exe = process.argv[3];
       await page.goto(base + path, { waitUntil: 'networkidle' });
       out[`${width} ${path}`] = await page.evaluate(async () => {
         const v = document.querySelector('#film video'), r = v.getBoundingClientRect();
-        v.load(); await new Promise((ok) => setTimeout(ok, 600));
-        return { src: new URL(v.currentSrc, location.href).pathname, ratio: +(r.width / r.height).toFixed(2),
+        // n163: does this browser honour media on a video's <source>? The Chromium of CI's Playwright (131) plays the
+        // 16:9 source at 375 px; Chromium 153 plays the 4:5 one. The probe is a bare <video> with media="all" on a first
+        // source and a plain second one: a browser that honours media picks the first. preload="none" fetches nothing.
+        const probe = document.createElement('video'); probe.preload = 'none';
+        const first = v.querySelector('source');
+        for (const [media, src] of [['all', first.src], ['', v.querySelectorAll('source')[1].src]]) {
+          const s = document.createElement('source'); if (media) s.media = media; s.src = src; s.type = 'video/mp4'; probe.appendChild(s);
+        }
+        v.load(); probe.load(); await new Promise((ok) => setTimeout(ok, 600));
+        const path = (u) => new URL(u, location.href).pathname;
+        return { src: path(v.currentSrc), mediaHonoured: path(probe.currentSrc) === path(first.src),
+                 queryMatches: matchMedia(first.media).matches, ratio: +(r.width / r.height).toFixed(2),
                  overflow: document.documentElement.scrollWidth > window.innerWidth };
       });
       out[`${width} ${path}`].external = external.length;

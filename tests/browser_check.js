@@ -11,7 +11,13 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
   const watch = (page, label) => {
     page.on('pageerror', e => errors.push(`${label}: pageerror ${e.message}`));
     page.on('console', m => { if (m.type() === 'error') errors.push(`${label}: console ${m.text()}`); });
-    page.on('requestfailed', r => errors.push(`${label}: request failed ${r.url()}`));
+    // n163: a page that navigates on load (the old anchors on / go on to /check) cancels what it was still fetching; a
+    // same-origin media file cancelled that way (the film's captions track) is not a failure. Anything else still is.
+    page.on('requestfailed', r => {
+      const aborted = ((r.failure() || {}).errorText || '') === 'net::ERR_ABORTED';
+      if (aborted && r.url().startsWith(base + '/static/media/')) return;
+      errors.push(`${label}: request failed ${r.url()}`);
+    });
     page.on('request', r => { if (!r.url().startsWith(base)) errors.push(`${label}: external request ${r.url()}`); });
   };
   // the brief of 26 October 2026 asks for 375, 768 and 1440; dark mode at the widest
