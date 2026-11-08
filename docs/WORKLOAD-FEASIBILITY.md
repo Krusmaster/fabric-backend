@@ -268,6 +268,8 @@ monetisation experiences, item settings, custom actions, CICD manifest section.
 SLA", "Page load times under 3 seconds", CORS and CSP for Fabric domains, OAuth 2.0, token validation, encryption in
 transit and at rest. "Backend Configuration (if applicable): Backend configurations are currently not supported."
 
+Reaching other tenants and getting paid, in detail and with a plan to 17 November 2026: `docs/WORKLOAD-LISTING-AND-PAYMENT.md` (n167).
+
 **Billing.** Two routes: an Azure Marketplace SaaS offer (Partner Center, landing page, webhook, SaaS fulfillment and
 metering APIs) or our own billing; the toolkit adds no tools for Marketplace integration [S27]. A Marketplace offer must
 exist either way for a listing [S9].
