@@ -11,7 +11,9 @@
 FROM node:22.12.0-bookworm-slim AS editor
 WORKDIR /src
 COPY workload/Workload/package.json workload/Workload/package-lock.json ./
-RUN npm ci --ignore-scripts --no-audit --no-fund
+# n166: npm ci of these 712 packages runs out of a 4 GB heap (CI 738 and 739, and locally); 8 GB is what the starter kit's
+# own scripts give Node
+RUN NODE_OPTIONS=--max-old-space-size=8192 npm ci --ignore-scripts --no-audit --no-fund
 COPY workload/Workload/tsconfig.json workload/Workload/webpack.config.js ./
 COPY workload/Workload/app ./app
 ENV WORKLOAD_NAME=Org.Krusgraph ITEM_NAMES=Model WORKLOAD_VERSION=1.0.0 LOG_LEVEL=info ENABLE_PLAYGROUND=false \
