@@ -3,7 +3,8 @@
 The founder, 8 November 2026: *"I want to click the mascots' suggestions and have everything created, without writing
 text."* With `KRUSGRAPH_MCP_APPS=1` the cards in Claude ended with next steps the user had to type. Since n169 each card
 ends with the Builder's or the Thinker's buttons, and a build is one click for its dry run and one click on Create.
-Code: `fabric_backend/mcp_apps_build.py`; tests: `tests/test_n169_clickable_cards.py`.
+Code: `fabric_backend/mcp_apps_build.py`; tests: `tests/test_n169_clickable_cards.py`. Since n170 the cards also draw the
+chat demo's pictures, and `domain_draft`'s data products carry their own build buttons: `docs/MCP-APPS-PICTURES.md`.
 
 ## What the specification allows, and what the cards use
 

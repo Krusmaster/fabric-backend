@@ -9,6 +9,16 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n170: the chat demo's pictures in the MCP Apps cards (the founder's ask of 8 November 2026,
+  `docs/MCP-APPS-PICTURES.md`). With `KRUSGRAPH_MCP_APPS=1`: `plan_backend`, `validate_plan` and `review_plan` draw the
+  map of tables and links (key columns, rule and column pair on each link, passed green, failed red with the orphan
+  count, not checked grey, rejected dashed); `ontology_draft` and `create_ontology`'s dry run draw the ontology proposal
+  with the keyless entity types and why; `domain_draft` (now on the build card) draws the data products, each a card with
+  its tables, no owner yet and dry-run buttons for an API for GraphQL and a semantic model over its tables. The drawing
+  is cut from `chat-demo.js` when the card is built; the pictures' data is in `structuredContent` only, so the text
+  answer is unchanged. "Try in Claude" on the home page and `/start`: copies the first question and opens claude.ai/new
+  (claude.ai documents no prefilled chat for the web), with "Open in Claude Desktop", which does
+  (`claude://claude.ai/new?q=`), and "connect Krusgraph first" pointing at step 3. Not tried in Claude yet.
 - Round n169: the mascots' next steps on the MCP Apps cards are buttons (the founder's ask of 8 November 2026,
   `docs/MCP-APPS-BUTTONS.md`). With `KRUSGRAPH_MCP_APPS=1`, `plan_backend` and the creating tools (`create_semantic_model`,
   `create_ontology`, `create_backend`, `create_report`) get a build card and every card ends with the Thinker's and the
