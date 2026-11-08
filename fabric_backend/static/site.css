@@ -1490,3 +1490,6 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .film-frame video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:var(--card-2)}
 .film-docs{margin:4px 0 28px}
 .film-docs .film-frame{border-radius:var(--radius-s)}
+/* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
+   the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */
+@media (max-width:640px){.film-frame video{aspect-ratio:4/5;object-fit:cover}}

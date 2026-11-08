@@ -402,6 +402,8 @@ NEW_TAB = ' target="_blank" rel="noopener"'
 # n157: the overview film. One element, used on the home page (after the hero) and at the top of /docs; the files are
 # the compressed web version in static/media (the masters stay out of the repository). Nothing loads before play.
 FILM_MP4 = "/static/media/krusgraph-overview-web.mp4"
+FILM_MP4_4X5 = "/static/media/krusgraph-overview-web-4x5.mp4"   # n161: phones get the 4:5 version (same narration, same captions)
+FILM_PHONE = "(max-width: 640px)"                                 # the same breakpoint as site.css's rule for the frame
 FILM_POSTER = "/static/media/krusgraph-overview-poster.webp"
 FILM_VTT = "/static/media/krusgraph-overview.en.vtt"
 # n160: no visible note under the heading; the film's end card carries the disclosure, and the video says it to
@@ -413,6 +415,7 @@ def film_html(heading: bool = True) -> str:
     """The overview film: a native <video> with controls, preload="none", a poster and an English captions track."""
     video = (f'<figure class="film-frame">\n'
              f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}">\n'
+             f'      <source media="{FILM_PHONE}" src="{FILM_MP4_4X5}" type="video/mp4">\n'
              f'      <source src="{FILM_MP4}" type="video/mp4">\n'
              f'      <track kind="captions" srclang="en" label="English" src="{FILM_VTT}" default>\n'
              f'      <p>Your browser cannot play this film. <a href="{FILM_MP4}">Download it as MP4</a>.</p>\n'

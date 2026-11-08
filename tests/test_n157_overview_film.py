@@ -11,7 +11,8 @@ from fabric_backend import pages, server
 
 ROOT = Path(__file__).resolve().parents[1]
 MEDIA = ROOT / "fabric_backend" / "static" / "media"
-FILES = {"krusgraph-overview-web.mp4": "video/mp4", "krusgraph-overview-poster.webp": "image/webp",
+FILES = {"krusgraph-overview-web.mp4": "video/mp4", "krusgraph-overview-web-4x5.mp4": "video/mp4",   # n161: the 4:5 web version
+         "krusgraph-overview-poster.webp": "image/webp",
          "krusgraph-overview.en.vtt": "text/vtt; charset=utf-8"}
 
 
