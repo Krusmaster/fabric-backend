@@ -186,6 +186,28 @@ KEY_VAULT_ENV = ("ENTRA_CLIENT_SECRET_KEYVAULT_URI", "AZURE_CLIENT_ID")
 REGISTRATION_ENV = ("KRUSGRAPH_CLIENT_REGISTRATION", "KRUSGRAPH_CLIENT_REGISTRATION_DCR", "KRUSGRAPH_REGISTRATION_STORE",
                     "KRUSGRAPH_REGISTRATION_KEY_KEYVAULT_URI", "KRUSGRAPH_REGISTRATION_CLIENT_DOMAINS",
                     "KRUSGRAPH_REGISTRATION_RATE_IP", "KRUSGRAPH_REGISTRATION_RATE_CLIENT", "KRUSGRAPH_REGISTRATION_RATE_REGISTER")
+# Operator switches (n159): a key in deploy/krusgraph.json → the variable set to "1" when the key is true. A switch set by
+# hand on the app whose key is missing from the config is carried over by the full run (the manifest replaces the whole
+# list) and kept by --update, with one line asking the operator to add the key; an explicit false leaves it out.
+OPERATOR_FLAGS = {"mcp_apps": "KRUSGRAPH_MCP_APPS", "read_only": "KRUSGRAPH_READ_ONLY", "no_row_values": "KRUSGRAPH_NO_ROW_VALUES"}
+
+
+def flag_on(variable: str, value) -> bool:
+    """As the server reads it: KRUSGRAPH_MCP_APPS only "1" (mcp_apps.py), the other two 1/true/yes/on (switches.py)."""
+    value = (value or "").strip().lower()
+    return value == "1" if variable == "KRUSGRAPH_MCP_APPS" else value in {"1", "true", "yes", "on"}
+
+
+def carried_flags(config, old_env: dict) -> dict:
+    """The operator switches that are on in the running app and whose key is absent from the config, as {variable: value}.
+    Prints one line per switch so the operator can write it into deploy/krusgraph.json."""
+    carried = {}
+    for key, variable in OPERATOR_FLAGS.items():
+        if key not in config and flag_on(variable, old_env.get(variable)):
+            carried[variable] = old_env[variable].strip()
+            print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": true i deploy/krusgraph.json.",
+                  flush=True)
+    return carried
 
 
 def plain_env(config, build=None):
@@ -200,6 +222,9 @@ def plain_env(config, build=None):
     }
     if build:
         env["KRUSGRAPH_BUILD"] = build
+    for key, variable in OPERATOR_FLAGS.items():
+        if config.get(key) is True:
+            env[variable] = "1"
     if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
         env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
     days = int(config.get("log_retention_days") or 0)
@@ -261,6 +286,8 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
     if existing:                              # keep the Key Vault and registration settings; the manifest replaces the whole list
         old_env = ((existing.get("properties") or {}).get("template") or {}).get("containers", [{}])[0].get("env") or []
         env += [e for e in old_env if e.get("name") in KEY_VAULT_ENV + REGISTRATION_ENV and e.get("value")]
+        plain = {e.get("name"): e.get("value") or "" for e in old_env if not e.get("secretRef")}
+        env += [{"name": key, "value": value} for key, value in carried_flags(config, plain).items()]
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
         "identity": {"type": "UserAssigned", "userAssignedIdentities": {identity_id: {}}},
@@ -518,6 +545,8 @@ def update(az, config, keep_settings=False):
     scale = ["--min-replicas", str(min_replicas(config))]
     if keep_settings:
         env_args, scale = [f"KRUSGRAPH_BUILD={tag}"], []
+    else:                                     # a hand-set switch stays (--set-env-vars removes nothing); say so once
+        env_args += [f"{key}={value}" for key, value in carried_flags(config, app_env(existing)).items()]
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], *scale, "--set-env-vars", *env_args, raw=True)
     connect_log_analytics(az, config)         # only with log_analytics_workspace; never switches logs off
@@ -843,6 +872,7 @@ def config_from_azure(az, app=None, resource_group=None):
         "ontology_write": env.get("KRUSGRAPH_ONTOLOGY_WRITE", "").lower() in {"1", "true", "yes"},
         "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0, "log_analytics_workspace": "",
         "budget_amount": 0, "budget_email": "",            # --budget's keys; a budget is not read back from Azure
+        **{key: flag_on(variable, env.get(variable)) for key, variable in OPERATOR_FLAGS.items()},
     }
 
 

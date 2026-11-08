@@ -148,3 +148,13 @@ Container Apps-miljön skapas med `--logs-destination none`. Serverns konsollogg
 `"min_replicas": 0` i `deploy/krusgraph.json` (standard) låter appen skala ned till noll när ingen använder den. Det är billigast, men första anropet efter en tyst stund väntar på en kallstart, och MCP-klienter som Claude ger upp efter ungefär 30 sekunder. `"min_replicas": 1` håller alltid en instans varm. Det kostar mer per månad men ger inga timeouts, och det rekommenderas när connectorn används av andra eller granskas för Claudes katalog. Ändringen slår igenom med `--update`.
 
 Hälsokontrollerna (`/healthz`) startar efter en sekund i stället för tio, så att en kallstart tar sekunder. De ändras bara vid en full körning, eftersom `--update` inte rör containerns mall.
+
+## Operatörsbrytare: MCP Apps-kort, skrivskydd, inga radvärden
+
+Tre nycklar i `deploy/krusgraph.json`, alla `false` som standard (`deploy/krusgraph.example.json`):
+
+- `"mcp_apps": true` sätter `KRUSGRAPH_MCP_APPS=1`: `validate_plan` och `review_plan` visar MCP Apps-korten i Claude i stället för bara text.
+- `"read_only": true` sätter `KRUSGRAPH_READ_ONLY=1`: inget verktyg som skapar eller ändrar något i Fabric registreras.
+- `"no_row_values": true` sätter `KRUSGRAPH_NO_ROW_VALUES=1`: `sample_rows` utelämnas och radvärden tas bort ur svaren.
+
+Både den fulla körningen och `--update` sätter dem. En brytare som har satts för hand i container-appen men vars nyckel saknas i filen behålls (den fulla körningen för över den från den gamla revisionen), och skriptet skriver en rad per brytare: `Behåller KRUSGRAPH_MCP_APPS=1 som sattes för hand i appen; lägg till "mcp_apps": true i deploy/krusgraph.json.` Står nyckeln som `false` i filen sätts variabeln inte av den fulla körningen. `--from-azure` läser de tre ur appen och sparar dem i `deploy/krusgraph.json`. Enhetstestat mot ett fejkat `az` (`tests/test_n159_operator_flags.py`) den 8 november 2026; ännu inte kört mot Azure.
