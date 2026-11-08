@@ -88,6 +88,27 @@ def enabled() -> bool:
     return os.environ.get("KRUSGRAPH_CLIENT_REGISTRATION", "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+# review L17: registration_flow.install() records whether the layer started; None until it has run (a page rendered
+# without the server, a test). The site says /mcp/connect exists only when the flag is on and the layer did not refuse.
+# The state is kept with the KRUSGRAPH_ settings it was decided under, so a changed configuration is judged again.
+_installed: tuple[tuple, bool] | None = None
+
+
+def _settings() -> tuple:
+    return tuple(sorted((k, v) for k, v in os.environ.items() if k.startswith("KRUSGRAPH_")))
+
+
+def set_installed(on: bool | None) -> None:
+    global _installed
+    _installed = None if on is None else (_settings(), on)
+
+
+def effective() -> bool:
+    """The flag, unless the server tried to start the layer under these settings and it stayed off (an incomplete
+    configuration: no KRUSGRAPH_REGISTRATION_KEY, no store)."""
+    return enabled() and not (_installed is not None and _installed[0] == _settings() and _installed[1] is False)
+
+
 def dcr_enabled() -> bool:
     return os.environ.get("KRUSGRAPH_CLIENT_REGISTRATION_DCR", "").strip().lower() in {"1", "true", "yes", "on"}
 

@@ -258,7 +258,9 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     # the links: the check page, its example and the set-up guide, in the same tab
     hrefs = set(re.findall(r"href: '([^']+)'", CHAT_JS))
     assert hrefs == {"/check", "/check?example=sample", "/start", "/docs/explore-and-check/fix-data-issues", "/docs/build-from-a-plan/create-a-dbt-flow"}
-    assert "{ label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
+    # n158 (review L20): the two exits take pages.CHECK_LABEL and CONNECT_LABEL from the launch button
+    assert "launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
+    assert "launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' }" in CHAT_JS
 
 
 def test_fix_data_issues_and_dbt_say_what_exists_and_link_its_docs(client):

@@ -142,12 +142,12 @@ is.
 - **Behaviour.** The chat never opens by itself on a first visit and nothing appears over the page before the click.
   Buttons only: no free text, no AI. The one request it makes is `GET /demo/plan.json`; it sets no cookie, writes
   nothing to `localStorage`, and logs no event (`/demo/plan.json` is not one of the paths `usage.page_view` counts). The
-  links (`/check`, `/check?example=sample`, and "Connect to your agent", labelled "Opens the set-up guide.", to `/start`)
+  links (`/check`, `/check?example=sample`, and "Connect to my Fabric" (n158: the n149 labels, `pages.CHECK_LABEL` and `CONNECT_LABEL`, as data attributes on the launch button), labelled "Opens the set-up guide.", to `/start`)
   open in the same tab and close the chat. If the plan cannot be fetched, the chat says so in one sentence and links to
   `/check?example=sample`. If the script cannot load, the click goes on to that page instead.
 - **Memory within the tab (n93).** The steps clicked and whether the chat is open are kept in `sessionStorage` under the
   one key `krusgraph.chat`, as `{"open": true|false, "steps": [...]}` with step names from a fixed list (`scan`, `yes`,
-  `no`, `model`, `ontology`, `domains`, `fix`, `dbt`); never HTML, text or anything from the plan. Read back, anything
+  `no`, `model`, `ontology`, `domains`; `chat-demo.js` `STEPS`); never HTML, text or anything from the plan. Read back, anything
   else is ignored: not an object, `open` not a boolean, an unknown or repeated step, more than 400 characters. A step is
   replayed only by running the button it names when that button is on screen; the first that is not ends the replay.
   Every access is in try/catch: without storage the chat works as in n92 and forgets on the next page. `sessionStorage`
@@ -189,8 +189,8 @@ is.
   plain sentence without a tool's name, built by `pages.chat_status()` from `tool_status` and saying no more than it:
   "Created in a live Fabric workspace and reviewed there." (`build_word` and `REVIEWED`), "Creating it needs a permission
   the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet
-  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Write dbt tests" (n154; until
-  then "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
+  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Draft a dbt project" (n154 and n156;
+  until n154 "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
   since n155 the fixes `validate_plan` proposes with `fixes=true`, applied by the silver notebook
   (`/docs/explore-and-check/fix-data-issues`), and
   since n156 "Draft a dbt project", `dbt_schema`'s whole project with `project=true`

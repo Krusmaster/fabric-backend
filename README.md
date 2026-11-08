@@ -171,7 +171,7 @@ the notebooks the creating tools below made on 28 October have not been run in F
 - `drift_monitor_draft` / `create_drift_monitor` — a notebook and a pipeline that every night compare the plan with the
   last one, save it in `krusgraph.plans`, and send a short summary of what changed and which APIs, models and views it
   reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule. The pipeline needs `DataPipeline.ReadWrite.All` (granted since 28 October 2026); the
-  schedule needs `DataPipeline.Execute.All`, which the app does not request, so use `schedule=false`.
+  schedule needs `DataPipeline.Execute.All`, which the app does not request, so `schedule=false` is the default.
 - `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
   step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
 - `gold_views_draft` / `create_gold_views` — materialized lake views in Spark SQL over the silver tables: one wide view
@@ -257,7 +257,7 @@ optional strict dynamic registration, a consent page of Krusgraph's own per clie
 validation as `/mcp`, with a few short-lived sign-in records in Azure Table Storage; Claude's sign-in at `/mcp` is
 unchanged either way ([docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md); off by default; switched on at
 krusgraph.com since 27 October 2026, where VS Code, Cursor and Glama signed in on 27 October and Lovable on 30 October
-2026, while Claude Code has not been tried: the status per client is on https://krusgraph.com/docs#test-status). The same process serves the website (`/`, `/explore`, `/start`,
+2026, while Claude Code has not been tried: the status per client is on https://krusgraph.com/docs#test-status). The same process serves the website (`/`, `/check`, `/start`,
 `/support`, `/partners`, `/docs`, `/privacy`; static files under `fabric_backend/static/`, no external resources).
 Operations ([docs/OPERATIONS.md](docs/OPERATIONS.md); unit-tested, not deployed): fair-use limits per user and per
 organisation (`kind: rate_limited` with `retry_after`; `KRUSGRAPH_RATE_*`), one anonymous usage line per tool call and a
@@ -623,7 +623,7 @@ The auth guard covers exactly `/mcp`. `server.json` is the MCP Registry entry; p
 | Fabric notebook (Spark) | `spark=spark` |
 | Anywhere with a SQL connection | `execute=` any callable, `fabric-backend create --odbc ...` |
 | Local, offline | `plan` / `definition` from a CSV export |
-| Python | 3.10+, no required dependencies; `requests` for deploy, `pyodbc` for SQL, `mcp` for the server |
+| Python | 3.12+, no required dependencies; `requests` for deploy, `pyodbc` for SQL, `mcp` for the server |
 
 ## License
 

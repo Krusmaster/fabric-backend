@@ -19,6 +19,7 @@ preview and the domain's data contract (a custom property) repeat it, and none o
 from __future__ import annotations
 
 import io
+import json
 import re
 import shutil
 import sqlite3
@@ -106,13 +107,31 @@ def _source(kind: str, files: list | None, text: str):
     return src, folder
 
 
+def _next_here(f: dict, confirmed) -> str:
+    """The finding's next step as this page can take it. Accept and Skip exist here only for a suggested relationship
+    (n150); a key or an ambiguous column that says "Accept" points at the argument that takes it in Claude instead
+    (review L10)."""
+    text = f.get("next_text", "")
+    if confirmed is not None or not text.startswith("Accept"):
+        return text
+    nxt = f.get("next") or {}
+    if nxt.get("keys"):
+        return ("This page does not set keys: give it as `keys` " + json.dumps(nxt["keys"], ensure_ascii=False)
+                + " to plan_backend or validate_plan in Claude, and the health check counts whether it is unique.")
+    if nxt.get("confirmed"):
+        return ("This page has no button for it: pass it as `confirmed` " + json.dumps(nxt["confirmed"], ensure_ascii=False)
+                + " to plan_backend or create_backend in Claude; accepted is your decision, not a verified fact.")
+    return text
+
+
 def _finding(f: dict, validation: dict | None = None, has_data: bool = True) -> dict:
+    confirmed = f.get("next", {}).get("confirmed") if f["kind"] == "suggestion" else None
     return {"severity": f["severity"], "check": f["kind"], "rules": sorted(set(_RULE.findall(f.get("saw", "") + " " + f.get("title", "")))),
-            "table": f["table"], "title": f["title"], "saw": f["saw"], "means": f["means"], "next": f.get("next_text", ""),
+            "table": f["table"], "title": f["title"], "saw": f["saw"], "means": f["means"], "next": _next_here(f, confirmed),
             "sql": f.get("next", {}).get("sql", ""), "link": _link(f), "amount": f.get("amount"),
             "checked": _checked(f, validation, has_data),
             # n150: what Accept adds to the plan (a `confirmed` entry); the page passes it back to the engine
-            "confirmed": f.get("next", {}).get("confirmed") if f["kind"] == "suggestion" else None}
+            "confirmed": confirmed}
 
 
 def _n(n, word: str) -> str:
@@ -164,7 +183,7 @@ def _checked(f: dict, validation: dict | None, has_data: bool) -> str:
     if kind == "ambiguous":
         return "Not counted: the name fits more than one table, and the engine does not count between targets; your decision is applied first."
     if kind == "composite_key":
-        return "Not counted yet: accept it and the check counts whether it is unique."
+        return "Not counted yet: given as `keys` in Claude, the check counts whether it is unique."
     if kind in ("key_candidate", "keyless"):
         c = f.get("counted") or {}
         if c.get("rows") is not None:
@@ -367,7 +386,12 @@ def decide(kind: str = "sample", files: list | None = None, text: str = "", acce
         found = Session(src).findings(p, validation, suggestions)
         rels = [{"source": r.source, "source_cols": r.source_cols, "target": r.target, "target_cols": r.target_cols, "rule": p.label(r.rule)}
                 for r in p.relationships]
-        return {"relationships": rels, "health": validation["summary"] if validation else "",
+        # review L11: an accepted relationship whose target key the rows show not unique is not built into the model
+        # (browser_build, reason key_not_unique); the page's own status line says so instead of "in the model"
+        bad = {k["table"].lower() for k in (validation or {}).get("keys", []) if not k["verdict"].startswith("unique")}
+        not_in_model = [f"{c['source']}.{'+'.join(c['source_cols'])} -> {c['target']}" for c in accepted
+                        if str(c.get("target", "")).lower() in bad]
+        return {"relationships": rels, "health": validation["summary"] if validation else "", "not_in_model": not_in_model,
                 "evidence_report": _evidence_report(p, src, validation, kind, _open_candidates(found, suggestions, accepted + rejected))}
     finally:
         if folder is not None:

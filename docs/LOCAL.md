@@ -20,7 +20,7 @@ user on a real server is asked to report what differed.
 
 | | |
 | --- | --- |
-| Python | 3.10 or later (`python --version` in PowerShell) |
+| Python | 3.12 or later (`python --version` in PowerShell) |
 | ODBC | Microsoft ODBC Driver 18 for SQL Server (the Microsoft download; the driver name in the connection string is `{ODBC Driver 18 for SQL Server}`) |
 | A database sign-in | Windows sign-in (`Trusted_Connection=yes`) or a SQL login. Give it `db_datareader` only: every tool reads; `create_views` is the one writer and it is a dry run until you say otherwise, and when you do it needs `CREATE VIEW` and `CREATE SCHEMA` or `ALTER` on the views schema |
 | Claude Desktop | or any MCP client that starts a local command (Claude Code: `claude mcp add`) |

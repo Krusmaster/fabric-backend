@@ -33,7 +33,7 @@ import json
 import re
 
 from . import notebook as _nb
-from .codegen import comment as _comment
+from .codegen import comment as _comment, py_literal as _py_literal
 from .infer import Plan, PlanInputError, RULES, _norm
 
 QUARANTINE = "krusgraph_quarantine"
@@ -153,7 +153,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
 
 def _py(value) -> str:
     """A Python literal for a string, a list of strings, or None."""
-    return "None" if value is None else json.dumps(value)
+    return "None" if value is None else _py_literal(value)                # review L9: exact for an emoji too
 
 
 SETUP = '''from datetime import datetime, timezone
@@ -581,7 +581,7 @@ for _m in MOVES:
 def _decisions_cell(s: dict) -> str:
     dedup = {t["table"]: t["key"] for t in s["tables"] if t.get("fix_key")}
     moves = [{"table": t["table"], "header": m["header"], "amounts": m["amounts"]} for t in s["tables"] for m in t.get("moves", [])]
-    return DECISIONS.replace("__DEDUP__", json.dumps(dedup)).replace("__MOVES__", json.dumps(moves))
+    return DECISIONS.replace("__DEDUP__", _py_literal(dedup)).replace("__MOVES__", _py_literal(moves))
 
 
 def cells(s: dict) -> list[tuple[str, str]]:
@@ -602,7 +602,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
     setup = (SETUP + (FIX_HELPERS if fixed else "")).format(source_schema=_py(src["schema"] if src["schemas_enabled"] else None),
                          schemas_enabled="True" if src["schemas_enabled"] else "False",
                          source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]),
-                         personal=json.dumps(s.get("personal", {})))
+                         personal=_py_literal(s.get("personal", {})))
     out = [("markdown", intro)] + ([("markdown", _fixes_markdown(s))] if fixed else [])
     out += [("parameters", params), ("code", setup.strip("\n"))] + ([("code", _decisions_cell(s))] if fixed else [])
     out += [("code", _table_cell(t)) for t in s["tables"]]
@@ -634,7 +634,7 @@ def fix_counts(s: dict) -> list[dict]:
 
 
 def _fix_counts_cell(s: dict) -> str:
-    return "import json\n" + FIX_COUNTS.replace("__FIXES__", json.dumps(fix_counts(s), indent=1))
+    return "import json\n" + FIX_COUNTS.replace("__FIXES__", _py_literal(fix_counts(s), indent=1))
 
 
 def notebook_source(s: dict) -> str:

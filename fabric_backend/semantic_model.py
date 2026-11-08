@@ -262,6 +262,13 @@ def has_object(text: str) -> bool:
     return False
 
 
+def _m_text(value) -> str:
+    """A Power Query M text literal: a double quote doubled, a line break as #(lf)/#(cr), so a lakehouse named
+    `my "lh"` stays one string (review L8)."""
+    s = str(value).replace("#(", "#(#)(").replace('"', '""').replace("\r", "#(cr)").replace("\n", "#(lf)")
+    return '"' + s + '"'
+
+
 def tmdl_name(name: str) -> str:
     """Object names in TMDL: bare when they are identifier-like, otherwise in single quotes."""
     return name if _PLAIN.match(name) else "'" + name.replace("'", "''") + "'"
@@ -433,7 +440,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
         model.append(f"ref table {tmdl_name(calendar)}")
     parts["definition/model.tmdl"] = "\n".join(model) + "\n"
     parts["definition/expressions.tmdl"] = "\n".join([
-        f"expression {EXPRESSION} =", "\t\tlet", f'\t\t    database = Sql.Database("{endpoint}", "{database}")',
+        f"expression {EXPRESSION} =", "\t\tlet", f'\t\t    database = Sql.Database({_m_text(endpoint)}, {_m_text(database)})',
         "\t\tin", "\t\t    database", f"\tlineageTag: {_tag(name, 'expression')}", "",
         "\tannotation PBI_IncludeFutureArtifacts = False", ""])
 

@@ -269,7 +269,7 @@ These numbers are for the repository and this page only; the website does not qu
 
 ## How the tools describe themselves (round n18, 28 October 2026)
 
-Every parameter of the 36 hosted tools has a description in tools/list (`inputSchema.properties.*.description`),
+Every parameter of the hosted tools (36 then, 39 today) has a description in tools/list (`inputSchema.properties.*.description`),
 defined once per shared parameter in `fabric_backend/tool_params.py`; `tests/test_tool_descriptions.py` fails on a
 parameter without one and on an instructing phrase in a description. Size of the hosted tools/list: the tools array of
 `server.mcp.list_tools()` as compact JSON (`separators=(",", ":")`, `ensure_ascii=False`), in characters; "tool

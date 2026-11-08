@@ -508,8 +508,11 @@
   // in this browser: the evidence report and the model are made again with it
   const relWhat = (f) => "suggested relationship " + f.link.source + "." + f.link.source_cols.join("+") + " -> " + f.link.target;
   const acceptedLinks = () => [...decisions.values()].filter((d) => d.decision === "accepted" && d.confirmed).map((d) => d.confirmed);
+  // review L11: what the engine said about the decision (decide's not_in_model), not a sentence written in advance
   const saidFor = (d) => !d ? "" : d.decision === "accepted"
-    ? "Accepted on this page: the relationship is in the plan as confirmed, counted in the rows and in the Power BI model. In Claude, the review keeps your decision and its reason. The evidence report lists it."
+    ? "Accepted on this page: the relationship is in the plan as confirmed and counted in the rows; " + (d.notInModel
+      ? "it is not in the Power BI model, because the key it points at is not unique in the rows (see the model's panel)."
+      : "the Power BI model takes it.") + " In Claude, the review keeps your decision and its reason. The evidence report lists it."
     : "Rejected on this page: the column stays unlinked. The evidence report lists the decision.";
   let deciding = Promise.resolve();
   function decideRel(f, decision) {
@@ -521,6 +524,7 @@
                              rejected: [...decisions.values()].filter((x) => x.decision !== "accepted" && x.confirmed).map((x) => x.confirmed) });
       if (run !== last) return;                       // a new run started meanwhile: its own result stands
       if (r.ok && lastResult) lastResult.evidence_report = r.result.evidence_report;
+      if (r.ok) d.notInModel = (r.result.not_in_model || []).includes(f.link.source + "." + f.link.source_cols.join("+") + " -> " + f.link.target);
       built = null;
       const open = Object.keys(panels).find((k) => !panels[k].hidden);
       if (open) {                                      // the preview on the screen is drawn again with the decision

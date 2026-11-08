@@ -47,6 +47,7 @@ from __future__ import annotations
 import json
 
 from . import amounts as _amounts, notebook as _nb
+from .codegen import py_literal as _py_literal
 from .git_export import logical_id
 
 ZERO_WORKSPACE = "00000000-0000-0000-0000-000000000000"   # as in fabric-cicd's sample: the same workspace as the pipeline
@@ -275,7 +276,7 @@ def run(spec: dict, schema, execute) -> dict:
 # ------------------------------------------------------------------ the check notebook and the pipeline --------------
 
 def _py(value) -> str:
-    return json.dumps(value, indent=4, sort_keys=True)
+    return _py_literal(value, indent=4, sort_keys=True)                  # review L9
 
 
 def check_cells(spec: dict, label: str) -> list[tuple[str, str]]:
@@ -290,8 +291,8 @@ def check_cells(spec: dict, label: str) -> list[tuple[str, str]]:
              "an error, so the pipeline run fails. It only reads.\n\n"
              "Self-contained: plain PySpark and Python, nothing is installed and no library is imported, so it runs the same "
              "with or without internet access.")
-    params = (f"SILVER_SCHEMA = {json.dumps(spec['silver_schema'])}   # where the silver notebook wrote the silver tables\n"
-              f"GOLD_SCHEMA = {json.dumps(spec['gold_schema'])}       # where the gold notebook created the views")
+    params = (f"SILVER_SCHEMA = {_py_literal(spec['silver_schema'])}   # where the silver notebook wrote the silver tables\n"
+              f"GOLD_SCHEMA = {_py_literal(spec['gold_schema'])}       # where the gold notebook created the views")
     data = {k: spec[k] for k in ("keys", "relationships", "views")}
     setup = ("import json\n\n"
              f"CHECK = {_py(data)}\n"

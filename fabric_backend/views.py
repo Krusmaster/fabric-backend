@@ -154,17 +154,15 @@ def relationship_view_sql(plan: Plan, r: Relationship, target: str, dialect: Dia
     schema = plan.schema.schema
     qi = dialect.quote
     on = " AND ".join(f"s.{qi(a)} = t.{qi(b)}" for a, b in zip(r.source_cols, r.target_cols))
-    s_cols = [f"s.{qi(c)} AS {qi(c)}" for c in plan.schema[r.source].column_names if (r.source, c) not in hidden]
-    t_cols = [f"t.{qi(c)} AS {qi(f'{r.target}_{c}')}" for c in plan.schema[r.target].column_names if (r.target, c) not in hidden]
+    # (expression, alias) pairs, as wide_view_sql keeps them: the aliases are made unique as names, never re-read from
+    # the SQL, so a column with ] or " AS " in its name keeps it (review L7)
+    cols = [(f"s.{qi(c)}", c) for c in plan.schema[r.source].column_names if (r.source, c) not in hidden]
+    cols += [(f"t.{qi(c)}", f"{r.target}_{c}") for c in plan.schema[r.target].column_names if (r.target, c) not in hidden]
+    aliases = _unique([a for _, a in cols])
     name = f"vw_{r.source}_{r.field_name}"
     return (f"{dialect.create_view} {dialect.table(target, name)}{dialect.view_comment(why)} AS\nSELECT\n    "
-            + ",\n    ".join(_dedupe(s_cols + t_cols, dialect))
+            + ",\n    ".join(f"{expr} AS {qi(a)}" for (expr, _), a in zip(cols, aliases))
             + f"\nFROM {dialect.table(schema, r.source)} AS s\n    LEFT JOIN {dialect.table(schema, r.target)} AS t ON {on}")
-
-
-def _dedupe(cols: list[str], dialect: Dialect = TSQL) -> list[str]:
-    names = _unique([c.rsplit(" AS ", 1)[1].strip(dialect.open_quote + dialect.close_quote) for c in cols])
-    return [c.rsplit(" AS ", 1)[0] + " AS " + dialect.quote(n) for c, n in zip(cols, names)]
 
 
 def statements(plan: Plan, target: str = DEFAULT_SCHEMA, dialect: Dialect = TSQL, show_personal_data: bool = False) -> dict:

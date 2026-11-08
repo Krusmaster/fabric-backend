@@ -468,8 +468,12 @@
   }
 
   /* ------------------------------------------------------------------ the flow */
-  var LEAVE = [{ label: 'Try your own files', href: '/check' },
-               { label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }];
+  // n158 (review L20): the two ways out carry the site's own labels (pages.CHECK_LABEL, CONNECT_LABEL), handed over as
+  // data attributes on the launch button, like the status sentences
+  function leave() {
+    return [{ label: launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' },
+            { label: launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }];
+  }
   // n154, n155: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
   // nothing here is planned (n156: the whole dbt project exists as a draft)
   function further() {
@@ -497,7 +501,7 @@
     later(500, function () {
       if (left.length) say('onto', 'point', '<p>What next?</p>', left.concat(further()), '', true);
       else say('onto', 'explain', '<h3>That is the demo</h3><p>The next step is real: your own files stay in your browser on the check page.</p>',
-               LEAVE.concat(further()), '', true);
+               leave().concat(further()), '', true);
     });
   }
 

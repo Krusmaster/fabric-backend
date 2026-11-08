@@ -28,7 +28,7 @@ fix (round n42) has not run against Azure until the maintainer runs it again.
 | Event | Fields | Written by |
 | --- | --- | --- |
 | `krusgraph.tool_call` | `tool`, `outcome` (`ok` or the error's `kind`), `ms`, `dry_run` for the creating tools, `org` (16 characters of SHA-256 of salt + tenant id, only with `KRUSGRAPH_USAGE_SALT`) | `fabric_backend/usage.py`, one per tool call |
-| `krusgraph.page_view` | `path`: one of `/`, `/check`, `/explore`, `/start`, `/partners` | the server, when it serves the page as HTML |
+| `krusgraph.page_view` | `path`: one of `/`, `/check`, `/start`, `/partners` | the server, when it serves the page as HTML |
 | `krusgraph.check` | `step`: `loaded` (the engine started in the visitor's browser) or `done` (a check finished) | `/check`, as an image request to `/check/event?e=…` |
 
 Never content, files, file names, workspace, table or column names, queries, results, user ids, e-mail or IP
@@ -84,7 +84,7 @@ ContainerAppConsoleLogs_CL
 | summarize ["calls"] = count(), ["p50_ms"] = percentile(toint(e.ms), 50), ["p95_ms"] = percentile(toint(e.ms), 95), ["orgs"] = dcountif(tostring(e.org), isnotempty(tostring(e.org))), ["consent"] = countif(tostring(e.outcome) == "consent"), ["no_access"] = countif(tostring(e.outcome) == "no_access"), ["rate_limited"] = countif(tostring(e.outcome) == "rate_limited")
 ```
 
-## Page views for /, /check, /explore, /start, /partners
+## Page views for /, /check, /start, /partners
 
 ```kusto
 ContainerAppConsoleLogs_CL

@@ -89,9 +89,10 @@ Four candidates. Each is a hypothesis to test, not a finding.
   country they choose, next to their Fabric capacity.
 - **Where it runs**: the customer's Azure tenant, the region set by `location` in their `deploy/krusgraph.json`;
   nothing passes through Kruse Consulting.
-- **Tools and agent tier**: all hosted tools; the creating tools that need permissions the hosted app does not ask for
-  (`create_semantic_model`, `create_data_agent`, `create_ontology`: `OPERATOR` in `tool_status.py`) are the customer's
-  own decision in their own Entra app. Middle to heavy tier.
+- **Tools and agent tier**: all hosted tools; since 28 October 2026 the hosted app has every permission the creating
+  tools use (`fabric_backend/access.py`; no tool is `OPERATOR` in `tool_status.py`) except the drift monitor's schedule
+  (`DataPipeline.Execute.All`), and which of them the customer's own Entra app grants is the customer's decision.
+  Middle to heavy tier.
 - **Exists today**: `deploy/krusgraph.sh`, `deploy/azure_containerapp.py`, `deploy/KRUSGRAPH-START.md`,
   `docs/OPERATIONS.md`; MIT licence.
 - **Missing**: not yet run by a customer (Where it runs, Status row); no written support or update terms for a

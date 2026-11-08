@@ -32,7 +32,7 @@ import threading
 import time
 
 FIELDS = ("tool", "outcome", "ms", "dry_run", "org")              # everything a usage line can carry (privacy page lists these)
-PAGE_VIEW_PATHS = ("/", "/check", "/explore", "/start", "/partners")
+PAGE_VIEW_PATHS = ("/", "/check", "/start", "/partners")   # n158: not /explore, a redirect the server never counts (review L13)
 CHECK_STEPS = ("loaded", "done")
 BUCKETS = (0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120)          # seconds; Fabric calls take from a tenth of a second to minutes
 _write_lock = threading.Lock()

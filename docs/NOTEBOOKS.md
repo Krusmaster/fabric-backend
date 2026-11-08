@@ -152,6 +152,8 @@ looks like a person's name by the privacy rules, so the query groups and lists b
 ## Permissions
 
 `create_silver_notebook` needs `Notebook.ReadWrite.All` (or `Item.ReadWrite.All`); `create_drift_monitor` needs that
-plus `DataPipeline.ReadWrite.All` and, for the schedule, `DataPipeline.Execute.All` (or `Item.Execute.All`). The app
-does not ask for them today: without them the dry runs work and the creates answer `kind: consent` naming the scope.
-`docs/SCOPES.md` has the commands to add them.
+plus `DataPipeline.ReadWrite.All` and, for the schedule, `DataPipeline.Execute.All` (or `Item.Execute.All`). The hosted
+app has had `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All` since 28 October 2026
+(`fabric_backend/access.py`); it does not ask for `DataPipeline.Execute.All`, so `create_drift_monitor` has
+`schedule=false` by default and a schedule is added in Fabric. Where a permission is missing (your own Entra app), the
+dry runs work and the creates answer `kind: consent` naming the scope; `docs/SCOPES.md` has the commands to add them.

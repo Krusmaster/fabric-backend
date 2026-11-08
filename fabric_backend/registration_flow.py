@@ -727,10 +727,14 @@ def install(cfg, validator):
     """The Layer when KRUSGRAPH_CLIENT_REGISTRATION is on and its configuration is complete; None otherwise. An
     incomplete configuration is reported on stderr and leaves the layer off, so Claude's sign-in never depends on it."""
     if not reg.enabled():
+        reg.set_installed(None)
         return None
     import sys
     try:
-        return Layer.from_env(cfg, validator)
+        layer = Layer.from_env(cfg, validator)
     except ValueError as e:
         sys.stderr.write(f"krusgraph: client registration is switched on but not configured, so it stays off: {e}\n")
+        reg.set_installed(False)                      # review L17: the site stops offering /mcp/connect too
         return None
+    reg.set_installed(True)
+    return layer

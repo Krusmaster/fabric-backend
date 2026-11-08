@@ -221,7 +221,7 @@ def test_create_drift_monitor_creates_notebook_pipeline_and_schedule_then_update
         return Resp(200, None)
     monkeypatch.setattr(requests, "get", get)
     monkeypatch.setattr(requests, "post", post)
-    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="shop_monitor", schema="shop", dry_run=False))
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="shop_monitor", schema="shop", dry_run=False, schedule=True))
     assert out["result"]["status"] == "Succeeded" and "error" not in out
     assert out["result"]["notebook"]["mode"] == "created" and out["result"]["pipeline"]["id"] == "pl-1"
     assert out["result"]["schedule"] == {"status": "Succeeded", "mode": "created", "id": "sch-1"}
@@ -233,7 +233,7 @@ def test_create_drift_monitor_creates_notebook_pipeline_and_schedule_then_update
     items["value"] = [{"id": "nb-1", "displayName": "shop_monitor", "type": "Notebook"}, {"id": "pl-1", "displayName": "shop_monitor_nightly", "type": "DataPipeline"}]
     schedules["value"] = [{"id": "sch-1", "configuration": {"type": "Daily", "times": ["02:00"]}}]
     calls.clear()
-    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="shop_monitor", schema="shop", dry_run=False))
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="shop_monitor", schema="shop", dry_run=False, schedule=True))
     assert out["result"]["notebook"]["mode"] == "updated" and out["result"]["pipeline"]["mode"] == "updated"
     assert out["result"]["schedule"]["mode"] == "kept"
     assert [u.rsplit("/", 2)[-2:] for u, _ in calls] == [["nb-1", "updateDefinition"], ["pl-1", "updateDefinition"]]
@@ -257,7 +257,7 @@ def test_create_drift_monitor_names_the_scope_of_the_step_that_was_refused(lakeh
             return Resp(201, {"id": "pl-1"})
         return Resp(403, {"errorCode": "InsufficientScopes", "message": "missing scope"})
     monkeypatch.setattr(requests, "post", post2)
-    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False))
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False, schedule=True))
     assert out["kind"] == "consent" and "DataPipeline.Execute.All" in out["hint"] and out["result"]["pipeline"]["status"] == "Succeeded"
     assert "fabric-token" not in json.dumps(out)
 

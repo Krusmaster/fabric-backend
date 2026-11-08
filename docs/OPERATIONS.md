@@ -111,7 +111,7 @@ settings below.
 
 The Container Apps environment was created with `--logs-destination none`, so until this is switched on these lines
 are only in the live console stream, and `/metrics` starts from zero at every restart. The site writes two more kinds
-of line, with nothing else in them: `{"event":"krusgraph.page_view","path":"/check"}` when `/`, `/check`, `/explore`,
+of line, with nothing else in them: `{"event":"krusgraph.page_view","path":"/check"}` when `/`, `/check`,
 `/start` or `/partners` is served, and `{"event":"krusgraph.check","step":"loaded"}` / `"step":"done"` from `/check`
 (an image request carrying only the step; `/check` still sends no file, file name, table or column name).
 

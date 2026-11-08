@@ -56,7 +56,7 @@ GRANTED = (
           "`create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; "
           "`lineage` with `runs` reads a pipeline's activities",
           "no: a pipeline runs only when someone runs or schedules it in Fabric; adding a schedule needs "
-          "`DataPipeline.Execute.All`, which the app does not request, so `create_drift_monitor` needs `schedule=false`"),
+          "`DataPipeline.Execute.All`, which the app does not request, so `create_drift_monitor` has `schedule=false` by default"),
     Grant(FABRIC, "Item.ReadWrite.All", ADDED,
           "`create_semantic_model`, `create_ontology` and `create_data_agent` create or update one item, `create_report` "
           "creates one report, only with `dry_run=false`; `compare_semantic_model` and `lineage` read semantic model "
@@ -96,6 +96,14 @@ def _html(text: str) -> str:
     return "".join(out)
 
 
+# review L15: asked for at every sign-in (entra.py, registration_flow.py) but not an API permission of the app, so not a
+# row of GRANTED (which equals the deploy script's REQUIRED_SCOPES); Entra's consent screen shows it all the same
+OFFLINE_ACCESS = ("Also asked for at sign-in: `offline_access` (OpenID Connect, not an API permission of the app; Entra's "
+                  "consent screen shows it as keeping access), so that a sign-in can be renewed without a new login. Claude "
+                  "keeps its own refresh token; what is kept for other MCP clients, where they are switched on, is in the "
+                  "token table.")
+
+
 def not_requested_sentence() -> str:
     return ("Not requested: " + "; ".join(
         (f"`{a}` or `{b}`" if b else f"`{a}`") + f" ({why})" for a, b, why in NOT_REQUESTED)
@@ -106,7 +114,7 @@ def table_md() -> str:
     rows = [f"Delegated permissions of the hosted app, read from the code on {AS_OF}.", "",
             "| Permission | Granted | What the tools use it for | Runs or schedules anything? |", "| --- | --- | --- | --- |"]
     rows += [f"| `{g.scope}` ({g.resource}) | {_since(g)} | {g.tools} | {g.runs} |" for g in GRANTED]
-    return "\n".join(rows) + "\n\n" + not_requested_sentence()
+    return "\n".join(rows) + "\n\n" + not_requested_sentence() + "\n\n" + OFFLINE_ACCESS
 
 
 def table_html() -> str:
@@ -115,7 +123,8 @@ def table_html() -> str:
     return (f'<p class="muted tiny">Delegated permissions of the hosted app, read from the code on {AS_OF}.</p>'
             '<div class="table-wrap" tabindex="0"><table class="it-scopes"><thead><tr><th>Permission</th><th>Granted</th>'
             '<th>What the tools use it for</th><th>Runs or schedules anything?</th></tr></thead>'
-            f'<tbody>{rows}</tbody></table></div><p class="muted tiny">{_html(not_requested_sentence())}</p>')
+            f'<tbody>{rows}</tbody></table></div><p class="muted tiny">{_html(not_requested_sentence())}</p>'
+            f'<p class="muted tiny">{_html(OFFLINE_ACCESS)}</p>')
 
 
 def sentence() -> str:
@@ -145,7 +154,8 @@ def token_rows(registration_on: bool, where: str) -> list[tuple[str, str, str, s
         ("Claude (/mcp)", "Your Microsoft access token, sent by Claude with each request", "memory, during the request",
          "not kept: validated and exchanged, then dropped with the request"),
         ("Claude (/mcp)", "The Fabric and SQL access tokens obtained for you (on-behalf-of)", "memory only; never disk or logs",
-         "reused until 120 seconds before the expiry Microsoft gives them, then exchanged again; lost when the server restarts"),
+         "reused until 120 seconds before the expiry Microsoft gives them and never after, then exchanged again; dropped when "
+         "the cache is trimmed (over 5 000 entries) or the server restarts"),
         ("Claude (/mcp)", "Refresh tokens", "none: Claude renews its sign-in with Microsoft itself", "not held by the service"),
     ]
     if registration_on:

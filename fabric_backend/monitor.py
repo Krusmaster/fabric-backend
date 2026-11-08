@@ -28,6 +28,7 @@ import json
 from datetime import date, timedelta
 
 from . import __version__ as _version
+from .codegen import py_literal as _py_literal
 from .drift import plan_snapshot as _plan_snapshot, snapshot_diff as _snapshot_diff
 
 PLANS = ("krusgraph", "plans")                     # schema, table on a lakehouse with schemas
@@ -225,7 +226,7 @@ def graphql_definitions(workspace_id: str, headers: dict, items=None, read=None)
 # ------------------------------------------------------------------ the items create_drift_monitor creates ---------
 
 def _py(value) -> str:
-    return "None" if value is None else ("True" if value is True else "False" if value is False else json.dumps(value))
+    return "None" if value is None else ("True" if value is True else "False" if value is False else _py_literal(value))
 
 
 _REF = __import__("re").compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$")
@@ -250,7 +251,7 @@ def notebook_cells(source: dict, library_ref: str | None = None) -> list[tuple[s
     setup = (
         "import json\nfrom datetime import datetime, timezone\n\n"
         "from fabric_backend import monitor\nfrom fabric_backend.infer import plan\nfrom fabric_backend.schema import Schema\n\n"
-        "SOURCE = {\n" + ",\n".join(f"    {json.dumps(k)}: {_py(v)}" for k, v in source.items()) + "\n}\n"
+        "SOURCE = {\n" + ",\n".join(f"    {_py_literal(k)}: {_py(v)}" for k, v in source.items()) + "\n}\n"
         f"LABEL = {_py(label)}\n"
         f"PLANS_TABLE = monitor.plans_table({_py(bool(source['schemas_enabled']))})\n"
         "SOURCE_KEY = f\"{SOURCE['item_id']}/{SOURCE['schema']}\"\n"

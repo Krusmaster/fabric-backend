@@ -24,7 +24,7 @@ def lines(buf):
 
 # ------------------------------------------------------------------ the lines ------------------------------------
 
-def test_page_views_only_for_the_five_pages_and_check_only_two_steps(monkeypatch):
+def test_page_views_only_for_the_four_pages_and_check_only_two_steps(monkeypatch):
     buf = io.StringIO()
     monkeypatch.setattr(usage.sys, "stdout", buf)
     for p in ("/", "/check", "/explore", "/start", "/partners", "/docs", "/check?x=customers.csv"):
@@ -32,11 +32,12 @@ def test_page_views_only_for_the_five_pages_and_check_only_two_steps(monkeypatch
     for s in ("loaded", "done", "orders.csv", ""):
         usage.check_event(s)
     got = lines(buf)
-    assert got[:5] == [{"event": "krusgraph.page_view", "path": p} for p in ("/", "/check", "/explore", "/start", "/partners")]
-    assert got[5:] == [{"event": "krusgraph.check", "step": "loaded"}, {"event": "krusgraph.check", "step": "done"}]
+    # n158: /explore is a redirect the server never counts (review L13)
+    assert got[:4] == [{"event": "krusgraph.page_view", "path": p} for p in ("/", "/check", "/start", "/partners")]
+    assert got[4:] == [{"event": "krusgraph.check", "step": "loaded"}, {"event": "krusgraph.check", "step": "done"}]
     monkeypatch.setenv("KRUSGRAPH_USAGE_LOG", "0")
     usage.page_view("/")
-    assert len(lines(buf)) == 7
+    assert len(lines(buf)) == 6
 
 
 @pytest.fixture()
@@ -170,7 +171,7 @@ def test_the_summary_from_made_up_answers():
     assert "Senaste 7 dagarna" in text and "Anrop: 200, median 840 ms, 95:e percentilen 5120 ms" in text
     assert "Organisationer (saltade hashar): 3" in text and "consent: 10 (5.0 %)" in text and "no_access: 4 (2.0 %)" in text
     assert "2026-11-01 120, 2026-11-02 80" in text and "plan_backend" in text and "consent 10, no_access 4" in text
-    assert "Sidvisningar: / 50, /check 12, /explore 0, /start 0, /partners 0" in text
+    assert "Sidvisningar: / 50, /check 12, /explore 0, /start 0, /partners 0"   # deploy/usage_report.py: the Deployment round's in text
     assert "/check: motorn laddad 9, kontroll klar 6" in text
     empty = ur.summary(30, {})
     assert "Anrop: 0" in empty and "/check: motorn laddad 0, kontroll klar 0" in empty

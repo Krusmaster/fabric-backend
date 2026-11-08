@@ -174,6 +174,11 @@ def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(text).lower()).strip("_") or "x"
 
 
+def sources_path(source_name: str) -> str:
+    """The sources file's path: the name as a slug, like the folders, so `../x` never leaves models/sources (review L6)."""
+    return f"models/sources/{_slug(source_name)}.yml"
+
+
 def snake(name: str) -> str:
     """A column or table name in snake_case for the staging models (n156): OrderID -> order_id, VBELN -> vbeln,
     "Unit Price" -> unit_price; a name that would start with a digit gets c_ in front."""
@@ -539,7 +544,7 @@ def project(plan: Plan, source_name: str, schema: str, database: str | None = No
         used.add(m)
         models[t] = m
     files: dict[str, str] = {}
-    files[f"models/sources/{source_name}.yml"] = schema_yml(plan, source_name, schema, database, chosen, arguments_block)
+    files[sources_path(source_name)] = schema_yml(plan, source_name, schema, database, chosen, arguments_block)
     ren = {t: renames(plan, t) for t in chosen}
     by_table: dict[str, list[dict]] = {}
     for f in fixes or []:
@@ -676,7 +681,7 @@ def _readme(name, source_name, schema, database, models, marts, not_templated, t
            + (f" in `{database}`" if database else "") + f", for {ADAPTER} {ADAPTER_VERSION} on dbt-core {CORE_VERSION} and a "
            "Fabric Data Warehouse. " + NOTHING_CREATED, "",
            "The models are built in a Warehouse: a lakehouse's SQL analytics endpoint is read-only, so it is a source here "
-           f"(`database:` in models/sources/{source_name}.yml), not a target.", "",
+           f"(`database:` in {sources_path(source_name)}), not a target.", "",
            "## Models", "", f"- staging ({len(models)}): views, one per table, typed and de-duplicated on the key",
            f"- marts ({len(marts)}): tables, one per fact table, in a folder per proposed domain", "",
            "## Joined over", ""]

@@ -7,6 +7,7 @@ the SodaCL and ODCS drafts). Every generator here is fed names that carry `\\n` 
 the generated code must parse with the statement nowhere outside a comment or a string literal.
 """
 import ast
+from pathlib import Path
 import io
 import re
 import tokenize
@@ -147,7 +148,7 @@ def test_h1_one_line_leaves_printable_names_alone_and_escapes_every_line_end():
 
 from test_browser import CHROMIUM, _playwright_available, site  # noqa: E402,F401  the same local server fixture
 
-KEYLESS = "event,city,amount\nopen,Lund,1\nopen,Lund,1\nclose,Malmo,2\nclose,Lund,3\n"
+KEYLESS = "code,city,amount\nA1,Lund,1\nB2,Lund,1\nC3,Malmo,2\n"           # no key by name; code is unique: a key candidate
 
 
 def _check_browser(site_url: str) -> dict:
@@ -244,3 +245,268 @@ def test_m5_readme_states_the_live_facts_of_tool_status():
     assert "created live on 7 November 2026 (`shop_report_visuals`" in readme
     assert "not yet tried with a real client" not in readme
     assert "do not pass them yet" not in readme and "every hosted tool pass since round n87" in readme
+
+
+# ------------------------------------------------------------------ group 3: the low findings ---------------------
+
+def _drift_mocks(monkeypatch, schedules_status=200):
+    import requests
+    from test_drift_monitor import Resp
+    calls = []
+
+    def get(url, **k):
+        if url.endswith("/jobs/execute/schedules"):
+            return Resp(schedules_status, {"value": []} if schedules_status == 200 else {"errorCode": "Forbidden"})
+        return Resp(200, {"value": []})
+
+    def post(url, **k):
+        calls.append(url)
+        if url.endswith("/notebooks"):
+            return Resp(201, {"id": "nb-1"})
+        if url.endswith("/dataPipelines"):
+            return Resp(201, {"id": "pl-1"})
+        return Resp(201, {"id": "sch-1"})
+    monkeypatch.setattr(requests, "get", get)
+    monkeypatch.setattr(requests, "post", post)
+    return calls
+
+
+def test_l1_create_drift_monitor_does_not_schedule_by_default(lakehouse, monkeypatch):  # noqa: F811
+    import inspect
+    import json
+    from fabric_backend import server
+    assert inspect.signature(server.create_drift_monitor).parameters["schedule"].default is False
+    calls = _drift_mocks(monkeypatch)
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False))
+    assert out["result"]["status"] == "Succeeded" and out["result"]["schedule"]["status"] == "Skipped"
+    assert "DataPipeline.Execute.All" in out["result"]["schedule"]["why"]
+    assert not any(u.endswith("/schedules") for u in calls)
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False, schedule=True))
+    assert out["result"]["schedule"]["mode"] == "created"                    # those who pass schedule=true keep it
+
+
+def test_l2_a_failed_schedule_listing_adds_no_schedule(lakehouse, monkeypatch):  # noqa: F811
+    import json
+    from fabric_backend import server
+    calls = _drift_mocks(monkeypatch, schedules_status=403)
+    out = json.loads(server.create_drift_monitor("Sales", "shop_lh", name="m", schema="shop", dry_run=False, schedule=True))
+    assert "error" in out and out["result"]["schedule"]["status"] == "Failed"
+    assert not any(u.endswith("/schedules") for u in calls)                  # no POST: a duplicate could follow
+
+
+from test_drift_monitor import lakehouse  # noqa: E402,F401
+
+
+def test_l3_the_package_declares_the_python_it_needs():
+    import tomllib
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    assert tomllib.loads((root / "pyproject.toml").read_text())["project"]["requires-python"] == ">=3.12"
+    assert "| Python | 3.12+" in (root / "README.md").read_text(encoding="utf-8")
+    assert "| Python | 3.12 or later" in (root / "docs/LOCAL.md").read_text(encoding="utf-8")
+
+
+from test_creating_tools import shop  # noqa: E402,F401  (the mocked hosted source)
+
+
+def test_l4_no_row_values_also_covers_read_from_rows(shop, monkeypatch):  # noqa: F811
+    import json
+    from fabric_backend import server, switches
+
+    def execute(sql):
+        if "first_date" in sql:
+            return [{"first_date": "2024-01-03", "last_date": "2025-11-30"}]
+        return [{"fractions": 0}] if "fractions" in sql else []
+    monkeypatch.setattr(server, "_execute_factory", lambda item, tok: execute)
+    monkeypatch.setenv(switches.NO_ROW_VALUES, "1")
+    raw = server.create_semantic_model(*shop, name="shop_model", schema="shop")
+    said = json.loads(switches.answer(raw))["read_from_rows"]
+    assert said[0].startswith("Dates: the first and last value of orders.order_date were read")
+    assert not any("2024-01-03" in x or "2025-11-30" in x for x in said)
+    monkeypatch.delenv(switches.NO_ROW_VALUES)
+    said = json.loads(server.create_semantic_model(*shop, name="shop_model", schema="shop"))["read_from_rows"]
+    assert said[0].startswith("Dates: 2024-01-03 to 2025-11-30 in orders.order_date")    # unchanged without the switch
+
+
+def test_l5_the_applying_tools_count_as_far_as_validate_plan_can(shop, monkeypatch):  # noqa: F811
+    import json
+    from fabric_backend import server
+    seen = []
+
+    class Stop(Exception):
+        pass
+
+    def validate(p, execute, max_items=60):
+        seen.append(max_items)
+        raise Stop("counted")
+    monkeypatch.setattr(server._evidence, "validate", validate)
+    for call in (lambda: server.silver_notebook_draft(*shop, schema="shop", fixes=["key:orders"]),
+                 lambda: server.dbt_schema(*shop, schema="shop", project=True, fixes=["key:orders"])):
+        out = call()
+        assert "error" in json.loads(out)
+    assert seen == [200, 200]
+
+
+def test_l6_the_dbt_sources_path_stays_in_models_sources():
+    p = plan(seed.schema("shop"))
+    files = dbt.project(p, "../../etc/evil", "shop")["files"]
+    paths = [k for k in files if k.startswith("models/sources/")]
+    assert paths == ["models/sources/etc_evil.yml"] and not any(".." in k for k in files)
+    assert "models/sources/shop.yml" in dbt.project(p, "shop", "shop")["files"]
+
+
+def test_l7_a_relationship_view_keeps_a_column_name_with_a_closing_bracket():
+    from fabric_backend import views
+    sch = seed.schema("shop")
+    addresses = sch.tables["addresses"]
+    sch.tables["addresses"] = Table("addresses", [Column("city]x" if c.name == "city" else c.name, c.data_type) for c in addresses.columns],
+                                    schema=sch.schema)
+    p = plan(sch, None, [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}])
+    r = next(r for r in p.relationships if r.source == "orders" and r.target == "addresses")
+    sql = views.relationship_view_sql(p, r, "krusgraph")
+    assert "t.[city]]x] AS [addresses_city]]x]" in sql and "city]]]]x" not in sql
+
+
+def test_l8_the_m_expression_keeps_a_lakehouse_name_with_a_quote_in_one_string():
+    from fabric_backend import semantic_model
+    p = plan(seed.schema("shop"))
+    info = dict(INFO, sql_endpoint="x.datawarehouse.fabric.microsoft.com", sql_db='shop "lh" #(tab)')
+    expr = semantic_model.draft(p, info, "m")["parts"]["definition/expressions.tmdl"]
+    assert 'Sql.Database("x.datawarehouse.fabric.microsoft.com", "shop ""lh"" #(#)(tab)")' in expr
+
+
+@pytest.mark.parametrize("name", ["ord😀", "kund nr", "a\x85b", "tab\tcol", 'q"uote\\'])
+def test_l9_python_literals_read_back_exactly(name):
+    for value in (name, [name, "x"], {"t": [name]}):
+        lit = codegen.py_literal(value)
+        assert ast.literal_eval(lit) == value and len(lit.splitlines()) == 1
+    assert ast.literal_eval(codegen.py_literal({"t": [name]}, indent=2)) == {"t": [name]}
+
+
+def test_l9_a_column_with_an_emoji_reaches_the_silver_and_gold_notebooks_as_itself():
+    sch = seed.schema("shop")
+    customers = sch.tables["customers"]
+    sch.tables["customers"] = Table("customers", [Column("land😀" if c.name == "country" else c.name, c.data_type) for c in customers.columns],
+                                    schema=sch.schema)
+    p = plan(sch, {"customers": ["land😀"]})                                # the key: written into the cell's calls
+    src = silver.notebook_source(silver.spec(p, INFO))
+    assert "\\ud83d" not in src and '["land😀"]' in src
+    for code in _python_cells(src):
+        ast.parse(code)
+    assert "\\ud83d" not in pipeline._py({"c": "land😀"})
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_l10_every_accept_on_check_has_its_button(check_page):
+    said = [f for f in check_page["keyless"] if "Accept" in f["text"]]
+    assert all(f["buttons"] for f in said), said
+    assert any("`keys`" in f["text"] or "keys" in f["text"] for f in check_page["keyless"])
+
+
+def test_l10_the_engine_says_keys_where_the_page_has_no_accept():
+    from fabric_backend import browser_check
+    r = browser_check.analyze("files", [("events.csv", KEYLESS.encode())])
+    items = r["findings"] + r["suggestions"]
+    assert any(f["check"] in ("key_candidate", "keyless", "composite_key") for f in items)
+    for f in items:
+        assert "Accept" not in f["next"] or f["confirmed"], f
+        assert "accept it" not in (f.get("checked") or "")
+    assert any("`keys`" in f["next"] for f in items)
+
+
+def test_l11_decide_says_which_accepted_relationship_the_model_leaves_out():
+    from fabric_backend import browser_check
+    files = [("customers.csv", b"customer_id,name\n1,a\n1,b\n2,c\n"), ("orders.csv", b"order_id,buyer\n10,1\n11,2\n")]
+    acc = [{"source": "orders", "source_cols": ["buyer"], "target": "customers", "target_cols": ["customer_id"]}]
+    r = browser_check.decide("files", files, accepted=acc)
+    assert r["not_in_model"] == ["orders.buyer -> customers"]
+    files[0] = ("customers.csv", b"customer_id,name\n1,a\n2,c\n")
+    assert browser_check.decide("files", files, accepted=acc)["not_in_model"] == []
+    js = (Path(__file__).resolve().parents[1] / "fabric_backend/static/check.js").read_text(encoding="utf-8")
+    assert "counted in the rows and in the Power BI model" not in js and "d.notInModel" in js
+
+
+@pytest.mark.skipif(not _playwright_available(), reason="node + playwright not available")
+def test_l12_the_file_chooser_offers_only_what_the_engine_reads(check_page):
+    assert check_page["accept"] == ".csv,.xlsx,text/csv"
+
+
+def test_l13_no_page_view_record_is_declared_for_explore():
+    from fabric_backend import usage
+    root = Path(__file__).resolve().parents[1]
+    assert "/explore" not in usage.PAGE_VIEW_PATHS
+    privacy = (root / "fabric_backend/page_templates/PRIVACY.md").read_text(encoding="utf-8")
+    assert "`/check`, `/explore`" not in privacy
+    for doc in ("docs/USAGE.md", "docs/OPERATIONS.md"):
+        assert "/check, /explore" not in (root / doc).read_text(encoding="utf-8").replace("`", "")
+
+
+def test_l14_privacy_says_the_reuse_margin_is_not_a_deletion_time():
+    from fabric_backend import entra
+    root = Path(__file__).resolve().parents[1]
+    privacy = (root / "fabric_backend/page_templates/PRIVACY.md").read_text(encoding="utf-8")
+    assert "until 120 seconds before they expire;" not in privacy
+    assert "reused until 120 seconds before the expiry" in privacy and "trimmed or the server restarts" in privacy
+    assert entra.MAX_CACHED_TOKENS == 5000
+
+
+def test_l15_offline_access_is_named_beside_the_permissions_table():
+    from fabric_backend import access
+    root = Path(__file__).resolve().parents[1]
+    asked = [f for f in ("fabric_backend/entra.py", "fabric_backend/registration_flow.py")
+             if "offline_access" in (root / f).read_text(encoding="utf-8")]
+    assert asked                                                            # the code asks for it ...
+    assert "`offline_access`" in access.table_md() and "<code>offline_access</code>" in access.table_html()   # ... the table says so
+
+
+def test_l16_llms_txt_names_other_clients_records_only_when_registration_is_on(monkeypatch):
+    from fabric_backend import discovery
+    clause = "sign-ins from other MCP clients keep a few encrypted records"
+    monkeypatch.delenv("KRUSGRAPH_CLIENT_REGISTRATION", raising=False)
+    assert clause not in discovery.llms_txt()
+    monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
+    assert clause in discovery.llms_txt()
+
+
+from test_client_registration import env, keys  # noqa: E402,F401  (Entra faked, a memory store)
+
+
+def test_l17_the_site_offers_mcp_connect_only_when_the_layer_started(env, monkeypatch):  # noqa: F811
+    from test_client_registration import client
+    monkeypatch.delenv("KRUSGRAPH_REGISTRATION_KEY")                      # switched on, but not configured
+    c = client(env=env)
+    assert c.get("/mcp/connect").status_code == 404
+    assert "Two addresses" not in c.get("/start").text
+    monkeypatch.setenv("KRUSGRAPH_REGISTRATION_KEY", __import__("test_client_registration").KEY)
+    c = client(env=env)                                                     # configured: the layer starts, the site says so
+    assert c.get("/mcp/connect").status_code != 404 and "Two addresses" in c.get("/start").text
+
+
+def test_l18_the_cursor_register_step_says_it_needs_dynamic_registration():
+    docs = (Path(__file__).resolve().parents[1] / "fabric_backend/page_templates/DOCS.md").read_text(encoding="utf-8")
+    at = docs.index("/register -H")
+    assert "KRUSGRAPH_CLIENT_REGISTRATION_DCR=1" in docs[at - 400:at]
+
+
+def test_l19_repo_docs_follow_the_permissions_and_the_code():
+    root = Path(__file__).resolve().parents[1]
+    read = lambda p: " ".join((root / p).read_text(encoding="utf-8").split())
+    assert "The app does not ask for them today" not in read("docs/NOTEBOOKS.md")
+    assert "`OPERATOR` in `tool_status.py`) are the customer's" not in read("docs/SEGMENTATION.md")
+    assert "`create_semantic_model`, `create_ontology`, `create_data_agent` (creating) and" not in read("docs/DEPLOY-NEXT.md")
+    assert "Every parameter of the 36 hosted tools" not in read("docs/INFERENCE.md")
+    site = read("docs/SITE.md")
+    assert "`domains`, `fix`, `dbt`" not in site and "Write dbt tests" not in site
+    chat = read("fabric_backend/static/chat-demo.js")
+    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains'];" in chat and "Draft a dbt project" in chat
+    assert "| offers `create_ontology` |" not in read("docs/DEPLOY-NEXT.md")
+    assert not any("KRUSGRAPH_ONTOLOGY_WRITE" in (root / "fabric_backend" / f).read_text(encoding="utf-8")
+                   for f in ("server.py", "switches.py", "tool_status.py"))
+
+
+def test_l20_the_chat_launch_button_carries_the_n149_labels():
+    from fabric_backend import pages
+    b = pages.chat_launch_html()
+    assert f'data-label-check="{pages.CHECK_LABEL}"' in b and f'data-label-connect="{pages.CONNECT_LABEL}"' in b
+    js = (Path(__file__).resolve().parents[1] / "fabric_backend/static/chat-demo.js").read_text(encoding="utf-8")
+    assert "Try your own files" not in js and "Connect to your agent" not in js

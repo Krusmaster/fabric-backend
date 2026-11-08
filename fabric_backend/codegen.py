@@ -13,6 +13,8 @@ it is, so the comments read the same for every name that was safe before.
 """
 from __future__ import annotations
 
+import json
+
 
 def _escape(ch: str) -> str:
     o = ord(ch)
@@ -35,3 +37,18 @@ def comment(text, prefix: str = "# ") -> str:
 def sql_comment(text, prefix: str = "-- ") -> str:
     return prefix + one_line(text)
 
+
+
+def py_literal(value, **dumps) -> str:
+    """A Python literal for JSON-shaped data (strings, lists, dicts, numbers) that Python reads back exactly.
+
+    `json.dumps` alone writes an emoji as a surrogate pair (`"\\ud83d\\ude00"`), which Python reads as two lone
+    surrogates, so `F.col` gets a column name that does not exist (review L9). With `ensure_ascii=False` the character
+    stays itself; json still escapes `"`, `\\` and U+0000-U+001F inside strings, and every other character that is not
+    printable (U+007F-U+009F, U+2028, U+2029, lone surrogates; all inside strings, where Python's escapes mean the same)
+    is written as its escape, so the literal never holds a character that ends a line. A line break json writes itself
+    (`indent=`) is layout and stays."""
+    text = json.dumps(value, ensure_ascii=False, **dumps)
+    if text.isprintable():
+        return text
+    return "".join(ch if ch.isprintable() or ch == "\n" else _escape(ch) for ch in text)

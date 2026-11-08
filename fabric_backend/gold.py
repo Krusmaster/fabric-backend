@@ -37,7 +37,7 @@ import json
 import re
 
 from . import notebook as _nb
-from .codegen import comment as _comment, one_line as _one_line, sql_comment as _sql_comment
+from .codegen import comment as _comment, one_line as _one_line, py_literal as _py_literal, sql_comment as _sql_comment
 from . import privacy as _privacy
 from .graphs import certainty
 from .infer import Plan, PlanInputError, RULES
@@ -293,12 +293,12 @@ def cells(s: dict) -> list[tuple[str, str]]:
         intro += ("\n\nLeft out because the column name looks like personal data: "
                   + ", ".join(f"{o['table']}.{o['column']} ({o['rule']})" for o in s["personal_data"]["omitted"])
                   + f". Generate again with {_privacy.PARAMETER}=true to include them.")
-    params = (f"GOLD_SCHEMA = {json.dumps(s['gold_schema'])}     # where the gold views go; never the source or silver schema\n"
-              f"SILVER_SCHEMA = {json.dumps(s['silver_schema'])}   # where create_silver_notebook wrote the silver tables")
+    params = (f"GOLD_SCHEMA = {_py_literal(s['gold_schema'])}     # where the gold views go; never the source or silver schema\n"
+              f"SILVER_SCHEMA = {_py_literal(s['silver_schema'])}   # where create_silver_notebook wrote the silver tables")
     reads = sorted({t for v in s["views"] for t in v["tables"]}, key=str.lower)
-    setup = SETUP.format(source_schema=json.dumps(s["source"]["schema"]), owner=json.dumps(s["owner"]),
-                         source_tables=json.dumps(s["source"]["tables"]), silver_tables=json.dumps(reads),
-                         writes=json.dumps([v["name"].split(".", 1)[1] for v in s["views"]]))
+    setup = SETUP.format(source_schema=_py_literal(s["source"]["schema"]), owner=_py_literal(s["owner"]),
+                         source_tables=_py_literal(s["source"]["tables"]), silver_tables=_py_literal(reads),
+                         writes=_py_literal([v["name"].split(".", 1)[1] for v in s["views"]]))
     out = [("markdown", intro), ("parameters", params), ("code", setup)]
     for v in s["views"]:
         sql = create_sql(v, s)
@@ -310,7 +310,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
         out.append(("code", "\n".join([_comment(f"---- {v['name']} ----"), *[_comment(f"{c['name']}: {c['why']}") for c in v["constraints"]],
                                        f'spark.sql("""\n{body}\n""".replace("{GOLD_TOKEN}", GOLD_SCHEMA.replace("`", "``"))'
                                        f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))',
-                                       f"created.append({json.dumps(name)})"])))
+                                       f"created.append({_py_literal(name)})"])))
     out.append(("code", "print(f\"{len(created)} gold view(s) in {GOLD_SCHEMA}: {', '.join(created)}\")\n"
                         "display(spark.sql(f\"SHOW MATERIALIZED LAKE VIEWS IN {q(GOLD_SCHEMA)}\"))"))
     return out

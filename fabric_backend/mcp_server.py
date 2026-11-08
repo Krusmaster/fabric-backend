@@ -440,7 +440,7 @@ def dbt_schema(schema: str = "dbo", source_name: str | None = None, keys: dict[s
     check_tables(p.schema, tables)
     src = source_name or schema
     yml = _dbt.schema_yml(p, src, schema, database=_source_info(schema)["sql_db"], tables=tables, arguments_block=arguments_block)
-    return json.dumps({"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}, indent=2)
+    return json.dumps({"path": _dbt.sources_path(src), "yaml": yml, "summary": p.summary()}, indent=2)
 
 
 @_tool("Analyze the schema as a graph", RO)

@@ -123,7 +123,7 @@ saknas.
 | Sannolikhet | Ej bedömt; har hänt en gång i annan form: Fabric svarade 403 `FeatureNotAvailable` tills "Users can create Ontology (preview) items" slogs på (`fabric_backend/tool_status.py` `LATER_LIVE["create_ontology"]`). |
 | Konsekvensgrad | Ej bedömt. |
 | Befintliga kontroller | Ontologiformatet är verifierat mot inspelade definitioner, inte mot ett löfte (`fabric_backend/ontology.py`); Fabrics egen felkod skickas vidare i svaret (`fabric_backend/errors.py`, `kind`); goldenfiler låser motorns svar så att ett formatbyte syns i diffen (`tests/test_golden.py`); källor utöver lakehouse är märkta Experimental tills en livekörning (`fabric_backend/tool_status.py`); varje Learn-läsning dateras med `ms.date` och commit (`docs/FAQ-COMPETITION.md`, `docs/FET-PLAN.md`); `docs/ECOSYSTEM-WATCHLIST.md` håller datum för närliggande servrar. |
-| Åtgärd | Läs om de preview-sidor Krusgraph lutar sig mot före varje versionstagg och skriv datum; håll ontologi-skapandet bakom `ontology_write`/operatörsflaggan tills objektet lämnar preview (`deploy/krusgraph.example.json`). |
+| Åtgärd | Läs om de preview-sidor Krusgraph lutar sig mot före varje versionstagg och skriv datum; `create_ontology` erbjuds alltid sedan `ontology_write` slutade läsas, med torrkörning som standard, och verktygets anteckning i `tool_status.py` säger att Ontology är preview. |
 | Ägare | Gustav |
 | Nästa granskning | Vid nästa versionstagg, eller när Microsoft meddelar GA för ontologi-objektet. |
 

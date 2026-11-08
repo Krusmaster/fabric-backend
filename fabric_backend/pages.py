@@ -177,8 +177,8 @@ def _client_status(name: str, where: str) -> str:
 
 
 def _registration_on() -> bool:
-    from .registration import enabled
-    return enabled()
+    from .registration import effective
+    return effective()                                  # review L17: not the flag alone; a layer that refused is off
 
 
 def _listed(names: list[str]) -> str:
@@ -898,7 +898,8 @@ def chat_launch_html() -> str:
     v = _vars()
     e = lambda x: html.escape(x, quote=True)
     attrs = [f'data-product="{e(v["PRODUCT"])}"', f'data-css="/static/chat-demo.css?v={v["ASSET_V"]}"',
-             f'data-js="/static/chat-demo.js?v={v["ASSET_V"]}"', 'data-fallback="/check?example=sample"']
+             f'data-js="/static/chat-demo.js?v={v["ASSET_V"]}"', 'data-fallback="/check?example=sample"',
+             f'data-label-check="{e(CHECK_LABEL)}"', f'data-label-connect="{e(CONNECT_LABEL)}"']   # n158: the chat's two exits
     for key, draft, create in CHAT_RESULTS:
         tool = create or draft
         attrs += [f'data-status-{key}="{e(chat_status(tool))}"',

@@ -695,7 +695,7 @@
     "read_only_hint": false,
     "title": "Create or update the nightly drift monitor in Fabric (dry run by default)"
    },
-   "description": "Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place, and adds a daily\nschedule unless one at that time exists. Requires workspace, a lakehouse source and name; Notebook.ReadWrite.All\nand DataPipeline.ReadWrite.All (or Item.ReadWrite.All), DataPipeline.Execute.All for the schedule, and\nContributor. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes\nFabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is\ndeleted and no secret is written. Errors: {error, kind, hint}.",
+   "description": "Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place; with\nschedule=true also adds a daily schedule unless one at that time exists. Requires workspace, a lakehouse source and\nname; Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. schedule is\nfalse by default: the schedule needs DataPipeline.Execute.All, which the hosted app does not request. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes\nFabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is\ndeleted and no secret is written. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "at": {
@@ -729,8 +729,8 @@
       "type": "string"
      },
      "schedule": {
-      "default": true,
-      "description": "true (default) adds the daily schedule to the pipeline; false creates the items without one. Example: false.",
+      "default": false,
+      "description": "false (default) creates the items without a schedule: a schedule needs DataPipeline.Execute.All, which the hosted app does not request; true adds the daily schedule where that permission is granted. Example: true.",
       "title": "Schedule",
       "type": "boolean"
      },

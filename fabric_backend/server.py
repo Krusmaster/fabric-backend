@@ -1023,7 +1023,8 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
         s, execute = _connected(workspace, source, schema, ctx)
         try:
             p = _hosted_plan(s, keys, confirmed, execute)
-            validation = _evidence.validate(p, execute)
+            # review L5: with fixes, count as far as validate_plan can (max_items up to 200), so an id it gave is found here
+            validation = _evidence.validate(p, execute, max_items=200 if fixes else 60)
             item = getattr(execute, "source_item", None) or {}
             if fixes:
                 resolved = _fix_plan.resolve(_fix_plan.propose(p, validation, execute)["fixes"], fixes, p)
@@ -1054,7 +1055,7 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
             text = json.dumps(out, indent=2)
         return text
     yml = _dbt.schema_yml(p, src, schema, database=database, tables=tables, arguments_block=arguments_block)
-    out = {"path": f"models/sources/{src}.yml", "yaml": yml, "summary": p.summary()}
+    out = {"path": _dbt.sources_path(src), "yaml": yml, "summary": p.summary()}
     if quality:
         out["quality"] = _quality.suites(p, schema, quality, validation, tables)
     return _compact.bounded_text(out, "yaml", MAX_RESULT_CHARS)
@@ -1261,7 +1262,12 @@ def _model_reads(workspace, source, schema, p, tables, ctx) -> dict:
                 firsts.append(str(row["first_date"])[:10]); lasts.append(str(row["last_date"])[:10])
         if firsts:
             out["date_range"] = (min(firsts), max(lasts))
-            out["said"].append(f"Dates: {min(firsts)} to {max(lasts)} in {', '.join(f'{t}.{c}' for t, c in dates)}; the calendar spans those whole years.")
+            cols = ", ".join(f"{t}.{c}" for t, c in dates)
+            if _switches.no_row_values():                               # review L4: the first and last date are row values
+                out["said"].append(f"Dates: the first and last value of {cols} were read (left out here: no-row-values mode); "
+                                   "the calendar spans those whole years.")
+            else:
+                out["said"].append(f"Dates: {min(firsts)} to {max(lasts)} in {cols}; the calendar spans those whole years.")
         for t, c in qty:
             rows = execute(_semantic_model.whole_sql(p.schema.schema, t, c))
             if not rows:
@@ -1538,7 +1544,8 @@ def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed,
         s, execute = _connected(workspace, source, schema, ctx)
         try:
             counted = _hosted_plan(s, keys, confirmed, execute)
-            proposal = _fix_plan.propose(counted, _evidence.validate(counted, execute), execute)
+            # review L5: as far as validate_plan(max_items=200) counts, so every id it can give is found here
+            proposal = _fix_plan.propose(counted, _evidence.validate(counted, execute, max_items=200), execute)
         finally:
             getattr(execute, "close", lambda: None)()
         spec = _fix_plan.accept(spec, proposal["fixes"], fixes, counted)
@@ -1807,12 +1814,12 @@ def drift_monitor_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.S
 @mcp.tool(title="Create or update the nightly drift monitor in Fabric (dry run by default)", annotations=WRITE)
 @safe
 def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.MonitorName, schema: _p.Schema = "dbo", at: _p.At = "02:00",
-                         time_zone: _p.TimeZone = "W. Europe Standard Time", library_ref: _p.LibraryRef = None, schedule: _p.Schedule = True,
+                         time_zone: _p.TimeZone = "W. Europe Standard Time", library_ref: _p.LibraryRef = None, schedule: _p.Schedule = False,
                          dry_run: _p.DryRun = True, ctx: Context = None) -> str:
-    """Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place, and adds a daily
-    schedule unless one at that time exists. Requires workspace, a lakehouse source and name; Notebook.ReadWrite.All
-    and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), DataPipeline.Execute.All for the schedule, and
-    Contributor. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes
+    """Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place; with
+    schedule=true also adds a daily schedule unless one at that time exists. Requires workspace, a lakehouse source and
+    name; Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. schedule is
+    false by default: the schedule needs DataPipeline.Execute.All, which the hosted app does not request. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes
     Fabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is
     deleted and no secret is written. Errors: {error, kind, hint}."""
     import requests as _requests
@@ -1854,12 +1861,17 @@ def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
     if pl.get("status") != "Succeeded":
         return _step_failed(out, "pipeline", pl, PIPELINE_SCOPE, f"creating the pipeline {name + '_nightly'!r}")
     if not schedule:
-        out["result"]["schedule"] = {"status": "Skipped", "why": "schedule=false"}
+        out["result"]["schedule"] = {"status": "Skipped", "why": "schedule=false (the default: a schedule needs DataPipeline.Execute.All, "
+                                                                 "which the hosted app does not request); schedule the pipeline in Fabric, or pass schedule=true"}
     else:
         headers = _headers(ctx)
         url = f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{pl['id']}/jobs/execute/schedules"
         r = _requests.get(url, headers=headers, timeout=30)
-        existing = r.json().get("value", []) if getattr(r, "status_code", 0) == 200 else []
+        if getattr(r, "status_code", 0) != 200:
+            # review L2: without the listing a schedule at that time may exist; adding one would make a duplicate
+            return _step_failed(out, "schedule", {"status": "Failed", "http": getattr(r, "status_code", 0), "body": getattr(r, "text", "")},
+                                SCHEDULE_SCOPE, f"listing the schedules of the pipeline {name + '_nightly'!r} (nothing was added)")
+        existing = r.json().get("value", [])
         same = [x for x in existing if (x.get("configuration") or {}).get("type") == "Daily" and at in ((x.get("configuration") or {}).get("times") or [])]
         if same:
             out["result"]["schedule"] = {"status": "Succeeded", "mode": "kept", "id": same[0].get("id"),

@@ -141,8 +141,9 @@ PipelineSilverName = Annotated[str, _d('Display name of the silver notebook the 
                                        'Default "" (silver_<schema>). Example: "silver_shop".')]
 PipelineGoldName = Annotated[str, _d('Display name of the gold views notebook the pipeline runs, updated in place if it '
                                      'exists. Default "" (gold_<schema>). Example: "gold_shop".')]
-Schedule = Annotated[bool, _d('true (default) adds the daily schedule to the pipeline; false creates the items without '
-                              'one. Example: false.')]
+Schedule = Annotated[bool, _d('false (default) creates the items without a schedule: a schedule needs '
+                              'DataPipeline.Execute.All, which the hosted app does not request; true adds the daily '
+                              'schedule where that permission is granted. Example: true.')]
 ExportItems = Annotated[list[str] | None, _d(
     'Which creating tools to export: create_backend, create_semantic_model, create_views, create_silver_notebook, '
     'create_drift_monitor, create_gold_views; or "pipeline", a draft no tool creates (silver, gold, then a check), with '

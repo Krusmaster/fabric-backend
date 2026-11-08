@@ -382,7 +382,7 @@ def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
         assert f["openFocus"]["cls"] == "kgc-close" and f["openFocus"]["outline"].startswith("solid"), v
         assert f["firstTab"]["pick"] == "Check the tables" and f["firstTab"]["outline"].startswith("solid"), v
         assert f["keyboardSteps"] == ["Check the tables", "Yes, add the link", "Create a semantic model", "Create an ontology", "Draft data products"], v
-        assert len(f["keyboardResults"]) == 4 and f["keyboardEndFocus"] == "Try your own files", v
+        assert len(f["keyboardResults"]) == 4 and f["keyboardEndFocus"] == "Check my tables", v
         assert f["escape"] == {"hidden": True, "focus": "kgcLaunch"} and f["reopenedKept"] > 0, v
         assert f["escapeEnd"] == {"hidden": True, "focus": "kgcLaunch"}, v
         if v.startswith("375"):
@@ -456,7 +456,7 @@ def test_chat_a_link_inside_closes_it_and_connect_goes_to_the_set_up_guide(chat)
         assert f["url"] == "/start" and "set-up guide" in f["title"], f
         assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains"]}, f["stored"]
         assert not f["after"]["open"] and not f["after"]["loaded"], f["after"]
-        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][:2] == ["Try your own files", "Connect to your agent"], f
+        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][:2] == ["Check my tables", "Connect to my Fabric"], f
 
 
 def test_chat_start_over_empties_the_steps(chat):

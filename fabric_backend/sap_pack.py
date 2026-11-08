@@ -424,7 +424,7 @@ def draft(plan, source_name: str = "sap", export: str = "none", variant: str | N
             out["export"] = exports.extraction_list(plan, m)
         else:
             from . import dbt
-            out["export"] = {"path": f"models/sources/{source_name}.yml", "yaml": dbt.schema_yml(plan, source_name, plan.schema.schema)}
+            out["export"] = {"path": dbt.sources_path(source_name), "yaml": dbt.schema_yml(plan, source_name, plan.schema.schema)}
     return out
 
 

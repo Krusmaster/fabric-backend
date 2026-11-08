@@ -44,7 +44,7 @@ Read from the code (`os.environ.get(...)`). "On" means one of `1`, `true`, `yes`
 | `KRUSGRAPH_MCP_APPS` | off (only `"1"` turns it on) | n119/n124: the two MCP Apps cards for `validate_plan` and `review_plan` | no |
 | `KRUSGRAPH_READ_ONLY` | off | n123: no tool that creates or changes something in Fabric is registered | no |
 | `KRUSGRAPH_NO_ROW_VALUES` | off | n123: no `sample_rows`; row values removed from answers, names and counts kept | no |
-| `KRUSGRAPH_ONTOLOGY_WRITE` | off | offers `create_ontology` | yes, when `ontology_write` is in the config |
+| `KRUSGRAPH_ONTOLOGY_WRITE` | off | nothing: no module reads it since `create_ontology` is always offered (README); the deploy script still sets it from `ontology_write` (review L19, left to the Deployment round) | yes, when `ontology_write` is in the config |
 | `KRUSGRAPH_BUILD` | unset | the build shown on `/healthz` | yes |
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset (logs not kept) | days of console logs, said on `/privacy` | yes, from `log_retention_days` |
 | `KRUSGRAPH_ACCESS_LOG` | on (`"1"`) | access log lines | set to `0` when log retention is set |
@@ -66,17 +66,13 @@ container app by hand.
 
 ## Permissions the hosted app does not have today
 
-From `fabric_backend/tool_status.py` (`available = OPERATOR`, "Available when enabled by the operator"):
+Since 28 October 2026 the hosted app has `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and
+`Item.ReadWrite.All` (`fabric_backend/access.py`), so no tool is `OPERATOR` in `fabric_backend/tool_status.py`. What is
+still not requested:
 
-- `create_semantic_model`, `create_ontology`, `create_data_agent` (creating) and `compare_semantic_model` (reading).
-- `create_drift_monitor` is hosted, but its schedule needs `DataPipeline.Execute.All`, which the app does not have.
-- `create_pipeline` (new) is hosted: it needs `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or
-  `Item.ReadWrite.All`), which tool_status says the hosted app has.
-- The catalog draft (n116) would need `Tag.Read.All` to be sent, but no tool sends it.
-
-Note: the `/llms.txt` text still says "Creating semantic models, ontologies, data agents, notebooks and pipelines needs
-permissions the hosted app does not ask for today", while tool_status lists the notebook and pipeline tools as hosted.
-Worth a Website round; not changed here.
+- `DataPipeline.Execute.All` (or `Item.Execute.All`): `create_drift_monitor`'s schedule, which is why `schedule=false`
+  is its default (n158).
+- `Tag.Read.All`: the catalog draft (n116) would need it to be sent, but no tool sends it.
 
 ## Checklist after deploy
 
