@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n172: the MCP Apps cards polished for the film (`docs/MCP-APPS-POLISH.md`), from the founder's try in Claude on
+  8 November 2026. A read on the SQL analytics endpoint that fails with a transient connection error (SQLSTATE 08S01,
+  the TCP Provider's 0x2714 and other socket errors, Azure SQL's transient error numbers) is tried again on a fresh
+  connection, at most three tries with 1 s and 3 s between them; the sign-in, syntax errors and timeouts never are.
+  When every try fails, `plan_backend` says the count could not run (`proposed[].not_counted: "failed"`, a summary
+  line, `counted_in_rows.failed`), the card draws the link grey, "not counted", and the Thinker offers **Count again**.
+  The cards: the map's labels sit on their lines and cover no table; Onto says the plan in short sentences once ("7
+  tables, 6 with a key. 7 links: 6 by name, 1 found from the values ..."), the Thinker and the Builder speak plain
+  English and never show arguments (the buttons carry them; text clients keep each action's `say`); the titles are
+  "Plan" and "Plan check"; the Plan check card shows the Builder's three builds with the drafts under **More**; how a
+  tool was tested and "certainty" are left out of the cards (still in the text answer), the rule shown instead;
+  `create_semantic_model`'s inactive relationships now carry their `rule`.
 - Round n171: Krusgraph can be bought through Microsoft Marketplace, all off by default (`KRUSGRAPH_MARKETPLACE`,
   `docs/MARKETPLACE-SETUP.md`). `/marketplace/landing` signs the buyer in (the existing Entra app, `openid profile`
   only), resolves the purchase with the SaaS fulfilment API v2 and activates on the buyer's click (nothing to activate

@@ -158,6 +158,40 @@ def _sql(exc: Exception, where: str) -> dict | None:
     return _answer("sql_error", f"The SQL analytics endpoint answered with an error for {where}: {text}")
 
 
+# n172: which SQL errors are transient, so that a read is tried again on a fresh connection (platforms/fabric.py,
+# connect). Seen live on 8 November 2026: plan_backend's R5 counting query failed with "TCP Provider: Error code 0x2714"
+# and the plan silently had one link fewer than validate_plan a moment later. Sources:
+# - Microsoft Learn, "Troubleshoot common connection issues to Azure SQL Database and SQL database in Fabric"
+#   (azure-sql/database/troubleshoot-common-errors-issues, updated 19 October 2026, read 8 November 2026), "List of
+#   transient fault error codes": 615, 926, 4221, 40197, 40501, 40613, 49918, 49919, 49920; and "A connection was
+#   successfully established... (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by the
+#   remote host)" / "A transport-level error has occurred": "applications should use a fixed number of retry attempts
+#   for these errors before considering them permanent failures". Its "Implement retry logic" recommends 5 s before the
+#   first retry, growing exponentially (RETRY_DELAYS below is shorter: one counting query inside a chat's tool call).
+# - The ODBC SQLSTATE 08S01 ("Communication link failure", ODBC Appendix A: ODBC Error Codes), which ODBC Driver 18
+#   raises with the TCP Provider's socket error: 0x2714 (10004, WSAEINTR, the case seen live), 0x2746 (10054,
+#   connection reset), 0x2745 (10053, aborted), 0x68 (104, ECONNRESET on Linux), 0x20 (32, broken pipe).
+# - This module's own mapping (_sql above): 08S01 and a dropped connection are "unreachable"; the sign-in (28000,
+#   18456), a missing object or column (42S02, 42S22), a syntax or permission error (42000) and a timeout (HYT00,
+#   HYT01) are not transient here and are never tried again: a second try gives the same answer, or doubles the wait.
+TRANSIENT_SQL_NUMBERS = ("615", "926", "4221", "40197", "40501", "40613", "49918", "49919", "49920")
+TRANSIENT_TCP_CODES = ("0x2714", "0x2746", "0x2745", "0x68", "0x20")
+_NOT_TRANSIENT = re.compile(r"28000|18456|login failed|42000|42s02|42s22|invalid object name|invalid column name|"
+                            r"incorrect syntax|permission|hyt00|hyt01|timeout expired|aadsts", re.I)
+_TRANSIENT = re.compile(r"08s01|communication link failure|transport-level error|forcibly closed|connection reset|"
+                        r"tcp provider: error code (?:" + "|".join(TRANSIENT_TCP_CODES) + r")\b|"
+                        r"(?:\(|\[|error |code |^)(?:" + "|".join(TRANSIENT_SQL_NUMBERS) + r")(?:\)|\]|[\s:;,.]|$)", re.I)
+
+
+def transient(exc: BaseException) -> bool:
+    """True for a SQL error worth one more try on a fresh connection (the list above); False for everything else,
+    above all the sign-in and syntax errors, which never are."""
+    text = str(exc)
+    if not text or _NOT_TRANSIENT.search(text):
+        return False
+    return bool(_TRANSIENT.search(text))
+
+
 class SchemaEmpty(LookupError):
     """INFORMATION_SCHEMA returned no tables: the schema does not exist in this source (or has no tables)."""
 

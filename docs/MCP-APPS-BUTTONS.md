@@ -3,7 +3,8 @@
 The founder, 8 November 2026: *"I want to click the mascots' suggestions and have everything created, without writing
 text."* With `KRUSGRAPH_MCP_APPS=1` the cards in Claude ended with next steps the user had to type. Since n169 each card
 ends with the Builder's or the Thinker's buttons, and a build is one click for its dry run and one click on Create.
-Code: `fabric_backend/mcp_apps_build.py`; tests: `tests/test_n169_clickable_cards.py`. Since n170 the cards also draw the
+Code: `fabric_backend/mcp_apps_build.py`; tests: `tests/test_n169_clickable_cards.py`. Since n172 the mascots say what
+the buttons offer in plain English, never the call (`docs/MCP-APPS-POLISH.md`). Since n170 the cards also draw the
 chat demo's pictures, and `domain_draft`'s data products carry their own build buttons: `docs/MCP-APPS-PICTURES.md`.
 
 ## What the specification allows, and what the cards use
@@ -31,7 +32,8 @@ The server adds `actions` to the answer (with the flag on only); the card draws 
 | --- | --- |
 | `plan_backend` (new build card) | Thinker: **Check against the rows** (`validate_plan`). Builder: **Build a semantic model**, **Create an ontology**, **Create an API for GraphQL** |
 | `plan_backend` on a source with several schemas, no schema named | Thinker: one **Plan *schema* (*n* tables)** per schema, nothing else: the tool asks instead of picking one |
-| `validate_plan` (its card) | the n103 next steps as before, then the Builder's three builds (the check has just run) |
+| `validate_plan` (its card) | the Builder's three builds (the check has just run); since n172 the n103 drafts are folded under **More** (still in the text answer) |
+| `plan_backend` when a counting query could not run (n172) | Thinker: **Count again** (`plan_backend`, the same arguments), then as above |
 | a build button | the dry run, drawn on the card, with **Create** under it |
 | **Create** | the same tool, `dry_run: false`, the dry run's arguments unchanged |
 | a semantic model created | **Open in Fabric**, **Create a report on it** (`create_report`, again a dry run first) |

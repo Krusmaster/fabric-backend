@@ -161,6 +161,11 @@ class Plan:
                          + (f", at most {c['sample']} distinct values of a column each" if c.get("sample") else "")
                          + (f"; {c['not_counted']} candidate(s) left for validate_plan or suggest_relationships (limit {c['max_queries']} queries)"
                             if c.get("not_counted") else ""))
+        failed = [x for x in self.proposed if x.get("not_counted") == "failed"]
+        if failed:                                                     # n172: said plainly, never as "not supported"
+            lines.append(f"{len(failed)} candidate link(s) could not be counted because the counting query could not run: "
+                         + ", ".join(f"{x['source']}.{'+'.join(x['source_cols'])} -> {x['target']}" for x in failed)
+                         + "; not counted, neither confirmed nor rejected: plan again to count, or confirm it and run validate_plan")
         if self.keyless:
             lines.append("no key (query only; can reference others, cannot be referenced): " + ", ".join(self.keyless))
         if self.ambiguous:
@@ -705,7 +710,7 @@ def _r5_check(schema: Schema, execute, source: str, column: str, target: str, ke
                 return False, f"{target}.{key} is not unique and non-NULL in the rows ({n} rows, {d} distinct, {nulls} NULL), so it is no key"
         row = (list(execute(evidence.inclusion_sql(schema.schema, source, column, target, key, dialect, sample))) or [{}])[0]
     except Exception as e:                                         # noqa: BLE001 - a candidate the rows could not answer stays a proposal
-        return False, f"could not count: {type(e).__name__}: {e}"
+        return False, count_failed(e)
     with_value, matched, distinct = (evidence._int(row.get(x)) for x in ("with_value", "matched", "distinct_values"))
     what = f"of the first {sample} distinct values of {source}.{column}" if sample and distinct >= sample else f"value(s) of {source}.{column}"
     if not with_value:
@@ -719,6 +724,26 @@ def _r5_check(schema: Schema, execute, source: str, column: str, target: str, ke
 
 
 R5_NOT_COUNTED = "not counted: the counting queries allowed in this call were used up; validate_plan or suggest_relationships confirm it"
+R5_COUNT_FAILED = "not counted: the counting query could not run"
+
+
+def count_failed(e: BaseException) -> str:
+    """n172: a counting query that failed (after the connection's own retries, platforms/fabric.py): said plainly, so
+    the candidate reads as not counted, never as unsupported by the rows."""
+    from .errors import transient
+    why = "the connection to the SQL endpoint dropped" if transient(e) else f"{type(e).__name__}"
+    detail = " ".join(str(e).split())[:200]
+    return (f"{R5_COUNT_FAILED} ({why}{': ' + detail if detail and transient(e) else ''}); it is neither confirmed nor "
+            "rejected: plan again to count it")
+
+
+def not_counted(reason: str) -> str | None:
+    """n172: why a candidate was not counted: "failed" (the query could not run), "budget" (no queries left), or None."""
+    if reason.startswith(R5_COUNT_FAILED):
+        return "failed"
+    if reason == R5_NOT_COUNTED:
+        return "budget"
+    return None
 
 
 def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels: list[Relationship], ambiguous: list[dict],
@@ -735,11 +760,12 @@ def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels
     proposed: list[dict] = []
     budget = [int(max_queries)] if max_queries is not None else None
     cands = _r5_candidates(schema, keys, linked, pack_tables or set())
-    not_counted = 0
+    n_budget = failed = 0
     for cand in cands:
         src, col = cand["source"], cand["column"]
         results = [(b, k, nk) + _r5_check(schema, execute, src, col, b, k, nk, sample, budget) for b, k, nk in cand["targets"]]
-        not_counted += sum(1 for r in results if r[4] == R5_NOT_COUNTED)
+        n_budget += sum(1 for r in results if r[4] == R5_NOT_COUNTED)
+        failed += sum(1 for r in results if r[4].startswith(R5_COUNT_FAILED))
         ok = [r for r in results if r[3]]
         if len(ok) == 1:
             b, k, nk, _, why = ok[0]
@@ -749,11 +775,16 @@ def infer_from_rows(schema: Schema, keys: dict[str, tuple[list[str], str]], rels
             continue
         for b, k, nk, supported, why in results:
             reason = why if not supported else f"the rows fit {len(ok)} tables ({', '.join(r[0] for r in ok)}); which one is for a person to say"
-            proposed.append({"source": src, "source_cols": [col], "target": b, "target_cols": [k], "rule": "R5", "kind": cand["kind"],
-                             "reason": reason, "confirmed": {"source": src, "source_cols": [col], "target": b, "target_cols": [k]}})
+            entry = {"source": src, "source_cols": [col], "target": b, "target_cols": [k], "rule": "R5", "kind": cand["kind"],
+                     "reason": reason, "confirmed": {"source": src, "source_cols": [col], "target": b, "target_cols": [k]}}
+            if not supported and not_counted(why):                  # n172: not counted is not "the rows did not support it"
+                entry["not_counted"] = not_counted(why)
+            proposed.append(entry)
     if counted is not None:
         counted.update({"rule": "R5", "candidates": len(cands), "queries": (int(max_queries) - budget[0]) if budget is not None else
-                        sum(2 if nk else 1 for c in cands for _, _, nk in c["targets"]), "not_counted": not_counted})
+                        sum(2 if nk else 1 for c in cands for _, _, nk in c["targets"]), "not_counted": n_budget})
+        if failed:
+            counted["failed"] = failed
     return new_rels, new_keys, proposed
 
 

@@ -139,9 +139,15 @@ def map_from_plan(plan, checks: dict | None = None) -> dict:
             if c:
                 entry["orphans"], entry["rows_with_value"] = c.get("orphans"), c.get("rows_with_value")
         rels.append(entry)
+    for x in getattr(plan, "proposed", None) or []:                # n172: a candidate R5 could not count: grey, "not counted"
+        if not x.get("not_counted") or x["source"].lower() not in names or x["target"].lower() not in names or len(rels) >= MAX_LINKS:
+            continue
+        rels.append({"id": _rel_id(x["source"], x["source_cols"], x["target"]), "source": x["source"],
+                     "source_cols": list(x["source_cols"]), "target": x["target"], "target_cols": list(x["target_cols"]),
+                     "rule": x.get("rule") or "R5", "state": "not_counted", "proposed": True, "why_not_counted": x["not_counted"]})
     out = {"tables": tables, "relationships": rels, "checked": checks is not None}
-    if len(plan.schema) > MAX_TABLES or len(rels) < len(plan.relationships):
-        out["left_out"] = (f"The picture shows {len(tables)} of {len(plan.schema)} tables and {len(rels)} of "
+    if len(plan.schema) > MAX_TABLES or sum(1 for r in rels if not r.get("proposed")) < len(plan.relationships):
+        out["left_out"] = (f"The picture shows {len(tables)} of {len(plan.schema)} tables and {sum(1 for r in rels if not r.get('proposed'))} of "
                            f"{len(plan.relationships)} relationships; the answer has them all.")
     return out
 
@@ -235,7 +241,7 @@ _CUT_FROM = "  var COLS = 2,"
 _CUT_TO = "  function svg(id, labelled) {"
 _ADDITIONS = [
     # bigger cells: room for the key columns under a table's name and for a label on each link
-    (re.compile(r"NW = \d+, NH = \d+, GX = \d+, GY = \d+"), "NW = 156, NH = 46, GX = 132, GY = 62"),
+    (re.compile(r"NW = \d+, NH = \d+, GX = \d+, GY = \d+"), "NW = 156, NH = 46, GX = 210, GY = 66"),
     # a data-table on each table, and a class for its state
     ("'<g class=\"kgc-n' + (no ? ' nokey' : '') + '\"><rect x=\"'",
      "'<g class=\"kgc-n' + (no ? ' nokey' : '') + (nd.cls ? ' ' + nd.cls : '') + '\" data-table=\"' + esc(nd.table) + '\"><rect x=\"'"),
@@ -246,10 +252,52 @@ _ADDITIONS = [
     # picture() gives the index of its drawing in pics, not the chat's figure (which needs svg() and the zoom button)
     ("    return '<figure class=\"kgc-pic\">' + svg(id, true) + '<button class=\"kgc-zoom\" type=\"button\" data-pic=\"' + id + '\">Larger picture</button></figure>';",
      "    return id;"),
+    # n172: a plan of more than 9 tables, which the chat demo places in plan order, is improved by swapping tables
+    # between cells (and into empty cells of one more row) while the chat demo's own cost falls: the lines' length,
+    # 80 per line through a table, 40 per crossing. Bounded: at most KG_SWEEPS passes over every pair.
+    ("    if (!at) at = names.map(function (_, i) { return i; });   // a larger plan: in plan order",
+     "    if (!at) at = kgImprove(names.map(function (_, i) { return i; }), edges, COLS * (rows + 1));"),
     # a data-id on each link
     ("'<g class=\"kgc-e ' + (e.cls || '') + '\">",
      "'<g class=\"kgc-e ' + (e.cls || '') + '\"' + (e.id ? ' data-id=\"' + esc(e.id) + '\"' : '') + '>"),
 ]
+
+
+KG_IMPROVE_JS = r"""
+    var KG_SWEEPS = 12;
+    function kgImprove(at, edges, cells) {
+      function cost(at) {
+        var c = 0;
+        edges.forEach(function (e, i) {
+          var a = centre(at[e[0]]), b = centre(at[e[1]]);
+          c += Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)) / 10;
+          for (var k = 0; k < at.length; k++) if (k !== e[0] && k !== e[1] && through(a, b, at[k])) c += 80;
+          for (var j = i + 1; j < edges.length; j++) {
+            var f = edges[j];
+            if (e[0] === f[0] || e[0] === f[1] || e[1] === f[0] || e[1] === f[1]) continue;
+            if (cross(a, b, centre(at[f[0]]), centre(at[f[1]]))) c += 40;
+          }
+        });
+        return c;
+      }
+      var best = cost(at);
+      for (var sweep = 0; sweep < KG_SWEEPS; sweep++) {
+        var better = false;
+        for (var i = 0; i < at.length; i++) {
+          for (var c = 0; c < cells; c++) {
+            if (c === at[i]) continue;
+            var other = at.indexOf(c), old = at[i];
+            at[i] = c; if (other >= 0) at[other] = old;
+            var now = cost(at);
+            if (now < best - 1e-9) { best = now; better = true; }
+            else { at[i] = old; if (other >= 0) at[other] = c; }
+          }
+        }
+        if (!better) break;
+      }
+      return at;
+    }
+"""
 
 
 def picture_js() -> str:
@@ -274,6 +322,7 @@ def picture_js() -> str:
     return ("  // ---- the chat demo's pictures, cut from fabric_backend/static/chat-demo.js when the card is built (n170)\n"
             "  function kgDemoPicture(P) {\n"
             "    var pics = [];\n"
+            + KG_IMPROVE_JS +
             "    function esc(s) { return String(s).replace(/[&<>\"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', \"'\": '&#39;' }[c]; }); }\n"
             + code +
             "    return { picture: picture, placement: placement, cellXY: cellXY, centre: centre, pics: pics, NW: NW, NH: NH, PORT: PORT };\n"
@@ -284,7 +333,8 @@ def picture_js() -> str:
 # and readable() of the card (mcp_apps.READ_JS) and renderActions (mcp_apps_build.ACTIONS_JS) for the products' buttons.
 DRAW_JS = r"""
   var STATE_WORD = { passed: "passed", failed: "failed", warning: "holds, but the target key is not unique",
-                     empty: "no row has a value", stale: "check is stale", not_checked: "not checked" };
+                     empty: "no row has a value", stale: "check is stale", not_checked: "not checked",
+                     not_counted: "not counted: the counting query could not run" };
   function kgPlural(n, one, many) { return n + " " + (n === 1 ? one : (many || one + "s")); }
   function kgPair(r) {
     var s = (r.source_cols || []).join("+"), t = (r.target_cols || []).join("+");
@@ -292,7 +342,7 @@ DRAW_JS = r"""
   }
   function kgRelText(r) {
     var t = r.source + "." + (r.source_cols || []).join("+") + " \u2192 " + r.target + "." + (r.target_cols || []).join("+") + ", rule " + r.rule;
-    if (r.state) t += ", " + STATE_WORD[r.state] + (r.orphans != null && r.state !== "not_checked" ? " (" + kgPlural(Number(r.orphans) || 0, "orphan") + ", " + (r.rows_with_value != null ? r.rows_with_value + " rows with a value" : "") + ")" : "");
+    if (r.state) t += ", " + STATE_WORD[r.state] + (r.orphans != null && r.state !== "not_checked" && r.state !== "not_counted" ? " (" + kgPlural(Number(r.orphans) || 0, "orphan") + ", " + (r.rows_with_value != null ? r.rows_with_value + " rows with a value" : "") + ")" : "");
     if (r.review && r.review !== "proposed") t += ", " + r.review;
     return t;
   }
@@ -301,31 +351,49 @@ DRAW_JS = r"""
     if (r.state === "failed") top += " \u2715 " + kgPlural(Number(r.orphans) || 0, "orphan");
     else if (r.state === "passed") top += " \u2713";
     else if (r.state === "warning") top += " !";
+    else if (r.state === "not_counted") top += " not counted";
     if (r.review === "rejected") top += " rejected";
     else if (r.review === "accepted") top += " accepted";
     else if (r.review === "open") top += " open";
     return [top, kgPair(r)];
   }
-  // svgText: the picture's inner SVG from the chat demo's picture(); labels: [{id, lines, cls, a, b}] drawn on top,
-  // each moved up or down until it covers no table and no other label.
+  // svgText: the picture's inner SVG from the chat demo's picture(); labels: [{id, lines, cls, a, b}] drawn on top.
+  // n172: each label sits on its own line: at the middle of the drawn segment (between the two tables' edges), else
+  // slid along the line, else with its first line only (the rule and the state); it never covers a table, another label
+  // or the picture's edge. A label that fits nowhere is left out of the picture (data-unlabelled on the line) and is in
+  // the list under it. Founder, 8 November 2026: a horizontal link's label floated above the map and covered a table.
+  function kgSeg(D, a, b) {                      // the drawn segment, as picture() clips it at the tables' edges
+    var dx = b.x - a.x, dy = b.y - a.y;
+    var out1 = function (right) { return Math.min(dx ? (D.NW / 2 + 1 + (right ? -D.PORT : D.PORT)) / Math.abs(dx) : Infinity, dy ? (D.NH / 2 + 1) / Math.abs(dy) : Infinity); };
+    var ta = out1(dx > 0), tb = out1(dx < 0);
+    return { p: { x: a.x + dx * ta, y: a.y + dy * ta }, q: { x: b.x - dx * tb, y: b.y - dy * tb } };
+  }
+  var KG_ALONG = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74, 0.18, 0.82];
   function kgSvg(D, desc, labels, kind) {
-    var L = D.placement(), last = D.pics[D.pics.length - 1], rects = [], out = [];
-    Object.keys(L.cell).forEach(function (t) { var p = D.cellXY(L.cell[t]); rects.push({ x: p.x - 2, y: p.y - 8, w: D.NW + 4, h: D.NH + 10 }); });
-    function hits(r) { return rects.some(function (o) { return r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h; }); }
+    var L = D.placement(), last = D.pics[D.pics.length - 1], rects = [], out = [], skipped = [];
+    Object.keys(L.cell).forEach(function (t) { var p = D.cellXY(L.cell[t]); rects.push({ x: p.x - 3, y: p.y - 9, w: D.NW + 6, h: D.NH + 12 }); });
+    function hits(r) {
+      if (r.x < 1 || r.x + r.w > L.width - 1) return true;
+      return rects.some(function (o) { return r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h; });
+    }
+    function size(lines) { return { w: Math.max(lines[0].length * 6.6, (lines[1] || "").length * 6.1) + 14, h: lines[1] ? 30 : 17 }; }
+    var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
     labels.forEach(function (lb) {
-      var w = Math.max(lb.lines[0].length * 6.6, (lb.lines[1] || "").length * 6.1) + 14, h = lb.lines[1] ? 30 : 17;
-      var mx = (lb.a.x + lb.b.x) / 2, my = (lb.a.y + lb.b.y) / 2, best = null;
-      [0, -1, 1, -2, 2, -3, 3, -4, 4].some(function (k) {
-        var r = { x: mx - w / 2, y: my - h / 2 + k * (h / 2 + 4), w: w, h: h };
-        if (!hits(r)) { best = r; return true; }
-        return false;
+      var seg = kgSeg(D, lb.a, lb.b), best = null, lines = null;
+      [lb.lines, lb.lines.slice(0, 1)].some(function (ls) {
+        var sz = size(ls);
+        return KG_ALONG.some(function (t) {
+          var cx = seg.p.x + (seg.q.x - seg.p.x) * t, cy = seg.p.y + (seg.q.y - seg.p.y) * t;
+          var r = { x: cx - sz.w / 2, y: cy - sz.h / 2, w: sz.w, h: sz.h, cx: cx, cy: cy };
+          if (hits(r)) return false;
+          best = r; lines = ls; return true;
+        });
       });
-      if (!best) best = { x: mx - w / 2, y: my - h / 2, w: w, h: h };
+      if (!best) { skipped.push(lb.id); return; }
       rects.push(best);
-      var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); };
-      out.push('<g class="kgc-lab ' + lb.cls + '" data-id="' + esc(lb.id) + '"><rect x="' + best.x + '" y="' + best.y + '" width="' + w + '" height="' + h + '" rx="8"/>' +
-               '<text class="r" x="' + (best.x + w / 2) + '" y="' + (best.y + 12.5) + '" text-anchor="middle">' + esc(lb.lines[0]) + '</text>' +
-               (lb.lines[1] ? '<text x="' + (best.x + w / 2) + '" y="' + (best.y + 25) + '" text-anchor="middle">' + esc(lb.lines[1]) + '</text>' : '') + '</g>');
+      out.push('<g class="kgc-lab ' + lb.cls + '" data-id="' + esc(lb.id) + '" data-cx="' + best.cx + '" data-cy="' + best.cy + '"><rect x="' + best.x + '" y="' + best.y + '" width="' + best.w + '" height="' + best.h + '" rx="8"/>' +
+               '<text class="r" x="' + best.cx + '" y="' + (best.y + 12.5) + '" text-anchor="middle">' + esc(lines[0]) + '</text>' +
+               (lines[1] ? '<text x="' + best.cx + '" y="' + (best.y + 25) + '" text-anchor="middle">' + esc(lines[1]) + '</text>' : '') + '</g>');
     });
     var bottom = L.height;
     rects.forEach(function (r) { bottom = Math.max(bottom, r.y + r.h + 4); });
@@ -335,6 +403,7 @@ DRAW_JS = r"""
     svg.setAttribute("class", "kgc-svg " + kind);
     svg.setAttribute("viewBox", "0 " + top + " " + L.width + " " + (bottom - top));
     svg.setAttribute("width", L.width); svg.setAttribute("role", "img"); svg.setAttribute("aria-label", desc);
+    if (skipped.length) svg.setAttribute("data-unlabelled", skipped.join(" "));
     wrap.appendChild(svg);
     return wrap;
   }
@@ -342,7 +411,7 @@ DRAW_JS = r"""
   // inert document: nothing in it runs) and keeps only the elements and attributes a drawing has, before it is adopted.
   var KG_TAGS = { svg: 1, g: 1, rect: 1, text: 1, line: 1, circle: 1, path: 1, title: 1 };
   var KG_ATTRS = { "class": 1, x: 1, y: 1, x1: 1, y1: 1, x2: 1, y2: 1, cx: 1, cy: 1, r: 1, rx: 1, width: 1, height: 1, d: 1,
-                   "text-anchor": 1, "data-table": 1, "data-id": 1 };
+                   "text-anchor": 1, "data-table": 1, "data-id": 1, "data-cx": 1, "data-cy": 1 };
   function kgParse(inner) {
     var doc = new DOMParser().parseFromString("<svg>" + inner + "</svg>", "text/html");
     var root = doc.body.firstElementChild;
@@ -378,10 +447,11 @@ DRAW_JS = r"""
     var rels = (m.relationships || []).filter(isObj), names = m.tables.map(function (t) { return t.name; });
     var D = kgDemoPicture(kgPlanP(names, rels)), L = D.placement();
     var keyless = m.tables.filter(function (t) { return !(t.key || []).length; }).map(function (t) { return t.name; });
-    var counts = { passed: 0, failed: 0, not_checked: 0 };
-    rels.forEach(function (r) { if (r.state === "passed") counts.passed++; else if (r.state === "failed") counts.failed++; else if (r.state) counts.not_checked++; });
+    var counts = { passed: 0, failed: 0, not_checked: 0, not_counted: 0 };
+    rels.forEach(function (r) { if (r.state === "passed") counts.passed++; else if (r.state === "failed") counts.failed++; else if (r.state === "not_counted") counts.not_counted++; else if (r.state) counts.not_checked++; });
     var desc = "Map of " + kgPlural(m.tables.length, "table") + " and " + kgPlural(rels.length, "relationship") +
                (m.checked ? ": " + counts.passed + " passed, " + counts.failed + " failed, " + counts.not_checked + " not checked" : "") +
+               (counts.not_counted ? "; " + counts.not_counted + " not counted" : "") +
                (keyless.length ? "; no key: " + keyless.join(", ") : "") + ".";
     D.picture(desc, m.tables.map(function (t) {
       var k = t.key || [];
@@ -397,9 +467,10 @@ DRAW_JS = r"""
     }), "kg-map");
     box.appendChild(el("h2", "Map of the tables and links", "muted"));
     box.appendChild(pic);
-    if (m.checked) {
+    if (m.checked || counts.not_counted) {
       var legend = el("p", null, "muted kg-legend");
-      [["passed", "passed"], ["failed", "failed (orphans)"], ["not_checked", "not checked"]].forEach(function (x) {
+      (m.checked ? [["passed", "passed"], ["failed", "failed (orphans)"], ["not_checked", "not checked"]] : []).concat(
+        counts.not_counted ? [["not_counted", "not counted"]] : []).forEach(function (x) {
         var s = el("span", x[1], "lg st-" + x[0]); legend.appendChild(s);
       });
       if (m.reviewed) legend.appendChild(el("span", "dashed: rejected", "lg"));
@@ -515,7 +586,8 @@ CSS = """
 .kgc-e.st-passed line { stroke: var(--kg-ok) } .kgc-e.st-passed circle { fill: var(--kg-ok) }
 .kgc-e.st-failed line { stroke: var(--kg-bad); stroke-width: 2.6 } .kgc-e.st-failed circle { fill: var(--kg-bad) }
 .kgc-e.st-warning line, .kgc-e.st-stale line { stroke: var(--kg-warn) }
-.kgc-e.st-not_checked line, .kgc-e.st-empty line { stroke: var(--kg-muted); stroke-dasharray: 2 3 }
+.kgc-e.st-not_checked line, .kgc-e.st-empty line, .kgc-e.st-not_counted line { stroke: var(--kg-muted); stroke-dasharray: 2 3 }
+.kgc-e.st-not_counted circle { fill: var(--kg-muted) }
 .kgc-e.rejected line, .kgc-e.off line { stroke-dasharray: 6 4; opacity: .65 }
 .kgc-e.faint line { opacity: .35 }
 .kgc-e.iface line { stroke-width: 3 }
@@ -527,13 +599,14 @@ CSS = """
 .kgc-lab text.r { font-weight: 700 }
 .kgc-lab.st-passed rect { stroke: var(--kg-ok) } .kgc-lab.st-passed text.r { fill: var(--kg-ok) }
 .kgc-lab.st-failed rect { stroke: var(--kg-bad); stroke-width: 1.6 } .kgc-lab.st-failed text.r { fill: var(--kg-bad) }
-.kgc-lab.st-not_checked text.r, .kgc-lab.st-empty text.r { fill: var(--kg-muted) }
+.kgc-lab.st-not_checked text.r, .kgc-lab.st-empty text.r, .kgc-lab.st-not_counted text.r { fill: var(--kg-muted) }
+.kgc-lab.st-not_counted rect { stroke-dasharray: 3 2 }
 .kgc-lab.rejected { opacity: .7 }
 .kg-pic .lit rect, .kg-pic .lit line { stroke: var(--kg-pic-accent) !important; stroke-width: 3 !important }
 .kg-legend { display: flex; flex-wrap: wrap; gap: 4px 12px }
 .kg-legend .lg::before { content: ""; display: inline-block; width: 14px; height: 3px; margin-right: 5px; vertical-align: middle; background: var(--kg-pic-edge) }
 .kg-legend .st-passed::before { background: var(--kg-ok) } .kg-legend .st-failed::before { background: var(--kg-bad) }
-.kg-legend .st-not_checked::before { background: var(--kg-muted) }
+.kg-legend .st-not_checked::before, .kg-legend .st-not_counted::before { background: var(--kg-muted) }
 .kg-list { font-size: 13.5px } .kg-list li:focus { outline: 2px solid var(--kg-pic-accent); outline-offset: 2px }
 .kg-list li.warn { color: var(--kg-bad) }
 .kg-more summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px }

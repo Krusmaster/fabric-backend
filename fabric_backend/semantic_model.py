@@ -635,7 +635,7 @@ def draft(plan: Plan, info: dict, name: str = "semantic_model", tables: list[str
                "relationships_active": len(active), "relationships_inactive": len(inactive),
                "relationships_not_expressible": len(composite), "keyless": keyless, "composite_keys": multi_key,
                "storage_mode": "directLake (SQL analytics endpoint)", "compatibility_level": COMPATIBILITY_LEVEL,
-               "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "why": why} for r, why in inactive],
+               "inactive": [{"source": r.source, "columns": r.source_cols, "target": r.target, "rule": r.rule, "why": why} for r, why in inactive],
                "not_expressible": [{"source": r.source, "columns": r.source_cols, "target": r.target, "target_columns": r.target_cols,
                                     "rule": r.rule, "why": why_not(r), **({"key_not_unique": True} if r.target in dup else {})}
                                    for r in composite],

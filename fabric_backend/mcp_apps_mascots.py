@@ -14,6 +14,8 @@ How the cards use them (`mcp_apps.py`, `mcp_apps_review.py`), in the way the sit
   nothing from the answer to say is not shown. Mascots are decoration, never the only carrier of information (docs/SITE.md).
 - A figure is glad (`celebrate`, `heart`) only when the check passed; on a failed check, an error or a cancelled call
   nobody celebrates (`GLAD`, `poses()` in the card script).
+- n172: Onto says the card's summary sentences once: the card's own copy of them (data-echo="onto") is hidden while
+  Onto's bubble shows it, and shown again when the mascots are off.
 - A visible button on the card, "Mascots: on" / "Mascots: off", hides them, like the site's footer switch. The choice
   lasts as long as the card: the cards use no storage.
 - No animation: the poses are still positions (the site's `site.css` pose rules without its keyframes).
@@ -149,7 +151,7 @@ TOGGLE = ('<button id="kg-toggle" class="kg-toggle" type="button" aria-pressed="
 # The card script's part: show(sayings, glad) puts each figure's sentence in its bubble, or hides it when it has none;
 # a figure is glad only when `glad` is true (the check passed), never otherwise.
 JS = r"""
-  var mascotsOn = true, GLAD = __GLAD__;
+  var mascotsOn = true, GLAD = __GLAD__, ARGS_SAID = __ARGS_SAID__;
   function mascots(say, passed) {
     // say: {onto: [text, pose], thinker: [...], builder: [...]}; passed: true only when the check passed.
     var box = document.getElementById("kg-mascots"), any = false;
@@ -160,15 +162,24 @@ JS = r"""
       row.querySelector("svg").setAttribute("data-pose", pose);
       row.className = "kg-say " + k + (passed && GLAD.indexOf(pose) >= 0 ? " glad" : "");
       // n137: a figure says a sentence, never a JSON text (seen live when the card could not read the answer).
-      var line = s && typeof s[0] === "string" && s[0].trim() && !/^\s*[\[{]/.test(s[0]) ? s[0] : "";
+      // n172: nor a tool call: name=value or "run <tool> with" (the buttons carry the arguments; mcp_apps_words.py)
+      var line = s && typeof s[0] === "string" && s[0].trim() && !/^\s*[\[{]/.test(s[0]) && !ARGS_SAID.test(s[0]) ? s[0] : "";
       row.querySelector(".kg-line").textContent = line;
       row.hidden = !line;
       any = any || !row.hidden;
     });
     box.setAttribute("data-filled", any ? "1" : "");
     box.hidden = !any || !mascotsOn;
+    mascotsEcho();
   }
-  function mascotsQuiet() { var box = document.getElementById("kg-mascots"); box.setAttribute("data-filled", ""); box.hidden = true; }
+  // n172: what Onto says is not said twice. An element with data-echo="onto" holds the same sentences as Onto's bubble;
+  // it is hidden while that bubble shows, and shown when the mascots are off (they never carry information alone).
+  function mascotsEcho() {
+    var box = document.getElementById("kg-mascots"), row = box.querySelector('[data-mascot="onto"]');
+    var said = !box.hidden && !row.hidden ? row.querySelector(".kg-line").textContent : null;
+    document.querySelectorAll('[data-echo="onto"]').forEach(function (e) { e.hidden = said !== null && said === e.getAttribute("data-said"); });
+  }
+  function mascotsQuiet() { var box = document.getElementById("kg-mascots"); box.setAttribute("data-filled", ""); box.hidden = true; mascotsEcho(); }
   (function () {
     var b = document.getElementById("kg-toggle");
     b.addEventListener("click", function () {
@@ -177,6 +188,10 @@ JS = r"""
       b.textContent = mascotsOn ? "Mascots: on" : "Mascots: off";
       var box = document.getElementById("kg-mascots");
       box.hidden = !mascotsOn || !box.getAttribute("data-filled");
+      mascotsEcho();
     });
   })();
 """.replace("__GLAD__", json.dumps(list(GLAD)))
+# the same pattern as mcp_apps_words.WORDS_WITH_ARGUMENTS, as a JS regular expression literal
+ARGS_SAID_JS = r'/\b[a-z_]+=(?:"|\'|\[|\{|true\b|false\b|\d)|\brun [a-z]+_[a-z_]+\b|\b[a-z]+_[a-z_]+\(/i'
+JS = JS.replace("__ARGS_SAID__", ARGS_SAID_JS)

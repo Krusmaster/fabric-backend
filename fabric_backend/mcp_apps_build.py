@@ -191,6 +191,13 @@ def _product_builds(args: dict, answer: dict, taken) -> tuple[list[dict], str | 
     return out, None
 
 
+def _count_failed(answer: dict) -> bool:
+    """n172: the plan holds a candidate whose counting query could not run (infer.count_failed), in either detail form."""
+    from .infer import R5_COUNT_FAILED
+    return any((isinstance(x, dict) and x.get("not_counted") == "failed") or (isinstance(x, str) and R5_COUNT_FAILED in x)
+               for x in answer.get("proposed") or [])
+
+
 def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: str | None = None) -> tuple[list[dict], str | None]:
     """(actions, note) for one answer. `args` are the call's arguments as given (no ctx); `taken` the workspace's item
     names, or None when they could not be read (then no build button and no Create, and `note` says why)."""
@@ -204,6 +211,8 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
     if tool in ("plan_backend", "validate_plan"):
         schema = answer.get("schema_chosen") or args.get("schema")
         out = []
+        if tool == "plan_backend" and _count_failed(answer):           # n172: a counting query could not run
+            out.append(action("call", "Count again", "thinker", "plan_backend", dict(args)))
         if tool == "plan_backend":
             out.append(action("call", "Check against the rows", "thinker", "validate_plan",
                               {**_carried(args, "workspace", "source"), **({"schema": schema} if schema else {}),
@@ -437,6 +446,7 @@ _HTML = """<!DOCTYPE html>
   --kg-font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
 * { box-sizing: border-box }
+[hidden] { display: none !important }
 html, body { margin: 0; background: var(--kg-bg); color: var(--kg-ink); font: 15px/1.45 var(--kg-font) }
 main { padding: 14px 16px; display: grid; gap: 12px }
 h1 { margin: 0; font-size: 17px; font-weight: 650 }
@@ -490,6 +500,13 @@ __READ_JS__
     if (isObj(d.summary) && "relationships_active" in d.summary) return "create_semantic_model";
     return "";
   }
+  function detailsOf(d) {                                   // the whole answer, folded: what the summary sentences came from
+    var box = el("div", null, "res-box"), det = el("details"), full = JSON.stringify(d, null, 2);
+    det.appendChild(el("summary", "Show details"));
+    det.appendChild(el("pre", full.length > 60000 ? full.slice(0, 60000) + "\\n… (the rest is in the tool's own answer)" : full));
+    box.appendChild(det);
+    return box;
+  }
   function firstLine(s) { return readable(s) ? String(s).split("\\n")[0] : ""; }
   function render(result) {
     var d = answerOf(result), verdict = document.getElementById("verdict");
@@ -498,8 +515,13 @@ __READ_JS__
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
     if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); mascots({ thinker: [d.error, "think"] }, false); return; }
     var t = tool || guessTool(d);
-    document.getElementById("title").textContent = (TITLES[t] || "Plan and build") + (d.dry_run === true ? ": dry run" : (d.dry_run === false ? ": created" : ""));
-    var builder = "", thinker = "", onto = "";
+    // n172: the card's words (mcp_apps_words.py): a short title, the summary as sentences Onto says once, and bubbles
+    // in plain English; the buttons carry the arguments.
+    var words = isObj(d.kg_card) ? d.kg_card : {};
+    document.getElementById("title").textContent = readable(words.title) ? words.title :
+      (TITLES[t] || "Plan and build") + (d.dry_run === true ? ": dry run" : (d.dry_run === false ? ": created" : ""));
+    verdict.removeAttribute("data-echo"); verdict.removeAttribute("data-said"); verdict.hidden = false;
+    var builder = readable(words.builder), thinker = readable(words.thinker), onto = "";
     if (d.choose_schema) {
       verdict.textContent = readable(d.summary);
       thinker = readable(d.summary);
@@ -517,6 +539,11 @@ __READ_JS__
       verdict.textContent = n + (n === 1 ? " data product" : " data products") + " proposed from the keys and relationships; nothing was created." + (readable(d.note) ? " " + d.note : "");
     } else if (t === "ontology_draft") {
       verdict.textContent = "A draft: nothing was created." + (readable(d.note) ? " " + d.note : "");
+    } else if (Array.isArray(words.lines) && words.lines.length) {
+      verdict.textContent = words.lines.filter(readable).join(" ");
+      onto = readable(words.onto);
+      if (onto && onto === verdict.textContent) { verdict.setAttribute("data-echo", "onto"); verdict.setAttribute("data-said", onto); }
+      answer.appendChild(detailsOf(d));
     } else {
       var s = isObj(d.summary) ? "" : firstLine(d.summary);
       verdict.textContent = s || "The plan is in the answer.";
@@ -529,7 +556,7 @@ __READ_JS__
     renderActions(d, next, isObj(input) ? input : null);
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(isObj);   // each mascot says its first step, word for word
     var mine = function (who) { var a = acts.filter(function (x) { return x.who === who; })[0]; return a ? readable(a.say) : ""; };
-    if (next.querySelector("button")) { builder = builder || mine("builder"); thinker = thinker || mine("thinker"); }
+    if (next.querySelector("button") && !isObj(d.kg_card)) { builder = builder || mine("builder"); thinker = thinker || mine("thinker"); }
     if (readable(d.actions_note)) thinker = thinker || d.actions_note;
     mascots({ onto: [onto, "point"], thinker: [thinker, "think"], builder: [builder, "explain"] }, false);
   }

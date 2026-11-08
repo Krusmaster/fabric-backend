@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import re
 import struct
+import time
 
 from ..deploy import ENDPOINT_ITEM_ROUTES, FABRIC, find_item_by_name
 from ..dialects import TSQL
@@ -91,28 +92,76 @@ def resolve_source(workspace: str, source: str, headers: dict, find=find_item_by
 
 # ------------------------------------------------------------------ 2. run SQL -----------------------------------
 
-def connect(item: dict, sql_token: str, login_timeout: int = LOGIN_TIMEOUT, query_timeout: int = QUERY_TIMEOUT):
-    """DB-API over the SQL analytics endpoint with an Entra access token (ODBC Driver 18)."""
+RETRY_DELAYS = (1.0, 3.0)   # n172: seconds before the 2nd and the 3rd try of a read after a transient error (errors.transient)
+_sleep = time.sleep         # patched by the tests
+
+
+def connect(item: dict, sql_token: str, login_timeout: int = LOGIN_TIMEOUT, query_timeout: int = QUERY_TIMEOUT,
+            delays: tuple[float, ...] | None = None, sleep=None):
+    """DB-API over the SQL analytics endpoint with an Entra access token (ODBC Driver 18).
+
+    n172: a read (execute) that fails with a transient connection error (errors.transient: SQLSTATE 08S01, the TCP
+    Provider's socket errors, Azure SQL's transient error numbers) is tried again on a fresh connection, after each delay
+    in `delays`: at most len(delays) + 1 tries. The sign-in, a syntax error, a missing object and a timeout are never
+    tried again. When the last try fails, its error is raised as it came. DDL (statement) is not tried again.
+    `execute.retries` counts the tries that were repeated, for the answer and the tests."""
     import pyodbc
+    from ..errors import transient
     if not item.get("sql_host"):
         raise RuntimeError("source has no SQL endpoint connection string yet")
     tok = sql_token.encode("utf-16-le")
     attrs = {1256: struct.pack("<i", len(tok)) + tok}      # SQL_COPT_SS_ACCESS_TOKEN
-    conn = pyodbc.connect(f"Driver={{ODBC Driver 18 for SQL Server}};Server={item['sql_host']};Database={item['sql_db']};Encrypt=yes",
-                          attrs_before=attrs, timeout=login_timeout)     # a cold or paused endpoint fails as `timeout`, not a hang
-    conn.timeout = query_timeout                                           # per statement; the driver raises HYT00, explained as `timeout`
+    dsn = f"Driver={{ODBC Driver 18 for SQL Server}};Server={item['sql_host']};Database={item['sql_db']};Encrypt=yes"
+    delays = RETRY_DELAYS if delays is None else tuple(delays)
+    wait = sleep or _sleep
 
-    def execute(sql: str):
+    def open_():
+        c = pyodbc.connect(dsn, attrs_before=attrs, timeout=login_timeout)   # a cold or paused endpoint fails as `timeout`, not a hang
+        c.timeout = query_timeout                                            # per statement; the driver raises HYT00, explained as `timeout`
+        return c
+
+    def tried(run):
+        for i in range(len(delays) + 1):
+            try:
+                if state["conn"] is None:
+                    state["conn"] = open_()
+                return run(state["conn"])
+            except Exception as e:                                           # noqa: BLE001 - raised again unless transient
+                if i >= len(delays) or not transient(e):
+                    raise
+                try:
+                    if state["conn"] is not None:
+                        state["conn"].close()
+                except Exception:                                            # noqa: BLE001 - the link is gone already
+                    pass
+                state["conn"] = None
+                execute.retries += 1
+                wait(delays[i])
+
+    state = {"conn": None}
+
+    def read(conn, sql):
         cur = conn.cursor()
         cur.execute(sql)
         cols = [d[0] for d in cur.description]
         return [dict(zip(cols, r)) for r in cur.fetchall()]
 
+    def execute(sql: str):
+        return tried(lambda c: read(c, sql))
+
     def statement(sql: str) -> None:                                       # DDL (CREATE OR ALTER VIEW): no rows, committed
-        cur = conn.cursor()
+        if state["conn"] is None:
+            state["conn"] = open_()
+        cur = state["conn"].cursor()
         cur.execute(sql)
-        conn.commit()
-    return connection(execute, dialect=TSQL, statement=statement, close=conn.close)
+        state["conn"].commit()
+
+    def close():
+        if state["conn"] is not None:
+            state["conn"].close()
+    execute.retries = 0
+    state["conn"] = tried(lambda c: c)                                      # the login: a transient failure is tried again too
+    return connection(execute, dialect=TSQL, statement=statement, close=close)
 
 
 # ------------------------------------------------------------------ 3. build -------------------------------------

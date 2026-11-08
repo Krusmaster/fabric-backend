@@ -100,11 +100,10 @@ def structured(fn, name: str | None = None):
     from . import mcp_apps_pictures as pictures
     name = name or fn.__name__
 
+    from . import mcp_apps_words as words                     # n172: the card's words, in plain English
+
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
-        if name not in pictures.PICTURE_TOOLS:
-            out = fn(*args, **kwargs)
-            return call_result(out) if isinstance(out, str) else out
         token = pictures.begin()
         try:
             out = fn(*args, **kwargs)
@@ -112,11 +111,21 @@ def structured(fn, name: str | None = None):
             stash = pictures.end(token)
         if not isinstance(out, str):
             return out
+        extra = {}
         try:
-            extra = pictures.extras(name, json.loads(out), stash)
-        except Exception:                                            # noqa: BLE001 - the answer stands without a picture
-            extra = None
-        return call_result(out, extra)
+            answer = json.loads(out)
+        except ValueError:
+            return call_result(out)
+        if name in pictures.PICTURE_TOOLS:
+            try:
+                extra.update(pictures.extras(name, answer, stash))
+            except Exception:                                        # noqa: BLE001 - the answer stands without a picture
+                pass
+        try:
+            extra.update(words.extras(name, answer, stash))
+        except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
+            pass
+        return call_result(out, extra or None)
     return wrapper
 
 
@@ -273,6 +282,17 @@ RESULT_JS = r"""
   }
   function name(x) { return typeof x === "string" ? x : ""; }
   function plural(n, one, many) { return n + " " + (n === 1 ? one : many); }
+  // n172: what the card shows a customer leaves out the maintainers' notes (how and when a tool was tested; they stay in
+  // the tool's text answer and in docs/), and says the rule instead of a certainty number.
+  var MAINTAINER = /unit-tested|unit tests|tested end to end|run live|tried live|created [^.]* live|live against|live run|synthetic data|docs\/[A-Z-]+\.md/i;
+  function customer(t, rule) {
+    if (!readable(t)) return "";
+    t = String(t).replace(/;?\s*the active path has certainty [\d.]+, this link [\d.]+/i,
+                          "; the other path stays active" + (rule ? " and this " + rule + " link is inactive" : ""))
+                 .replace(/,?\s*\(?certainty [\d.]+\)?/gi, "");
+    var kept = t.split(/(?<=[.!?])\s+(?=[A-Z0-9`])/).filter(function (x) { return !MAINTAINER.test(x); });
+    return kept.join(" ").trim();
+  }
   // { lines: [[label, text]], questions: [[question, why]] }, from names and counts only
   function summaryOf(tool, d) {
     var lines = [], questions = [], s = isObj(d.summary) ? d.summary : null;
@@ -291,13 +311,13 @@ RESULT_JS = r"""
       var notes = [];
       if (arr(s.keyless).length) notes.push("No key: " + some(arr(s.keyless), name) + ".");
       if (arr(s.composite_keys).length) notes.push("Composite key: " + some(arr(s.composite_keys), name) + ".");
-      arr(s.inactive).forEach(function (r) { if (isObj(r)) notes.push("Inactive: " + r.source + "." + arr(r.columns).join("+") + " → " + r.target + (readable(r.why) ? ": " + r.why : "") + "."); });
+      arr(s.inactive).forEach(function (r) { if (isObj(r)) notes.push("Inactive: " + r.source + "." + arr(r.columns).join("+") + " → " + r.target + (r.rule ? " (" + r.rule + ")" : "") + (customer(r.why, r.rule) ? ": " + customer(r.why, r.rule) : "") + "."); });
       arr(s.not_expressible).forEach(function (r) { if (isObj(r)) notes.push("Not expressible: " + r.source + " → " + r.target + (readable(r.why) ? ": " + r.why : "") + "."); });
       arr(s.header_amounts).forEach(function (h) { if (isObj(h)) notes.push("Header amount " + h.table + "." + h.column + " is not summed over " + arr(h.lines).join(", ") + "."); });
       var dt = isObj(s.date_table) ? s.date_table : null;
       if (dt && name(dt.name)) notes.push("Date table " + dt.name + (arr(dt.related).length ? ", related to " + some(arr(dt.related), function (r) { return isObj(r) ? r.fact + "." + r.column : ""; }) : "") +
         (arr(dt.not_related).length ? "; not related: " + some(arr(dt.not_related), function (r) { return isObj(r) ? r.fact + "." + r.column + (readable(r.why) ? " (" + r.why + ")" : "") : ""; }) : "") + ".");
-      if (readable(d.note)) notes.push(d.note);
+      if (customer(d.note)) notes.push(customer(d.note));
       notes.forEach(function (n) { lines.push(["Note", n]); });
     } else if (s && Array.isArray(d.bindings) && "entity_types" in s) {   // an ontology draft
       var binds = arr(d.bindings).filter(isObj);
@@ -318,7 +338,7 @@ RESULT_JS = r"""
         else q = (who ? who + ": is" : "Is") + " this right?";
         questions.push([q, n]);
       });
-      if (readable(d.note)) lines.push(["Note", d.note]);
+      if (customer(d.note)) lines.push(["Note", customer(d.note)]);
     } else if (readable(d.summary)) {
       lines.push(["Summary", d.summary]);
     } else if (s) {
@@ -376,6 +396,7 @@ _HTML = """<!DOCTYPE html>
   --kg-font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
 * { box-sizing: border-box }
+[hidden] { display: none !important }
 html, body { margin: 0; background: var(--kg-bg); color: var(--kg-ink); font: 15px/1.45 var(--kg-font) }
 main { padding: 14px 16px; display: grid; gap: 12px }
 h1 { margin: 0; font-size: 17px; font-weight: 650 }
@@ -390,6 +411,8 @@ p { margin: 0 }
 ul { margin: 0; padding-left: 18px }
 li { margin: 2px 0 }
 .steps { display: grid; gap: 8px }
+.more summary { cursor: pointer; color: var(--kg-muted); font-size: 13.5px; font-weight: 600 }
+.more { display: grid; gap: 6px }
 .step { display: grid; gap: 4px; border: 1px solid var(--kg-line); border-radius: var(--kg-radius); padding: 8px 10px }
 button { font: inherit; font-weight: 650; justify-self: start; color: var(--kg-ink); background: var(--kg-card);
   border: 1px solid var(--kg-line); border-radius: 999px; padding: 4px 14px; cursor: pointer }
@@ -409,8 +432,8 @@ __RESULT_CSS__
   <dl id="counts" class="counts" hidden></dl>
   __PICTURES__
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
-  <section id="next" hidden><h2 class="muted">Next steps (each reads or drafts; nothing is created)</h2><div id="steps" class="steps"></div></section>
   <section id="build" hidden></section>
+  <details id="next" class="more" hidden><summary>More</summary><p class="muted">Drafts that only read; nothing is created.</p><div id="steps" class="steps"></div></details>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that tool; the host may ask you first.</p>
 </main>
 <script>
@@ -437,7 +460,10 @@ __READ_JS__
     ["counts", "result", "attention", "next", "build"].forEach(function (id) { document.getElementById(id).hidden = true; });
     if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
-    verdict.textContent = readable(data.summary);
+    // n172: the card's words (mcp_apps_words.py): the summary as short sentences that Onto says once
+    var words = isObj(data.kg_card) ? data.kg_card : {}, ontoSaid = readable(words.onto);
+    var lines = Array.isArray(words.lines) ? words.lines.filter(readable) : [];
+    verdict.textContent = lines.length ? lines.join(" ") : readable(data.summary);
     var counts = document.getElementById("counts"); counts.textContent = "";
     var totals = data.totals || {};
     [["keys", "Keys"], ["relationships", "Relationships"], ["amount_levels", "Header amounts"]].forEach(function (k) {
@@ -450,11 +476,15 @@ __READ_JS__
     box.appendChild(el("dd", String(Number(data.needs_attention) || 0), data.needs_attention ? "warn" : "ok"));
     counts.appendChild(box);
     counts.hidden = false;
+    [verdict, counts].forEach(function (e) {                    // shown here only while Onto does not say it
+      if (ontoSaid && lines.length) { e.setAttribute("data-echo", "onto"); e.setAttribute("data-said", ontoSaid); }
+      else { e.removeAttribute("data-echo"); e.removeAttribute("data-said"); }
+    });
     drawPictures(data, isObj(input) ? input : null);                 // n170: the map, as in the chat demo
 
     // n137: the overall result in words (an answer with nothing to attend to has one), never a JSON text. n138: it is
     // part of the summary line, once; the attention section then says only that nothing needs attention.
-    var res = document.getElementById("result"), said = readable(data.result);
+    var res = document.getElementById("result"), said = lines.length ? "" : readable(data.result);
     res.textContent = said ? (verdict.textContent ? ". " : "") + said : ""; res.hidden = !said;
 
     var list = document.getElementById("attention-list"); list.textContent = "";
@@ -499,14 +529,15 @@ __READ_JS__
     renderActions(data, build, null);
     build.hidden = !build.children.length;
     if (!firstStep && build.children.length && Array.isArray(data.actions) && isObj(data.actions[0])) firstStep = readable(data.actions[0].say);
+    if (isObj(data.kg_card)) firstStep = readable(words.builder);   // n172: what can be built, not the next step's text
 
     // n136: Onto says the counts, the Thinker what needs attention, the Builder the next step; every sentence is a
     // string of the answer and is on the card above. Glad only when every check passed and nothing needs attention.
     var checked = 0, failed = 0;
     Object.keys(totals).forEach(function (k) { var t = isObj(totals[k]) ? totals[k] : {}; checked += t.checked || 0; failed += t.failed || 0; });
     var passed = checked > 0 && failed === 0 && !data.needs_attention && !firstWhat;
-    mascots({ onto: [readable(data.summary), passed ? "celebrate" : "point"],
-              thinker: [firstWhat, "think"],
+    mascots({ onto: [ontoSaid || readable(data.summary), passed ? "celebrate" : "point"],
+              thinker: [readable(words.thinker) || firstWhat, "think"],
               builder: [firstStep, passed ? "heart" : "explain"] }, passed);
   }
 

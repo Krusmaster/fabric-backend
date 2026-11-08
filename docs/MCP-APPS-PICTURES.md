@@ -17,6 +17,9 @@ in Claude draw the same pictures as the chat demo. Code: `fabric_backend/mcp_app
 `/demo/plan.json`, `drafts.as_is.domains`, which `fabric_backend/demo.py` builds with the same `domains.draft()` the
 tool uses. The card shows only the products the tool returned; owners are not invented (the tool proposes none).
 
+Since n172 each label sits on its own line and never covers a table, a plan of more than 9 tables is improved by
+swapping tables between cells, and a link R5 could not count is drawn grey, "not counted" (`docs/MCP-APPS-POLISH.md`).
+
 Under each picture is the same content as a list ("The map as a list", folded), reachable by keyboard and read by a
 screen reader; focusing or pointing at a line marks its table or link in the picture. The picture itself is an
 `<svg role="img">` with a one-sentence description, which is also what Onto says on the card.

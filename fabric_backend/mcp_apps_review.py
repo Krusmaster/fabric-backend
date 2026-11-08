@@ -374,6 +374,7 @@ _HTML = r"""<!DOCTYPE html>
   --kg-font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
 * { box-sizing: border-box }
+[hidden] { display: none !important }
 html, body { margin: 0; background: var(--kg-bg); color: var(--kg-ink); font: 15px/1.45 var(--kg-font) }
 main { padding: 14px 16px; display: grid; gap: 12px; min-width: 0 }
 h1 { margin: 0; font-size: 17px; font-weight: 650 }

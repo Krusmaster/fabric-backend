@@ -66,6 +66,7 @@ from . import switches as _switches  # noqa: E402  (n123: both off unless the op
 from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same flag)
 from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
 from . import mcp_apps_pictures as _pictures  # noqa: E402  (n170: the cards' pictures; keeps nothing unless a card listens)
+from . import mcp_apps_words as _mcp_apps_words  # noqa: E402  (n172: the cards' words; computed only while a card listens)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -472,6 +473,7 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
+    _pictures.keep("words", lambda: _mcp_apps_words.plan_facts(p))              # n172: the card's summary in short sentences
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
         text = _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
