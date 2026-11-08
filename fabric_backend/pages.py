@@ -109,6 +109,12 @@ def _vars() -> dict[str, str]:
         # the MCP clients the site names as working with the hosted service, and the address for those that register
         "MCP_CLIENTS": _clients_sentence(), "CONNECT_URL": url.split("/mcp")[0] + "/mcp/connect", "CONNECT_TESTED": _connect_tested(),
         "CONNECT_URL_OAUTH": url.split("/mcp")[0] + "/oauth",
+        # n169: the address Claude's connector dialog takes. Live on 8 November 2026: Claude's new custom-connector dialog
+        # registers itself as an OAuth client, which /mcp does not offer ("Automatic client registration isn't supported"),
+        # so with client registration on Claude uses /mcp/connect with "Register automatically"; /mcp keeps working for
+        # connectors added before.
+        "CLAUDE_URL": (url.split("/mcp")[0] + "/mcp/connect") if _registration_on() else url,
+        "CLAUDE_WHY": CLAUDE_WHY if _registration_on() else "",
         # n146: one instruction for Claude Code on every page that gives one (llms.txt, and {{CLAUDE_CODE_CONNECT}} for /docs)
         "CLAUDE_CODE_CONNECT": _claude_code_connect(product.lower(), url, domain),
         # n73: Lovable's two rows in tool_status.CLIENTS (as an MCP client, and reading the API), for /lovable
@@ -127,6 +133,12 @@ def _vars() -> dict[str, str]:
         "SOURCES_STATUS": _listed([f"a {n[0].lower() + n[1:] if n != 'SQL database' else n} ({ts.source_word(t)})"
                                     for n, t in ts.SOURCES]).replace(" and a ", " or a "),
     }
+
+
+# n169: one line on why Claude uses /mcp/connect (shown wherever the Claude address is given, registration on only)
+CLAUDE_WHY = ("Why /mcp/connect: Claude’s connector dialog now registers itself as a client, and /mcp/connect is the address "
+              "that accepts that; connectors added earlier with /mcp keep working.")
+CLAUDE_STEP = "keep “Register automatically” selected (no client ID or secret), add it, then sign in with Microsoft now"
 
 
 def _claude_code_connect(low: str, url: str, domain: str) -> str:
@@ -262,7 +274,7 @@ def connect_menu_html(where: str) -> str:
     v = _vars()
     e = lambda x: html.escape(x, quote=True)
     p, links = e(v["PRODUCT"]), connect_links()
-    mcp, connect = e(v["MCP_URL"]), e(v["CONNECT_URL"])
+    mcp, connect = e(v["CLAUDE_URL"]), e(v["CONNECT_URL"])           # n169: Claude's address is /mcp/connect with registration on
     from .tool_status import CLIENTS, clients_working
     reg = _registration_on()
     working = clients_working(reg)                 # VS Code and Cursor only once the hosted service has signed them in, as in the hub
@@ -274,7 +286,8 @@ def connect_menu_html(where: str) -> str:
     items = [f'<div class="connect-item connect-claude"><strong>Claude</strong>'
              f'<span class="connect-row"><a class="btn primary connect-main" href="{e(links["claude"])}" rel="noopener">Open Claude’s connectors</a>'
              f'<button type="button" class="btn secondary small" data-copy-text="{mcp}">Copy URL</button></span>'
-             f'<span class="muted tiny">Add → Add custom connector, paste the URL and sign in with Microsoft.</span>'
+             + ('<span class="muted tiny">Add → Add custom connector, paste the URL, keep “Register automatically” and sign in with Microsoft.</span>' if reg else
+                f'<span class="muted tiny">Add → Add custom connector, paste the URL and sign in with Microsoft.</span>') +
              f'<span class="connect-row"><button type="button" class="btn ghost small" data-copy-text="{e(FIRST_QUESTION)}">Copy a first question</button></span>'
              f'<span class="muted tiny">Paste it in a new chat; it only reads.</span></div>']
     if reg:
@@ -1078,9 +1091,13 @@ def consent_done_html(params) -> str:
     if granted:
         title, kicker, h1 = "Admin consent granted — {{PRODUCT}}", "Admin consent", f"Admin consent granted for your organisation."
         q = e(FIRST_QUESTION)
+        claude_add = (f"<p>Add {p} to Claude: <strong>Customize → Connectors → Add → Add custom connector</strong>, paste "
+                      f"<code>{e(v['CLAUDE_URL'])}</code>, {CLAUDE_STEP}. {e(CLAUDE_WHY)} Then paste this question in a new chat; it only reads:</p>"
+                      if _registration_on() else
+                      f"<p>Add {p} to Claude (step 3 of the set-up guide) and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>")
         body = f"""<p class="lede">Nothing more to do: your colleagues can now connect.</p>
 <h2 class="h3" id="next">Next step: connect, then ask a first question</h2>
-<p>Add {p} to Claude (step 3 of the set-up guide) and sign in with your Microsoft work account. Then paste this question in a new chat; it only reads:</p>
+{claude_add}
 <blockquote class="consent-question"><p>{q}</p></blockquote>
 <div class="ctas"><a class="btn primary" href="/start#step-3">{CONNECT_LABEL}</a><button type="button" class="btn secondary" data-copy-text="{q}">Copy the question</button></div>
 <p class="muted">Each person signs in with their own account, and every call runs with that person’s own Fabric permissions; {p} reaches nothing they cannot already reach. The steps are on <a href="/start#step-3">the set-up page</a>; the permissions and how to revoke them (Enterprise applications in Entra) are on <a href="/it">the page for your IT department</a>.</p>

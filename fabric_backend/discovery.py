@@ -152,8 +152,8 @@ def llms_txt() -> str:
     v, o, acc = _vars(), site_url(), access_vars(markdown=True)
     p = v["PRODUCT"]
     if v["CLIENT_REGISTRATION"]:              # client registration on: VS Code, Cursor and others sign in at /mcp/connect
-        clients_said = (f"The hosted service works with Claude at that address; at {v['CONNECT_URL']}, MCP clients that "
-                        f"register themselves can sign in ({v['CONNECT_TESTED'][0].lower() + v['CONNECT_TESTED'][1:]}).")
+        clients_said = (f"Claude connectors added earlier work at that address; new ones, and MCP clients that register "
+                        f"themselves, sign in at {v['CONNECT_URL']} ({v['CONNECT_TESTED'][0].lower() + v['CONNECT_TESTED'][1:]}).")
         connect_lines = (
             f"- Claude Code: {v['CLAUDE_CODE_CONNECT']}\n"
             f"- VS Code, Cursor and other MCP clients that register themselves: streamable HTTP at `{v['CONNECT_URL']}`, OAuth discovery at "
@@ -167,6 +167,7 @@ def llms_txt() -> str:
             f"- Other MCP clients: streamable HTTP at `{v['MCP_URL']}`, OAuth discovery at {o}/.well-known/oauth-protected-resource. Only "
             f"Claude's sign-in redirect is registered on the hosted app, so Cursor and other local clients cannot sign in to it today. Other "
             f"MCP clients should work when you host {p} yourself (not tested yet).")
+    claude_reg = " → keep “Register automatically” (no client ID or secret)" if v["CLIENT_REGISTRATION"] else ""
     usp = "\n".join("- " + x for x in USP_POINTS)
     from .pages import blog_post as _bp
     blog_line = "; ".join(f"[{q['title']}]({o}{q['path']}.md) ({q['date_text']})" for q in (_bp(x["slug"]) for x in _BLOG_POSTS))
@@ -199,7 +200,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 ## Connect
 
-- Claude (web, desktop, mobile): Customize → Connectors → Add → Add custom connector → URL `{v['MCP_URL']}` → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect
+- Claude (web, desktop, mobile): Customize → Connectors → Add → Add custom connector → URL `{v['CLAUDE_URL']}`{claude_reg} → sign in with a Microsoft work account. An Entra admin of the organisation grants consent once: {o}/docs.md#connect{(" " + v["CLAUDE_WHY"]) if v["CLAUDE_WHY"] else ""}
 {connect_lines}
 - First calls: `list_workspaces`, then `list_sources` with the workspace name, `plan_backend` (nothing is deployed), `validate_plan` to check the plan against the rows (a step to ask for; `create_backend` does not run it), `create_backend`, then `describe_backend` before `query_graphql`.
 

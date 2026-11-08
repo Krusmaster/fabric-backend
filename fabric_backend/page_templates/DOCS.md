@@ -75,8 +75,9 @@ New to a Fabric lakehouse? Start with how its tables fit together. Connect the h
    This lets the connector call Fabric and SQL as each signed-in user. It allows nothing more. Microsoft then sends the
    admin to [{{DOMAIN}}/consent/done](/consent/done). That page says whether the consent was granted, and what to do next if it was not.
 2. **In Claude:** Customize → Connectors → Add → Add custom connector, with the URL
-   `{{MCP_URL}}`. Sign in with your Microsoft work account. {{#IF CLIENT_REGISTRATION}}VS Code, Cursor and other MCP clients
-   that sign in on their own use `{{CONNECT_URL}}` instead ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and Claude is the client
+   `{{CLAUDE_URL}}`. {{#IF CLIENT_REGISTRATION}}Keep **Register automatically** selected (no client ID or secret), add it,
+   and sign in with your Microsoft work account now. {{CLAUDE_WHY}} VS Code, Cursor and other MCP clients that sign in on
+   their own use the same `{{CONNECT_URL}}` ([below](#other-mcp-clients)).{{/IF}}{{#IF NO_CLIENT_REGISTRATION}}Sign in with your Microsoft work account. {{/IF}}{{#IF NO_CLIENT_REGISTRATION}}The hosted service supports Claude, and Claude is the client
    it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
    app yet. So they can't sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself. This is not tested yet.{{/IF}}
 3. **In Fabric:** you need access to the workspace you want to use. You also need a Fabric capacity. A trial is fine.
@@ -87,11 +88,11 @@ Prefer your own machine and a SQL Server? The same engine runs locally over ODBC
 {{#IF CLIENT_REGISTRATION}}
 ### Other MCP clients
 
-VS Code, Cursor and other MCP clients that register themselves sign in at `{{CONNECT_URL}}`. They do not use the
-address for Claude. {{PRODUCT}} identifies the client by the metadata document it publishes. A client without one gets a
+VS Code, Cursor and other MCP clients that register themselves sign in at `{{CONNECT_URL}}`, the address Claude's
+connector dialog uses too (with "Register automatically"). {{PRODUCT}} identifies the client by the metadata document it publishes. A client without one gets a
 strict registration. {{PRODUCT}} then shows its own approval page with the client's name, its domain and where the answer
-goes. Only after that does it send you to Microsoft. Every call still runs with your own Fabric permissions. Nothing
-changes for Claude.
+goes. Only after that does it send you to Microsoft. Every call still runs with your own Fabric permissions. Claude
+connectors added earlier with `{{MCP_URL}}` keep working.
 {{CONNECT_TESTED}}.
 
 - **VS Code** (GitHub Copilot agent mode): in `.vscode/mcp.json` or *MCP: Open User Configuration*, add
