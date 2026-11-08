@@ -204,6 +204,7 @@ def routes(cfg, validator=None, obo=None) -> list:
     from starlette.routing import Route
     from .entra import Validator, OnBehalfOf, TokenError
     from .errors import explain
+    from .workload_host import same_host_origin       # n168: the hosted editor's own calls are same-origin, no CORS
     validator = validator or Validator(cfg)
     obo = obo or OnBehalfOf(cfg)
 
@@ -213,7 +214,7 @@ def routes(cfg, validator=None, obo=None) -> list:
     def endpoint(parse, run, where: str):
         async def handler(request):
             origin = request.headers.get("origin")
-            if origin and not FABRIC_ORIGIN.match(origin.lower()):
+            if origin and not FABRIC_ORIGIN.match(origin.lower()) and not same_host_origin(origin):
                 return reply({"error": "this API answers only the Krusgraph editor inside Fabric", "kind": "origin"}, 403, None)
             if request.method == "OPTIONS":
                 return Response(status_code=204, headers={**SECURITY_HEADERS, **cors_headers(origin)})

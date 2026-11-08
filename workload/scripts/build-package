@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# The Org.Krusgraph workload package (.nupkg) for the hosted editor at https://workload.krusgraph.com (n168).
+# Runs in GitHub Actions or Azure Cloud Shell; needs python3 and git only. Builds the file, uploads nothing.
+#   workload/scripts/build-package --frontend-app-id <Application (client) ID of the workload app> [--version 1.0.N]
+# docs/WORKLOAD-DEV.md, "Hosted (no laptop)", says where to upload it.
+set -euo pipefail
+exec python3 "$(dirname "$0")/build_package.py" "$@"

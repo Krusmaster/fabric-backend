@@ -22,5 +22,9 @@
   "log_retention_days": 0,
   "log_analytics_workspace": "",
   "budget_amount": 0,
-  "budget_email": ""
+  "budget_email": "",
+  "workload_client_id": "",
+  "workload_app_id_uri": "",
+  "workload_allowed_tenants": "",
+  "workload_host": ""
 }

@@ -75,3 +75,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm test
       - run: npm run typecheck
+      # n168: the production build the Dockerfile's "editor" stage makes for workload.krusgraph.com, so a break shows here
+      # and not in the maintainer's az acr build
+      - run: npx webpack --config ./webpack.config.js --output-path "$RUNNER_TEMP/editor" --mode production && test -f "$RUNNER_TEMP/editor/index.html"
+        env: { WORKLOAD_NAME: Org.Krusgraph, ITEM_NAMES: Model, WORKLOAD_VERSION: "1.0.0", LOG_LEVEL: info, ENABLE_PLAYGROUND: "false" }

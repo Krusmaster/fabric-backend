@@ -2853,8 +2853,12 @@ def build_app(host: str = "0.0.0.0"):
         from . import workload_api
         app.router.routes.extend(workload_api.routes(workload))
 
+    # n168: on KRUSGRAPH_WORKLOAD_HOST (workload.krusgraph.com) only the hosted editor, /close and /workload/v1;
+    # every other host name reaches the app below unchanged (workload_host.py). Unset, nothing is wrapped.
+    from . import workload_host
+
     if not cfg:
-        return _with_security_headers(app)
+        return _with_security_headers(workload_host.wrap(app))
 
     from .entra import protected_resource_metadata, challenge, TokenError
 
@@ -2903,7 +2907,7 @@ def build_app(host: str = "0.0.0.0"):
             return await resp(scope, receive, send)
         return await inner(scope, receive, send)
 
-    return _with_security_headers(guarded)
+    return _with_security_headers(workload_host.wrap(guarded))
 
 
 def main() -> None:

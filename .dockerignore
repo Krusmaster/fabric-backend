@@ -5,6 +5,14 @@
 !fabric_backend/
 !fabric_backend/**
 !deploy/constraints.txt
+# n168: the Krusgraph Model editor's sources; the Dockerfile builds them (stage "editor") into /app/workload-dist
+!workload/Workload/package.json
+!workload/Workload/package-lock.json
+!workload/Workload/tsconfig.json
+!workload/Workload/webpack.config.js
+!workload/Workload/app/
+!workload/Workload/app/**
+**/*.test.ts
 **/__pycache__/
 **/*.pyc
 **/.env*

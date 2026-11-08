@@ -7,6 +7,11 @@
  *   KRUSGRAPH_ENGINE_URL    the engine's base URL; empty in development, where the dev server forwards /workload/v1
  *                           to the local Python server (devServer/webpack.dev.js)
  *   KRUSGRAPH_ENGINE_SCOPE  <the workload app's Application ID URI>/user_impersonation
+ *
+ * Hosted (n168, https://workload.krusgraph.com): the image is built with both empty. The editor then calls
+ * /workload/v1 on its own host, and the scope comes from <meta name="krusgraph-engine-scope"> that the server writes
+ * into index.html from its own KRUSGRAPH_WORKLOAD_APP_ID_URI (fabric_backend/workload_host.py), so a new Entra app needs
+ * no new image.
  */
 import { WorkloadClientAPI } from "@ms-fabric/workload-client";
 import { ReviewFile } from "./ModelItemDefinition";
@@ -63,10 +68,19 @@ export class EngineCallError extends Error {
   }
 }
 
+/** The scope to ask the Fabric host for: the build's KRUSGRAPH_ENGINE_SCOPE, else the hosting server's meta tag. */
+export function engineScope(built: string | undefined, doc?: { querySelector(selector: string): Element | null }): string {
+  if (built) {
+    return built;
+  }
+  const meta = doc?.querySelector('meta[name="krusgraph-engine-scope"]');
+  return (meta?.getAttribute("content") || "").trim();
+}
+
 async function call<T>(workloadClient: WorkloadClientAPI, route: "review" | "build", body: object): Promise<T> {
-  const scope = process.env.KRUSGRAPH_ENGINE_SCOPE;
+  const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document);
   if (!scope) {
-    throw new EngineCallError({ error: "KRUSGRAPH_ENGINE_SCOPE is not set in the workload's .env file", kind: "server_config" }, 0);
+    throw new EngineCallError({ error: "No engine scope: set KRUSGRAPH_ENGINE_SCOPE in the workload's .env file, or KRUSGRAPH_WORKLOAD_APP_ID_URI on the hosting server", kind: "server_config" }, 0);
   }
   const { token } = await workloadClient.auth.acquireFrontendAccessToken({ scopes: [scope] });
   const base = (process.env.KRUSGRAPH_ENGINE_URL || "").replace(/\/$/, "");

@@ -43,6 +43,13 @@ when the file is missing (--overwrite-config replaces one). No secret is read, w
 image and its build tag are all that change: not min_replicas, not another environment variable. When the app is not
 in the selected subscription, the others are searched and the run stops with the `az account set` command to use.
 
+--update --workload-host (n168) also sets KRUSGRAPH_WORKLOAD_HOST (default workload.<domain>), prints the CNAME and
+asuid TXT records to add at Namecheap, and once the CNAME resolves to the app adds that host name with a managed
+certificate (`az containerapp hostname add` and `bind --validation-method CNAME`). The workload keys of
+deploy/krusgraph.json (workload_client_id, workload_app_id_uri, workload_allowed_tenants, workload_host) become the
+KRUSGRAPH_WORKLOAD_* variables, and those set by hand on the app are kept, like the operator switches.
+--update --dry-run reads the app and prints those variables and records; nothing is built, changed or bound.
+
 --doctor reads the running service and prints a table (docs/OPERATIONS.md, section 8): /healthz and its build against
 this checkout, the certificate the domain serves and when it expires, when the Entra app's client secrets expire
 (`az ad app credential list`: dates only), whether the environment's console logs go to Log Analytics, whether a cost
@@ -66,6 +73,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 import tempfile
@@ -160,10 +168,16 @@ def assert_owned(resource, name):
         raise DeploymentError(f"{name} finns redan men tillhör inte denna driftsättning. Avbryter utan att ändra resursen.")
 
 
+EDITOR_BUILD_FILES = ("package.json", "package-lock.json", "tsconfig.json", "webpack.config.js")
+
+
 def source_tag(root=ROOT):
     files = [root / name for name in ("Dockerfile", ".dockerignore", "pyproject.toml", "README.md", "deploy/constraints.txt")]
     files += sorted(p for p in (root / "fabric_backend").rglob("*")
                     if p.is_file() and p.suffix != ".pyc" and "__pycache__" not in p.parts)   # css, js, fonts too
+    editor = root / "workload" / "Workload"                 # n168: the hosted editor the Dockerfile builds
+    files += [editor / name for name in EDITOR_BUILD_FILES if (editor / name).is_file()]
+    files += sorted(p for p in (editor / "app").rglob("*") if p.is_file() and not p.name.endswith(".test.ts"))
     digest = hashlib.sha256()
     for path in files:
         digest.update(path.relative_to(root).as_posix().encode() + b"\0" + path.read_bytes())
@@ -210,6 +224,102 @@ def carried_flags(config, old_env: dict) -> dict:
     return carried
 
 
+# The Fabric workload (n166, n168): a key in deploy/krusgraph.json → the server variable (entra.WorkloadConfig,
+# fabric_backend/workload_host.py). Like the operator switches, a variable set by hand on the app whose key is missing
+# from the config is carried over (full run) or kept (--update), with one line asking the operator to add the key.
+# The secret is never here: it is the container-app secret workload-secret, referenced by KRUSGRAPH_WORKLOAD_CLIENT_SECRET.
+WORKLOAD_ENV = {"workload_client_id": "KRUSGRAPH_WORKLOAD_CLIENT_ID", "workload_app_id_uri": "KRUSGRAPH_WORKLOAD_APP_ID_URI",
+                "workload_scope": "KRUSGRAPH_WORKLOAD_SCOPE", "workload_allowed_tenants": "KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS",
+                "workload_host": "KRUSGRAPH_WORKLOAD_HOST"}
+WORKLOAD_SECRET_ENV, WORKLOAD_SECRET = "KRUSGRAPH_WORKLOAD_CLIENT_SECRET", "workload-secret"
+
+
+def workload_env(config) -> dict:
+    """The workload variables named in the config (non-empty keys only)."""
+    return {variable: str(config[key]).strip() for key, variable in WORKLOAD_ENV.items() if str(config.get(key) or "").strip()}
+
+
+def carried_workload(config, old_env: dict) -> dict:
+    """The workload variables set on the running app whose key is absent or empty in the config, as {variable: value}; one line
+    each, so the operator can write them into deploy/krusgraph.json."""
+    carried = {}
+    for key, variable in WORKLOAD_ENV.items():
+        if not str(config.get(key) or "").strip() and (old_env.get(variable) or "").strip():     # "" = not set here
+            carried[variable] = old_env[variable].strip()
+            print(f"Behåller {variable}={carried[variable]} som sattes för hand i appen; lägg till \"{key}\": \"{carried[variable]}\" "
+                  "i deploy/krusgraph.json.", flush=True)
+    return carried
+
+
+def has_workload_secret(app: dict) -> bool:
+    """Whether the container app holds the secret workload-secret (names only; `az containerapp show` lists no values)."""
+    secrets = ((app.get("properties") or {}).get("configuration") or {}).get("secrets") or []
+    return any(x.get("name") == WORKLOAD_SECRET for x in secrets)
+
+
+def workload_secret_commands(config) -> str:
+    """The commands that store the workload app's secret in the container app, typed hidden. They change no environment
+    variable, so the running server is unaffected; --update then points KRUSGRAPH_WORKLOAD_CLIENT_SECRET at it together
+    with the id and the URI (the server refuses to start with only some of the three)."""
+    return (f'  read -rsp "Workload-appens hemlighet (VÄRDE, döljs): " WS; echo\n'
+            f'  az containerapp secret set -n {config["app"]} -g {config["resource_group"]} --secrets {WORKLOAD_SECRET}="$WS" --output none; unset WS\n')
+
+
+def workload_host_name(config, given) -> str:
+    """--workload-host with no value → workload.<domain>; a value must be a subdomain of the domain."""
+    host = (given if isinstance(given, str) and given.strip() else f"workload.{config['domain']}").strip().lower().rstrip(".")
+    if not host.endswith("." + config["domain"].lower()) or not all(c.isalnum() or c in ".-" for c in host):
+        raise DeploymentError(f"--workload-host ska vara en underdomän till {config['domain']}, t.ex. workload.{config['domain']}.")
+    return host
+
+
+def workload_dns_records(config, host: str, app: dict) -> list[dict]:
+    """What Namecheap needs before the host can be bound: a CNAME to the app and the asuid TXT that proves ownership."""
+    props = app["properties"]
+    label = host[: -len(config["domain"]) - 1]
+    return [{"type": "CNAME", "host": label, "value": props["configuration"]["ingress"]["fqdn"]},
+            {"type": "TXT", "host": "asuid." + label, "value": props["customDomainVerificationId"]}]
+
+
+def print_workload_dns(config, host: str, records) -> None:
+    print(f"\nDNS-poster för {host} (Namecheap → Domain List → {config['domain']} → Advanced DNS → Add new record), "
+          "innan värdnamnet kan bindas:", flush=True)
+    for r in records:
+        print(f"  {r['type']:<5} Host: {r['host']:<20} Value: {r['value']}", flush=True)
+    print("  TTL: Automatic. Ta inte bort eller ändra de befintliga posterna (@, www, asuid, asuid.www).", flush=True)
+
+
+def resolves_to_app(host: str, app: dict, environment: dict) -> bool:
+    """Whether the CNAME is in place: the host resolves to the environment's IP. The TXT record is checked by Azure."""
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)}
+    except OSError:
+        return False
+    return environment["properties"]["staticIp"] in addresses
+
+
+def bind_workload_host(az, config, host: str, app: dict) -> bool:
+    """Adds the host name to the container app with a managed certificate (validation by CNAME). Returns False, with
+    the DNS records printed, when the CNAME does not resolve to the app yet; nothing is changed then."""
+    rg = config["resource_group"]
+    environment = az.run("containerapp", "env", "show", "-n", config["environment"], "-g", rg)
+    records = workload_dns_records(config, host, app)
+    print_workload_dns(config, host, records)
+    if not resolves_to_app(host, app, environment):
+        print(f"\n{host} pekar inte på appen ännu. Lägg in posterna ovan, vänta tills `nslookup {host}` svarar med "
+              f"{environment['properties']['staticIp']} och kör samma kommando igen. Värdnamnet lades inte till.", flush=True)
+        return False
+    existing = {d["name"].lower(): d for d in app["properties"]["configuration"]["ingress"].get("customDomains") or []}
+    if host not in existing:
+        az.run("containerapp", "hostname", "add", "--hostname", host, "--name", config["app"], "--resource-group", rg, raw=True)
+    if existing.get(host, {}).get("bindingType") != "SniEnabled":
+        print(f"Verifierar {host} och beställer ett hanterat HTTPS-certifikat (några minuter)…", flush=True)
+        az.run("containerapp", "hostname", "bind", "--hostname", host, "--name", config["app"], "--resource-group", rg,
+               "--environment", config["environment"], "--validation-method", "CNAME", raw=True)
+    print(f"Redigeraren: https://{host} (Fabric laddar den därifrån; /close är inloggningens återvändsadress).", flush=True)
+    return True
+
+
 def plain_env(config, build=None):
     """The non-secret environment of the container, from the config. Both the full run and --update set these.
     `build` is the source tag of the image being deployed; the server reports it on /healthz so the check below
@@ -227,6 +337,7 @@ def plain_env(config, build=None):
             env[variable] = "1"
     if config.get("ontology_write"):          # offers create_ontology; only useful once the Entra app holds Item.ReadWrite.All
         env["KRUSGRAPH_ONTOLOGY_WRITE"] = "1"
+    env.update(workload_env(config))          # n168: the hosted editor and its engine API (workload_client_id, ...)
     days = int(config.get("log_retention_days") or 0)
     if days:                                  # console logs are kept in Log Analytics: say so on /privacy, keep no IP addresses
         env["KRUSGRAPH_LOG_RETENTION_DAYS"] = str(days)
@@ -288,6 +399,15 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         env += [e for e in old_env if e.get("name") in KEY_VAULT_ENV + REGISTRATION_ENV and e.get("value")]
         plain = {e.get("name"): e.get("value") or "" for e in old_env if not e.get("secretRef")}
         env += [{"name": key, "value": value} for key, value in carried_flags(config, plain).items()]
+        env += [{"name": key, "value": value} for key, value in carried_workload(config, plain).items()]
+    names = {e["name"] for e in env}
+    if names & {"KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI"}:
+        # The manifest replaces the secret list with entra-secret alone, so workload-secret is gone after a full run; the
+        # server refuses to start with a workload id but no secret. Keep only the host (the editor's files) and say so.
+        env = [e for e in env if e["name"] not in set(WORKLOAD_ENV.values()) - {"KRUSGRAPH_WORKLOAD_HOST"}]
+        print("En full körning tar bort container-appens hemlighet workload-secret, så workload-variablerna (utom "
+              "KRUSGRAPH_WORKLOAD_HOST) sätts inte nu. Kör därefter dessa och sedan --update:\n" + workload_secret_commands(config),
+              flush=True)
     return {
         "name": config["app"], "location": config["location"], "tags": OWNER_TAG,
         "identity": {"type": "UserAssigned", "userAssignedIdentities": {identity_id: {}}},
@@ -522,35 +642,74 @@ def build_image(az, config, registry, tag):
     return f"{registry['loginServer']}/krusgraph@{image['digest']}"
 
 
-def update(az, config, keep_settings=False):
+def update(az, config, keep_settings=False, workload_host=None, dry_run=False):
     """New image from this checkout → the existing container app. Nothing else: no Entra, no secrets, no domains,
     no certificates, and the client secret is never requested (the app keeps its secret reference).
     With keep_settings (--from-azure: the configuration was read from this app) the image and KRUSGRAPH_BUILD are all
-    that change; min_replicas and the other environment variables are not sent, so they stay as the app has them."""
+    that change; min_replicas and the other environment variables are not sent, so they stay as the app has them.
+    n168: the workload variables (workload_* keys, or kept from the app) go with the others. With workload_host
+    (--workload-host) KRUSGRAPH_WORKLOAD_HOST is set and, once its CNAME resolves to the app, the host name is added with
+    a managed certificate; before that only the DNS records are printed. With dry_run (--dry-run) the app is read and
+    the plan printed, and nothing is built, changed or bound."""
     rg = config["resource_group"]
     existing = az.run("containerapp", "show", "--name", config["app"], "--resource-group", rg, missing_ok=True)
     if not existing:
         raise DeploymentError("Container-appen finns inte ännu. Kör en full körning (utan flagga) först.")
     assert_owned(existing, config["app"])
+    host = workload_host_name(config, workload_host) if workload_host else ""
+    old_env = app_env(existing)
+    # --set-env-vars adds and replaces only these; the Key Vault settings --key-vault made stay as they are
+    env = plain_env(config, "<bygget>" if dry_run else None)
+    if keep_settings:
+        env = {}
+    else:                                     # a hand-set switch stays (--set-env-vars removes nothing); say so once
+        env.update(carried_flags(config, old_env))
+        env.update(carried_workload(config, old_env))
+    if host:
+        env["KRUSGRAPH_WORKLOAD_HOST"] = host
+    engine = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
+    if any(env.get(v) or old_env.get(v) for v in engine):
+        if not all(env.get(v) or old_env.get(v) for v in engine):
+            raise DeploymentError("Ange både workload_client_id och workload_app_id_uri i deploy/krusgraph.json (eller ingen av dem).")
+        if not has_workload_secret(existing):
+            message = ("Workload-appens id är satt men container-appen har ingen hemlighet workload-secret, och servern startar inte "
+                       "utan den. Kör först (värdet skrivs dolt):\n" + workload_secret_commands(config))
+            if not dry_run:
+                raise DeploymentError(message)
+            print("OBS: " + message, flush=True)
+        env[WORKLOAD_SECRET_ENV] = f"secretref:{WORKLOAD_SECRET}"     # id, URI and secret arrive in the same revision
+    if dry_run:
+        print("\nTORRKÖRNING (--dry-run): ingenting byggs, ändras eller binds.", flush=True)
+        print("Miljövariabler som --update skulle sätta (utöver KRUSGRAPH_BUILD):", flush=True)
+        for key, value in sorted(env.items()):
+            if key != "KRUSGRAPH_BUILD":
+                print(f"  {key}={value}", flush=True)
+        if host:
+            print_workload_dns(config, host, workload_dns_records(config, host, existing))
+            print(f"Därefter: az containerapp hostname add --hostname {host} -n {config['app']} -g {rg}\n"
+                  f"          az containerapp hostname bind --hostname {host} -n {config['app']} -g {rg} "
+                  f"--environment {config['environment']} --validation-method CNAME", flush=True)
+        return None
     registry = az.run("acr", "show", "--name", config["registry"], "--resource-group", rg, missing_ok=True)
     if not registry:
         raise DeploymentError("Bildregistret finns inte. Kör en full körning (utan flagga) först.")
     assert_owned(registry, config["registry"])
+    if host:                                  # before the build, so the records are on screen while it runs
+        print_workload_dns(config, host, workload_dns_records(config, host, existing))
     az.run("extension", "add", "--name", "containerapp", "--upgrade", "--yes", raw=True)     # no interactive install prompt later
     tag = source_tag()
     image_uri = build_image(az, config, registry, tag)
     print("Uppdaterar container-appen till den nya bilden…", flush=True)
-    # --set-env-vars adds and replaces only these; the Key Vault settings --key-vault made stay as they are
-    env_args = [f"{key}={value}" for key, value in plain_env(config, tag).items()]     # KEY= sets an empty value; the server treats it as unset
-    scale = ["--min-replicas", str(min_replicas(config))]
-    if keep_settings:
-        env_args, scale = [f"KRUSGRAPH_BUILD={tag}"], []
-    else:                                     # a hand-set switch stays (--set-env-vars removes nothing); say so once
-        env_args += [f"{key}={value}" for key, value in carried_flags(config, app_env(existing)).items()]
+    env["KRUSGRAPH_BUILD"] = tag
+    env_args = [f"{key}={value}" for key, value in env.items()]     # KEY= sets an empty value; the server treats it as unset
+    scale = [] if keep_settings else ["--min-replicas", str(min_replicas(config))]
     az.run("containerapp", "update", "--name", config["app"], "--resource-group", rg, "--image", image_uri,
            "--revision-suffix", "r" + uuid.uuid4().hex[:12], *scale, "--set-env-vars", *env_args, raw=True)
     connect_log_analytics(az, config)         # only with log_analytics_workspace; never switches logs off
-    report(az, config, first_run=False, build=tag)
+    result = report(az, config, first_run=False, build=tag)
+    if host:
+        bind_workload_host(az, config, host, existing)
+    return result
 
 
 def move_secret_to_key_vault(az, config):
@@ -873,6 +1032,7 @@ def config_from_azure(az, app=None, resource_group=None):
         "key_vault": vault.split(".")[0], "log_retention_days": int(days) if days.isdigit() else 0, "log_analytics_workspace": "",
         "budget_amount": 0, "budget_email": "",            # --budget's keys; a budget is not read back from Azure
         **{key: flag_on(variable, env.get(variable)) for key, variable in OPERATOR_FLAGS.items()},
+        **{key: env.get(variable, "").strip() for key, variable in WORKLOAD_ENV.items() if key != "workload_scope"},
     }
 
 
@@ -1217,6 +1377,11 @@ def main():
                       help="Skapa ett budgetlarm på resursgruppen med budget_amount och budget_email ur deploy/krusgraph.json (tomma = inget görs)")
     mode.add_argument("--backup", action="store_true",
                       help="Exportera registreringstabellens consent-poster till en JSON-fil utan hemligheter (--out; ignoreras av git)")
+    parser.add_argument("--workload-host", nargs="?", const=True, default=None, metavar="HOST",
+                        help="Med --update: sätt KRUSGRAPH_WORKLOAD_HOST (standard workload.<domain>), skriv DNS-posterna och "
+                             "bind värdnamnet med hanterat certifikat när CNAME-posten pekar på appen")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Med --update: läs appen och skriv vad som skulle sättas (miljövariabler, DNS-poster); ändrar inget")
     parser.add_argument("--out", type=Path, help="Med --backup: filen att skriva (standard deploy/registration-backup-<datum>.json)")
     parser.add_argument("--from-azure", action="store_true",
                         help="Bygg konfigurationen ur den container-app som redan kör, när deploy/krusgraph.json saknas; "
@@ -1231,6 +1396,8 @@ def main():
         parser.error("--app, --resource-group och --overwrite-config hör till --from-azure.")
     if args.out and not args.backup:
         parser.error("--out hör till --backup.")
+    if (args.workload_host or args.dry_run) and not args.update:
+        parser.error("--workload-host och --dry-run hör till --update.")
     if not args.from_azure and not args.config.exists():
         print(f"STOPP: {args.config} saknas. Kör med --from-azure för att bygga den ur den körande appen "
               "(bash deploy/krusgraph.sh --from-azure --update), eller utgå från deploy/krusgraph.example.json.", file=sys.stderr)
@@ -1262,7 +1429,7 @@ def main():
         elif args.bind_domain:
             bind_domains(az, config)
         elif args.update:
-            update(az, config, keep_settings=args.from_azure)
+            update(az, config, keep_settings=args.from_azure, workload_host=args.workload_host, dry_run=args.dry_run)
         elif args.key_vault:
             move_secret_to_key_vault(az, config)
         elif args.log_analytics:
