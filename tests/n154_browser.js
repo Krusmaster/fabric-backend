@@ -5,6 +5,16 @@ const { chromium } = require('playwright');
 const base = process.argv[2], exe = process.argv[3];
 const PAGES = ['/', '/check', '/start', '/pricing', '/docs/reference/tools', '/blog/fabric-totals-double-after-join', '/lovable', '/it'];
 const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+// n162: wait for n results in the chat by polling page.evaluate: CI's Playwright evaluates a waitForFunction predicate as a
+// string, which the pages' policy (no 'unsafe-eval') refuses
+async function wins(page, n) {
+  for (let i = 0; i < 300; i++) {
+    if (await page.evaluate((k) => document.querySelectorAll('.kgc-msg.win').length >= k, n)) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  throw new Error('timeout: ' + n + ' results in the chat');
+}
+
 (async () => {
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const out = { errors: [] };
@@ -69,7 +79,7 @@ const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && 
     await page.click('.kgc-pick[data-pick="Fix data issues"]');
     await page.waitForSelector('.kgc-pick[data-pick="Draft a dbt project"]', { timeout: 15000 });
     await page.click('.kgc-pick[data-pick="Draft a dbt project"]');
-    await page.waitForFunction(() => document.querySelectorAll('.kgc-msg.win').length >= 3, null, { timeout: 15000 });
+    await wins(page, 3);
     out['checkChat' + width].results = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win h3')].map((h) => h.textContent));
     out['checkChat' + width].requests = requests.filter((p) => !p.startsWith('/static/chat-demo.'));
     // a deep page, in a fresh tab state: n162: Fix data issues runs there (no navigation; until n162 a link to the docs)
@@ -82,7 +92,7 @@ const overlap = (a, b) => !!a && !!b && a.left < b.right && b.left < a.right && 
     await page.click('.kgc-pick[data-pick="Yes, add the link"]');
     await page.waitForSelector('.kgc-pick[data-pick="Fix data issues"]', { timeout: 15000 });
     await page.click('.kgc-pick[data-pick="Fix data issues"]');
-    await page.waitForFunction(() => document.querySelectorAll('.kgc-msg.win').length >= 2, null, { timeout: 15000 });
+    await wins(page, 2);
     out['deepLink' + width] = { path: new URL(page.url()).pathname,
       result: await page.evaluate(() => { const h = document.querySelectorAll('.kgc-msg.win h3'); return h[h.length - 1].textContent; }) };
     await ctx.close();
