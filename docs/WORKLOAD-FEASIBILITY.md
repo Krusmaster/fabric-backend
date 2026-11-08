@@ -306,6 +306,9 @@ Company, Entra tenant, verified domain, Fabric trial or F capacity, tenant setti
 
 ### Phase 1 — one item, one flow: lakehouse → reviewed model → API for GraphQL
 
+Built in round n166 (8 November 2026; not yet run in Fabric). The founder's steps for the first run, and how to remove
+it again, are in `docs/WORKLOAD-DEV.md`.
+
 - **Scope:** `Org.Krusgraph` workload with one item type. Editor views: empty state (choose lakehouse), review
   (list-first: keys and relationships with Accept/Reject; a simple graph), preview (dry run), result. Save
   `review.json`, `source.json`, `outputs.json` as the item definition. Engine API: `review`, `build` (GraphQL only).

@@ -62,3 +62,16 @@ jobs:
             pyproject.toml
       - run: pip install -c deploy/constraints.txt -e ".[server,test,databricks]"
       - run: python tools/third_party_notices.py --check --from-installed
+  workload:
+    # The Fabric workload's frontend (workload/Workload, a fork of Microsoft's starter kit): its unit tests (definition
+    # load and save, the version field) and a type check. Separate from the Python jobs, which do not need npm for it.
+    # --ignore-scripts: the kit's nuget-bin downloads nuget.exe on install, which only packaging the manifest needs.
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: workload/Workload } }
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: "22", cache: npm, cache-dependency-path: workload/Workload/package-lock.json }
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm test
+      - run: npm run typecheck

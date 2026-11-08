@@ -21,6 +21,8 @@ check (entitlements.py).
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import re
 
@@ -119,6 +121,20 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
 
 # ------------------------------------------------------------------ auth ---------------------
 
+_WORKLOAD_TOKENS = contextvars.ContextVar("krusgraph_workload_tokens", default=None)
+
+
+@contextlib.contextmanager
+def workload_tokens(tokens):
+    """n166: inside this block every Fabric and SQL token comes from `tokens` (the Fabric workload's on-behalf-of
+    exchange, workload_api.py) instead of the MCP request. Outside it, and for every MCP call, nothing changes."""
+    mark = _WORKLOAD_TOKENS.set(tokens)
+    try:
+        yield
+    finally:
+        _WORKLOAD_TOKENS.reset(mark)
+
+
 class Auth:
     """Tokens for the two audiences the server talks to. Request headers win; else client credentials."""
 
@@ -174,12 +190,16 @@ class Auth:
         return body["access_token"]
 
     def fabric(self, ctx: Context | None) -> str:
+        if (w := _WORKLOAD_TOKENS.get()) is not None:
+            return w.fabric()
         if self.entra:
             return self._user_token(ctx, FABRIC_SCOPE)
         tok = self._bearer(ctx)
         return tok if tok else self._client_credentials(FABRIC_SCOPE)
 
     def sql(self, ctx: Context | None) -> str:
+        if (w := _WORKLOAD_TOKENS.get()) is not None:
+            return w.sql()
         if self.entra:
             return self._user_token(ctx, SQL_SCOPE)
         h = (ctx.headers if ctx is not None else {}) or {}
@@ -592,6 +612,14 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     check_tables(p.schema, tables)
+    return _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
+                                     token_provider=lambda: auth.fabric(ctx))
+
+
+def _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
+                              token_provider) -> str:
+    """create_backend after the plan is made: the would-remove guard, the dry run or the create/update. The Fabric
+    workload's build route (workload_api.py) comes in here too, with the plan its review file left."""
     source_id, source_type = source_for(workspace, item, headers)
     found = _existing_api(workspace, name, headers)
     kept: list[dict] = []
@@ -609,7 +637,7 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
     env = definition(p, name, workspace, source_id, source_type, writable=writable, tables=tables)
     if dry_run:
         return _backend_dry_run(p, env, workspace, source_id, source_type, found, kept, writable, tables, confirmed, headers)
-    result = deploy(env, workspace, token_provider=lambda: auth.fabric(ctx))
+    result = deploy(env, workspace, token_provider=token_provider)
     out = {"summary": p.summary(), "dry_run": False, "source": {"id": source_id, "type": source_type}, "result": result,
            "skipped_relationships": env.get("skipped_relationships", [])}
     if kept:
@@ -2816,6 +2844,14 @@ def build_app(host: str = "0.0.0.0"):
             return HTMLResponse(not_found_html(request.url.path), status_code=404, headers={"X-Robots-Tag": "noindex", **PAGE_HEADERS})
         return PlainTextResponse("not found", status_code=404)
     app.add_exception_handler(404, not_found)
+
+    # n166: the Fabric workload's engine API (/workload/v1/review and /build), behind its own Entra app. Off unless the
+    # KRUSGRAPH_WORKLOAD_* variables are set; /mcp and /mcp/connect below are untouched by it.
+    from .entra import WorkloadConfig
+    workload = WorkloadConfig.from_env(cfg)
+    if workload is not None:
+        from . import workload_api
+        app.router.routes.extend(workload_api.routes(workload))
 
     if not cfg:
         return _with_security_headers(app)

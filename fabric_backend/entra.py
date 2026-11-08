@@ -124,9 +124,10 @@ class Validator:
             raise TokenError("issuer does not match the token's tenant")
         if self.cfg.allowed_tenants and tid not in self.cfg.allowed_tenants:
             raise TokenError("tenant not allowed on this server")
+        need = getattr(self.cfg, "required_scope", "user_impersonation")     # the workload app may name its own scope
         scopes = claims.get("scp")
-        if not isinstance(scopes, str) or "user_impersonation" not in scopes.split():
-            raise TokenError("user_impersonation delegated permission is required")
+        if not isinstance(scopes, str) or need not in scopes.split():
+            raise TokenError(f"{need} delegated permission is required")
         return claims
 
 
@@ -193,3 +194,54 @@ def admin_consent_url(cfg: EntraConfig, tenant: str = "organizations") -> str:
     # This endpoint consents the app's configured permissions across resource APIs.
     # A v2 scope request cannot combine Fabric and SQL .default scopes.
     return f"{AUTHORITY}/{tenant}/adminconsent?" + urlencode({"client_id": cfg.client_id})
+
+
+# ------------------------------------------------------------------ the Fabric workload's own app (n166) -------------
+
+WORKLOAD_ENV = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_CLIENT_SECRET", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
+
+
+@dataclass
+class WorkloadConfig:
+    """The Entra app of the Fabric workload (workload/, docs/WORKLOAD-DEV.md): a separate audience next to the MCP app.
+
+    The editor inside Fabric asks the Fabric host for a token for this app's scope (acquireFrontendAccessToken) and
+    calls /workload/v1/* with it; the server validates it against this app only and exchanges it on-behalf-of the user
+    with this app's own credentials. A token for the MCP app is not accepted here, and a workload token is not accepted
+    at /mcp, because each Validator checks its own audiences.
+
+    Configuration (environment); all unset = the workload routes are off:
+      KRUSGRAPH_WORKLOAD_CLIENT_ID         the workload app's client id (the FRONTEND_APPID of workload/.env.dev)
+      KRUSGRAPH_WORKLOAD_CLIENT_SECRET     its secret (never logged)
+      KRUSGRAPH_WORKLOAD_APP_ID_URI        its Application ID URI (api://localdevinstance/<tenant>/Org.Krusgraph/<x> in development)
+      KRUSGRAPH_WORKLOAD_SCOPE             the delegated scope the editor asks for (default user_impersonation)
+      KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS   optional comma list of tenant ids; empty = any tenant whose admin consented
+    """
+    client_id: str
+    client_secret: str = field(repr=False)
+    app_id_uri: str = ""
+    required_scope: str = "user_impersonation"
+    allowed_tenants: set[str] = field(default_factory=set)
+    secret_reader: object = field(default=None, repr=False, compare=False)    # same shape as EntraConfig, for OnBehalfOf
+
+    def secret(self, refresh: bool = False) -> str:
+        return self.client_secret
+
+    @property
+    def audiences(self) -> list[str]:
+        return [self.app_id_uri, self.client_id, f"api://{self.client_id}"]
+
+    @classmethod
+    def from_env(cls, mcp: "EntraConfig | None" = None) -> "WorkloadConfig | None":
+        cid, sec, uri = (os.environ.get(k, "").strip() for k in WORKLOAD_ENV)
+        if not any((cid, sec, uri)):
+            return None
+        if not all((cid, sec, uri)):
+            raise ValueError("The Fabric workload routes require KRUSGRAPH_WORKLOAD_CLIENT_ID, KRUSGRAPH_WORKLOAD_CLIENT_SECRET "
+                             "and KRUSGRAPH_WORKLOAD_APP_ID_URI (or none of them, to keep the routes off)")
+        if mcp is not None and (cid.lower() == mcp.client_id.lower() or uri.rstrip("/") in mcp.audiences):
+            raise ValueError("The workload needs its own Entra app: KRUSGRAPH_WORKLOAD_CLIENT_ID and _APP_ID_URI must differ "
+                             "from the MCP app's ENTRA_CLIENT_ID and MCP_PUBLIC_URL")
+        scope = os.environ.get("KRUSGRAPH_WORKLOAD_SCOPE", "").strip() or "user_impersonation"
+        allowed = {t.strip().lower() for t in os.environ.get("KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS", "").split(",") if t.strip()}
+        return cls(cid, sec, uri.rstrip("/"), scope, allowed)
