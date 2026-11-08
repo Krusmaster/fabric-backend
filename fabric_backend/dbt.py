@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import re
 
+from .codegen import one_line as _one_line
 from .infer import Plan
 
 _SAFE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -105,7 +106,7 @@ def schema_yml(plan: Plan, source_name: str, schema: str, database: str | None =
                 for lines in tests:
                     out += ["              " + lines[0]] + ["              " + ln for ln in lines[1:]]
     out.append("")
-    return "\n".join(out)
+    return "\n".join(_one_line(x) for x in out)
 
 
 def _q(s: str) -> str:
@@ -261,8 +262,9 @@ def _summable(plan: Plan, table: str) -> list[str]:
 
 
 def _note(text: str) -> str:
-    """A line comment's text on one line: a newline in a description would end the comment and leave the rest as SQL."""
-    return " ".join(str(text).splitlines())
+    """A line comment's text on one line: a newline in a description or a name would end the comment and leave the rest
+    as SQL (review H1); every character that is not printable is written as its escape (codegen.one_line)."""
+    return _one_line(text)
 
 
 def _select_list(items: list[tuple[str, str | None]], indent: str) -> str:
@@ -276,7 +278,8 @@ def _select_list(items: list[tuple[str, str | None]], indent: str) -> str:
 
 
 def _yaml_doc(lines: list[str]) -> str:
-    return "\n".join(lines) + "\n"
+    # one entry is one line: a name with a line break in a comment would otherwise end it (review H1)
+    return "\n".join(_one_line(x) for x in lines) + "\n"
 
 
 def _exists(plan: Plan, table: str, r, models: dict[str, str], ren: dict[str, dict[str, str]], source_name: str) -> str:
@@ -452,7 +455,7 @@ def _mart(plan: Plan, checked_plan: Plan, fact: str, model: str, models: dict[st
         sel = [*(_sq(rs[c]) for c in r.source_cols), f"count(*) as {_sq(child + '_rows')}"]
         sel += [f"sum({_sq(rs[m])}) as {_sq(f'{child}_{rs[m]}_sum')}" for m in measures]
         on = " and ".join(f"f.{_sq(ren[fact][b])} = {a}.{_sq(rs[c])}" for c, b in zip(r.source_cols, r.target_cols))
-        agg_sql.append(f"left join (\n    -- {r.source} summed to one row per {fact} before the join ({_rel_text(r)}), so no {fact} row repeats\n"
+        agg_sql.append("left join (\n" + _note(f"    -- {r.source} summed to one row per {fact} before the join ({_rel_text(r)}), so no {fact} row repeats") + "\n"
                        f"    select {', '.join(sel)}\n    from {{{{ ref({_q(models[r.source])}) }}}}\n    group by {group}\n) as {a}\n    on {on}")
         agg_cols += [f"{a}.{_sq(child + '_rows')}"] + [f"{a}.{_sq(f'{child}_{rs[m]}_sum')}" for m in measures]
         names += [f"{child}_rows"] + [f"{child}_{rs[m]}_sum" for m in measures]
@@ -646,8 +649,8 @@ def _y_text(s: str) -> str:
 
 def _unique_test(model: str, cols: list[str]) -> str:
     c = ", ".join(_sq(x) for x in cols)
-    return (f"-- {model}: {'+'.join(cols)} identifies one row. This test returns the values more than one row has, and passes "
-            "when it returns none.\n-- dbt_utils' unique_combination_of_columns tests the same; it is not used, because "
+    return (_note(f"-- {model}: {'+'.join(cols)} identifies one row. This test returns the values more than one row has, and passes "
+                  "when it returns none.") + "\n-- dbt_utils' unique_combination_of_columns tests the same; it is not used, because "
             "dbt-fabric's documentation says dbt-utils is not supported.\n"
             f"select {c}, count(*) as [rows]\nfrom {{{{ ref({_q(model)}) }}}}\ngroup by {c}\nhaving count(*) > 1\n")
 
@@ -657,9 +660,9 @@ def _relationship_test(r, models: dict[str, str], sc: list[str], tc: list[str]) 
     reference whose values have no row in the parent."""
     not_null = " and ".join(f"c.{_sq(x)} is not null" for x in sc)
     on = " and ".join(f"p.{_sq(b)} = c.{_sq(a)}" for a, b in zip(sc, tc))
-    return (f"-- {models[r.source]}.{'+'.join(sc)} -> {models[r.target]}.{'+'.join(tc)} ({r.rule}): this test returns the rows "
-            "whose reference has no row in the parent, and passes when it returns none. A NULL in the reference is not "
-            "tested, as the built-in relationships test leaves NULL out.\n"
+    return (_note(f"-- {models[r.source]}.{'+'.join(sc)} -> {models[r.target]}.{'+'.join(tc)} ({r.rule}): this test returns the rows "
+                  "whose reference has no row in the parent, and passes when it returns none. A NULL in the reference is not "
+                  "tested, as the built-in relationships test leaves NULL out.") + "\n"
             f"select {', '.join(f'c.{_sq(x)}' for x in sc)}\nfrom {{{{ ref({_q(models[r.source])}) }}}} as c\n"
             f"where {not_null}\n    and not exists (select 1 from {{{{ ref({_q(models[r.target])}) }}}} as p where {on})\n")
 

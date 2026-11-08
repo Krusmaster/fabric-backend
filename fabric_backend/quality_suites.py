@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 
+from .codegen import one_line as _one_line
 from .infer import Plan
 
 GX_VERSION = "1.24.1"
@@ -164,7 +165,8 @@ def soda_checks(plan: Plan, schema: str, validation: dict | None = None, tables:
                 out += [f"  # relationship {'+'.join(cols)} -> {ref} (rule {rule}; counts: {counts}) holds when this returns no rows:",
                         f"  #   {sql}"]
     out.append("")
-    return "\n".join(out)
+    # one entry is one line: a name with a line break would end a comment or a key and start YAML of its own (review H1)
+    return "\n".join(_one_line(x) for x in out)
 
 
 def suites(plan: Plan, schema: str, fmt: str, validation: dict | None = None, tables: list[str] | None = None) -> dict[str, str]:

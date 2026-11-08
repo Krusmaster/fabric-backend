@@ -32,6 +32,8 @@ from __future__ import annotations
 
 import re
 
+from .codegen import one_line as _one_line
+
 ODCS_VERSION = "v3.2.0"
 MIN_TABLES = 2
 RESOLUTION = 1.0
@@ -475,7 +477,7 @@ def contract(p, domain: dict, interfaces: list[dict], schema: str, source: str =
     if dated:
         lines += ["# Freshness: agree a latency with the data owner, then uncomment (no value is assumed here).",
                   "# slaProperties:", "#   - property: latency", "#     value: <agree>", "#     unit: d",
-                  f"#     element: {dated[0]}"]
+                  _one_line(f"#     element: {dated[0]}")]
     return "\n".join(lines) + "\n"
 
 

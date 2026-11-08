@@ -33,6 +33,7 @@ import json
 import re
 
 from . import notebook as _nb
+from .codegen import comment as _comment
 from .infer import Plan, PlanInputError, RULES, _norm
 
 QUARANTINE = "krusgraph_quarantine"
@@ -406,8 +407,8 @@ def _winner_line(t: dict) -> str:
     fk = t["fix_key"]
     hint = (f" ({fk['accepted']})" if fk.get("accepted") else f" (given in order_by)" if fk["winner"] else
             f" ({fk['named']} is named like a change time: write it here if the latest by it should win)" if fk["named"] else "")
-    return (f"DUPLICATE_WINNER[{_py(t['table'])}] = {_py(fk['winner'])}   # rows that share {', '.join(t['key'])} and differ: the "
-            f"column whose latest value wins{hint}; None stops the run if there are such rows")
+    return (f"DUPLICATE_WINNER[{_py(t['table'])}] = {_py(fk['winner'])}   " + _comment(f"rows that share {', '.join(t['key'])} and differ: the "
+            f"column whose latest value wins{hint}; None stops the run if there are such rows"))
 
 
 def _orphan_line(c: dict) -> str:
@@ -427,10 +428,10 @@ def _fix_parameter(t: dict, f: dict) -> str | None:
 
 def _move_lines(t: dict, m: dict) -> list[str]:
     name, target = t["table"], m["target_table"]
-    return [f"# n115 fix: {', '.join(m['amounts'])} has one value per {m['header']} (validate_plan counted it): it moves to "
-            f"{target}, one row per {m['header']}.",
+    return [_comment(f"n115 fix: {', '.join(m['amounts'])} has one value per {m['header']} (validate_plan counted it): it moves to "
+                     f"{target}, one row per {m['header']}."),
             f"df, _header_level = move_to_header(df, {_py(m['header'])}, {_py(m['amounts'])}, {_py(name)})",
-            f"read_counts[{_py(target)}] = None   # built from silver {name}, not read from a source table",
+            f"read_counts[{_py(target)}] = None   " + _comment(f"built from silver {name}, not read from a source table"),
             f"silver[{_py(target)}] = write_silver(_header_level, {_py(target)})"]
 
 
@@ -449,10 +450,10 @@ def _fix_lines(t: dict, f: dict) -> str:
 def _key_comment(t: dict) -> list[str]:
     if t["key_rule"] == "K3" or not t["key"]:
         return [f"# No key (rule K3: {_rule_text('K3')}): every row is kept as it is; nothing to de-duplicate on."]
-    lines = [f"# Key {' + '.join(t['key'])} (rule {t['key_rule']}: {t.get('key_rule_text') or _rule_text(t['key_rule'])}).",
+    lines = [_comment(f"Key {' + '.join(t['key'])} (rule {t['key_rule']}: {t.get('key_rule_text') or _rule_text(t['key_rule'])})."),
              "# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept."]
     if t["order_by"]:
-        lines.append(f"# Latest row wins by {t['order_by']} ({t['order_why']}).")
+        lines.append(_comment(f"Latest row wins by {t['order_by']} ({t['order_why']})."))
     else:
         lines.append("# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.")
     return lines
@@ -467,7 +468,7 @@ def _ref_call(c: dict, parent: str, name: str, reason: str) -> str:
 
 def _table_cell(t: dict) -> str:
     name = t["table"]
-    out = [f"# ---- {name} -> {'.'.join(x for x in t['target'] if x)} ----", *_key_comment(t),
+    out = [_comment(f"---- {name} -> {'.'.join(x for x in t['target'] if x)} ----"), *_key_comment(t),
            f"df = spark.read.table(source({_py(name)}))", f"read_counts[{_py(name)}] = df.count()"]
     if t["key"] and t.get("fix_key"):                                    # n115: the duplicate key's fix suggestion
         out += [f"# n115 fix: validate_plan counted duplicate or NULL keys here. Exact copies: one stays; rows that share the key and",
@@ -480,10 +481,10 @@ def _table_cell(t: dict) -> str:
     for c in t["checks"]:
         on = " and ".join(f"{name}.{a} = {c['parent']}.{b}" for a, b in zip(c["columns"], c["parent_columns"]))
         reason = f"{', '.join(c['columns'])} has no row in {c['parent']} ({on})"
-        out.append(f"# Reference {on} (rule {c['rule']}: {c.get('rule_text') or _rule_text(c['rule'])}"
-                   + (f"; {c['note']}" if c.get("note") else "") + ").")
+        out.append(_comment(f"Reference {on} (rule {c['rule']}: {c.get('rule_text') or _rule_text(c['rule'])}"
+                            + (f"; {c['note']}" if c.get("note") else "") + ")."))
         if c["parent_from"] == "silver" and c["parent"] != name:
-            out.append(f"# Checked against the silver {c['parent']}, so rows whose {c['parent']} was quarantined follow it there.")
+            out.append(_comment(f"Checked against the silver {c['parent']}, so rows whose {c['parent']} was quarantined follow it there."))
             parent = f"silver[{_py(c['parent'])}]"
         elif c["parent"] == name:
             out += ["# The table points at itself: checked against its own rows, again until no more rows drop out, so a row whose",
@@ -496,10 +497,10 @@ def _table_cell(t: dict) -> str:
                     "        break"]
             continue
         elif c["parent_from"] == "source_cycle":
-            out.append(f"# {c['parent']} is part of a cycle of references and comes later: checked against its source rows.")
+            out.append(_comment(f"{c['parent']} is part of a cycle of references and comes later: checked against its source rows."))
             parent = f"spark.read.table(source({_py(c['parent'])}))"
         else:
-            out.append(f"# {c['parent']} is not part of this notebook: checked against its source table.")
+            out.append(_comment(f"{c['parent']} is not part of this notebook: checked against its source table."))
             parent = f"spark.read.table(source({_py(c['parent'])}))"
         out.append(f"df = {_ref_call(c, parent, name, reason)}")
     for m in t.get("moves", []):                                         # n115: a flat table's header amount

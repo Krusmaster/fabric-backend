@@ -37,6 +37,7 @@ import json
 import re
 
 from . import notebook as _nb
+from .codegen import comment as _comment, one_line as _one_line, sql_comment as _sql_comment
 from . import privacy as _privacy
 from .graphs import certainty
 from .infer import Plan, PlanInputError, RULES
@@ -216,19 +217,20 @@ def select_sql(view: dict, silver_schema: str, quote=q) -> str:
 def create_sql(view: dict, s: dict) -> str:
     """CREATE OR REPLACE MATERIALIZED LAKE VIEW with one CONSTRAINT per rule, each preceded by the rule that motivates it."""
     gold, name = view["name"].split(".", 1)
-    lines = [f"-- {view['why']}."]
-    lines += [f"-- join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}, certainty {j['certainty']}"
+    lines = [_sql_comment(f"{view['why']}.")]
+    lines += [_sql_comment(f"join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}, certainty {j['certainty']}")
               for j in view["joins"]]
     lines.append(f"CREATE OR REPLACE MATERIALIZED LAKE VIEW {q(gold)}.{q(name)}")
     if view["constraints"]:
         lines.append("(")
         for i, c in enumerate(view["constraints"]):
-            lines.append(f"    -- {c['why']}")
+            lines.append(_sql_comment(c["why"], "    -- "))
             lines.append(f"    CONSTRAINT {c['name']} CHECK ({c['check']}) ON MISMATCH DROP" + ("," if i < len(view["constraints"]) - 1 else ""))
         lines.append(")")
     comment = f"Krusgraph gold view of {view['fact']} from {s['silver_schema']}, generated from the plan; rules in the constraint comments"
-    lines.append('COMMENT "' + comment.replace('"', "'") + '"')
-    lines.append(f'TBLPROPERTIES ("{PROPERTY}"="' + s["owner"].replace('"', "'") + '")')
+    # a backslash would escape the closing quote in Spark SQL; a line break is written as its escape (codegen.one_line)
+    lines.append('COMMENT "' + _one_line(comment).replace("\\", "\\\\").replace('"', "'") + '"')
+    lines.append(f'TBLPROPERTIES ("{PROPERTY}"="' + s["owner"].replace("\\", "\\\\").replace('"', "'") + '")')
     lines.append("AS")
     lines.append(select_sql(view, s["silver_schema"]))
     return "\n".join(lines)
@@ -305,7 +307,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
         body = sql.replace(f"{q(s['gold_schema'])}.", f"`{GOLD_TOKEN}`.").replace(f"{q(s['silver_schema'])}.", f"`{SILVER_TOKEN}`.")
         body = body.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
         name = v["name"].split(".", 1)[1]
-        out.append(("code", "\n".join([f"# ---- {v['name']} ----", *[f"# {c['name']}: {c['why']}" for c in v["constraints"]],
+        out.append(("code", "\n".join([_comment(f"---- {v['name']} ----"), *[_comment(f"{c['name']}: {c['why']}") for c in v["constraints"]],
                                        f'spark.sql("""\n{body}\n""".replace("{GOLD_TOKEN}", GOLD_SCHEMA.replace("`", "``"))'
                                        f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))',
                                        f"created.append({json.dumps(name)})"])))
