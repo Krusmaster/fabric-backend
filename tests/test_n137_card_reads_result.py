@@ -128,7 +128,9 @@ def test_structured_content_with_the_flag_and_the_text_unchanged(live_shop):
         r = _call(tool, args)
         [part] = r["content"]
         assert part["type"] == "text" and json.loads(part["text"]) == json.loads(plain)
-        assert r["structuredContent"] == json.loads(plain) and not r.get("isError")
+        # n170: structuredContent is the answer plus the picture's data (`map`), which the text does not carry
+        assert {k: v for k, v in r["structuredContent"].items() if k != "map"} == json.loads(plain) and not r.get("isError")
+        assert "map" in r["structuredContent"] and "map" not in json.loads(plain)
 
 
 def test_an_answer_that_is_not_an_object_has_no_structured_content():
@@ -182,7 +184,7 @@ def test_validate_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("validate_plan", SRC)                    # what the server now returns, flag on
-    assert shapes["hosted_server"]["structuredContent"] == data
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k != "map"} == data   # n170: + the map
     drafted = json.dumps({"tmdl": "model Model", "note": "a draft; nothing was created."})
     for name, result in shapes.items():
         out = _browse(tmp_path, "validate_plan", SRC, result,
@@ -252,7 +254,7 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("review_plan", args)
-    assert shapes["hosted_server"]["structuredContent"] == data
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k != "map"} == data   # n170: + the map
     for name, result in shapes.items():
         probe = _browse(tmp_path, "review_plan", args, result)
         _check_review(probe["before"], data)

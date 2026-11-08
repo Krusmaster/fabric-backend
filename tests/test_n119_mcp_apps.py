@@ -117,7 +117,10 @@ def test_the_html_is_self_contained_with_no_external_load_and_no_tracking():
         assert banned not in low, banned
     # n136: the only pictures are the mascots, inline SVG with no reference of any kind (tests/test_n136_card_mascots.py)
     assert not {"image", "use", "foreignobject"} & set(p.tags)
-    assert low.count("<svg") == 3 and all('class="mascot ' in t for t in re.findall(r"<svg[^>]*>", low))
+    # n170: plus the pictures' drawing, which the card parses from the chat demo's text into an inert document
+    # ("<svg>" in mcp_apps_pictures.kgParse: no attribute, no reference) and allow-lists before it is shown
+    assert low.count('"<svg>"') == 1
+    assert low.count("<svg") == 4 and all('class="mascot ' in t for t in re.findall(r"<svg[^>]*>", low) if t != "<svg>")
 
 
 def test_the_view_uses_the_spec_method_names():
@@ -209,7 +212,7 @@ print(json.dumps({"names": sorted(t.name for t in tools),
     from fabric_backend import mcp_apps_review                           # n124: the second card, review_plan's
     from fabric_backend import mcp_apps_build                            # n169: the build card
     assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True),
-                          **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS}}
+                          **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS}}  # n170: and the drafts with a picture
     assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_build.CARD_URI, "text/html;profile=mcp-app"]]
