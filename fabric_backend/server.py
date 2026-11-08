@@ -64,6 +64,7 @@ from . import tool_params as _p  # noqa: E402
 from . import mcp_apps as _mcp_apps  # noqa: E402  (n119: off unless KRUSGRAPH_MCP_APPS=1)
 from . import switches as _switches  # noqa: E402  (n123: both off unless the operator sets them)
 from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same flag)
+from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -233,6 +234,26 @@ def _workspace_id(workspace: str, headers: dict) -> str:
     return _fabric.workspace_id(workspace, headers, _workspaces)
 
 
+def _workspace_id_ctx(workspace: str, ctx) -> str:
+    """n169: the workspace's id for the card's "Open in Fabric" address."""
+    return _workspace_id(workspace, _headers(ctx))
+
+
+def _item_names(workspace: str, ctx) -> list[str]:
+    """n169: the display names of every item in the workspace, any type, so a suggested name is never one taken.
+    Raises when the list cannot be read; the card then offers no name (mcp_apps_build.with_actions)."""
+    import requests
+    headers = _headers(ctx)
+    url, names = f"{FABRIC}/v1/workspaces/{_workspace_id(workspace, headers)}/items", []
+    while url:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        names += [it["displayName"] for it in body.get("value", []) if it.get("displayName")]
+        url = body.get("continuationUri")
+    return names
+
+
 def _resolve_source(workspace: str, source: str, headers: dict) -> dict:
     """Lakehouse / warehouse / SQL database by name or id → item dict with sql endpoint host."""
     return _fabric.resolve_source(workspace, source, headers, find_item_by_name)
@@ -366,7 +387,11 @@ def _titled_tool(register):
                 return guarded
             extra = _mcp_apps.registration(name)                # n137: structuredContent for the cards, flag on only
             if extra:
-                register(*args, title=title, annotations=annotations, **kwargs, **extra)(_mcp_apps.structured(guarded))
+                shown = guarded
+                if name in _mcp_apps_build.ACTION_TOOLS:        # n169: the Builder's and the Thinker's buttons
+                    shown = _mcp_apps_build.with_actions(name, guarded, _item_names, _workspace_id_ctx)
+                kw = {**kwargs, **extra}
+                register(*args, title=title, annotations=annotations, **kw)(_mcp_apps.structured(shown))
                 return guarded                                  # the module's function still answers text
             return register(*args, title=title, annotations=annotations, **kwargs)(guarded)
         return wrap
@@ -425,7 +450,7 @@ def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
 
 @mcp.tool(title="Plan keys and relationships (nothing deployed)", annotations=RO)
 @safe
-def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
+def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSchema = None, keys: _p.Keys = None,
                  confirmed: _p.Confirmed = None, tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                  mermaid: _p.Mermaid = True, ctx: Context = None) -> str:
     """Infers primary keys and relationships for the tables in a schema and proposes them as a plan. Requires workspace and
@@ -433,14 +458,71 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     columns, keyless tables, suggested composite keys and a Mermaid ER diagram. Rule R5 counts code and role columns
     the names left unlinked against the rows (read-only counting queries, at most 20, over the first 200 distinct values
     of a column); candidates it could not confirm are listed as proposed. Changes nothing in Fabric. validate_plan
-    checks it against the rows; create_backend builds the API. Errors: {error, kind, hint}."""
+    checks it against the rows; create_backend builds the API. Without schema, a source with several schemas that
+    hold tables gets {choose_schema, schemas: [{schema, tables}], summary, hint} and nothing is planned (n169).
+    Errors: {error, kind, hint}."""
+    chosen = None
+    if not (schema or "").strip():                                    # n169: the call named no schema
+        schemas = _source_schemas(workspace, source, ctx)
+        if len(schemas) > 1:
+            return json.dumps(_schema_choice(source, schemas), indent=2)
+        schema = chosen = schemas[0]["schema"] if schemas else "dbo"
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     suggested = [s for s in _evidence.suggest_composite_keys(p) if keep is None or s["table"] in keep]
     if _compact.pick_detail(detail, len(shown.schema)) == "summary":
-        return _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
-    return _bounded(_compact.plan_full(shown, suggested, mermaid=bool(mermaid)), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+        text = _bounded(_compact.plan_summary(shown, suggested, f"{len(shown.schema)} of {len(p.schema)} tables shown" if keep else ""), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    else:
+        text = _bounded(_compact.plan_full(shown, suggested, mermaid=bool(mermaid)), MAX_RESULT_CHARS, _compact.NARROW_HINT, drop=("mermaid",))
+    return _with_schema_chosen(text, chosen)
+
+
+# n169: the schemas of a source that hold tables, for plan_backend called without a schema. INFORMATION_SCHEMA.TABLES
+# on the SQL endpoint; base tables only (a views schema such as krusgraph is not a choice), system schemas left out.
+SCHEMAS_SQL = """
+SELECT TABLE_SCHEMA, COUNT(*) AS TABLE_COUNT
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA NOT IN ('sys', 'INFORMATION_SCHEMA', 'queryinsights', 'guest')
+GROUP BY TABLE_SCHEMA
+ORDER BY TABLE_SCHEMA
+"""
+
+
+def _source_schemas(workspace: str, source: str, ctx) -> list[dict]:
+    """[{schema, tables}] of the source, most tables first is not implied: in name order."""
+    headers = _headers(ctx)
+    workspace = _workspace_id(workspace, headers)
+    item = _resolve_source(workspace, source, headers)
+    execute = _execute_factory(item, auth.sql(ctx))
+    try:
+        rows = list(execute(SCHEMAS_SQL))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    return [{"schema": str(r["TABLE_SCHEMA"]), "tables": int(r["TABLE_COUNT"] or 0)} for r in rows
+            if r.get("TABLE_SCHEMA") and int(r.get("TABLE_COUNT") or 0) > 0]
+
+
+def _schema_choice(source: str, schemas: list[dict]) -> dict:
+    listed = ", ".join(f"{s['schema']} ({s['tables']} tables)" for s in schemas)
+    return {"choose_schema": True,
+            "summary": f"{source} has {len(schemas)} schemas with tables: {listed}. Which one should be planned?",
+            "schemas": schemas,
+            "hint": "Ask the user which schema they mean, then call plan_backend again with schema set to it. Nothing was "
+                    "planned: picking one would plan tables the user may not mean."}
+
+
+def _with_schema_chosen(text: str, chosen: str | None) -> str:
+    """plan_backend's answer with `schema_chosen` when the call named no schema and the source has one (or none)."""
+    if chosen is None:
+        return text
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return text
+    if not isinstance(data, dict):
+        return text
+    return json.dumps({"schema_chosen": chosen, **data}, indent=2)
 
 
 def _connected(workspace: str, source: str, schema: str, ctx):

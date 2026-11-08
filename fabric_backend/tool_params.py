@@ -19,6 +19,9 @@ def _d(text: str):
 Workspace = Annotated[str, _d('Fabric workspace, name or id.')]
 Source = Annotated[str, _d('Lakehouse, warehouse or SQL database, name or id.')]
 Schema = Annotated[str, _d('Schema in the source. Default "dbo".')]
+PlanSchema = Annotated[str | None, _d(
+    'Schema in the source; leave it out unless the user named one. Default: the only schema with tables; when the '
+    'source has several, the answer lists them and asks which (choose_schema), and nothing is planned.')]
 Keys = Annotated[dict[str, list[str]] | None, _d(
     'Primary keys replacing the inferred ones. Default: inferred. Example: {"order_items": ["order_id", "line_no"]}.')]
 Confirmed = Annotated[list[dict] | None, _d(

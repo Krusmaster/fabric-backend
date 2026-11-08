@@ -54,7 +54,9 @@ CARD_URI = "ui://krusgraph/validate-plan-card.html"
 APP_MIME_TYPE = "text/html;profile=mcp-app"           # the specification's MIME type; mcp.server.apps.APP_MIME_TYPE
 PROTOCOL_VERSION = "2026-01-26"
 TOOL = "validate_plan"
-STRUCTURED = ("validate_plan", "review_plan")        # n137: the tools whose answer is also returned as structuredContent
+# n137: the tools whose answer is also returned as structuredContent; n169: and the build card's (mcp_apps_build.CARD_TOOLS)
+STRUCTURED = ("validate_plan", "review_plan", "plan_backend", "create_semantic_model", "create_ontology", "create_backend",
+              "create_report")
 
 # The arguments a next step carries over from the validate_plan call, per tool: workspace, source and schema always;
 # keys and confirmed only where the tool takes them. tests/test_n119_mcp_apps.py checks each against the tool's
@@ -103,6 +105,9 @@ def registration(name: str, on: bool | None = None) -> dict:
     structured_output=False (no derived {"result": string} output schema, which would not describe the answer)."""
     if name not in STRUCTURED or not (enabled() if on is None else on):
         return {}
+    from . import mcp_apps_build                             # n169: the build card's tools point at it
+    if name in mcp_apps_build.CARD_TOOLS:
+        return {"structured_output": False, "meta": mcp_apps_build.tool_meta(on=True)}
     return {"structured_output": False}
 
 
@@ -118,6 +123,8 @@ def extensions(on: bool | None = None) -> list:
                            prefers_border=True)
     from . import mcp_apps_review                            # n124: review_plan's card, same flag
     mcp_apps_review.add_to(apps)
+    from . import mcp_apps_build                             # n169: the build card, same flag
+    mcp_apps_build.add_to(apps)
     return [apps]
 
 
@@ -126,9 +133,11 @@ def card_html() -> str:
     only from the host. Since n136 the site's mascots are on it as inline SVG (mcp_apps_mascots): Onto says the summary
     (the counts), the Thinker the first thing that needs attention, the Builder the first next step, each word for word
     from the text answer and also on the card; glad only when every check passed; a button hides them."""
+    from . import mcp_apps_build                             # n169: the Builder's and the Thinker's buttons (actions)
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
-    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS)
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+    return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION)
+            .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + mcp_apps_build.actions_js())
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + mcp_apps_build.ACTIONS_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
 
@@ -378,6 +387,7 @@ __RESULT_CSS__
   <dl id="counts" class="counts" hidden></dl>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
   <section id="next" hidden><h2 class="muted">Next steps (each reads or drafts; nothing is created)</h2><div id="steps" class="steps"></div></section>
+  <section id="build" hidden></section>
   <p class="muted">The same answer is in the text of the tool result. A button asks the host to run that tool; the host may ask you first.</p>
 </main>
 <script>
@@ -401,7 +411,7 @@ __READ_JS__
     var data = answerOf(result);
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
-    ["counts", "result", "attention", "next"].forEach(function (id) { document.getElementById(id).hidden = true; });
+    ["counts", "result", "attention", "next", "build"].forEach(function (id) { document.getElementById(id).hidden = true; });
     if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
     verdict.textContent = readable(data.summary);
@@ -459,6 +469,12 @@ __READ_JS__
       row.appendChild(b); row.appendChild(out); steps.appendChild(row);
     });
     document.getElementById("next").hidden = !steps.children.length;
+
+    // n169: the Builder's buttons from the answer's `actions`: each build is a dry run first, Create only on its card
+    var build = document.getElementById("build"); build.textContent = "";
+    renderActions(data, build, null);
+    build.hidden = !build.children.length;
+    if (!firstStep && build.children.length && Array.isArray(data.actions) && isObj(data.actions[0])) firstStep = readable(data.actions[0].say);
 
     // n136: Onto says the counts, the Thinker what needs attention, the Builder the next step; every sentence is a
     // string of the answer and is on the card above. Glad only when every check passed and nothing needs attention.
