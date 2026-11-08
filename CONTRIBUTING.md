@@ -43,6 +43,7 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n166 |
 | Tests | `tests/` | n166 |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | n166 |
+| Listing docs | `docs/WORKLOAD-LISTING-AND-PAYMENT.md` | n167 |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || open |
 
 "open" means nobody has claimed it; claim an area by editing this table in its own small commit before you start,
