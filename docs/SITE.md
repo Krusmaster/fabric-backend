@@ -122,11 +122,14 @@ shop with buttons: check how the tables connect, decide on the suggested `orders
 an ontology and data products, in any order. The replay "A replay of a session in Claude" on the start page stays as it
 is.
 
-- **Which pages.** Every page with the site's header (`_shell(..., chat=True)`): the pages in `PAGES`, `/privacy`,
-  `/docs`, `/lovable`, `/local`, the admin-consent return page and the 404 page; not `/check` and not `/demo`
-  (`pages.CHAT_OFF`; `/demo` is a redirect to `/check`), and never a page whose content security policy says
-  `connect-src 'none'`: `server.py` takes the button out of such a page (`pages.strip_chat`), which today is `/check`
-  and the start page when a request's Host header is one its policy cannot name. No page's policy changed for the chat:
+- **Which pages.** Every page with the site's header (`_shell(..., chat=True)`): the pages in `PAGES` (since n154 the start page again,
+  and `/check`), `/privacy`, `/docs` and its sub-pages, `/lovable`, `/local`, `/blog` and its
+  articles, the admin-consent return page and the 404 page; not `/demo` (`pages.CHAT_OFF`, a redirect to `/check`).
+  `/check`'s policy keeps `connect-src 'none'`, so the page carries the plan itself in an inert JSON block
+  (`pages.chat_plan_html`, `id="kgcPlan"`) and the chat reads it there instead of fetching; on `/check` the button steps
+  aside while it would cover the drop area (`data-kgc-avoid`, `site.js`). `server.py` still takes the button out of any
+  other page whose policy says `connect-src 'none'` (`pages.strip_chat`), which today is the start page when a
+  request's Host header is one its policy cannot name. No page's policy changed for the chat:
   every other page has `connect-src 'self'`, the start page names `/demo/plan.json`. The preview of the first customer
   demonstration (`sales_demo.py`, only with `KRUSGRAPH_PREVIEW=1`) is not an ordinary page and has no button. The button
   shows Onto, so every page with it also has the footer's Mascots switch (the n36 rule: the switch goes with a mascot).
@@ -186,8 +189,10 @@ is.
   plain sentence without a tool's name, built by `pages.chat_status()` from `tool_status` and saying no more than it:
   "Created in a live Fabric workspace and reviewed there." (`build_word` and `REVIEWED`), "Creating it needs a permission
   the hosted service does not ask for today." (available when enabled by the operator), "Tested with unit tests, not yet
-  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Create a dbt flow" are marked
-  Planned, run nothing, and say what exists today; no dates. The chat does not say that its bubbles appear in the agent.
+  against a live Fabric workspace." (a draft that has not run live). "Fix data issues" and "Write dbt tests" (n154; until
+  then "Create a dbt flow", both marked Planned) link the docs of what exists today, with one line saying what that is:
+  the silver notebook with its quarantine table (`/docs/build-from-a-plan/one-plan-five-fabric-pieces`) and
+  `dbt_schema`'s schema.yml with tests (`/docs/reference/tools`); only a whole dbt project is said to be planned; no dates. The chat does not say that its bubbles appear in the agent.
   The sales-word test covers its text.
 - **Keyboard, phone, motion, mascots, theme.** Visible focus on every button; the focus goes to Close when the chat
   opens and to the first new choice after each step; Esc (from inside the chat) and Close close it and give the focus

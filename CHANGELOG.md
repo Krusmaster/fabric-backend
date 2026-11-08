@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n154: n149 partly undone after the founder's feedback of 8 November 2026. The replay ("A replay of a session in
+  Claude") is back in the home page's hero, under the two buttons as before n149 (on a phone directly under them), with
+  the small 2 000 → 1 000 card under it; its first round starts with question 1 already sent and answered, and the
+  thread starts under the panel's heading, so the panel no longer opens on about 200 px of empty space (same questions,
+  answers and note). The chat's "Try a demo" button is back on the home page, now also on /check, and on every page the site
+  renders (the blog included); on /check, whose policy still lets the page fetch nothing, the chat reads the same plan
+  from the page, and the button steps aside while it would cover the drop area. In the chat, "Fix data issues" and
+  "Write dbt tests" (until now "Create a dbt flow", both marked Planned) link the docs of what exists today: the silver
+  notebook with its quarantine table (/docs/build-from-a-plan/one-plan-five-fabric-pieces) and dbt_schema's schema.yml
+  with tests (/docs/reference/tools); only a whole dbt project is said to be planned. n149's headline, labels, Blog
+  link, /check card and /start line stay. `tests/test_n154_replay_and_widget.py` (with tests/n154_browser.js).
 - Round n151: create_report's default page reads like a report, after the first live run with visuals on 7 November
   2026 (`shop_report_visuals` on `shop_model`, every figure right; `shop_report_lovable` from Lovable; both recorded in
   docs/LIVE-TEST.md, and create_report's own note no longer says the page was not yet created in Fabric). Plain titles

@@ -98,19 +98,12 @@ async function flowByMouse(page, f, v) {
   await waitPick(page, 'Create a semantic model');
   f.linkAdded = await lastText(page, '.kgc-msg.win .kgc-bub');
   f.nextPicks = await picks(page);
-  // a planned choice runs nothing: no steps, no result, only what exists today
-  const before = await page.evaluate(() => ({ steps: document.querySelectorAll('.kgc-steps').length, wins: document.querySelectorAll('.kgc-msg.win').length, msgs: document.querySelectorAll('.kgc-msg').length }));
-  for (const label of ['Fix data issues', 'Create a dbt flow']) {
-    await page.click(`.kgc-pick[data-pick="${label}"]`);
-    await page.click(`.kgc-pick[data-pick="${label}"]`, { force: true });          // a second click does nothing more
-  }
-  await wait(1500);
-  const after = await page.evaluate(() => ({ steps: document.querySelectorAll('.kgc-steps').length, wins: document.querySelectorAll('.kgc-msg.win').length, msgs: document.querySelectorAll('.kgc-msg').length,
-    disabled: [...document.querySelectorAll('.kgc-pick.planned')].map((b) => b.getAttribute('aria-disabled')),
-    said: [...document.querySelectorAll('.kgc-msg.onto .kgc-bub')].slice(-2).map((b) => b.innerText.replace(/\s+/g, ' ').trim()),
-    youSaid: [...document.querySelectorAll('.kgc-you')].map((x) => x.textContent) }));
-  f.planned = { before, after };
-  await shot(page, `chat-planned@${v}`);
+  // n154: Fix data issues and Write dbt tests are links to the docs of what exists today, with that in one line
+  f.further = await page.evaluate(() => ['Fix data issues', 'Write dbt tests'].map((l) => {
+    const a = document.querySelector(`.kgc-pick[data-pick="${l}"]`);
+    return a ? { tag: a.tagName, href: a.getAttribute('href'), planned: a.classList.contains('planned'), why: (a.querySelector('small') || {}).textContent || '' } : null;
+  }));
+  await shot(page, `chat-further@${v}`);
   for (const label of ['Create a semantic model', 'Create an ontology', 'Draft data products']) {
     await waitPick(page, label);
     await page.click(`.kgc-pick[data-pick="${label}"]`);
@@ -177,18 +170,14 @@ async function flowByKeyboard(page, f, v) {
   };
   await enterOn('Check the tables');
   await enterOn('Yes, add the link');
-  // the planned choice by keyboard: Tab to it, Enter, and nothing runs
+  // n154: Tab reaches the link to what exists for fixing data (Enter would follow it; the flow goes on here)
   await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Create a semantic model', 'focus on Create a semantic model');
   for (let i = 0; i < 10; i++) {
     if ((await focusInfo(page)).pick === 'Fix data issues') break;
     await page.keyboard.press('Tab');
   }
-  f.plannedFocused = (await focusInfo(page)).pick;
-  const n0 = await page.evaluate(() => document.querySelectorAll('.kgc-steps').length);
-  await page.keyboard.press('Enter');
-  await wait(800);
-  f.plannedByKeyboard = { steps: (await page.evaluate(() => document.querySelectorAll('.kgc-steps').length)) - n0, focus: (await focusInfo(page)).pick,
-                          said: await lastText(page, '.kgc-msg.onto .kgc-bub') };
+  f.furtherFocused = await page.evaluate(() => ({ pick: document.activeElement.getAttribute('data-pick'), tag: document.activeElement.tagName,
+                                                   href: document.activeElement.getAttribute('href') }));
   // Escape closes, the focus goes back to the button; Enter opens again where it was
   await page.keyboard.press('Escape');
   f.escape = await page.evaluate(() => ({ hidden: document.getElementById('kgcBox').hidden, focus: document.activeElement.id }));

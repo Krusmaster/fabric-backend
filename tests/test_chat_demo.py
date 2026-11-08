@@ -156,13 +156,13 @@ def test_no_table_column_or_entity_name_is_typed_into_the_chat():
 def _html_routes(client):
     """Every HTML page the site serves, with its response (n93): the registered pages, the Markdown pages, the consent
     return page and the 404 page."""
-    paths = list(pages.PAGES) + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"]
+    paths = list(pages.PAGES) + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page", "/blog", pages.BLOG_TOTALS]
     return {p: client.get(p, headers={"accept": "text/html"}) for p in paths}
 
 
 def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
-    """n93: the button is on every page with the site's header except /check and /demo; the page loads only the button
-    (after the footer, hidden without JavaScript), never the chat's script or styles."""
+    """n93: the button is on every page with the site's header except /demo (n154: the home page and /check included);
+    the page loads only the button (after the footer, hidden without JavaScript), never the chat's script or styles."""
     v = pages.asset_version()
     home = client.get("/").text
     assert re.findall(r'<script src="([^"?]+)', home) == ["/static/mascots.js", "/static/site.js"]
@@ -172,19 +172,17 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
         assert r.headers["content-type"].startswith("text/html"), path
         text = r.text
         assert 'class="site-header"' in text, path
-        if path in ("/check",) + pages.PILL_OFF:                   # n149: nor on the home page
-            assert "kgc" not in text and "chat-demo" not in text, path
-            continue
         button = _launcher(text)
         assert text.count('id="kgcLaunch"') == 1, path
         assert " hidden " in button and 'type="button"' in button and ">Try a demo</button>" in button, path
         assert f'data-js="/static/chat-demo.js?v={v}"' in button and f'data-css="/static/chat-demo.css?v={v}"' in button, path
         assert text.index("</footer>") < text.index(button) < text.index('<script src="/static/mascots.js'), path
-        assert "chat-demo" not in text.replace(button, ""), path
+        assert "chat-demo" not in text.replace(button, "").replace(pages.chat_plan_html(), ""), path
         assert not [x for x in re.findall(r'<(?:script src|link rel="stylesheet" href)="([^"?]+)', text) if "chat" in x], path
         with_button.append(path)
-    assert set(with_button) == set(pages.PAGES) - {"/check", "/"} | {"/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"}
-    # /demo is a redirect to /check, which has no button
+    assert set(with_button) == set(pages.PAGES) | {"/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page",
+                                                  "/blog", pages.BLOG_TOTALS}
+    # /demo is a redirect to /check
     r = client.get("/demo", follow_redirects=False)
     assert r.status_code == 301 and r.headers["location"].startswith("/check") and "kgc" not in r.text
     # the replay stays, and the chat's files are served
@@ -205,14 +203,15 @@ CSP_CHECK = ("default-src 'self'; script-src 'self' " + _THEME + "; worker-src '
 
 def test_no_page_policy_changed_and_the_button_only_where_the_chat_may_fetch_its_plan(client):
     """n93: every page's policy is the one it had; the button is on a page only where its connect-src lets the chat fetch
-    /demo/plan.json ('self', or the start page's list that names it), never where it says connect-src 'none': /check, and
-    the start page itself when the request's Host header is one the policy cannot name."""
+    /demo/plan.json ('self', or the start page's list that names it), or (n154) where the page carries the plan itself:
+    /check, whose connect-src stays 'none'. The start page loses it when the request's Host header is one the policy
+    cannot name."""
     for path, r in _html_routes(client).items():
         csp = r.headers["content-security-policy"]
         assert csp == {"/": CSP_HOME, "/check": CSP_CHECK}.get(path, CSP_PAGE), path
         allowed = "connect-src 'self'" in csp or "/demo/plan.json" in csp
-        assert ('id="kgcLaunch"' in r.text) == (allowed and path not in pages.PILL_OFF), path     # n149: not on the home page
-        assert allowed == (path != "/check"), path
+        assert ('id="kgcLaunch"' in r.text) == (allowed or 'id="kgcPlan"' in r.text), path
+        assert 'id="kgcLaunch"' in r.text and allowed == (path != "/check") and ('id="kgcPlan"' in r.text) == (path == "/check"), path
     r = client.get("/", headers={"host": "bad host!"})
     assert "connect-src 'none'" in r.headers["content-security-policy"] and "kgc" not in r.text
     assert pages.strip_chat(pages.render("/start")).count("kgcLaunch") == 0 and "</footer>" in pages.strip_chat(pages.render("/start"))
@@ -249,7 +248,7 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "try {" in write and "catch (e)" in write
     # what is written: open as a boolean, and step names from the fixed list; nothing from the page or the plan
     assert "JSON.stringify({ open: !!(box && !box.hidden), steps: steps.filter(function (s) { return STEPS.indexOf(s) >= 0; }) })" in write
-    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fix', 'dbt'];" in CHAT_JS
+    assert "var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains'];" in CHAT_JS   # n154: fix and dbt are links
     # what is read back is checked: an object, open a boolean, steps known names at most once, a short string at all
     for check in ("raw.length > 400", "typeof o.open !== 'boolean'", "!Array.isArray(o.steps)", "STEPS.indexOf(o.steps[i]) < 0",
                   "o.steps.indexOf(o.steps[i]) !== i", "Array.isArray(o)"):
@@ -258,21 +257,29 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     assert "button.kgc-pick[data-key=\"' + restore[i] + '\"]" in CHAT_JS and "if (!b) break;" in CHAT_JS
     # the links: the check page, its example and the set-up guide, in the same tab
     hrefs = set(re.findall(r"href: '([^']+)'", CHAT_JS))
-    assert hrefs == {"/check", "/check?example=sample", "/start"}
+    assert hrefs == {"/check", "/check?example=sample", "/start", "/docs/build-from-a-plan/one-plan-five-fabric-pieces", "/docs/reference/tools"}
     assert "{ label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
 
 
-def test_the_planned_choices_run_nothing():
-    """Fix data issues and Create a dbt flow are "Planned": they have no step to run, a click only says what exists today,
-    and the second click does nothing (the browser checks the same on screen). No dates or times."""
-    block = CHAT_JS[CHAT_JS.index("function planned()"):CHAT_JS.index("function drafts()")]
-    labels = re.findall(r"label: '([^']+)', planned: ", block)
-    assert labels == ["Fix data issues", "Create a dbt flow"]
-    assert "go:" not in block and "href:" not in block
-    handler = CHAT_JS[CHAT_JS.index("if (p.planned) {"):CHAT_JS.index("log.focus({ preventScroll: true });")]
-    assert "return;" in handler and "p.go" not in handler and "aria-disabled" in handler
-    said = _strings(block)
-    assert "is planned" in said and "today" in said.lower()
+def test_fix_data_issues_and_dbt_say_what_exists_and_link_its_docs(client):
+    """n154: "Fix data issues" and "Write dbt tests" (until n154 "Create a dbt flow", both "Planned") are links to the docs
+    of what exists today, with one line saying what that is; only the whole dbt project is still planned. No dates."""
+    block = CHAT_JS[CHAT_JS.index("function further()"):CHAT_JS.index("function drafts()")]
+    picks = re.findall(r"\{ label: '([^']+)', href: '([^']+)',\s*why: '([^']+)' \}", block)
+    assert [(a, b) for a, b, _ in picks] == [("Fix data issues", "/docs/build-from-a-plan/one-plan-five-fabric-pieces"),
+                                             ("Write dbt tests", "/docs/reference/tools")]
+    fix, dbt = picks[0][2], picks[1][2]
+    assert fix.startswith("Today: a silver notebook") and "quarantine" in fix and "source tables stay as they are" in fix
+    assert dbt.startswith("Today: a dbt schema.yml") and "unique, not_null and relationships tests" in dbt and "whole dbt project is planned" in dbt
+    assert "planned:" not in block and "Create a dbt flow" not in CHAT_JS
+    # what the lines say is what the docs and tool_status say: the tools exist and the pages they link are served
+    from fabric_backend import tool_status as ts
+    for tool in ("silver_notebook_draft", "create_silver_notebook", "gold_views_draft", "create_pipeline", "dbt_schema"):
+        assert tool in ts.STATUS, tool
+    one_plan = client.get("/docs/build-from-a-plan/one-plan-five-fabric-pieces").text
+    assert "silver_notebook_draft" in one_plan and "de-duplicated silver tables" in one_plan
+    tools = client.get("/docs/reference/tools").text
+    assert "dbt_schema" in tools and "krusgraph_quarantine" in tools and "create_pipeline" in tools
     assert not re.search(r"\b(soon|coming|shortly|later this|next (week|month|quarter|year)|Q[1-4]|20\d\d|in \d+ (days|weeks|months))\b", _strings(CHAT_JS), re.I)
 
 

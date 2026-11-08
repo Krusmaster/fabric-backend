@@ -8,6 +8,34 @@
       <a class="btn primary" href="/check">{{LABEL_CHECK}}</a>
       <a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a>
     </div>
+    <figure class="session" aria-labelledby="session-cap">
+      <button type="button" class="session-pause" aria-pressed="false">Pause</button>
+      <p class="session-head">A replay of a session in Claude</p>
+      <ol class="session-turns">
+        <li class="session-turn">
+          <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
+          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
+        </li>
+        <li class="session-turn">
+          <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
+          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
+        </li>
+        <li class="session-turn">
+          <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
+          <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
+        </li>
+        <li class="session-turn">
+          <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
+          <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet.</p></div></div>
+          <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
+        </li>
+      </ol>
+      <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
+      <figcaption id="session-cap">Answers shortened from real runs in Claude against synthetic shop data in a Fabric lakehouse: questions 1 and 2 read only (29 October 2026), question 3 created an ontology (28 October 2026) and question 4 a semantic model (29 October 2026).</figcaption>
+    </figure>
 {{HOME_BEFORE_AFTER_MINI}}
     <p class="usp-lead">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
     <ul class="usp">
@@ -43,37 +71,6 @@
     <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span><p class="step-more tiny"><a href="/docs/concepts/how-they-connect">Why everything comes from one plan</a></p></li>
     <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-more tiny">Concepts: <a href="/docs/concepts/ontologies">ontologies</a> and <a href="/docs/concepts/data-products">data products</a></p></li>
   </ol>
-</section>
-
-<section class="wrap replay" id="replay" aria-label="A replay of a session in Claude">
-  <figure class="session" aria-labelledby="session-cap">
-    <button type="button" class="session-pause" aria-pressed="false">Pause</button>
-    <p class="session-head">A replay of a session in Claude</p>
-    <ol class="session-turns">
-      <li class="session-turn">
-        <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
-        <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 6 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
-        <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
-      </li>
-      <li class="session-turn">
-        <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
-        <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 6 of 6 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
-        <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
-      </li>
-      <li class="session-turn">
-        <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
-        <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>.</p></div></div>
-        <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
-      </li>
-      <li class="session-turn">
-        <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
-        <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet.</p></div></div>
-        <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
-      </li>
-    </ol>
-    <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
-    <figcaption id="session-cap">Answers shortened from real runs in Claude against synthetic shop data in a Fabric lakehouse: questions 1 and 2 read only (29 October 2026), question 3 created an ontology (28 October 2026) and question 4 a semantic model (29 October 2026).</figcaption>
-  </figure>
 </section>
 
 <section class="wrap" id="build-on" aria-labelledby="build-on-h">

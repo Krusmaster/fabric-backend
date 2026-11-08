@@ -1,5 +1,5 @@
 // n149: /check at 375 px puts the drop area and the "read in this browser" line above the example cards; the home page
-// has no floating "Try a demo" button and no horizontal scroll at 375 px.
+// has no horizontal scroll at 375 px (n154: and has the floating "Try a demo" button again).
 // Usage: node tests/n149_browser.js <base url> [chromium path]. Prints one JSON object the Python test asserts on.
 const { chromium } = require('playwright');
 const base = process.argv[2], exe = process.argv[3];

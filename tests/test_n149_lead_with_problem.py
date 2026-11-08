@@ -1,9 +1,12 @@
 """n149: the home page and /check lead with the problem (the UX review of 7 November 2026, desktop and 375 px).
 
 One primary and one secondary way in with the same labels everywhere ("Check my tables" for /check, "Connect to my
-Fabric" for /start), the client chooser on /start, no floating demo button on the home page and /check, one guided-demo
+Fabric" for /start), the client chooser on /start, one guided-demo
 button after the total that doubles, the test status said once by the tools list, a card after a /check result that
-leads to /start, a jump to step 3 on /start for people coming from /check, and the blog in the main navigation."""
+leads to /start, a jump to step 3 on /start for people coming from /check, and the blog in the main navigation.
+
+n154 (the founder's feedback of 8 November 2026) put the replay back in the hero, above the small before and after, and
+the floating demo button back on the home page and /check (tests/test_n154_replay_and_widget.py)."""
 import json
 import re
 import subprocess
@@ -55,9 +58,10 @@ def test_the_hero_says_the_problem_and_shows_the_small_before_and_after(client):
     assert _buttons(ctas) == [("/check", CHECK), ("/start", CONNECT)] and "<details" not in ctas and "▾" not in hero
     mini = re.search(r'<p class="ba-mini">(.*?)</p>', hero, re.S).group(1)
     assert hero.index("hero-ctas") < hero.index("ba-mini")
-    assert ">2 000<" in mini and ">1 000<" in mini and 'href="#example"' in mini        # seed.AMOUNT_DEMO's order
-    assert '<figure class="session"' not in hero                                                    # the replay is further down
-    assert html.index('id="how"') < html.index('<figure class="session"') < html.index('id="build-on"')
+    assert ">2\u00a0000<" in mini and ">1\u00a0000<" in mini and 'href="#example"' in mini        # seed.AMOUNT_DEMO's order
+    # n154: the replay is in the hero again, under the buttons, and the small before and after under the replay
+    assert hero.index("hero-ctas") < hero.index('<figure class="session"') < hero.index("ba-mini")
+    assert html.count('<figure class="session"') == 1 and 'class="wrap replay"' not in html
 
 
 def test_one_guided_demo_button_after_the_total_that_doubles(client):
@@ -67,14 +71,9 @@ def test_one_guided_demo_button_after_the_total_that_doubles(client):
     assert len(demo) == 1 and main.index('id="example"') < demo[0] < main.index('id="paths"')
 
 
-@pytest.mark.parametrize("path", ["/", "/check"])
-def test_no_floating_demo_button_on_the_home_page_and_check(client, path):
-    assert "kgc-launch" not in client.get(path).text
-
-
-@pytest.mark.parametrize("path", ["/use-cases", "/docs", "/pricing", "/start"])
-def test_deeper_pages_keep_the_floating_demo_button(client, path):
-    assert 'class="kgc-launch"' in client.get(path).text
+@pytest.mark.parametrize("path", ["/", "/check", "/use-cases", "/docs", "/pricing", "/start"])
+def test_the_floating_demo_button_is_on_the_home_page_check_and_deeper_pages(client, path):
+    assert 'class="kgc-launch"' in client.get(path).text          # n154: back on / and /check
 
 
 def test_the_status_is_said_once_by_the_tools_list(client):
@@ -82,7 +81,7 @@ def test_the_status_is_said_once_by_the_tools_list(client):
     main = html[html.index("<main"):html.index("</main>")]
     tools = main.index('id="build-on"')
     pitch = main[:tools]
-    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):
+    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):   # the replay is in the pitch again (n154)
         assert word not in pitch, word
     status = re.findall(r'<p class="muted tiny build-status" id="status">(.*?)</p>', main, re.S)
     assert len(status) == 1 and "experimental" in status[0] and "Tested end to end on" in status[0]
@@ -161,4 +160,4 @@ def test_in_a_browser_check_puts_the_drop_area_first_on_a_phone(site):
     desk = r["check1280"]
     assert desk["wide"] <= 1280, desk
     for w in ("375", "1280"):
-        assert r["home" + w]["pill"] is False and r["home" + w]["wide"] <= int(w) and r["home" + w]["mini"], r["home" + w]
+        assert r["home" + w]["pill"] is True and r["home" + w]["wide"] <= int(w) and r["home" + w]["mini"], r["home" + w]

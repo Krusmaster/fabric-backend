@@ -594,6 +594,26 @@
     if (kgcFace && M) kgcFace.innerHTML = M.svg('onto', { pose: 'rest', label: '', gaze: false });
     kgc.hidden = false;
     document.body.classList.add('has-kgc');
+    // n154: the button stays in its corner on every page, and steps aside while it would cover an area marked
+    // data-kgc-avoid (/check's drop area, which fills a phone's width); it comes back once that area has scrolled past
+    var kgcAvoid = document.querySelectorAll('[data-kgc-avoid]');
+    if (kgcAvoid.length) {
+      var kgcTick = 0;
+      var kgcPlace = function () {
+        kgcTick = 0;
+        var b = kgc.getBoundingClientRect(), over = false;
+        if (!b.width) return;
+        Array.prototype.forEach.call(kgcAvoid, function (el) {
+          var r = el.getBoundingClientRect();
+          if (r.width && r.left < b.right && b.left < r.right && r.top < b.bottom && b.top < r.bottom) over = true;
+        });
+        kgc.classList.toggle('kgc-aside', over);
+      };
+      var kgcSoon = function () { if (!kgcTick) kgcTick = window.requestAnimationFrame(kgcPlace); };
+      window.addEventListener('scroll', kgcSoon, { passive: true });
+      window.addEventListener('resize', kgcSoon);
+      kgcPlace();
+    }
     var kgcState = 0, kgcThen = [];                  // 0 not loaded, 1 loading, 2 loaded, 3 failed
     var kgcLoad = function (then) {
       if (kgcState === 2) { then(true); return; }

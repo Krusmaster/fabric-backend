@@ -2577,7 +2577,7 @@ def build_app(host: str = "0.0.0.0"):
             _usage.page_view(path)                    # one line for /, /check, /explore, /start, /partners; nothing else
             body = fn()
             if "connect-src 'none'" in headers["Content-Security-Policy"]:
-                body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan
+                body = strip_chat(body)               # n93: no chat button where the chat could not fetch its plan (n154: unless the page carries it)
             return compressed(request, body.encode("utf-8"), "text/html; charset=utf-8", headers)
         app.router.routes.append(Route(path, handler))
 

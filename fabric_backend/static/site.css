@@ -1436,7 +1436,7 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .blog table:has(th:nth-child(4)){min-width:520px}
 @media (max-width:520px){.blog th,.blog td{padding:8px 10px;font-size:15px}.blog td code,.blog th code{font-size:13px}.blog pre{font-size:13px;padding:12px}}
 
-/* n149: the hero's small before and after, the replay further down, the status line by the tools list */
+/* n149: the hero's small before and after (n154: under the replay), the status line by the tools list */
 .ba-mini{display:inline-flex;flex-wrap:wrap;align-items:baseline;justify-content:center;gap:4px 10px;margin:-10px auto 22px;padding:10px 16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);font-size:15px}
 .ba-mini-what{color:var(--muted)}
 .ba-mini-before,.ba-mini-after{font:600 20px/1.2 var(--font-head)}
@@ -1444,8 +1444,6 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .ba-mini-after{color:var(--sage-ink)}
 .ba-mini a{font-weight:700}
 .before-after .ba-more{margin:8px 0 0;font-weight:700}
-.replay{padding-top:8px}
-.replay .session{margin:0 auto}
 .build-status{margin:14px 6px 0}
 /* n149: on a phone, /check shows the drop area and the privacy line first, the examples under them */
 @media (max-width:759px){.check-start-inner{display:flex;flex-direction:column}.check-start-inner>.check-examples{order:1;margin-top:18px}.check-start-inner>.check-ex-more{order:1}
@@ -1460,3 +1458,27 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .connect-start{display:block;margin:14px 0}
 .connect-start .connect-panel{width:auto;box-shadow:none}
 .usp-lead{max-width:60ch;margin:0 auto 10px;font-weight:600}
+
+/* n154: the replay is back in the hero, and its first round starts with question 1 already sent and answered, so the
+   panel does not open on an empty thread; from the second round on (24 s) all four turns play as before. The thread
+   starts at the top, under the heading, and the field stays at the bottom: the panel's height is the longest turn's,
+   and the room a shorter turn leaves is between its answer and the field, not above its first line */
+.session-turn:first-child{animation:session-turn-first 24s,session-turn 24s 24s infinite}
+.session-turn:first-child .session-sent,.session-turn:first-child .session-answer{animation:session-first-on 24s,session-sent 24s 24s infinite}
+.session-turn:first-child .session-answer{animation-name:session-first-on,session-answer}
+.session-turn:first-child .session-text{animation:session-first-off 24s,session-type 24s 24s infinite steps(28,end)}
+.session-turn:first-child .session-send{animation:session-first-none 24s,session-press 24s 24s infinite}
+@keyframes session-turn-first{0%,23.25%{opacity:1}25%,100%{opacity:0}}
+@keyframes session-first-on{0%,100%{opacity:1;transform:none}}
+@keyframes session-first-off{0%,100%{opacity:0}}
+@keyframes session-first-none{0%,100%{transform:none}}
+@media (max-width:719px){.session-turn:first-child .session-text{animation-name:session-first-off,session-show}}
+@media (prefers-reduced-motion:reduce){.session-turn:first-child,.session-turn:first-child .session-sent,
+  .session-turn:first-child .session-answer,.session-turn:first-child .session-text,.session-turn:first-child .session-send{animation:none}
+  .session-turn:first-child{opacity:1}}
+.session-turn{justify-content:flex-start}
+.session-thread{justify-content:flex-start}
+.session-ask{margin-top:auto}
+.hero .ba-mini{margin:0 auto 22px}
+/* n154: the chat's button steps aside while it would cover /check's drop area (site.js, data-kgc-avoid) */
+.kgc-launch.kgc-aside{visibility:hidden;opacity:0;pointer-events:none}

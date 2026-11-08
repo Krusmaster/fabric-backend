@@ -1,10 +1,11 @@
 /* Krusgraph chat demo (n92, Gustav's decision of 4 November 2026; on every ordinary page, with pictures and a memory
    within the tab since n93). Loaded by site.js on a click on "Try a demo", or to restore a chat that was open on the
    previous page; it never opens by itself on a first visit. Buttons only: no free text, no AI, and the only request it
-   makes is GET /demo/plan.json, the engine's output on the synthetic shop (fabric_backend/demo.py). Every number, name
-   and picture below comes from that file; what the chat says about creating something comes from tool_status, through
-   the button's data attributes (pages.chat_launch_html). It keeps the steps clicked and whether it is open in
-   sessionStorage, under one key, in this tab only: known step names, never HTML or text, checked when read. No cookie,
+   makes is GET /demo/plan.json, the engine's output on the synthetic shop (fabric_backend/demo.py; n154: on /check,
+   which fetches nothing, the same plan is in the page). Every number, name and picture below comes from that file;
+   what the chat says about creating something comes from tool_status, through the button's data attributes
+   (pages.chat_launch_html). It keeps the steps clicked and whether it is open in sessionStorage, under one key, in
+   this tab only: known step names, never HTML or text, checked when read. No cookie,
    no localStorage, no logged event. Links open in the same tab and close the chat. Esc and Close close it and give the
    focus back to the button. Under 560 px the chat covers nearly the whole screen, the page behind it does not scroll and
    is inert, and Tab stays inside. */
@@ -12,7 +13,7 @@
   'use strict';
   var PLAN_URL = '/demo/plan.json';
   var KEY = 'krusgraph.chat';                                   // the one sessionStorage key: {open, steps}
-  var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains', 'fix', 'dbt'];
+  var STEPS = ['scan', 'yes', 'no', 'model', 'ontology', 'domains'];
   var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
   var narrow = window.matchMedia('(max-width: 560px)');
   var NAMES = { onto: 'Onto', thinker: 'Thinker', builder: 'Builder' };
@@ -469,10 +470,14 @@
   /* ------------------------------------------------------------------ the flow */
   var LEAVE = [{ label: 'Try your own files', href: '/check' },
                { label: 'Connect to your agent', why: 'Opens the set-up guide.', href: '/start' }];
-  function planned() {
+  // n154: what exists today for fixing data and for dbt, as links to the docs (absolute paths, so they work from any page);
+  // nothing here is planned except the whole dbt project, and the line says so
+  function further() {
     return [
-      { key: 'fix', label: 'Fix data issues', planned: product + ' finds and counts these today. Proposing a fix you click to apply is planned, and it would leave your source tables as they are.' },
-      { key: 'dbt', label: 'Create a dbt flow', planned: 'Today ' + product + ' writes a dbt schema.yml with tests. Generating a whole project is planned.' }
+      { label: 'Fix data issues', href: '/docs/build-from-a-plan/one-plan-five-fabric-pieces',
+        why: 'Today: a silver notebook that de-duplicates on each key and moves rows with a missing reference to a quarantine table; your source tables stay as they are.' },
+      { label: 'Write dbt tests', href: '/docs/reference/tools',
+        why: 'Today: a dbt schema.yml with unique, not_null and relationships tests from the plan; a whole dbt project is planned.' }
     ];
   }
   function drafts() { return S.linked ? P.drafts.with_suggestion : P.drafts.as_is; }
@@ -490,9 +495,9 @@
   function next() {
     var left = suggestions();
     later(500, function () {
-      if (left.length) say('onto', 'point', '<p>What next?</p>', left.concat(planned()), '', true);
+      if (left.length) say('onto', 'point', '<p>What next?</p>', left.concat(further()), '', true);
       else say('onto', 'explain', '<h3>That is the demo</h3><p>The next step is real: your own files stay in your browser on the check page.</p>',
-               LEAVE.concat(planned()), '', true);
+               LEAVE.concat(further()), '', true);
     });
   }
 
@@ -608,8 +613,11 @@
       if (then) then();
     };
     if (P) { start(); return; }
-    fetch(PLAN_URL, { credentials: 'omit', cache: 'default' })
-      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    // n154: /check fetches nothing (connect-src 'none'), so it carries the same plan in the page (pages.chat_plan_html)
+    var inline = document.getElementById('kgcPlan');
+    (inline ? Promise.resolve().then(function () { return JSON.parse(inline.textContent); })
+            : fetch(PLAN_URL, { credentials: 'omit', cache: 'default' })
+                .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }))
       .then(function (j) {
         if (!j || !j.tables || !j.relationships || !j.drafts || !j.suggestions) throw new Error('plan');
         P = j; start();

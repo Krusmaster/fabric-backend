@@ -1090,8 +1090,9 @@ def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
     n49: two of them now create (an ontology, a semantic model), and the caption says which and when."""
     html = client.get("/").text
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
-    # n149: the replay starts empty, so it sits further down, after the steps, not in the hero
-    assert html.index("<h1") < html.index('class="usp"') < html.index('id="example"') < html.index('id="how"') < html.index('<figure class="session"')
+    # n154: back in the hero, under the buttons (n149 had moved it after the steps); its first round starts with question 1
+    # already sent and answered (site.css), so it no longer opens on an empty thread
+    assert html.index("<h1") < html.index("hero-ctas") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
     assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert "synthetic" in box and "29 October 2026" in box and "read only" in box and "created" in box

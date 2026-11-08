@@ -158,7 +158,7 @@ def test_check_page_policy_worker_and_files(client):
     assert "connect-src 'none'" in csp and "worker-src 'self'" in csp and "form-action 'none'" in csp
     assert r.text.count("Synthetic Data") == 4 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "Subscription billing" in r.text and 'data-example="billing"' in r.text                                 # n78
-    assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1]
+    assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1].split("</main>")[0]   # n154: the chat's button and plan come after the footer
     assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
     assert "http://" not in r.text.split("<main")[1].split("</main>")[0].replace("http://www.w3.org", "")
     w = client.get("/check/worker.js")

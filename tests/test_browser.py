@@ -178,7 +178,8 @@ def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report
     """n48: touch at 375 and mouse at 1280; Tab reaches the links, Escape hides them."""
     for w in (375, 1280):
         s = report["facts"][f"session@{w}"]
-        assert s["state"] == "running" and s["pause"] == "Pause", (w, s)
+        # n154: the first turn has two animations (its first round, then the loop), each running
+        assert set(s["state"].split(", ")) == {"running"} and s["pause"] == "Pause", (w, s)
         assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)      # n149: the two ways in
         assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
 
@@ -227,8 +228,10 @@ def test_the_check_drop_area_comes_first_on_a_phone(first_visit):
 
 # ------------------------------------------------------------------ round n92: the chat demo (n93: every ordinary page) --
 CHAT_FILES = ["/static/chat-demo.css", "/static/chat-demo.js", "/demo/plan.json"]
-# n93: the pages with the button, as the server renders them (tests/test_chat_demo.py checks the same list on the HTML)
-CHAT_PAGES = [p for p in pages.PAGES if p not in pages.CHAT_OFF + pages.PILL_OFF] + ["/privacy", "/docs", "/lovable", "/local", pages.CONSENT_PATH, "/no-such-page"]
+# n93: the pages with the button, as the server renders them (tests/test_chat_demo.py checks the same list on the HTML);
+# n154: the home page and /check again, and the blog and a docs sub-page (tests/test_n154_replay_and_widget.py has every page)
+CHAT_PAGES = ([p for p in pages.PAGES if p not in pages.CHAT_OFF] + ["/privacy", "/docs", "/docs/reference/tools", "/lovable", "/local",
+              pages.CONSENT_PATH, "/no-such-page", "/blog", pages.BLOG_TOTALS])
 
 
 @pytest.fixture(scope="module")
@@ -275,8 +278,7 @@ def test_chat_makes_no_request_but_the_plan_and_keeps_only_its_steps_in_the_tab(
         assert f["storeAfter"]["local"] == {} and f["storeAfter"]["cookie"] == "" and list(f["storeAfter"]["session"]) == ["krusgraph.chat"], v
         st = _stored(f)
         assert st == {"open": False, "steps": st["steps"]} and st["open"] is False, (v, st)
-        assert st["steps"] == (["scan", "yes", "fix", "dbt", "model", "ontology", "domains"] if v.endswith("mouse")
-                               else ["scan", "yes", "fix", "model", "ontology", "domains"]), (v, st)
+        assert st["steps"] == ["scan", "yes", "model", "ontology", "domains"], (v, st)     # n154: fix and dbt are links
         assert f["cookies"] == [], v
 
 
@@ -289,7 +291,7 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert f["facts"] == ["7", "6", "1"] and len(f["links"]) == 6, v
         assert "All 15 of its values exist in addresses.address_id, in 60 of 60 rows." in f["question"], v
         assert "The plan now has 7 links." in f["linkAdded"], v
-        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Create a dbt flow"], v
+        assert f["nextPicks"] == ["Create a semantic model", "Create an ontology", "Draft data products", "Fix data issues", "Write dbt tests"], v
         model, onto, products = f["results"][1:]
         assert "7 tables and 7 relationships; all 7 hold" in model and "1 inactive: addresses.customer_id → customers would close a cycle" in model, v
         assert "7 entity types (5 with a key) and 7 relationship types" in onto, v
@@ -308,7 +310,8 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert d_note.endswith("the draft creates nothing in Fabric. Tested with unit tests, not yet against a live Fabric workspace."), (v, d_note)
         for tool in ("create_semantic_model", "create_ontology", "domain_draft", "semantic_model_draft", "ontology_draft", "Status of"):
             assert tool not in f["allText"], (v, tool)
-        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
+        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None},
+                                                                   {"href": FIX_DOCS, "target": None}, {"href": DBT_DOCS, "target": None}], v
         assert f["endWhy"] == "Opens the set-up guide.", v
         assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
         assert f["overflowX"] <= 0 and f["logOverflowX"] <= 0 and f["pageOverflowX"] <= 0, v
@@ -357,16 +360,18 @@ def test_chat_larger_picture_opens_inside_the_chat(chat):
         assert f["bigClosed"] == {"big": False, "open": True, "focus": "kgc-zoom", "pic": "4"}, (v, f["bigClosed"])
 
 
-def test_chat_planned_choices_run_nothing(chat):
+FIX_DOCS, DBT_DOCS = "/docs/build-from-a-plan/one-plan-five-fabric-pieces", "/docs/reference/tools"
+
+
+def test_chat_fix_and_dbt_link_what_exists_today(chat):
+    """n154: until n154 these two were "Planned" and ran nothing; now they link the docs of what exists today."""
     for v, f in _chat_runs(chat).items():
         if v.endswith("mouse"):
-            b, a = f["planned"]["before"], f["planned"]["after"]
-            assert a["steps"] == b["steps"] and a["wins"] == b["wins"] and a["msgs"] == b["msgs"] + 2, (v, f["planned"])
-            assert a["disabled"] == ["true", "true"] and a["youSaid"] == ["Check the tables", "Yes, add the link"], v
-            assert "is planned" in a["said"][0] and "is planned" in a["said"][1], v
+            fix, dbt = f["further"]
+            assert fix["tag"] == "A" and fix["href"] == FIX_DOCS and not fix["planned"] and fix["why"].startswith("Today: a silver notebook"), (v, fix)
+            assert dbt["tag"] == "A" and dbt["href"] == DBT_DOCS and not dbt["planned"] and "whole dbt project is planned" in dbt["why"], (v, dbt)
         else:
-            assert f["plannedFocused"] == "Fix data issues" and f["plannedByKeyboard"]["steps"] == 0, v
-            assert f["plannedByKeyboard"]["focus"] == "Fix data issues" and "is planned" in f["plannedByKeyboard"]["said"], v
+            assert f["furtherFocused"] == {"pick": "Fix data issues", "tag": "A", "href": FIX_DOCS}, v
 
 
 def test_chat_the_whole_flow_by_keyboard_with_visible_focus(chat):
@@ -487,8 +492,8 @@ def test_chat_works_without_storage(chat):
 
 def test_chat_button_on_every_ordinary_page_and_it_covers_nothing(chat):
     """n93: at 375 and 1280 px, every page in CHAT_PAGES shows the button, loads nothing of the chat, and at the bottom of
-    the page the button covers no text or control, with no fixed or sticky part of the page under it; /check and /demo
-    (which goes to /check) have none."""
+    the page the button covers no text or control, with no fixed or sticky part of the page under it. n154: /check has
+    it too, and /demo goes to /check."""
     res = chat["pages"]
     for w in (375, 1280):
         # the one console line is the 404 page's own status (the page at /no-such-page answers 404 on purpose)
@@ -498,9 +503,8 @@ def test_chat_button_on_every_ordinary_page_and_it_covers_nothing(chat):
             r = res[f"{p}@{w}"]
             assert r["shown"] and r["text"] == "Try a demo" and not r["chat"], (p, w, r)
             assert r["covers"] == [] and r["fixed"] == [], (p, w, r)
-        for p in ("/check", "/demo"):
-            r = res[f"{p}@{w}"]
-            assert not r["button"] and r["path"] == "/check", (p, w, r)
+        r = res[f"/demo@{w}"]
+        assert r["button"] and r["path"] == "/check", (w, r)
 
 
 @pytest.fixture(scope="module")

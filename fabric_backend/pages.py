@@ -816,15 +816,10 @@ def before_after_mini_html() -> str:
 # own text.
 CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("ontology", "ontology_draft", "create_ontology"),
                 ("domains", "domain_draft", ""))
-# n93: the pages that never get the chat's button: /check (its policy has connect-src 'none') and /demo (a redirect to
-# /check). Any other page whose policy says connect-src 'none' loses it in server.py (strip_chat).
-CHAT_OFF = ("/check", "/demo")
-# n149: the floating "Try a demo" button is not shown on the start page either (the UX review of 7 November 2026: the
-# start page has one guided demo button, after the total that doubles); deeper pages keep it.
-PILL_OFF = ("/",)
-
-# n149: the blog article on the total that doubles, linked from the start page's before and after and /check's example
-BLOG_TOTALS = "/blog/fabric-totals-double-after-join"
+# n93: the pages that never get the chat's button: /demo (a redirect to /check). n154: the button is on every other page,
+# the home page and /check included (Gustav's decision of 8 November 2026, undoing n149's PILL_OFF). /check's policy says
+# connect-src 'none', so the page carries the demo plan inline (chat_plan_html) and the chat fetches nothing there.
+CHAT_OFF = ("/demo",)
 
 # n149: the blog article on the total that doubles, linked from the start page's before and after and /check's example
 BLOG_TOTALS = "/blog/fabric-totals-double-after-join"
@@ -894,8 +889,16 @@ _CHAT_BUTTON = re.compile(r'\n?<button class="kgc-launch" id="kgcLaunch"[^>]*>.*
 
 def strip_chat(page: str) -> str:
     """The page without the chat's button: for a page whose content security policy says connect-src 'none', where the
-    chat could not fetch its plan (server.py)."""
-    return _CHAT_BUTTON.sub("", page)
+    chat could not fetch its plan (server.py), unless the page carries the plan itself (chat_plan_html)."""
+    return page if 'id="kgcPlan"' in page else _CHAT_BUTTON.sub("", page)
+
+
+def chat_plan_html() -> str:
+    """n154: the demo plan as an inert JSON block, for /check, whose policy lets the page fetch nothing (connect-src
+    'none'); chat-demo.js reads it instead of GET /demo/plan.json. The same bytes as /demo/plan.json, with "<" escaped so
+    the block cannot end early."""
+    from .demo import demo_plan_json
+    return '<script type="application/json" id="kgcPlan">' + demo_plan_json().replace("<", "\\u003c") + "</script>"
 
 
 def _home_vars() -> dict[str, str]:
@@ -950,10 +953,12 @@ def render(path: str) -> str:
         uv = page_vars()
         body = re.sub(r"\{\{(UC_\w+)\}\}", lambda m: uv.get(m.group(1), ""), body)
     body = _fill(_conditional(_access(body), v))
+    if path == "/check":                                                   # n154: the chat's plan, inline (chat_plan_html)
+        body += "\n" + chat_plan_html()
     head = json_ld() if path == "/" else ""
     out = _shell(title, description, body, page=template.split(".")[0], nav=nav, noindex=(path == "/mascots"), head=head, path=path,
                  chat=path not in CHAT_OFF)
-    return strip_chat(out) if path in PILL_OFF else out
+    return out
 
 
 PRIVACY_DESC = "How {{PRODUCT}} handles your Microsoft sign-in, access tokens, metadata, sample rows, query results, usage records and technical logs."
@@ -1345,7 +1350,7 @@ def blog_post_html(slug: str) -> str:
 </article>"""
     md_link = f'<link rel="alternate" type="text/markdown" href="{post["path"]}.md" title="Markdown version">'
     return _shell(post["title"] + " — {{PRODUCT}} blog", post["description"], main, page="blog", nav="blog",
-                  path=post["path"], head=md_link + blog_json_ld(post), og_type="article")
+                  path=post["path"], head=md_link + blog_json_ld(post), og_type="article", chat=True)
 
 
 def blog_index_html() -> str:
@@ -1359,7 +1364,7 @@ def blog_index_html() -> str:
 <p class="lead">{html.escape(BLOG_DESC)}</p>
 <ul class="blog-list">{"".join(items)}</ul>
 </article>"""
-    return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="blog", path="/blog")
+    return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="blog", path="/blog", chat=True)
 
 
 def start_md() -> str:
