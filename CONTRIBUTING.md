@@ -35,14 +35,14 @@ owner of an area is listed here. Change an area you do not own only when the mai
 
 | Area | Files | Owner now |
 | --- | --- | --- |
-| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | open |
+| Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n183 |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | open |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | open |
-| Tests | `tests/` | open |
-| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | open |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n183 |
+| Tests | `tests/` | n183 |
+| Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | n183 |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
 | Rayfin | `fabric_backend/rayfin.py`, the `rayfin` command in `cli.py`, `examples/rayfin/`, `tests/test_rayfin_app.py`, `tests/fixtures/rayfin_check/`, the Rayfin tests in `tests/test_fabric_backend.py`, the `rayfin` part of `tests/golden/`, the Rayfin section of `README.md`, the Rayfin row in `tools/third_party_notices.py` || open |
