@@ -577,7 +577,7 @@ def test_docs_menu_by_width_mouse_keyboard_and_without_javascript(docs_run):
         assert r["menuWide"] is wide and r["menuPhone"] is not wide, key
         assert r["otp"] in (None, wide), key
         if not wide:
-            assert r["closedLinkVisible"] is False and r["openByKey"] is True and r["focusAfter"] == "/docs"
+            assert r["closedLinkVisible"] is False and r["openByKey"] is True and r["focusAfter"] == "/choose"   # n188: Which Krusgraph first
             assert r["openOverflow"] is False and r["closedByClick"] is True
     assert docs_run["runs"]["1280-light"]["bg"] != docs_run["runs"]["1280-dark"]["bg"]
     assert docs_run["noJs"]["url"] == "/docs#test-status" and docs_run["noJs"]["links"] > 25 and docs_run["noJs"]["opens"] is True

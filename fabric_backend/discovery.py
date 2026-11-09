@@ -25,15 +25,16 @@ DESCRIPTION = "See how your business tables really connect, with the proof behin
 # n39: the promise, the same on the home page, /docs, llms.txt and the README (tests/test_site.py keeps them in step)
 USP = ("See how your business tables really connect – with the proof behind every link – so your reports, apps and agents "
        "get the numbers right.")
+# n188: three points (the founder, 9 November 2026); the SAP point has its own page, /sap, one line below them
 USP_POINTS = (
-    "The proof: every proposal shows its basis, and the checks you run show their results.",
-    "The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.",
-    "SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.",
-    "One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.",
+    "Checked against your rows: every link shows its basis and the checks you run show their counts.",
+    "Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.",
+    "One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.",
 )
+USP_SAP = ("SAP tables: keys with MANDT and the order-to-cash links, each with its public source", "/sap")
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
 PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 
@@ -168,7 +169,7 @@ def llms_txt() -> str:
             f"Claude's sign-in redirect is registered on the hosted app, so Cursor and other local clients cannot sign in to it today. Other "
             f"MCP clients should work when you host {p} yourself (not tested yet).")
     claude_reg = " → keep “Register automatically” (no client ID or secret)" if v["CLIENT_REGISTRATION"] else ""
-    usp = "\n".join("- " + x for x in USP_POINTS)
+    usp = "\n".join("- " + x for x in USP_POINTS) + f"\n\n{USP_SAP[0]}: {o}{USP_SAP[1]}"
     from .pages import blog_post as _bp
     blog_line = "; ".join(f"[{q['title']}]({o}{q['path']}.md) ({q['date_text']})" for q in (_bp(x["slug"]) for x in _BLOG_POSTS))
     from .pages import docs_pages as _dp                       # n86a: the same docs as HTML pages, one per heading

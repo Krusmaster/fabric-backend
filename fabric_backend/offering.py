@@ -385,6 +385,12 @@ def decide_html() -> str:
     return f'<ul class="decide">{items}</ul>'
 
 
+def decide_md() -> str:
+    """n188: the decision guide in Markdown, first on the docs start page (DOCS.md's {{WHICH_KRUSGRAPH}}), site-relative links."""
+    rows = "\n".join(f"- “{q}” → [{way(k)['name']}]({val(way(k), 'docs')}){decide_suffix(q)}" for q, k in DECIDE)
+    return f"**Which Krusgraph should I use?**\n\n{rows}\n\n[Compare the four products]({CHOOSE})."
+
+
 def short_html(where: str) -> str:
     """The short version for /start and the home page: the decision guide in four lines and a link to /choose."""
     hid = f"choose-short-{where}"

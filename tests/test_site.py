@@ -75,7 +75,7 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     first = re.search(r'<p class="usp-lead">(.*?)</p>', html).group(1)
     assert first.startswith("See how your business tables really connect – with the proof behind every link")      # n39: the USP
     usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
-    assert usp == ["The proof.", "The errors before anyone sees them.", "SAP knowledge from public sources.", "One plan for what you build."]
+    assert usp == ["Checked against your rows.", "Errors before anyone sees them.", "One checked plan, every starting point."]   # n188
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
     assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to my Fabric<' in html
     assert "through MCP" in html                                                         # MCP explained further down
@@ -296,7 +296,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/choose", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
+PUBLIC = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
           "/blog", "/blog/fabric-totals-double-after-join"]                                                  # n145
 
 

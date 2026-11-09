@@ -34,10 +34,10 @@ const { chromium } = require("playwright");
   await until(() => !!document.documentElement.dataset.checkMs);
   out.sample_text = await page.textContent("#check-run");
   // n79: the evidence report beside the build buttons, saved from a Blob like the contract
-  out.evidence = await page.evaluate(() => { const a = document.querySelector("#check-evidence a"); return a ? { text: a.textContent, download: a.getAttribute("download"), hidden: document.getElementById("check-evidence").hidden } : null; });
+  out.evidence = await page.evaluate(() => { const a = document.querySelector('#check-evidence a.check-dl[download$="_evidence_report.md"]'); return a ? { text: a.textContent, download: a.getAttribute("download"), hidden: document.getElementById("check-evidence").hidden } : null; });
   // n80: the RDF/XML for Ontology Playground, the second download there; its first bytes read from the Blob it saves
   out.rdfxml = await page.evaluate(async () => {
-    const a = document.querySelectorAll("#check-evidence a")[1];
+    const a = document.querySelector('#check-evidence a.check-dl[download$=".rdf"]');       // n188: its own tile, before the evidence report
     if (!a) return null;
     let head = null;
     const orig = URL.createObjectURL;

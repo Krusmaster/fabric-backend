@@ -18,7 +18,7 @@ const fs = require("fs");
     // waitForFunction evaluates a string in newer Playwright, which the page's CSP refuses: poll instead
     const until = async (fn) => { for (let i = 0; i < 1200; i++) { if (await page.evaluate(fn)) return; await page.waitForTimeout(100); } throw new Error("timeout"); };
     const save = async () => {
-      const [d] = await Promise.all([page.waitForEvent("download"), page.click("#check-evidence a.check-dl >> nth=0")]);
+      const [d] = await Promise.all([page.waitForEvent("download"), page.click('#check-evidence a.check-dl[download$="_evidence_report.md"]')]);
       return { name: d.suggestedFilename(), text: fs.readFileSync(await d.path(), "utf8") };
     };
     const r = { downloads: {} };

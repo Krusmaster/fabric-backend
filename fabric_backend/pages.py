@@ -57,6 +57,8 @@ PAGES = {
                       "What a pilot organisation's administrator does to use the Krusgraph Model item in Microsoft Fabric: send the tenant id, turn on the tenant setting for workloads not validated by Microsoft, grant admin consent, allow two addresses, then New item.", "partners"),
     "/choose": ("choose.html", "Which Krusgraph should I use? — {{PRODUCT}}",
                 "Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable or Krusgraph Open Source: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
+    "/sap": ("sap.html", "SAP tables: keys and order-to-cash links — {{PRODUCT}}",
+             "Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its public source, from {{PRODUCT}}'s SAP pack.", "product"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
@@ -1032,6 +1034,52 @@ def check_vars() -> dict[str, str]:
     return {"CHECK_MB": str(round(check_download_bytes() / 1e6)), "CHECK_TIMES": CHECK_TIMES, "CHECK_ENGINE_V": v, "CHECK_PREFETCH": " ".join(urls)}
 
 
+SAP_CORE = ("VBAK", "VBAP")
+
+
+def sap_vars() -> dict[str, str]:
+    """n188: /sap, the home page's former SAP point on its own page: the keys and the links of VBAK, VBAP and their
+    neighbours, read from the SAP pack (fabric_backend/packs/sap), each with its numbered public source."""
+    from . import sap_pack
+    from . import tool_status as ts
+    pack = sap_pack.load("sap")
+    e = html.escape
+    rels = [r for r in pack["relationships"] if r["source"] in SAP_CORE or r["target"] in SAP_CORE]
+    names = list(SAP_CORE) + sorted({t for r in rels for t in (r["source"], r["target"])} - set(SAP_CORE))
+    used: list[str] = []
+    def refs(ids: list[str]) -> str:
+        for i in ids:
+            if i not in used:
+                used.append(i)
+        return " ".join(f'<a href="#sap-src-{e(i)}">[{used.index(i) + 1}]</a>' for i in ids)
+    cols = lambda xs: ", ".join(f"<code>{e(c)}</code>" for c in xs)
+    keys = "".join(f'<tr><th scope="row"><code>{e(n)}</code></th><td>{e(pack["tables"][n]["en"])}</td><td>{cols(pack["tables"][n]["key"])}</td>'
+                   f'<td>{refs(pack["tables"][n]["sources"])}</td></tr>' for n in names if n in pack["tables"])
+    links = "".join(
+        f'<tr><td><code>{e(r["source"])}</code> ({cols(r["source_cols"])}) → <code>{e(r["target"])}</code> ({cols(r["target_cols"])})</td>'
+        f'<td>{e(r["cardinality"])}{" (" + e(r["role"].replace("_", " ")) + ")" if r.get("role") else ""}</td>'
+        f'<td>{"Listed, not applied" if r.get("apply") is False else "Applied"}{": " + e(r["condition"]) if r.get("condition") else ""}</td>'
+        f'<td>{refs(r["sources"])}</td></tr>' for r in rels)
+    def src(i: str) -> str:
+        x = pack["sources"][i]
+        seen = "Opened when the pack was written." if x.get("fetched") else ("Not opened when the pack was written: " + x.get("note", "")).strip()
+        return (f'<li id="sap-src-{e(i)}"><a href="{e(x["url"])}"{NEW_TAB}>{e(x["title"])}</a> ({e(x.get("publisher", ""))}). '
+                f'<span class="muted tiny">{e(seen)}</span></li>')
+    table = lambda head, body, label: (f'<div class="table-wrap" tabindex="0" role="region" aria-label="{label}"><table><thead><tr>'
+                                       + "".join(f'<th scope="col">{h}</th>' for h in head) + f"</tr></thead><tbody>{body}</tbody></table></div>")
+    docs = docs_anchors().get("sap-on-fabric", "/docs")
+    return {
+        "SAP_STATUS": e(f"Status of sap_pack_draft, the tool that shows what the pack recognises: {ts.word('sap_pack_draft')}. "
+                        "Tested on a synthetic SAP schema, not on an SAP system or a real installation."),
+        "SAP_KEYS": table(("Table", "What it holds", "Key", "Source"), keys, "Keys of the SAP tables"),
+        "SAP_LINKS": table(("Link", "Cardinality", "Applied or listed", "Source"), links, "Links of VBAK and VBAP"),
+        "SAP_SOURCES": '<ol class="sap-sources">' + "".join(src(i) for i in used) + "</ol>",
+        "SAP_MORE": (f'In the docs: <a href="{docs}#sap-on-fabric">SAP on Fabric</a>. All {len(pack["tables"])} tables and '
+                     f'{len(pack["relationships"])} relationships of the pack, its traps and how to contribute: '
+                     f'<a href="{GITHUB}/blob/main/docs/SAP.md"{NEW_TAB}>docs/SAP.md</a>.'),
+    }
+
+
 def render(path: str) -> str:
     template, title, description, nav = PAGES[path]
     v = _vars()
@@ -1047,6 +1095,9 @@ def render(path: str) -> str:
     if "{{CHOOSE_" in body:                                               # n177: the four ways (offering.py)
         ov = _offering().choose_vars()
         body = re.sub(r"\{\{(CHOOSE_\w+)\}\}", lambda m: ov[m.group(1)], body)
+    if "{{SAP_" in body:                                                  # n188: /sap, from the SAP pack itself
+        sv = sap_vars()
+        body = re.sub(r"\{\{(SAP_\w+)\}\}", lambda m: sv[m.group(1)], body)
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude
@@ -1096,7 +1147,8 @@ def _tool_statuses(md: str) -> str:
 
 def docs_md() -> str:
     from . import concepts
-    md = _conditional(_access(_read("DOCS.md"), markdown=True).replace("{{RULES_TABLE}}", _rules_table()), _vars())
+    md = _read("DOCS.md").replace("{{WHICH_KRUSGRAPH}}", _offering().decide_md())   # n188: first on the docs start page
+    md = _conditional(_access(md, markdown=True).replace("{{RULES_TABLE}}", _rules_table()), _vars())
     return _fill(concepts.fill(_tool_statuses(md)), escape=False)          # n86b: the Concepts pages' examples and statuses
 
 
@@ -1238,7 +1290,9 @@ def _with_toc(rendered: str) -> str:
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
 DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph for Fabric", "Reference",
                "Hosting and permissions"]
-DOCS_MORE = [("/choose", "Which Krusgraph should I use?"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
+# n188: "Which Krusgraph should I use?" is the docs menu's first entry (DOCS_FIRST), above the docs' own pages
+DOCS_FIRST = ("/choose", "Which Krusgraph should I use?")
+DOCS_MORE = [("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 
 
 def _md_plain(s: str) -> str:
@@ -1300,7 +1354,8 @@ def _docs_tree(pages: list[dict], current: str) -> str:
             out.append(f'<li><a class="docs-group" href="{x["path"]}"{cur(x["path"])}>{html.escape(x["group"])}</a>'
                        + (f"<ul>{sub}</ul>" if sub else "") + "</li>")
     more = "".join(f'<li><a href="{h}">{html.escape(t)}</a></li>' for h, t in DOCS_MORE)
-    return f'<ul class="docs-tree">{"".join(out)}</ul><ul class="docs-tree docs-more">{more}</ul>'
+    first = f'<ul class="docs-tree docs-first"><li><a class="docs-group" href="{DOCS_FIRST[0]}">{html.escape(DOCS_FIRST[1])}</a></li></ul>'
+    return f'{first}<ul class="docs-tree">{"".join(out)}</ul><ul class="docs-tree docs-more">{more}</ul>'
 
 
 def docs_page_html(path: str) -> str:

@@ -1011,7 +1011,15 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 .check-evidence{flex-direction:column;align-items:flex-start}
 .check-build-head{margin-top:20px}
 .check-build-head[hidden]{display:none}
-.check-build-head .check-build-choices{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+/* n188: four tiles, 2 x 2 from 760 px and stacked below; the ontology and evidence tiles sit in #check-evidence, which
+   lays its children into the grid (display:contents) and keeps the status line under it */
+.check-build-head .check-build-choices{grid-template-columns:minmax(0,1fr)}
+@media (min-width:760px){.check-build-head .check-build-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.check-evidence:not([hidden]){display:contents}
+.check-evidence>.check-dl-status{grid-column:1/-1;margin:0}
+.check-tile{cursor:auto;gap:6px}.check-tile:hover{transform:none;border-color:transparent}
+.check-tile .check-dl-item{margin-top:4px}.check-tile .check-dl-desc{color:var(--ink)}
+.check-tile:focus-within{border-color:var(--line-strong)}
 .check-steps{list-style:none;margin:0;padding:0;border-left:3px solid var(--lav-soft)}
 .check-step{display:grid;grid-template-columns:auto 1fr;column-gap:10px;padding:8px 0 8px 14px;position:relative}
 .check-step::before{content:"";position:absolute;left:-8px;top:15px;width:13px;height:13px;border-radius:50%;background:var(--sage-d)}
@@ -1303,6 +1311,7 @@ body.nav-open .kgc-launch{visibility:hidden}
 .docs-tree a:hover{color:var(--coral-ink);text-decoration:underline}
 .docs-tree a[aria-current=page]{background:var(--coral-soft);color:var(--ink);font-weight:700}
 .docs-more{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.docs-first{margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
 .docs-menu{display:none}
 .docs-menu-m{border:1px solid var(--line);border-radius:var(--radius-s);background:var(--card)}
 .docs-menu-m>summary{cursor:pointer;padding:12px 16px;min-height:44px;box-sizing:border-box;font-weight:600}

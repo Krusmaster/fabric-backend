@@ -567,17 +567,22 @@
     // n80: the same plan as RDF/XML for Microsoft's Ontology Playground, which reads RDF/XML and not Turtle; opened
     // there with a file import (there is no link that opens it there)
     const o = r.ontology_rdfxml;
-    const files = [{ what: "the evidence report", status: e.status }].concat(o ? [{ what: "the ontology", status: o.status }] : []);
-    box.append(...statusLines(files));
-    box.append(saveText(e.name, () => withDecisions((lastResult && lastResult.evidence_report || e).markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
-      + (r.source && r.source.has_data ? "each check with its counts" : "every check marked not checked") + ", open questions and this page's decisions; no row values.", "text/markdown"));
+    // n188: two tiles beside "Build a Power BI model" and "See it as an app": the ontology (lavender) and the evidence
+    // report (mustard), each with its download; the status line under the grid
+    const files = (o ? [{ what: "the ontology", status: o.status }] : []).concat([{ what: "the evidence report", status: e.status }]);
+    const tile = (cls, id, title, item) => el("div", { class: "check-ex check-tile " + cls, id, role: "group", "aria-labelledby": id + "-h" },
+      el("strong", { id: id + "-h" }, title), item);
     if (o) {
       const item = saveText(o.name, o.xml, "ontology", "For Microsoft's Ontology Playground (RDF/XML): " + o.entity_types + (o.entity_types === 1 ? " entity type" : " entity types")
         + " with their columns and " + o.relationship_types + (o.relationship_types === 1 ? " relationship" : " relationships") + ", the rule in each description; no row values. Open it there with Import / Export.", "application/rdf+xml");
       const t = tip("ontology");                         // n86b: the question mark next to "Download ontology"
       if (t.button) { const a = item.querySelector("a"), row = el("div", { class: "check-dl-row" }); a.replaceWith(row); row.append(a, t.button); row.after(t.body); }
-      box.append(item);
+      box.append(tile("lav", "check-tile-ontology", "Build a Fabric IQ ontology", item));
     }
+    box.append(tile("mustard", "check-tile-evidence", "Hand over the evidence",
+      saveText(e.name, () => withDecisions((lastResult && lastResult.evidence_report || e).markdown), "evidence report", "For a hand-over (Markdown): source, time, engine version, every key and relationship with its rule, "
+      + (r.source && r.source.has_data ? "each check with its counts" : "every check marked not checked") + ", open questions and this page's decisions; no row values.", "text/markdown")));
+    box.append(...statusLines(files));
     box.hidden = false;
   }
 

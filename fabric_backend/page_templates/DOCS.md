@@ -1,14 +1,17 @@
 # {{PRODUCT}} docs
 
+{{WHICH_KRUSGRAPH}}
+
 <!-- figure:overview-film -->
 <!-- /figure -->
 
 See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
 
-- The proof: every proposal shows its basis, and the checks you run show their results.
-- The errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- SAP knowledge from public sources: keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its source.
-- One plan for what you build: the same reviewed plan drafts a GraphQL API, a Power BI model, a Fabric IQ ontology and a data agent.
+- Checked against your rows: every link shows its basis and the checks you run show their counts.
+- Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
+- One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
+
+[SAP tables: keys with MANDT and the order-to-cash links, each with its public source](/sap).
 
 Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
 data and build from the plan. Start with the connection guide, or try the [guided demo](/check?example=sample&guide=1) and

@@ -508,7 +508,7 @@ def test_in_a_browser_the_download_buttons_keep_their_text_inside(site):
     assert sorted(r["runs"]) == ["dark-1280", "dark-375", "light-1280", "light-375"]
     for k, run in r["runs"].items():
         texts = [i["text"] for i in run["items"]]
-        assert texts == ["Download evidence report", "Download ontology", "Download data contract", "Download Power BI project", "Download app starter"], (k, texts)
+        assert texts == ["Download ontology", "Download evidence report", "Download data contract", "Download Power BI project", "Download app starter"], (k, texts)
         assert not run["pageOverflow"], k
         for i in run["items"]:
             assert not i["outside"] and not i["overflow"] and not i["offPage"], (k, i)

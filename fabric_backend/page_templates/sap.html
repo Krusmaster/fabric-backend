@@ -1,0 +1,26 @@
+<div data-page="sap">
+<section class="hero wrap choose-hero">
+  <p class="eyebrow">SAP on Fabric</p>
+  <h1>SAP keys and order-to-cash links</h1>
+  <p class="lede">Keys with MANDT and the order-to-cash links for VBAK, VBAP and their neighbours, each with its public source. They come from {{PRODUCT}}'s SAP pack, which every product uses before the general name rules.</p>
+  <p class="muted">{{SAP_STATUS}}</p>
+</section>
+
+<section class="wrap" aria-labelledby="sap-keys-h" style="padding-top:0">
+  <h2 id="sap-keys-h">Keys, with the client MANDT first</h2>
+  <p class="intro">One database can hold several clients, so a join on <code>VBELN</code> alone pairs documents across clients. Every key in the pack starts with <code>MANDT</code>.</p>
+  {{SAP_KEYS}}
+</section>
+
+<section class="wrap" aria-labelledby="sap-links-h">
+  <h2 id="sap-links-h">The links of VBAK and VBAP</h2>
+  <p class="intro">Applied links become relationships with the rule <code>SAP pack</code>; listed links are shown but not applied, with the reason. <code>validate_plan</code> checks the applied ones against your rows, because a pack is a sourced suggestion, not proof.</p>
+  {{SAP_LINKS}}
+</section>
+
+<section class="wrap" aria-labelledby="sap-sources-h">
+  <h2 id="sap-sources-h">Sources</h2>
+  {{SAP_SOURCES}}
+  <p class="muted tiny">{{SAP_MORE}}</p>
+</section>
+</div>

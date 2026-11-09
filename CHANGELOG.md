@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n188: the home page's points are three: **Checked against your rows**, **Errors before anyone sees them** and
+  **One checked plan, every starting point** (what the Krusgraph Model item creates from the reviewed plan; the silver
+  and gold tables fill when the pipeline runs; /check gives drafts). The SAP point moved to its own page, **/sap**: the
+  keys with MANDT and the links of VBAK, VBAP and their neighbours from the SAP pack, each with its public source, linked
+  from the home page in one line. /check's *Go further with these tables* has four tiles, 2 x 2 from 760 px and stacked
+  below: Build a Power BI model, See it as an app, **Build a Fabric IQ ontology** (the RDF/XML download, with its ?) and
+  **Hand over the evidence** (the evidence report). The docs start page and the docs menu begin with **Which Krusgraph
+  should I use?**. Redeploy to publish.
 - Round n185: **Run once and Schedule** for the pipeline the Krusgraph Model creates, both off by default. Run once
   starts one run after Create and shows each step with its duration and a link. Schedule is daily or every N hours, in
   a time zone (default Europe/Stockholm), with the next run time; a Krusgraph schedule is updated, never doubled, and
