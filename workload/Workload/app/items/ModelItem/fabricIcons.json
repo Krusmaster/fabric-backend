@@ -1,0 +1,30 @@
+{
+  "about": "n184: the Fabric item icons on the Model editor's output cards. Every file is Microsoft's, from the npm package below at the exact version, copied byte for byte into /assets/fabric-icons/ by webpack.config.js (never edited, never stored in this repository). sha256 is of the file in that version; fabricIcons.test.ts and tests/test_workload_fabric_icons.py check it. See docs/WORKLOAD-DEV.md, 'Fabric item icons'.",
+  "package": "@fabric-msft/svg-icons",
+  "version": "12.0.0",
+  "integrity": "sha512-we+ozRmYsIjmg+pNoDEr9PE9LtangeTk5FGvOSF/Y7zAk9xBp0cH6bli0vl+4Zyu9p+51unpLr1iCE6iRzhZiQ==",
+  "sourceDir": "node_modules/@fabric-msft/svg-icons/svg",
+  "servedAt": "/assets/fabric-icons",
+  "terms": "https://learn.microsoft.com/fabric/fundamentals/icons",
+  "files": {
+    "notebook_24_item.svg": "64a518ebfb846c712c8c0383890281c16412299a7e450cb21a4b4cd9207284d9",
+    "pipeline_24_item.svg": "01ca5921e46603e1b53dc7df536a243efdd95f0178cdfd23ff1d72b05a3ced0d",
+    "semantic_model_24_item.svg": "14cdb69a9ce201f7ac8e8158268af57971e79c157e13acba9fc80d42fbb9febd",
+    "report_24_item.svg": "dfc99d60e3acd45e3f4939a1b85ddfd59cf32bccfddfff90826968498416da38",
+    "generic_placeholder_24_item.svg": "d706dbfaac1761dec0317f084861e7222ccb59c55a61810d131e7d8e698e0122",
+    "ontology_24_item.svg": "5d75f1119553559744ea7edeca68019554e916c122fbfe84903eef00b9ba843f",
+    "data_agent_24_item.svg": "49e71cdf290e55e99f50ea654d854290c94613540484301de795c4f5cd0371c5",
+    "fabric_apps_24_item.svg": "f04ba09b2b1daab83b0409f6c1eca62b5d6a8b274682778aad7b3962af14580a"
+  },
+  "kinds": {
+    "silver_notebook": { "file": "notebook_24_item.svg", "alt": "Notebook" },
+    "gold_views": { "file": "notebook_24_item.svg", "alt": "Notebook" },
+    "pipeline": { "file": "pipeline_24_item.svg", "alt": "Pipeline" },
+    "semantic_model": { "file": "semantic_model_24_item.svg", "alt": "Semantic model" },
+    "report": { "file": "report_24_item.svg", "alt": "Report" },
+    "graphql": { "file": "generic_placeholder_24_item.svg", "alt": "API for GraphQL" },
+    "ontology": { "file": "ontology_24_item.svg", "alt": "Ontology" },
+    "data_agent": { "file": "data_agent_24_item.svg", "alt": "Data agent" },
+    "rayfin_app": { "file": "fabric_apps_24_item.svg", "alt": "App" }
+  }
+}

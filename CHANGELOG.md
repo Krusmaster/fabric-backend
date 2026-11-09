@@ -9,6 +9,14 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n184: the Krusgraph Model editor's **output cards show the Fabric icon of the item type** each creates (Notebook
+  for the silver notebook and the gold views, Pipeline, Semantic model, Report, Ontology, Data agent, App; the generic
+  Fabric item icon for the API for GraphQL, which Microsoft's package has no icon for), 20 px left of the title, with
+  the item type as alt text, on *Choose what to build* and on the dry-run and Create cards. The icons are Microsoft's,
+  unmodified, from the npm package `@fabric-msft/svg-icons@12.0.0` that Microsoft Learn offers for Fabric platform
+  extension development; *About and notices* in the editor and `THIRD_PARTY_NOTICES.md` carry the terms and the
+  trademark line. **Default names** follow one pattern from the lakehouse (`demo_lh_api`, no longer `demo_api`).
+  `docs/WORKLOAD-DEV.md` step 13. Needs a redeploy and a new workload package version.
 - Round n183: the **product diagram is a data flow**, on the home page and on `/choose`: your tables in Fabric
   (lakehouse, warehouse, mirrored databases) → one Krusgraph engine (keys and links, checked against your rows) → built
   in Fabric (semantic model, report, ontology, API for GraphQL, pipeline and notebooks, data agent, App (Rayfin, preview),

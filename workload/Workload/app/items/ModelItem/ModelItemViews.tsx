@@ -63,6 +63,7 @@ import {
   validName,
 } from "./buildWords";
 import { FlowView } from "./FlowView";
+import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
 import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES, MASCOT_SVG } from "./cardMap.generated";
 import {
@@ -420,7 +421,8 @@ export function OutputsView(props: {
           const valid = validName(c.name);
           return (
             <section key={k.kind} className="krusgraph-output" aria-label={k.label}>
-              <Checkbox checked={c.enabled} label={k.label} onChange={(_, d) => set(k.kind, { enabled: !!d.checked })} />
+              <Checkbox checked={c.enabled} label={<ItemTitle kind={k.kind}>{k.label}</ItemTitle>}
+                onChange={(_, d) => set(k.kind, { enabled: !!d.checked })} />
               <Caption1>{k.what}</Caption1>
               {c.enabled && (
                 <>
@@ -473,6 +475,7 @@ export function OutputsView(props: {
           Preview
         </Button>
       </div>
+      <AboutNotices />
     </div>
   );
 }
@@ -579,6 +582,29 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
   );
 }
 
+/** n184: an output's title with the Fabric icon of the item type it creates at its left (fabricIcons.ts). */
+export function ItemTitle(props: { kind?: string; children: React.ReactNode }) {
+  const icon = itemIcon(props.kind);
+  return (
+    <span className="krusgraph-item-title">
+      {icon && <img className="krusgraph-item-icon" src={icon.src} alt={icon.alt} width={ICON_SIZE} height={ICON_SIZE} />}
+      {props.children}
+    </span>
+  );
+}
+
+/** n184: the notices for Microsoft's icons and trademarks, under Choose what to build. */
+export function AboutNotices() {
+  return (
+    <details className="krusgraph-notices">
+      <summary>About and notices</summary>
+      {NOTICES.map((n) => (
+        <Caption1 key={n} as="p">{n}</Caption1>
+      ))}
+    </details>
+  );
+}
+
 export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["item"]) => void } & CardActions) {
   const c = props.card;
   const facts = cardFacts(c);
@@ -589,7 +615,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
-      <Subtitle2>{cardTitle(c)}</Subtitle2>
+      <ItemTitle kind={c.output}><Subtitle2>{cardTitle(c)}</Subtitle2></ItemTitle>
       {facts.length > 0 && (
         <ul className="krusgraph-list">
           {facts.map((f) => (

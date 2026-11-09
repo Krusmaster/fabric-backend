@@ -4,6 +4,8 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const Webpack = require("webpack");
 const path = require("path");
 const fs = require("fs").promises;
+// Krusgraph n184: Microsoft's Fabric item icons, copied unchanged from the pinned npm package (see fabricIcons.json)
+const FABRIC_ICONS = require("./app/items/ModelItem/fabricIcons.json");
 
 
 console.log('*******************     Workload Configuration    *******************');
@@ -47,6 +49,10 @@ module.exports = {
                     from: '**/*',
                     to: './assets',
                 },
+                ...Object.keys(FABRIC_ICONS.files).map((file) => ({
+                    from: `./${FABRIC_ICONS.sourceDir}/${file}`,
+                    to: `.${FABRIC_ICONS.servedAt}/${file}`,
+                })),
                 {
                     from: './app/web.config',
                     to: './web.config',

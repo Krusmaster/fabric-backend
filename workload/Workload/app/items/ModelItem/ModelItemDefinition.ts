@@ -145,7 +145,8 @@ export function emptyDefinition(): ModelDefinition {
   };
 }
 
-/** The default API name for a source: the lakehouse name plus _api, in the characters Fabric item names allow. */
+/** The default API name for a source: the lakehouse name plus _api, in the characters Fabric item names allow (the same
+ * pattern as buildWords.defaultName, n184). */
 export function defaultApiName(displayName: string): string {
   const base = (displayName || "model").replace(/[^A-Za-z0-9_]/g, "_").replace(/_+/g, "_").replace(/^_|_$/g, "") || "model";
   return `${base}_api`.slice(0, 123);

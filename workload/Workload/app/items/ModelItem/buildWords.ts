@@ -473,15 +473,22 @@ export function resultLine(a: ManyAnswer): string {
 
 /** The choices the outputs view starts from: what outputs.json saved (phase 1 saved the API for GraphQL), the rest off
  * with a default name. A new item starts with the API for GraphQL on, as before. */
-export function choicesFor(saved: OutputChoice[], displayName: string): OutputChoice[] {
-  return KINDS.map(
-    (k) =>
-      saved.find((c) => c.type === k.kind) ?? {
-        type: k.kind,
-        name: defaultName(k.kind, displayName),
-        enabled: k.kind === "graphql" && saved.length === 0,
-      }
-  );
+export function choicesFor(
+  saved: OutputChoice[],
+  displayName: string,
+  previous?: { displayName?: string; created?: CreatedItem[] }
+): OutputChoice[] {
+  // n184: every default is "<lakehouse>_<suffix>" (demo_lh_silver ... demo_lh_api ... demo_lh_app). A name still at the
+  // default of the name used before (the Model item's own, before a lakehouse was chosen: "demo_api"; or the lakehouse
+  // chosen before) follows the new lakehouse, unless an item of that name was already built. A name typed by hand stays.
+  const built = new Set((previous?.created ?? []).map((c) => c.name.toLowerCase()));
+  const old = previous?.displayName;
+  return KINDS.map((k) => {
+    const c = saved.find((x) => x.type === k.kind);
+    if (!c) return { type: k.kind, name: defaultName(k.kind, displayName), enabled: k.kind === "graphql" && saved.length === 0 };
+    const stale = old !== undefined && c.name === defaultName(k.kind, old) && !built.has(c.name.toLowerCase());
+    return stale ? { ...c, name: defaultName(k.kind, displayName) } : c;
+  });
 }
 
 /** The Create button's words: Create, or Create and update when an output is updated in place. */

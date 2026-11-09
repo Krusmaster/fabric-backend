@@ -80,6 +80,16 @@ PyPI release when this file was generated, and no version is written.
 | Microsoft JSON schemas for Fabric items: the report definition (PBIR) schemas create_report's parts are validated against, as test fixtures | `tests/fixtures/pbir_schemas/` (13 files under `fabric/item/report/`, unmodified; the list is in its `README.md`) | commit `eecc60d35b9ab18b884d35c50abe7d09d2753cdf` of github.com/microsoft/json-schemas | MIT (the `LICENSE` file at that commit) | Copyright (c) Microsoft Corporation; the licence text in `tests/fixtures/pbir_schemas/LICENSE-microsoft-json-schemas.txt` |
 | Microsoft Fabric Extensibility Toolkit (the starter kit for Fabric workloads): forked as the Krusgraph workload; the HelloWorld item renamed to the Model item (`Org.Krusgraph.Model`, "Krusgraph Model") and its editor rewritten; the rest as copied, with the changes marked `Krusgraph:` in comments; its npm dependencies are in `workload/Workload/package-lock.json`, not in the tables above | `workload/` (from the repository's `Workload/`, `scripts/` and `tools/`; Microsoft's README as `workload/README.starter-kit.md`) | commit `dacab1b391d03010ba61a0446126d05515c487f0` (6 August 2026) of github.com/microsoft/fabric-extensibility-toolkit | MIT (the `LICENSE` file at that commit) | Copyright (c) Microsoft Corporation; the licence text in `workload/LICENSE` |
 
+### Microsoft Fabric item icons in the workload editor
+
+The Model editor's output cards show Microsoft's Fabric item icons from the npm package `@fabric-msft/svg-icons@12.0.0`
+(a dependency of `workload/Workload`, pinned exactly; eight files, unmodified, named with their SHA-256 in
+`workload/Workload/app/items/ModelItem/fabricIcons.json`; none stored in this repository). Terms: Microsoft Learn,
+*Microsoft Fabric product, experience, and item icons* (https://learn.microsoft.com/fabric/fundamentals/icons), which
+offers the package "for use in Microsoft Fabric platform extension development"; Microsoft reserves all other rights.
+Microsoft, Microsoft Fabric and Power BI are trademarks of the Microsoft group of companies.
+
+
 ## The container image
 
 | Component | Source | Licence |

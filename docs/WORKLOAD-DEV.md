@@ -717,6 +717,57 @@ in Fabric.
 3. **Check**: + New item, the workspace list and the editor tab show the new icon; the editor shows it at the top left;
    the workload page's own text no longer runs into the banner's text.
 
+### 13. Round n184: Fabric item icons on the outputs, one default-name pattern
+
+Round n184 (9 November 2026). Checked by `app/items/ModelItem/fabricIcons.test.ts` (`npm test`) and
+`tests/test_workload_fabric_icons.py`; nothing ran in Fabric.
+
+- **The icons.** Each output card in *Choose what to build*, and each card of the dry run (Preview) and of Create,
+  shows the Fabric icon of the item type it creates, 20 px, at the left of the card's title, with the item type as alt
+  text: Notebook (silver notebook and gold views, both are notebooks), Pipeline, Semantic model, Report, API for
+  GraphQL, Ontology, Data agent, App. The icons are never next to the Krusgraph logo or a mascot.
+- **The source.** Microsoft Learn, *Microsoft Fabric product, experience, and item icons*
+  (<https://learn.microsoft.com/fabric/fundamentals/icons>, ms.date 3 July 2025, read 9 November 2026). Its terms:
+  "Microsoft permits the use of these icons in architectural diagrams, training materials, or documentation. You can
+  copy, distribute, and display the icons only for the permitted use unless granted explicit permission by Microsoft.
+  Microsoft reserves all other rights. Fabric icons are also available as a npm package for use in Microsoft Fabric
+  platform extension development." The npm package is `@fabric-msft/svg-icons` (Microsoft's Fabric UX icons), and a
+  Fabric workload is platform extension development, so it is the package used, pinned exactly at **12.0.0**
+  (`workload/Workload/package.json`, integrity in `package-lock.json`). Its `package.json` says MIT; the package
+  carries no licence file, so the permission relied on is the Learn page's, not the metadata. The Learn page's
+  "Download icons from GitHub" zip (fabric-samples) is for diagrams and documentation only and is not used. The
+  page's don'ts are kept: no cropping, flipping, rotating or changed shapes, and the icons stand for Fabric's item
+  types, never for Krusgraph.
+- **First choice checked first.** The workload SDK, `@ms-fabric/workload-client` 3.1.1, exposes no item-type icon
+  files or components; its `isFabricIcons` flag only lets the host draw icons in its own dialogs.
+- **Unmodified.** No icon file is stored in this repository. `webpack.config.js` copies the eight files named in
+  `app/items/ModelItem/fabricIcons.json` from `node_modules/@fabric-msft/svg-icons/svg/` to `/assets/fabric-icons/`
+  byte for byte, and the editor shows them with `<img>` (no recolouring; the SVGs keep their own gradients). The JSON
+  holds each file's SHA-256 at 12.0.0, and the tests compare the installed files with it.
+- **API for GraphQL.** Version 12.0.0 has no API for GraphQL item icon, so that card shows the package's
+  `generic_placeholder_24_item.svg` (Fabric's generic item icon) with the alt text "API for GraphQL". When a later
+  version adds one, change the file and its hash in `fabricIcons.json`.
+- **App (Rayfin, preview)** uses `fabric_apps_24_item.svg`, the package's Fabric Apps item icon.
+- **Notices.** *About and notices* under *Choose what to build* states the source, the terms and the trademark line,
+  also in `THIRD_PARTY_NOTICES.md`:
+
+  Microsoft, Microsoft Fabric and Power BI are trademarks of the Microsoft group of companies.
+- **Default names** follow one pattern from the lakehouse: `demo_lh_silver`, `demo_lh_gold`, `demo_lh_pipeline`,
+  `demo_lh_model`, `demo_lh_report`, `demo_lh_api`, `demo_lh_ontology`, `demo_lh_agent`, `demo_lh_app`. Before n184
+  the API for GraphQL, ticked before a lakehouse was chosen, kept the Model item's name (`demo_api`). Now a name still
+  at the earlier default follows the chosen lakehouse, also when a saved item is opened again; a name typed by hand,
+  or one an item was already built under, stays.
+
+**For the founder.**
+
+1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
+   --dry-run`, then `bash deploy/krusgraph.sh --update` (the editor at workload.krusgraph.com).
+2. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+   853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern → Workloads → Upload → Activate (step 6.2 to 6.4).
+3. **Check**: open a Krusgraph Model, *Choose what to build* shows an icon left of each output; Preview and Create
+   cards show the same; *About and notices* opens with the trademark line; a new Model on `demo_lh` proposes
+   `demo_lh_api`.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it

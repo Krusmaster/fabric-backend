@@ -334,3 +334,28 @@
   margin: 0;
   padding-left: 1.2em;
 }
+
+// n184: the Fabric item icon left of an output's title (Microsoft's file, shown as it is, 20 px)
+.krusgraph-item-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.krusgraph-item-icon {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+.krusgraph-notices {
+  margin-top: 16px;
+
+  summary {
+    cursor: pointer;
+  }
+
+  p {
+    margin: 8px 0 0;
+  }
+}

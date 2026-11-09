@@ -141,7 +141,8 @@ export function ModelItemEditor(props: PageProps) {
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });
         setDef(loaded);
         setSchema(loaded.source?.schema ?? "dbo");
-        setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName));
+        setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName,
+          loaded.source ? { displayName: got.item.displayName, created: loaded.outputs.created } : undefined));
         setProduct({ on: !!loaded.outputs.product, name: loaded.outputs.product?.name ?? got.item.displayName });
         setIsLoading(false);
         if (loaded.source) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName, loaded.source.schema);
@@ -184,7 +185,8 @@ export function ModelItemEditor(props: PageProps) {
       schema,
     };
     setDef((d) => ({ ...d, source, review: d.source?.itemId === picked.id ? d.review : undefined }));
-    setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName));
+    setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName,
+      { displayName: def.source?.displayName ?? itemMeta?.displayName, created: def.outputs.created }));
     setDirty(true);
     await listSchemas(picked.workspaceId, picked.id, picked.displayName);
   }
