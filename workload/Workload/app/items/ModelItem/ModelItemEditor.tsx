@@ -47,7 +47,9 @@ import {
   fromParts,
   toParts,
 } from "./ModelItemDefinition";
-import { OpenLink, afterCreate, choicesFor, createEach, createLabel, mergeCreated, schemaToUse, toRequests } from "./buildWords";
+import {
+  OpenLink, afterCreate, choicesFor, createEach, createLabel, failedCard, mergeCreated, newNameFor, runUpdate, schemaToUse, toRequests,
+} from "./buildWords";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
@@ -73,6 +75,7 @@ export function ModelItemEditor(props: PageProps) {
   const [mascotsOn, setMascotsOn] = useState(true);
   const [preview, setPreview] = useState<engine.ManyAnswer>();
   const [result, setResult] = useState<engine.ManyAnswer>();
+  const [updating, setUpdating] = useState(false);
   const [setView, setSetView] = useState<(v: string) => void>();
   const view = def.item.view;
 
@@ -299,6 +302,45 @@ export function ModelItemEditor(props: PageProps) {
     await save(d);
   }
 
+  function replaceCard(card: engine.BuildCard) {
+    setResult((r) => (r ? { ...r, outputs: r.outputs.map((x) => (x.output === card.output ? card : x)) } : r));
+  }
+
+  /** n180: Update of an output built from another plan: the dry run first (its card shows what would change and offers
+   * Update in Fabric), then the update with the dry run's confirmation. The created ids, with this plan, are saved. */
+  async function updateCard(card: engine.BuildCard) {
+    const outputs = toRequests(choices);
+    const o = outputs.find((x) => x.kind === card.output);
+    if (!o) return;
+    const src = sourceRequest(def);
+    setUpdating(true);
+    replaceCard({ ...card, status: "running" });
+    try {
+      const got = await runUpdate(card, (dryRun, confirm) =>
+        engine.updateOne(workloadClient, src, o, outputs, def.review, def.outputs.created, dryRun, confirm)
+      );
+      replaceCard(got.card);
+      if (got.created.length) {
+        const d = { ...def, outputs: { ...def.outputs, outputs: choices, created: mergeCreated(def.outputs.created, got.created) } };
+        setDef(d);
+        await save(d);
+      }
+    } catch (e) {
+      replaceCard(failedCard(o, e, card));
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  /** n180: keep the item built from another plan as it is; the output gets a free name and the outputs view opens. */
+  function newNameForCard(card: engine.BuildCard) {
+    const taken = [...def.outputs.created.map((c) => c.name), ...choices.map((c) => c.name)];
+    const name = newNameFor(card, taken);
+    setChoices((cs) => cs.map((c) => (c.type === card.output ? { ...c, name } : c)));
+    setDirty(true);
+    go("outputs");
+  }
+
   async function openItem(item: OpenLink["item"]) {
     await navigateToItem(workloadClient, item as never);
   }
@@ -381,7 +423,15 @@ export function ModelItemEditor(props: PageProps) {
     {
       name: "result",
       component: wrap(
-        result || def.outputs.created.length ? <ResultView answer={result} outputs={def.outputs} onOpen={openItem} mascotsOn={mascotsOn} /> : null
+        result || def.outputs.created.length ? <ResultView
+            answer={result}
+            outputs={def.outputs}
+            onOpen={openItem}
+            mascotsOn={mascotsOn}
+            onUpdate={updateCard}
+            onNewName={newNameForCard}
+            busy={updating}
+          /> : null
       ),
     },
   ];

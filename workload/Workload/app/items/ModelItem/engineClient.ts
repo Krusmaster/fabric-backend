@@ -14,7 +14,7 @@
  * no new image.
  */
 import { WorkloadClientAPI } from "@ms-fabric/workload-client";
-import { ReviewFile } from "./ModelItemDefinition";
+import { PlanMark, ReviewFile } from "./ModelItemDefinition";
 import { MapData } from "./cardMap";
 import { CheckTotals } from "./modelWords";
 import { getWorkloadName } from "../../controller/ConfigurationController";
@@ -111,6 +111,29 @@ export interface CreatedRef {
   /** the output that made it (an OutputKind; a string so outputs.json's items fit) */
   output?: string;
   label?: string;
+  /** n180: the plan it was built from; outputs.json keeps it */
+  plan?: PlanMark;
+}
+
+/** n180: an existing item was built from another plan, or by Krusgraph before plans were recorded. */
+export interface BuiltFrom {
+  status: "different" | "unknown";
+  was: PlanMark | null;
+  now: PlanMark;
+  /** "built from a different plan (schema Shop, 6 links; now shop, 7 links)" or "built by Krusgraph, plan unknown (…)" */
+  words: string;
+}
+
+/** n180: what an existing item holds, read from its definition; only what was read (an absent count is not zero). */
+export interface ExistingCounts {
+  cells?: number;
+  views?: number;
+  pages?: number;
+  visuals?: number;
+  tables?: number;
+  relationships?: number;
+  data_sources?: number;
+  questions?: number;
 }
 
 /** An output the engine did not call its tool for (a name taken by someone else, a missing permission), or the
@@ -142,6 +165,14 @@ export interface BuildCard {
   answer?: Record<string, any> & { error?: string; kind?: string; hint?: string; entra_steps?: string[] };
   created?: CreatedRef[];
   portal_steps?: string[];
+  /** n180: built from another plan or plan unknown; the person chooses (choices), nothing was written */
+  built_from?: BuiltFrom;
+  choices?: ("update" | "new_name")[];
+  /** n180: the items already in the workspace (to open them); not counted as built from this plan */
+  existing_items?: CreatedRef[];
+  existing?: ExistingCounts;
+  /** n180: an Update's dry run: what its Create sends back in `confirm` */
+  confirm_update?: string;
 }
 
 export interface FlowNode {
@@ -199,6 +230,8 @@ export interface ManyAnswer {
   product?: DataProduct;
   flow?: DataFlow | null;
   refused: number;
+  /** n180: outputs whose existing items wait for Update or a new name */
+  to_decide?: number;
   note: string;
   created?: CreatedRef[];
 }
@@ -377,6 +410,39 @@ export function buildOne(
     BUILD_WAIT_MS,
     fetchImpl
   );
+}
+
+/** n180: Update of one output built from another plan: dryRun true first (nothing is written; the card gives
+ * confirm_update), then dryRun false with that confirmation, which the engine requires before it writes. */
+export function updateOne(
+  workloadClient: WorkloadClientAPI,
+  source: SourceRequest,
+  output: OutputRequest,
+  all: OutputRequest[],
+  reviewFile: ReviewFile,
+  created: CreatedRef[],
+  dryRun: boolean,
+  confirm?: string,
+  fetchImpl?: Fetch
+): Promise<ManyAnswer> {
+  return call<ManyAnswer>(workloadClient, "build", updateBody(source, output, all, reviewFile, created, dryRun, confirm), BUILD_WAIT_MS, fetchImpl);
+}
+
+export function updateBody(
+  source: SourceRequest,
+  output: OutputRequest,
+  all: OutputRequest[],
+  reviewFile: ReviewFile,
+  created: CreatedRef[],
+  dryRun: boolean,
+  confirm?: string
+): Record<string, unknown> {
+  if (!dryRun && !confirm) throw new Error("An update is sent only after its dry run: confirm_update is missing.");
+  const outputs = all.map((o) => (o.kind === output.kind ? output : o));
+  return {
+    ...source, outputs, only: [output.kind], review: reviewFile, dry_run: dryRun, product: null, created,
+    update: [output.kind], ...(dryRun ? {} : { confirm: { [output.kind]: confirm } }),
+  };
 }
 
 /** n179: after the outputs, the data product and the data flow of the whole Create, from the created ids (no tool runs). */

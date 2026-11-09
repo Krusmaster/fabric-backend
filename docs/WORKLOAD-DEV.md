@@ -584,6 +584,42 @@ this round, so no new package is needed beyond n175's. Then reopen **shop_krusgr
 tables)` and `shop (7 tables)` with shop selected; choose Create on the preview, and the six items of 09:58 show as
 already built while the report and the API are tried.
 
+### 10. Round n180: "already built" means built from this plan
+
+Round n180 (9 November 2026), from the founder's re-run at 12:14 CET on **shop_krusgraphtest** (schema `shop`, 7 tables,
+7 links including R5 `ship_to_id`, check 13 passed). Create showed demo_lh_silver, demo_lh_gold, demo_lh_pipeline,
+demo_lh_model, demo_lh_report, demo_lh_ontology and demo_lh_agent as "already built"; they had been built that
+morning from schema `Shop` with 6 links, so only the API was created from the plan on screen, and the cards said
+"0 silver table(s)", "0 visual(s)" and "0 table(s) selected" for items that hold them. Verified in unit tests only
+(`tests/test_workload_plans.py`, `workload/Workload/app/items/ModelItem/planCards.test.ts`); nothing ran against Fabric.
+
+**What changed.**
+
+1. **Every item a Create writes records its plan**: the review's plan id and schema fingerprint, the exact schema name
+   and the number of links left after the review. It is kept in outputs.json (`created[].plan`) and written at the end
+   of the item's Fabric description, where Krusgraph's items are already marked, as
+   `[Krusgraph plan plan-…, schema shop (sha256:…), 7 links]` (`PATCH /workspaces/{ws}/items/{id}`; the description
+   stays within 256 characters, and a failed write leaves the item as it is and is logged as `plan_mark`).
+2. **A re-run skips an output only when its items were built from this same plan.** An item recorded with another plan
+   gets the card "built from a different plan (schema Shop, 6 links; now shop, 7 links)"; an item Krusgraph built
+   before plans were recorded gets "built by Krusgraph, plan unknown (now shop, 7 links)". Nothing is written for either;
+   the card offers **Update** (not for a report, which is never updated in place) and **Choose a new name** (the outputs
+   view opens with a free name, e.g. `demo_lh_silver_2`). An older build is never taken as current.
+3. **Update is a dry run first.** The first Update sends `update: [kind]` with `dry_run: true`: the card shows what the tool
+   would write and **Update in Fabric**. Only that second click writes, and the engine requires the dry run's
+   `confirm_update` back (`confirm: {kind: …}`); without it the card says `dry_run_first` and nothing is written. Update
+   applies to items this Model built or that carry Krusgraph's description; anyone else's item is still refused.
+4. **Counts on cards of existing items are what the item holds**, read from its definition where that is one read:
+   a notebook's cells (and the gold notebook's views), a report's pages and visuals, a semantic model's tables and
+   relationships, a data agent's example questions. Where nothing was read (the pipeline, the API, the ontology, or a
+   read that failed) the card shows no count, never a zero.
+
+**Founder's steps:** redeploy (section 6, step 1) and **upload a new package version** of the workload, so the editor in
+Fabric has the Update and new-name buttons. Then reopen **shop_krusgraphtest** and choose Create: the seven items of the
+morning, and the API of 12:14, show "built by Krusgraph, plan unknown" (they were built before plans were recorded).
+Choose Update on each one that should follow the plan on screen (a dry run first, then Update in Fabric), or a new name
+to keep the morning's build; the report offers only a new name. A second Create afterwards shows them as already built.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it
@@ -651,6 +687,8 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | **Krusgraph Model keeps loading** in Fabric (n175), or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A corporate web filter blocks a domain it does not know yet (seen live on 9 November 2026; the server supports TLS 1.2 and 1.3). Ask IT to allow `workload.krusgraph.com` and `krusgraph.com` on port 443, TLS 1.2 or later: the site's [/it#network](https://krusgraph.com/it#network) says what each is for. |
 | `Invalid object name 'Shop.addresses'` (42S02) on Check against the rows, or one link fewer than expected | Before n175: the schema was typed in another case than the lakehouse's (`Shop` for `shop`). Since n175 the engine uses the metadata's spelling everywhere and says so (`schema_used`, a notification in the editor). |
 | "Failed to fetch" at the top after Create (before n179) | One request carried every output and the browser lost its answer while the server went on (Hosted, step 9). Since n179 each output is its own request; a lost one says "no answer yet" on its card. Reopen in a minute and choose Create again: what was built is skipped. |
+| A card says "built from a different plan" or "plan unknown" (n180) | The item of that name was built from another plan (schema spelling, links) or before plans were recorded. Nothing was written. Choose Update (a dry run first) or a new name on the card. |
+| A card says `dry_run_first` (n180) | An Update was sent without its dry run's confirmation. Choose Update again: the dry run comes first, then Update in Fabric. |
 | A card says `source_not_ready` on the report (n179) | The semantic model was created moments before and Fabric did not give its definition yet. Choose Create again in a minute. |
 | `kind: schema_ambiguous` (n175) | Two schemas differ only by case; type the one you mean exactly as the answer lists it. |
 

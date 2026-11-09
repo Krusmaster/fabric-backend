@@ -8,7 +8,9 @@
  * or schedules a notebook or a pipeline, so no Execute permission is ever listed.
  */
 import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from "./ModelItemDefinition";
-import { BuildCard, CreatedRef, DataProduct, EngineCallError, EngineError, ManyAnswer, OutputKind, OutputRequest } from "./engineClient";
+import {
+  BuildCard, CreatedRef, DataProduct, EngineCallError, EngineError, ExistingCounts, ManyAnswer, OutputKind, OutputRequest,
+} from "./engineClient";
 
 export interface KindInfo {
   kind: OutputKind;
@@ -133,7 +135,11 @@ export function nameAction(kind: OutputKind, name: string, created: CreatedItem[
 export function mergeCreated(prev: CreatedItem[], add: CreatedRef[]): CreatedItem[] {
   const out = [...prev];
   for (const a of add) {
-    const item: CreatedItem = { type: a.type, id: a.id, name: a.name, workspace: a.workspace, ...(a.output ? { output: a.output } : {}) };
+    const item: CreatedItem = {
+      type: a.type, id: a.id, name: a.name, workspace: a.workspace,
+      ...(a.output ? { output: a.output } : {}),
+      ...(a.plan ? { plan: a.plan } : {}),                  // n180: the plan it was built from
+    };
     const i = out.findIndex((c) => c.id === a.id);
     if (i >= 0) out[i] = item;
     else out.push(item);
@@ -204,6 +210,7 @@ export function cardTitle(c: BuildCard): string {
   if (c.status === "running") return `${c.label} ${c.name}: creating in Fabric…`;
   if (c.status === "lost") return `${c.label} ${c.name}: no answer yet`;
   if (c.already_built) return `${c.label} ${c.name}: already built`;
+  if (needsChoice(c)) return `${c.label} ${c.name}: ${c.built_from!.words}`;
   if (c.refusal) return `${c.label} ${c.name}: not built`;
   if (c.answer?.error) return `${c.label} ${c.name}: ${c.dry_run ? "the dry run stopped" : "not built"}`;
   if (!c.dry_run) return `${c.label} ${c.name}: ${c.would === "update" ? "updated" : "created"}`;
@@ -219,6 +226,7 @@ export function cardProblem(c: BuildCard): { error: string; kind: string; hint?:
 
 /** A few facts from the tool's own dry run, per kind, in plain words (counts only; nothing invented). */
 export function cardFacts(c: BuildCard): string[] {
+  if (c.already_built || needsChoice(c)) return existingFacts(c.output, c.existing);   // n180: what the item holds
   const a = c.answer;
   if (!a || a.error) return [];
   const n = (x: unknown) => (Array.isArray(x) ? x.length : 0);
@@ -247,6 +255,43 @@ export function cardFacts(c: BuildCard): string[] {
     default:
       return [];
   }
+}
+
+/** n180: the card of an existing item built from another plan (or plan unknown), waiting for Update or a new name. */
+export function needsChoice(c: BuildCard): boolean {
+  return !!(c.built_from && c.choices?.length && !c.dry_run);
+}
+
+/** n180: what an existing item holds, as its definition says it. Only counts that were read and are above zero: an item
+ * whose definition was not read shows no count, never "0 visual(s)" for a report that has visuals. */
+export function existingFacts(kind: OutputKind, e: ExistingCounts | undefined): string[] {
+  if (!e) return [];
+  const has = (n: number | undefined): n is number => typeof n === "number" && n > 0;
+  const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+  const out: string[] = [];
+  if (kind === "gold_views" && has(e.views)) out.push(`Holds ${plural(e.views, "gold view")}`);
+  else if (has(e.cells)) out.push(`Holds ${plural(e.cells, "notebook cell")}`);
+  if (has(e.pages)) out.push(`Holds ${plural(e.pages, "page")}` + (has(e.visuals) ? ` with ${plural(e.visuals, "visual")}` : ""));
+  if (has(e.tables)) out.push(`Holds ${plural(e.tables, "table")}` + (has(e.relationships) ? `, ${plural(e.relationships, "relationship")}` : ""));
+  if (has(e.questions)) out.push(`Holds ${plural(e.questions, "example question")}` + (has(e.data_sources) ? ` over ${plural(e.data_sources, "data source")}` : ""));
+  return out;
+}
+
+/** n180: the Update of a card built from another plan. From the choice card, always the dry run (nothing is written);
+ * from that dry run's card, the Create with its confirm_update. Never a write without the dry run before it. */
+export async function runUpdate(
+  card: BuildCard,
+  send: (dryRun: boolean, confirm?: string) => Promise<ManyAnswer>
+): Promise<{ card: BuildCard; created: CreatedRef[] }> {
+  const confirming = card.dry_run && !!card.confirm_update;
+  const a = await send(!confirming, confirming ? card.confirm_update : undefined);
+  const next = a.outputs.find((x) => x.output === card.output) ?? a.outputs[0];
+  return { card: { ...next, status: "done" }, created: confirming ? a.created ?? next?.created ?? [] : [] };
+}
+
+/** n180: Choose a new name for an output whose name is taken by an item built from another plan. */
+export function newNameFor(card: BuildCard, taken: string[]): string {
+  return nextFreeName(card.name, [...taken, ...(card.existing_items ?? []).map((c) => c.name), card.name]);
 }
 
 /** n179: the semantic model's summary in words, as the MCP card says it (the founder saw "[object Object]"): tables,
@@ -385,6 +430,13 @@ export function resultLine(a: ManyAnswer): string {
   if (lost)
     return `${lost} output(s) gave no answer yet; they may still be running in Fabric. Reopen this item in a minute and choose Create again: what is built is skipped.`;
   const made = (a.created ?? []).length;
+  const choose = a.outputs.filter(needsChoice).length;
+  if (choose)
+    return (
+      (made ? `${made} item(s) are in Fabric now. ` : "") +
+      `${choose} output(s) were built earlier from another plan, or before Krusgraph recorded plans; nothing was written for them. ` +
+      "Choose Update (a dry run first) or a new name on each card."
+    );
   return made
     ? `${made} item(s) are in Fabric now. Open each one there; what is still to do is listed under it.`
     : "Nothing was created: each card below says why.";

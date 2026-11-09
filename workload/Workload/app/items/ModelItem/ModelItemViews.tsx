@@ -51,6 +51,7 @@ import {
   choiceProblems,
   kindInfo,
   nameAction,
+  needsChoice,
   openLinks,
   previewLine,
   resultLine,
@@ -495,10 +496,20 @@ function Problem({ card }: { card: BuildCard }) {
   );
 }
 
-export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["item"]) => void }) {
+/** n180: what the person can do with a card built from another plan: Update (a dry run first) or a new name; and on
+ * the Update's dry run, the update itself. */
+export interface CardActions {
+  onUpdate?: (card: BuildCard) => void;
+  onNewName?: (card: BuildCard) => void;
+  busy?: boolean;
+}
+
+export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["item"]) => void } & CardActions) {
   const c = props.card;
   const facts = cardFacts(c);
-  const links = openLinks(c.created ?? []);
+  const links = openLinks(c.created?.length ? c.created : c.existing_items ?? []);
+  const choose = needsChoice(c);
+  const confirm = c.dry_run && !!c.confirm_update && !c.refusal && !c.answer?.error;
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
@@ -535,7 +546,48 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
         </>
       )}
       {c.status === "running" && <Spinner size="tiny" label="Creating in Fabric…" />}
-      {c.already_built && <Body1>Already in the workspace from an earlier Create; nothing was written again.</Body1>}
+      {c.already_built && <Body1>Already in the workspace, built from this plan by an earlier Create; nothing was written again.</Body1>}
+      {choose && (
+        <>
+          <Body1>
+            Nothing was written for it.{" "}
+            {c.choices?.includes("update")
+              ? "Update rebuilds it from this plan in place (you see a dry run first), or choose a new name to keep it as it is."
+              : "A report is never updated in place: choose a new name to build one from this plan; this one stays as it is."}
+          </Body1>
+          <div className="krusgraph-actions">
+            {c.choices?.includes("update") && props.onUpdate && (
+              <Button appearance="primary" disabled={props.busy} onClick={() => props.onUpdate?.(c)}>
+                Update
+              </Button>
+            )}
+            {props.onNewName && (
+              <Button disabled={props.busy} onClick={() => props.onNewName?.(c)}>
+                Choose a new name
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+      {confirm && (
+        <>
+          <Body1>
+            This is the dry run of the update{c.built_from ? ` of an item ${c.built_from.words}` : ""}: nothing was written yet.
+          </Body1>
+          {props.onUpdate && (
+            <div className="krusgraph-actions">
+              <Button appearance="primary" disabled={props.busy} onClick={() => props.onUpdate?.(c)}>
+                Update in Fabric
+              </Button>
+              {props.onNewName && (
+                <Button disabled={props.busy} onClick={() => props.onNewName?.(c)}>
+                  Choose a new name instead
+                </Button>
+              )}
+            </div>
+          )}
+        </>
+      )}
       <PermissionsNote needs={c.permissions.needs} extra="No run or schedule permission is used." />
     </section>
   );
@@ -642,7 +694,7 @@ export function ResultView(props: {
   outputs: OutputsDefinition;
   onOpen: (item: OpenLink["item"]) => void;
   mascotsOn: boolean;
-}) {
+} & CardActions) {
   const a = props.answer;
   const said = a ? resultLine(a) : "This item built these before. Open each in Fabric; choose outputs again to update them.";
   const stored = props.outputs.product;
@@ -661,7 +713,9 @@ export function ResultView(props: {
       {stored && <ProductView product={stored} onOpen={props.onOpen} />}
       {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
       {a ? (
-        a.outputs.map((c) => <OutputCard key={c.output} card={c} onOpen={props.onOpen} />)
+        a.outputs.map((c) => (
+          <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy} />
+        ))
       ) : (
         <section>
           <Subtitle2>Created items</Subtitle2>

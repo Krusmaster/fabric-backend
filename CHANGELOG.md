@@ -48,6 +48,14 @@ next deploy.
   message in the editor, no longer a 401 sign-in answer. `docs/WORKLOAD-PUBLISH.md` (the founder's steps: Entra, server,
   upload with the irreversible name dialog, Selected tenants, next pilot, withdrawing; keep the existing app as the
   production app), `docs/PILOT-ONBOARDING.md` and the page `/pilot/fabric` (the pilot administrator's five steps).
+- Round n180: in the Krusgraph Model, "already built" means built from this plan. Every item a Create writes records
+  the plan it was built from (plan id, schema fingerprint, exact schema, links) in outputs.json and at the end of its
+  Fabric description. On a re-run, an item built from another plan gets the card "built from a different plan (schema
+  Shop, 6 links; now shop, 7 links)", and one built before plans were recorded "built by Krusgraph, plan unknown"; nothing
+  is written for either, and the card offers Update (where the tool updates in place; a dry run first, whose
+  `confirm_update` the engine requires before it writes) or Choose a new name. Cards of existing items show what the item
+  holds (notebook cells and views, report pages and visuals, model tables, data agent example questions) or no count,
+  never "0 visual(s)" for a report that has them. Needs a redeploy and a new workload package version.
 - Round n179: Create in the Krusgraph Model sends one request per output (the model before its report), each card with
   its own progress and result; a lost answer says "no answer yet, it may still be running in Fabric" on its card instead
   of "Failed to fetch" for the page; the created ids are saved after each output. A re-run (`skip_built`) shows the

@@ -69,6 +69,17 @@ export interface CreatedItem {
   workspace: string;
   /** n174: which output made it (silver_notebook, semantic_model, ...); absent in phase 1's API for GraphQL */
   output?: string;
+  /** n180: the plan it was built from (absent for items built before n180: "plan unknown") */
+  plan?: PlanMark;
+}
+
+/** n180: what an output was built from (workload_api.plan_mark): the review's plan id and schema fingerprint, the exact
+ * schema name and the number of links left after the review. */
+export interface PlanMark {
+  plan_id?: string;
+  schema_fingerprint?: string;
+  schema?: string;
+  links?: number;
 }
 
 export interface OutputChoice {

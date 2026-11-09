@@ -39,6 +39,13 @@ never written, and a report is never updated. The token's delegated permissions 
 each output needs: the dry run says what is missing, Create refuses that output with kind consent and the Entra steps.
 Nothing runs or is scheduled; no Execute permission is used. The data product is domain_draft's proposal with the
 build's own items; the flow is data_flow.py's, from the same drafts.
+
+n180: "already built" means built from this plan. Every item a Create writes records the plan it was built from (plan id,
+schema fingerprint, exact schema name, links after the review) in outputs.json's created[].plan and as a marker at the
+end of its Fabric description. On a re-run an item recorded with another plan, or with none (built before n180), is not
+skipped as built: its card says which plan it was built from and offers Update (where the tool updates in place; the
+dry run first, whose confirm_update the Create must send back) or a new name. Cards of existing items carry what the
+item holds where one read of its definition says it (existing_counts), never a zero for what was not read.
 """
 from __future__ import annotations
 
@@ -241,9 +248,21 @@ def build_request(body) -> dict:
         if not isinstance(only, list) or not only or any(k not in {c["kind"] for c in chosen} for k in only):
             raise BadRequest("'only' must be a non-empty list of kinds among the outputs (the ones this request builds)")
         flags["only"] = list(only)
+    update = body.get("update")                                   # n180: Update of an output built from another plan
+    if update is not None:
+        if not isinstance(update, list) or any(k not in {c["kind"] for c in chosen} for k in update):
+            raise BadRequest("'update' must be a list of kinds among the outputs (the ones to update in place)")
+        if any(not KINDS[k]["updates"] for k in update):
+            raise BadRequest("a report is never updated in place; choose a new name for it")
+        flags["update"] = list(update)
+    confirm = body.get("confirm") or {}
+    if not isinstance(confirm, dict) or not all(isinstance(v, str) for v in confirm.values()):
+        raise BadRequest("'confirm' must be {kind: the confirm_update its Update's dry run gave}")
+    flags["confirm"] = confirm
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
-            "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output")} for c in created], "form": 2, **flags}
+            "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
+                        for c in created], "form": 2, **flags}
 
 
 # ------------------------------------------------------------------ the review's decisions applied to a plan --------
@@ -551,7 +570,8 @@ def _krusgraph_made(workspace: str, name: str, headers: dict, typ: str) -> dict 
 def _already_built(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> list[dict] | None:
     """n179, Create with skip_built: the output's items when every one of them is already in the workspace and was built by
     this Model (outputs.json) or carries Krusgraph's description (a Create whose answer the browser lost, 9 November
-    2026); None when anything is missing, so the tool is called. Nothing is written for an output found built."""
+    2026); None when anything is missing, so the tool is called. Nothing is written for an output found built. n180:
+    whether those items were built from this plan is the caller's question (recorded_mark, same_plan)."""
     from . import server as S
     found = []
     for typ, name in _names(o, chosen, req["schema"]):
@@ -585,6 +605,198 @@ def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, 
                            "hint": "Choose a new name to create another one."}, found
         would = "update"
     return would, None, found
+
+
+# ------------------------------------------------------------------ n180: the plan each output was built from --------
+# The founder's re-run of 9 November 2026, 12:14: items built that morning from schema "Shop" with 6 links were shown as
+# "already built" for a plan on "shop" with 7 links. Now every item a Create writes carries the plan it was built from,
+# in outputs.json (created[].plan) and in its Fabric description (the marker below), and "already built" means built
+# from this plan. An item built from another plan, or by Krusgraph before plans were recorded, gets a card with two
+# choices: Update (dry run first; only where the tool updates in place) or a new name. Nothing is written for it.
+MARK = re.compile(r"\[Krusgraph plan (plan-[0-9a-f]+), schema (.+?) \((sha256:[0-9a-f]+)\), (\d+) links?\]")
+DESCRIPTION_LIMIT = 256
+
+
+def plan_mark(rv: dict, p, schema: str) -> dict:
+    """What an output is built from: the review's plan id and schema fingerprint, the exact schema name and the number
+    of links left after the review (its rejections taken out)."""
+    return {"plan_id": rv.get("plan_id"), "schema_fingerprint": rv.get("schema_fingerprint"), "schema": schema,
+            "links": len(p.relationships)}
+
+
+def mark_text(mark: dict) -> str:
+    n = mark["links"]
+    return (f"[Krusgraph plan {mark['plan_id']}, schema {mark['schema']} ({mark['schema_fingerprint']}), "
+            f"{n} link{'' if n == 1 else 's'}]")
+
+
+def mark_of_description(text) -> dict | None:
+    m = MARK.search(str(text or ""))
+    if not m:
+        return None
+    return {"plan_id": m.group(1), "schema": m.group(2), "schema_fingerprint": m.group(3), "links": int(m.group(4))}
+
+
+def with_mark(description, mark: dict) -> str:
+    """The item's description with the plan marker at its end (an older marker replaced), at most 256 characters."""
+    tag = mark_text(mark)
+    base = MARK.sub("", str(description or "")).strip()
+    room = DESCRIPTION_LIMIT - len(tag) - 1
+    if room <= 0:
+        return tag[:DESCRIPTION_LIMIT]
+    base = base if len(base) <= room else base[:max(room - 1, 0)].rstrip() + "…"
+    return f"{base} {tag}" if base else tag
+
+
+def same_plan(was: dict | None, now: dict) -> bool:
+    if not was:
+        return False
+    return all(was.get(k) == now.get(k) for k in ("plan_id", "schema_fingerprint", "schema", "links"))
+
+
+def _plan_words(m: dict) -> str:
+    n = m.get("links")
+    return f"schema {m.get('schema')}, {n} link{'' if n == 1 else 's'}"
+
+
+def built_from(was: dict | None, now: dict) -> dict:
+    """The card's line: built from a different plan (schema Shop, 6 links; now shop, 7 links), or plan unknown."""
+    if was:
+        words = f"built from a different plan ({_plan_words(was)}; now {now.get('schema')}, {now.get('links')} links)"
+        return {"status": "different", "was": was, "now": now, "words": words}
+    return {"status": "unknown", "was": None, "now": now,
+            "words": f"built by Krusgraph, plan unknown (now {now.get('schema')}, {now.get('links')} links)"}
+
+
+def _items_of(workspace: str, headers: dict) -> dict[str, dict]:
+    """{id: item} of the workspace's items (one listing), for the descriptions."""
+    from .deploy import FABRIC, send
+    out, url = {}, f"{FABRIC}/v1/workspaces/{workspace}/items"
+    while url:
+        r = send("get", url, headers, write=False, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        for it in body.get("value", []):
+            out[it.get("id")] = it
+        url = body.get("continuationUri")
+    return out
+
+
+def recorded_mark(item_id: str, req: dict, listed: dict[str, dict]) -> dict | None:
+    """The plan an existing item was built from: outputs.json's created[].plan, else its description's marker."""
+    for c in req["created"]:
+        if c.get("id") == item_id and isinstance(c.get("plan"), dict) and c["plan"].get("plan_id"):
+            return c["plan"]
+    return mark_of_description((listed.get(item_id) or {}).get("description"))
+
+
+def mark_items(workspace: str, headers: dict, items: list[dict], mark: dict) -> int:
+    """Write the plan marker into each created item's description (PATCH /workspaces/{ws}/items/{id}). Best effort: the
+    item stands either way and outputs.json holds the plan too; a failure is logged, never raised."""
+    from .deploy import FABRIC, send
+    done = 0
+    try:
+        listed = _items_of(workspace, headers)
+    except Exception as exc:  # noqa: BLE001
+        log("plan_mark", outcome="list_failed", error=type(exc).__name__)
+        return 0
+    for c in items:
+        try:
+            desc = with_mark((listed.get(c["id"]) or {}).get("description"), mark)
+            r = send("patch", f"{FABRIC}/v1/workspaces/{workspace}/items/{c['id']}", headers, write=True,
+                     json={"description": desc}, timeout=30)
+            if getattr(r, "status_code", 200) < 400:
+                done += 1
+            else:
+                log("plan_mark", outcome="patch_failed", status=r.status_code, type=c.get("type"))
+        except Exception as exc:  # noqa: BLE001
+            log("plan_mark", outcome="patch_failed", error=type(exc).__name__, type=c.get("type"))
+    return done
+
+
+_VIEW = re.compile(r"CREATE\s+OR\s+(?:REPLACE|ALTER)\s+(?:MATERIALIZED\s+LAKE\s+)?VIEW", re.I)
+
+
+def _notebook_counts(parts: dict[str, str]) -> dict:
+    from .notebook import parse
+    cells, code = 0, ""
+    for path, text in parts.items():
+        if path.endswith(".ipynb"):
+            nb = json.loads(text)
+            for c in nb.get("cells", []):
+                cells += 1
+                src = c.get("source", "")
+                code += "".join(src) if isinstance(src, list) else str(src)
+        elif path.endswith(".py"):
+            got = parse(text)
+            cells += len(got)
+            code += "\n".join(t for _, t in got)
+    out = {"cells": cells} if cells else {}
+    views = len(_VIEW.findall(code))
+    if views:
+        out["views"] = views
+    return out
+
+
+def _report_counts(parts: dict[str, str]) -> dict:
+    pages = sum(1 for p in parts if re.fullmatch(r"definition/pages/[^/]+/page\.json", p))
+    visuals = sum(1 for p in parts if re.fullmatch(r"definition/pages/[^/]+/visuals/[^/]+/visual\.json", p))
+    if not pages and "report.json" in parts:                      # the older PBIR-Legacy layout
+        sections = json.loads(parts["report.json"]).get("sections", [])
+        pages, visuals = len(sections), sum(len(s.get("visualContainers", [])) for s in sections)
+    return {k: v for k, v in (("pages", pages), ("visuals", visuals)) if v}
+
+
+def _model_counts(parts: dict[str, str]) -> dict:
+    tables = sum(1 for p in parts if re.fullmatch(r"definition/tables/[^/]+\.tmdl", p))
+    rels = len(re.findall(r"^relationship\s", parts.get("definition/relationships.tmdl", ""), re.M))
+    return {k: v for k, v in (("tables", tables), ("relationships", rels)) if v}
+
+
+def _agent_counts(workspace: str, agent_id: str, headers: dict) -> dict:
+    """The data agent's data sources and example questions, from its staging configuration (two or three reads)."""
+    from .deploy import FABRIC, send
+    stage = f"{FABRIC}/v1/workspaces/{workspace}/dataAgents/{agent_id}/staging"
+    r = send("get", f"{stage}/datasources", headers, write=False, timeout=30)
+    r.raise_for_status()
+    sources = r.json().get("value", [])
+    questions = 0
+    for d in sources[:5]:
+        q = send("get", f"{stage}/datasources/{d.get('id')}/fewshots", headers, write=False, timeout=30)
+        q.raise_for_status()
+        questions += len(q.json().get("value", []))
+    return {k: v for k, v in (("data_sources", len(sources)), ("questions", questions)) if v}
+
+
+def existing_counts(kind: str, items: list[dict], workspace: str, headers: dict) -> dict:
+    """n180: what an existing item holds, read from its definition where that is one cheap read (a notebook's cells and
+    views, a report's pages and visuals, a model's tables and relationships, a data agent's example questions). Only
+    what was read and found is returned: an empty answer means show no counts, never zero."""
+    from .lineage import rest_definition_parts
+    first = next((c for c in items if c.get("output", kind) == kind and c["type"] == KINDS[kind]["type"]), None)
+    if first is None or kind in ("pipeline", "graphql", "ontology"):
+        return {}
+    try:
+        if kind == "data_agent":
+            return _agent_counts(workspace, first["id"], headers)
+        fmt = "TMDL" if kind == "semantic_model" else None
+        parts = rest_definition_parts(workspace, "items", first["id"], headers, fmt)
+        if kind in ("silver_notebook", "gold_views"):
+            return _notebook_counts(parts)
+        if kind == "report":
+            return _report_counts(parts)
+        return _model_counts(parts)
+    except Exception as exc:  # noqa: BLE001 — no counts rather than wrong ones
+        log("existing_counts", output=kind, outcome="unread", error=type(exc).__name__)
+        return {}
+
+
+def confirm_token(kind: str, mark: dict, ids: list[str]) -> str:
+    """What the Update's dry run hands the editor and its Create must send back: the update is written only for the plan
+    and the items that dry run showed."""
+    import hashlib
+    raw = json.dumps([kind, mark.get("plan_id"), mark.get("schema"), mark.get("links"), sorted(ids)])
+    return "upd-" + hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def _portal_steps(kind: str, a: dict) -> list[str]:
@@ -752,6 +964,13 @@ def run_build_many(req: dict) -> dict:
         workspace = S._workspace_id(req["workspace"], headers)
         p, _item, _ = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
         req = _exact(req, p.schema.schema)                         # n175: every output reads and writes the exact name
+        mark = plan_mark(rv, p, req["schema"])                     # n180: what every item of this build is built from
+        listing: list[dict] = []
+
+        def listed() -> dict:
+            if not listing:
+                listing.append(_items_of(workspace, headers))
+            return listing[0]
         for o in req["outputs"]:
             kind = o["kind"]
             if req.get("only") and kind not in req["only"]:
@@ -770,23 +989,55 @@ def run_build_many(req: dict) -> dict:
                 cards.append(card)
                 continue
             started = time.monotonic()
-            if req.get("skip_built") and not dry_run:
+            updating = kind in req.get("update", [])
+            if req.get("skip_built") and not dry_run and not updating:
                 done = _already_built(o, chosen, req, workspace, headers, ours)
                 if done is not None:
-                    card.update(would="create", created=done, already_built=True,
-                                answer={"dry_run": False, "already_built": True,
-                                        "note": "Already in the workspace from an earlier Create; nothing was written. Choose a new "
-                                                "name to make another one."})
-                    ours.update(c["id"] for c in done)
-                    log("build_output", output=kind, dry_run=False, outcome="already_built", seconds=round(time.monotonic() - started, 1))
+                    marks = [recorded_mark(c["id"], req, listed()) for c in done]
+                    counts = existing_counts(kind, done, workspace, headers)
+                    if all(same_plan(m, mark) for m in marks):    # built from this plan: as n179 showed it
+                        done = [{**c, "plan": mark} for c in done]
+                        card.update(would="create", created=done, already_built=True, existing=counts,
+                                    answer={"dry_run": False, "already_built": True,
+                                            "note": "Already in the workspace, built from this plan by an earlier Create; nothing "
+                                                    "was written. Choose a new name to make another one."})
+                        ours.update(c["id"] for c in done)
+                        outcome = "already_built"
+                    else:                                         # n180: another plan, or none recorded: the person chooses
+                        was = next((m for m in marks if m and not same_plan(m, mark)), None)
+                        bf = built_from(was, mark)
+                        choices = ["update", "new_name"] if KINDS[kind]["updates"] else ["new_name"]
+                        card.update(would="update" if KINDS[kind]["updates"] else "create", built_from=bf, existing_items=done,
+                                    existing=counts, choices=choices,
+                                    answer={"dry_run": False, "plan_differs": True,
+                                            "note": f"{KINDS[kind]['label']} {o['name']} was {bf['words']}; nothing was written. "
+                                                    + ("Update it (a dry run first) or choose a new name." if "update" in choices
+                                                       else "A report is never updated in place: choose a new name.")})
+                        outcome = "built_from_" + bf["status"]
+                    log("build_output", output=kind, dry_run=False, outcome=outcome, seconds=round(time.monotonic() - started, 1))
                     built[kind] = card
                     cards.append(card)
                     continue
+            update_ids: list[str] = []
+            if updating:                                           # n180: the person chose Update for this output
+                for typ, name in _names(o, chosen, req["schema"]):
+                    existing = S._find_item(workspace, name, headers, typ)
+                    if existing and (existing in ours or _krusgraph_made(workspace, name, headers, typ)):
+                        ours.add(existing)
+                        update_ids.append(existing)
+                if update_ids:
+                    was = next((m for m in (recorded_mark(i, req, listed()) for i in update_ids) if m and not same_plan(m, mark)), None)
+                    card["built_from"] = built_from(was, mark)
+                    card["confirm_update"] = confirm_token(kind, mark, update_ids)
             would, refusal, _found = _ownership(o, chosen, req, workspace, headers, ours)
             card["would"] = would
             missing = card["permissions"]["missing"]
             if refusal is None and missing and not dry_run:
                 refusal = _consent(kind, missing, app_id)
+            if refusal is None and updating and not dry_run and update_ids and req["confirm"].get(kind) != card.get("confirm_update"):
+                refusal = {"error": f"{KINDS[kind]['label']} {o['name']!r} is updated only after its dry run; nothing was written.",
+                           "kind": "dry_run_first",
+                           "hint": "Choose Update to see what would change, then confirm the update."}
             if refusal is not None:
                 card["refusal"] = refusal
                 log("build_output", output=kind, dry_run=dry_run, outcome="refused:" + str(refusal.get("kind")), seconds=0)
@@ -810,7 +1061,11 @@ def run_build_many(req: dict) -> dict:
                     card["created"] = (answer.get("created") or []) if kind == "graphql" else _created_ids(kind, answer, chosen, workspace, o, req)
                     for c in card["created"]:
                         c.setdefault("output", kind)
+                        c["plan"] = mark                           # n180: outputs.json keeps what it was built from
                         ours.add(c["id"])
+                    card.pop("confirm_update", None)
+                    if card["created"]:
+                        mark_items(workspace, headers, card["created"], mark)
                     card["portal_steps"] = _portal_steps(kind, answer)
             built[kind] = card
             cards.append(card)
@@ -822,8 +1077,12 @@ def run_build_many(req: dict) -> dict:
         out["flow"] = None if req.get("only") else _flow(req, p, chosen, cards, keys, confirmed)   # n179: finish draws it
     refused = [c for c in cards if c.get("refusal") or (c.get("answer") or {}).get("error")]
     out["refused"] = len(refused)
+    out["to_decide"] = sum(1 for c in cards if c.get("built_from") and c.get("choices"))
+    ok = len(cards) - len(refused) - out["to_decide"]
     out["note"] = (NOTHING_CHANGED + " This is what Create would send, output by output." if dry_run else
-                   f"{len(cards) - len(refused)} of {len(cards)} output(s) built." + (" Nothing runs or is scheduled." if cards else ""))
+                   f"{ok} of {len(cards)} output(s) built." + (f" {out['to_decide']} wait for your choice: Update or a new name."
+                                                              if out["to_decide"] else "")
+                   + (" Nothing runs or is scheduled." if cards else ""))
     if not dry_run:
         out["created"] = [x for c in cards for x in c.get("created", [])]
     if req.get("finish"):

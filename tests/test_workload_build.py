@@ -227,12 +227,14 @@ def test_create_builds_the_flow_the_model_and_its_report_and_says_what_is_left(m
     outputs = [{"kind": "silver_notebook", "name": "shop_silver"}, {"kind": "gold_views", "name": "shop_gold"},
                {"kind": "pipeline", "name": "shop_flow"}, {"kind": "semantic_model", "name": "shop_sales"},
                {"kind": "report", "name": "shop_report"}, {"kind": "ontology", "name": "shop_onto"}]
-    out = _build(client, priv, outputs, dry_run=False, product={"name": "Shop sales"})[0].json()
+    r, rv = _build(client, priv, outputs, dry_run=False, product={"name": "Shop sales"})
+    out = r.json()
     assert out["dry_run"] is False and out["refused"] == 0, [c.get("refusal") or c["answer"].get("error") for c in out["outputs"]]
     cards = {c["output"]: c for c in out["outputs"]}
     assert [c["type"] for c in cards["pipeline"]["created"]] == ["DataPipeline", "Notebook", "Notebook", "Notebook"]
-    assert cards["semantic_model"]["created"] == [{"type": "SemanticModel", "id": NEW_SM, "name": "shop_sales",
-                                                   "workspace": gs.WS, "output": "semantic_model"}]
+    model = [{k: v for k, v in c.items() if k != "plan"} for c in cards["semantic_model"]["created"]]
+    assert model == [{"type": "SemanticModel", "id": NEW_SM, "name": "shop_sales", "workspace": gs.WS, "output": "semantic_model"}]
+    assert cards["semantic_model"]["created"][0]["plan"]["plan_id"] == rv["plan_id"]          # n180: what it was built from
     assert cards["report"]["created"][0]["id"] == "new-reports"
     assert cards["report"]["answer"]["report"]["bound_to"]["id"] == NEW_SM
     # the portal steps are the tools' own
