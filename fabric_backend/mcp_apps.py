@@ -56,7 +56,8 @@ PROTOCOL_VERSION = "2026-01-26"
 TOOL = "validate_plan"
 # n137: the tools whose answer is also returned as structuredContent; n169: and the build card's (mcp_apps_build.CARD_TOOLS)
 STRUCTURED = ("validate_plan", "review_plan", "plan_backend", "create_semantic_model", "create_ontology", "create_backend",
-              "create_report", "ontology_draft", "domain_draft")          # n170: and the two drafts with a picture
+              "create_report", "ontology_draft", "domain_draft",          # n170: and the two drafts with a picture
+              "dbt_schema")                                                # n177: the dbt project's flow
 
 # The arguments a next step carries over from the validate_plan call, per tool: workspace, source and schema always;
 # keys and confirmed only where the tool takes them. tests/test_n119_mcp_apps.py checks each against the tool's
@@ -121,6 +122,14 @@ def structured(fn, name: str | None = None):
                 extra.update(pictures.extras(name, answer, stash))
             except Exception:                                        # noqa: BLE001 - the answer stands without a picture
                 pass
+        if name == "dbt_schema" and isinstance(answer, dict) and isinstance(answer.get("files"), dict):
+            try:                                                     # n177: the project's flow; the code stays in files
+                from . import dbt_flow
+                f = dbt_flow.flow(answer["files"])
+                if f:
+                    extra["dbt_flow"] = f
+            except Exception:                                        # noqa: BLE001 - the answer stands without it
+                pass
         try:
             extra.update(words.extras(name, answer, stash))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
@@ -135,7 +144,7 @@ def registration(name: str, on: bool | None = None) -> dict:
     if name not in STRUCTURED or not (enabled() if on is None else on):
         return {}
     from . import mcp_apps_build                             # n169: the build card's tools point at it
-    if name in mcp_apps_build.CARD_TOOLS or name in mcp_apps_build.PICTURE_CARD_TOOLS:
+    if name in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS + mcp_apps_build.FLOW_CARD_TOOLS:
         return {"structured_output": False, "meta": mcp_apps_build.tool_meta(on=True)}
     return {"structured_output": False}
 

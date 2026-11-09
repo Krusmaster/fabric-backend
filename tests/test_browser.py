@@ -310,8 +310,11 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         assert d_note.endswith("the draft creates nothing in Fabric. Tested with unit tests, not yet against a live Fabric workspace."), (v, d_note)
         for tool in ("create_semantic_model", "create_ontology", "domain_draft", "semantic_model_draft", "ontology_draft", "Status of"):
             assert tool not in f["allText"], (v, tool)
-        assert "That is the demo" in f["end"] and f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
-        assert f["endPicks"] == ["Check my tables", "Connect to my Fabric", "Fix data issues", "Draft a dbt project"], v
+        # n177: after the three results Onto asks what next, the steps left first; "That is the demo" comes after the last
+        assert "That is the demo" not in f["end"] and "What next?" in f["end"], v
+        assert f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
+        assert f["endPicks"] == ["Fix data issues", "Draft a dbt project", "Check my tables", "Connect to my Fabric"], v
+        assert "That is the demo" in f["finalEnd"], v
         assert f["endWhy"] == "Opens the set-up guide.", v
         assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
         assert f["overflowX"] <= 0 and f["logOverflowX"] <= 0 and f["pageOverflowX"] <= 0, v
@@ -376,7 +379,7 @@ def test_chat_fix_and_dbt_run_as_steps_with_the_engines_output(chat):
             fix, dbt = f["further"]
             assert fix == {"tag": "BUTTON", "key": "fixes", "href": None, "planned": False, "why": "A proposed fix for each problem, with counts before and after."}, (v, fix)
             assert dbt["tag"] == "BUTTON" and dbt["key"] == "dbt" and dbt["href"] is None, (v, dbt)
-            assert f["afterFixPicks"] == ["Check my tables", "Connect to my Fabric", "Draft a dbt project"], v
+            assert f["afterFixPicks"] == ["Draft a dbt project", "Check my tables", "Connect to my Fabric"], v
             assert f["afterDbtPicks"] == ["Check my tables", "Connect to my Fabric"], v
             fixes, project = f["extra"]
             h_fix, h_dbt = f["extraHtml"]
@@ -390,17 +393,24 @@ def test_chat_fix_and_dbt_run_as_steps_with_the_engines_output(chat):
             assert "nothing was applied and no question was answered" in fixes and "business decisions stay yours" in fixes, v
             assert "dbt project drafted" in project and "Files only; nothing runs." in project, (v, project)
             assert f"{len(db['files'])} files for dbt-fabric" in project and f"{db['staging']} staging models and {db['marts']} marts" in project, v
-            tree, model, tests = h_dbt["pre"]
-            assert "dbt_project.yml" in tree and "staging/" in tree and "marts/" in tree and "shop.yml" in tree, (v, tree)
-            assert model.split("\n")[:len(db["model"]["lines"])] == db["model"]["lines"], v
-            assert tests.split("\n") == db["relationship"]["lines"] and "relationships:" in tests, v
+            # n177: the flow instead of a file tree: sources -> staging -> marts -> model, every box folded at first
+            fl = f["dbtFlow"]
+            assert [c["h"] for c in fl["cols"]] == ["Sources: your tables", "Staging: one clean row per key", "Marts: joined for reporting", "Model"], (v, fl)
+            assert [c["boxes"] for c in fl["cols"]] == [7, db["staging"], db["marts"], 1] and fl["open"] == 0, (v, fl)
+            assert fl["folded"] == 7 + db["staging"] + db["marts"] and fl["dashed"] == ["Semantic model"], (v, fl)
+            op = f["dbtOpened"]
+            assert op["open"] == 1 and op["expanded"] == ["fct_orders"] and op["inside"], (v, op)
+            assert "{{ ref('stg_shop__orders') }}" in op["text"][0] and "reads stg_shop__orders" in op["text"][0], (v, op)
             for h in (h_fix, h_dbt):
                 assert h["links"] == 0 and h["pics"] == 0 and h["inside"], (v, h)
             assert f["extraLogOverflowX"] <= 0, v
             fx_note, dbt_note = f["notes"][3:]
             assert fx_note.endswith("business decisions stay yours. Created in a live Fabric workspace."), (v, fx_note)
-            assert "Run against a live Fabric workspace." in fx_note and "silver notebook it creates in your Fabric workspace" in fx_note, (v, fx_note)
-            assert "your agent drafts these files" in dbt_note and dbt_note.endswith("Run against a live Fabric workspace as a draft."), (v, dbt_note)
+            assert "Proposing fixes: tested with unit tests, not yet against a live Fabric workspace; the check itself ran against one." in fx_note, (v, fx_note)
+            assert "silver notebook it creates in your Fabric workspace" in fx_note, (v, fx_note)
+            # n177: the dbt project itself has not run live (LIVE-TEST row 16 is the sources file alone), nor have proposed fixes
+            assert "your agent drafts these files" in dbt_note and dbt_note.endswith(
+                "The dbt project: tested with unit tests, not yet against a live Fabric workspace; the sources file alone ran against one as a draft."), (v, dbt_note)
             for tool in ("validate_plan", "dbt_schema", "create_silver_notebook", "fixes=true", "project=true"):
                 assert tool not in f["allText"], (v, tool)
         else:
@@ -490,7 +500,7 @@ def test_chat_a_link_inside_closes_it_and_connect_goes_to_the_set_up_guide(chat)
         assert f["url"] == "/start" and "set-up guide" in f["title"], f
         assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains"]}, f["stored"]
         assert not f["after"]["open"] and not f["after"]["loaded"], f["after"]
-        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][:2] == ["Check my tables", "Connect to my Fabric"], f
+        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][2:] == ["Check my tables", "Connect to my Fabric"], f
 
 
 def test_chat_start_over_empties_the_steps(chat):

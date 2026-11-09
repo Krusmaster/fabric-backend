@@ -47,7 +47,7 @@ def test_menu_links_answer_and_mark_the_current_page(client):
     html = client.get("/docs").text
     menu = re.search(r'<nav class="docs-menu"[^>]*>(.*?)</nav>', html, re.S).group(1)
     hrefs = re.findall(r'href="([^"#]+)"', menu)
-    assert set(x["path"] for x in pages.docs_pages()) | {"/start", "/it", "/lovable"} == set(hrefs)
+    assert set(x["path"] for x in pages.docs_pages()) | {"/choose", "/start", "/it", "/lovable"} == set(hrefs)   # n177: /choose
     for h in hrefs:
         assert client.get(h).status_code == 200, h
     for x in pages.docs_pages():

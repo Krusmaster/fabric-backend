@@ -9,13 +9,14 @@ else, keeps its steps in sessionStorage under one key and nowhere else, and its 
 says about creating is a sentence built from tool_status. The browser checks of the flow are in tests/test_browser.py
 (chat_demo_browser.js).
 """
+import json
 import re
 from pathlib import Path
 
 import pytest
 from starlette.testclient import TestClient
 
-from fabric_backend import domains, evidence, ontology, pages, semantic_model, tool_status as ts
+from fabric_backend import demo, domains, evidence, ontology, pages, semantic_model, tool_status as ts
 from fabric_backend.demo import DEMO_KEYS, _demo_db, demo_plan
 from fabric_backend.infer import plan
 from fabric_backend.seed import rows, schema
@@ -364,13 +365,14 @@ def test_every_result_says_nothing_was_created_and_what_the_agent_does_by_tool_s
     button = _launcher(client.get("/use-cases").text)
     for key, draft, create in pages.CHAT_RESULTS:
         tool = create or draft
-        assert f'data-status-{key}="{pages.chat_status(tool)}"' in button
+        option = pages.CHAT_OPTIONS.get(key, "") if not create else ""      # n177: the step's option, as LIVE-TEST has it
+        assert f'data-status-{key}="{pages.chat_status(tool, option)}"' in button
         assert "data-tool-" not in button and tool not in button and tool not in pages.chat_status(tool)
         does = pages.chat_does(create)
         assert f'data-does-{key}="{does}"' in button
     assert 'data-does-domains="drafts"' in button
     # n162: fixes are proposed by validate_plan and applied by create_silver_notebook; dbt only drafts
-    assert f'data-draft-status-fixes="{pages.chat_status("validate_plan")}"' in button and "data-draft-status-model" not in button
+    assert f'data-draft-status-fixes="{pages.chat_status("validate_plan", "fixes=true")}"' in button and "data-draft-status-model" not in button
     assert 'data-does-dbt="drafts"' in button
     assert "This is a demo, so nothing was created. " in CHAT_JS
     assert "your agent creates this in your Fabric workspace when you ask." in CHAT_JS
@@ -475,3 +477,68 @@ def test_creates_comes_back_when_the_permission_is_asked_for(monkeypatch):
             assert pages.chat_does(create) == "creates", key
             monkeypatch.setitem(ts.STATUS, create, dataclasses.replace(ts.STATUS[create], available=ts.OPERATOR))
             assert pages.chat_does(create) == "drafts-gated", key
+
+
+# ------------------------------------------------------------------ n177: the status words match docs/LIVE-TEST.md ----
+
+def _live_rows(tool: str) -> list[list[str]]:
+    """LIVE-TEST.md section 1's rows for one tool: [#, tool, question, expected, earlier, result, date]."""
+    text = (Path(__file__).resolve().parents[1] / "docs" / "LIVE-TEST.md").read_text(encoding="utf-8")
+    sec = text.split("## 1. One row per tool", 1)[1].split("\n## ", 1)[0]
+    rows = [[c.strip() for c in ln.strip().strip("|").split("|")] for ln in sec.splitlines() if ln.startswith("| ")]
+    return [r for r in rows if len(r) >= 7 and r[1] == f"`{tool}`"]
+
+
+def test_the_chat_says_an_option_ran_live_only_when_live_test_has_it():
+    """The founder, 9 November 2026: the chat's 'Tested with unit tests, not yet against a live Fabric workspace' must
+    match LIVE-TEST. The fixes step is validate_plan with fixes=true and the dbt step dbt_schema with project=true; the
+    checklist's rows for both tools ran without them, so the chat says the option is unit-tested and the tool without it
+    ran live. A dated row that names the option must come with tool_status.LIVE_OPTIONS, and the other way round."""
+    for key, option in pages.CHAT_OPTIONS.items():
+        tool = next(d for k, d, _ in pages.CHAT_RESULTS if k == key)
+        rows = _live_rows(tool)
+        assert rows, tool
+        ran_plain = any(r[4] not in ("", "—") or r[6] for r in rows)
+        ran_option = any(option in (r[2] + r[3]) and r[6] for r in rows)
+        assert ran_option == ((tool, option) in ts.LIVE_OPTIONS), (tool, option)
+        said = pages.chat_status(tool, option)
+        assert ("tested with unit tests, not yet against a live Fabric workspace" in said) == (not ran_option), said
+        assert ("ran against one" in said) == (ran_plain and not ran_option and ts.STATUS[tool].live), said
+        assert tool not in said and option not in said
+    assert pages.chat_status("dbt_schema", "project=true") == (
+        "The dbt project: tested with unit tests, not yet against a live Fabric workspace; the sources file alone ran "
+        "against one as a draft.")
+    # data products: no LIVE-TEST row at all, and the chat says unit tests
+    assert not _live_rows("domain_draft") and "not yet against a live Fabric workspace" in pages.chat_status("domain_draft")
+
+
+def test_the_demo_ends_only_after_the_last_step():
+    """n177: Onto said "That is the demo" while Fix data issues and the dbt project were still offered. The end comes
+    only when no step is left; before it Onto asks what next, with the steps left first."""
+    nxt = CHAT_JS[CHAT_JS.index("function next() {"):CHAT_JS.index("function done(")]
+    assert "else if (further().length) say('onto', 'point', '<p>What next?</p>', further().concat(leave())" in nxt
+    end = nxt.index("<h3>That is the demo")
+    assert nxt.index("further().length") < end
+    assert "leave().concat(further())" not in nxt
+
+
+def test_the_dbt_step_draws_the_flow_from_the_project_files():
+    """n177: the dbt step draws sources -> staging -> marts -> model (dbt_flow.py), boxes folded, a box's code the file's
+    own text; the model is dashed (dbt does not make it)."""
+    from fabric_backend import dbt_flow
+    x = json.loads(demo.demo_plan_json())["drafts"]["as_is"]["dbt"]
+    f = x["flow"]
+    assert [c["id"] for c in f["columns"]] == ["sources", "staging", "marts", "model"]
+    by = {c: [n for n in f["nodes"] if n["column"] == c] for c in ("sources", "staging", "marts", "model")}
+    assert len(by["staging"]) == x["staging"] and len(by["marts"]) == x["marts"] and len(by["sources"]) == 7
+    assert [n["built"] for n in by["model"]] == [False]
+    for n in by["staging"] + by["marts"]:
+        assert n["code"].startswith("-- " + n["label"] + ":") and n["file"].endswith(n["label"] + ".sql")
+    for n in by["sources"]:
+        assert n["code"].startswith("- name: " + n["label"]) and "data_tests:" in n["code"]
+    edges = {(e["from"], e["to"]) for e in f["edges"]}
+    assert ("source:shop.orders", "model:stg_shop__orders") in edges
+    assert ("model:stg_shop__orders", "model:fct_orders") in edges and ("model:stg_shop__customers", "model:fct_orders") in edges
+    assert all(not e["built"] for e in f["edges"] if e["to"] == "model:semantic_model")
+    assert dbt_flow.flow({"models/sources/shop.yml": "version: 2"}) is None          # a sources file alone: no flow
+    assert "KGF.build(document, x.flow)" in CHAT_JS and "aria-expanded" in CHAT_JS and "kgc-tree" not in CHAT_JS

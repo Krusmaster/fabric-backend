@@ -294,7 +294,7 @@ def test_home_hero_and_trust_row(client):
 
 # ------------------------------------------------------------------ SEO and agent discovery ---------------------
 
-PUBLIC = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
+PUBLIC = ["/", "/check", "/start", "/choose", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms",
           "/blog", "/blog/fabric-totals-double-after-join"]                                                  # n145
 
 
@@ -712,7 +712,7 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
     docs = docs_all(client)
     groups = re.findall(r'<h[12] id="([^"]+)">', "".join(client.get(x["path"]).text for x in __import__("fabric_backend.pages").pages.docs_pages() if x["depth"] < 2))
     assert groups[0].startswith("why-")                    # n23: "Why <product>" ahead of the five parts
-    assert groups[1:] == ["get-started", "concepts", "explore-and-check", "build-from-a-plan", "tool-reference", "hosting-and-permissions"]  # n86b: Concepts
+    assert groups[1:] == ["get-started", "concepts", "explore-and-check", "build-from-a-plan", "krusgraph-in-fabric", "tool-reference", "hosting-and-permissions"]  # n86b: Concepts
     for anchor in ("connect", "what-it-accesses", "what-you-can-ask", "review-check-then-create", "test-status", "tools",
                    "how-relationships-are-inferred", "cold-start-and-min-replicas-if-you-run-it-yourself", "one-plan-five-fabric-pieces",
                    "with-microsoft-s-fabric-mcp-servers", "fabric-iq-the-same-graph-as-an-ontology", "sources",
@@ -732,7 +732,10 @@ def test_docs_are_grouped_and_every_old_section_anchor_still_resolves(client):
 def _without_agreed_facts(text: str) -> str:
     """n53 (29 October 2026): the maintainer asked for "Based in Uppsala, Sweden, and Bern, Switzerland" and "Hosted in
     Azure, Sweden Central" in the footer, his text on the home page and /it; anywhere else the rule below still holds."""
-    return text.replace("Based in Uppsala, Sweden, and Bern, Switzerland", "").replace("Hosted in Azure, Sweden Central", "")
+    # n177: the founder, 9 November 2026: the four ways say where the data passes ("Krusgraph (Sweden Central)"), a fact
+    # about the data path in the product offering (offering.py), not a selling point
+    return (text.replace("Based in Uppsala, Sweden, and Bern, Switzerland", "").replace("Hosted in Azure, Sweden Central", "")
+            .replace("Krusgraph (Sweden Central)", "").replace("(Azure, Sweden Central)", ""))
 
 
 def test_sweden_stays_a_privacy_fact_not_a_selling_point(client):

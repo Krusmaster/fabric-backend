@@ -33,7 +33,7 @@ USP_POINTS = (
 )
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
 PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 
@@ -188,6 +188,7 @@ It reads table and column names, infers keys and relationships from names (decla
 
 - [Docs]({o}/docs.md): connecting, what it reads and passes through, reviewing and checking a plan, the concepts (how it works, ontologies, data products, how they connect, where it runs, and where it is going), the thirty-nine tools with what each changes and its test status, {p} beside Microsoft's Fabric MCP servers, how relationships are inferred, Fabric IQ ontology drafts, sources, cold start, the two manual steps
 {docs_pages}
+- [Which Krusgraph should I use?]({o}/choose.md): the four ways (in Claude, in other AI agents over MCP, run it yourself, the Krusgraph Model item in Microsoft Fabric, which uses no AI model): who each is for, what it needs, where data passes, its status and what it lacks today
 - [Get started]({o}/start.md): admin consent, choosing a workspace, adding the connector in Claude
 - [Use with Lovable]({o}/lovable.md): plan and create the API for GraphQL item from Lovable's chat with {p} as a custom MCP connector, finish the three portal steps, then connect Lovable's Fabric connector to it
 - [Run it locally]({o}/local.md): the same engine on your own machine over ODBC (SQL Server with Windows sign-in, or a Fabric SQL endpoint), and exactly what leaves the machine

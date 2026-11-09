@@ -136,7 +136,7 @@ def _dbt_result(p, db) -> dict:
     computed when the plan JSON is built. The file tree, the first lines of one staging model (its select, without the
     comment header) and the tests the sources file has for one relationship: the first single-column relationship of the
     plan, and the staging model of its source table. Files only: nothing runs."""
-    from . import dbt, evidence
+    from . import dbt, dbt_flow, evidence
     v = evidence.validate(p, db)                             # check_rows: the marts join over relationships counted many-to-one
     out = dbt.project(p, "shop", p.schema.schema or "shop", "shop", v)
     files = out["files"]
@@ -152,7 +152,8 @@ def _dbt_result(p, db) -> dict:
             "relationship": {"source": rel.source, "column": rel.source_cols[0], "target": rel.target, "field": rel.target_cols[0],
                              "file": sources, "lines": _yaml_block(files[sources], rel.source, rel.source_cols[0])},
             "not_templated": [{"table": x["table"], "part": x["part"], "why": x["why"]} for x in out["not_templated"]],
-            "created": out["created"]}
+            "created": out["created"],
+            "flow": dbt_flow.flow(files, with_code=True)}                   # n177: sources -> staging -> marts -> model
 
 
 def _drafts(p) -> dict:

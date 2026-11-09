@@ -1023,7 +1023,8 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 .check-map .m-edge{stroke:var(--line-strong);stroke-width:2}
 .check-map .m-bad .m-edge{stroke:var(--coral-d);stroke-width:3}
 .check-map .m-sug .m-edge{stroke:var(--lav-d);stroke-dasharray:6 5;stroke-width:2.5}
-.check-map .m-rule{font:12px var(--mono);fill:var(--muted)}
+.check-map .m-hit{stroke:transparent;stroke-width:16;pointer-events:stroke;cursor:help}
+.check-map .m-rule{font:12px var(--mono);fill:var(--muted);paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round}
 .check-map .m-node rect{fill:var(--sage-soft);stroke:var(--sage-d);stroke-width:1.5}
 .check-map .m-nokey rect{fill:var(--card-2);stroke:var(--line-strong);stroke-dasharray:5 4}
 .check-map .m-name{font:600 13.5px var(--font-head);fill:var(--ink)}
@@ -1496,7 +1497,72 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 /* n161: on phones the 4:5 version plays (the first <source>, media="(max-width: 640px)"); the frame takes its shape, and
    the one poster (16:9; a poster cannot be swapped without script) is shown cropped to the frame instead of letterboxed */
 @media (max-width:640px){.film-frame video{aspect-ratio:4/5;object-fit:cover}}
+/* n177: in full screen the whole frame shows, letterboxed, in either orientation (a phone cropped it with cover);
+   site.js swaps to the 16:9 or the 4:5 file to match the screen's orientation */
+.film-frame video:fullscreen{aspect-ratio:auto;object-fit:contain;width:100%;height:100%;background:#000}
+.film-frame video:-webkit-full-screen{aspect-ratio:auto;object-fit:contain;width:100%;height:100%;background:#000}
 /* n170: Try in Claude (the home page's "Try it yourself" card, step 3 of /start) */
 .try-claude{display:grid;gap:6px;justify-items:start;margin:12px 0 0}
 .try-claude .try-claude-row{margin:0;justify-content:flex-start}
 .try-claude-note{max-width:62ch;margin:0}
+/* n177: the product offering: four ways (left), one engine (middle), what is built in Fabric (right); stacks on phones */
+.offering .intro{max-width:66ch}
+.off-fig{margin:0}
+.off-grid{display:grid;grid-template-columns:minmax(0,1.35fr) 40px minmax(0,.9fr) 40px minmax(0,.9fr);align-items:center;gap:8px}
+.off-ways{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.off-way{--c:var(--line-strong);--cs:var(--card)}
+.off-way.coral{--c:var(--coral);--cs:var(--coral-soft);--ci:var(--coral-ink)}.off-way.lav{--c:var(--lav);--cs:var(--lav-soft);--ci:var(--lav-ink)}
+.off-way.sage{--c:var(--sage);--cs:var(--sage-soft);--ci:var(--sage-ink)}.off-way.mustard{--c:var(--mustard);--cs:var(--mustard-soft);--ci:var(--mustard-ink)}
+.off-way-a{display:grid;gap:3px;padding:12px 14px;border-radius:var(--radius-s);background:var(--card);border:1.5px solid var(--line);border-left:6px solid var(--c);text-decoration:none;box-shadow:0 2px 6px rgba(90,60,40,.05);transition:background .15s,transform .15s}
+.off-way-a:hover,.off-way-a:focus-visible{background:var(--cs);color:inherit;transform:translateX(2px)}
+.off-way-a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.off-way-a{transition:none}.off-way-a:hover,.off-way-a:focus-visible{transform:none}}
+.off-way-h{display:flex;align-items:center;gap:8px}
+.off-way-n{font-family:var(--font-head);font-weight:600;font-size:18px;line-height:1.2;text-decoration:underline;text-decoration-color:var(--c);text-decoration-thickness:2px;text-underline-offset:4px}
+.off-i{width:22px;height:22px;flex:none;fill:none;stroke:var(--ci);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.off-way-who{font-size:14.5px;line-height:1.45;color:var(--muted)}
+.off-way-data{font-size:13.5px;line-height:1.4}
+.off-k{font-weight:700;color:var(--ci)}
+.off-arrow{align-self:stretch;display:flex;align-items:stretch;justify-content:center}
+.off-arrow svg{fill:none;stroke:var(--line-strong);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.off-fan{width:40px;height:100%}.off-fan path{vector-effect:non-scaling-stroke}
+.off-a2 .off-fan{height:auto;align-self:center;aspect-ratio:40/240}
+.off-down{display:none;width:24px;height:32px}
+.off-engine-box{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
+.off-engine-g{width:120px;height:84px;display:block;margin:0 auto 6px}
+.off-e-l{fill:none;stroke:var(--line-strong);stroke-width:2.5;stroke-linecap:round}
+.off-e-n{stroke:var(--card);stroke-width:2}.off-e-n.coral{fill:var(--coral)}.off-e-n.sage{fill:var(--sage)}.off-e-n.lav{fill:var(--lav)}.off-e-n.mustard{fill:var(--mustard)}
+.off-engine-n{font-family:var(--font-head);font-weight:600;font-size:20px;line-height:1.15;margin:0 0 4px}
+.off-engine-s{font-size:13.5px;color:var(--muted);margin:0;line-height:1.4}
+.off-built{background:var(--card-2);border:1.5px dashed var(--line-strong);border-radius:var(--radius-s);padding:14px 16px}
+.off-built-h{font-family:var(--font-head);font-weight:600;margin:0 0 6px;font-size:17px}
+.off-built ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
+.off-built li{font-size:14.5px;padding-left:18px;position:relative}
+.off-built li::before{content:"";position:absolute;left:2px;top:.55em;width:9px;height:9px;border-radius:3px;background:var(--sage)}
+.off-words{margin-top:18px}
+.off-words-h{font-size:18px;margin:0 0 6px}
+.off-words-l{margin:0 0 8px;padding-left:20px;font-size:15px;max-width:80ch}
+@media (max-width:860px){
+  .off-grid{grid-template-columns:1fr;gap:6px}
+  .off-fan{display:none}.off-down{display:block}.off-arrow{justify-content:center;margin:2px 0}
+  .off-engine-box{max-width:420px;margin:0 auto}
+}
+/* /choose: the decision guide and the comparison */
+.decide{list-style:none;margin:0 0 14px;padding:0;display:grid;gap:8px;max-width:72ch}
+.decide li{padding:10px 14px;border-radius:var(--radius-s);background:var(--card);border:1px solid var(--line);border-left:6px solid var(--line-strong)}
+.decide li.coral{border-left-color:var(--coral)}.decide li.lav{border-left-color:var(--lav)}.decide li.sage{border-left-color:var(--sage)}.decide li.mustard{border-left-color:var(--mustard)}
+.dec-if{font-style:italic}
+.decide a{font-weight:700}
+.no-ai{max-width:72ch;background:var(--sage-soft);border-radius:var(--radius-s);padding:12px 14px}
+.choose-table table{min-width:880px;font-size:14.5px}
+.choose-table th[scope=row]{text-align:left;white-space:nowrap;vertical-align:top}
+.choose-table td{vertical-align:top}
+.choose-table thead th{border-bottom:4px solid var(--line-strong)}
+.choose-table .cmp-coral{border-bottom-color:var(--coral)}.choose-table .cmp-lav{border-bottom-color:var(--lav)}.choose-table .cmp-sage{border-bottom-color:var(--sage)}.choose-table .cmp-mustard{border-bottom-color:var(--mustard)}
+.choose-short{padding-top:8px;padding-bottom:20px}
+.choose-short .decide{margin-bottom:8px}
+/* the docs' screenshots of the editor */
+.shot{margin:18px 0;border:1px solid var(--line);border-radius:var(--radius-s);overflow:hidden;background:var(--card)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:14px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line)}
+.shot-tag{display:inline-block;font-weight:700;color:var(--mustard-ink);background:var(--mustard-soft);border-radius:999px;padding:0 8px}

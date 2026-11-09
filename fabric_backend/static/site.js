@@ -719,5 +719,35 @@
   }, true);
   window.KGTip = { parts: tipParts, els: tipEls };
 
+  /* ------------------------------------------------------------------ n177: the film in full screen */
+  // The founder, 8 November 2026: on a phone the film in full screen was cropped. site.css letterboxes it (contain);
+  // here the file follows the orientation while in full screen: landscape the 16:9 film, portrait the 4:5 one, at the
+  // same second and playing if it played. Outside full screen the <source media> choice made at load stays.
+  function filmFile(v) {
+    var fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fs !== v) return null;
+    return window.matchMedia('(orientation: landscape)').matches ? v.getAttribute('data-film-wide') : v.getAttribute('data-film-tall');
+  }
+  function filmFit(v) {
+    var want = filmFile(v);
+    if (!want || !v.currentSrc || v.currentSrc.indexOf(want) >= 0) return;
+    var t = v.currentTime, playing = !v.paused;
+    v.src = want;                                         // an explicit src wins over the <source> children
+    v.addEventListener('loadedmetadata', function once() {
+      v.removeEventListener('loadedmetadata', once);
+      try { v.currentTime = t; } catch (e) { /* not seekable yet: start from the top */ }
+      if (playing) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+    });
+    v.load();
+  }
+  document.querySelectorAll('video[data-film-wide]').forEach(function (v) {
+    var fit = function () { filmFit(v); };
+    v.addEventListener('fullscreenchange', fit);
+    v.addEventListener('webkitfullscreenchange', fit);
+    window.addEventListener('orientationchange', fit);
+    window.matchMedia('(orientation: landscape)').addEventListener('change', fit);
+  });
+  window.KGFilm = { file: filmFile, fit: filmFit };
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

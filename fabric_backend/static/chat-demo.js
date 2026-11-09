@@ -48,6 +48,88 @@
     if (want > log.scrollTop) log.scrollTop = want;
   }
 
+  /* dbt-flow:start (n177; the dbt_schema card inlines this block, mcp_apps_build.dbt_flow_js) */
+  // The dbt project's flow (fabric_backend/dbt_flow.py): sources -> staging -> marts -> model, as the Krusgraph Model
+  // draws its data flow (n174). Every box is folded; a click (or Enter/Space: it is a button) opens its SQL or YAML,
+  // one box at a time, with what it reads; the model is dashed: dbt does not make it. Side by side where there is room,
+  // one column under the other in a narrow chat.
+  var KGF = (function () {
+    var CSS = '.kgf{display:grid;gap:6px;margin:8px 0;container-type:inline-size}' +
+      '.kgf-cols{display:grid;gap:6px;grid-template-columns:1fr}' +
+      '@container (min-width:620px){.kgf-cols{grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.kgf-col+.kgf-col::before{content:"\\2192";position:absolute;left:-12px;top:2px}.kgf-down{display:none}}' +
+      '.kgf-col{position:relative;display:grid;gap:5px;align-content:start}' +
+      '.kgf-h{margin:0;font-size:12.5px;font-weight:700;opacity:.8}' +
+      '.kgf-down{text-align:center;opacity:.55;line-height:1}' +
+      '.kgf-box{display:grid;gap:1px;text-align:left;width:100%;font:inherit;font-size:13px;line-height:1.3;color:inherit;' +
+      'background:transparent;border:1.5px solid currentColor;border-color:rgba(127,127,127,.45);border-radius:9px;padding:5px 8px;cursor:pointer}' +
+      '.kgf-box[aria-expanded=true]{border-color:currentColor}' +
+      '.kgf-box.kgf-off{border-style:dashed;cursor:default}' +
+      '.kgf-n{font-weight:700;overflow-wrap:anywhere}.kgf-l{font-size:12px;opacity:.8}' +
+      '.kgf-code{display:grid;gap:4px;border-left:3px solid rgba(127,127,127,.45);padding-left:8px}' +
+      '.kgf-code pre{margin:0;max-height:260px;overflow:auto;font:12px/1.45 ui-monospace,Consolas,monospace;white-space:pre;' +
+      'background:rgba(127,127,127,.1);border-radius:6px;padding:6px 8px}' +
+      '.kgf-code p{margin:0;font-size:12px}';
+        function style(doc) {
+      if (doc.getElementById('kgf-css')) return;
+      var s = doc.createElement('style'); s.id = 'kgf-css'; s.textContent = CSS; doc.head.appendChild(s);
+    }
+    var seq = 0;
+    // flow: {columns, nodes, edges}; files: {path: text} for a node that names its file instead of carrying its code.
+    // Built with createElement and textContent only: the card takes no HTML strings.
+    function build(doc, flow, files) {
+      if (!flow || !Array.isArray(flow.nodes) || !Array.isArray(flow.columns)) return null;
+      files = files || {};
+      var mk = function (tag, cls, text) { var x = doc.createElement(tag); if (cls) x.className = cls; if (text != null) x.textContent = String(text); return x; };
+      var pre = 'kgf' + (++seq) + '-', label = {};
+      flow.nodes.forEach(function (n) { label[n.id] = n.label; });
+      var reads = function (id) {
+        return (flow.edges || []).filter(function (x) { return x.to === id; }).map(function (x) { return label[x.from] || x.from; });
+      };
+      var root = mk('div', 'kgf'), cols = mk('div', 'kgf-cols');
+      root.setAttribute('role', 'group'); root.setAttribute('aria-label', 'The dbt project\u2019s flow');
+      flow.columns.forEach(function (c, ci) {
+        var col = mk('div', 'kgf-col');
+        if (ci) { var d = mk('div', 'kgf-down', '\u2193'); d.setAttribute('aria-hidden', 'true'); col.appendChild(d); }
+        col.appendChild(mk('p', 'kgf-h', c.label));
+        flow.nodes.filter(function (n) { return n.column === c.id; }).forEach(function (n, i) {
+          var codeText = typeof n.code === 'string' && n.code ? n.code : (n.file && typeof files[n.file] === 'string' ? files[n.file] : '');
+          var box = mk(codeText ? 'button' : 'div', 'kgf-box' + (n.built === false ? ' kgf-off' : ''));
+          box.appendChild(mk('span', 'kgf-n', n.label));
+          if (Array.isArray(n.lines) && n.lines.length) box.appendChild(mk('span', 'kgf-l', n.lines[0]));
+          col.appendChild(box);
+          if (!codeText) return;
+          var id = pre + ci + '-' + i, r = reads(n.id), panel = mk('div', 'kgf-code');
+          box.type = 'button'; box.setAttribute('aria-expanded', 'false'); box.setAttribute('aria-controls', id);
+          panel.id = id; panel.hidden = true;
+          panel.appendChild(mk('p', null, (n.code_title || n.file || n.label) + (r.length ? ' \u00b7 reads ' + r.join(', ') : '')));
+          var code = mk('pre', null, codeText); code.tabIndex = 0; panel.appendChild(code);
+          col.appendChild(panel);
+        });
+        cols.appendChild(col);
+      });
+      root.appendChild(cols);
+      return root;
+    }
+    // one delegated handler per document: a box opens its code and closes the one open before
+    function wire(doc) {
+      style(doc);
+      if (doc.__kgf) return;
+      doc.__kgf = true;
+      doc.addEventListener('click', function (ev) {
+        var b = ev.target && ev.target.closest ? ev.target.closest('button.kgf-box') : null;
+        if (!b) return;
+        var open = b.getAttribute('aria-expanded') !== 'true', root = b.closest('.kgf');
+        root.querySelectorAll('button.kgf-box[aria-expanded=true]').forEach(function (o) {
+          o.setAttribute('aria-expanded', 'false'); var p = doc.getElementById(o.getAttribute('aria-controls')); if (p) p.hidden = true;
+        });
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');
+        var panel = doc.getElementById(b.getAttribute('aria-controls')); if (panel) panel.hidden = !open;
+      });
+    }
+    return { build: build, wire: wire };
+  })();
+  /* dbt-flow:end */
+
   /* ------------------------------------------------------------------ what the chat remembers, in this tab only */
   // Read back only what save() writes: an object with open (true or false) and steps, each a known step name at most
   // once. Anything else, or no storage at all, counts as nothing stored.
@@ -500,12 +582,15 @@
   function next() {
     var left = suggestions();
     later(500, function () {
+      // n177: "That is the demo" only after the last step: while fixing data or the dbt project is still offered, Onto
+      // asks what next, with the two ways out after them
       if (left.length) say('onto', 'point', '<p>What next?</p>', left.concat(further()), '', true);
+      else if (further().length) say('onto', 'point', '<p>What next?</p>', further().concat(leave()), '', true);
       else if (!S.ended) {
         S.ended = true;
         say('onto', 'explain', '<h3>That is the demo</h3><p>The next step is real: your own files stay in your browser on the check page.</p>',
-            leave().concat(further()), '', true);
-      } else say('onto', 'point', '<p>What next?</p>', leave().concat(further()), '', true);
+            leave(), '', true);
+      } else say('onto', 'point', '<p>What next?</p>', leave(), '', true);
     });
   }
 
@@ -616,35 +701,21 @@
     });
   }
 
-  // n162: dbt_schema with project=true on the example (demo.py): the file tree, the first lines of one staging model
-  // and the tests the sources file has for one relationship. Files only; nothing runs.
-  function tree(paths) {
-    var lines = [], seen = {};
-    paths.forEach(function (p) {
-      var parts = p.split('/');
-      for (var i = 0; i < parts.length; i++) {
-        var at = parts.slice(0, i + 1).join('/');
-        if (seen[at]) continue;
-        seen[at] = true;
-        lines.push(new Array(i + 1).join('  ') + parts[i] + (i < parts.length - 1 ? '/' : ''));
-      }
-    });
-    return lines.join('\n');
-  }
+  // n162: dbt_schema with project=true on the example (demo.py); n177: drawn as its flow (dbt_flow.py), not a file tree
   function dbtProject() {
     work('builder', ['Writing staging models', 'Writing marts and tests'], function () {
-      var x = drafts().dbt, m = x.model, r = x.relationship;
+      var x = drafts().dbt;
+      // n177: the flow (sources -> staging -> marts -> model), boxes folded; a click shows the SQL or YAML
+      KGF.wire(document);
       var html = '<h3>dbt project drafted</h3><p>' + plural(x.files.length, 'file') + ' for ' + esc(x.adapter) + ': ' +
-        plural(x.staging, 'staging model') + ' and ' + plural(x.marts, 'mart') + ', with tests. Files only; nothing runs.</p>' +
-        '<pre class="kgc-code kgc-tree" tabindex="0">' + esc(tree(x.files)) + '</pre>' +
-        '<p>The start of ' + code(m.file.split('/').pop()) + ':</p>' +
-        '<pre class="kgc-code" tabindex="0">' + esc(m.lines.join('\n') + (m.more ? '\n… ' + plural(m.more, 'more line') : '')) + '</pre>' +
-        '<p>The tests for ' + code(r.source + '.' + r.column) + ' → ' + code(r.target + '.' + r.field) + ', in ' + code(r.file.split('/').pop()) + ':</p>' +
-        '<pre class="kgc-code" tabindex="0">' + esc(r.lines.join('\n')) + '</pre>' +
+        plural(x.staging, 'staging model') + ' and ' + plural(x.marts, 'mart') + ', with tests. Files only; nothing runs. ' +
+        'Choose a box to see its SQL or YAML.</p><div class="kgf-slot"></div>' +
         (x.not_templated.length ? '<p>Left for you: ' + x.not_templated.map(function (n) { return code(n.table) + ' (' + esc(n.part) + '): ' + esc(n.why); }).join('; ') + '.</p>' : '');
       var note = 'This is a demo, so nothing was created. Connected to ' + product +
         ', your agent drafts these files from your own tables when you ask. Files only; nothing runs: you run dbt when you decide to.';
       done('dbt', html, '', note);
+      var slots = log.querySelectorAll('.kgf-slot'), slot = slots[slots.length - 1], f = KGF.build(document, x.flow);
+      if (slot && f) slot.appendChild(f);
     });
   }
 

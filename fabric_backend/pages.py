@@ -10,7 +10,8 @@
     /use-cases         industries, typical tables and what the engine finds in them (use_cases.py)
     /mascots           mascot review page (noindex, unlinked)
     /consent/done      where Microsoft sends the admin after the consent link on /start (noindex; consent_done_html)
-    /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md   the same content as Markdown (for /llms.txt and agents)
+    /choose            which Krusgraph to use when: the four ways, the diagram, the comparison (offering.py, n177)
+    /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md, /choose.md   the same content as Markdown (for /llms.txt and agents)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
@@ -54,6 +55,8 @@ PAGES = {
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
     "/pilot/fabric": ("pilot_fabric.html", "Pilot in Microsoft Fabric — {{PRODUCT}}",
                       "What a pilot organisation's administrator does to use the Krusgraph Model item in Microsoft Fabric: send the tenant id, turn on the tenant setting for workloads not validated by Microsoft, grant admin consent, allow two addresses, then New item.", "partners"),
+    "/choose": ("choose.html", "Which Krusgraph should I use? — {{PRODUCT}}",
+                "Krusgraph in Claude, in other AI agents, run yourself, or as the Krusgraph Model item in Microsoft Fabric: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
@@ -456,7 +459,8 @@ FILM_LABEL = "Krusgraph overview film, synthetic demo data, AI-generated voice"
 def film_html(heading: bool = True) -> str:
     """The overview film: a native <video> with controls, preload="none", a poster and an English captions track."""
     video = (f'<figure class="film-frame">\n'
-             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}">\n'
+             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}"'
+             f' data-film-wide="{FILM_MP4}" data-film-tall="{FILM_MP4_4X5}">\n'
              f'      <source media="{FILM_PHONE}" src="{FILM_MP4_4X5}" type="video/mp4">\n'
              f'      <source src="{FILM_MP4}" type="video/mp4">\n'
              f'      <track kind="captions" srclang="en" label="English" src="{FILM_VTT}" default>\n'
@@ -597,7 +601,7 @@ _THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle a
                  '</button>')
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases", "/choose")       # pages that are also served as <path>.md
 
 
 # n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
@@ -889,6 +893,8 @@ CHAT_RESULTS = (("model", "semantic_model_draft", "create_semantic_model"), ("on
                 # n161: the two runnable steps after them. Fixes: validate_plan proposes them, create_silver_notebook
                 # applies the accepted ones; dbt: dbt_schema writes the project's files and nothing creates or runs it.
                 ("fixes", "validate_plan", "create_silver_notebook"), ("dbt", "dbt_schema", ""))
+# n177: the option each step's drafting tool runs with in the demo (demo.py: fixes=true, project=true)
+CHAT_OPTIONS = {"fixes": "fixes=true", "dbt": "project=true"}
 # n161: the results whose end text also says how far the drafting tool has been tried (data-draft-status-*)
 CHAT_DRAFT_STATUS = ("fixes",)
 # n93: the pages that never get the chat's button: /demo (a redirect to /check). n154: the button is on every other page,
@@ -905,13 +911,21 @@ CHECK_LABEL = "Check my tables"
 CONNECT_LABEL = "Connect to my Fabric"
 
 
-def chat_status(tool: str) -> str:
+def chat_status(tool: str, option: str = "") -> str:
     """A tool's status as the chat says it (n93): a short plain sentence without the tool's name, built from tool_status
     and saying no more than it: whether it created its item in a live Fabric workspace (build_word), whether that item
     was reviewed there (REVIEWED), how a tool that has not run live is tested, and whether creating needs a permission the
     hosted app does not ask for today (available == OPERATOR)."""
     from . import tool_status as ts
     s = ts.STATUS[tool]
+    # n177: a step that uses an option (fixes=true, project=true) says how far that was tried, not how far the tool was
+    # without it (the founder, 9 November 2026: the chat's words must match docs/LIVE-TEST.md)
+    if option and (tool, option) not in ts.LIVE_OPTIONS:
+        label, without = ts.OPTION_WORDS[(tool, option)]
+        if not s.live:
+            return f"{label}: tested with unit tests, not yet against a live Fabric workspace."
+        return (f"{label}: tested with unit tests, not yet against a live Fabric workspace; {without} ran against one"
+                + (" as a draft." if s.kind == ts.DRAFT else "."))
     if s.kind == ts.CREATES:
         made = ts.build_word(tool)
         if made == "creates":
@@ -954,10 +968,10 @@ def chat_launch_html() -> str:
              f'data-label-check="{e(CHECK_LABEL)}"', f'data-label-connect="{e(CONNECT_LABEL)}"']   # n158: the chat's two exits
     for key, draft, create in CHAT_RESULTS:
         tool = create or draft
-        attrs += [f'data-status-{key}="{e(chat_status(tool))}"',
+        attrs += [f'data-status-{key}="{e(chat_status(tool, CHAT_OPTIONS.get(key, "") if not create else ""))}"',
                   f'data-does-{key}="{chat_does(create)}"']
         if key in CHAT_DRAFT_STATUS:
-            attrs.append(f'data-draft-status-{key}="{e(chat_status(draft))}"')
+            attrs.append(f'data-draft-status-{key}="{e(chat_status(draft, CHAT_OPTIONS.get(key, "")))}"')
     return (f'<button class="kgc-launch" id="kgcLaunch" type="button" aria-expanded="false" hidden '
             f'{" ".join(attrs)}><span class="kgc-fig" aria-hidden="true"></span>Try a demo</button>')
 
@@ -984,7 +998,13 @@ def chat_plan_html() -> str:
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
     return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html(),
-            "HOME_FILM": film_html()}                                             # n157
+            "HOME_FILM": film_html(),                                             # n157
+            "HOME_OFFERING": _offering().diagram_html(), "HOME_CHOOSE": _offering().short_html("home")}   # n177
+
+
+def _offering():
+    from . import offering
+    return offering
 
 PYODIDE_DIR = STATIC_DIR / "pyodide"
 CHECK_DOWNLOAD = ("pyodide.mjs", "pyodide.asm.js", "pyodide.asm.wasm", "python_stdlib.zip", "pyodide-lock.json",
@@ -1024,6 +1044,9 @@ def render(path: str) -> str:
         if "{{DEMO_ORDER_" in body:                                        # n75: the synthetic order on /partners
             dv.update(partners_vars())
         body = re.sub(r"\{\{(DEMO_\w+)\}\}", lambda m: dv.get(m.group(1), ""), body)
+    if "{{CHOOSE_" in body:                                               # n177: the four ways (offering.py)
+        ov = _offering().choose_vars()
+        body = re.sub(r"\{\{(CHOOSE_\w+)\}\}", lambda m: ov[m.group(1)], body)
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude
@@ -1213,8 +1236,9 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Reference", "Hosting and permissions"]
-DOCS_MORE = [("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
+DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph in Fabric", "Reference",
+               "Hosting and permissions"]
+DOCS_MORE = [("/choose", "Which Krusgraph should I use?"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 
 
 def _md_plain(s: str) -> str:
@@ -1287,6 +1311,8 @@ def docs_page_html(path: str) -> str:
     from . import concepts
     figs = concepts.figures()
     figs["overview-film"] = lambda _rendered: film_html(heading=False)        # n157: the overview film at the top of /docs
+    from . import offering
+    figs.update(offering.figures())                                          # n177: the workload's permissions and screenshots
     body = _md_to_html(pg["md"], figs)
     # links between the parts of the old page go to the page that has the heading now
     body = re.sub(r'href="#([^"]+)"', lambda m: f'href="{where[m.group(1)]}#{m.group(1)}"' if where.get(m.group(1), path) != path
@@ -1460,6 +1486,7 @@ def start_md() -> str:
     """The get-started page as Markdown, converted from the same template the HTML page uses."""
     v = _vars()
     body = (_read("start.html").replace("{{START_CONNECT}}", "")        # n149: the chooser's buttons need the page; the steps say the same
+            .replace("{{CHOOSE_SHORT_START}}", _offering().short_html("start"))   # n177
             .replace("{{TRY_IN_CLAUDE}}", f"<p>Try it in Claude: open <a href=\"{CLAUDE_NEW}\">a new chat</a> and ask: <em>“{TRY_QUESTION}”</em></p>"))
     return _html_to_md(_fill(_conditional(_access(body), v)), "https://" + v["DOMAIN"])
 

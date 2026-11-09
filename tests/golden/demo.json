@@ -26,6 +26,334 @@
       "tests/fct_order_items__unique_order_id_line_no.sql",
       "tests/stg_shop__order_items__unique_order_id_line_no.sql"
      ],
+     "flow": {
+      "columns": [
+       {
+        "id": "sources",
+        "label": "Sources: your tables"
+       },
+       {
+        "id": "staging",
+        "label": "Staging: one clean row per key"
+       },
+       {
+        "id": "marts",
+        "label": "Marts: joined for reporting"
+       },
+       {
+        "id": "model",
+        "label": "Model"
+       }
+      ],
+      "edges": [
+       {
+        "built": true,
+        "from": "source:shop.addresses",
+        "to": "model:stg_shop__addresses"
+       },
+       {
+        "built": true,
+        "from": "source:shop.audit_log",
+        "to": "model:stg_shop__audit_log"
+       },
+       {
+        "built": true,
+        "from": "source:shop.categories",
+        "to": "model:stg_shop__categories"
+       },
+       {
+        "built": true,
+        "from": "source:shop.customers",
+        "to": "model:stg_shop__customers"
+       },
+       {
+        "built": true,
+        "from": "source:shop.order_items",
+        "to": "model:stg_shop__order_items"
+       },
+       {
+        "built": true,
+        "from": "source:shop.orders",
+        "to": "model:stg_shop__orders"
+       },
+       {
+        "built": true,
+        "from": "source:shop.products",
+        "to": "model:stg_shop__products"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__order_items",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__orders",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__products",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__categories",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__customers",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__orders",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__customers",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__order_items",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": false,
+        "from": "model:fct_order_items",
+        "to": "model:semantic_model"
+       },
+       {
+        "built": false,
+        "from": "model:fct_orders",
+        "to": "model:semantic_model"
+       }
+      ],
+      "nodes": [
+       {
+        "built": true,
+        "code": "- name: addresses\n  columns:\n    - name: address_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: city\n      description: \"\"  # string\n",
+        "code_title": "addresses in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.addresses",
+        "label": "addresses",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: audit_log\n  # no key inferred (rule K3): no unique/not_null tests\n  columns:\n    - name: event\n      description: \"\"  # string\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: happened_at\n      description: \"\"  # timestamp\n",
+        "code_title": "audit_log in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.audit_log",
+        "label": "audit_log",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: categories\n  columns:\n    - name: id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n",
+        "code_title": "categories in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.categories",
+        "label": "categories",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: customers\n  columns:\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n    - name: country\n      description: \"\"  # string\n",
+        "code_title": "customers in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.customers",
+        "label": "customers",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: order_items\n  # composite key order_id+line_no (rule K1): no built-in dbt test for a combination;\n  # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [order_id, line_no]\n  columns:\n    - name: order_id\n      description: \"\"  # int\n      data_tests:\n        - not_null  # key, rule K1\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'orders')\n              field: order_id\n    - name: line_no\n      description: \"\"  # int\n      data_tests:\n        - not_null  # key, rule K1\n    - name: product_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'products')\n              field: product_id\n    - name: quantity\n      description: \"\"  # double\n",
+        "code_title": "order_items in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.order_items",
+        "label": "order_items",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: orders\n  columns:\n    - name: order_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: order_date\n      description: \"\"  # date\n    - name: ship_to_id\n      description: \"\"  # int\n",
+        "code_title": "orders in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.orders",
+        "label": "orders",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: products\n  columns:\n    - name: product_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n    - name: category_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'categories')\n              field: id\n    - name: list_price\n      description: \"\"  # double\n",
+        "code_title": "products in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.products",
+        "label": "products",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__addresses: one row per address_id of addresses.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key address_id (rule K2; counted: unique in all 17 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [address_id],\n    [customer_id],\n    [city]\nfrom (\n    select\n        cast([address_id] as int) as [address_id],\n        cast([customer_id] as int) as [customer_id],\n        cast([city] as varchar(8000)) as [city],\n        row_number() over (partition by [address_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'addresses') }} as s\n    where [address_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__addresses.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__addresses.sql",
+        "id": "model:stg_shop__addresses",
+        "label": "stg_shop__addresses",
+        "language": "sql",
+        "lines": [
+         "one row per address_id of addresses."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__audit_log: one row per source row of audit_log.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- No key in the plan: not de-duplicated (there is nothing to de-duplicate on).\n\n{{ config(materialized='view') }}\n\nselect\n    cast([event] as varchar(8000)) as [event],\n    cast([customer_id] as int) as [customer_id],\n    cast([happened_at] as datetime2(6)) as [happened_at]\nfrom {{ source('shop', 'audit_log') }} as s\n",
+        "code_title": "models/staging/shop/stg_shop__audit_log.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__audit_log.sql",
+        "id": "model:stg_shop__audit_log",
+        "label": "stg_shop__audit_log",
+        "language": "sql",
+        "lines": [
+         "one row per source row of audit_log."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__categories: one row per id of categories.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key id (rule K2; counted: unique in all 3 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [id],\n    [name]\nfrom (\n    select\n        cast([id] as int) as [id],\n        cast([name] as varchar(8000)) as [name],\n        row_number() over (partition by [id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'categories') }} as s\n    where [id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__categories.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__categories.sql",
+        "id": "model:stg_shop__categories",
+        "label": "stg_shop__categories",
+        "language": "sql",
+        "lines": [
+         "one row per id of categories."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__customers: one row per customer_id of customers.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key customer_id (rule K2; counted: unique in all 10 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [customer_id],\n    [name],\n    [country]\nfrom (\n    select\n        cast([customer_id] as int) as [customer_id],\n        cast([name] as varchar(8000)) as [name],\n        cast([country] as varchar(8000)) as [country],\n        row_number() over (partition by [customer_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'customers') }} as s\n    where [customer_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__customers.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__customers.sql",
+        "id": "model:stg_shop__customers",
+        "label": "stg_shop__customers",
+        "language": "sql",
+        "lines": [
+         "one row per customer_id of customers."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__order_items: one row per order_id+line_no of order_items.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key order_id+line_no (rule K1; counted: unique in all 134 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [order_id],\n    [line_no],\n    [product_id],\n    [quantity]\nfrom (\n    select\n        cast([order_id] as int) as [order_id],\n        cast([line_no] as int) as [line_no],\n        cast([product_id] as int) as [product_id],\n        cast([quantity] as float) as [quantity],\n        row_number() over (partition by [order_id], [line_no] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'order_items') }} as s\n    where [order_id] is not null and [line_no] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__order_items.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__order_items.sql",
+        "id": "model:stg_shop__order_items",
+        "label": "stg_shop__order_items",
+        "language": "sql",
+        "lines": [
+         "one row per order_id+line_no of order_items."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__orders: one row per order_id of orders.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key order_id (rule K2; counted: unique in all 60 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [order_id],\n    [customer_id],\n    [order_date],\n    [ship_to_id]\nfrom (\n    select\n        cast([order_id] as int) as [order_id],\n        cast([customer_id] as int) as [customer_id],\n        cast([order_date] as date) as [order_date],\n        cast([ship_to_id] as int) as [ship_to_id],\n        row_number() over (partition by [order_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'orders') }} as s\n    where [order_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__orders.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__orders.sql",
+        "id": "model:stg_shop__orders",
+        "label": "stg_shop__orders",
+        "language": "sql",
+        "lines": [
+         "one row per order_id of orders."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__products: one row per product_id of products.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key product_id (rule K2; counted: unique in all 8 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [product_id],\n    [name],\n    [category_id],\n    [list_price]\nfrom (\n    select\n        cast([product_id] as int) as [product_id],\n        cast([name] as varchar(8000)) as [name],\n        cast([category_id] as int) as [category_id],\n        cast([list_price] as float) as [list_price],\n        row_number() over (partition by [product_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'products') }} as s\n    where [product_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__products.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__products.sql",
+        "id": "model:stg_shop__products",
+        "label": "stg_shop__products",
+        "language": "sql",
+        "lines": [
+         "one row per product_id of products."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- fct_order_items: one row per order_items row (order_id+line_no).\n-- Generated by Krusgraph for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- Joined only over relationships whose target key was counted unique (many-to-one), each over its safest path:\n--   order_items.order_id -> orders.order_id (R1): holds for all 134 rows with a value\n--   order_items.product_id -> products.product_id (R1): holds for all 134 rows with a value\n--   products.category_id -> categories.id (R1): holds for all 8 rows with a value\n--   orders.customer_id -> customers.customer_id (R1): holds for all 60 rows with a value\n-- Left out: products.list_price: an amount on products; this mart has one row per order_items row, so it would repeat once per row and a sum over the mart would count it several times (order amount and line amount are different levels).\n-- Left out: customers.name: looks like personal data (P1); add it here if the mart may show it.\n-- TODO (customer): what counts as revenue or an order amount. order_items.quantity is a quantity and order_items has no amount; products.list_price is a price in reach. The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one. No amount is computed here.\n-- TODO (customer): the business rules are not in the metadata (what counts as revenue, which statuses, cancelled or returned rows, currency); add them as filters and columns here.\n\n{{ config(materialized='table') }}\n\nselect\n    f.[order_id] as [order_id],\n    f.[line_no] as [line_no],\n    f.[product_id] as [product_id],\n    f.[quantity] as [quantity],\n    d1.[order_id] as [orders_order_id],\n    d1.[customer_id] as [orders_customer_id],\n    d1.[order_date] as [orders_order_date],\n    d1.[ship_to_id] as [orders_ship_to_id],\n    d2.[product_id] as [products_product_id],\n    d2.[name] as [products_name],\n    d2.[category_id] as [products_category_id],\n    d3.[id] as [categories_id],\n    d3.[name] as [categories_name],\n    d4.[customer_id] as [customers_customer_id],\n    d4.[country] as [customers_country]\nfrom {{ ref('stg_shop__order_items') }} as f\nleft join {{ ref('stg_shop__orders') }} as d1\n    on f.[order_id] = d1.[order_id]\nleft join {{ ref('stg_shop__products') }} as d2\n    on f.[product_id] = d2.[product_id]\nleft join {{ ref('stg_shop__categories') }} as d3\n    on d2.[category_id] = d3.[id]\nleft join {{ ref('stg_shop__customers') }} as d4\n    on d1.[customer_id] = d4.[customer_id]\n",
+        "code_title": "models/marts/customers/fct_order_items.sql",
+        "column": "marts",
+        "file": "models/marts/customers/fct_order_items.sql",
+        "id": "model:fct_order_items",
+        "label": "fct_order_items",
+        "language": "sql",
+        "lines": [
+         "one row per order_items row (order_id+line_no)."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- fct_orders: one row per orders row (order_id).\n-- Generated by Krusgraph for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- Joined only over relationships whose target key was counted unique (many-to-one), each over its safest path:\n--   orders.customer_id -> customers.customer_id (R1): holds for all 60 rows with a value\n-- Left out: customers.name: looks like personal data (P1); add it here if the mart may show it.\n-- TODO (customer): the business rules are not in the metadata (what counts as revenue, which statuses, cancelled or returned rows, currency); add them as filters and columns here.\n\n{{ config(materialized='table') }}\n\nselect\n    f.[order_id] as [order_id],\n    f.[customer_id] as [customer_id],\n    f.[order_date] as [order_date],\n    f.[ship_to_id] as [ship_to_id],\n    d1.[customer_id] as [customers_customer_id],\n    d1.[country] as [customers_country],\n    a1.[order_items_rows] as [order_items_rows],\n    a1.[order_items_quantity_sum] as [order_items_quantity_sum]\nfrom {{ ref('stg_shop__orders') }} as f\nleft join {{ ref('stg_shop__customers') }} as d1\n    on f.[customer_id] = d1.[customer_id]\nleft join (\n    -- order_items summed to one row per orders before the join (order_items.order_id -> orders.order_id (R1)), so no orders row repeats\n    select [order_id], count(*) as [order_items_rows], sum([quantity]) as [order_items_quantity_sum]\n    from {{ ref('stg_shop__order_items') }}\n    group by [order_id]\n) as a1\n    on f.[order_id] = a1.[order_id]\n",
+        "code_title": "models/marts/customers/fct_orders.sql",
+        "column": "marts",
+        "file": "models/marts/customers/fct_orders.sql",
+        "id": "model:fct_orders",
+        "label": "fct_orders",
+        "language": "sql",
+        "lines": [
+         "one row per orders row (order_id)."
+        ]
+       },
+       {
+        "built": false,
+        "code": "",
+        "column": "model",
+        "id": "model:semantic_model",
+        "label": "Semantic model",
+        "language": "",
+        "lines": [
+         "not made by dbt: Krusgraph builds it from the plan, on the source tables"
+        ]
+       }
+      ]
+     },
      "marts": 2,
      "model": {
       "file": "models/staging/shop/stg_shop__products.sql",
@@ -345,6 +673,344 @@
       "tests/fct_order_items__unique_order_id_line_no.sql",
       "tests/stg_shop__order_items__unique_order_id_line_no.sql"
      ],
+     "flow": {
+      "columns": [
+       {
+        "id": "sources",
+        "label": "Sources: your tables"
+       },
+       {
+        "id": "staging",
+        "label": "Staging: one clean row per key"
+       },
+       {
+        "id": "marts",
+        "label": "Marts: joined for reporting"
+       },
+       {
+        "id": "model",
+        "label": "Model"
+       }
+      ],
+      "edges": [
+       {
+        "built": true,
+        "from": "source:shop.addresses",
+        "to": "model:stg_shop__addresses"
+       },
+       {
+        "built": true,
+        "from": "source:shop.audit_log",
+        "to": "model:stg_shop__audit_log"
+       },
+       {
+        "built": true,
+        "from": "source:shop.categories",
+        "to": "model:stg_shop__categories"
+       },
+       {
+        "built": true,
+        "from": "source:shop.customers",
+        "to": "model:stg_shop__customers"
+       },
+       {
+        "built": true,
+        "from": "source:shop.order_items",
+        "to": "model:stg_shop__order_items"
+       },
+       {
+        "built": true,
+        "from": "source:shop.orders",
+        "to": "model:stg_shop__orders"
+       },
+       {
+        "built": true,
+        "from": "source:shop.products",
+        "to": "model:stg_shop__products"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__order_items",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__orders",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__products",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__addresses",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__categories",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__customers",
+        "to": "model:fct_order_items"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__orders",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__addresses",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__customers",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": true,
+        "from": "model:stg_shop__order_items",
+        "to": "model:fct_orders"
+       },
+       {
+        "built": false,
+        "from": "model:fct_order_items",
+        "to": "model:semantic_model"
+       },
+       {
+        "built": false,
+        "from": "model:fct_orders",
+        "to": "model:semantic_model"
+       }
+      ],
+      "nodes": [
+       {
+        "built": true,
+        "code": "- name: addresses\n  columns:\n    - name: address_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: city\n      description: \"\"  # string\n",
+        "code_title": "addresses in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.addresses",
+        "label": "addresses",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: audit_log\n  # no key inferred (rule K3): no unique/not_null tests\n  columns:\n    - name: event\n      description: \"\"  # string\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: happened_at\n      description: \"\"  # timestamp\n",
+        "code_title": "audit_log in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.audit_log",
+        "label": "audit_log",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: categories\n  columns:\n    - name: id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n",
+        "code_title": "categories in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.categories",
+        "label": "categories",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: customers\n  columns:\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n    - name: country\n      description: \"\"  # string\n",
+        "code_title": "customers in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.customers",
+        "label": "customers",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: order_items\n  # composite key order_id+line_no (rule K1): no built-in dbt test for a combination;\n  # with the dbt_utils package: dbt_utils.unique_combination_of_columns, combination_of_columns: [order_id, line_no]\n  columns:\n    - name: order_id\n      description: \"\"  # int\n      data_tests:\n        - not_null  # key, rule K1\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'orders')\n              field: order_id\n    - name: line_no\n      description: \"\"  # int\n      data_tests:\n        - not_null  # key, rule K1\n    - name: product_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'products')\n              field: product_id\n    - name: quantity\n      description: \"\"  # double\n",
+        "code_title": "order_items in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.order_items",
+        "label": "order_items",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: orders\n  columns:\n    - name: order_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: customer_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'customers')\n              field: customer_id\n    - name: order_date\n      description: \"\"  # date\n    - name: ship_to_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule confirmed\n            arguments:\n              to: source('shop', 'addresses')\n              field: address_id\n",
+        "code_title": "orders in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.orders",
+        "label": "orders",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "- name: products\n  columns:\n    - name: product_id\n      description: \"\"  # int\n      data_tests:\n        - unique  # key, rule K2\n        - not_null  # key, rule K2\n    - name: name\n      description: \"\"  # string\n    - name: category_id\n      description: \"\"  # int\n      data_tests:\n        - relationships:  # rule R1\n            arguments:\n              to: source('shop', 'categories')\n              field: id\n    - name: list_price\n      description: \"\"  # double\n",
+        "code_title": "products in the sources file, with its tests",
+        "column": "sources",
+        "file": "models/sources/shop.yml",
+        "id": "source:shop.products",
+        "label": "products",
+        "language": "yaml",
+        "lines": [
+         "source shop"
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__addresses: one row per address_id of addresses.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key address_id (rule K2; counted: unique in all 17 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [address_id],\n    [customer_id],\n    [city]\nfrom (\n    select\n        cast([address_id] as int) as [address_id],\n        cast([customer_id] as int) as [customer_id],\n        cast([city] as varchar(8000)) as [city],\n        row_number() over (partition by [address_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'addresses') }} as s\n    where [address_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__addresses.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__addresses.sql",
+        "id": "model:stg_shop__addresses",
+        "label": "stg_shop__addresses",
+        "language": "sql",
+        "lines": [
+         "one row per address_id of addresses."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__audit_log: one row per source row of audit_log.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- No key in the plan: not de-duplicated (there is nothing to de-duplicate on).\n\n{{ config(materialized='view') }}\n\nselect\n    cast([event] as varchar(8000)) as [event],\n    cast([customer_id] as int) as [customer_id],\n    cast([happened_at] as datetime2(6)) as [happened_at]\nfrom {{ source('shop', 'audit_log') }} as s\n",
+        "code_title": "models/staging/shop/stg_shop__audit_log.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__audit_log.sql",
+        "id": "model:stg_shop__audit_log",
+        "label": "stg_shop__audit_log",
+        "language": "sql",
+        "lines": [
+         "one row per source row of audit_log."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__categories: one row per id of categories.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key id (rule K2; counted: unique in all 3 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [id],\n    [name]\nfrom (\n    select\n        cast([id] as int) as [id],\n        cast([name] as varchar(8000)) as [name],\n        row_number() over (partition by [id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'categories') }} as s\n    where [id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__categories.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__categories.sql",
+        "id": "model:stg_shop__categories",
+        "label": "stg_shop__categories",
+        "language": "sql",
+        "lines": [
+         "one row per id of categories."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__customers: one row per customer_id of customers.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key customer_id (rule K2; counted: unique in all 10 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [customer_id],\n    [name],\n    [country]\nfrom (\n    select\n        cast([customer_id] as int) as [customer_id],\n        cast([name] as varchar(8000)) as [name],\n        cast([country] as varchar(8000)) as [country],\n        row_number() over (partition by [customer_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'customers') }} as s\n    where [customer_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__customers.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__customers.sql",
+        "id": "model:stg_shop__customers",
+        "label": "stg_shop__customers",
+        "language": "sql",
+        "lines": [
+         "one row per customer_id of customers."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__order_items: one row per order_id+line_no of order_items.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key order_id+line_no (rule K1; counted: unique in all 134 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [order_id],\n    [line_no],\n    [product_id],\n    [quantity]\nfrom (\n    select\n        cast([order_id] as int) as [order_id],\n        cast([line_no] as int) as [line_no],\n        cast([product_id] as int) as [product_id],\n        cast([quantity] as float) as [quantity],\n        row_number() over (partition by [order_id], [line_no] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'order_items') }} as s\n    where [order_id] is not null and [line_no] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__order_items.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__order_items.sql",
+        "id": "model:stg_shop__order_items",
+        "label": "stg_shop__order_items",
+        "language": "sql",
+        "lines": [
+         "one row per order_id+line_no of order_items."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__orders: one row per order_id of orders.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key order_id (rule K2; counted: unique in all 60 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [order_id],\n    [customer_id],\n    [order_date],\n    [ship_to_id]\nfrom (\n    select\n        cast([order_id] as int) as [order_id],\n        cast([customer_id] as int) as [customer_id],\n        cast([order_date] as date) as [order_date],\n        cast([ship_to_id] as int) as [ship_to_id],\n        row_number() over (partition by [order_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'orders') }} as s\n    where [order_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__orders.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__orders.sql",
+        "id": "model:stg_shop__orders",
+        "label": "stg_shop__orders",
+        "language": "sql",
+        "lines": [
+         "one row per order_id of orders."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- stg_shop__products: one row per product_id of products.\n-- Generated by Krusgraph from the plan for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- De-duplicated on the key product_id (rule K2; counted: unique in all 8 rows); rows without the key are left out here, and the source's not_null test reports them.\n-- TODO (customer): which of several rows with one key to keep. No load or change time column was found, so the pick below is arbitrary; name the column that orders them.\n\n{{ config(materialized='view') }}\n\nselect\n    [product_id],\n    [name],\n    [category_id],\n    [list_price]\nfrom (\n    select\n        cast([product_id] as int) as [product_id],\n        cast([name] as varchar(8000)) as [name],\n        cast([category_id] as int) as [category_id],\n        cast([list_price] as float) as [list_price],\n        row_number() over (partition by [product_id] order by (select null)) as [_krusgraph_row]\n    from {{ source('shop', 'products') }} as s\n    where [product_id] is not null\n) as deduplicated\nwhere [_krusgraph_row] = 1\n",
+        "code_title": "models/staging/shop/stg_shop__products.sql",
+        "column": "staging",
+        "file": "models/staging/shop/stg_shop__products.sql",
+        "id": "model:stg_shop__products",
+        "label": "stg_shop__products",
+        "language": "sql",
+        "lines": [
+         "one row per product_id of products."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- fct_order_items: one row per order_items row (order_id+line_no).\n-- Generated by Krusgraph for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- Joined only over relationships whose target key was counted unique (many-to-one), each over its safest path:\n--   order_items.order_id -> orders.order_id (R1): holds for all 134 rows with a value\n--   order_items.product_id -> products.product_id (R1): holds for all 134 rows with a value\n--   orders.ship_to_id -> addresses.address_id (confirmed): holds for all 60 rows with a value\n--   products.category_id -> categories.id (R1): holds for all 8 rows with a value\n--   orders.customer_id -> customers.customer_id (R1): holds for all 60 rows with a value\n-- Left out: products.list_price: an amount on products; this mart has one row per order_items row, so it would repeat once per row and a sum over the mart would count it several times (order amount and line amount are different levels).\n-- Left out: addresses.city: looks like personal data (P5); add it here if the mart may show it.\n-- Left out: customers.name: looks like personal data (P1); add it here if the mart may show it.\n-- TODO (customer): what counts as revenue or an order amount. order_items.quantity is a quantity and order_items has no amount; products.list_price is a price in reach. The price comes from products.list_price, one row per products, as it stands at query time: a list price, not necessarily the price paid, and a later change of it changes the history. Check against an invoiced amount if there is one. No amount is computed here.\n-- TODO (customer): the business rules are not in the metadata (what counts as revenue, which statuses, cancelled or returned rows, currency); add them as filters and columns here.\n\n{{ config(materialized='table') }}\n\nselect\n    f.[order_id] as [order_id],\n    f.[line_no] as [line_no],\n    f.[product_id] as [product_id],\n    f.[quantity] as [quantity],\n    d1.[order_id] as [orders_order_id],\n    d1.[customer_id] as [orders_customer_id],\n    d1.[order_date] as [orders_order_date],\n    d1.[ship_to_id] as [orders_ship_to_id],\n    d2.[product_id] as [products_product_id],\n    d2.[name] as [products_name],\n    d2.[category_id] as [products_category_id],\n    d3.[address_id] as [addresses_address_id],\n    d3.[customer_id] as [addresses_customer_id],\n    d4.[id] as [categories_id],\n    d4.[name] as [categories_name],\n    d5.[customer_id] as [customers_customer_id],\n    d5.[country] as [customers_country]\nfrom {{ ref('stg_shop__order_items') }} as f\nleft join {{ ref('stg_shop__orders') }} as d1\n    on f.[order_id] = d1.[order_id]\nleft join {{ ref('stg_shop__products') }} as d2\n    on f.[product_id] = d2.[product_id]\nleft join {{ ref('stg_shop__addresses') }} as d3\n    on d1.[ship_to_id] = d3.[address_id]\nleft join {{ ref('stg_shop__categories') }} as d4\n    on d2.[category_id] = d4.[id]\nleft join {{ ref('stg_shop__customers') }} as d5\n    on d1.[customer_id] = d5.[customer_id]\n",
+        "code_title": "models/marts/customers/fct_order_items.sql",
+        "column": "marts",
+        "file": "models/marts/customers/fct_order_items.sql",
+        "id": "model:fct_order_items",
+        "label": "fct_order_items",
+        "language": "sql",
+        "lines": [
+         "one row per order_items row (order_id+line_no)."
+        ]
+       },
+       {
+        "built": true,
+        "code": "-- fct_orders: one row per orders row (order_id).\n-- Generated by Krusgraph for dbt-fabric 1.12 (Fabric Data Warehouse T-SQL). A draft: review it. Nothing was created or run.\n-- Joined only over relationships whose target key was counted unique (many-to-one), each over its safest path:\n--   orders.ship_to_id -> addresses.address_id (confirmed): holds for all 60 rows with a value\n--   orders.customer_id -> customers.customer_id (R1): holds for all 60 rows with a value\n-- Left out: addresses.city: looks like personal data (P5); add it here if the mart may show it.\n-- Left out: customers.name: looks like personal data (P1); add it here if the mart may show it.\n-- TODO (customer): the business rules are not in the metadata (what counts as revenue, which statuses, cancelled or returned rows, currency); add them as filters and columns here.\n\n{{ config(materialized='table') }}\n\nselect\n    f.[order_id] as [order_id],\n    f.[customer_id] as [customer_id],\n    f.[order_date] as [order_date],\n    f.[ship_to_id] as [ship_to_id],\n    d1.[address_id] as [addresses_address_id],\n    d1.[customer_id] as [addresses_customer_id],\n    d2.[customer_id] as [customers_customer_id],\n    d2.[country] as [customers_country],\n    a1.[order_items_rows] as [order_items_rows],\n    a1.[order_items_quantity_sum] as [order_items_quantity_sum]\nfrom {{ ref('stg_shop__orders') }} as f\nleft join {{ ref('stg_shop__addresses') }} as d1\n    on f.[ship_to_id] = d1.[address_id]\nleft join {{ ref('stg_shop__customers') }} as d2\n    on f.[customer_id] = d2.[customer_id]\nleft join (\n    -- order_items summed to one row per orders before the join (order_items.order_id -> orders.order_id (R1)), so no orders row repeats\n    select [order_id], count(*) as [order_items_rows], sum([quantity]) as [order_items_quantity_sum]\n    from {{ ref('stg_shop__order_items') }}\n    group by [order_id]\n) as a1\n    on f.[order_id] = a1.[order_id]\n",
+        "code_title": "models/marts/customers/fct_orders.sql",
+        "column": "marts",
+        "file": "models/marts/customers/fct_orders.sql",
+        "id": "model:fct_orders",
+        "label": "fct_orders",
+        "language": "sql",
+        "lines": [
+         "one row per orders row (order_id)."
+        ]
+       },
+       {
+        "built": false,
+        "code": "",
+        "column": "model",
+        "id": "model:semantic_model",
+        "label": "Semantic model",
+        "language": "",
+        "lines": [
+         "not made by dbt: Krusgraph builds it from the plan, on the source tables"
+        ]
+       }
+      ]
+     },
      "marts": 2,
      "model": {
       "file": "models/staging/shop/stg_shop__orders.sql",

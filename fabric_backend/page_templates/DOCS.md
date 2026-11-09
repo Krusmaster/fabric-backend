@@ -610,6 +610,106 @@ and the documentation each draft rests on: [docs/DATABRICKS.md](https://github.c
 Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
 {{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
 
+## Krusgraph in Fabric
+
+{{PRODUCT}} also comes as an item inside Microsoft Fabric: **Krusgraph Model**. It is the same engine as the connector
+in Claude, without a chat: you click through the review and the build in Fabric's own editor. It uses **no AI model**:
+the keys and links come from the engine's named rules, the checks count your rows, and nothing goes to an AI provider.
+A data agent it creates is Fabric's own item, and Fabric's AI answers there when someone asks it.
+
+Today it is a pilot for selected organisations (Fabric allows up to 20 tenants for a workload that is not listed yet),
+on request. A listing in Fabric's Workload Hub is planned and not available. Which of the four ways to use
+{{PRODUCT}} suits you: [Which Krusgraph should I use?](/choose)
+
+### What the Krusgraph Model item does
+
+You create it with **+ New item → Krusgraph Model** in a workspace on a Fabric capacity. Then, in order:
+
+1. **Choose a lakehouse and a schema.** The schema is picked from a list of the lakehouse's schemas, each with its
+   number of tables.
+2. **Review.** The proposed keys and links, each with the rule that found it (K0–K5, R0–R5) and what the rule means.
+   Accept or reject each one, or **Accept all**. A rejection is never overturned by Accept all.
+3. **Check against the rows.** Counting queries on the reviewed plan, as you: each key and link comes back passed,
+   failed (with its orphans, duplicates or empty values) or not checked. Counts only, never a row value.
+4. **The map and the mascots.** The tables and their links drawn as on the cards in Claude; **List** shows the same as
+   rows for the keyboard and screen readers. Onto says the numbers, Thinker the check and the questions, Builder what
+   comes next; a switch turns them off and their sentences become plain text.
+5. **Choose what to build**: silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology
+   and data agent, each with its name and the permission it needs, and optionally a **data product** over them.
+6. **Dry run.** One card per output, made by that output's own tool, saying what it would create or update. Nothing is
+   written yet. An item of the same name that this Model did not build is never written over.
+7. **Create.** One output at a time, each card with its own result and **Open in Fabric**. The **data flow** is drawn:
+   source tables, silver, gold and what is built on them; a box opens to show its code (the notebook cell, the SQL of
+   a view, the pipeline step, the model's relationships and measures), exactly what was sent.
+
+Nothing is run or scheduled: you run the notebooks or the pipeline yourself, refresh the semantic model once and turn
+on introspection on the API, as each card says.
+
+<!-- figure:shot-model-review -->
+<!-- /figure -->
+
+<!-- figure:shot-model-outputs -->
+<!-- /figure -->
+
+<!-- figure:shot-model-preview-cards -->
+<!-- /figure -->
+
+<!-- figure:shot-model-flow -->
+<!-- /figure -->
+
+### Add it to your Fabric
+
+Today: ask for the pilot. Your administrator sends us your tenant id, turns on the tenant setting for workloads not
+validated by Microsoft, grants admin consent for the workload app once and allows two addresses through the network.
+The steps, in order, are on [Pilot in Microsoft Fabric](/pilot/fabric). After that anyone in the pilot creates a
+**Krusgraph Model** with **+ New item**.
+
+- **Workload Hub listing:** planned, not available. Until then the item shows only in organisations in the pilot.
+- **What it needs:** a workspace on a Fabric capacity (it does not run on Power BI Pro alone), and it is blocked where
+  Private Link is on.
+- **Cost:** not on [Pricing](/pricing) yet; the pilot is agreed with you.
+
+### Permissions in plain words
+
+Every call runs as the person using the editor, with that person's own Fabric rights: {{PRODUCT}} can read and create
+only what that person can. Your administrator consents once for the workload's Entra app. Reading the lakehouse's
+tables and counting the checks uses the lakehouse's SQL endpoint as that person; building an output needs the
+permission in this table on the person's sign-in. When one is missing, the dry run says so and Create refuses that
+output, with the steps for your administrator.
+
+<!-- figure:workload-permissions -->
+<!-- /figure -->
+
+The item never deletes anything, never runs or schedules a notebook or pipeline, and keeps no table contents. What is
+stored and for how long is on [For your IT department](/it#permissions); to withdraw consent, your administrator
+removes the app under **Enterprise applications** in Entra.
+
+### Network hosts
+
+The editor that Fabric shows comes from our own host. If outbound web traffic is filtered, allow HTTPS (port 443,
+TLS 1.2 or later) to:
+
+| Host | What it is for |
+| --- | --- |
+| `workload.krusgraph.com` | The Krusgraph Model editor in Fabric's frame, and the engine it calls, as the signed-in person |
+| `krusgraph.com` | The docs, help, privacy and terms pages the item links to |
+
+Both are hosted in Azure, Sweden Central. Fabric (`app.fabric.microsoft.com`) and Microsoft sign-in
+(`login.microsoftonline.com`) must be reachable as for any use of Fabric. More: [Network: hosts to allow](/it#network).
+
+### Troubleshooting
+
+| You see | What to do |
+| --- | --- |
+| Krusgraph Model keeps loading, or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A web filter blocks a domain it does not know yet. Ask IT to allow the two [network hosts](/docs/krusgraph-in-fabric/network-hosts), then reload the Fabric tab. |
+| Krusgraph Model is not under + New item | Your organisation is not in the pilot yet, the tenant setting for workloads not validated by Microsoft is off for you, or the workspace is not on a capacity. [Pilot in Microsoft Fabric](/pilot/fabric) has the steps. |
+| "{{PRODUCT}} is not turned on for your organisation yet." | Your tenant id is not on the pilot's list yet. Nothing was read or changed. Write to us with the tenant id it shows. |
+| A card says `consent` | Your sign-in lacks the permission the card names. Your administrator adds it to the workload's Entra app and consents; the card lists the steps. Then reload the Fabric tab. |
+| The schema list is empty, or a schema shows "no tables" | The lakehouse has no tables in that schema, or you cannot read its SQL endpoint. Choose a schema with tables; when the list cannot be read, the editor says why and lets you type the name. |
+| `schema_ambiguous` | Two schemas differ only by case (`Shop` and `shop`). Type the one you mean exactly as listed. |
+| A card says "no answer yet" after Create | Fabric may still be creating it. Reopen the item in a minute and choose Create again: what was built is skipped. |
+| `already_exists` on a card | An item of that name exists and this Model did not build it. Choose another name. |
+
 ## Tool reference
 
 The status words, then each tool: what it reads, returns or changes.

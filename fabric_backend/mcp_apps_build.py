@@ -58,6 +58,8 @@ CARD_URI = "ui://krusgraph/build-card.html"
 CARD_TOOLS = ("plan_backend", "create_semantic_model", "create_ontology", "create_backend", "create_report")
 # n170: the drafts with a picture (mcp_apps_pictures) are drawn on the build card too.
 PICTURE_CARD_TOOLS = ("ontology_draft", "domain_draft")
+# n177: dbt_schema's project drawn as its flow (dbt_flow.py), with the chat demo's renderer (chat-demo.js, dbt-flow block)
+FLOW_CARD_TOOLS = ("dbt_schema",)
 # The tools whose answer gets `actions` (validate_plan's card draws them under its own next steps; n170: domain_draft's
 # per data product).
 ACTION_TOOLS = CARD_TOOLS + ("validate_plan", "domain_draft")
@@ -434,6 +436,15 @@ def actions_js() -> str:
     return ACTIONS_JS.replace("__ACT_ALLOWED__", json.dumps(ALLOWED, separators=(",", ":")))
 
 
+def dbt_flow_js() -> str:
+    """n177: the dbt flow's renderer, the block between the dbt-flow markers of static/chat-demo.js: one copy for the
+    chat demo and the card."""
+    from .pages import STATIC_DIR
+    text = (STATIC_DIR / "chat-demo.js").read_text(encoding="utf-8")
+    a, b = text.index("/* dbt-flow:start"), text.index("/* dbt-flow:end */")
+    return "  " + text[a:b] + "/* dbt-flow:end */\n"
+
+
 def card_html() -> str:
     """The build card: one self-contained HTML5 document, no external load. It draws the answer of a tool in CARD_TOOLS
     (resultView's summary, a dry run's checks, a schema choice) and its actions; since n170 also the pictures
@@ -442,7 +453,7 @@ def card_html() -> str:
     pic = pictures.html_parts()
     return (_HTML.replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
             .replace("__PICTURES__", pic["section"])
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + actions_js() + pic["js"])
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + actions_js() + pic["js"] + dbt_flow_js())
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + ACTIONS_CSS + pic["css"])
             .replace("__MASCOT_TOGGLE__", mascots.TOGGLE).replace("__MASCOTS__", mascots.section())
             .replace("__MASCOT_JS__", mascots.JS))
@@ -498,7 +509,7 @@ __RESULT_CSS__
   "use strict";
   var TITLES = { plan_backend: "Plan", create_semantic_model: "Semantic model", create_ontology: "Ontology",
                  create_backend: "API for GraphQL", create_report: "Report", ontology_draft: "Ontology proposal",
-                 domain_draft: "Data products" };
+                 domain_draft: "Data products", dbt_schema: "dbt project" };
   var input = {}, tool = "";
   var nextId = 1, pending = {};
   function send(msg) { window.parent.postMessage(msg, "*"); }
@@ -513,6 +524,7 @@ __MASCOT_JS__
 
 __READ_JS__
   function guessTool(d) {
+    if (isObj(d.dbt_flow) || (isObj(d.files) && isObj(d.models) && "adapter" in d)) return "dbt_schema";
     if (Array.isArray(d.domains) && "interfaces" in d) return "domain_draft";
     if (Array.isArray(d.bindings) && isObj(d.summary) && "entity_types" in d.summary) return "ontology_draft";
     if (d.choose_schema || "relationships" in d || "keys" in d) return "plan_backend";
@@ -556,6 +568,14 @@ __READ_JS__
       var st = isObj(d.result) ? d.result.status : "";
       verdict.textContent = st === "Succeeded" ? "Created in Fabric." : "Fabric answered: " + (st || "no status") + ".";
       answer.appendChild(resultView(t, { structuredContent: d }));
+    } else if (t === "dbt_schema" && isObj(d.dbt_flow)) {          // n177: the project's flow, boxes folded
+      var nf = isObj(d.files) ? Object.keys(d.files).length : 0;
+      verdict.textContent = "A draft: " + nf + (nf === 1 ? " file" : " files") + "; nothing was created or run. Choose a box to see its SQL or YAML.";
+      KGF.wire(document);
+      var fl = KGF.build(document, d.dbt_flow, isObj(d.files) ? d.files : {});
+      if (fl) answer.appendChild(fl);
+      answer.appendChild(detailsOf(d));
+      onto = verdict.textContent;
     } else if (t === "domain_draft") {
       var n = (Array.isArray(d.domains) ? d.domains : []).length;
       verdict.textContent = n + (n === 1 ? " data product" : " data products") + " proposed from the keys and relationships; nothing was created." + (readable(d.note) ? " " + d.note : "");

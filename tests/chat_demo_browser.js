@@ -148,6 +148,25 @@ async function flowByMouse(page, f, v) {
   await page.click('.kgc-pick[data-pick="Draft a dbt project"]');
   await waitPick(page, 'Check my tables');
   f.afterDbtPicks = await picks(page);
+  f.finalEnd = await lastText(page, '.kgc-msg.onto .kgc-bub');
+  // n177: the dbt project drawn as its flow: four columns, every box folded; a box opens its SQL, one at a time
+  f.dbtFlow = await page.evaluate(() => {
+    const flow = [...document.querySelectorAll('.kgc-msg.win .kgf')].pop();
+    if (!flow) return null;
+    return { cols: [...flow.querySelectorAll('.kgf-col')].map((c) => ({ h: c.querySelector('.kgf-h').textContent, boxes: c.querySelectorAll('.kgf-box').length })),
+             open: flow.querySelectorAll('.kgf-code:not([hidden])').length, folded: flow.querySelectorAll('button.kgf-box[aria-expanded=false]').length,
+             dashed: [...flow.querySelectorAll('.kgf-off')].map((b) => b.querySelector('.kgf-n').textContent) };
+  });
+  const box = await page.$('.kgc-msg.win .kgf button.kgf-box:has-text("stg_shop__orders")');
+  await box.scrollIntoViewIfNeeded(); await box.click();
+  const box2 = await page.$('.kgc-msg.win .kgf button.kgf-box:has-text("fct_orders")');
+  await box2.scrollIntoViewIfNeeded(); await box2.click();
+  f.dbtOpened = await page.evaluate(() => {
+    const flow = [...document.querySelectorAll('.kgc-msg.win .kgf')].pop(), open = [...flow.querySelectorAll('.kgf-code:not([hidden])')];
+    return { open: open.length, text: open.map((p) => p.textContent), expanded: [...flow.querySelectorAll('button.kgf-box[aria-expanded=true]')].map((b) => b.querySelector('.kgf-n').textContent),
+             inside: open.every((p) => p.getBoundingClientRect().right <= flow.getBoundingClientRect().right + 0.5) };
+  });
+  await shot(page, `chat-dbt-flow@${v}`);
   await shot(page, `chat-dbt@${v}`);
   f.extra = (await wins(page)).slice(4);
   f.extraHtml = await page.evaluate(() => [...document.querySelectorAll('.kgc-msg.win .kgc-bub')].slice(4).map((b) => ({
@@ -209,16 +228,17 @@ async function flowByKeyboard(page, f, v) {
   await enterOn('Create a semantic model');
   await enterOn('Create an ontology');
   await enterOn('Draft data products');
-  await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Check my tables', 'focus on Check my tables');
-  // n162: Tab to the two further steps and Enter, from the end's first choice each time
-  for (const label of ['Fix data issues', 'Draft a dbt project']) {
+  // n177: the end comes after the last step; first Onto asks what next, with the steps left first
+  await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Fix data issues', 'focus on Fix data issues');
+  // n162: Tab to the two further steps and Enter, from the first choice each time
+  for (const [label, then] of [['Fix data issues', 'Draft a dbt project'], ['Draft a dbt project', 'Check my tables']]) {
     for (let i = 0; i < 10; i++) {
       if ((await focusInfo(page)).pick === label) break;
       await page.keyboard.press('Tab');
     }
     steps.push(label);
     await page.keyboard.press('Enter');
-    await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, 'Check my tables', 'focus on Check my tables');
+    await until(page, (l) => document.activeElement && document.activeElement.getAttribute('data-pick') === l, then, 'focus on ' + then);
   }
   f.keyboardSteps = steps;
   f.keyboardResults = await wins(page);

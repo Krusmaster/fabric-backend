@@ -100,6 +100,13 @@ CREATE_RECORD = {
 }
 # Creating tools whose live item has been reviewed in the Fabric portal, and when (only that: not each part, no agent use).
 REVIEWED = {"create_ontology": "29 October 2026", "create_semantic_model": "29 October 2026", "create_report": "30 October 2026"}
+# n177: a tool's option that changes what it does, and the date it first ran live with that option against the demo
+# workspace, as docs/LIVE-TEST.md records it. The chat demo's fixes step is validate_plan with fixes=true and its dbt step
+# dbt_schema with project=true; LIVE-TEST's rows 6 and 16 ran both tools without them, so neither is here.
+# tests/test_chat_demo.py reads LIVE-TEST and fails when a dated row with the option is added and this is not.
+OPTION_WORDS = {("validate_plan", "fixes=true"): ("Proposing fixes", "the check itself"),
+                ("dbt_schema", "project=true"): ("The dbt project", "the sources file alone")}
+LIVE_OPTIONS: dict[tuple[str, str], str] = {}
 # The creating tools without a dry_run argument: they would write on the call. None since round n111 (create_backend
 # has one); tests/test_site.py checks this against the tools' signatures in server.py.
 NO_DRY_RUN: tuple[str, ...] = ()

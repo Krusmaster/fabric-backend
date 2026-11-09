@@ -9,6 +9,29 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n177: **Which Krusgraph should I use?** A new page, `/choose` (and `/choose.md`), compares the four ways: in
+  Claude, in other AI agents over MCP, run it yourself, and the Krusgraph Model item in Fabric. For each it says who it
+  is for, what you need, how you work, what it builds, where the data passes, what is free or paid (only what /pricing
+  says), its status (from tool_status and LIVE-TEST) and what it lacks today, followed by the founder's four-line decision
+  guide. It says plainly that the Fabric item uses no AI model. The **product offering diagram** (one engine in the
+  middle, the four ways around it, what is built in Fabric on the right) is on the home page and on `/choose`. It is
+  inline HTML and SVG in the site's colours, stacks on a phone, has a list in words under it, and each way is a link
+  with a focus ring. All of it is rendered from `fabric_backend/offering.py`. The docs have a new group, **Krusgraph in
+  Fabric**: what the item does, with four screenshots of the editor's own components on synthetic data
+  (`workload/scripts/screens/`), how to add it (pilot on request, `/pilot/fabric`; Workload Hub listing planned, not
+  available), permissions in plain words (from `workload_api.KINDS`), network hosts and troubleshooting. `/start` has
+  **Use it in Fabric** next to Claude and the other agents, in the path cards. Fixes from the
+  founder (8-9 November):
+  - In full screen the film is letterboxed (`object-fit: contain`), and its file follows the orientation: 16:9 in
+    landscape, 4:5 upright.
+  - The chat demo says "That is the demo" only after the last step.
+  - The fixes and dbt steps' status sentences say what LIVE-TEST records: the option is unit-tested, and the tool
+    without it ran live (`tool_status.LIVE_OPTIONS`; a test reads LIVE-TEST).
+  - On the /check map, linked tables take neighbouring seats. Interface lines read "interface · product_id", and the
+    dashed "?" line has hover text.
+  - The dbt step in the chat demo and a new `dbt_schema` MCP Apps card draw the project's flow (sources → staging →
+    marts → model, boxes folded, a click shows the SQL or YAML; `fabric_backend/dbt_flow.py`). The chat and the card
+    share one renderer.
 - Round n176: **Krusgraph.Modeler**, the permanent workload name (the founder's decision of 9 November 2026), for up to
   20 selected tenants. `workload/scripts/build-package --name Krusgraph.Modeler` builds it (item type
   `Krusgraph.Modeler.Model`); `Org.Krusgraph` stays the default, and every other `Krusgraph.*`

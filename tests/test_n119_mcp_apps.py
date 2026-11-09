@@ -212,7 +212,8 @@ print(json.dumps({"names": sorted(t.name for t in tools),
     from fabric_backend import mcp_apps_review                           # n124: the second card, review_plan's
     from fabric_backend import mcp_apps_build                            # n169: the build card
     assert on["meta"] == {"validate_plan": mcp_apps.tool_meta(on=True), "review_plan": mcp_apps_review.tool_meta(on=True),
-                          **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS}}  # n170: and the drafts with a picture
+                          **{t: mcp_apps_build.tool_meta(on=True) for t in mcp_apps_build.CARD_TOOLS + mcp_apps_build.PICTURE_CARD_TOOLS
+                             + mcp_apps_build.FLOW_CARD_TOOLS}}  # n170: and the drafts with a picture; n177: dbt_schema's flow
     assert on["resources"] == [[mcp_apps.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_review.CARD_URI, "text/html;profile=mcp-app"],
                                [mcp_apps_build.CARD_URI, "text/html;profile=mcp-app"]]
