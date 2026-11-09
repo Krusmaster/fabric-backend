@@ -4,7 +4,7 @@
     "displayName": "Workload_Display_Name",
     "fullDisplayName": "Workload_Full_Display_Name",
     "description": "Workload_Description",
-    "favicon": "assets/images/Workload_Icon.png",
+    "favicon": "assets/images/Workload_Favicon.png",
     "icon": {
         "name": "assets/images/Workload_Icon.png"
     },
@@ -35,7 +35,7 @@
                     "name": "assets/images/ModelItem_Icon.png"
                 },
                 "icon_small": {
-                    "name": "assets/images/ModelItem_Icon.png"
+                    "name": "assets/images/ModelItem_Icon_Small.png"
                 },
                 "availableIn": [
                     "home",
@@ -56,7 +56,7 @@
         ]
     },
     "productDetail": {
-        "publisher": "Krusgraph (development build)",
+        "publisher": "Kruse Consulting AB",
         "slogan": "Workload_Hub_Slogan",
         "description": "Workload_Hub_Description",
         "image": {

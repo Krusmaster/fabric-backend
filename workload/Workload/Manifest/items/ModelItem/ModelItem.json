@@ -10,7 +10,7 @@
     "name": "assets/images/ModelItem_Icon.png"
   },
   "activeIcon": {
-    "name": "assets/images/ModelItem_Icon.png"
+    "name": "assets/images/ModelItem_Icon_Active.png"
   },
   "contextMenuItems": [],
   "quickActionItems": [],

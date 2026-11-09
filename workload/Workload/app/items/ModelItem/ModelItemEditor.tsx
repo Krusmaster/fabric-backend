@@ -98,12 +98,24 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
+  /** n175: the source with the schema as the lakehouse spells it, and a notification that says which name was used. */
+  const exactSchema = (d: ModelDefinition, used?: engine.SchemaUsed): ModelDefinition =>
+    !used || !d.source || d.source.schema === used.used ? d : { ...d, source: { ...d.source, schema: used.used } };
+
+  function announceSchema(used?: engine.SchemaUsed) {
+    if (!used) return;
+    setSchema(used.used);
+    callNotificationOpen(workloadClient, "Schema name", used.note);
+  }
+
   async function plan(d: ModelDefinition, corrections: engine.Corrections = {}) {
     const a = await runEngine("Reading the lakehouse and finding keys and links…", () =>
       engine.review(workloadClient, sourceRequest(d), d.review, corrections)
     );
     if (!a) return;
     setMap(a.map);
+    d = exactSchema(d, a.schema_used);
+    announceSchema(a.schema_used);
     setDef({ ...d, review: a.review, item: { ...d.item, view: "review" } });
     setDirty(true);
     setView?.("review");
@@ -182,7 +194,8 @@ export function ModelItemEditor(props: PageProps) {
     );
     if (!a) return;
     setMap(a.map);
-    setDef((d) => ({ ...d, review: a.review }));
+    setDef((d) => ({ ...exactSchema(d, a.schema_used), review: a.review }));
+    announceSchema(a.schema_used);
     setDirty(true);
   }
 

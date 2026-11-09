@@ -52,6 +52,18 @@
   <h2 id="check">/check runs in the browser</h2>
   <p>The page <a href="/check">/check</a> runs the same engine in the visitor’s browser (Python compiled to WebAssembly). Files dropped there are read in the browser and are not uploaded; the page’s content security policy does not let it send requests with them. It sends only two anonymous events to {{DOMAIN}}, that the engine has loaded and that a check is done, with no file contents, file names or table names. No account and no Entra app are involved.</p>
 
+  <h2 id="network">Network: hosts to allow</h2>
+  <p>The Krusgraph Model item in Microsoft Fabric (the Krusgraph workload) loads its editor from our own host inside Fabric’s page. A web filter or proxy that blocks new domains stops it before anything is read. Allow these two hosts:</p>
+  <div class="table-wrap" tabindex="0"><table class="it-hosts">
+    <thead><tr><th>Host</th><th>Port and protocol</th><th>What it is for</th></tr></thead>
+    <tbody>
+      <tr><td class="it-host"><code>workload.krusgraph.com</code></td><td>443, HTTPS, TLS 1.2 or later</td><td>The Krusgraph Model editor that Fabric shows in its frame, and the engine it calls (<code>/workload/v1</code>), which reads and builds as the signed-in person.</td></tr>
+      <tr><td class="it-host"><code>krusgraph.com</code></td><td>443, HTTPS, TLS 1.2 or later</td><td>The documentation, help, privacy and terms pages the workload links to, and the MCP connector for AI clients.</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Symptom:</strong> Krusgraph Model keeps loading in Fabric, or the browser shows <code>ERR_SSL_VERSION_OR_CIPHER_MISMATCH</code> for <code>workload.krusgraph.com</code>. Both hosts support TLS 1.2 and 1.3; this error comes from a filter that intercepts a domain it does not know yet, not from the server. Ask your IT department to allow the two hosts above, then reload the Fabric tab.</p>
+  <p class="muted tiny">Fabric itself (<code>app.fabric.microsoft.com</code>) and Microsoft sign-in (<code>login.microsoftonline.com</code>) must be reachable as for any Fabric use.</p>
+
   <h2 id="revoke">How to revoke access</h2>
   <ul>
     <li>An administrator can revoke the app at any time in Microsoft Entra ID, under <strong>Enterprise applications</strong>: removing the consent or the app ends every renewal of its tokens.</li>

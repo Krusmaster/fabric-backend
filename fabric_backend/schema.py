@@ -51,6 +51,29 @@ ORDER BY tc.TABLE_NAME, tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION
 """
 
 
+class SchemaAmbiguous(ValueError):
+    """n175: the schema name matches two or more schemas that differ only by case ("Shop" and "shop"); the caller says which."""
+
+    def __init__(self, asked: str, names: list[str]):
+        self.asked, self.names = asked, names
+        super().__init__(f"schema {asked!r} matches {len(names)} schemas that differ only by case: "
+                         f"{', '.join(repr(n) for n in names)}. Which one is meant?")
+
+
+def exact_schema(rows: list[dict], asked: str) -> str:
+    """n175: the schema's name as the metadata spells it. The metadata query compares case-insensitively, but the SQL
+    analytics endpoint resolves names in queries case-sensitively ("Invalid object name 'Shop.addresses'" when the
+    lakehouse schema is "shop"), so every query must use the name the metadata returns. Two names that differ only by
+    case raise SchemaAmbiguous; rows without a schema name keep the name asked for."""
+    names = sorted({str(r["table_schema"]) for r in rows
+                    if r.get("table_schema") and str(r["table_schema"]).lower() == str(asked).lower()})
+    if len(names) > 1:
+        if asked in names:                      # an exact match is not a guess: "shop" means shop when Shop also exists
+            return asked
+        raise SchemaAmbiguous(asked, names)
+    return names[0] if names else asked
+
+
 @dataclass
 class Column:
     name: str
@@ -86,6 +109,7 @@ class Table:
 class Schema:
     tables: dict[str, Table] = field(default_factory=dict)
     schema: str = "dbo"
+    asked: str | None = None           # n175: the name the caller typed, when it differs from the metadata's (schema)
 
     def __iter__(self):
         return iter(self.tables.values())
@@ -103,10 +127,12 @@ class Schema:
     def from_information_schema(cls, columns, keys=None, schema: str = "dbo") -> "Schema":
         """columns: iterable of (table_schema, table_name, column_name, data_type, ordinal) or dicts
         with those keys (case-insensitive). keys: optional rows from KEYS_SQL."""
-        s = cls(schema=schema)
-        for row in columns:
-            r = _row(row, ["table_schema", "table_name", "column_name", "data_type", "ordinal_position"])
-            if r["table_schema"] and r["table_schema"].lower() != schema.lower():
+        rows = [_row(row, ["table_schema", "table_name", "column_name", "data_type", "ordinal_position"]) for row in columns]
+        exact = exact_schema(rows, schema)
+        s = cls(schema=exact, asked=schema if exact != schema else None)
+        schema = exact
+        for r in rows:
+            if r["table_schema"] and str(r["table_schema"]) != schema:
                 continue
             t = s.tables.setdefault(r["table_name"], Table(r["table_name"], schema=schema))
             t.columns.append(Column(r["column_name"], str(r["data_type"] or "string").lower()))
@@ -119,7 +145,7 @@ class Schema:
                 continue
             if r["constraint_type"] == "PRIMARY KEY":
                 t.keys.append(r["column_name"])
-            elif r["constraint_type"] == "FOREIGN KEY" and r["ref_table"] and (not r["ref_schema"] or str(r["ref_schema"]).lower() == schema.lower()):
+            elif r["constraint_type"] == "FOREIGN KEY" and r["ref_table"] and (not r["ref_schema"] or str(r["ref_schema"]) == schema):
                 # a foreign key into another schema has no target in this plan; it is left out rather than mis-linked
                 fk = fks.setdefault((t.name, r["constraint_name"]), ([], r["ref_table"], []))
                 fk[0].append(r["column_name"])

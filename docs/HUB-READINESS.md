@@ -87,8 +87,8 @@ for the terms in its specification (pre-check below).
 | 2.10 | World readiness | required | met | English only (`assets/locales/en-US`) |
 | 3.1.1 | Clear workload name | required | unknown | Display name "Krusgraph"; manual |
 | 3.1.2 | Icons and images clear, not placeholders | required | unknown | Own images (n175); manual |
-| 3.1.2.1 | Product icon | required | **not met** | `Workload_Icon.png` is 256×257: neither the page's 240×240 nor the validator's approved 16–64 px squares (F4) |
-| 3.1.2.2 | Favicon | required | **not met** | Same file (F4) |
+| 3.1.2.1 | Product icon | required | met (n175) | `Workload_Icon.png` 64×64, the Krusgraph mark (F4) |
+| 3.1.2.2 | Favicon | required | met (n175) | `Workload_Favicon.png` 32×32 (F4) |
 | 3.1.2.3 | Custom action icons | required | n/a | No custom actions |
 | 3.1.2.4 / .5 | Create experience icons | required | met | `ModelItem_Icon.png` 48×48 |
 | 3.1.2.6 / .7 | Tab icons, active | required | unknown | Not in the files; the validator reads them from the downloaded manifest |
@@ -125,7 +125,7 @@ lineage is the one most likely to be asked about (`docs/WORKLOAD-FEASIBILITY.md`
 | --- | --- | --- | --- | --- |
 | 1.1 | Clear item name | required | met | "Krusgraph Model" (`translations.json`) |
 | 1.2 | Clear icon | required | met (file) | `ModelItem_Icon.png` 48×48; Fabric's container/interior style manual |
-| 1.2.1 | Distinct active icon | required | **not met** | `activeIcon` is the same file as `icon` (F4) |
+| 1.2.1 | Distinct active icon | required | met (n175) | `activeIcon` is `ModelItem_Icon_Active.png`, the mark on the cream tile (F4) |
 | 1.3 / 1.4 | Title and subtitle in the create menu | required | met | Card title equals the display name |
 | 1.5 | Can be favourited in "new" | required | unknown | Manual |
 | 2.1 / 2.4 | Platform create experience, no custom flow | required | met | `createItemDialogConfig`; founder's run 8 Nov 2026 |
@@ -264,7 +264,9 @@ claim table's.
 3. **Attestation not hosted, and the manifest points to /it** (1.4.1, and every attestation-checked requirement), with
    no independent security or privacy review behind sections 4.1 and 4.2 (F3, F12).
 4. **Manifest assets and texts the validator fails**: product icon and favicon 256×257, same active icon, publisher
-   "Krusgraph (development build)", outdated description (F2, F4, F7).
+   "Krusgraph (development build)", outdated description (F2, F4, F7). *Done in n175* (64 px icon, 32 px favicon, a
+   distinct active icon, publisher Kruse Consulting AB, the description of every output); the pre-check now has 2 of
+   the 4 automated failures left, both the Marketplace licence link (1.3.1, 1.3.2).
 5. **Fabric platform behaviour untested**: Conditional Access, multitasking, `*.powerbi.com`, cross-tenant consent,
    lineage and ALM (F5, F6, F8, F13–F15); each is a manual validator test or an attestation answer.
 

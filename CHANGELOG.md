@@ -9,6 +9,21 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n175: a schema typed in another case than the source spells it (`Shop` for the lakehouse schema `shop`) is
+  read and queried under the metadata's spelling on every path: the MCP tools, the editor's review, check and build,
+  R5's counting queries and the creating tools' definitions. Live on 9 November 2026 the check had failed with
+  `Invalid object name 'Shop.addresses'` (42S02) and the review had shown 6 links instead of 7. Table and column names
+  in `keys` and `confirmed` are spelled as the metadata spells them too. The answer says which name was used
+  (`schema_used`: asked, used, note); the editor saves the exact name and shows a notification. Two schemas that differ
+  only by case answer `kind: schema_ambiguous` with both names, and nothing is counted. The workload's page in Fabric:
+  the Krusgraph logo mark as the workload icon (64 px), favicon (32 px), item icon and a distinct active item icon (48 px) and the New item card's 24 px icon, sizes Microsoft's validator approves, a banner in the
+  site's style with the mascots, the getting-started steps, the editor's map as the quick look
+  (`workload/scripts/build_manifest_images.py` draws all eight), a description of every output, the data product and the
+  data flow, publisher Kruse Consulting AB, and the hosts IT must allow. The editor's loading view shows the Krusgraph
+  mark instead of the Fabric logo. The site's /it has **Network: hosts to allow** (`workload.krusgraph.com` and
+  `krusgraph.com`, 443, TLS 1.2 or later) with the symptom "Krusgraph Model keeps loading"; the docs' first-time errors
+  and `docs/WORKLOAD-DEV.md` have it too. Needs a redeploy and a new package version (`docs/WORKLOAD-DEV.md`, Hosted,
+  step 8).
 - Round n174: the Krusgraph Model item builds everything the MCP tools build. **Choose what to build** offers the silver
   notebook, the gold views, the pipeline, the semantic model, a report (on that model or an existing one), the API for
   GraphQL, the ontology and the data agent (left unpublished); `POST /workload/v1/build` takes `outputs: [{kind, name}]`

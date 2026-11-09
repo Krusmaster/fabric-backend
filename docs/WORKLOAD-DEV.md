@@ -468,6 +468,45 @@ editor's unit tests (`buildWords.test.ts`, `dataFlow.test.ts`). In this order:
 read back with getDefinition; until the model is refreshed once the report shows no data, as its portal steps say),
 and whether the data agent stays unpublished with the editor's draft visible to you only.
 
+### 8. Round n175: schema names, Krusgraph icons and the workload page
+
+Round n175 (9 November 2026, for the meeting with Microsoft on 11 and 13 November). Verified in unit tests only
+(`tests/test_schema_case.py` on a case-sensitive double of the SQL endpoint, `tests/test_workload_manifest.py`); nothing
+ran against Fabric in this round.
+
+- **Schema name case.** A schema typed as `Shop` when the lakehouse has `shop` is read and queried as `shop` on every
+  path (MCP tools, the editor's review, check and build, R5's counting, the creating tools' definitions); table and column
+  names in keys and confirmed links are spelled as the metadata spells them too. The answer carries `schema_used`
+  ({asked, used, note}); the editor saves the exact name and shows a notification. Two schemas that differ only by case
+  answer `schema_ambiguous` with both names, and nothing is counted.
+- **Icons and the workload page.** The starter kit's purple images are replaced by the Krusgraph logo mark and the site's
+  style (`workload/scripts/build_manifest_images.py` draws all eight: workload icon 64 px, favicon 32 px, item icon 48 px, active item icon 48 px, the New item card's 24 px icon, banner, getting started, quick look).
+  Product.json and its strings describe every output, the data product and the data flow; the publisher is Kruse
+  Consulting AB; the links are /docs, /support, /privacy, /terms, /it (as the certification link: our IT page until a
+  Marketplace offer exists) and the licence. The page tells IT which hosts to allow.
+- **Network.** krusgraph.com/it has "Network: hosts to allow" (`#network`); the docs' first-time errors and the table
+  below have the symptom.
+
+The manifest changed (images, Product.json, the item's small icon), so this round needs a **new package**, not only a
+redeploy. The steps are those of section 6, all four, in this order:
+
+1. **Redeploy** in Cloud Shell: `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update --dry-run`, then
+   `bash deploy/krusgraph.sh --update` (the engine's schema fix and the editor's notification are in the image).
+2. **Build the package**: `bash workload/scripts/build-package --frontend-app-id <Application (client) ID>`; the version
+   is `1.0.<N>` with N above 883 (the version in Fabric on 9 November). Download it from **Manage files → Download**.
+3. **Add the version in Fabric**: **OneLake catalog → Govern → Workloads → Org.Krusgraph → Upload**, the new `.nupkg`;
+   check that the dialog names Org.Krusgraph and the new version.
+4. **Activate it**, reload the Fabric tab. Check: the workload's page shows the Krusgraph banner, publisher Kruse
+   Consulting AB, the getting-started steps and the map as quick look; + New item shows the three-dot icon; the
+   workspace list and the editor tab show it too. Then open **shop_krusgraph**, type the schema `Shop`, and run the
+   review and **Check against the rows**: 7 links, no 42S02, and a notification that `Shop` was read as `shop`.
+
+**Check on the first run:** which of `icon` (the mark alone) and `activeIcon` (the mark on the cream tile) Fabric shows
+in the editor tab, and whether the workload page crops the banner; note the screens. The icons have sizes Microsoft's
+validator approves (64 px workload icon, 32 px favicon, 48 and 24 px item icons; `tools/hub_readiness.py`, n178).
+
+*Undo:* activate the previous version (1.0.883) again on the same page.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it
@@ -532,6 +571,9 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | `kind: would_remove` on Create | An API of that name exists and the update would drop relationships it has. Choose another name in phase 1. |
 | `kind: consent` on a card (n174) | The workload app lacks the delegated permission the card names: Hosted, step 7.1, then reload the Fabric tab. |
 | `kind: already_exists` on a card (n174) | An item of that name exists and this Model did not build it, or it is a report. Choose another name. |
+| **Krusgraph Model keeps loading** in Fabric (n175), or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A corporate web filter blocks a domain it does not know yet (seen live on 9 November 2026; the server supports TLS 1.2 and 1.3). Ask IT to allow `workload.krusgraph.com` and `krusgraph.com` on port 443, TLS 1.2 or later: the site's [/it#network](https://krusgraph.com/it#network) says what each is for. |
+| `Invalid object name 'Shop.addresses'` (42S02) on Check against the rows, or one link fewer than expected | Before n175: the schema was typed in another case than the lakehouse's (`Shop` for `shop`). Since n175 the engine uses the metadata's spelling everywhere and says so (`schema_used`, a notification in the editor). |
+| `kind: schema_ambiguous` (n175) | Two schemas differ only by case; type the one you mean exactly as the answer lists it. |
 
 ## Files
 
@@ -550,6 +592,9 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | `workload/Workload/app/items/ModelItem/buildWords.ts`, `FlowView.tsx`, `dataFlow.ts` | n174: the outputs, cards and product in words; the flow's picture and its folded code |
 | `workload/scripts/build_flow_fixture.py` | n174: writes `flow.fixture.json` (the shop schema's flow) for the editor's tests; `--check` says whether it is current |
 | `tests/test_workload_build.py` | n174: the build per output (dry run, refusal to overwrite, consent), the product, the flow against the dry run |
+| `workload/scripts/build_manifest_images.py` | n175: draws the workload's eight images (logo mark as icon and favicon, the item's icons, banner, getting started, the map as quick look); `--list` gives the sizes |
+| `tests/test_workload_manifest.py` | n175: the images (sizes, Fabric's asset rules, every one referenced), Product.json's text and links, the XSDs |
+| `tests/test_schema_case.py` | n175: a schema typed in another case, on a case-sensitive double of the SQL endpoint |
 | `workload/scripts/build-package` | n168: the `Org.Krusgraph` package for the hosted editor (Python standard library; uploads nothing) |
 | `deploy/azure_containerapp.py` | n168: `--update --workload-host [--dry-run]`, the `workload_*` keys of `deploy/krusgraph.json` |
 | `tests/test_workload_host.py`, `tests/test_deploy_workload.py` | n168: host routing and headers; the deploy flags and the package |

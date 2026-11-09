@@ -288,6 +288,27 @@ def map_of(rv: dict) -> dict | None:
     return m
 
 
+def _exact(req: dict, used: str) -> dict:
+    """n175: the request with the schema as the metadata spells it ("Shop" typed, "shop" read), and schema_asked kept so
+    the answer can say which name was used."""
+    if used == req["schema"]:
+        return req
+    return {**req, "schema": used, "schema_asked": req.get("schema_asked") or req["schema"]}
+
+
+def _schema_used(req: dict) -> dict | None:
+    if not req.get("schema_asked"):
+        return None
+    return {"asked": req["schema_asked"], "used": req["schema"],
+            "note": f"Schema {req['schema_asked']!r} was read as {req['schema']!r}, the name the lakehouse's metadata returns; "
+                    f"every query used {req['schema']!r}."}
+
+
+def _with_schema(out: dict, req: dict) -> dict:
+    used = _schema_used(req)
+    return {"schema_used": used, **out} if used else out
+
+
 def _answer(rv: dict, note: str = NOTHING_CHANGED) -> dict:
     from . import review as R
     return {"review": rv, "summary": R.summary(rv), "attention": R.attention(rv), "counts": _counts(rv),
@@ -304,6 +325,7 @@ def run_review(req: dict) -> dict:
     keys, confirmed = req.get("keys"), req.get("confirmed")
     k, c = R.merge_arguments(R.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
     s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
         p, base = S._hosted_plan(s, k, c, counted), S._hosted_plan(s, None, None, counted)
@@ -311,7 +333,7 @@ def run_review(req: dict) -> dict:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]},
                  decisions=req["decisions"], previous=prev)
-    return _answer(rv)
+    return _with_schema(_answer(rv), req)
 
 
 def run_check(req: dict) -> dict:
@@ -323,6 +345,7 @@ def run_check(req: dict) -> dict:
     carried = R.carried_arguments(prev)
     k, c = carried["keys"] or None, carried["confirmed"] or None
     s, execute = S._connected(req["workspace"], req["source"], req["schema"], None)
+    req = _exact(req, s.schema)
     try:
         counted = S._within_call(execute)
         p, base = S._hosted_plan(s, k, c, counted), S._hosted_plan(s, None, None, counted)
@@ -334,7 +357,7 @@ def run_check(req: dict) -> dict:
     out = _answer(rv, NOTHING_CHANGED + " The check counted rows; it returns counts, never a value.")
     out["check"] = check_totals(rv)
     out["questions"] = rv.get("open_questions", [])
-    return out
+    return _with_schema(out, req)
 
 
 def run_build(req: dict) -> dict:
@@ -351,11 +374,14 @@ def _run_graphql(req: dict) -> dict:
     keys, confirmed = carried["keys"] or None, carried["confirmed"] or None
     workspace = S._workspace_id(req["workspace"], S._headers(None))
     p, item, headers = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
+    req = _exact(req, p.schema.schema)
     p, left_out = apply_review(p, rv)
     out = json.loads(S._create_backend_from_plan(p, item, headers, workspace, req["name"], False, None, confirmed,
                                                  False, req["dry_run"], token_provider=lambda: S.auth.fabric(None)))
     out["output"] = "graphql"
     out["left_out_by_review"] = left_out
+    if _schema_used(req):
+        out["schema_used"] = _schema_used(req)
     totals = check_totals(rv)                        # n173: the review's own check, so the dry run says what passed
     out["row_check"] = totals
     if totals["checked"]:
@@ -611,6 +637,7 @@ def run_build_many(req: dict) -> dict:
         headers = S._headers(None)
         workspace = S._workspace_id(req["workspace"], headers)
         p, _item, _ = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
+        req = _exact(req, p.schema.schema)                         # n175: every output reads and writes the exact name
         for o in req["outputs"]:
             kind = o["kind"]
             card = {"output": kind, "label": KINDS[kind]["label"], "type": KINDS[kind]["type"], "name": o["name"], "dry_run": dry_run,
@@ -658,7 +685,7 @@ def run_build_many(req: dict) -> dict:
                    f"{len(cards) - len(refused)} of {len(cards)} output(s) built." + (" Nothing runs or is scheduled." if cards else ""))
     if not dry_run:
         out["created"] = [x for c in cards for x in c.get("created", [])]
-    return out
+    return _with_schema(out, req)
 
 
 # ------------------------------------------------------------------ HTTP -------------------------------------------

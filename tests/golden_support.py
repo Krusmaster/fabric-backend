@@ -168,9 +168,13 @@ class _Cursor:
     def execute(self, sql: str):
         self.conn.log.append(sql)
         from fabric_backend import seed
+        cs = self.conn.case_sensitive
         if "INFORMATION_SCHEMA.COLUMNS" in sql:
             schema = re.search(r"UPPER\('([^']*)'\)", sql).group(1)
-            rows = seed.schema(schema).to_rows() if schema.lower() == "shop" else []
+            if cs is not None:                       # n175: the endpoint's metadata spells the schema its own way
+                rows = [r for name in cs["schemas"] for r in seed.schema(name).to_rows()] if schema.lower() == "shop" else []
+            else:
+                rows = seed.schema(schema).to_rows() if schema.lower() == "shop" else []
             names = ["TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "ORDINAL_POSITION"]
             self._set(names, [tuple(r[n.lower()] for n in names) for r in rows])
         elif "INFORMATION_SCHEMA.TABLE_CONSTRAINTS" in sql:
@@ -183,6 +187,8 @@ class _Cursor:
             self.conn.ddl.append(sql)
             self._set([], [])
         else:
+            if cs is not None:
+                _case_sensitive_names(sql, cs["error"])
             cur = self.conn.db.execute(_sqlite(sql))
             self._set([d[0] for d in cur.description] if cur.description else [], cur.fetchall())
         return self
@@ -196,10 +202,11 @@ class _Cursor:
 
 
 class _Connection:
-    def __init__(self, dsn: str, db: sqlite3.Connection, log: list, ddl: list):
+    def __init__(self, dsn: str, db: sqlite3.Connection, log: list, ddl: list, case_sensitive=None):
         m = re.search(r"Database=([^;]+)", dsn, re.I)
         self.database = m.group(1).strip("{}") if m else ""
         self.db, self.log, self.ddl, self.timeout, self.closed = db, log, ddl, 0, False
+        self.case_sensitive = case_sensitive
 
     def cursor(self):
         return _Cursor(self)
@@ -211,16 +218,34 @@ class _Connection:
         self.closed = True
 
 
-def fake_pyodbc(db: sqlite3.Connection | None = None):
+def _case_sensitive_names(sql: str, error) -> None:
+    """n175: what the Fabric SQL analytics endpoint does with a name in another case. The lakehouse schema is "shop";
+    [Shop].[addresses] is ('42S02', "Invalid object name 'Shop.addresses'"), and a column in another case is
+    "Invalid column name". Bracketed names only: the engine quotes every name it writes."""
+    from fabric_backend.seed import SCHEMAS
+    known = {"shop"} | set(SCHEMAS) | {c.strip().split()[0] for ddl in SCHEMAS.values() for c in ddl.split(",")}
+    lower = {k.lower(): k for k in known}
+    for a, b in re.findall(r"\[([^\]]+)\]\.\[([^\]]+)\]", sql):
+        if a.lower() == "shop" and (a != "shop" or b not in SCHEMAS):
+            raise error(f"('42S02', \"[42S02] Invalid object name '{a}.{b}'. (208) (SQLExecDirectW)\")")
+    for name in re.findall(r"\[([^\]]+)\]", sql):
+        if name.lower() in lower and name not in known:
+            raise error(f"('42S22', \"[42S22] Invalid column name '{name}'. (207) (SQLExecDirectW)\")")
+
+
+def fake_pyodbc(db: sqlite3.Connection | None = None, case_sensitive: bool = False, schemas: tuple[str, ...] = ("shop",)):
     """A stand-in `pyodbc` module: connect() opens a connection to the shop database whatever the string says (the
-    Database= part decides whether constraints are declared). `module.log` holds every statement, `module.ddl` the DDL."""
+    Database= part decides whether constraints are declared). `module.log` holds every statement, `module.ddl` the DDL.
+    case_sensitive=True (n175) is the SQL analytics endpoint as it is: the metadata answers in `schemas`' spelling
+    whatever case was asked, and a query with a name in another case fails with 42S02 / 42S22."""
     db = db or shop_database()
     mod = types.ModuleType("pyodbc")
     mod.log, mod.ddl, mod.dsns = [], [], []
+    mod.Error = type("Error", (Exception,), {})
+    cs = {"schemas": schemas, "error": mod.Error} if case_sensitive else None
 
     def connect(dsn, attrs_before=None, timeout=None, **kw):
         mod.dsns.append(dsn)
-        return _Connection(dsn, db, mod.log, mod.ddl)
+        return _Connection(dsn, db, mod.log, mod.ddl, cs)
     mod.connect = connect
-    mod.Error = type("Error", (Exception,), {})
     return mod

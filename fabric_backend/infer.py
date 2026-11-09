@@ -904,6 +904,36 @@ def check_input(schema: Schema, keys: dict[str, list[str]] | None, confirmed: li
         raise PlanInputError("; ".join(problems))
 
 
+def exact_names(schema: Schema, keys: dict[str, list[str]] | None, confirmed: list[dict] | None):
+    """n175: keys and confirmed with every table and column spelled as the metadata spells it ("Orders" given, "orders"
+    in the lakehouse), so no query or definition carries a name the case-sensitive SQL endpoint would not find. Call
+    after check_input: every name is known."""
+    tables = {t.name.lower(): t for t in schema}
+
+    def col(t, c):
+        return t.col(str(c)) if t is not None and t.has(str(c)) else c
+
+    def tab(name):
+        t = tables.get(str(name).lower())
+        return (t.name if t is not None else name), t
+    k = None
+    if keys is not None:
+        k = {}
+        for name, cols in keys.items():
+            n, t = tab(name)
+            k[n] = [col(t, c) for c in cols]
+    c2 = None
+    if confirmed is not None:
+        c2 = []
+        for c in confirmed:
+            (sn, st), (tn, tt) = tab(c["source"]), tab(c["target"])
+            e = {**c, "source": sn, "target": tn, "source_cols": [col(st, x) for x in c["source_cols"]]}
+            if c.get("target_cols"):
+                e["target_cols"] = [col(tt, x) for x in c["target_cols"]]
+            c2.append(e)
+    return k, c2
+
+
 def check_tables(schema: Schema, tables: list[str] | None) -> None:
     """A `tables=` filter must name tables that exist; a filter that matches nothing would build an empty API."""
     if tables is None:
@@ -944,6 +974,7 @@ def plan(schema: Schema, keys: dict[str, list[str]] | None = None, confirmed: li
     (plan_backend: the first `sample` distinct values of a column, at most `max_queries` counting queries); the
     candidates left over are in plan.proposed, and plan.counted says what was counted."""
     check_input(schema, keys, confirmed)
+    keys, confirmed = exact_names(schema, keys, confirmed)          # n175: the metadata's spelling before any query
     summary, pack_keys, pack_rels, pack_tables = _pack(schema, keys) if packs else (None, {}, [], set())
     plain = lambda r: r.get("kind", "key") == "key" and not r.get("where")
     special = [r for r in pack_rels if not plain(r)]                  # not plain key joins: plan.extended, never plan.relationships

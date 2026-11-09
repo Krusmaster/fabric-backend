@@ -32,6 +32,14 @@ export interface ReviewAnswer {
   /** n173: the MCP Apps cards' map of the review (workload_api.map_of) */
   map?: MapData;
   note: string;
+  /** n175: the schema typed differed from the lakehouse's only by case ("Shop" typed, "shop" read); every query used `used`. */
+  schema_used?: SchemaUsed;
+}
+
+export interface SchemaUsed {
+  asked: string;
+  used: string;
+  note: string;
 }
 
 /** n173: /workload/v1/check, the review checked against the rows. */

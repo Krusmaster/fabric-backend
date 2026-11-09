@@ -1,13 +1,13 @@
 {
     "Workload_Display_Name": "Krusgraph",
     "Workload_Full_Display_Name": "Krusgraph",
-    "Workload_Description": "Finds the keys and relationships in a lakehouse, lets you review them, and builds an API for GraphQL from what you accepted.",
+    "Workload_Description": "Finds the keys and relationships in a lakehouse, lets you review and check them against the rows, and builds Fabric items from what you accepted.",
     "Workload_Hub_Slogan": "Keys and relationships for your lakehouse tables, with the rule behind each one.",
-    "Workload_Hub_Description": "Krusgraph reads the table and column names of a lakehouse and proposes keys and relationships, each with the rule that found it. You accept or reject each one, see a dry run, and create an API for GraphQL in the same workspace.\n\n**In this version:**\n\n• Choose a lakehouse in the workspace.\n• Review keys and relationships; open items come first.\n• See what would be created before anything is.\n• Create an API for GraphQL. Semantic models, reports and pipelines come later.",
+    "Workload_Hub_Description": "Krusgraph reads the table and column names of a lakehouse and proposes keys and relationships, each with the rule that found it. You check them against the rows, accept or reject each one, see a dry run of every output, and create the items in the same workspace with your own Fabric permissions.\n\n**What a Krusgraph Model builds from the review:**\n\n• An API for GraphQL\n• A silver notebook and gold views\n• A pipeline that runs them\n• A semantic model and a report on it\n• An ontology and a data agent\n• A data product over the items built, with the data flow drawn from bronze to gold\n\nEach output is a dry run first; nothing is created until you choose Create, and an item of the same name that this Model did not build is never written.\n\n**Network: hosts to allow.** The editor loads from workload.krusgraph.com and the documentation is on krusgraph.com, both on port 443 with TLS 1.2 or later. If Krusgraph Model keeps loading in Fabric, ask your IT department to allow these two hosts: krusgraph.com/it#network lists them.",
     "Workload_Hub_GetStarted_1_Title": "Get started",
-    "Workload_Hub_GetStarted_1_Sub_Title": "Review a lakehouse",
-    "Workload_Hub_GetStarted_1_Description": "Create a Krusgraph Model from New item, choose a lakehouse and review what was found.",
+    "Workload_Hub_GetStarted_1_Sub_Title": "From a lakehouse to Fabric items in three steps",
+    "Workload_Hub_GetStarted_1_Description": "1. In a workspace, choose + New item → Krusgraph Model and pick a lakehouse and its schema. 2. Review the keys and relationships on the map, choose Check against the rows, and accept or reject each one, or use Accept all. 3. Choose the outputs, look at the dry run, then Create.",
     "ModelItem_DisplayName": "Krusgraph Model",
     "ModelItem_DisplayName_Plural": "Krusgraph Models",
-    "ModelItem_Description": "Review the keys and relationships of a lakehouse and create an API for GraphQL from them."
+    "ModelItem_Description": "Review and check the keys and relationships of a lakehouse, then build the API, notebooks, pipeline, semantic model, report, ontology, data agent and data product from them."
 }

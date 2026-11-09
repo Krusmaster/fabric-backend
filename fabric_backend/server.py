@@ -38,6 +38,7 @@ from .rayfin import rayfin_files
 from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
 from .errors import HINTS, SchemaEmpty, _fabric_body, classify_http, safe
+from .errors import note_schema as _note_schema
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
 from . import views as _views, data_agent as _data_agent, app_starter as _app_starter, graphs as _graphs, readiness as _readiness
@@ -322,6 +323,11 @@ def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: 
         memo_key = json.dumps([workspace, source, schema, keys, confirmed], sort_keys=True, default=str)
         if memo_key not in scope["memo"]:
             scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx)
+            exact = scope["memo"][memo_key][0].schema.schema                # n175: the build's later calls use the exact name
+            scope["memo"].setdefault(json.dumps([workspace, source, exact, keys, confirmed], sort_keys=True, default=str),
+                                     scope["memo"][memo_key])
+        else:
+            _note_schema(schema, scope["memo"][memo_key][0].schema.schema)
         return scope["memo"][memo_key]
     return _plan_read(workspace, source, schema, keys, confirmed, ctx)
 
@@ -335,6 +341,7 @@ def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx):
         s = _fabric.PLATFORM.read_schema(execute, schema)
         if len(s) == 0:
             raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
+        _note_schema(schema, s.schema)                                     # n175: "Shop" typed, "shop" read and queried
         p = _hosted_plan(s, keys, confirmed, execute)
     finally:
         getattr(execute, "close", lambda: None)()                          # the connection does not outlive the call
@@ -471,6 +478,7 @@ def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     with columns and types per table, or a column count per table when the answer is a summary. Read-only. Errors:
     {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, None, None, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
     if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
         return _bounded(_compact.tables_summary(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
@@ -497,6 +505,7 @@ def plan_backend(workspace: _p.Workspace, source: _p.Source, schema: _p.PlanSche
             return json.dumps(_schema_choice(source, schemas), indent=2)
         schema = chosen = schemas[0]["schema"] if schemas else "dbo"
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx, rows=True)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
     shown = _compact.sub_plan(p, keep)
     _pictures.keep("map", lambda: _pictures.map_from_plan(shown))                # n170: the map on the card
@@ -574,6 +583,7 @@ def _connected(workspace: str, source: str, schema: str, ctx):
     if len(s) == 0:
         getattr(execute, "close", lambda: None)()
         raise SchemaEmpty(f"Schema {schema!r} has no tables in {source!r} (workspace {workspace}); it may not exist in this source.")
+    _note_schema(schema, s.schema)                                         # n175: "Shop" typed, "shop" read and queried
     return s, execute
 
 
@@ -594,6 +604,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
         rv = _review.read(review)
         keys, confirmed = _review.merge_arguments(_review.carried_arguments(rv), keys, confirmed)
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
         out, prof = _profile.validate_with_profile(p, execute, max(1, min(int(max_items), 200)), profile)   # n132
@@ -646,6 +657,7 @@ def review_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = 
     prev = _review.read(previous) if previous else None
     k, c = _review.merge_arguments(_review.carried_arguments(prev), keys, confirmed) if prev else (keys, confirmed)
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         counted = _within_call(execute)
         p, base = _hosted_plan(s, k, c, counted), _hosted_plan(s, None, None, counted)
@@ -668,6 +680,7 @@ def sample_rows(workspace: _p.Workspace, source: _p.Source, table: _p.SampleTabl
     data are masked unless show_personal_data=true. Read-only. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         t = next((x for x in s if x.name.lower() == table.lower()), None)
         if t is None:
@@ -725,6 +738,7 @@ def create_backend(workspace: _p.Workspace, source: _p.Source, name: _p.BackendN
     proposes, validate_plan checks, plan_drift previews an update. Errors: {error, kind, hint}."""
     workspace = _workspace_id(workspace, _headers(ctx))      # a display name becomes the id every call below needs
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     return _create_backend_from_plan(p, item, headers, workspace, name, writable, tables, confirmed, allow_removals, dry_run,
                                      token_provider=lambda: auth.fabric(ctx))
@@ -831,6 +845,7 @@ def rayfin_connector(workspace: _p.Workspace, source: _p.Source, connector: _p.C
     relationships. Requires workspace and source. Returns JSON {path: file content}. Changes nothing in Fabric.
     Errors: {error, kind, hint}."""
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     st = {"Lakehouse": "SqlAnalyticsEndpoint", **{k: "SqlAnalyticsEndpoint" for k in ENDPOINT_ITEM_ROUTES}, "Warehouse": "Warehouse",
           "SQLDatabase": "SqlDbNative"}.get(item["type"], "SqlAnalyticsEndpoint")
@@ -841,9 +856,10 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
     """Plan the source and collect what a definition needs from the item: ids, name, kind, SQL endpoint host, the
     database name the endpoint opens, and whether the lakehouse was created with schemas."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     workspace_id = _workspace_id(workspace, headers)
     return p, dict(workspace_id=workspace_id, item_id=item.get("id", ""), item_name=item.get("displayName") or source,
-                   item_kind=item.get("type", "Lakehouse"), schema=schema, sql_endpoint=item.get("sql_host") or "",
+                   item_kind=item.get("type", "Lakehouse"), schema=p.schema.schema, sql_endpoint=item.get("sql_host") or "",
                    sql_db=item.get("sql_db") or item.get("displayName") or source,
                    schemas_enabled=item.get("schemas_enabled", item.get("type", "Lakehouse") != "Lakehouse"))
 
@@ -851,6 +867,7 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
 def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
     """The subset ontology.envelope takes as keyword arguments."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     return p, {k: info[k] for k in ("workspace_id", "item_id", "item_name", "item_kind", "schema", "sql_endpoint")}
 
 
@@ -863,6 +880,7 @@ def ontology_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Ontology
     checklist, a Turtle file for Import ontology and the item definition parts. Changes nothing; create_ontology
     creates the item. Errors: {error, kind, hint}."""
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
     _pictures.keep("ontology", lambda: _pictures.ontology_from(_ontology.bindings(p, args["item_name"], schema, tables),
@@ -904,6 +922,7 @@ def create_ontology(workspace: _p.Workspace, source: _p.Source, name: _p.Ontolog
     or kind consent when the permission is missing. Changes Fabric only with dry_run=false: an update replaces the
     item's definition, so entity types not in the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     p, args = _ontology_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     parts = _ontology.ontology_parts(p, name, tables=tables, **args)
     body = _ontology.envelope(name, parts, description=f"Created by Krusgraph from {source} ({schema})")
@@ -955,9 +974,11 @@ def semantic_model_draft(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
     check. Changes nothing; create_semantic_model creates the item, compare_semantic_model checks an existing model.
     Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     checked = None
     if validate:
-        _, execute = _connected(workspace, source, schema, ctx)
+        _s, execute = _connected(workspace, source, schema, ctx)
+        schema = _s.schema                                   # n175: the name the metadata returns
         try:
             checked = _evidence.validate(p, execute)
         finally:
@@ -1010,10 +1031,12 @@ def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p
     execute = None
     if check_data:
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         p = _hosted_plan(s, keys, confirmed, execute)
         headers = _headers(ctx)
     else:
         p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+        schema = p.schema.schema                                   # n175: the name the metadata returns
     try:
         workspace_id = _workspace_id(workspace, headers)
         meta = {"name": model or "(from tmdl)", "read_with": "TMDL files given in `tmdl`; no call to the model"}
@@ -1080,6 +1103,7 @@ def join_path(workspace: _p.Workspace, source: _p.Source, start: _p.Start, end: 
     relationship as a confirmed entry. Metadata only; changes nothing. answer_query_draft drafts a query for a whole
     question. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     return json.dumps(_paths.join_path(p, start, end), indent=2)
 
 
@@ -1093,6 +1117,7 @@ def analyze_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema
     workspace and source. Returns JSON. Metadata only, no data queries; changes nothing. Errors: {error, kind,
     hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
     out = _graphs.analyze(p)
     out["summary"] = p.summary().splitlines()[0] + "; " + out["summary"]
@@ -1110,6 +1135,7 @@ def suggest_relationships(workspace: _p.Workspace, source: _p.Source, schema: _p
     candidates, each with a confirmed entry for plan_backend or create_backend. Read-only counting queries; applies
     nothing. Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
         out = _graphs.suggest(p, execute, check=max(0, min(int(check), 100)))
@@ -1130,6 +1156,7 @@ def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schem
     Markdown text, cut on a line above 60 000 characters. Changes nothing. Errors: {error, kind, hint}."""
     if validate:
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         try:
             p = _hosted_plan(s, keys, confirmed, execute)
             checked = _evidence.validate(p, execute, max_items=max(1, min(int(max_items), 200)))
@@ -1137,6 +1164,7 @@ def data_dictionary(workspace: _p.Workspace, source: _p.Source, schema: _p.Schem
             getattr(execute, "close", lambda: None)()
     else:
         p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+        schema = p.schema.schema                                   # n175: the name the metadata returns
         checked = None
     keep = _compact.match_tables(p.schema, tables)
     md = _dictionary.data_dictionary(p, source, schema, checked, product=os.environ.get("PRODUCT_NAME", "Krusgraph"), tables=keep)
@@ -1167,6 +1195,7 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
         check_rows = True
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         try:
             p = _hosted_plan(s, keys, confirmed, execute)
             # review L5: with fixes, count as far as validate_plan can (max_items up to 200), so an id it gave is found here
@@ -1178,6 +1207,7 @@ def dbt_schema(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "
             getattr(execute, "close", lambda: None)()
     else:
         p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+        schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
     tables = sorted(keep, key=str.lower) if keep is not None else None
     src = source_name or schema
@@ -1216,6 +1246,7 @@ def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     validation = None
     if check_rows:
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         try:
             p = _hosted_plan(s, None, confirmed, execute)
             validation = _evidence.validate(p, execute)
@@ -1223,6 +1254,7 @@ def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
             getattr(execute, "close", lambda: None)()
     else:
         p, _, _ = _plan(workspace, source, schema, None, confirmed, ctx)
+        schema = p.schema.schema                                   # n175: the name the metadata returns
     _pictures.keep("map", lambda: _pictures.map_from_plan(p))                   # n170: the products' picture places these
     out = _domains.draft(p, schema, source, validation)
     out["note"] = ("A proposal from keys and relationships, not a decision: review the names and the boundaries. "
@@ -1242,6 +1274,7 @@ def sap_pack_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.SapSch
     vs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with
     the chosen export when export is not "none". Read-only; changes nothing. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     return _bounded(_sap_pack.draft(p, source_name=schema, export=export, variant=variant), MAX_RESULT_CHARS, _compact.NARROW_HINT)
 
 
@@ -1255,6 +1288,7 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
     anything. Requires workspace, source and api. Returns JSON. Changes nothing; lineage shows what else builds on
     the tables. Errors: {error, kind, hint}."""
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
@@ -1397,7 +1431,8 @@ def _model_reads(workspace, source, schema, p, tables, ctx) -> dict:
     if not dates and not qty:
         return out
     try:
-        _, execute = _connected(workspace, source, schema, ctx)
+        _s, execute = _connected(workspace, source, schema, ctx)
+        schema = _s.schema                                   # n175: the name the metadata returns
     except Exception as e:                                            # noqa: BLE001  the model is still drafted, with the placeholder
         out["said"].append(f"Not read ({type(e).__name__}): the calendar keeps its placeholder range and quantities keep two decimals.")
         return out
@@ -1442,6 +1477,7 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     or kind consent. Changes Fabric only with dry_run=false: an update replaces the model's definition, so tables,
     relationships and measures added outside the plan leave it; no item is deleted. Errors: {error, kind, hint}."""
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     read = _model_reads(workspace, source, schema, p, tables, ctx)          # n151: the calendar's range, whole-number quantities
     draft = _semantic_model.draft(p, info, name, tables, date_range=read["date_range"], whole_quantities=read["whole"])
@@ -1572,6 +1608,7 @@ def create_views(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     dry_run=false and only in views_schema: CREATE OR ALTER replaces views of the same name; nothing is dropped.
     Errors: {error, kind, hint}."""
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         p = _hosted_plan(s, keys, confirmed, execute)
         stmts = _views.statements(p, views_schema)
@@ -1622,9 +1659,11 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     replaced; nothing is deleted. Errors: {error, kind, hint}."""
     from . import privacy as _privacy
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     counted = None
     if validate:                                                       # n130: only joins counted here are called safe
-        _, execute = _connected(workspace, source, schema, ctx)
+        _s, execute = _connected(workspace, source, schema, ctx)
+        schema = _s.schema                                   # n175: the name the metadata returns
         try:
             counted = _evidence.validate(p, execute, max_items=200)
         finally:
@@ -1648,6 +1687,7 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
     if test_questions:                                                 # n131: counts only, then questions without values
         from . import agent_tests as _agent_tests
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         try:
             checked = _hosted_plan(s, keys, confirmed, execute)
             out["test_questions"] = _agent_tests.questions(checked, _evidence.validate(checked, execute))
@@ -1684,6 +1724,7 @@ def _lakehouse_only(info: dict, tool: str) -> str | None:
 def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data=False, fixes=None):
     from . import silver as _silver_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     refusal = _lakehouse_only(info, "The silver notebook")
     if refusal:
         return None, None, None, refusal
@@ -1692,6 +1733,7 @@ def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed,
         from . import fix_plan as _fix_plan
         _fix_plan.parse_accepted(fixes)                                 # a malformed list fails before any query
         s, execute = _connected(workspace, source, schema, ctx)
+        schema = s.schema                                   # n175: the name the metadata returns
         try:
             counted = _hosted_plan(s, keys, confirmed, execute)
             # review L5: as far as validate_plan(max_items=200) counts, so every id it can give is found here
@@ -1801,6 +1843,7 @@ def _schemas_only(info: dict) -> str | None:
 def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed, tables, show_personal_data, ctx):
     from . import gold as _gold_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     refusal = _lakehouse_only(info, "The gold views")
     if refusal:
         return None, None, None, refusal
@@ -1896,6 +1939,7 @@ SCHEDULE_SCOPE = "DataPipeline.Execute.All (or Item.Execute.All) together with D
 
 def _monitor_inputs(workspace, source, schema, ctx):
     p, info = _source_inputs(workspace, source, schema, None, None, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     refusal = _lakehouse_only(info, "The drift monitor")
     if refusal:
         return None, None, refusal
@@ -2090,6 +2134,7 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
     from . import notebook as _notebook, pipeline as _pipeline
     from .deploy import create_item_with_definition
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     refusal = _lakehouse_only(info, "The pipeline's silver notebook") or _schemas_only(info)
     if refusal:
         return refusal
@@ -2189,10 +2234,12 @@ def export_item_definitions(workspace: _p.Workspace, source: _p.Source, schema: 
         wanted = [w for w in wanted if w != "pipeline"]
         wanted += [w for w in ("create_silver_notebook", "create_gold_views") if w not in wanted] + ["pipeline"]
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
     validation = None
     if check_rows and with_catalog:          # validate_plan's counts for the catalog descriptions; counts only, no values
-        _, execute = _connected(workspace, source, schema, ctx)
+        _s, execute = _connected(workspace, source, schema, ctx)
+        schema = _s.schema                                   # n175: the name the metadata returns
         try:
             validation = _evidence.validate(p, execute)
         finally:
@@ -2420,6 +2467,7 @@ def lineage(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo
     if runs:                                                                # n143: run results, no SQL connection
         return _run_results(workspace, runs, ctx)
     s, execute = _connected(workspace, source, schema, ctx)
+    schema = s.schema                                   # n175: the name the metadata returns
     try:
         headers = _headers(ctx)
         workspace_id = _workspace_id(workspace, headers)
@@ -2524,6 +2572,7 @@ def answer_query_draft(workspace: _p.Workspace, source: _p.Source, question: _p.
     nothing; query_graphql runs the GraphQL version. Errors: {error, kind, hint}."""
     from . import answers as _answers
     p, _, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
+    schema = p.schema.schema                                   # n175: the name the metadata returns
     description = None
     if api:
         workspace_id = _workspace_id(workspace, headers)
@@ -2576,6 +2625,7 @@ def query_graphql(workspace: _p.Workspace, api: _p.Api, query: _p.Query = "", va
                                "kind": "bad_input", "hint": "list_sources shows the sources; answer_query_draft previews the query."})
         from . import answers as _answers
         p, _, headers = _plan(workspace, source, schema, None, None, ctx)
+        schema = p.schema.schema                                   # n175: the name the metadata returns
         workspace_id = _workspace_id(workspace, headers)
         api_id = _api_id(workspace_id, api, headers)
         if not api_id:

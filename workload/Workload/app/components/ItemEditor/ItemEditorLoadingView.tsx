@@ -7,7 +7,7 @@ import "./ItemEditor.scss"
 export interface ItemEditorLoadingViewProps {
     /** The loading message to display */
     message: string;
-    /** Optional icon to display above the progress indicator (can be a Fluent UI icon component or image src). Defaults to fabric-icon.png if not provided. */
+    /** Optional icon to display above the progress indicator (can be a Fluent UI icon component or image src). Defaults to krusgraph-icon.png if not provided. */
     icon?: React.ReactNode | string;
 }
 
@@ -24,11 +24,12 @@ export interface ItemEditorLoadingViewProps {
  * Styling is handled by Fluent UI components and design tokens.
  * 
  * @param message - The loading message to display
- * @param icon - Optional icon (Fluent UI icon component or image src string). Defaults to /assets/fabric-icon.png
+ * @param icon - Optional icon (Fluent UI icon component or image src string). Defaults to /assets/krusgraph-icon.png
+ * (Krusgraph n175: the logo mark, not the Fabric logo, while the Krusgraph Model loads)
  */
 export const ItemEditorLoadingView = ({ message, icon }: ItemEditorLoadingViewProps) => {
     // Default to Fabric icon if no icon is provided
-    const displayIcon = icon || '/assets/fabric-icon.png';
+    const displayIcon = icon || '/assets/krusgraph-icon.png';
     
     const renderIcon = () => {
         // If icon is a string, treat it as an image src

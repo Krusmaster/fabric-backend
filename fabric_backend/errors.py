@@ -12,6 +12,7 @@ retry_after in seconds) and upgrade (entitlements.py, off unless KRUSGRAPH_ENTIT
 """
 from __future__ import annotations
 
+import contextvars
 import functools
 import inspect
 import json
@@ -223,6 +224,10 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         return {"error": scrub(exc.error), "kind": exc.kind, "hint": scrub(exc.hint, 600)}
     if type(exc).__name__ == "PlanInputError":
         return _answer("bad_input", text)
+    if type(exc).__name__ == "SchemaAmbiguous":                       # n175: two schemas that differ only by case
+        return {"error": text, "kind": "schema_ambiguous", "schemas": list(getattr(exc, "names", [])),
+                "hint": "Ask the user which schema they mean, then call again with schema spelled exactly as one of these. "
+                        "Nothing was read from the tables or changed."}
     if type(exc).__name__ == "ReviewFileError":
         return {"error": text, "kind": "bad_input",
                 "hint": "Pass the review file back as review_plan wrote it (the JSON object or its text), and name items in "
@@ -281,15 +286,45 @@ def where_from(fn, args, kwargs) -> str:
     return ", ".join(parts) if parts else "the request"
 
 
+# n175: the schema name a call typed and the name the metadata returned, when they differ only by case ("Shop" typed,
+# "shop" in the lakehouse). The reader sets it; safe() adds it to the tool's JSON answer as schema_used.
+SCHEMA_USED: contextvars.ContextVar = contextvars.ContextVar("krusgraph_schema_used", default=None)
+
+
+def note_schema(asked: str | None, used: str) -> None:
+    """Record that `asked` was read as `used` (a no-op when they are the same)."""
+    if asked and asked != used:
+        SCHEMA_USED.set({"asked": asked, "used": used,
+                         "note": f"Schema {asked!r} was read as {used!r}, the name the source's metadata returns; every query "
+                                 f"used {used!r}."})
+
+
+def with_schema_used(text):
+    """The answer with schema_used when the call's schema was read under another case; other answers unchanged."""
+    used = SCHEMA_USED.get()
+    if not used or not isinstance(text, str) or not text.lstrip().startswith("{"):
+        return text
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return text
+    if not isinstance(data, dict) or "schema_used" in data:
+        return text
+    return json.dumps({"schema_used": used, **data}, indent=2, default=str)
+
+
 def safe(fn):
     """Decorator for MCP tools: exceptions become the JSON answer; the signature stays intact for the schema."""
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
+        token = SCHEMA_USED.set(None)
         try:
-            return fn(*args, **kwargs)
+            return with_schema_used(fn(*args, **kwargs))
         except Exception as exc:  # noqa: BLE001 — every failure gets the same treatment: explained, never leaked
             answer = explain(exc, where_from(fn, args, kwargs))
             if os.environ.get("KRUSGRAPH_DEBUG_ERRORS"):
                 answer["debug"] = f"{type(exc).__module__}.{type(exc).__name__}"
             return json.dumps(answer, indent=2)
+        finally:
+            SCHEMA_USED.reset(token)
     return wrapper
