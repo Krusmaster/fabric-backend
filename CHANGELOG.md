@@ -9,6 +9,25 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n174: the Krusgraph Model item builds everything the MCP tools build. **Choose what to build** offers the silver
+  notebook, the gold views, the pipeline, the semantic model, a report (on that model or an existing one), the API for
+  GraphQL, the ontology and the data agent (left unpublished); `POST /workload/v1/build` takes `outputs: [{kind, name}]`
+  and calls each output's MCP tool (`create_silver_notebook`, `create_gold_views`, `create_pipeline`,
+  `create_semantic_model`, `create_report`, `create_backend`, `create_ontology`, `create_data_agent`) on the plan the
+  review left, on-behalf-of the user, dry run first: one card per output, the data flow first, the model before its
+  report. It never writes over an item of the same name that this Model did not build (`already_exists`), and a report
+  is never updated in place. Each card lists the delegated permissions the output needs; when the user's token lacks
+  one the dry run says so and Create refuses that output with `kind: consent`, the permission and the Entra steps for
+  the workload app. Nothing is run or scheduled; no Execute permission is used. **Data product**: an optional name over
+  the build, with the domains `domain_draft` proposes, an owner nobody has chosen yet and the plan's version, kept in
+  `outputs.json` with the created ids; a re-opened item shows it and offers **Update** where the tool updates in place.
+  **The data flow, drawn**: bronze tables → silver tables (one row per key, the links each checks) → gold views (which
+  silver tables each joins, on which columns, with the rule) → what is built on the source, and the pipeline's steps
+  below; dashed where the build does not make it; Builder presents it. A click, Enter or Space on a box unfolds its code,
+  exactly the dry run's: the notebook cell, the CREATE MATERIALIZED LAKE VIEW, the pipeline activity, the model's
+  relationships and measures (`fabric_backend/data_flow.py`, `FlowView.tsx`). Not added to the Claude cards: the three
+  flow tools have no MCP Apps card yet. Phase 1's form (`name` with `["graphql"]`) answers as before. Needs a redeploy,
+  new Entra permissions on the workload app and a new package version (`docs/WORKLOAD-DEV.md`, Hosted, step 7).
 - Round n173: the Krusgraph Model editor in Fabric (workload.krusgraph.com), from the founder's run on 8 November
   2026. **Check against the rows** in the review (Home ribbon and a button): a new route, `POST /workload/v1/check`
   (same workload audience and on-behalf-of path as `/review`), runs the counting queries on the reviewed plan and

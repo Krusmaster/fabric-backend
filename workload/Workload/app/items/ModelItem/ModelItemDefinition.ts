@@ -6,7 +6,8 @@
  *                 rule, review status and check status. Names, types, rules, decisions and counts only: never a row
  *                 value, a token or a secret. Its own format and version come from the engine.
  *   source.json   which lakehouse and schema the model reads
- *   outputs.json  what to build (phase 1: an API for GraphQL) and the ids of what was created
+ *   outputs.json  what to build (n174: every output the MCP tools build), the ids of what was created, and the data
+ *                 product that bundles them (name, items, owner not chosen yet, the plan's version)
  *   item.json     the definition format version and the editor's last view
  *
  * Pure functions, no React and no Fabric client, so they run in unit tests (ModelItemDefinition.test.ts).
@@ -66,19 +67,37 @@ export interface CreatedItem {
   id: string;
   name: string;
   workspace: string;
+  /** n174: which output made it (silver_notebook, semantic_model, ...); absent in phase 1's API for GraphQL */
+  output?: string;
 }
 
 export interface OutputChoice {
-  type: "graphql";
+  /** phase 1: "graphql"; n174: every kind of engineClient.OutputKind */
+  type: string;
   name: string;
   enabled: boolean;
-  writable: false;
+  writable?: false;
+  /** a report's existing semantic model; empty for the model this item builds */
+  model?: string;
+}
+
+/** n174: the data product that bundles what the item built: only what the engine answered (workload_api._product). */
+export interface ProductDefinition {
+  name: string;
+  owner: string | null;
+  owner_note?: string;
+  plan: { plan_id?: string; schema_fingerprint?: string; review_version?: number };
+  items: CreatedItem[];
+  domains: { name: string; tables: string[]; why?: string }[];
+  built_at?: string;
 }
 
 export interface OutputsDefinition {
   version: number;
   outputs: OutputChoice[];
   created: CreatedItem[];
+  /** n174: optional, so a version 1 file without it reads as before */
+  product?: ProductDefinition;
 }
 
 export interface ItemSettings {
@@ -175,6 +194,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       version: DEFINITION_VERSION,
       outputs: def.outputs?.outputs ?? [],
       created: def.outputs?.created ?? [],
+      ...(def.outputs?.product && typeof def.outputs.product === "object" ? { product: def.outputs.product } : {}),
     },
     review: def.review,
   };

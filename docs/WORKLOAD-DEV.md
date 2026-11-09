@@ -96,6 +96,8 @@ behalf, add these in the Entra admin centre (**App registrations → Krusgraph w
 3. **API permissions → Add a permission**, delegated: Power BI Service (Fabric) `Workspace.Read.All`,
    `Item.ReadWrite.All` (or `GraphQLApi.ReadWrite.All`, the scope the dry run names) and `Lakehouse.Read.All`; Azure SQL Database `user_impersonation`. Then **Grant admin consent**.
    These are what the on-behalf-of exchange asks for when it reads the lakehouse and creates the API for GraphQL.
+   Since n174 the item builds more outputs; the permissions each needs are in Hosted, step 7. `Item.ReadWrite.All`
+   covers all of them; no Execute permission is ever needed.
 
 This is a separate app from the Krusgraph MCP app (`https://krusgraph.com/mcp`); do not reuse the MCP app's id or
 secret here. When the MCP app is configured on the same server, the server refuses to start if the workload variables
@@ -418,6 +420,81 @@ note the screens.
 *Undo:* activate the previous version again on the same page; the image keeps working with either version, since n173
 changed no manifest file.
 
+### 7. Round n174: every output, the data product, the data flow
+
+Round n174 (9 November 2026). The editor builds everything the MCP tools build. Nothing in this round ran against
+Fabric: the routes, the cards, the refusals, the product and the flow are covered by `tests/test_workload_build.py`
+(Fabric REST and the SQL endpoint are the test doubles of the golden tests, on the synthetic shop schema) and the
+editor's unit tests (`buildWords.test.ts`, `dataFlow.test.ts`). In this order:
+
+1. **Entra: the permissions the new outputs need** (Entra admin centre, as a Global Administrator or Privileged Role
+   Administrator): **App registrations → All applications → Krusgraph workload (dev)** (Application (client) ID
+   `853a0cf0-7d35-42b7-b384-26178755a72a`) → **API permissions → Add a permission → Microsoft APIs → Power BI Service →
+   Delegated permissions**. Tick what you want the item to build, then **Add permissions** and **Grant admin consent for
+   <your organisation> → Yes**:
+
+   | Output | Delegated permission (Power BI Service) | Or |
+   | --- | --- | --- |
+   | Silver notebook, gold views | `Notebook.ReadWrite.All` | `Item.ReadWrite.All` |
+   | Pipeline | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` | `Item.ReadWrite.All` |
+   | Semantic model | `SemanticModel.ReadWrite.All` | `Item.ReadWrite.All` |
+   | Report | `Report.ReadWrite.All` and `SemanticModel.ReadWrite.All` (it reads the model's measures) | `Item.ReadWrite.All` |
+   | API for GraphQL | `GraphQLApi.ReadWrite.All` | `Item.ReadWrite.All` |
+   | Ontology | `Item.ReadWrite.All` | |
+   | Data agent | `DataAgent.ReadWrite.All` | `Item.ReadWrite.All` |
+
+   If step 3.3 already granted `Item.ReadWrite.All`, nothing is missing. **Do not add** `DataPipeline.Execute.All`,
+   `Notebook.Execute.All`, `Item.Execute.All` or `Lakehouse.Execute.All`: the item never runs or schedules a notebook
+   or a pipeline, and the code never asks for them. After the consent, reload the Fabric tab so the editor signs in
+   again with the new permission.
+
+   When the token lacks one, the dry run's card says so, and Create refuses that output with `kind: consent`, the
+   permission and these same steps (`workload_api.entra_steps`, with the app's id taken from the server's own
+   `KRUSGRAPH_WORKLOAD_CLIENT_ID`). Other outputs of the same build still go ahead.
+2. **Redeploy** (Cloud Shell, `~/fabric-backend`), as in step 6.1: `git pull --rebase origin main`, then
+   `bash deploy/krusgraph.sh --update --dry-run` and `bash deploy/krusgraph.sh --update`. The editor and the engine API
+   are both in the image; no new variable, DNS record or redirect is needed.
+3. **Build and upload a new package version**, as in steps 6.2 to 6.4: `bash workload/scripts/build-package
+   --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a`, download `Org.Krusgraph.1.0.<N>.nupkg`, **Govern →
+   Workloads → Org.Krusgraph → Upload**, then **Activate** the new version. The manifest did not change in n174, so the
+   previous version also works with the new image; uploading keeps the version list in step with the deploys.
+4. **Try it** in workspace **demo** on **shop_krusgraph**: Next → **Choose what to build** → tick, for example, Silver
+   notebook, Gold views, Pipeline, Semantic model and Report, and **Bundle them as one data product** → **Preview**.
+   Expect one dry-run card per output, the data flow drawn (click a silver box: its notebook cell unfolds), and the
+   product with the domains Krusgraph proposes. **Create** is your call: it creates the items in the workspace (each the
+   first real creation of that output from the editor, the founder's approval of `docs/WORKLOAD-FEASIBILITY.md`, phase 3).
+
+**Check on the first run:** whether a report created right after its semantic model draws its visuals (the model is
+read back with getDefinition; until the model is refreshed once the report shows no data, as its portal steps say),
+and whether the data agent stays unpublished with the editor's draft visible to you only.
+
+### What the editor does since n174
+
+- **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it
+  needs. A report is built on the semantic model chosen above, or on one already in the workspace (its name in
+  **Built on**). Several at once; the engine runs them in this order: silver notebook, gold views, pipeline, semantic
+  model, report, API for GraphQL, ontology, data agent.
+- **Preview**: one card per output from that output's own MCP tool (`/workload/v1/build` with `outputs: [{kind, name}]`,
+  on-behalf-of you, dry run): what it would create or update, a few facts from the dry run, and anything that would
+  stop it. An item of the same name that this Model did not build is never written (`already_exists`: choose another
+  name); a report is never updated in place.
+- **Data product** (optional): one name over the build, with the domains `domain_draft` proposes for these tables, an
+  owner nobody has chosen yet, and the plan's id and schema fingerprint. After Create it is kept in `outputs.json`
+  with the created items' ids; re-opening the item shows it, and each output it built is offered as **Update** (the
+  tools that update in place) or with a new name (a report).
+- **The data flow** (with the silver notebook, the gold views or the pipeline): bronze tables → silver tables (one row
+  per key, the links each checks, with the rule pills) → gold views (which silver tables each joins, on which columns)
+  → what is built on the source tables; the pipeline's three steps below. Dashed: not part of this build. Builder
+  presents it. Click a box, or press Enter or Space on it, to unfold its code below the picture, exactly what the dry
+  run sends (a silver box: its notebook cell; a gold box: its CREATE MATERIALIZED LAKE VIEW; a pipeline step: its
+  activity; the model: its relationships and measures in TMDL), with **Copy**. One box is open at a time. The flow is
+  drawn only in the editor: `create_silver_notebook`, `create_gold_views` and `create_pipeline` have no MCP Apps card in
+  Claude yet, so adding the picture there is a card of its own (with its own Create buttons and goldens), not a cheap
+  addition to the shared renderer.
+- **Result**: each created item with **Open in Fabric**, and the portal steps still left, as the tools say them:
+  refresh the semantic model once, introspection and permissions on the API, run the notebooks or the pipeline and add
+  a schedule yourself (the item adds none), publish the data agent when it answers well.
+
 ### What the editor does since n173
 
 - **Check against the rows** (Home ribbon and a button in the review): `POST /workload/v1/check` runs validate_plan's
@@ -453,6 +530,8 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | "on-behalf-of failed" | The secret is wrong or expired, or the permissions of step 3.3 lack admin consent. |
 | `kind: no_access` or `not_found` | Your account cannot read the lakehouse, or the schema name is wrong (`shop`, not `dbo`, for the seed). |
 | `kind: would_remove` on Create | An API of that name exists and the update would drop relationships it has. Choose another name in phase 1. |
+| `kind: consent` on a card (n174) | The workload app lacks the delegated permission the card names: Hosted, step 7.1, then reload the Fabric tab. |
+| `kind: already_exists` on a card (n174) | An item of that name exists and this Model did not build it, or it is a report. Choose another name. |
 
 ## Files
 
@@ -461,12 +540,16 @@ and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) be
 | `workload/` | Fork of `microsoft/fabric-extensibility-toolkit` at commit `dacab1b` (MIT; `workload/LICENSE`) with the HelloWorld item renamed to the Model item |
 | `workload/Workload/app/items/ModelItem/` | The editor, the item definition (`review.json`, `source.json`, `outputs.json`, `item.json`, all version 1) and its unit tests |
 | `workload/Workload/Manifest/items/ModelItem/` | The item manifest: type `{{WORKLOAD_NAME}}.Model`, display name "Krusgraph Model" |
-| `fabric_backend/workload_api.py` | The engine API: `POST /workload/v1/review`, `/check` (n173) and `/build` (API for GraphQL only, dry run by default) |
+| `fabric_backend/workload_api.py` | The engine API: `POST /workload/v1/review`, `/check` (n173) and `/build` (n174: every output, dry run by default) |
 | `fabric_backend/entra.py` (`WorkloadConfig`) | The workload app's separate audience |
 | `tests/test_workload_api.py` | Audience, routes on and off, CORS and frame-ancestors, the review and build answers on the shop schema |
 | `fabric_backend/workload_host.py` | n168: the hosted editor on `KRUSGRAPH_WORKLOAD_HOST`: its files, `/close`, the engine API, and the headers |
 | `workload/scripts/build_card_map.py` | n173: copies the MCP Apps cards' map and the mascots into the editor (`cardMap.generated.ts`); `--check` says whether the copy is current |
 | `tests/test_workload_check.py` | n173: `/check` (shape, audience, on-behalf-of, a failing check's counts), the inline answers, the copy of the cards' map |
+| `fabric_backend/data_flow.py` | n174: the data flow (bronze, silver, gold, pipeline, what is built on the source) from the engine's drafts, each node with the dry run's code |
+| `workload/Workload/app/items/ModelItem/buildWords.ts`, `FlowView.tsx`, `dataFlow.ts` | n174: the outputs, cards and product in words; the flow's picture and its folded code |
+| `workload/scripts/build_flow_fixture.py` | n174: writes `flow.fixture.json` (the shop schema's flow) for the editor's tests; `--check` says whether it is current |
+| `tests/test_workload_build.py` | n174: the build per output (dry run, refusal to overwrite, consent), the product, the flow against the dry run |
 | `workload/scripts/build-package` | n168: the `Org.Krusgraph` package for the hosted editor (Python standard library; uploads nothing) |
 | `deploy/azure_containerapp.py` | n168: `--update --workload-host [--dry-run]`, the `workload_*` keys of `deploy/krusgraph.json` |
 | `tests/test_workload_host.py`, `tests/test_deploy_workload.py` | n168: host routing and headers; the deploy flags and the package |

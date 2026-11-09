@@ -10,7 +10,8 @@ host issued for the workload's own Entra app (entra.WorkloadConfig, a separate a
                              relationship passed, failed (with its orphans, duplicates or empty keys) or not checked,
                              written into the review file; with the map and Thinker's questions
   POST /workload/v1/build    the reviewed plan -> an API for GraphQL item (create_backend's path); dry_run defaults to
-                             true and then nothing is written
+                             true and then nothing is written. n174: with outputs [{kind, name}], every output the MCP
+                             tools build (KINDS), one card each, a data product over them and the data flow drawn
 
 Every call runs as the signed-in user: the token is exchanged on-behalf-of the user (entra.OnBehalfOf, the same code
 the MCP server uses) for Fabric and SQL tokens, so Fabric's own permissions decide what the user may read or create.
@@ -29,6 +30,15 @@ for a table the rules found none for, the table an ambiguous column points at); 
 Apps cards' map data (mcp_apps_pictures.map_from_review) with each key's check state added, which the editor draws
 with the cards' own drawing code (workload/scripts/build_card_map.py). /check is free like /review: it counts, it
 never writes to Fabric, and its answer holds counts and verdicts, never a row value.
+
+n174 (run_build_many): each output goes through its own MCP tool function (create_silver_notebook, create_gold_views,
+create_pipeline, create_semantic_model, create_report, create_backend, create_ontology, create_data_agent with
+publish=false), called as the tool is called, inside server.plan_scope so every plan has the review's rejections left out
+and the lakehouse is read once. An item of the same name that this Model did not build (outputs.json's created ids) is
+never written, and a report is never updated. The token's delegated permissions (its scp claim) are compared with what
+each output needs: the dry run says what is missing, Create refuses that output with kind consent and the Entra steps.
+Nothing runs or is scheduled; no Execute permission is used. The data product is domain_draft's proposal with the
+build's own items; the flow is data_flow.py's, from the same drafts.
 """
 from __future__ import annotations
 
@@ -44,8 +54,34 @@ SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
 }
 OUTPUTS = {"graphql": "API for GraphQL"}
-LATER = {"semantic_model": "Semantic model", "report": "Report", "pipeline": "Pipeline", "ontology": "Ontology",
-         "data_agent": "Data agent"}
+# n174: every output the MCP tools can build, in the order a build runs them and the preview shows them: the data flow
+# (silver, gold, pipeline), then the model before its report, the API, the ontology and the data agent. `needs` is the
+# delegated permissions, each a tuple of alternatives (Item.ReadWrite.All covers every item type); none is an Execute
+# permission, since nothing here runs or schedules a notebook or a pipeline. `updates`: the tool updates an item of that
+# name in place (a report is never updated: create_report refuses a name that exists).
+NOTEBOOK = ("Notebook.ReadWrite.All", "Item.ReadWrite.All")
+KINDS = {
+    "silver_notebook": {"label": "Silver notebook", "type": "Notebook", "tool": "create_silver_notebook", "updates": True,
+                        "needs": (NOTEBOOK,), "suffix": "silver"},
+    "gold_views": {"label": "Gold views", "type": "Notebook", "tool": "create_gold_views", "updates": True,
+                   "needs": (NOTEBOOK,), "suffix": "gold"},
+    "pipeline": {"label": "Pipeline", "type": "DataPipeline", "tool": "create_pipeline", "updates": True,
+                 "needs": (NOTEBOOK, ("DataPipeline.ReadWrite.All", "Item.ReadWrite.All")), "suffix": "pipeline"},
+    "semantic_model": {"label": "Semantic model", "type": "SemanticModel", "tool": "create_semantic_model", "updates": True,
+                       "needs": (("SemanticModel.ReadWrite.All", "Item.ReadWrite.All"),), "suffix": "model"},
+    "report": {"label": "Report", "type": "Report", "tool": "create_report", "updates": False,
+               "needs": (("Report.ReadWrite.All", "Item.ReadWrite.All"), ("SemanticModel.ReadWrite.All", "Item.ReadWrite.All")),
+               "suffix": "report"},
+    "graphql": {"label": "API for GraphQL", "type": "GraphQLApi", "tool": "create_backend", "updates": True,
+                "needs": (("GraphQLApi.ReadWrite.All", "Item.ReadWrite.All"),), "suffix": "api"},
+    "ontology": {"label": "Ontology", "type": "Ontology", "tool": "create_ontology", "updates": True,
+                 "needs": (("Item.ReadWrite.All",),), "suffix": "ontology"},
+    "data_agent": {"label": "Data agent", "type": "DataAgent", "tool": "create_data_agent", "updates": True,
+                   "needs": (("DataAgent.ReadWrite.All", "Item.ReadWrite.All"),), "suffix": "agent"},
+}
+ORDER = tuple(KINDS)
+WORKLOAD_APP_NAME = "Krusgraph workload (dev)"
+_PRODUCT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$")
 STATUS = {"bad_request": 400, "bad_input": 400, "sign_in": 401, "sql_sign_in": 401, "mfa": 401, "consent": 403,
           "no_access": 403, "feature_disabled": 403, "not_found": 404, "schema_not_found": 404, "table_not_found": 404,
           "would_remove": 409, "already_exists": 409, "capacity": 409, "source_not_ready": 409, "rate_limited": 429,
@@ -111,26 +147,66 @@ def check_request(body) -> dict:
     return {**req, "review": body["review"], "max_items": n}
 
 
+def _item_name(v, what: str) -> str:
+    if not isinstance(v, str) or not _NAME.match(v.strip()):
+        raise BadRequest(f"{what} {v!r}: letters, digits and underscores only, at most 123")
+    return v.strip()
+
+
 def build_request(body) -> dict:
+    """Two forms. Phase 1 (n166): name plus outputs ["graphql"], answered as before. n174: outputs as a list of
+    {kind, name} (report: model, the name or id of an existing semantic model, or omitted for the one this build makes),
+    with product {name} to bundle them and created (outputs.json's created ids: the items this Model may update)."""
     if not isinstance(body, dict):
         raise BadRequest("the body must be a JSON object")
     req = _source(body)
-    name = _text(body, "name", limit=123)
-    if not _NAME.match(name):
-        raise BadRequest(f"item name {name!r}: letters, digits and underscores only")
-    outputs = body.get("outputs", ["graphql"])
-    if not isinstance(outputs, list) or not outputs:
-        raise BadRequest("'outputs' must be a non-empty list; phase 1 builds ['graphql']")
-    later = [o for o in outputs if o not in OUTPUTS]
-    if later:
-        raise BadRequest(f"not available yet: {', '.join(map(str, later))}. The Krusgraph Model builds an API for GraphQL "
-                         f"for now; {', '.join(LATER.values())} come later.")
     dry_run = body.get("dry_run", True)
     if not isinstance(dry_run, bool):
         raise BadRequest("'dry_run' must be true or false (default true)")
+    outputs = body.get("outputs", ["graphql"])
+    if not isinstance(outputs, list) or not outputs:
+        raise BadRequest("'outputs' must be a non-empty list of {kind, name}")
+    if all(isinstance(o, str) for o in outputs):                 # phase 1's form
+        name = _item_name(_text(body, "name", limit=123), "item name")
+        unknown = [o for o in outputs if o not in OUTPUTS]
+        if unknown:
+            raise BadRequest(f"unknown output: {', '.join(map(str, unknown))}. With a name and a list of kinds the build makes an "
+                             f"API for GraphQL; send outputs as [{{kind, name}}] for {', '.join(k for k in ORDER if k != 'graphql')}.")
+        if not isinstance(body.get("review"), dict):
+            raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
+        return {**req, "name": name, "outputs": outputs, "dry_run": dry_run, "review": body["review"], "form": 1}
+    chosen = []
+    for o in outputs:
+        if not isinstance(o, dict) or o.get("kind") not in KINDS:
+            raise BadRequest(f"each output is {{kind, name}} with kind one of {', '.join(ORDER)}; got {o!r}")
+        if any(c["kind"] == o["kind"] for c in chosen):
+            raise BadRequest(f"{o['kind']} is chosen twice; one of each per build")
+        c = {"kind": o["kind"], "name": _item_name(o.get("name"), KINDS[o["kind"]]["label"] + " name")}
+        if o["kind"] == "report" and o.get("model") not in (None, ""):
+            if not isinstance(o["model"], str) or len(o["model"]) > 123:
+                raise BadRequest("report.model: the name or id of an existing semantic model, or empty for the one this build makes")
+            c["model"] = o["model"].strip()
+        chosen.append(c)
+    kinds = {c["kind"] for c in chosen}
+    report = next((c for c in chosen if c["kind"] == "report"), None)
+    if report and not report.get("model") and "semantic_model" not in kinds:
+        raise BadRequest("a report needs a semantic model: choose Semantic model too, or name an existing model for the report")
+    names = [c["name"].lower() for c in chosen if c["kind"] in ("silver_notebook", "gold_views")]
+    if len(names) != len(set(names)):
+        raise BadRequest("the silver and the gold notebook need two different names")
+    product = body.get("product")
+    if product is not None:
+        if not isinstance(product, dict) or not isinstance(product.get("name"), str) or not _PRODUCT.match(product["name"].strip()):
+            raise BadRequest("product: {name}, letters, digits, spaces, '.', '_' or '-', at most 80, or null")
+        product = {"name": product["name"].strip()}
+    created = body.get("created") or []
+    if not isinstance(created, list) or not all(isinstance(c, dict) and isinstance(c.get("id"), str) for c in created):
+        raise BadRequest("'created' must be outputs.json's created list ({type, id, name, workspace}) or empty")
     if not isinstance(body.get("review"), dict):
         raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
-    return {**req, "name": name, "outputs": outputs, "dry_run": dry_run, "review": body["review"]}
+    chosen.sort(key=lambda c: ORDER.index(c["kind"]))
+    return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
+            "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output")} for c in created], "form": 2}
 
 
 # ------------------------------------------------------------------ the review's decisions applied to a plan --------
@@ -262,6 +338,11 @@ def run_check(req: dict) -> dict:
 
 
 def run_build(req: dict) -> dict:
+    """Phase 1's form (a name and ["graphql"]) answers as before; n174's form ({kind, name} per output) builds several."""
+    return _run_graphql(req) if req.get("form", 1) == 1 else run_build_many(req)
+
+
+def _run_graphql(req: dict) -> dict:
     """create_backend for the editor: the plan with the review's keys and confirmed relationships, minus what was
     rejected; a dry run unless dry_run is false. Never removes relationships an existing API has (no allow_removals)."""
     from . import server as S, review as R
@@ -294,13 +375,299 @@ def run_build(req: dict) -> dict:
     return out
 
 
+# ------------------------------------------------------------------ n174: every output, the data product, the flow --
+
+def token_scopes() -> set[str] | None:
+    """The delegated permissions on the signed-in user's Fabric token (the on-behalf-of token's scp claim), or None when
+    it cannot be read (then Fabric's own answer decides, and a 403 still comes back as kind consent). Read only, never
+    verified here: Fabric verifies the token; this only says early which permission is missing."""
+    import base64
+    from . import server as S
+    w = S._WORKLOAD_TOKENS.get()
+    if w is None:
+        return None
+    try:
+        part = w.fabric().split(".")[1]
+        scp = json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4))).get("scp")
+    except Exception:                                              # noqa: BLE001 — not a JWT, or no exchange: unknown
+        return None
+    return set(scp.split()) if isinstance(scp, str) else None
+
+
+def permissions(kind: str, scopes: set[str] | None) -> dict:
+    """What the output needs, each as "A or B", and what the token lacks (None: the token's permissions are unknown)."""
+    needs = KINDS[kind]["needs"]
+    out = {"needs": [" or ".join(alt) for alt in needs], "execute": "none: nothing is run or scheduled"}
+    out["missing"] = None if scopes is None else [alt[0] for alt in needs if not set(alt) & scopes]
+    return out
+
+
+def entra_steps(scope: str, app_id: str | None) -> list[str]:
+    """The Entra admin centre steps that add one delegated permission to the workload's own app (docs/WORKLOAD-DEV.md)."""
+    app = f"{WORKLOAD_APP_NAME}" + (f" (Application (client) ID {app_id})" if app_id else "")
+    return [f"Entra admin centre (entra.microsoft.com) → App registrations → All applications → {app}.",
+            "API permissions → Add a permission → Microsoft APIs → Power BI Service → Delegated permissions.",
+            f"Tick {scope} → Add permissions.",
+            "Grant admin consent for your organisation (a Global Administrator or Privileged Role Administrator) → Yes.",
+            "Reload the Fabric tab and open the item again, so the next sign-in carries the permission."]
+
+
+def _consent(kind: str, missing: list[str], app_id: str | None) -> dict:
+    label = KINDS[kind]["label"]
+    return {"error": f"Your sign-in does not carry {missing[0]}, which the {label.lower()} needs; nothing was created.",
+            "kind": "consent", "scope": missing[0], "missing": missing, "entra_steps": entra_steps(missing[0], app_id),
+            "hint": f"An administrator adds {', '.join(missing)} to the workload's Entra app and consents; the steps are below."}
+
+
+def _names(o: dict, chosen: dict, schema: str) -> list[tuple[str, str]]:
+    """(item type, name) of every item an output writes; the pipeline writes its three notebooks too."""
+    if o["kind"] != "pipeline":
+        return [(KINDS[o["kind"]]["type"], o["name"])]
+    silver, gold = chosen.get("silver_notebook") or f"silver_{schema}", chosen.get("gold_views") or f"gold_{schema}"
+    return [("DataPipeline", o["name"]), ("Notebook", silver), ("Notebook", gold), ("Notebook", f"{o['name']}_check")]
+
+
+def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> tuple[str, dict | None, dict]:
+    """("create" or "update", a refusal or None, {name: existing id}). The Model updates only items it built itself
+    (outputs.json's created ids, and those this build created); an item of that name made by anyone else is refused, and
+    a report is never updated (create_report adds one item and never updates it)."""
+    from . import server as S
+    found, would = {}, "create"
+    for typ, name in _names(o, chosen, req["schema"]):
+        existing = S._find_item(workspace, name, headers, typ)
+        if not existing:
+            continue
+        found[name] = existing
+        if existing not in ours:
+            return would, {"error": f"{typ} {name!r} already exists in this workspace and was not built by this Krusgraph Model; "
+                                    "nothing was written.", "kind": "already_exists", "existing": {"type": typ, "id": existing, "name": name},
+                           "hint": "Choose another name. The Krusgraph Model updates only the items it built itself (outputs.json)."}, found
+        if not KINDS[o["kind"]]["updates"]:
+            return would, {"error": f"{name!r} was built by this Model, and a {KINDS[o['kind']]['label'].lower()} is never updated in place; "
+                                    "nothing was written.", "kind": "already_exists", "existing": {"type": typ, "id": existing, "name": name},
+                           "hint": "Choose a new name to create another one."}, found
+        would = "update"
+    return would, None, found
+
+
+def _portal_steps(kind: str, a: dict) -> list[str]:
+    """What is still to do in the Fabric portal, as the tool's own answer says it."""
+    if kind == "semantic_model" or kind in ("report", "ontology"):
+        return list(a.get("after_creation") or [])
+    if kind in ("silver_notebook", "gold_views"):
+        return list(a.get("run") or [])
+    if kind == "pipeline":
+        return [a.get("runs", ""), "To run it regularly, add a schedule on the pipeline in Fabric (Schedule); Krusgraph adds none."]
+    if kind == "data_agent":
+        return ["Open the agent in Fabric: its data source, selected tables and example queries are under its staging configuration.",
+                "Publish it there when its answers are right; the Model creates it unpublished, so only you see the draft."]
+    return list(a.get("portal_steps") or [])
+
+
+def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req: dict) -> list[dict]:
+    """The items the tool's answer says were created, with their ids; nothing the answer does not hold."""
+    res = a.get("result") or {}
+    typ = KINDS[kind]["type"]
+    if kind == "pipeline":
+        out = []
+        for t, n in _names(o, chosen, req["schema"]):
+            r = res.get(n) or {}
+            if r.get("status") == "Succeeded" and r.get("id"):
+                out.append({"type": t, "id": r["id"], "name": n, "workspace": workspace, "output": kind})
+        return out
+    if kind == "data_agent":
+        rid = res.get("id") or res.get("agent_id")
+        return [{"type": typ, "id": rid, "name": o["name"], "workspace": workspace, "output": kind}] if res.get("status") == "Succeeded" and rid else []
+    if res.get("status") == "Succeeded" and res.get("id"):
+        return [{"type": typ, "id": res["id"], "name": o["name"], "workspace": workspace, "output": kind}]
+    return []
+
+
+def _report_on_draft(model_answer: dict, model_name: str, name: str) -> dict:
+    """create_report's dry run for a report on the semantic model this same build makes: the visuals are drawn from that
+    model's TMDL in the dry run (report.definition_parts, as create_report draws them from the model it reads)."""
+    from . import model_compare as _mc, report as _report, server as S
+    parts = model_answer.get("parts") or {}
+    drawn = _report.definition_parts(_mc.from_tmdl(parts), "<the semantic model's id, filled in when it is created>",
+                                     model_name=model_name)
+    rep = {"name": name, "pages": 1, "visuals": drawn["visuals"],
+           "bound_to": {"semantic_model": model_name, "id": None, "built_in_this_build": True},
+           "drawn_from": "the measures and columns of the semantic model in this dry run (its TMDL)"}
+    if drawn.get("left_out"):
+        rep["left_out"] = [{"measure": f"{m['table']}[{m['measure']}]", "why": m["why"]} for m in drawn["left_out"]]
+    if model_answer.get("omitted"):
+        rep["partial"] = "Some table definitions of the model did not fit in the dry run; Create draws from the whole model."
+    return {"dry_run": True, "report": rep, "rest": {"method": "POST", "delegated_scope": _report.SCOPE, "spec": _report.DEFINITION_SPEC},
+            "after_creation": list(S.REPORT_AFTER_CREATION)}
+
+
+def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run: bool, built: dict) -> dict:
+    """The MCP tool behind the output, called as the tool is called (same arguments, same answer)."""
+    from . import server as S
+    common = {"workspace": req["workspace"], "source": req["source"], "schema": req["schema"], "keys": keys,
+              "confirmed": confirmed, "dry_run": dry_run}
+    if kind == "silver_notebook":
+        text = S.create_silver_notebook(name=o["name"], **common)
+    elif kind == "gold_views":
+        text = S.create_gold_views(name=o["name"], **common)
+    elif kind == "pipeline":
+        text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
+                                 **common)
+    elif kind == "semantic_model":
+        text = S.create_semantic_model(name=o["name"], **common)
+    elif kind == "ontology":
+        text = S.create_ontology(name=o["name"], **common)
+    elif kind == "data_agent":
+        text = S.create_data_agent(name=o["name"], publish=False, **common)
+    elif kind == "report":
+        model = o.get("model")
+        if not model:
+            m = built.get("semantic_model")
+            if m is None or m.get("refusal") or (m.get("answer") or {}).get("error"):
+                return {"error": "the semantic model of this build was not made, so the report has nothing to be built on; nothing was "
+                                 "created.", "kind": "not_found", "hint": "Fix the semantic model first, or name an existing model."}
+            if dry_run:
+                return _report_on_draft(m["answer"], chosen["semantic_model"], o["name"])
+            model = next((c["id"] for c in m.get("created", [])), None) or chosen["semantic_model"]
+        text = S.create_report(workspace=req["workspace"], model=model, name=o["name"], dry_run=dry_run)
+    else:
+        raise BadRequest(kind)
+    return json.loads(text)
+
+
+def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
+    """The data product: one name over the outputs of this build, with the domains domain_draft proposes for the plan,
+    an owner nobody has chosen yet and the plan's version. Items only as the build's answers name them."""
+    from . import domains as _domains
+    proposal = _domains.draft(p, req["schema"], req["source_name"])
+    items = []
+    for c in cards:
+        if c.get("refusal") or (c.get("answer") or {}).get("error"):
+            continue
+        if dry_run:
+            items.append({"output": c["output"], "type": c["type"], "name": c["name"], "would": c["would"]})
+        else:
+            items += [{**x, "label": c["label"]} for x in c.get("created", [])]
+    return {"name": req["product"]["name"], "owner": None, "owner_note": "Nobody has chosen an owner yet.",
+            "plan": {"plan_id": rv.get("plan_id"), "schema_fingerprint": rv.get("schema_fingerprint"),
+                     "review_version": rv.get("version")},
+            "source": {"lakehouse": req["source_name"], "schema": req["schema"]},
+            "items": items,
+            "domains": [{"name": d["name"], "tables": list(d["tables"]), "why": d.get("name_reason", "")} for d in proposal["domains"]],
+            "unassigned": [u["table"] for u in proposal.get("unassigned", [])],
+            "from": "domain_draft's proposal for this plan: domains are proposed, not created (that needs a Fabric administrator)"}
+
+
+def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dict | None:
+    """The data flow when the build has the silver notebook, the gold views or the pipeline (data_flow.py)."""
+    from . import data_flow, server as S
+    if not set(chosen) & set(data_flow.FLOW_KINDS):
+        return None
+    _, info = S._source_inputs(req["workspace"], req["source"], req["schema"], keys, confirmed, None)   # the build's own read
+    if info.get("item_kind") != "Lakehouse":
+        return None
+    items = []
+    for c in cards:
+        if c["output"] not in data_flow.ON_SOURCE + ("report",) or c.get("refusal"):
+            continue
+        it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": f"reads {req['schema']} (bronze) directly"}
+        if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
+            it.update(code=data_flow.tmdl_excerpt(c["answer"]["parts"]), language="tmdl", code_title=f"{c['name']}: relationships and measures")
+        if c["output"] == "report":
+            model = next((x for x in req["outputs"] if x["kind"] == "report"), {}).get("model")
+            if model:
+                it["reads"] = f"on the existing model {model}"
+            else:
+                it.update(on_model="item:semantic_model", reads=f"on {chosen.get('semantic_model')}")
+        items.append(it)
+    names = None
+    if "pipeline" in chosen:
+        names = (chosen.get("silver_notebook") or f"silver_{req['schema']}", chosen.get("gold_views") or f"gold_{req['schema']}",
+                 f"{chosen['pipeline']}_check")
+    return data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
+
+
+def run_build_many(req: dict) -> dict:
+    """Every output chosen, in ORDER, each through its MCP tool on the plan the review left (rejections taken out),
+    as the signed-in user. A dry run first; Create with dry_run=false. Each output gets one card: the tool's answer,
+    create or update, the permissions it needs, and with Create the items and the portal steps left. An item of the same
+    name that this Model did not build is never written; a missing permission is said before any call."""
+    from . import server as S, review as R
+    rv = R.read(req["review"])
+    carried = R.carried_arguments(rv)
+    keys, confirmed = carried["keys"] or None, carried["confirmed"] or None
+    dry_run, scopes = req["dry_run"], token_scopes()
+    app_id = getattr(S._WORKLOAD_TOKENS.get(), "app_id", None)
+    chosen = {o["kind"]: o["name"] for o in req["outputs"]}
+    ours = {c["id"] for c in req["created"]}
+    cards, built, left = [], {}, []
+
+    def adjust(plan):                                              # the review's rejections, on every plan of the build
+        kept, left_out = apply_review(plan, rv)
+        if not left:
+            left.append(left_out)
+        return kept
+    with S.plan_scope(adjust):
+        headers = S._headers(None)
+        workspace = S._workspace_id(req["workspace"], headers)
+        p, _item, _ = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
+        for o in req["outputs"]:
+            kind = o["kind"]
+            card = {"output": kind, "label": KINDS[kind]["label"], "type": KINDS[kind]["type"], "name": o["name"], "dry_run": dry_run,
+                    "updates_in_place": KINDS[kind]["updates"], "permissions": permissions(kind, scopes)}
+            if o.get("model"):
+                card["model"] = o["model"]
+            would, refusal, _found = _ownership(o, chosen, req, workspace, headers, ours)
+            card["would"] = would
+            missing = card["permissions"]["missing"]
+            if refusal is None and missing and not dry_run:
+                refusal = _consent(kind, missing, app_id)
+            if refusal is not None:
+                card["refusal"] = refusal
+            else:
+                if missing:                                        # the dry run says it now, Create would refuse
+                    card["consent"] = _consent(kind, missing, app_id)
+                try:
+                    answer = (_run_graphql({**req, "name": o["name"], "dry_run": dry_run}) if kind == "graphql"
+                              else _call(kind, o, chosen, req, keys, confirmed, dry_run, built))
+                except BadRequest:
+                    raise
+                except Exception as exc:                           # noqa: BLE001 — explained per card, never leaked
+                    from .errors import explain
+                    answer = explain(exc, f"{KINDS[kind]['label']} {o['name']!r}")
+                if answer.get("kind") == "consent" and answer.get("scope"):
+                    answer["entra_steps"] = entra_steps(str(answer["scope"]).split(" ")[0], app_id)
+                card["answer"] = answer
+                if not dry_run and not answer.get("error"):
+                    card["created"] = (answer.get("created") or []) if kind == "graphql" else _created_ids(kind, answer, chosen, workspace, o, req)
+                    for c in card["created"]:
+                        c.setdefault("output", kind)
+                        ours.add(c["id"])
+                    card["portal_steps"] = _portal_steps(kind, answer)
+            built[kind] = card
+            cards.append(card)
+        out = {"dry_run": dry_run, "outputs": cards, "order": [c["output"] for c in cards],
+               "left_out_by_review": left[0] if left else [],
+               "row_check": check_totals(rv)}
+        if req.get("product"):
+            out["product"] = _product(req, rv, p, cards, dry_run)
+        out["flow"] = _flow(req, p, chosen, cards, keys, confirmed)
+    refused = [c for c in cards if c.get("refusal") or (c.get("answer") or {}).get("error")]
+    out["refused"] = len(refused)
+    out["note"] = (NOTHING_CHANGED + " This is what Create would send, output by output." if dry_run else
+                   f"{len(cards) - len(refused)} of {len(cards)} output(s) built." + (" Nothing runs or is scheduled." if cards else ""))
+    if not dry_run:
+        out["created"] = [x for c in cards for x in c.get("created", [])]
+    return out
+
+
 # ------------------------------------------------------------------ HTTP -------------------------------------------
 
 class Tokens:
     """Fabric and SQL tokens for the signed-in user, from the workload app's on-behalf-of exchange."""
 
-    def __init__(self, obo, user_token: str, tenant: str) -> None:
-        self.obo, self.user_token, self.tenant = obo, user_token, tenant
+    def __init__(self, obo, user_token: str, tenant: str, app_id: str | None = None) -> None:
+        self.obo, self.user_token, self.tenant, self.app_id = obo, user_token, tenant, app_id
 
     def fabric(self) -> str:
         from .entra import FABRIC_SCOPE
@@ -366,7 +733,7 @@ def routes(cfg, validator=None, obo=None) -> list:
 
             def work():
                 from .server import workload_tokens
-                with workload_tokens(Tokens(obo, token, claims["tid"])):
+                with workload_tokens(Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))):
                     try:
                         return run(req)
                     except Exception as exc:  # noqa: BLE001 — explained, never leaked (errors.explain)

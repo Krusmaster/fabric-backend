@@ -138,6 +138,21 @@ def workload_tokens(tokens):
         _WORKLOAD_TOKENS.reset(mark)
 
 
+_PLAN_SCOPE = contextvars.ContextVar("krusgraph_plan_scope", default=None)
+
+
+@contextlib.contextmanager
+def plan_scope(adjust):
+    """n174: inside this block every plan a tool makes (_hosted_plan) goes through `adjust` (the Fabric workload's
+    review: what the person rejected is left out), and _plan's answers are kept for the block, so a build of several
+    outputs reads the lakehouse once. Outside it, and for every MCP call, nothing changes."""
+    mark = _PLAN_SCOPE.set({"adjust": adjust, "memo": {}})
+    try:
+        yield
+    finally:
+        _PLAN_SCOPE.reset(mark)
+
+
 class Auth:
     """Tokens for the two audiences the server talks to. Request headers win; else client credentials."""
 
@@ -274,7 +289,9 @@ def _hosted_plan(s, keys, confirmed, execute):
     the names left unlinked over the call's open connection, bounded by R5_SAMPLE and R5_MAX_QUERIES. Every tool that
     builds on the plan sees the same relationships as plan_backend. Nothing is kept between calls: the counting runs
     again on every call, over the connection the call opened and closes."""
-    return make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES)
+    p = make_plan(s, keys, confirmed, execute=execute, sample=R5_SAMPLE, max_queries=R5_MAX_QUERIES)
+    scope = _PLAN_SCOPE.get()                                  # n174: the workload's review applied (plan_scope)
+    return scope["adjust"](p) if scope else p
 
 
 def _within_call(execute):
@@ -300,6 +317,16 @@ def _within_call(execute):
 def _plan(workspace: str, source: str, schema: str, keys, confirmed, ctx, rows: bool = True):
     """The plan of a source, R5 included (_hosted_plan), over a connection that does not outlive the call. `rows` is
     kept for callers that still pass it; every plan counts R5."""
+    scope = _PLAN_SCOPE.get()
+    if scope is not None:                                      # n174: one read per distinct question within a workload build
+        memo_key = json.dumps([workspace, source, schema, keys, confirmed], sort_keys=True, default=str)
+        if memo_key not in scope["memo"]:
+            scope["memo"][memo_key] = _plan_read(workspace, source, schema, keys, confirmed, ctx)
+        return scope["memo"][memo_key]
+    return _plan_read(workspace, source, schema, keys, confirmed, ctx)
+
+
+def _plan_read(workspace: str, source: str, schema: str, keys, confirmed, ctx):
     headers = _headers(ctx)
     workspace = _workspace_id(workspace, headers)
     item = _resolve_source(workspace, source, headers)
@@ -1443,6 +1470,12 @@ def create_semantic_model(workspace: _p.Workspace, source: _p.Source, name: _p.M
     return _finish_create(out, result, "SemanticModel.ReadWrite.All (or Item.ReadWrite.All)", f"creating the semantic model {name!r}")
 
 
+REPORT_AFTER_CREATION = ("Open the report in the Fabric portal (the workspace's item list) and check the page; edit it there or "
+                         "in Power BI Desktop connected live to the same semantic model.",
+                         "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
+                         "export_item_definitions does not include reports.")
+
+
 @mcp.tool(title="Create a Power BI report on a semantic model (dry run by default)", annotations=WRITE)
 @safe
 def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, empty_page: _p.EmptyPage = False,
@@ -1514,10 +1547,7 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     out = {"dry_run": dry_run, "report": report_out,
            "rest": {"method": "POST", "url": f"{FABRIC}/v1/workspaces/{workspace_id}/{_report.ROUTE}", "body": rest_body,
                     "delegated_scope": _report.SCOPE, "spec": spec},
-           "after_creation": ["Open the report in the Fabric portal (the workspace's item list) and check the page; edit it there or "
-                              "in Power BI Desktop connected live to the same semantic model.",
-                              "If the model was just created, refresh it once so its Direct Lake tables are processed before the first visual.",
-                              "export_item_definitions does not include reports."],
+           "after_creation": list(REPORT_AFTER_CREATION),
            "note": "Unit-tested with the REST calls mocked (201, 202 with a long-running operation, 403, a name already taken); the "
                    "page with visuals (n144) was created in Fabric on 7 November 2026; its look of round n151 (titles, layout, theme, "
                    "slicers) is validated against Microsoft's published PBIR schemas and has not run live. "

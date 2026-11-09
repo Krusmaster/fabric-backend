@@ -338,6 +338,9 @@ it again, are in `docs/WORKLOAD-DEV.md`.
 - **Files:** `workload_api.py` `build` per output, reusing the existing builders.
 - **Tests:** one dry-run test per output on the shop schema; refusal paths (name taken, would remove relationships).
 - **Founder:** approve each first real creation in the company tenant.
+- **Status (n174, 9 November 2026):** built and unit-tested, not yet run in Fabric. Every output of the MCP tools (also
+  the silver notebook, gold views and an API for GraphQL), a data product over them, and the data flow drawn with each
+  box's code; `docs/WORKLOAD-DEV.md`, Hosted, step 7.
 
 ### Phase 4 — Fabric platform features
 

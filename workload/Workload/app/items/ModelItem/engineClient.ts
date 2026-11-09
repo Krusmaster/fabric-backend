@@ -75,6 +75,121 @@ export interface BuildAnswer {
   result?: { status: string; id?: string };
 }
 
+// ------------------------------------------------------------------ n174: every output ---------------------------------
+
+export type OutputKind =
+  | "silver_notebook"
+  | "gold_views"
+  | "pipeline"
+  | "semantic_model"
+  | "report"
+  | "graphql"
+  | "ontology"
+  | "data_agent";
+
+/** One chosen output: its kind and the name of the item; a report may name an existing semantic model. */
+export interface OutputRequest {
+  kind: OutputKind;
+  name: string;
+  model?: string;
+}
+
+export interface CreatedRef {
+  type: string;
+  id: string;
+  name: string;
+  workspace: string;
+  /** the output that made it (an OutputKind; a string so outputs.json's items fit) */
+  output?: string;
+  label?: string;
+}
+
+/** An output the engine did not call its tool for (a name taken by someone else, a missing permission), or the
+ * consent the dry run already sees: error, kind and, for consent, the scope and the Entra steps. */
+export interface Refusal extends EngineError {
+  scope?: string;
+  missing?: string[];
+  entra_steps?: string[];
+  existing?: { type: string; id: string; name: string };
+}
+
+export interface BuildCard {
+  output: OutputKind;
+  label: string;
+  type: string;
+  name: string;
+  dry_run: boolean;
+  would: "create" | "update";
+  updates_in_place: boolean;
+  permissions: { needs: string[]; missing: string[] | null; execute: string };
+  model?: string;
+  refusal?: Refusal;
+  consent?: Refusal;
+  /** the MCP tool's own answer to the same arguments */
+  answer?: Record<string, any> & { error?: string; kind?: string; hint?: string; entra_steps?: string[] };
+  created?: CreatedRef[];
+  portal_steps?: string[];
+}
+
+export interface FlowNode {
+  id: string;
+  column: "bronze" | "silver" | "gold" | "built" | "pipeline";
+  label: string;
+  lines: string[];
+  pills: string[];
+  built: boolean;
+  code: string | null;
+  language?: string;
+  code_title?: string;
+  under?: "silver" | "gold" | "built";
+  table?: string;
+  notebook?: string;
+  kind_label?: string;
+  exists?: boolean;
+}
+
+export interface FlowEdge {
+  from: string;
+  to: string;
+  label?: string;
+  rule?: string;
+  built: boolean;
+}
+
+export interface DataFlow {
+  columns: { id: string; title: string }[];
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+  pipeline: { name: string; steps: string[] } | null;
+  notes: string[];
+  said: string;
+}
+
+export interface DataProduct {
+  name: string;
+  owner: string | null;
+  owner_note: string;
+  plan: { plan_id?: string; schema_fingerprint?: string; review_version?: number };
+  source: { lakehouse: string; schema: string };
+  items: (CreatedRef & { would?: "create" | "update" })[];
+  domains: { name: string; tables: string[]; why: string }[];
+  unassigned: string[];
+  from: string;
+}
+
+export interface ManyAnswer {
+  dry_run: boolean;
+  outputs: BuildCard[];
+  order: OutputKind[];
+  left_out_by_review: LeftOut[];
+  row_check?: CheckTotals;
+  product?: DataProduct;
+  flow?: DataFlow | null;
+  refused: number;
+  note: string;
+  created?: CreatedRef[];
+}
+
 export interface SourceRequest {
   workspace: string;
   source: string;
@@ -148,5 +263,26 @@ export function build(
     review: reviewFile,
     outputs: ["graphql"],
     dry_run: dryRun,
+  });
+}
+
+/** n174: several outputs in one call, each through its MCP tool (workload_api.run_build_many). `created` is
+ * outputs.json's list: the items this Model built and may update in place; anything else of the same name is refused. */
+export function buildMany(
+  workloadClient: WorkloadClientAPI,
+  source: SourceRequest,
+  outputs: OutputRequest[],
+  reviewFile: ReviewFile,
+  dryRun: boolean,
+  product: { name: string } | null,
+  created: CreatedRef[]
+): Promise<ManyAnswer> {
+  return call<ManyAnswer>(workloadClient, "build", {
+    ...source,
+    outputs,
+    review: reviewFile,
+    dry_run: dryRun,
+    product,
+    created,
   });
 }

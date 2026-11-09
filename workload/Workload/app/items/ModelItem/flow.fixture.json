@@ -1,0 +1,479 @@
+{
+ "columns": [
+  {
+   "id": "bronze",
+   "title": "Bronze: the source tables"
+  },
+  {
+   "id": "silver",
+   "title": "Silver: cleaned tables"
+  },
+  {
+   "id": "gold",
+   "title": "Gold: views"
+  },
+  {
+   "id": "built",
+   "title": "Built on the source"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "bronze:categories",
+   "column": "bronze",
+   "label": "shop.categories",
+   "table": "categories",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:customers",
+   "column": "bronze",
+   "label": "shop.customers",
+   "table": "customers",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:addresses",
+   "column": "bronze",
+   "label": "shop.addresses",
+   "table": "addresses",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:audit_log",
+   "column": "bronze",
+   "label": "shop.audit_log",
+   "table": "audit_log",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:orders",
+   "column": "bronze",
+   "label": "shop.orders",
+   "table": "orders",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:products",
+   "column": "bronze",
+   "label": "shop.products",
+   "table": "products",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "bronze:order_items",
+   "column": "bronze",
+   "label": "shop.order_items",
+   "table": "order_items",
+   "lines": [],
+   "pills": [],
+   "built": true,
+   "exists": true,
+   "code": null
+  },
+  {
+   "id": "silver:categories",
+   "column": "silver",
+   "label": "silver.categories",
+   "table": "categories",
+   "lines": [
+    "one row per id"
+   ],
+   "pills": [
+    "K2"
+   ],
+   "built": true,
+   "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"id\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"id\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")",
+   "language": "python",
+   "code_title": "Notebook cell for categories"
+  },
+  {
+   "id": "silver:customers",
+   "column": "silver",
+   "label": "silver.customers",
+   "table": "customers",
+   "lines": [
+    "one row per customer_id"
+   ],
+   "pills": [
+    "K2"
+   ],
+   "built": true,
+   "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\ndf = drop_null_keys(df, [\"customer_id\"], \"customers\", \"K2\")\ndf = keep_latest(df, [\"customer_id\"], None, \"customers\", \"K2\")\nsilver[\"customers\"] = write_silver(df, \"customers\")",
+   "language": "python",
+   "code_title": "Notebook cell for customers"
+  },
+  {
+   "id": "silver:addresses",
+   "column": "silver",
+   "label": "silver.addresses",
+   "table": "addresses",
+   "lines": [
+    "one row per address_id",
+    "customer_id → customers"
+   ],
+   "pills": [
+    "K2",
+    "R1"
+   ],
+   "built": true,
+   "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\ndf = drop_null_keys(df, [\"address_id\"], \"addresses\", \"K2\")\ndf = keep_latest(df, [\"address_id\"], None, \"addresses\", \"K2\")\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
+   "language": "python",
+   "code_title": "Notebook cell for addresses"
+  },
+  {
+   "id": "silver:audit_log",
+   "column": "silver",
+   "label": "silver.audit_log",
+   "table": "audit_log",
+   "lines": [
+    "no key: rows kept as they are",
+    "customer_id → customers"
+   ],
+   "pills": [
+    "R1"
+   ],
+   "built": true,
+   "code": "# ---- audit_log -> silver.audit_log ----\n# No key (rule K3: nothing): every row is kept as it is; nothing to de-duplicate on.\ndf = spark.read.table(source(\"audit_log\"))\nread_counts[\"audit_log\"] = df.count()\n# Reference audit_log.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"audit_log\", \"R1\", \"customer_id has no row in customers (audit_log.customer_id = customers.customer_id)\")\nsilver[\"audit_log\"] = write_silver(df, \"audit_log\")",
+   "language": "python",
+   "code_title": "Notebook cell for audit_log"
+  },
+  {
+   "id": "silver:orders",
+   "column": "silver",
+   "label": "silver.orders",
+   "table": "orders",
+   "lines": [
+    "one row per order_id",
+    "customer_id → customers"
+   ],
+   "pills": [
+    "K2",
+    "R1"
+   ],
+   "built": true,
+   "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\"], \"orders\", \"K2\")\ndf = keep_latest(df, [\"order_id\"], None, \"orders\", \"K2\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
+   "language": "python",
+   "code_title": "Notebook cell for orders"
+  },
+  {
+   "id": "silver:products",
+   "column": "silver",
+   "label": "silver.products",
+   "table": "products",
+   "lines": [
+    "one row per product_id",
+    "category_id → categories"
+   ],
+   "pills": [
+    "K2",
+    "R1"
+   ],
+   "built": true,
+   "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"product_id\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"product_id\"], None, \"products\", \"K2\")\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
+   "language": "python",
+   "code_title": "Notebook cell for products"
+  },
+  {
+   "id": "silver:order_items",
+   "column": "silver",
+   "label": "silver.order_items",
+   "table": "order_items",
+   "lines": [
+    "one row per order_id + line_no",
+    "order_id → orders",
+    "product_id → products"
+   ],
+   "pills": [
+    "K5",
+    "R1",
+    "R1"
+   ],
+   "built": true,
+   "code": "# ---- order_items -> silver.order_items ----\n# Key order_id + line_no (rule K5: line: no column names a key).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"order_items\"))\nread_counts[\"order_items\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\", \"line_no\"], \"order_items\", \"K5\")\ndf = keep_latest(df, [\"order_id\", \"line_no\"], None, \"order_items\", \"K5\")\n# Reference order_items.order_id = orders.order_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver orders, so rows whose orders was quarantined follow it there.\ndf = check_reference(df, [\"order_id\"], silver[\"orders\"], [\"order_id\"], \"order_items\", \"R1\", \"order_id has no row in orders (order_items.order_id = orders.order_id)\")\n# Reference order_items.product_id = products.product_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver products, so rows whose products was quarantined follow it there.\ndf = check_reference(df, [\"product_id\"], silver[\"products\"], [\"product_id\"], \"order_items\", \"R1\", \"product_id has no row in products (order_items.product_id = products.product_id)\")\nsilver[\"order_items\"] = write_silver(df, \"order_items\")",
+   "language": "python",
+   "code_title": "Notebook cell for order_items"
+  },
+  {
+   "id": "gold:gold.audit_log",
+   "column": "gold",
+   "label": "gold.audit_log",
+   "table": "audit_log",
+   "lines": [
+    "one row per audit_log row",
+    "joins customers on customer_id"
+   ],
+   "pills": [
+    "R1"
+   ],
+   "built": true,
+   "code": "-- audit_log is a fact table (nothing points at it, 1 reference(s) out, measures 0.5); one row per audit_log row with 1 table(s) joined in over the safest many-to-one paths.\n-- join audit_log.customer_id -> customers.customer_id: rule R1, certainty 0.8\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`audit_log`\n(\n    -- audit_log.customer_id points at customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no customers is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT audit_log_customer_id_in_customers CHECK ((`customer_id` IS NULL) OR (`customers_customer_id` IS NOT NULL)) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold view of audit_log from silver, generated from the plan; rules in the constraint comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`event` AS `event`,\n    f.`customer_id` AS `customer_id`,\n    f.`happened_at` AS `happened_at`,\n    d1.`customer_id` AS `customers_customer_id`,\n    d1.`country` AS `customers_country`\nFROM `silver`.`audit_log` AS f\n    LEFT JOIN `silver`.`customers` AS d1 ON f.`customer_id` = d1.`customer_id`",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.audit_log"
+  },
+  {
+   "id": "gold:gold.order_items",
+   "column": "gold",
+   "label": "gold.order_items",
+   "table": "order_items",
+   "lines": [
+    "one row per order_items row",
+    "joins orders on order_id",
+    "joins products on product_id",
+    "joins categories on category_id",
+    "joins customers on customer_id"
+   ],
+   "pills": [
+    "R1",
+    "R1",
+    "R1",
+    "R1"
+   ],
+   "built": true,
+   "code": "-- order_items is a fact table (nothing points at it, 2 reference(s) out, measures 1.0); one row per order_items row with 4 table(s) joined in over the safest many-to-one paths.\n-- join order_items.order_id -> orders.order_id: rule R1, certainty 0.8\n-- join order_items.product_id -> products.product_id: rule R1, certainty 0.8\n-- join products.category_id -> categories.id: rule R1, certainty 0.8\n-- join orders.customer_id -> customers.customer_id: rule R1, certainty 0.8\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`order_items`\n(\n    -- the key of order_items is order_id + line_no (rule K5: line: no column names a key); a row without it identifies nothing\n    CONSTRAINT order_items_key_present CHECK (`order_id` IS NOT NULL AND `line_no` IS NOT NULL) ON MISMATCH DROP,\n    -- order_items.order_id points at orders.order_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no orders is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT order_items_order_id_in_orders CHECK ((`order_id` IS NULL) OR (`orders_order_id` IS NOT NULL)) ON MISMATCH DROP,\n    -- order_items.product_id points at products.product_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no products is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT order_items_product_id_in_products CHECK ((`product_id` IS NULL) OR (`products_product_id` IS NOT NULL)) ON MISMATCH DROP,\n    -- products.category_id points at categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no categories is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT order_items_products_category_id_in_categories CHECK ((`products_category_id` IS NULL) OR (`categories_id` IS NOT NULL)) ON MISMATCH DROP,\n    -- orders.customer_id points at customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no customers is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT order_items_orders_customer_id_in_customers CHECK ((`orders_customer_id` IS NULL) OR (`customers_customer_id` IS NOT NULL)) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold view of order_items from silver, generated from the plan; rules in the constraint comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`order_id` AS `order_id`,\n    f.`line_no` AS `line_no`,\n    f.`product_id` AS `product_id`,\n    f.`quantity` AS `quantity`,\n    d1.`order_id` AS `orders_order_id`,\n    d1.`customer_id` AS `orders_customer_id`,\n    d1.`order_date` AS `orders_order_date`,\n    d1.`ship_to_id` AS `orders_ship_to_id`,\n    d2.`product_id` AS `products_product_id`,\n    d2.`name` AS `products_name`,\n    d2.`category_id` AS `products_category_id`,\n    d3.`id` AS `categories_id`,\n    d3.`name` AS `categories_name`,\n    d4.`customer_id` AS `customers_customer_id`,\n    d4.`country` AS `customers_country`\nFROM `silver`.`order_items` AS f\n    LEFT JOIN `silver`.`orders` AS d1 ON f.`order_id` = d1.`order_id`\n    LEFT JOIN `silver`.`products` AS d2 ON f.`product_id` = d2.`product_id`\n    LEFT JOIN `silver`.`categories` AS d3 ON d2.`category_id` = d3.`id`\n    LEFT JOIN `silver`.`customers` AS d4 ON d1.`customer_id` = d4.`customer_id`",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.order_items"
+  },
+  {
+   "id": "gold:gold.orders",
+   "column": "gold",
+   "label": "gold.orders",
+   "table": "orders",
+   "lines": [
+    "one row per orders row",
+    "joins customers on customer_id"
+   ],
+   "pills": [
+    "R1"
+   ],
+   "built": true,
+   "code": "-- orders is a fact table (pointed at by a fact table, 1 reference(s) out, measures 1.0 (a header table)); one row per orders row with 1 table(s) joined in over the safest many-to-one paths.\n-- join orders.customer_id -> customers.customer_id: rule R1, certainty 0.8\nCREATE OR REPLACE MATERIALIZED LAKE VIEW `gold`.`orders`\n(\n    -- the key of orders is order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)); a row without it identifies nothing\n    CONSTRAINT orders_key_present CHECK (`order_id` IS NOT NULL) ON MISMATCH DROP,\n    -- orders.customer_id points at customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key); a row whose reference finds no customers is dropped, a NULL reference is kept (it says unknown, not wrong)\n    CONSTRAINT orders_customer_id_in_customers CHECK ((`customer_id` IS NULL) OR (`customers_customer_id` IS NOT NULL)) ON MISMATCH DROP\n)\nCOMMENT \"Krusgraph gold view of orders from silver, generated from the plan; rules in the constraint comments\"\nTBLPROPERTIES (\"krusgraph.gold\"=\"00000000-0000-0000-0000-000000000001/shop\")\nAS\nSELECT\n    f.`order_id` AS `order_id`,\n    f.`customer_id` AS `customer_id`,\n    f.`order_date` AS `order_date`,\n    f.`ship_to_id` AS `ship_to_id`,\n    d1.`customer_id` AS `customers_customer_id`,\n    d1.`country` AS `customers_country`\nFROM `silver`.`orders` AS f\n    LEFT JOIN `silver`.`customers` AS d1 ON f.`customer_id` = d1.`customer_id`",
+   "language": "sql",
+   "code_title": "CREATE MATERIALIZED LAKE VIEW gold.orders"
+  },
+  {
+   "id": "pipeline:0",
+   "column": "pipeline",
+   "under": "silver",
+   "label": "Silver tables",
+   "notebook": "shop_silver",
+   "lines": [
+    "runs shop_silver",
+    "first step"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "{\n  \"name\": \"Silver tables\",\n  \"type\": \"TridentNotebook\",\n  \"dependsOn\": [],\n  \"policy\": {\n    \"timeout\": \"0.12:00:00\",\n    \"retry\": 0,\n    \"retryIntervalInSeconds\": 30,\n    \"secureOutput\": false,\n    \"secureInput\": false\n  },\n  \"typeProperties\": {\n    \"notebookId\": \"<id of the notebook shop_silver>\",\n    \"workspaceId\": \"00000000-0000-0000-0000-000000000000\"\n  }\n}",
+   "language": "json",
+   "code_title": "Activity Silver tables of shop_flow"
+  },
+  {
+   "id": "pipeline:1",
+   "column": "pipeline",
+   "under": "gold",
+   "label": "Gold views",
+   "notebook": "shop_gold",
+   "lines": [
+    "runs shop_gold",
+    "after Silver tables succeeded"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "{\n  \"name\": \"Gold views\",\n  \"type\": \"TridentNotebook\",\n  \"dependsOn\": [\n    {\n      \"activity\": \"Silver tables\",\n      \"dependencyConditions\": [\n        \"Succeeded\"\n      ]\n    }\n  ],\n  \"policy\": {\n    \"timeout\": \"0.12:00:00\",\n    \"retry\": 0,\n    \"retryIntervalInSeconds\": 30,\n    \"secureOutput\": false,\n    \"secureInput\": false\n  },\n  \"typeProperties\": {\n    \"notebookId\": \"<id of the notebook shop_gold>\",\n    \"workspaceId\": \"00000000-0000-0000-0000-000000000000\"\n  }\n}",
+   "language": "json",
+   "code_title": "Activity Gold views of shop_flow"
+  },
+  {
+   "id": "pipeline:2",
+   "column": "pipeline",
+   "under": "built",
+   "label": "Check keys, orphans and sums",
+   "notebook": "shop_flow_check",
+   "lines": [
+    "runs shop_flow_check",
+    "after Gold views succeeded"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "{\n  \"name\": \"Check keys, orphans and sums\",\n  \"type\": \"TridentNotebook\",\n  \"dependsOn\": [\n    {\n      \"activity\": \"Gold views\",\n      \"dependencyConditions\": [\n        \"Succeeded\"\n      ]\n    }\n  ],\n  \"policy\": {\n    \"timeout\": \"0.12:00:00\",\n    \"retry\": 0,\n    \"retryIntervalInSeconds\": 30,\n    \"secureOutput\": false,\n    \"secureInput\": false\n  },\n  \"typeProperties\": {\n    \"notebookId\": \"<id of the notebook shop_flow_check>\",\n    \"workspaceId\": \"00000000-0000-0000-0000-000000000000\"\n  }\n}",
+   "language": "json",
+   "code_title": "Activity Check keys, orphans and sums of shop_flow"
+  },
+  {
+   "id": "item:semantic_model",
+   "column": "built",
+   "label": "shop_sales",
+   "kind_label": "Semantic model",
+   "lines": [
+    "reads shop (bronze) directly"
+   ],
+   "pills": [],
+   "built": true,
+   "code": "// definition/relationships.tmdl\nrelationship ba28c101-7344-50ec-aff0-139148a5dbaa\n\tfromColumn: order_items.order_id\n\ttoColumn: orders.order_id\n\nrelationship 6ce3d257-8c9f-5b31-a238-130816343052\n\tfromColumn: order_items.product_id\n\ttoColumn: products.product_id\n\nrelationship 74444cac-8194-538a-990b-b6ed2a145059\n\tfromColumn: addresses.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 97c2b04e-4e36-5afa-bc44-07adfcdee80f\n\tfromColumn: audit_log.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 2ae7ce22-3e35-5c81-9861-d14b394ae85f\n\tfromColumn: orders.customer_id\n\ttoColumn: customers.customer_id\n\nrelationship 4e360a7c-d1ee-5bdf-9892-f30670806203\n\tfromColumn: products.category_id\n\ttoColumn: categories.id\n\nrelationship 61d8b116-27c0-5e1e-93ea-2e5f4b9e8622\n\tfromColumn: orders.order_date\n\ttoColumn: Calendar.Date\n\n// definition/tables/audit_log.tmdl (measures)\n\tmeasure 'Rows in audit_log' = COUNTROWS('audit_log')\n\t\tformatString: #,0\n\t\tlineageTag: 7959d9c4-81da-53f0-b0cb-61a4f8e8acba\n\n// definition/tables/order_items.tmdl (measures)\n\tmeasure 'Rows in order_items' = COUNTROWS('order_items')\n\t\tformatString: #,0\n\t\tlineageTag: fcae4dc7-0e9b-50ed-a9ff-bf7bf92b6ff8\n\tmeasure 'Total quantity' = SUM('order_items'[quantity])\n\t\tformatString: #,##0.00\n\t\tlineageTag: f1ba337d-ea16-5606-951c-cf9ffb1bd197\n\tmeasure 'Order amount' = SUMX('order_items', 'order_items'[quantity] * RELATED('products'[list_price]))\n\t\tformatString: #,##0.00\n\t\tlineageTag: 3c3184d8-2a7f-54bc-992d-83e53d575322\n\n// definition/tables/orders.tmdl (measures)\n\tmeasure 'Rows in orders' = COUNTROWS('orders')\n\t\tformatString: #,0\n\t\tlineageTag: 76bf5d89-a80d-520a-aaa2-00b728efa786",
+   "language": "tmdl",
+   "code_title": "shop_sales: relationships and measures"
+  }
+ ],
+ "edges": [
+  {
+   "from": "bronze:categories",
+   "to": "silver:categories",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:customers",
+   "to": "silver:customers",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:addresses",
+   "to": "silver:addresses",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:audit_log",
+   "to": "silver:audit_log",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:orders",
+   "to": "silver:orders",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:products",
+   "to": "silver:products",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "bronze:order_items",
+   "to": "silver:order_items",
+   "label": "cleaned",
+   "built": true
+  },
+  {
+   "from": "silver:audit_log",
+   "to": "gold:gold.audit_log",
+   "label": "fact",
+   "built": true
+  },
+  {
+   "from": "silver:customers",
+   "to": "gold:gold.audit_log",
+   "label": "on customer_id = customer_id",
+   "rule": "R1",
+   "via": "audit_log",
+   "built": true
+  },
+  {
+   "from": "silver:order_items",
+   "to": "gold:gold.order_items",
+   "label": "fact",
+   "built": true
+  },
+  {
+   "from": "silver:orders",
+   "to": "gold:gold.order_items",
+   "label": "on order_id = order_id",
+   "rule": "R1",
+   "via": "order_items",
+   "built": true
+  },
+  {
+   "from": "silver:products",
+   "to": "gold:gold.order_items",
+   "label": "on product_id = product_id",
+   "rule": "R1",
+   "via": "order_items",
+   "built": true
+  },
+  {
+   "from": "silver:categories",
+   "to": "gold:gold.order_items",
+   "label": "on category_id = id",
+   "rule": "R1",
+   "via": "products",
+   "built": true
+  },
+  {
+   "from": "silver:customers",
+   "to": "gold:gold.order_items",
+   "label": "on customer_id = customer_id",
+   "rule": "R1",
+   "via": "orders",
+   "built": true
+  },
+  {
+   "from": "silver:orders",
+   "to": "gold:gold.orders",
+   "label": "fact",
+   "built": true
+  },
+  {
+   "from": "silver:customers",
+   "to": "gold:gold.orders",
+   "label": "on customer_id = customer_id",
+   "rule": "R1",
+   "via": "orders",
+   "built": true
+  },
+  {
+   "from": "pipeline:0",
+   "to": "pipeline:1",
+   "label": "on success",
+   "built": true
+  },
+  {
+   "from": "pipeline:1",
+   "to": "pipeline:2",
+   "label": "on success",
+   "built": true
+  },
+  {
+   "from": "bronze",
+   "to": "item:semantic_model",
+   "label": "reads the source tables",
+   "built": true
+  }
+ ],
+ "pipeline": {
+  "name": "shop_flow",
+  "steps": [
+   "pipeline:0",
+   "pipeline:1",
+   "pipeline:2"
+  ]
+ },
+ "notes": [],
+ "said": "Bronze to gold: 7 source table(s) become 7 silver table(s), and 3 gold view(s) join them. Dashed boxes are not part of this build. Click a box to see its code."
+}

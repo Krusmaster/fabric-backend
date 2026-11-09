@@ -11,6 +11,11 @@
  * map (the MCP Apps cards' drawing) and the list show passed, failed and not checked; Accept all and Accept all that
  * passed the check; Thinker's questions answered inline (a key for a keyless table, the table a column points to, or
  * keep it as it is). The ribbon stays one sticky ribbon with Home first.
+ *
+ * n174: Choose what to build offers every output the MCP tools build (buildWords.KINDS); Preview is one dry run per
+ * output (/workload/v1/build with outputs [{kind, name}]), with the data flow drawn and the data product; Create builds
+ * them in order and keeps the created ids and the product in outputs.json. Re-opened, the item shows its product and
+ * offers Update where the output's tool updates in place, a new name where it does not (a report).
  */
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -21,7 +26,6 @@ import {
   ArrowRight24Regular,
   CheckmarkStarburst24Regular,
   Database24Regular,
-  Open24Regular,
   Play24Regular,
 } from "@fluentui/react-icons";
 import { PageProps, ContextProps } from "../../App";
@@ -35,13 +39,14 @@ import {
   DefinitionError,
   ModelDefinition,
   ModelView,
+  OutputChoice,
   ReviewStatus,
   decide,
-  defaultApiName,
   emptyDefinition,
   fromParts,
   toParts,
 } from "./ModelItemDefinition";
+import { OpenLink, afterCreate, choicesFor, createLabel, toRequests } from "./buildWords";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
@@ -59,11 +64,12 @@ export function ModelItemEditor(props: PageProps) {
   const [def, setDef] = useState<ModelDefinition>(emptyDefinition());
   const [dirty, setDirty] = useState(false);
   const [schema, setSchema] = useState("dbo");
-  const [apiName, setApiName] = useState("");
+  const [choices, setChoices] = useState<OutputChoice[]>([]);
+  const [product, setProduct] = useState<{ on: boolean; name: string }>({ on: false, name: "" });
   const [map, setMap] = useState<MapData>();
   const [mascotsOn, setMascotsOn] = useState(true);
-  const [preview, setPreview] = useState<engine.BuildAnswer>();
-  const [result, setResult] = useState<engine.BuildAnswer>();
+  const [preview, setPreview] = useState<engine.ManyAnswer>();
+  const [result, setResult] = useState<engine.ManyAnswer>();
   const [setView, setSetView] = useState<(v: string) => void>();
   const view = def.item.view;
 
@@ -114,7 +120,8 @@ export function ModelItemEditor(props: PageProps) {
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });
         setDef(loaded);
         setSchema(loaded.source?.schema ?? "dbo");
-        setApiName(loaded.outputs.outputs[0]?.name ?? defaultApiName(loaded.source?.displayName ?? got.item.displayName));
+        setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName));
+        setProduct({ on: !!loaded.outputs.product, name: loaded.outputs.product?.name ?? got.item.displayName });
         setIsLoading(false);
         if (loaded.source && loaded.review) {
           await plan({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
@@ -155,7 +162,7 @@ export function ModelItemEditor(props: PageProps) {
       schema,
     };
     setDef((d) => ({ ...d, source, review: d.source?.itemId === picked.id ? d.review : undefined }));
-    setApiName(defaultApiName(picked.displayName));
+    setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName));
     setDirty(true);
   }
 
@@ -196,33 +203,37 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
+  /** n174: every chosen output, one dry run each (the engine calls each MCP tool with dry_run=true). */
   async function previewBuild() {
-    const d = { ...def, outputs: { ...def.outputs, outputs: [{ type: "graphql" as const, name: apiName, enabled: true, writable: false as const }] } };
+    const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
     setDef(d);
-    const a = await runEngine("Preparing the dry run…", () => engine.build(workloadClient, sourceRequest(d), apiName, d.review, true));
+    const a = await runEngine("Preparing the dry run of each output…", () =>
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created)
+    );
     if (!a) return;
     setPreview(a);
     go("preview");
   }
 
   async function create() {
-    const a = await runEngine("Creating the API for GraphQL…", () => engine.build(workloadClient, sourceRequest(def), apiName, def.review, false));
+    const a = await runEngine("Creating in Fabric, one output after another…", () =>
+      engine.buildMany(workloadClient, sourceRequest(def), toRequests(choices), def.review, false, product.on ? { name: product.name.trim() } : null, def.outputs.created)
+    );
     if (!a) return;
     setResult(a);
-    const d = { ...def, item: { ...def.item, view: "result" as const }, outputs: { ...def.outputs, created: a.created ?? [] } };
+    const d = { ...def, item: { ...def.item, view: "result" as const }, outputs: afterCreate(def.outputs, choices, a, new Date().toISOString()) };
     setDef(d);
     setView?.("result");
     await save(d);
   }
 
-  async function openCreated() {
-    const c = result?.created?.[0] ?? def.outputs.created[0];
-    if (c) await navigateToItem(workloadClient, { id: c.id, workspaceId: c.workspace, type: "GraphQLApi", displayName: c.name } as never);
+  async function openItem(item: OpenLink["item"]) {
+    await navigateToItem(workloadClient, item as never);
   }
 
   // ---------------------------------------------------------------- ribbon (one sticky ribbon, Home first)
   const homeActions = (): RibbonAction[] => {
-    const back: Partial<Record<ModelView, ModelView>> = { review: "empty", outputs: "review", preview: "outputs" };
+    const back: Partial<Record<ModelView, ModelView>> = { review: "empty", outputs: "review", preview: "outputs", result: "outputs" };
     const actions: RibbonAction[] = [createSaveAction(() => save(), !dirty || !itemMeta)];
     actions.push({ key: "choose-source", icon: Database24Regular, label: "Choose source", onClick: () => go("empty") });
     if (view === "review") {
@@ -231,7 +242,6 @@ export function ModelItemEditor(props: PageProps) {
       actions.push({ key: "next", icon: ArrowRight24Regular, label: "Next", onClick: () => go("outputs") });
     }
     if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: create, disabled: !!busy });
-    if (view === "result") actions.push({ key: "open", icon: Open24Regular, label: "Open item", onClick: openCreated });
     if (back[view]) actions.push({ key: "back", icon: ArrowLeft24Regular, label: "Back", onClick: () => go(back[view]) });
     return actions;
   };
@@ -279,9 +289,31 @@ export function ModelItemEditor(props: PageProps) {
         ) : null
       ),
     },
-    { name: "outputs", component: wrap(<OutputsView name={apiName} onNameChange={setApiName} onPreview={previewBuild} />) },
-    { name: "preview", component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} /> : null) },
-    { name: "result", component: wrap(result ? <ResultView answer={result} onOpen={openCreated} mascotsOn={mascotsOn} /> : null) },
+    {
+      name: "outputs",
+      component: wrap(
+        <OutputsView
+          choices={choices}
+          onChange={setChoices}
+          created={def.outputs.created}
+          product={product}
+          onProduct={setProduct}
+          stored={def.outputs.product}
+          onOpen={openItem}
+          onPreview={previewBuild}
+        />
+      ),
+    },
+    {
+      name: "preview",
+      component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} createLabel={createLabel(preview)} /> : null),
+    },
+    {
+      name: "result",
+      component: wrap(
+        result || def.outputs.created.length ? <ResultView answer={result} outputs={def.outputs} onOpen={openItem} mascotsOn={mascotsOn} /> : null
+      ),
+    },
   ];
 
   return (

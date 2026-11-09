@@ -144,7 +144,8 @@
 }
 
 // ------------------------------------------------------------------ the map: the cards' drawing on Fluent tokens
-.krusgraph-map {
+.krusgraph-map,
+.krusgraph-flow {
   --kg-font: var(--fontFamilyBase);
   --kg-bg: var(--colorNeutralBackground1);
   --kg-card: var(--colorNeutralBackground2);
@@ -195,4 +196,141 @@
   .kgc-n.kg-rv-accepted rect:first-of-type {
     stroke-width: 2;
   }
+}
+
+// ------------------------------------------------------------------ n174: the data flow (FlowView.tsx)
+.krusgraph-flow {
+  display: grid;
+  gap: var(--spacingVerticalS);
+  min-width: 0;
+
+  .kgf-col {
+    fill: var(--kg-muted);
+    font-size: 11.5px;
+    font-weight: 650;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .kgf-e {
+    fill: none;
+    stroke: var(--kg-pic-edge);
+    stroke-width: 1.6;
+  }
+
+  .kgf-e.off {
+    stroke: var(--kg-muted);
+    stroke-dasharray: 6 4;
+  }
+
+  .kgf-n.off > rect {
+    stroke-dasharray: 6 4;
+    fill: var(--kg-bg);
+  }
+
+  .kgf-n.off text {
+    fill: var(--kg-muted);
+  }
+
+  .kgf-bronze > rect {
+    fill: var(--colorPaletteMarigoldBackground1);
+  }
+
+  .kgf-gold > rect {
+    stroke: var(--colorPaletteMarigoldBorderActive);
+  }
+
+  .kgf-n.has-code {
+    cursor: pointer;
+  }
+
+  .kgf-n.has-code:focus {
+    outline: none;
+  }
+
+  .kgf-n.has-code:focus > rect,
+  .kgf-n.has-code:hover > rect,
+  .kgf-n.open > rect {
+    stroke: var(--kg-pic-accent);
+    stroke-width: 2.4;
+  }
+
+  .kgf-more {
+    fill: var(--kg-pic-accent);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .krusgraph-flow-legend .lg.off::before {
+    background: repeating-linear-gradient(90deg, var(--kg-muted) 0 5px, transparent 5px 8px);
+  }
+
+  .krusgraph-flow-note {
+    color: var(--kg-muted);
+    margin: 0;
+  }
+}
+
+.krusgraph-code {
+  border: 1px solid var(--colorNeutralStroke1);
+  border-radius: var(--borderRadiusMedium);
+  background: var(--colorNeutralBackground2);
+  min-width: 0;
+
+  .krusgraph-code-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacingHorizontalS);
+    align-items: center;
+    padding: var(--spacingVerticalXS) var(--spacingHorizontalS);
+    border-bottom: 1px solid var(--colorNeutralStroke2);
+  }
+
+  .krusgraph-code-lang {
+    color: var(--colorNeutralForeground3);
+    margin-right: auto;
+  }
+
+  pre {
+    margin: 0;
+    padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+    overflow: auto;
+    max-height: 420px;
+    font-family: var(--fontFamilyMonospace);
+    font-size: var(--fontSizeBase200);
+    line-height: 1.45;
+    white-space: pre;
+  }
+}
+
+// ------------------------------------------------------------------ n174: the outputs, the cards, the product
+.krusgraph-outputs {
+  display: grid;
+  gap: var(--spacingVerticalS);
+  max-width: 880px;
+}
+
+.krusgraph-output {
+  display: grid;
+  gap: var(--spacingVerticalXS);
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  border: 1px solid var(--colorNeutralStroke2);
+  border-radius: var(--borderRadiusMedium);
+}
+
+.krusgraph-output.refused {
+  border-color: var(--colorPaletteRedBorder2);
+}
+
+.krusgraph-product {
+  display: grid;
+  gap: var(--spacingVerticalXS);
+  padding: var(--spacingVerticalS) var(--spacingHorizontalM);
+  border: 2px solid var(--colorBrandStroke1);
+  border-radius: var(--borderRadiusLarge);
+}
+
+.krusgraph-steps {
+  margin: 0;
+  padding-left: 1.2em;
 }

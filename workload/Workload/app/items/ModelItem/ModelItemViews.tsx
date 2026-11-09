@@ -1,5 +1,7 @@
 /**
  * The five views of the Krusgraph Model editor: empty state, review, choose outputs, preview (dry run), result.
+ * n174: every output the MCP tools build (KINDS in buildWords.ts), one dry-run card each, the data product, the data flow
+ * (FlowView.tsx), and the result with Open in Fabric and the portal steps left per item.
  * Copy follows the site: plain words, numbers only from the engine's answers, no claims about speed or compliance.
  * n173: the review shows the map (the MCP Apps cards' drawing, cardMap.ts) or the list, each row's check state
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
@@ -24,10 +26,35 @@ import {
   Title3,
   Tooltip,
 } from "@fluentui/react-components";
-import { CheckmarkStarburst24Regular } from "@fluentui/react-icons";
+import { CheckmarkStarburst24Regular, Open24Regular } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
-import { BuildAnswer, EngineError } from "./engineClient";
-import { ReviewFile, ReviewItem, ReviewStatus, SourceDefinition, sortForReview } from "./ModelItemDefinition";
+import { BuildCard, DataProduct, EngineError, ManyAnswer } from "./engineClient";
+import {
+  CreatedItem,
+  OutputChoice,
+  OutputsDefinition,
+  ProductDefinition,
+  ReviewFile,
+  ReviewItem,
+  ReviewStatus,
+  SourceDefinition,
+  sortForReview,
+} from "./ModelItemDefinition";
+import {
+  KINDS,
+  OpenLink,
+  cardFacts,
+  cardProblem,
+  cardTitle,
+  choiceProblems,
+  kindInfo,
+  nameAction,
+  openLinks,
+  previewLine,
+  resultLine,
+  validName,
+} from "./buildWords";
+import { FlowView } from "./FlowView";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
 import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES, MASCOT_SVG } from "./cardMap.generated";
 import {
@@ -310,25 +337,88 @@ export function ReviewView(props: {
   );
 }
 
-// ------------------------------------------------------------------ 3. choose outputs -------------------------------
+// ------------------------------------------------------------------ 3. choose outputs (n174: every output) ----------
 
-export const LATER_OUTPUTS = ["Semantic model", "Report", "Pipeline", "Ontology", "Data agent"];
-
-export function OutputsView(props: { name: string; onNameChange: (name: string) => void; onPreview: () => void }) {
-  const valid = /^[A-Za-z0-9_]{1,123}$/.test(props.name);
+export function OutputsView(props: {
+  choices: OutputChoice[];
+  onChange: (choices: OutputChoice[]) => void;
+  created: CreatedItem[];
+  product: { on: boolean; name: string };
+  onProduct: (p: { on: boolean; name: string }) => void;
+  stored?: ProductDefinition;
+  onOpen: (item: OpenLink["item"]) => void;
+  onPreview: () => void;
+}) {
+  const problems = choiceProblems(props.choices);
+  const productOk = !props.product.on || /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$/.test(props.product.name.trim());
+  const set = (kind: string, patch: Partial<OutputChoice>) =>
+    props.onChange(props.choices.map((c) => (c.type === kind ? { ...c, ...patch } : c)));
   return (
     <div className="krusgraph-view">
       <Title3>Choose what to build</Title3>
-      <Checkbox checked disabled label="API for GraphQL" />
-      <Field label="Name of the API" validationMessage={valid ? undefined : "Letters, digits and underscores only"}
-        validationState={valid ? "none" : "error"}>
-        <Input value={props.name} onChange={(_, d) => props.onNameChange(d.value)} />
-      </Field>
-      {LATER_OUTPUTS.map((label) => (
-        <Checkbox key={label} disabled label={`${label} (later)`} />
+      <Body1>
+        Each output is made by the same engine as the Krusgraph tools in Claude, from the keys and links you reviewed. Preview shows a
+        dry run of each; nothing is created until you choose Create, and nothing is run or scheduled.
+      </Body1>
+      {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
+      <div className="krusgraph-outputs">
+        {KINDS.map((k) => {
+          const c = props.choices.find((x) => x.type === k.kind);
+          if (!c) return null;
+          const act = nameAction(k.kind, c.name, props.created);
+          const valid = validName(c.name);
+          return (
+            <section key={k.kind} className="krusgraph-output" aria-label={k.label}>
+              <Checkbox checked={c.enabled} label={k.label} onChange={(_, d) => set(k.kind, { enabled: !!d.checked })} />
+              <Caption1>{k.what}</Caption1>
+              {c.enabled && (
+                <>
+                  <Field label={`Name of the ${k.label.toLowerCase()}`} validationState={valid ? "none" : "error"}
+                    validationMessage={valid ? undefined : "Letters, digits and underscores only"}>
+                    <Input value={c.name} onChange={(_, d) => set(k.kind, { name: d.value })} />
+                  </Field>
+                  {act.action === "update" && <Badge appearance="tint" color="brand">Update: {act.reason}</Badge>}
+                  {act.action === "new_name" && (
+                    <div>
+                      <Caption1>{act.reason} </Caption1>
+                      <Button size="small" onClick={() => set(k.kind, { name: act.suggestion })}>
+                        Use {act.suggestion}
+                      </Button>
+                    </div>
+                  )}
+                  {k.kind === "report" && (
+                    <Field label="Built on" hint="Empty: the semantic model chosen above. Or the name of a semantic model already in this workspace.">
+                      <Input value={c.model ?? ""} onChange={(_, d) => set(k.kind, { model: d.value })} />
+                    </Field>
+                  )}
+                  <Caption1>Needs the delegated permission {k.needs.join(", and ")}.</Caption1>
+                </>
+              )}
+            </section>
+          );
+        })}
+      </div>
+      <section className="krusgraph-output" aria-label="Data product">
+        <Checkbox checked={props.product.on} label="Bundle them as one data product"
+          onChange={(_, d) => props.onProduct({ ...props.product, on: !!d.checked })} />
+        <Caption1>
+          One name over what this build makes, with the domains Krusgraph proposes for these tables and an owner you choose later. It is kept in
+          this item; Fabric domains themselves need a Fabric administrator.
+        </Caption1>
+        {props.product.on && (
+          <Field label="Name of the data product" validationState={productOk ? "none" : "error"}
+            validationMessage={productOk ? undefined : "Letters, digits, spaces, '.', '_' or '-', at most 80"}>
+            <Input value={props.product.name} onChange={(_, d) => props.onProduct({ ...props.product, name: d.value })} />
+          </Field>
+        )}
+      </section>
+      {problems.map((p) => (
+        <MessageBar key={p} intent="warning">
+          <MessageBarBody>{p}</MessageBarBody>
+        </MessageBar>
       ))}
       <div>
-        <Button appearance="primary" disabled={!valid} onClick={props.onPreview}>
+        <Button appearance="primary" disabled={problems.length > 0 || !productOk} onClick={props.onPreview}>
           Preview
         </Button>
       </div>
@@ -336,20 +426,127 @@ export function OutputsView(props: { name: string; onNameChange: (name: string) 
   );
 }
 
+// ------------------------------------------------------------------ the cards, the product -------------------------
+
+function Problem({ card }: { card: BuildCard }) {
+  const p = cardProblem(card);
+  if (!p) return null;
+  const warn = !card.refusal && !card.answer?.error;
+  return (
+    <MessageBar intent={warn ? "warning" : "error"} layout="multiline">
+      <MessageBarBody>
+        {warn ? "Create would stop here: " : ""}
+        {p.error}
+        {p.hint ? ` ${p.hint}` : ""}
+        {p.steps && p.steps.length > 0 && (
+          <ol className="krusgraph-steps" aria-label="Steps in Entra">
+            {p.steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        )}
+      </MessageBarBody>
+    </MessageBar>
+  );
+}
+
+export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["item"]) => void }) {
+  const c = props.card;
+  const facts = cardFacts(c);
+  const links = openLinks(c.created ?? []);
+  const refused = !!(c.refusal || c.answer?.error);
+  return (
+    <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
+      <Subtitle2>{cardTitle(c)}</Subtitle2>
+      {facts.length > 0 && (
+        <ul className="krusgraph-list">
+          {facts.map((f) => (
+            <li key={f}>
+              <Body1>{f}</Body1>
+            </li>
+          ))}
+        </ul>
+      )}
+      <Problem card={c} />
+      {links.length > 0 && (
+        <div className="krusgraph-actions">
+          {links.map((l) => (
+            <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
+              Open in Fabric: {l.label}
+            </Button>
+          ))}
+        </div>
+      )}
+      {(c.portal_steps ?? []).filter(Boolean).length > 0 && (
+        <>
+          <Caption1>Still to do in the Fabric portal</Caption1>
+          <ul className="krusgraph-list">
+            {(c.portal_steps ?? []).filter(Boolean).map((s) => (
+              <li key={s}>
+                <Body1>{s}</Body1>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <Caption1>Permission: {c.permissions.needs.join(", and ")}. No run or schedule permission is used.</Caption1>
+    </section>
+  );
+}
+
+export function ProductView(props: {
+  product: ProductDefinition | DataProduct;
+  onOpen?: (item: OpenLink["item"]) => void;
+  title?: string;
+}) {
+  const p = props.product;
+  const items = p.items as (CreatedItem & { would?: string; output?: string })[];
+  const withIds = items.filter((x) => x.id);
+  return (
+    <section className="krusgraph-product" aria-label={`Data product ${p.name}`}>
+      <Caption1>{props.title ?? "Data product"}</Caption1>
+      <Subtitle2>{p.name}</Subtitle2>
+      <Body1>Owner: {p.owner ?? "nobody has chosen one yet"}. Plan {p.plan.plan_id ?? "?"}{p.plan.schema_fingerprint ? `, schema ${p.plan.schema_fingerprint}` : ""}.</Body1>
+      <ul className="krusgraph-list">
+        {items.map((x) => (
+          <li key={x.id || `${x.output}:${x.name}`}>
+            <Body1>
+              {kindInfo(x.output ?? "")?.label ?? x.type} {x.name}
+              {x.would ? ` (${x.would === "update" ? "would be updated" : "would be created"})` : ""}
+            </Body1>
+          </li>
+        ))}
+      </ul>
+      {withIds.length > 0 && props.onOpen && (
+        <div className="krusgraph-actions">
+          {openLinks(withIds).map((l) => (
+            <Button key={l.item.id} size="small" icon={<Open24Regular />} onClick={() => props.onOpen?.(l.item)}>
+              Open {l.label}
+            </Button>
+          ))}
+        </div>
+      )}
+      {p.domains.length > 0 && (
+        <Caption1>
+          Domains Krusgraph proposes: {p.domains.map((d) => `${d.name} (${d.tables.join(", ")})`).join("; ")}.
+        </Caption1>
+      )}
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------ 4. preview (dry run) ----------------------------
 
-export function PreviewView(props: { answer: BuildAnswer; onCreate: () => void; mascotsOn: boolean }) {
+export function PreviewView(props: { answer: ManyAnswer; onCreate: () => void; mascotsOn: boolean; createLabel: string }) {
   const a = props.answer;
-  const changes = Object.entries(a.changes ?? {}).filter(([, v]) => Array.isArray(v) && v.length > 0);
   const checkLine = dryRunCheckLine(a.row_check);
-  const builder = `This is the dry run: nothing exists yet. Choose Create to ${a.would === "update" ? "update" : "make"} ${a.name} in Fabric.`;
+  const builder = previewLine(a);
   const checked = !!a.row_check?.checked;
   const failed = checked ? a.row_check.keys.failed + a.row_check.relationships.failed : 0;
+  const canCreate = a.outputs.length > a.refused;
   return (
     <div className="krusgraph-view">
-      <Title3>
-        Dry run: {a.would === "update" ? "update" : "create"} {a.name}
-      </Title3>
+      <Title3>Dry run</Title3>
       {props.mascotsOn ? (
         <ul className="krusgraph-mascots">
           <style>{MASCOT_CSS}</style>
@@ -363,32 +560,11 @@ export function PreviewView(props: { answer: BuildAnswer; onCreate: () => void; 
         </>
       )}
       <Body1>{a.note}</Body1>
-      {changes.length > 0 && (
-        <section>
-          <Subtitle2>What changes</Subtitle2>
-          <ul className="krusgraph-list">
-            {changes.map(([k, v]) => (
-              <li key={k}>
-                <Body1>
-                  {k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, " ")}: {v.length}
-                </Body1>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {(a.checks_passed ?? []).length > 0 && (
-        <section>
-          <Subtitle2>Checks that passed</Subtitle2>
-          <ul className="krusgraph-list">
-            {a.checks_passed.map((c) => (
-              <li key={c}>
-                <Body1>{c}</Body1>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {a.product && <ProductView product={a.product} title="Data product (dry run)" />}
+      {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
+      {a.outputs.map((c) => (
+        <OutputCard key={c.output} card={c} />
+      ))}
       {a.left_out_by_review.length > 0 && (
         <section>
           <Subtitle2>Left out because of your review</Subtitle2>
@@ -404,8 +580,8 @@ export function PreviewView(props: { answer: BuildAnswer; onCreate: () => void; 
         </section>
       )}
       <div>
-        <Button appearance="primary" onClick={props.onCreate}>
-          Create
+        <Button appearance="primary" disabled={!canCreate} onClick={props.onCreate}>
+          {props.createLabel}
         </Button>
       </div>
     </div>
@@ -414,52 +590,43 @@ export function PreviewView(props: { answer: BuildAnswer; onCreate: () => void; 
 
 // ------------------------------------------------------------------ 5. result ----------------------------------------
 
-export function ResultView(props: { answer: BuildAnswer; onOpen: () => void; mascotsOn: boolean }) {
+export function ResultView(props: {
+  answer?: ManyAnswer;
+  outputs: OutputsDefinition;
+  onOpen: (item: OpenLink["item"]) => void;
+  mascotsOn: boolean;
+}) {
   const a = props.answer;
-  const said = `${a.created?.[0]?.name ?? "The API"} is in Fabric now. Open it there to run a query.`;
+  const said = a ? resultLine(a) : "This item built these before. Open each in Fabric; choose outputs again to update them.";
+  const stored = props.outputs.product;
+  const earlier = openLinks(props.outputs.created);
   return (
     <div className="krusgraph-view">
-      <Title3>API for GraphQL: {a.created?.[0]?.name}</Title3>
+      <Title3>Built in Fabric</Title3>
       {props.mascotsOn ? (
         <ul className="krusgraph-mascots">
           <style>{MASCOT_CSS}</style>
-          <MascotSays kind="builder" text={said} pose="point" />
+          <MascotSays kind="builder" text={said} pose="point" glad={!!a && !a.refused} />
         </ul>
       ) : (
         <Body1>{said}</Body1>
       )}
-      {a.endpoint && (
-        <Field label="GraphQL endpoint">
-          <Input readOnly value={a.endpoint} />
-        </Field>
+      {stored && <ProductView product={stored} onOpen={props.onOpen} />}
+      {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
+      {a ? (
+        a.outputs.map((c) => <OutputCard key={c.output} card={c} onOpen={props.onOpen} />)
+      ) : (
+        <section>
+          <Subtitle2>Created items</Subtitle2>
+          <div className="krusgraph-actions">
+            {earlier.map((l) => (
+              <Button key={l.item.id} icon={<Open24Regular />} onClick={() => props.onOpen(l.item)}>
+                Open in Fabric: {l.label}
+              </Button>
+            ))}
+          </div>
+        </section>
       )}
-      <section>
-        <Subtitle2>Created items</Subtitle2>
-        <ul className="krusgraph-list">
-          {(a.created ?? []).map((c) => (
-            <li key={c.id}>
-              <Body1>
-                {c.type === "GraphQLApi" ? "API for GraphQL" : c.type} {c.name}
-              </Body1>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <Subtitle2>Still to do in the Fabric portal</Subtitle2>
-        <ul className="krusgraph-list">
-          {(a.portal_steps ?? []).map((s) => (
-            <li key={s}>
-              <Body1>{s}</Body1>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <div>
-        <Button appearance="primary" onClick={props.onOpen}>
-          Open item
-        </Button>
-      </div>
     </div>
   );
 }

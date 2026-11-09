@@ -268,10 +268,10 @@ def test_a_real_build_creates_the_api_and_says_what_is_left(api):
     assert len(out["portal_steps"]) == 2
 
 
-@pytest.mark.parametrize("extra, word", [({"outputs": ["semantic_model"]}, "not available yet"),
+@pytest.mark.parametrize("extra, word", [({"outputs": ["semantic_model"]}, "send outputs as [{kind, name}]"),
                                          ({"name": "bad name"}, "letters, digits"), ({"dry_run": "no"}, "dry_run"),
                                          ({"review": None}, "review")])
-def test_build_refuses_what_phase_1_does_not_do(api, extra, word):
+def test_build_refuses_what_phase_1_s_form_does_not_do(api, extra, word):
     client, fake, _, priv = api
     body = {**SRC, "name": "shop_model_api", "review": {"format": "krusgraph-review"}, **extra}
     r = _post(client, "/build", body, tok(priv))
