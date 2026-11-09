@@ -1,0 +1,42 @@
+name: Hub readiness
+# Round n178 (docs/HUB-READINESS.md). Microsoft's validator (microsoft/fabric-extensibility-toolkit-validator) needs a
+# browser signed in to Fabric and the workload published to a tenant, so it cannot run here without the founder's
+# credentials. This job reads the validator's own test-case specifications at a pinned commit (as data; none of its code
+# runs) and checks the workload manifest, its images and docs/HUB-ATTESTATION.md against them.
+# Red only when the attestation draft lacks a term the validator searches for, or the specifications cannot be read.
+# The second step also fetches the manifest's links and the hosted attestation; it reports and never fails the job.
+on:
+  push:
+    branches: [main]
+    paths: [docs/HUB-ATTESTATION.md, tools/hub_readiness.py, workload/Workload/Manifest/**, .github/workflows/hub-readiness.yml]
+  pull_request:
+    paths: [docs/HUB-ATTESTATION.md, tools/hub_readiness.py, workload/Workload/Manifest/**, .github/workflows/hub-readiness.yml]
+  workflow_dispatch: {}
+permissions: { contents: read }
+env:
+  VALIDATOR_COMMIT: 78e17c385ad182f4a293dcab02c2eaa50aa7b361   # 15 December 2025; LICENSE MIT, read at this commit
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with: { python-version: "3.12" }
+      - name: Fetch the validator's specifications at the pinned commit
+        run: |
+          git init -q validator && cd validator
+          git remote add origin https://github.com/microsoft/fabric-extensibility-toolkit-validator
+          git fetch -q --depth 1 origin "$VALIDATOR_COMMIT" && git checkout -q FETCH_HEAD
+      - name: Pre-check, offline (fails on a missing attestation term)
+        run: |
+          python tools/hub_readiness.py --spec-dir validator/specifications/testcases --spec-commit "$VALIDATOR_COMMIT" \
+            --report hub-precheck.md > /dev/null
+          cat hub-precheck.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Pre-check, online (links and the hosted attestation; report only)
+        continue-on-error: true
+        run: |
+          python tools/hub_readiness.py --spec-dir validator/specifications/testcases --spec-commit "$VALIDATOR_COMMIT" \
+            --online --report hub-precheck-online.md > /dev/null || true
+          { echo; echo "---"; cat hub-precheck-online.md; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with: { name: hub-precheck, path: "hub-precheck*.md", retention-days: 30 }
