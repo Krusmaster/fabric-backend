@@ -46,7 +46,7 @@ import {
   fromParts,
   toParts,
 } from "./ModelItemDefinition";
-import { OpenLink, afterCreate, choicesFor, createLabel, toRequests } from "./buildWords";
+import { OpenLink, afterCreate, choicesFor, createEach, createLabel, mergeCreated, schemaToUse, toRequests } from "./buildWords";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
@@ -64,6 +64,8 @@ export function ModelItemEditor(props: PageProps) {
   const [def, setDef] = useState<ModelDefinition>(emptyDefinition());
   const [dirty, setDirty] = useState(false);
   const [schema, setSchema] = useState("dbo");
+  /** n179: the lakehouse's schemas, listed after Choose lakehouse; the schema is picked, never typed */
+  const [schemaList, setSchemaList] = useState<{ loading: boolean; list?: engine.SchemasAnswer; error?: engine.EngineError }>({ loading: false });
   const [choices, setChoices] = useState<OutputChoice[]>([]);
   const [product, setProduct] = useState<{ on: boolean; name: string }>({ on: false, name: "" });
   const [map, setMap] = useState<MapData>();
@@ -135,6 +137,7 @@ export function ModelItemEditor(props: PageProps) {
         setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName));
         setProduct({ on: !!loaded.outputs.product, name: loaded.outputs.product?.name ?? got.item.displayName });
         setIsLoading(false);
+        if (loaded.source) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName, loaded.source.schema);
         if (loaded.source && loaded.review) {
           await plan({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
           setDirty(false);
@@ -175,6 +178,26 @@ export function ModelItemEditor(props: PageProps) {
     };
     setDef((d) => ({ ...d, source, review: d.source?.itemId === picked.id ? d.review : undefined }));
     setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName));
+    setDirty(true);
+    await listSchemas(picked.workspaceId, picked.id, picked.displayName);
+  }
+
+  /** n179: the schemas of the chosen lakehouse with their table counts; the only one with tables is preselected. */
+  async function listSchemas(workspaceId: string, itemId: string, displayName: string, saved?: string) {
+    setSchemaList({ loading: true });
+    try {
+      const list = await engine.schemas(workloadClient, { workspace: workspaceId, source: itemId, source_name: displayName });
+      setSchemaList({ loading: false, list });
+      const chosen = schemaToUse(list, saved);
+      if (chosen && chosen !== saved) pickSchema(chosen);
+    } catch (e) {
+      setSchemaList({ loading: false, error: e instanceof engine.EngineCallError ? e.answer : { error: String(e?.message ?? e), kind: "unexpected" } });
+    }
+  }
+
+  function pickSchema(s: string) {
+    setSchema(s);
+    setDef((d) => (d.source ? { ...d, source: { ...d.source, schema: s } } : d));
     setDirty(true);
   }
 
@@ -228,15 +251,49 @@ export function ModelItemEditor(props: PageProps) {
     go("preview");
   }
 
+  /** n179: one request per output in the engine's order, each card with its own progress and result. A closed
+   * connection costs one card ("no answer yet"), never the others; the created ids are saved after each output, so a
+   * re-run skips what is built and retries only the rest. Then the data product and the flow, from the created ids. */
   async function create() {
-    const a = await runEngine("Creating in Fabric, one output after another…", () =>
-      engine.buildMany(workloadClient, sourceRequest(def), toRequests(choices), def.review, false, product.on ? { name: product.name.trim() } : null, def.outputs.created)
+    setError(undefined);
+    setBusy(undefined);
+    const src = sourceRequest(def);
+    const outputs = toRequests(choices);
+    const productReq = product.on ? { name: product.name.trim() } : null;
+    const base = { dry_run: false, order: outputs.map((o) => o.kind), left_out_by_review: [] as engine.LeftOut[], refused: 0, note: "" };
+    setResult({ ...base, outputs: [] } as engine.ManyAnswer);
+    go("result");
+    let d = def;
+    const run = await createEach(
+      outputs,
+      def.outputs.created,
+      async (o, created) => {
+        const a = await engine.buildOne(workloadClient, src, o, outputs, def.review, created);
+        if ((a.created ?? []).length) {               // kept at once: a later lost answer cannot lose these ids
+          d = { ...d, outputs: { ...d.outputs, outputs: choices, created: mergeCreated(d.outputs.created, a.created) } };
+          setDef(d);
+          await callUpdateItemDefinition(workloadClient, itemMeta.id, toParts(d) as never, false);
+        }
+        return a;
+      },
+      (cards) => setResult((r) => ({ ...(r ?? base), outputs: cards, refused: cards.filter((c) => c.refusal || c.answer?.error).length } as engine.ManyAnswer)),
+      preview
     );
-    if (!a) return;
+    let a: engine.ManyAnswer = {
+      ...base, outputs: run.cards, created: run.cards.flatMap((c) => c.created ?? []),
+      refused: run.cards.filter((c) => c.refusal || c.answer?.error).length,
+    } as engine.ManyAnswer;
+    if (run.cards.some((c) => c.created?.length)) {
+      try {
+        const f = await engine.finish(workloadClient, src, outputs, def.review, productReq, run.created);
+        a = { ...a, product: f.product, flow: f.flow, row_check: f.row_check };
+      } catch {
+        /* the cards stand on their own; the product and the flow come with the next Create */
+      }
+    }
     setResult(a);
-    const d = { ...def, item: { ...def.item, view: "result" as const }, outputs: afterCreate(def.outputs, choices, a, new Date().toISOString()) };
+    d = { ...d, item: { ...d.item, view: "result" as const }, outputs: afterCreate(d.outputs, choices, a, new Date().toISOString()) };
     setDef(d);
-    setView?.("result");
     await save(d);
   }
 
@@ -273,10 +330,8 @@ export function ModelItemEditor(props: PageProps) {
         <EmptyView
           source={def.source}
           schema={schema}
-          onSchemaChange={(s) => {
-            setSchema(s);
-            setDef((d) => (d.source ? { ...d, source: { ...d.source, schema: s } } : d));
-          }}
+          schemas={schemaList}
+          onSchemaChange={pickSchema}
           onChooseLakehouse={chooseLakehouse}
           onReview={() => plan(def)}
         />

@@ -1512,6 +1512,37 @@ REPORT_AFTER_CREATION = ("Open the report in the Fabric portal (the workspace's 
                          "export_item_definitions does not include reports.")
 
 
+
+
+# n179: the founder's live Create of 9 November 2026 made the semantic model and then failed the report, which reads the
+# new model's definition (getDefinition, TMDL) right after it was created. A read that fails for any reason but the
+# sign-in or the permission is tried again after these pauses (seconds); then the report's card says why.
+MODEL_DEFINITION_PAUSES = (5, 15, 30)
+
+
+class _ModelNotReadable(Exception):
+    def __init__(self, attempts: int, reason: str):
+        super().__init__(reason)
+        self.attempts, self.reason = attempts, reason
+
+
+def _fresh_model_definition(workspace_id: str, model_id: str, headers: dict) -> dict[str, str]:
+    import time as _time
+    reason = ""
+    for attempt, pause in enumerate((0,) + tuple(MODEL_DEFINITION_PAUSES), start=1):
+        if pause:
+            _time.sleep(pause)
+        try:
+            return _item_definition_parts(workspace_id, "semanticModels", model_id, headers, fmt="TMDL")
+        except requests.HTTPError as e:
+            status = int(getattr(e.response, "status_code", 0) or 0)
+            if status in (401, 403):
+                raise
+            code, msg = _fabric_body(getattr(e.response, "text", "") or "")
+            reason = f"HTTP {status}" + (f" {code}" if code else "") + (f": {msg}" if msg else "")
+        except RuntimeError as e:                     # a long-running getDefinition that ended Failed
+            reason = str(e)[:300]
+    raise _ModelNotReadable(len(MODEL_DEFINITION_PAUSES) + 1, reason)
 @mcp.tool(title="Create a Power BI report on a semantic model (dry run by default)", annotations=WRITE)
 @safe
 def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.ReportName, empty_page: _p.EmptyPage = False,
@@ -1544,7 +1575,14 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     drawn = None
     if not empty_page:
         try:
-            tmdl = _mc.from_tmdl(_item_definition_parts(workspace_id, "semanticModels", model_item["id"], headers, fmt="TMDL"))
+            tmdl = _mc.from_tmdl(_fresh_model_definition(workspace_id, model_item["id"], headers))
+        except _ModelNotReadable as e:
+            return json.dumps({"error": f"Fabric did not give the definition of the semantic model {model_item['displayName']!r} after "
+                                        f"{e.attempts} tries ({e.reason}). The report's visuals are drawn from that definition, so no "
+                                        "report was created.", "kind": "source_not_ready",
+                               "hint": "A semantic model created moments ago can take a while before its definition can be read. The "
+                                       "model itself exists. Choose Create again in a minute: what is built is skipped, and the report "
+                                       "is tried again."}, indent=2)
         except requests.HTTPError as e:
             status = int(getattr(e.response, "status_code", 0) or 0)
             if status in (401, 403):
@@ -3102,6 +3140,9 @@ def main() -> None:
         # KRUSGRAPH_ACCESS_LOG=0 drops uvicorn's per-request access line (it carries the client's IP address); the deploy
         # script sets it when console logs go to Log Analytics, so no IP address is kept there (docs/OPERATIONS.md).
         access_log = os.environ.get("KRUSGRAPH_ACCESS_LOG", "1").strip().lower() not in {"0", "off", "false", "no"}
+        # n179: one line per start, so a restart in the middle of a request (out of memory, a failed liveness probe) shows
+        # in the console log next to the request it cut off
+        print(json.dumps({"krusgraph": "server", "event": "start", "pid": os.getpid()}), flush=True)
         uvicorn.run(build_app(a.host), host=a.host, port=a.port, proxy_headers=True, forwarded_allow_ips="*", access_log=access_log)
 
 

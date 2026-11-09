@@ -24,6 +24,11 @@ import json
 
 from . import gold as _gold, pipeline as _pipeline, silver as _silver
 
+
+def _listed(xs: list[str]) -> str:
+    xs = [str(x) for x in xs]
+    return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " and " + xs[-1]
+
 COLUMNS = (("bronze", "Bronze: the source tables"), ("silver", "Silver: cleaned tables"), ("gold", "Gold: views"),
            ("built", "Built on the source"))
 ON_SOURCE = ("semantic_model", "graphql", "ontology", "data_agent")
@@ -147,6 +152,11 @@ def flow(p, info: dict, chosen: dict, *, silver_schema: str = "silver", gold_sch
             edges.append({"from": it["on_model"], "to": nid, "label": "on the model", "built": True})
         else:
             edges.append({"from": "bronze", "to": nid, "label": "reads the source tables", "built": True})
+    on_source = [it for it in items or [] if not it.get("on_model")]
+    if on_source and gold_spec and chosen.get("gold_views"):         # n179: the founder's live preview, 9 November 2026
+        notes.append(f"{_listed([it['label'] for it in on_source])} {'reads' if len(on_source) == 1 else 'read'} the source tables "
+                     "(bronze) directly, also with the gold views built in this run. Building them on the gold views is a later "
+                     "option; this version does not.")
     n_gold = len(gold_spec["views"]) if gold_spec else 0
     said = (f"Bronze to gold: {len(silver_spec['tables'])} source table(s) become {len(silver_spec['tables'])} silver table(s)"
             + (f", and {n_gold} gold view(s) join them" if n_gold else "")

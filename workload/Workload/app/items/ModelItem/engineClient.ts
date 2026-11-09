@@ -123,6 +123,10 @@ export interface Refusal extends EngineError {
 
 export interface BuildCard {
   output: OutputKind;
+  /** n179, Create one output per request: waiting, running, done, or lost (the browser did not get the answer) */
+  status?: "waiting" | "running" | "done" | "lost";
+  /** n179: every item of the output was already in the workspace from an earlier Create; nothing was written */
+  already_built?: boolean;
   label: string;
   type: string;
   name: string;
@@ -211,6 +215,25 @@ export class EngineCallError extends Error {
   }
 }
 
+/** n179: the answer to a request that never came back. The browser says only "Failed to fetch" (a closed connection, a
+ * network change, the server restarting) or the editor stopped waiting; the server may still have done the work. */
+export function lostAnswer(route: string, seconds: number, aborted: boolean): EngineError {
+  return {
+    error: aborted
+      ? `No answer from the Krusgraph engine after ${seconds} s; the editor stopped waiting.`
+      : `The connection to the Krusgraph engine closed after ${seconds} s without an answer ("Failed to fetch").`,
+    kind: "no_answer",
+    hint:
+      route === "build"
+        ? "It may still be running in Fabric. Reopen the item in a minute and choose Create again: what is already built is shown as built and skipped, and only the rest is tried."
+        : "Check the connection and try again. If Krusgraph Model keeps loading, ask IT to allow workload.krusgraph.com and krusgraph.com (krusgraph.com/it#network).",
+  };
+}
+
+/** One output's Create can take minutes (an ontology makes an eventhouse); the ingress cuts a request at 240 s
+ * (Azure Container Apps, "Request time out is 240 seconds"), so the editor waits a little less than that. */
+export const BUILD_WAIT_MS = 230_000;
+
 /** The scope to ask the Fabric host for: the build's KRUSGRAPH_ENGINE_SCOPE, else the hosting server's meta tag. */
 export function engineScope(built: string | undefined, doc?: { querySelector(selector: string): Element | null }): string {
   if (built) {
@@ -220,18 +243,38 @@ export function engineScope(built: string | undefined, doc?: { querySelector(sel
   return (meta?.getAttribute("content") || "").trim();
 }
 
-async function call<T>(workloadClient: WorkloadClientAPI, route: "review" | "check" | "build", body: object): Promise<T> {
+export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
+
+async function call<T>(
+  workloadClient: WorkloadClientAPI,
+  route: "review" | "check" | "build" | "schemas",
+  body: object,
+  waitMs = 0,
+  fetchImpl: Fetch = (u, i) => fetch(u, i)
+): Promise<T> {
   const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document);
   if (!scope) {
     throw new EngineCallError({ error: "No engine scope: set KRUSGRAPH_ENGINE_SCOPE in the workload's .env file, or KRUSGRAPH_WORKLOAD_APP_ID_URI on the hosting server", kind: "server_config" }, 0);
   }
   const { token } = await workloadClient.auth.acquireFrontendAccessToken({ scopes: [scope] });
   const base = (process.env.KRUSGRAPH_ENGINE_URL || "").replace(/\/$/, "");
-  const response = await fetch(`${base}/workload/v1/${route}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const started = Date.now();
+  const abort = typeof AbortController === "undefined" ? undefined : new AbortController();
+  const timer = waitMs && abort ? setTimeout(() => abort.abort(), waitMs) : undefined;
+  let response: Response;
+  try {
+    response = await fetchImpl(`${base}/workload/v1/${route}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      ...(abort ? { signal: abort.signal } : {}),
+    });
+  } catch (e) {
+    // n179: "Failed to fetch" carries no reason; say what it means for this request instead
+    throw new EngineCallError(lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), 0);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
   let answer: unknown;
   try {
     answer = await response.json();
@@ -272,6 +315,53 @@ export function build(
     outputs: ["graphql"],
     dry_run: dryRun,
   });
+}
+
+/** n179: the source's schemas with their table counts, to choose from (the schema is never typed). */
+export interface SchemasAnswer {
+  schemas: { schema: string; tables: number }[];
+  preselect: string | null;
+  note: string;
+}
+
+export function schemas(
+  workloadClient: WorkloadClientAPI,
+  source: { workspace: string; source: string; source_name: string }
+): Promise<SchemasAnswer> {
+  return call<SchemasAnswer>(workloadClient, "schemas", source);
+}
+
+/** n179: Create of one output (only: [its kind]; skip_built: already built is shown as built, not written again). */
+export function buildOne(
+  workloadClient: WorkloadClientAPI,
+  source: SourceRequest,
+  output: OutputRequest,
+  all: OutputRequest[],
+  reviewFile: ReviewFile,
+  created: CreatedRef[],
+  fetchImpl?: Fetch
+): Promise<ManyAnswer> {
+  // every chosen output goes along (the pipeline runs the silver and gold notebooks chosen with it); `only` is built
+  const outputs = all.map((o) => (o.kind === output.kind ? output : o));
+  return call<ManyAnswer>(
+    workloadClient,
+    "build",
+    { ...source, outputs, only: [output.kind], review: reviewFile, dry_run: false, product: null, created, skip_built: true },
+    BUILD_WAIT_MS,
+    fetchImpl
+  );
+}
+
+/** n179: after the outputs, the data product and the data flow of the whole Create, from the created ids (no tool runs). */
+export function finish(
+  workloadClient: WorkloadClientAPI,
+  source: SourceRequest,
+  outputs: OutputRequest[],
+  reviewFile: ReviewFile,
+  product: { name: string } | null,
+  created: CreatedRef[]
+): Promise<ManyAnswer> {
+  return call<ManyAnswer>(workloadClient, "build", { ...source, outputs, review: reviewFile, dry_run: false, product, created, finish: true });
 }
 
 /** n174: several outputs in one call, each through its MCP tool (workload_api.run_build_many). `created` is

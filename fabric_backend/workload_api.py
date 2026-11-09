@@ -44,6 +44,8 @@ from __future__ import annotations
 
 import json
 import re
+import sys
+import time
 
 PREFIX = "/workload/v1"
 FABRIC_ORIGIN = re.compile(r"^https://([a-z0-9-]+\.)*(fabric\.microsoft\.com|powerbi\.com)$")
@@ -94,6 +96,20 @@ class BadRequest(ValueError):
     pass
 
 
+def log(event: str, **fields) -> None:
+    """n179: one JSON line on the console (Log Analytics when the deploy sends console logs there): what the workload
+    routes did and why a call failed, so 'Failed to fetch' in the browser can be matched to a cause. Names of routes,
+    outputs, kinds and durations only: no token, no body, no table contents, no item names."""
+    try:                                                          # the process's peak memory so far, to tell an OOM restart
+        import resource
+        fields.setdefault("peak_rss_mb", round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024))
+    except (ImportError, OSError):
+        pass
+    line = json.dumps({"krusgraph": "workload", "event": event, **fields}, default=str)
+    sys.stdout.write(line + "\n")
+    sys.stdout.flush()
+
+
 # ------------------------------------------------------------------ request checks -----------------------------------
 
 def _text(body: dict, key: str, default: str | None = None, limit: int = 200) -> str:
@@ -107,6 +123,14 @@ def _source(body: dict) -> dict:
     """workspace and source as ids (what the editor's lakehouse picker gives), source_name for the review file."""
     return {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
             "source_name": _text(body, "source_name", body.get("source")), "schema": _text(body, "schema", "dbo", 128)}
+
+
+def schemas_request(body) -> dict:
+    """n179: workspace and source (ids, from the lakehouse picker); the schema is what this call lists."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    return {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
+            "source_name": _text(body, "source_name", body.get("source"))}
 
 
 def review_request(body) -> dict:
@@ -204,9 +228,22 @@ def build_request(body) -> dict:
         raise BadRequest("'created' must be outputs.json's created list ({type, id, name, workspace}) or empty")
     if not isinstance(body.get("review"), dict):
         raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
+    flags = {}
+    for f in ("skip_built", "finish"):                            # n179: Create one output per request, then the summary
+        v = body.get(f, False)
+        if not isinstance(v, bool):
+            raise BadRequest(f"'{f}' must be true or false (default false)")
+        flags[f] = v
+    if flags["finish"] and dry_run:
+        raise BadRequest("'finish' gives the product and the data flow of a Create from 'created'; it needs dry_run false")
+    only = body.get("only")                                       # n179: the outputs this request builds; the rest is context
+    if only is not None:
+        if not isinstance(only, list) or not only or any(k not in {c["kind"] for c in chosen} for k in only):
+            raise BadRequest("'only' must be a non-empty list of kinds among the outputs (the ones this request builds)")
+        flags["only"] = list(only)
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
-            "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output")} for c in created], "form": 2}
+            "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output")} for c in created], "form": 2, **flags}
 
 
 # ------------------------------------------------------------------ the review's decisions applied to a plan --------
@@ -360,6 +397,56 @@ def run_check(req: dict) -> dict:
     return _with_schema(out, req)
 
 
+# n179: every schema of the source with its number of tables, empty ones included (shown greyed in the editor). The
+# role schemas SQL Server lists in SCHEMATA (db_owner, db_datareader, ...) and the system schemas are left out.
+SCHEMATA_SQL = """
+SELECT s.SCHEMA_NAME AS TABLE_SCHEMA, COUNT(t.TABLE_NAME) AS TABLE_COUNT
+FROM INFORMATION_SCHEMA.SCHEMATA s
+LEFT JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = s.SCHEMA_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE s.SCHEMA_NAME NOT IN ('sys', 'INFORMATION_SCHEMA', 'queryinsights', 'guest') AND s.SCHEMA_NAME NOT LIKE 'db[_]%'
+GROUP BY s.SCHEMA_NAME
+ORDER BY s.SCHEMA_NAME
+"""
+
+
+def preselect(schemas: list[dict]) -> str | None:
+    """The schema to preselect: the only one with tables; dbo when it is the only schema; else none (the person picks)."""
+    with_tables = [x["schema"] for x in schemas if x["tables"] > 0]
+    if len(with_tables) == 1:
+        return with_tables[0]
+    if [x["schema"] for x in schemas] == ["dbo"]:
+        return "dbo"
+    return None
+
+
+def run_schemas(req: dict) -> dict:
+    """The source's schemas as the SQL analytics endpoint names them, each with its table count. The editor offers them
+    as a list and sends the chosen name back unchanged, so the schema is never typed. Read-only."""
+    from . import server as S
+    headers = S._headers(None)
+    workspace = S._workspace_id(req["workspace"], headers)
+    item = S._resolve_source(workspace, req["source"], headers)
+    execute = S._execute_factory(item, S.auth.sql(None))
+    try:
+        try:
+            rows = list(execute(SCHEMATA_SQL))
+        except Exception as exc:  # noqa: BLE001 — an endpoint without SCHEMATA: the schemas that hold tables (n169's query)
+            log("schemata_fallback", error=type(exc).__name__)
+            rows = list(execute(S.SCHEMAS_SQL))
+    finally:
+        getattr(execute, "close", lambda: None)()
+    out = []
+    for r in rows:
+        r = {str(k).upper(): v for k, v in (r.items() if hasattr(r, "items") else zip(("TABLE_SCHEMA", "TABLE_COUNT"), r))}
+        if r.get("TABLE_SCHEMA"):
+            out.append({"schema": str(r["TABLE_SCHEMA"]), "tables": int(r.get("TABLE_COUNT") or 0)})
+    chosen = preselect(out)
+    with_tables = sum(1 for x in out if x["tables"])
+    return {"schemas": out, "preselect": chosen,
+            "note": (f"{with_tables} of {len(out)} schema(s) hold tables." if out else "The source lists no schema.")
+                    + ("" if chosen else " Choose the schema to plan.") + " " + NOTHING_CHANGED}
+
+
 def run_build(req: dict) -> dict:
     """Phase 1's form (a name and ["graphql"]) answers as before; n174's form ({kind, name} per output) builds several."""
     return _run_graphql(req) if req.get("form", 1) == 1 else run_build_many(req)
@@ -451,6 +538,30 @@ def _names(o: dict, chosen: dict, schema: str) -> list[tuple[str, str]]:
         return [(KINDS[o["kind"]]["type"], o["name"])]
     silver, gold = chosen.get("silver_notebook") or f"silver_{schema}", chosen.get("gold_views") or f"gold_{schema}"
     return [("DataPipeline", o["name"]), ("Notebook", silver), ("Notebook", gold), ("Notebook", f"{o['name']}_check")]
+
+
+def _krusgraph_made(workspace: str, name: str, headers: dict, typ: str) -> dict | None:
+    """n179: the existing item of that name and type when its description says Krusgraph made it (every creating tool
+    writes "Created by Krusgraph ...", "... generated by Krusgraph ..." or "Krusgraph pipeline ..."), else None."""
+    from .deploy import find_item_by_name
+    it = find_item_by_name(workspace, name, headers, (typ,))
+    return it if it and "krusgraph" in str(it.get("description") or "").lower() else None
+
+
+def _already_built(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> list[dict] | None:
+    """n179, Create with skip_built: the output's items when every one of them is already in the workspace and was built by
+    this Model (outputs.json) or carries Krusgraph's description (a Create whose answer the browser lost, 9 November
+    2026); None when anything is missing, so the tool is called. Nothing is written for an output found built."""
+    from . import server as S
+    found = []
+    for typ, name in _names(o, chosen, req["schema"]):
+        existing = S._find_item(workspace, name, headers, typ)
+        if not existing:
+            return None
+        if existing not in ours and not _krusgraph_made(workspace, name, headers, typ):
+            return None                                            # someone else's: _ownership refuses it as before
+        found.append({"type": typ, "id": existing, "name": name, "workspace": workspace, "output": o["kind"]})
+    return found
 
 
 def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> tuple[str, dict | None, dict]:
@@ -596,7 +707,10 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     for c in cards:
         if c["output"] not in data_flow.ON_SOURCE + ("report",) or c.get("refusal"):
             continue
-        it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": f"reads {req['schema']} (bronze) directly"}
+        reads = f"reads the source tables in {req['schema']} (bronze) directly"
+        if "gold_views" in chosen:                                 # n179: said plainly when gold views are built in the same run
+            reads += ", not the gold views built in this run"
+        it = {"output": c["output"], "label": c["label"], "name": c["name"], "reads": reads}
         if c["output"] == "semantic_model" and isinstance((c.get("answer") or {}).get("parts"), dict):
             it.update(code=data_flow.tmdl_excerpt(c["answer"]["parts"]), language="tmdl", code_title=f"{c['name']}: relationships and measures")
         if c["output"] == "report":
@@ -640,10 +754,34 @@ def run_build_many(req: dict) -> dict:
         req = _exact(req, p.schema.schema)                         # n175: every output reads and writes the exact name
         for o in req["outputs"]:
             kind = o["kind"]
+            if req.get("only") and kind not in req["only"]:
+                continue                                           # n179: chosen with this Create, built by its own request
             card = {"output": kind, "label": KINDS[kind]["label"], "type": KINDS[kind]["type"], "name": o["name"], "dry_run": dry_run,
                     "updates_in_place": KINDS[kind]["updates"], "permissions": permissions(kind, scopes)}
             if o.get("model"):
                 card["model"] = o["model"]
+            if req.get("finish"):                                  # n179: no tool runs; the cards from what was created
+                made = [c for c in req["created"] if c.get("output") == kind and c.get("id")]
+                card.update(would="create", created=made, dry_run=False)
+                if not made:
+                    card["refusal"] = {"error": f"{KINDS[kind]['label']} {o['name']!r} was not created in this Create.", "kind": "not_built",
+                                       "hint": "Its own card said why; choose Create again to retry it."}
+                built[kind] = card
+                cards.append(card)
+                continue
+            started = time.monotonic()
+            if req.get("skip_built") and not dry_run:
+                done = _already_built(o, chosen, req, workspace, headers, ours)
+                if done is not None:
+                    card.update(would="create", created=done, already_built=True,
+                                answer={"dry_run": False, "already_built": True,
+                                        "note": "Already in the workspace from an earlier Create; nothing was written. Choose a new "
+                                                "name to make another one."})
+                    ours.update(c["id"] for c in done)
+                    log("build_output", output=kind, dry_run=False, outcome="already_built", seconds=round(time.monotonic() - started, 1))
+                    built[kind] = card
+                    cards.append(card)
+                    continue
             would, refusal, _found = _ownership(o, chosen, req, workspace, headers, ours)
             card["would"] = would
             missing = card["permissions"]["missing"]
@@ -651,6 +789,7 @@ def run_build_many(req: dict) -> dict:
                 refusal = _consent(kind, missing, app_id)
             if refusal is not None:
                 card["refusal"] = refusal
+                log("build_output", output=kind, dry_run=dry_run, outcome="refused:" + str(refusal.get("kind")), seconds=0)
             else:
                 if missing:                                        # the dry run says it now, Create would refuse
                     card["consent"] = _consent(kind, missing, app_id)
@@ -665,6 +804,8 @@ def run_build_many(req: dict) -> dict:
                 if answer.get("kind") == "consent" and answer.get("scope"):
                     answer["entra_steps"] = entra_steps(str(answer["scope"]).split(" ")[0], app_id)
                 card["answer"] = answer
+                log("build_output", output=kind, dry_run=dry_run, outcome=answer.get("kind") if answer.get("error") else "ok",
+                    seconds=round(time.monotonic() - started, 1))
                 if not dry_run and not answer.get("error"):
                     card["created"] = (answer.get("created") or []) if kind == "graphql" else _created_ids(kind, answer, chosen, workspace, o, req)
                     for c in card["created"]:
@@ -678,13 +819,15 @@ def run_build_many(req: dict) -> dict:
                "row_check": check_totals(rv)}
         if req.get("product"):
             out["product"] = _product(req, rv, p, cards, dry_run)
-        out["flow"] = _flow(req, p, chosen, cards, keys, confirmed)
+        out["flow"] = None if req.get("only") else _flow(req, p, chosen, cards, keys, confirmed)   # n179: finish draws it
     refused = [c for c in cards if c.get("refusal") or (c.get("answer") or {}).get("error")]
     out["refused"] = len(refused)
     out["note"] = (NOTHING_CHANGED + " This is what Create would send, output by output." if dry_run else
                    f"{len(cards) - len(refused)} of {len(cards)} output(s) built." + (" Nothing runs or is scheduled." if cards else ""))
     if not dry_run:
         out["created"] = [x for c in cards for x in c.get("created", [])]
+    if req.get("finish"):
+        out["note"] = f"{len(cards) - len(refused)} of {len(cards)} output(s) are in Fabric." + (" Nothing runs or is scheduled." if cards else "")
     return _with_schema(out, req)
 
 
@@ -734,7 +877,22 @@ def routes(cfg, validator=None, obo=None) -> list:
 
     def endpoint(parse, run, where: str, gate=None):
         async def handler(request):
+            """n179: whatever fails, the answer is JSON with the CORS headers, and the cause is logged. Without them the
+            browser reports only 'Failed to fetch' and the editor cannot say which output or why."""
+            started = time.monotonic()
             origin = request.headers.get("origin")
+            try:
+                response = await inner(request, origin)
+            except Exception as exc:  # noqa: BLE001 — logged by type and route, answered without details
+                log("route_failed", route=where, error=type(exc).__name__, seconds=round(time.monotonic() - started, 1))
+                return reply({"error": f"The Krusgraph engine stopped on this {where} request ({type(exc).__name__}); nothing more "
+                                       "was done after that point.", "kind": "unexpected",
+                              "hint": "Try again. If it repeats, the server's log has the cause (event route_failed)."}, 500, origin)
+            if response.status_code >= 400:
+                log("route_answer", route=where, status=response.status_code, seconds=round(time.monotonic() - started, 1))
+            return response
+
+        async def inner(request, origin):
             if origin and not FABRIC_ORIGIN.match(origin.lower()) and not same_host_origin(origin):
                 return reply({"error": "this API answers only the Krusgraph editor inside Fabric", "kind": "origin"}, 403, None)
             if request.method == "OPTIONS":
@@ -764,12 +922,15 @@ def routes(cfg, validator=None, obo=None) -> list:
                     try:
                         return run(req)
                     except Exception as exc:  # noqa: BLE001 — explained, never leaked (errors.explain)
-                        return explain(exc, f"{where}: workspace {req['workspace']!r}, source {req['source_name']!r}")
+                        answer = explain(exc, f"{where}: workspace {req['workspace']!r}, source {req['source_name']!r}")
+                        log("run_failed", route=where, error=type(exc).__name__, kind=answer.get("kind"))
+                        return answer
             out = await run_in_threadpool(work)
             status = STATUS.get(out.get("kind"), 502) if "error" in out else 200
             return reply(out, status, origin)
         return handler
 
-    return [Route(f"{PREFIX}/review", endpoint(review_request, run_review, "review"), methods=["POST", "OPTIONS"]),
+    return [Route(f"{PREFIX}/schemas", endpoint(schemas_request, run_schemas, "schemas"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/review", endpoint(review_request, run_review, "review"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/check", endpoint(check_request, run_check, "check"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"])]

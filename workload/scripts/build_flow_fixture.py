@@ -34,7 +34,7 @@ def render() -> str:
     p = plan(seed.schema("shop"))
     model = semantic_model.draft(p, INFO, "shop_sales", None)["parts"]
     chosen = {"silver_notebook": "shop_silver", "gold_views": "shop_gold", "pipeline": "shop_flow", "semantic_model": "shop_sales"}
-    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_sales", "reads": "reads shop (bronze) directly",
+    items = [{"output": "semantic_model", "label": "Semantic model", "name": "shop_sales", "reads": "reads the source tables in shop (bronze) directly, not the gold views built in this run",
               "code": data_flow.tmdl_excerpt(model), "language": "tmdl", "code_title": "shop_sales: relationships and measures"}]
     f = data_flow.flow(p, INFO, chosen, pipeline_names=("shop_silver", "shop_gold", "shop_flow_check"), items=items)
     return json.dumps(f, indent=1, ensure_ascii=False) + "\n"

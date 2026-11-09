@@ -177,6 +177,12 @@ class _Cursor:
                 rows = seed.schema(schema).to_rows() if schema.lower() == "shop" else []
             names = ["TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE", "ORDINAL_POSITION"]
             self._set(names, [tuple(r[n.lower()] for n in names) for r in rows])
+        elif "INFORMATION_SCHEMA.SCHEMATA" in sql or ("INFORMATION_SCHEMA.TABLES" in sql and "TABLE_COUNT" in sql):
+            # n179: the editor's schema list; the lakehouse has dbo (empty), shop (seven tables) and, case_sensitive, `schemas`
+            names = (cs["schemas"] if cs is not None else ("shop",))
+            rows = [("dbo", 0)] if "SCHEMATA" in sql else []
+            rows += [(n, len(seed.SCHEMAS)) for n in names]
+            self._set(["TABLE_SCHEMA", "TABLE_COUNT"], sorted(rows))
         elif "INFORMATION_SCHEMA.TABLE_CONSTRAINTS" in sql:
             rows = DECLARED if self.conn.database == "demo_wh" else []
             names = list(DECLARED[0])

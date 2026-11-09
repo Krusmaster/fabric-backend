@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n179: Create in the Krusgraph Model sends one request per output (the model before its report), each card with
+  its own progress and result; a lost answer says "no answer yet, it may still be running in Fabric" on its card instead
+  of "Failed to fetch" for the page; the created ids are saved after each output. A re-run (`skip_built`) shows the
+  outputs already in the workspace (built by this Model, or with Krusgraph's description from a Create whose answer was
+  lost) as already built and writes nothing for them. The report tries a new model's definition again before it says
+  why (`source_not_ready`). Every error on `/workload/v1` is JSON with the CORS headers, and the console log has one
+  JSON line per output, failure and server start. `POST /workload/v1/schemas` lists the lakehouse's schemas with their
+  tables; the editor offers them as a list (the only schema with tables preselected) and the free-text schema field is
+  gone unless the list cannot be read. The semantic model's card is in words (it showed "[object Object]"); generated
+  gold SQL names the rule without the certainty number; the flow says plainly that the model, API, ontology and agent
+  read bronze even when gold views are built, and that building them on gold is a later option; the permissions are
+  folded into a Permissions note. Needs a redeploy (`docs/WORKLOAD-DEV.md`, Hosted, step 9).
 - Round n175: a schema typed in another case than the source spells it (`Shop` for the lakehouse schema `shop`) is
   read and queried under the metadata's spelling on every path: the MCP tools, the editor's review, check and build,
   R5's counting queries and the creating tools' definitions. Live on 9 November 2026 the check had failed with

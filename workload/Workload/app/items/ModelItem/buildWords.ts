@@ -8,7 +8,7 @@
  * or schedules a notebook or a pipeline, so no Execute permission is ever listed.
  */
 import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from "./ModelItemDefinition";
-import { BuildCard, CreatedRef, DataProduct, ManyAnswer, OutputKind, OutputRequest } from "./engineClient";
+import { BuildCard, CreatedRef, DataProduct, EngineCallError, EngineError, ManyAnswer, OutputKind, OutputRequest } from "./engineClient";
 
 export interface KindInfo {
   kind: OutputKind;
@@ -200,6 +200,10 @@ export function openLinks(items: CreatedItem[]): OpenLink[] {
 
 /** The card's title: what Create would do, or why it will not. */
 export function cardTitle(c: BuildCard): string {
+  if (c.status === "waiting") return `${c.label} ${c.name}: waiting`;
+  if (c.status === "running") return `${c.label} ${c.name}: creating in Fabric…`;
+  if (c.status === "lost") return `${c.label} ${c.name}: no answer yet`;
+  if (c.already_built) return `${c.label} ${c.name}: already built`;
   if (c.refusal) return `${c.label} ${c.name}: not built`;
   if (c.answer?.error) return `${c.label} ${c.name}: ${c.dry_run ? "the dry run stopped" : "not built"}`;
   if (!c.dry_run) return `${c.label} ${c.name}: ${c.would === "update" ? "updated" : "created"}`;
@@ -226,7 +230,7 @@ export function cardFacts(c: BuildCard): string[] {
     case "pipeline":
       return (a.steps as string[]) ?? [];
     case "semantic_model":
-      return a.summary ? [String(a.summary).split("\n")[0]] : [];
+      return modelFacts(a.summary);
     case "report": {
       const r = a.report ?? {};
       const on = r.bound_to?.semantic_model ? ` on ${r.bound_to.semantic_model}` : "";
@@ -245,6 +249,123 @@ export function cardFacts(c: BuildCard): string[] {
   }
 }
 
+/** n179: the semantic model's summary in words, as the MCP card says it (the founder saw "[object Object]"): tables,
+ * relationships active and inactive, measures, the date table. A text summary keeps its first line. */
+export function modelFacts(summary: unknown): string[] {
+  if (typeof summary === "string") return summary ? [summary.split("\n")[0]] : [];
+  if (!summary || typeof summary !== "object") return [];
+  const m = summary as Record<string, any>;
+  const plural = (n: number, one: string, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+  const out: string[] = [];
+  if (typeof m.tables === "number") out.push(plural(m.tables, "table") + (m.storage_mode ? ` in Direct Lake` : ""));
+  const act = Number(m.relationships_active ?? 0);
+  const inact = Number(m.relationships_inactive ?? 0);
+  out.push(`${plural(act, "relationship")} active` + (inact ? `, ${inact} inactive (another path joins the same tables)` : ""));
+  if (Number(m.relationships_not_expressible ?? 0)) out.push(`${plural(Number(m.relationships_not_expressible), "link")} over several columns left out (a model relationship has one column)`);
+  const measures = Array.isArray(m.measures) ? m.measures.length : 0;
+  const orderMeasures = Array.isArray(m.order_amount?.measures) ? m.order_amount.measures.length : 0;
+  out.push(measures + orderMeasures ? plural(measures + orderMeasures, "measure") : "No measures");
+  if (m.date_table && typeof m.date_table === "object") {
+    const rel = Array.isArray(m.date_table.related) ? m.date_table.related.length : 0;
+    out.push(`Date table ${m.date_table.name}, marked as the date table` + (rel ? `, related to ${plural(rel, "date column")}` : ""));
+  } else {
+    out.push("No date table: no date column to relate one to");
+  }
+  return out;
+}
+
+// ------------------------------------------------------------------ n179: the schema, picked from a list ------------
+
+/** The schema to select after the list comes: the saved one as the source spells it (its case corrected), else the
+ * engine's preselection (the only schema with tables, or dbo when it is the only one); undefined: the person picks. */
+export function schemaToUse(
+  list: { schemas: { schema: string; tables: number }[]; preselect: string | null },
+  saved?: string
+): string | undefined {
+  if (saved) {
+    const exact = list.schemas.find((x) => x.schema === saved) ?? list.schemas.find((x) => x.schema.toLowerCase() === saved.toLowerCase());
+    if (exact && list.schemas.filter((x) => x.schema.toLowerCase() === saved.toLowerCase()).length === 1) return exact.schema;
+    if (exact && exact.schema === saved) return saved;
+  }
+  return list.preselect ?? undefined;
+}
+
+// ------------------------------------------------------------------ n179: Create one output per request ------------
+
+/** The outputs of a Create in the engine's order (the model before its report). A report with no model of its own is
+ * built on the semantic model this Create makes: its id once created, else its name (the engine then says it is missing). */
+export function createOrder(outputs: OutputRequest[]): OutputRequest[] {
+  return [...outputs].sort((a, b) => ORDER.indexOf(a.kind) - ORDER.indexOf(b.kind));
+}
+
+export function requestFor(o: OutputRequest, all: OutputRequest[], created: CreatedRef[]): OutputRequest {
+  if (o.kind !== "report" || o.model) return o;
+  const modelName = all.find((x) => x.kind === "semantic_model")?.name;
+  const made = created.find((c) => c.output === "semantic_model" && c.name === modelName && c.id);
+  return { ...o, model: made?.id ?? modelName };
+}
+
+/** A card before its answer: waiting or running, with the permissions the dry run listed. */
+export function pendingCard(o: OutputRequest, status: "waiting" | "running", before?: BuildCard): BuildCard {
+  const k = kindInfo(o.kind);
+  return {
+    output: o.kind,
+    label: k?.label ?? o.kind,
+    type: k?.type ?? "",
+    name: o.name,
+    dry_run: false,
+    would: before?.would ?? "create",
+    updates_in_place: k?.updates ?? false,
+    permissions: before?.permissions ?? { needs: k?.needs ?? [], missing: null, execute: "" },
+    status,
+  };
+}
+
+/** The card of an output whose request failed as a whole: the engine's own error, or no answer at all. */
+export function failedCard(o: OutputRequest, e: unknown, before?: BuildCard): BuildCard {
+  const err: EngineError = e instanceof EngineCallError ? e.answer : { error: String((e as Error)?.message ?? e), kind: "unexpected" };
+  const c = pendingCard(o, "running", before);
+  return { ...c, status: err.kind === "no_answer" ? "lost" : "done", refusal: err };
+}
+
+export interface CreateRun {
+  cards: BuildCard[];
+  created: CreatedRef[];
+}
+
+/** Create, one output after another (n179): each its own request, so a slow output or a closed connection costs only
+ * that output, never the answers of the others. `send` is the engine call; `onCard` shows each card as it changes.
+ * `created` starts with outputs.json's list, so a re-run skips what is built and retries the rest. */
+export async function createEach(
+  outputs: OutputRequest[],
+  created: CreatedRef[],
+  send: (o: OutputRequest, created: CreatedRef[]) => Promise<ManyAnswer>,
+  onCard: (cards: BuildCard[]) => void,
+  preview?: ManyAnswer
+): Promise<CreateRun> {
+  const order = createOrder(outputs);
+  const before = (k: OutputKind) => preview?.outputs.find((c) => c.output === k);
+  let cards = order.map((o) => pendingCard(o, "waiting", before(o.kind)));
+  let made = [...created];
+  onCard(cards);
+  for (let i = 0; i < order.length; i++) {
+    const o = requestFor(order[i], order, made);
+    cards = cards.map((c, j) => (j === i ? pendingCard(o, "running", before(o.kind)) : c));
+    onCard(cards);
+    let card: BuildCard;
+    try {
+      const a = await send(o, made);
+      card = { ...(a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind))), status: "done" };
+      made = mergeCreated(made as CreatedItem[], a.created ?? card.created ?? []);
+    } catch (e) {
+      card = failedCard(o, e, before(o.kind));
+    }
+    cards = cards.map((c, j) => (j === i ? card : c));
+    onCard(cards);
+  }
+  return { cards, created: made };
+}
+
 /** Builder's line under the preview: how many outputs, how many would be refused. */
 export function previewLine(a: ManyAnswer): string {
   const ok = a.outputs.length - a.refused;
@@ -260,6 +381,9 @@ export function previewLine(a: ManyAnswer): string {
 }
 
 export function resultLine(a: ManyAnswer): string {
+  const lost = a.outputs.filter((c) => c.status === "lost").length;
+  if (lost)
+    return `${lost} output(s) gave no answer yet; they may still be running in Fabric. Reopen this item in a minute and choose Create again: what is built is skipped.`;
   const made = (a.created ?? []).length;
   return made
     ? `${made} item(s) are in Fabric now. Open each one there; what is still to do is listed under it.`

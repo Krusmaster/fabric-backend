@@ -18,6 +18,8 @@ import {
   Input,
   MessageBar,
   MessageBarBody,
+  Radio,
+  RadioGroup,
   Spinner,
   Subtitle2,
   Switch,
@@ -28,7 +30,7 @@ import {
 } from "@fluentui/react-components";
 import { CheckmarkStarburst24Regular, Open24Regular } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
-import { BuildCard, DataProduct, EngineError, ManyAnswer } from "./engineClient";
+import { BuildCard, DataProduct, EngineError, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
   CreatedItem,
   OutputChoice,
@@ -98,9 +100,54 @@ export function ErrorBar({ error }: { error?: EngineError }) {
 
 // ------------------------------------------------------------------ 1. empty state ----------------------------------
 
+/** n179: the schema, chosen from the lakehouse's own list (exact names, with their tables); a text field only when the
+ * list could not be read, with the reason. */
+export function SchemaChoice(props: {
+  schema: string;
+  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError };
+  onSchemaChange: (schema: string) => void;
+}) {
+  const { loading, list, error } = props.schemas;
+  if (loading) return <Spinner size="tiny" label="Reading the lakehouse's schemas…" />;
+  if (error || !list) {
+    return (
+      <Field label="Schema" hint={error ? `The schemas could not be listed: ${error.error} Type the schema as the lakehouse spells it.` : "Choose a lakehouse first"}>
+        <Input value={props.schema} disabled={!error} onChange={(_, d) => props.onSchemaChange(d.value)} />
+      </Field>
+    );
+  }
+  if (!list.schemas.length) return <Caption1>{list.note}</Caption1>;
+  return (
+    <Field label="Schema" hint={list.preselect ? "The only schema with tables is selected." : "Choose the schema to plan."}>
+      <RadioGroup value={props.schema} onChange={(_, d) => props.onSchemaChange(d.value)} aria-label="Schema">
+        {list.schemas.map((x) => (
+          <Radio key={x.schema} value={x.schema} disabled={x.tables === 0}
+            label={`${x.schema} (${x.tables === 0 ? "no tables" : x.tables === 1 ? "1 table" : `${x.tables} tables`})`} />
+        ))}
+      </RadioGroup>
+    </Field>
+  );
+}
+
+/** n179: the delegated permissions an output needs, folded: the text is kept for whoever sets up Entra. */
+export function PermissionsNote({ needs, extra }: { needs: string[]; extra?: string }) {
+  if (!needs.length) return null;
+  return (
+    <details className="krusgraph-permissions">
+      <summary>
+        <Caption1>Permissions</Caption1>
+      </summary>
+      <Caption1>
+        Needs the delegated permission {needs.join(", and ")}.{extra ? ` ${extra}` : ""}
+      </Caption1>
+    </details>
+  );
+}
+
 export function EmptyView(props: {
   source?: SourceDefinition;
   schema: string;
+  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError };
   onSchemaChange: (schema: string) => void;
   onChooseLakehouse: () => void;
   onReview: () => void;
@@ -120,10 +167,8 @@ export function EmptyView(props: {
           <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
             {source ? `Lakehouse: ${source.displayName}` : "Choose lakehouse"}
           </Button>
-          <Field label="Schema" hint="dbo unless the lakehouse was created with schemas">
-            <Input value={props.schema} onChange={(_, d) => props.onSchemaChange(d.value)} />
-          </Field>
-          <Button appearance="primary" disabled={!source || !props.schema.trim()} onClick={props.onReview}>
+          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} />}
+          <Button appearance="primary" disabled={!source || !props.schema.trim() || props.schemas.loading} onClick={props.onReview}>
             Find keys and relationships
           </Button>
         </div>
@@ -391,7 +436,7 @@ export function OutputsView(props: {
                       <Input value={c.model ?? ""} onChange={(_, d) => set(k.kind, { model: d.value })} />
                     </Field>
                   )}
-                  <Caption1>Needs the delegated permission {k.needs.join(", and ")}.</Caption1>
+                  <PermissionsNote needs={k.needs} />
                 </>
               )}
             </section>
@@ -489,7 +534,9 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           </ul>
         </>
       )}
-      <Caption1>Permission: {c.permissions.needs.join(", and ")}. No run or schedule permission is used.</Caption1>
+      {c.status === "running" && <Spinner size="tiny" label="Creating in Fabric…" />}
+      {c.already_built && <Body1>Already in the workspace from an earlier Create; nothing was written again.</Body1>}
+      <PermissionsNote needs={c.permissions.needs} extra="No run or schedule permission is used." />
     </section>
   );
 }

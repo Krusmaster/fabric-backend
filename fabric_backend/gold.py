@@ -218,7 +218,7 @@ def create_sql(view: dict, s: dict) -> str:
     """CREATE OR REPLACE MATERIALIZED LAKE VIEW with one CONSTRAINT per rule, each preceded by the rule that motivates it."""
     gold, name = view["name"].split(".", 1)
     lines = [_sql_comment(f"{view['why']}.")]
-    lines += [_sql_comment(f"join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}, certainty {j['certainty']}")
+    lines += [_sql_comment(f"join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}")
               for j in view["joins"]]
     lines.append(f"CREATE OR REPLACE MATERIALIZED LAKE VIEW {q(gold)}.{q(name)}")
     if view["constraints"]:

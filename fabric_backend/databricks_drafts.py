@@ -251,7 +251,7 @@ def _gold_cells(s: dict, catalog: str) -> list[str]:
     for v in s["views"]:
         gold_schema, name = v["name"].split(".", 1)
         lines = [_one_line(f"-- {v['why']}.")]
-        lines += [_one_line(f"-- join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}, certainty {j['certainty']}")
+        lines += [_one_line(f"-- join {j['from']}.{'+'.join(j['source_cols'])} -> {j['to']}.{'+'.join(j['target_cols'])}: rule {j['rule']}")
                   for j in v["joins"]]
         lines.append(f"CREATE OR REFRESH MATERIALIZED VIEW {_full(catalog, gold_schema, name)}")
         if v["constraints"]:
