@@ -530,6 +530,8 @@ def permissions(kind: str, scopes: set[str] | None) -> dict:
     """What the output needs, each as "A or B", and what the token lacks (None: the token's permissions are unknown)."""
     needs = KINDS[kind]["needs"]
     out = {"needs": [" or ".join(alt) for alt in needs], "execute": "none: nothing is run or scheduled"}
+    if kind == "semantic_model":                                   # n180: one refresh of the model Create makes
+        out["execute"] = f"{REFRESH_PLANNED} The refresh needs {REFRESH_SCOPE}."
     out["missing"] = None if scopes is None else [alt[0] for alt in needs if not set(alt) & scopes]
     return out
 
@@ -799,6 +801,87 @@ def confirm_token(kind: str, mark: dict, ids: list[str]) -> str:
     return "upd-" + hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
+# ------------------------------------------------------------------ n180 addition 4: one refresh of a new model -------
+# The founder's report of 9 November 2026, 12:40 CET showed "Error fetching data" on every visual until the new semantic
+# model was refreshed by hand. Now Create refreshes a semantic model it has just created, once, and waits for it before
+# the report is built on it. Power BI REST, read 9 November 2026:
+#   Datasets - Refresh Dataset In Group, learn.microsoft.com/rest/api/power-bi/datasets/refresh-dataset-in-group
+#     POST https://api.powerbi.com/v1.0/myorg/groups/{groupId}/datasets/{datasetId}/refreshes, body {notifyOption},
+#     202 Accepted with x-ms-request-id and Location; Required Scope Dataset.ReadWrite.All; shared capacities allow
+#     eight refreshes a day.
+#   Datasets - Get Refresh History In Group, learn.microsoft.com/rest/api/power-bi/datasets/get-refresh-history-in-group
+#     GET .../refreshes?$top=1; status Unknown (in progress), Completed, Failed (serviceExceptionJson holds the error
+#     code) or Disabled; Required Scope Dataset.ReadWrite.All or Dataset.Read.All.
+# The workspace id is the group id and the semantic model's id the dataset id. The token is the signed-in user's, for
+# the Power BI audience (on-behalf-of, Tokens.powerbi). Only a model this request created is refreshed: never one that
+# was updated, found built, or named by the person.
+POWERBI = "https://api.powerbi.com/v1.0/myorg"
+POWERBI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"
+REFRESH_SCOPE = "Dataset.ReadWrite.All"
+REFRESH_POLL_SECONDS = 5
+REFRESH_MAX_POLLS = 24                                             # two minutes: the editor waits 230 s per output
+REFRESH_STEP = "Refresh the model once (framing)"
+REFRESH_PLANNED = "Create refreshes the model once; nothing else is run or scheduled."
+
+
+def _refresh_reason(entry: dict) -> str:
+    raw = entry.get("serviceExceptionJson") or ""
+    try:
+        code = json.loads(raw).get("errorCode") if raw else None
+    except (ValueError, AttributeError):
+        code = None
+    return code or raw or f"status {entry.get('status')}"
+
+
+def refresh_new_model(workspace: str, model_id: str, scopes: set[str] | None, app_id: str | None) -> dict:
+    """One refresh of a semantic model this Create has just made, waited for within REFRESH_MAX_POLLS. The answer is the
+    card's `refresh`: status refreshed, refreshing (still running when the wait ended), failed (with Fabric's reason) or
+    not_run (the permission is missing: which one, and the Entra steps)."""
+    from . import server as S
+    from .deploy import send
+    started = time.monotonic()
+
+    def done(out: dict) -> dict:
+        log("model_refresh", outcome=out["status"], seconds=round(time.monotonic() - started, 1))
+        return out
+
+    def no_consent(why: str) -> dict:
+        return done({"status": "not_run", "reason": why, "scope": REFRESH_SCOPE, "entra_steps": entra_steps(REFRESH_SCOPE, app_id),
+                     "hint": f"An administrator adds {REFRESH_SCOPE} to the workload's Entra app and consents; until then refresh "
+                             "the model once in the Fabric portal before opening the report."})
+    if scopes is not None and REFRESH_SCOPE not in scopes:
+        return no_consent(f"Your sign-in does not carry {REFRESH_SCOPE}, which refreshing a semantic model needs.")
+    w = S._WORKLOAD_TOKENS.get()
+    if w is None or not hasattr(w, "powerbi"):
+        return done({"status": "not_run", "reason": "no Power BI sign-in in this request"})
+    try:
+        headers = {"Authorization": f"Bearer {w.powerbi()}", "Content-Type": "application/json"}
+        base = f"{POWERBI}/groups/{workspace}/datasets/{model_id}/refreshes"
+        r = send("post", base, headers, write=True, json={"notifyOption": "NoNotification"}, timeout=30)
+        status = getattr(r, "status_code", 0)
+        if status in (401, 403):
+            return no_consent(f"Power BI refused the refresh (HTTP {status}); it needs {REFRESH_SCOPE}.")
+        if status >= 400:
+            return done({"status": "failed", "reason": f"Power BI answered HTTP {status} to the refresh request"})
+        request_id = (getattr(r, "headers", {}) or {}).get("x-ms-request-id")
+        for _ in range(REFRESH_MAX_POLLS):
+            if REFRESH_POLL_SECONDS:
+                time.sleep(REFRESH_POLL_SECONDS)
+            h = send("get", base + "?$top=1", headers, write=False, timeout=30)
+            if getattr(h, "status_code", 0) >= 400:
+                continue
+            entries = (h.json() or {}).get("value") or []
+            entry = next((e for e in entries if not request_id or e.get("requestId") == request_id), None)
+            if not entry or entry.get("status") == "Unknown":
+                continue
+            if entry.get("status") == "Completed":
+                return done({"status": "refreshed"})
+            return done({"status": "failed", "reason": _refresh_reason(entry)})
+        return done({"status": "refreshing", "reason": f"still running after {REFRESH_POLL_SECONDS * REFRESH_MAX_POLLS} s"})
+    except Exception as exc:  # noqa: BLE001 — the model stands; the card says the refresh did not happen
+        return done({"status": "failed", "reason": type(exc).__name__})
+
+
 def _portal_steps(kind: str, a: dict) -> list[str]:
     """What is still to do in the Fabric portal, as the tool's own answer says it."""
     if kind == "semantic_model" or kind in ("report", "ontology"):
@@ -1055,6 +1138,11 @@ def run_build_many(req: dict) -> dict:
                 if answer.get("kind") == "consent" and answer.get("scope"):
                     answer["entra_steps"] = entra_steps(str(answer["scope"]).split(" ")[0], app_id)
                 card["answer"] = answer
+                if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":
+                    card["refresh"] = {"status": "planned", "note": REFRESH_PLANNED}
+                    if scopes is not None and REFRESH_SCOPE not in scopes:
+                        card["refresh"].update(scope=REFRESH_SCOPE, entra_steps=entra_steps(REFRESH_SCOPE, app_id),
+                                               hint=f"Without {REFRESH_SCOPE} Create cannot refresh it: refresh it once in the portal.")
                 log("build_output", output=kind, dry_run=dry_run, outcome=answer.get("kind") if answer.get("error") else "ok",
                     seconds=round(time.monotonic() - started, 1))
                 if not dry_run and not answer.get("error"):
@@ -1067,6 +1155,11 @@ def run_build_many(req: dict) -> dict:
                     if card["created"]:
                         mark_items(workspace, headers, card["created"], mark)
                     card["portal_steps"] = _portal_steps(kind, answer)
+                    new_model = next((c["id"] for c in card["created"] if c["type"] == "SemanticModel"), None)
+                    if kind == "semantic_model" and would == "create" and new_model:   # only a model this request created
+                        card["refresh"] = refresh_new_model(workspace, new_model, scopes, app_id)
+                        if card["refresh"]["status"] == "refreshed":
+                            card["portal_steps"] = [x for x in card["portal_steps"] if not x.startswith(REFRESH_STEP)]
             built[kind] = card
             cards.append(card)
         out = {"dry_run": dry_run, "outputs": cards, "order": [c["output"] for c in cards],
@@ -1105,6 +1198,10 @@ class Tokens:
     def sql(self) -> str:
         from .entra import SQL_SCOPE
         return self.obo.token(self.user_token, self.tenant, SQL_SCOPE)
+
+    def powerbi(self) -> str:
+        """n180: for the Power BI REST API (a new semantic model's one refresh)."""
+        return self.obo.token(self.user_token, self.tenant, POWERBI_SCOPE)
 
 
 def cors_headers(origin: str | None) -> dict:

@@ -1558,7 +1558,7 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     if _GUID.match(model.strip()):
-        model_item = {"id": model.strip(), "displayName": model.strip()}
+        model_item = {"id": model.strip(), "displayName": _model_display_name(workspace_id, model.strip(), headers)}
     else:
         model_item = find_item_by_name(workspace_id, model, headers, ("SemanticModel",))
         if not model_item:
@@ -2468,6 +2468,20 @@ def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = No
 def _workspace_items(workspace: str, headers: dict) -> list[dict]:
     """Every item in the workspace (id, displayName, type), all pages (lineage.rest_items)."""
     return _lineage.rest_items(workspace, headers)
+
+
+def _model_display_name(workspace_id: str, model_id: str, headers: dict) -> str:
+    """n180: the model's own name for the report's title and description, when the model is given by id (the Krusgraph
+    Model editor sends the id of the model it just created). On 9 November 2026 the title read "Overview · 3cd7bfba-…".
+    GET /workspaces/{ws}/items/{id}; the id itself when Fabric does not answer."""
+    from .deploy import send
+    try:
+        r = send("get", f"{FABRIC}/v1/workspaces/{workspace_id}/items/{model_id}", headers, write=False, timeout=30)
+        if getattr(r, "status_code", 0) < 400:
+            return str((r.json() or {}).get("displayName") or model_id)
+    except Exception:  # noqa: BLE001 — a title with the id is better than no report
+        pass
+    return model_id
 
 
 def _item_definition_parts(workspace: str, route: str, item_id: str, headers: dict, fmt: str | None = None) -> dict[str, str]:

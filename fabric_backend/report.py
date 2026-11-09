@@ -244,7 +244,51 @@ def _projection(kind: str, table: str, prop: str, active: bool | None = None) ->
 
 LOG_WORDS = {"log", "logs", "audit"}          # a table named like this is no business figure for a card
 MARGIN, GAP = 16, 12
-TITLE_H, CARD_H, FOOT_H, SLICER_W = 44, 96, 24, 220
+TITLE_H, CARD_H, FOOT_H, SLICER_W = 76, 120, 24, 220
+# n180: on 9 November 2026 (demo_lh_report2, 1280 x 720) the captions under the cards' numbers ("Rows in orders", "Rows
+# in order_items", "Total quantity") and the slicer's title "Category name" were cut off: a card 96 px high held its
+# title, the number and the caption at Power BI's automatic sizes, and a dropdown slicer 44 px high held its title, its
+# header and the box. Now the font sizes are set, the slicer's header is off (its title names the field), and each
+# box is sized for its text by the estimate below (text_problems; the tests check every visual of a page with it).
+CARD_TITLE_PT, CARD_VALUE_PT, CARD_CAPTION_PT, SLICER_TITLE_PT = 11, 24, 11, 10
+PAD_PX, LINE_GAP_PX, DROPDOWN_PX = 10, 4, 32
+CHAR_EM = 0.6                     # a generous average glyph width of Segoe UI, in em (digits and lower case are ~0.5)
+
+
+def px(pt: float) -> float:
+    return pt * 96 / 72
+
+
+def text_px(text: str, pt: float) -> float:
+    return len(text) * px(pt) * CHAR_EM
+
+
+def caption_pt(text: str, width: float) -> int:
+    """The caption's size: CARD_CAPTION_PT, smaller (down to 8 pt) only when a long measure name would not fit."""
+    pt = CARD_CAPTION_PT
+    while pt > 8 and text_px(text, pt) > width - 2 * PAD_PX:
+        pt -= 1
+    return pt
+
+
+def text_problems(v: dict, pos: dict) -> list[str]:
+    """What would be cut off in a card or a slicer at its position: the lines' heights against the box's height, each
+    line's width against the box's width. Empty when the text fits."""
+    out, w, h = [], pos["width"] - 2 * PAD_PX, pos["height"] - 2 * PAD_PX
+    if v["type"] == "card":
+        cap = v["measure"]["measure"]
+        cpt = caption_pt(cap, pos["width"])
+        lines = [(v["title"], CARD_TITLE_PT), ("0000000", CARD_VALUE_PT), (cap, cpt)]
+    elif v["type"] == "slicer":
+        lines = [(v["title"], SLICER_TITLE_PT)]
+        h -= DROPDOWN_PX + LINE_GAP_PX
+    else:
+        return []
+    need = sum(px(pt) * 1.25 for _, pt in lines) + LINE_GAP_PX * (len(lines) - 1)
+    if need > h:
+        out.append(f"{v['type']} {v['title']!r}: {need:.0f} px of text in {h:.0f} px")
+    out += [f"{v['type']} {v['title']!r}: {t!r} is {text_px(t, pt):.0f} px wide in {w:.0f} px" for t, pt in lines if text_px(t, pt) > w]
+    return out
 THEME_NAME = "Krusgraph"
 THEME_FILE = f"{THEME_NAME}.json"
 # The colours of the site's CSS tokens (fabric_backend/static/site.css :root): ink and muted on white, the four accent
@@ -491,11 +535,15 @@ def _visual_json(v: dict, name: str, pos: dict, model: dict) -> dict:
                 "visual": {"visualType": "textbox", "objects": _text_box(v["text"], "18pt" if big else "9pt", big, THEME["foreground"] if big
                                                                          else THEME["foregroundNeutralSecondary"])}}
     title = {"title": [{"properties": {"show": _lit(True), "text": _lit(v["title"])}}]}
+    if v["type"] in ("card", "slicer"):                               # n180: sizes set, so the text fits its box
+        size = CARD_TITLE_PT if v["type"] == "card" else SLICER_TITLE_PT
+        title["title"][0]["properties"]["fontSize"] = _lit(float(size))       # PBIR writes sizes as doubles: 11D
     if v["type"] == "slicer":
         col = _projection("Column", *v["category"], active=True)
         return {"$schema": SCHEMA["visual"], "name": name, "position": pos,
                 "visual": {"visualType": "slicer", "query": {"queryState": {"Values": {"projections": [col]}}},
-                           "objects": {"data": [{"properties": {"mode": _lit("Dropdown")}}]},
+                           "objects": {"data": [{"properties": {"mode": _lit("Dropdown")}}],
+                                       "header": [{"properties": {"show": _lit(False)}}]},
                            "visualContainerObjects": title, "drillFilterOtherVisuals": True}}
     m = v["measure"]
     measure = _projection("Measure", m["table"], m["measure"])
@@ -503,8 +551,8 @@ def _visual_json(v: dict, name: str, pos: dict, model: dict) -> dict:
     objects: dict = {}
     if v["type"] == "card":
         state = {"Values": {"projections": [measure]}}
-        if fmt["visual_sets_no_decimals"]:
-            objects["labels"] = [{"properties": {"labelPrecision": _lit(0)}}]
+        objects["labels"] = [{"properties": {"fontSize": _lit(float(CARD_VALUE_PT))} | ({"labelPrecision": _lit(0)} if fmt["visual_sets_no_decimals"] else {})}]
+        objects["categoryLabels"] = [{"properties": {"show": _lit(True), "fontSize": _lit(float(caption_pt(m["measure"], pos["width"])))}}]
     elif v["type"] == "tableEx":
         cat = _projection("Column", *v["category"])
         state = {"Values": {"projections": [cat, measure]}}

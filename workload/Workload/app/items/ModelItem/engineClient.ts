@@ -173,6 +173,19 @@ export interface BuildCard {
   existing?: ExistingCounts;
   /** n180: an Update's dry run: what its Create sends back in `confirm` */
   confirm_update?: string;
+  /** n180: the one refresh of a semantic model this Create made (planned in the dry run) */
+  refresh?: ModelRefresh;
+}
+
+/** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait
+ * ended), failed with Fabric's reason, or not_run (the permission it needs, with the Entra steps). */
+export interface ModelRefresh {
+  status: "planned" | "refreshed" | "refreshing" | "failed" | "not_run";
+  reason?: string;
+  note?: string;
+  scope?: string;
+  entra_steps?: string[];
+  hint?: string;
 }
 
 export interface FlowNode {

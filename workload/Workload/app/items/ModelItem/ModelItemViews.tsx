@@ -52,6 +52,7 @@ import {
   kindInfo,
   nameAction,
   needsChoice,
+  refreshWords,
   openLinks,
   previewLine,
   resultLine,
@@ -510,6 +511,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const links = openLinks(c.created?.length ? c.created : c.existing_items ?? []);
   const choose = needsChoice(c);
   const confirm = c.dry_run && !!c.confirm_update && !c.refusal && !c.answer?.error;
+  const refresh = refreshWords(c);
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
@@ -524,6 +526,20 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
         </ul>
       )}
       <Problem card={c} />
+      {refresh && (
+        <MessageBar intent={c.refresh?.status === "refreshed" ? "success" : c.refresh?.status === "planned" || c.refresh?.status === "refreshing" ? "info" : "warning"} layout="multiline">
+          <MessageBarBody>
+            {refresh}
+            {c.refresh?.entra_steps && c.refresh.entra_steps.length > 0 && (
+              <ol className="krusgraph-steps" aria-label="Steps in Entra">
+                {c.refresh.entra_steps.map((s) => (
+                  <li key={s}>{s}</li>
+                ))}
+              </ol>
+            )}
+          </MessageBarBody>
+        </MessageBar>
+      )}
       {links.length > 0 && (
         <div className="krusgraph-actions">
           {links.map((l) => (
@@ -588,7 +604,10 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           )}
         </>
       )}
-      <PermissionsNote needs={c.permissions.needs} extra="No run or schedule permission is used." />
+      <PermissionsNote
+        needs={c.permissions.needs}
+        extra={c.output === "semantic_model" ? "Create refreshes the model once (Dataset.ReadWrite.All); nothing else is run or scheduled." : "No run or schedule permission is used."}
+      />
     </section>
   );
 }

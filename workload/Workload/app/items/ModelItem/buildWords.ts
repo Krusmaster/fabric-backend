@@ -257,6 +257,27 @@ export function cardFacts(c: BuildCard): string[] {
   }
 }
 
+/** n180: the semantic model's one refresh in words: what the dry run plans, and how Create's refresh ended. */
+export function refreshWords(c: BuildCard): string | undefined {
+  const r = c.refresh;
+  if (!r) return undefined;
+  switch (r.status) {
+    case "planned":
+      return "Create refreshes the model once; nothing else is run or scheduled." +
+        (r.scope ? ` Your sign-in lacks ${r.scope}, so it would be refreshed in the portal instead.` : "");
+    case "refreshed":
+      return "Refreshed once: the report built on it can read its data.";
+    case "refreshing":
+      return `Refreshing: ${r.reason ?? "still running"}. Open the report when the refresh has finished.`;
+    case "failed":
+      return `Refresh failed: ${r.reason ?? "no reason given"}. Refresh the model once in the portal before opening the report.`;
+    case "not_run":
+      return `Not refreshed: ${r.reason ?? "no permission"}${r.hint ? ` ${r.hint}` : ""}`;
+    default:
+      return undefined;
+  }
+}
+
 /** n180: the card of an existing item built from another plan (or plan unknown), waiting for Update or a new name. */
 export function needsChoice(c: BuildCard): boolean {
   return !!(c.built_from && c.choices?.length && !c.dry_run);

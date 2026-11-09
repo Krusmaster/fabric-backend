@@ -55,7 +55,12 @@ next deploy.
   is written for either, and the card offers Update (where the tool updates in place; a dry run first, whose
   `confirm_update` the engine requires before it writes) or Choose a new name. Cards of existing items show what the item
   holds (notebook cells and views, report pages and visuals, model tables, data agent example questions) or no count,
-  never "0 visual(s)" for a report that has them. Needs a redeploy and a new workload package version.
+  never "0 visual(s)" for a report that has them. Addition 4: Create refreshes a semantic model it has just created once
+  (Power BI REST Refresh Dataset In Group, `Dataset.ReadWrite.All`), waits up to two minutes and says refreshed,
+  refreshing, refresh failed with the reason, or the missing permission with the Entra steps, before the report is
+  built; the dry run says so. The report's title names the model, not its id, and its cards and slicers are sized so
+  their captions fit at 1280 x 720. Needs a redeploy, a new workload package version and `Dataset.ReadWrite.All` on the
+  workload's Entra app.
 - Round n179: Create in the Krusgraph Model sends one request per output (the model before its report), each card with
   its own progress and result; a lost answer says "no answer yet, it may still be running in Fabric" on its card instead
   of "Failed to fetch" for the page; the created ids are saved after each output. A re-run (`skip_built`) shows the

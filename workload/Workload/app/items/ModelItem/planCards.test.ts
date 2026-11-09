@@ -2,7 +2,7 @@
 // cards for items built from another plan or with no plan recorded (tests/test_workload_plans.py), here in words: the
 // title says which plan, Update is a dry run first, the counts are what the item holds and never a zero.
 import { describe, expect, it } from "vitest";
-import { cardFacts, cardTitle, existingFacts, mergeCreated, needsChoice, newNameFor, resultLine, runUpdate } from "./buildWords";
+import { cardFacts, cardTitle, existingFacts, mergeCreated, needsChoice, newNameFor, refreshWords, resultLine, runUpdate } from "./buildWords";
 import { BuildCard, ManyAnswer, updateBody } from "./engineClient";
 import { emptyDefinition, fromParts, toParts } from "./ModelItemDefinition";
 
@@ -103,5 +103,21 @@ describe("outputs.json keeps the plan of each item", () => {
     const def = emptyDefinition();
     const back = fromParts(toParts({ ...def, outputs: { ...def.outputs, created } }) as never);
     expect(back.outputs.created[0].plan).toEqual(NOW);
+  });
+});
+
+// n180, addition 4: the semantic model's one refresh on its card (tests/test_workload_refresh.py for the engine)
+
+describe("the semantic model's refresh on its card", () => {
+  const model = (refresh: BuildCard["refresh"]) => card({ output: "semantic_model", label: "Semantic model", name: "demo_lh_model3", refresh });
+  it("says what the dry run plans and how Create's refresh ended", () => {
+    expect(refreshWords(model({ status: "planned" }))).toBe("Create refreshes the model once; nothing else is run or scheduled.");
+    expect(refreshWords(model({ status: "planned", scope: "Dataset.ReadWrite.All" }))).toContain("lacks Dataset.ReadWrite.All");
+    expect(refreshWords(model({ status: "refreshed" }))).toMatch(/^Refreshed once/);
+    expect(refreshWords(model({ status: "refreshing", reason: "still running after 120 s" }))).toMatch(/^Refreshing: still running after 120 s/);
+    expect(refreshWords(model({ status: "failed", reason: "ModelRefreshFailed_CredentialsNotSpecified" })))
+      .toBe("Refresh failed: ModelRefreshFailed_CredentialsNotSpecified. Refresh the model once in the portal before opening the report.");
+    expect(refreshWords(model({ status: "not_run", reason: "Your sign-in does not carry Dataset.ReadWrite.All." }))).toMatch(/^Not refreshed: .*Dataset\.ReadWrite\.All/);
+    expect(refreshWords(card({}))).toBeUndefined();
   });
 });

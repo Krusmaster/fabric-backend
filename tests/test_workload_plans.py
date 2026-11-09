@@ -69,6 +69,9 @@ class Defined(Workspace):
                 if it["id"] == rest[1]:
                     it["description"] = body["description"]
             return gs.Response(200, {"id": rest[1], **body})
+        if method == "GET" and len(rest) == 2 and rest[0] == "items" and any(i["id"] == rest[1] for i in self.items):
+            self.calls.append((method, path))
+            return gs.Response(200, next(i for i in self.items if i["id"] == rest[1]))
         if method == "GET" and rest[:1] == ["dataAgents"] and rest[-1] == "datasources":
             return gs.Response(200, {"value": [{"id": "ds-1", "type": "LakehouseTables"}]})
         if method == "GET" and rest[:1] == ["dataAgents"] and rest[-1] == "fewshots":

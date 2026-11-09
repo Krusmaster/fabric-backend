@@ -163,16 +163,17 @@ def test_counts_and_sums_of_whole_numbers_are_whole_in_the_tmdl():
 
 def test_the_visual_sets_no_decimals_only_for_a_model_that_lacks_the_format():
     ours = next(json.loads(t) for t in report.definition_parts(SHOP, MODEL_ID)["parts"].values() if '"card"' in t and "Rows in orders" in t)
-    assert "objects" not in ours["visual"]                                                          # "#,0" in the model already
+    precision = lambda v: "labelPrecision" in v["visual"]["objects"]["labels"][0]["properties"]   # noqa: E731 — n180: cards set sizes
+    assert not precision(ours)                                                                     # "#,0" in the model already
     theirs = copy.deepcopy(SHOP)
     for t in theirs["tables"].values():
         for m in t["measures"].values():
             m.pop("format_string", None)
     parts = report.definition_parts(theirs, MODEL_ID)["parts"]
     card = next(json.loads(t) for t in parts.values() if '"card"' in t and "Rows in orders" in t)
-    assert card["visual"]["objects"]["labels"] == [{"properties": {"labelPrecision": {"expr": {"Literal": {"Value": "0L"}}}}}]
+    assert card["visual"]["objects"]["labels"][0]["properties"]["labelPrecision"] == {"expr": {"Literal": {"Value": "0L"}}}
     units = next(json.loads(t) for t in parts.values() if '"card"' in t and "Total quantity" in t)
-    assert "objects" not in units["visual"]                                                       # a DOUBLE quantity: not ours to round
+    assert not precision(units)                                                                   # a DOUBLE quantity: not ours to round
     assert all(schema_errors(json.loads(t)) == [] for p, t in parts.items() if not p.startswith("StaticResources/"))
 
 

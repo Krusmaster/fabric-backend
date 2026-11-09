@@ -441,6 +441,7 @@ editor's unit tests (`buildWords.test.ts`, `dataFlow.test.ts`). In this order:
    | Silver notebook, gold views | `Notebook.ReadWrite.All` | `Item.ReadWrite.All` |
    | Pipeline | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` | `Item.ReadWrite.All` |
    | Semantic model | `SemanticModel.ReadWrite.All` | `Item.ReadWrite.All` |
+   | Semantic model's one refresh after Create (n180) | `Dataset.ReadWrite.All` (Power BI REST; without it the model is created and its card says to refresh it in the portal) | |
    | Report | `Report.ReadWrite.All` and `SemanticModel.ReadWrite.All` (it reads the model's measures) | `Item.ReadWrite.All` |
    | API for GraphQL | `GraphQLApi.ReadWrite.All` | `Item.ReadWrite.All` |
    | Ontology | `Item.ReadWrite.All` | |
@@ -619,6 +620,28 @@ Fabric has the Update and new-name buttons. Then reopen **shop_krusgraphtest** a
 morning, and the API of 12:14, show "built by Krusgraph, plan unknown" (they were built before plans were recorded).
 Choose Update on each one that should follow the plan on screen (a dry run first, then Update in Fabric), or a new name
 to keep the morning's build; the report offers only a new name. A second Create afterwards shows them as already built.
+
+**Addition 4 (the founder's run of 12:40 CET).** demo_lh_report2, built from the editor, showed the right figures
+(Orders 60, Order lines 134, Units 324; Units by category Tea 141, Accessories 120, Bikes 63) only after demo_lh_model3
+was refreshed by hand; before that every visual said "Error fetching data". Its title read "Overview · 3cd7bfba-…",
+and the cards' captions and the slicer's title "Category name" were cut off. Since then:
+
+5. **Create refreshes a semantic model it has just created, once**, and waits for it before the next output (the
+   report) is sent: `POST https://api.powerbi.com/v1.0/myorg/groups/{workspace}/datasets/{model}/refreshes` with
+   `{"notifyOption": "NoNotification"}`, then `GET …/refreshes?$top=1` every 5 s, at most 24 times (Microsoft Learn,
+   *Datasets - Refresh Dataset In Group* and *Datasets - Get Refresh History In Group*, Power BI REST APIs, read
+   9 November 2026; required scope `Dataset.ReadWrite.All`; on a shared capacity at most eight refreshes a day). The
+   token is the user's, exchanged on-behalf-of for the Power BI audience (`https://analysis.windows.net/powerbi/api`).
+   The model's card says **refreshed**, **refreshing** (still running after 120 s: open the report when it is done),
+   **refresh failed: reason** (Fabric's error code), or **not refreshed** with the missing permission and the Entra
+   steps; except when refreshed, the portal step "Refresh the model once" stays. The dry run says "Create refreshes the
+   model once; nothing else is run or scheduled". A model that was updated, found built or named for the report is
+   never refreshed. Add `Dataset.ReadWrite.All` to the workload app (step 1's table) for this.
+6. **The report's title names the model** ("Overview · demo_lh_model3"): given an id, create_report reads the model's
+   display name (`GET /workspaces/{ws}/items/{id}`).
+7. **The cards and slicers fit their text at 1280 x 720**: the cards are 120 px high with set sizes (title 11 pt, number
+   24 pt, caption 11 pt, smaller only for a long measure name), the slicers 76 px with their header off and a 10 pt
+   title. `report.text_problems` checks every card and slicer of a page in the tests. Not yet seen in Fabric.
 
 ### What the editor does since n174
 
