@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n185: **Run once and Schedule** for the pipeline the Krusgraph Model creates, both off by default. Run once
+  starts one run after Create and shows each step with its duration and a link. Schedule is daily or every N hours, in
+  a time zone (default Europe/Stockholm), with the next run time; a Krusgraph schedule is updated, never doubled, and
+  others are never touched. Both need `DataPipeline.Execute.All`; without it they are shown disabled with the steps.
+  Run and schedule ids are kept in `outputs.json`. The MCP tool `create_pipeline` takes `run_once` and `schedule` with
+  the same dry-run wording.
+- Round n185: the **data agent reads one layer** (silver, gold or the source, never two copies of a table; the founder
+  saw shop and silver ticked together). Its examples' validation is shown, and the card says Fabric shows them as
+  *Example queries*, not as the chat's suggestions. **Publish the agent in Fabric** and **Also make it available in
+  Microsoft 365 Copilot** are separate ticks, both off. Publishing happens only with one layer and, with Run once, after
+  the run succeeded. Copilot has no API and gets a preflight (capacity, tenant settings, licences).
+  `docs/DATA-AGENT-PUBLISH.md`, also on the agent's MCP tab. The report's footer line and the last table row have room
+  at 1280 x 720. `docs/WORKLOAD-DEV.md` step 14. Needs a redeploy, `DataPipeline.Execute.All` with consent in the Entra
+  portal (only for Run once and Schedule), and a new workload package version.
 - Round n184: the Krusgraph Model editor's **output cards show the Fabric icon of the item type** each creates (Notebook
   for the silver notebook and the gold views, Pipeline, Semantic model, Report, Ontology, Data agent, App; the generic
   Fabric item icon for the API for GraphQL, which Microsoft's package has no icon for), 20 px left of the title, with

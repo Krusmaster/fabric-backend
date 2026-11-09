@@ -52,6 +52,24 @@ Items (preview)" is checked before the source is read (off: the admin card, noth
 pages and charts come as outputs[].app; the dry run gives the pages, the read-only connector and its API with every
 link, the package and the commands; Create makes the empty App item by Create App Backend (the only documented call)
 and records it like every other output. Fabric's 403 "The feature is not available" is the same admin card.
+
+n185: two choices on the pipeline, both off unless ticked (outputs[].jobs = {run_once, schedule}): Run once starts one
+run after the pipeline and its notebooks exist, and Schedule adds a daily or every-N-hours schedule, or updates the one
+this Model made (outputs.json's schedule ids, sent as schedule_ids); a schedule it did not make is never touched
+(pipeline_jobs.py, which cites the Job Scheduler APIs). Both need DataPipeline.Execute.All (or Item.Execute.All) on the
+workload app: without it the card's `jobs.permission` says so with the Entra steps and the manual Fabric steps, and
+Create builds the pipeline and runs or schedules nothing. Create does not wait for the run: the editor reads it with
+POST /workload/v1/pipeline-run, so no other card waits for it.
+
+n185, the data agent (the founder's additions 1 to 4 of 9 November 2026): outputs[].agent = {layer, publish, copilot}.
+The agent reads one layer: the silver tables when they are in the lakehouse (the default), the gold views as an option,
+else the source tables, and never two (data_agent.select_layer). "Publish the agent in Fabric" and "Also make it
+available in Microsoft 365 Copilot" are separate ticks, both off; Copilot needs Publish ticked first. Publishing in
+Fabric (Items_PublishDataAgent) happens only when ticked, when the agent reads one layer, and, with Run once ticked, after
+that run succeeded: Create starts the run without waiting, so the editor sends the agent once more with
+after_run {status} when it has read the run's end (agent_publish.decide). Microsoft 365 Copilot has no documented API:
+its card is the preflight (agent_publish.copilot_preflight: capacity SKU, tenant settings, licences, each with Learn's
+link, Unverified where it cannot be read) and the portal step. Nothing is ever retried in a loop.
 """
 from __future__ import annotations
 
@@ -230,6 +248,10 @@ def build_request(body) -> dict:
                                                 for k in ("kpis", "tables", "charts")):
                 raise BadRequest("rayfin_app.app: {kpis, tables, charts}, each a list of option ids from the dry run")
             c["app"] = {k: list(app.get(k, [])) for k in ("kpis", "tables", "charts")}
+        if o["kind"] == "data_agent" and o.get("agent") is not None:  # n185: one layer; Publish and Copilot, both off by default
+            c["agent"] = _agent_request(o["agent"])
+        if o["kind"] == "pipeline" and o.get("jobs") is not None:    # n185: Run once and Schedule, both off by default
+            c["jobs"] = _jobs_request(o["jobs"])
         if o["kind"] == "report" and o.get("model") not in (None, ""):
             if not isinstance(o["model"], str) or len(o["model"]) > 123:
                 raise BadRequest("report.model: the name or id of an existing semantic model, or empty for the one this build makes")
@@ -276,10 +298,81 @@ def build_request(body) -> dict:
     if not isinstance(confirm, dict) or not all(isinstance(v, str) for v in confirm.values()):
         raise BadRequest("'confirm' must be {kind: the confirm_update its Update's dry run gave}")
     flags["confirm"] = confirm
+    sids = body.get("schedule_ids") or []                         # n185: outputs.json's schedules, the ones this Model made
+    if not isinstance(sids, list) or not all(isinstance(x, str) and len(x) <= 64 for x in sids):
+        raise BadRequest("'schedule_ids' must be outputs.json's schedule ids (a list of ids) or empty")
+    flags["schedule_ids"] = sids
+    after = body.get("after_run")                                 # n185: the pipeline run's end, as the editor read it
+    if after is not None:
+        if not isinstance(after, dict) or after.get("status") not in ("Succeeded", "Failed", "Running", "Unknown", "NotStarted"):
+            raise BadRequest("'after_run' is {status: Succeeded, Failed, Running, Unknown or NotStarted}")
+        flags["after_run"] = {"status": after["status"]}
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
             "created": [{k: c.get(k) for k in ("type", "id", "name", "workspace", "output", "plan") if k != "plan" or isinstance(c.get(k), dict)}
                         for c in created], "form": 2, **flags}
+
+
+_GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def _agent_request(agent) -> dict:
+    """outputs[].agent of the data agent: {layer: silver (default), gold or source, publish: false, copilot: false}."""
+    if not isinstance(agent, dict):
+        raise BadRequest("data_agent.agent: {layer, publish, copilot}")
+    layer = agent.get("layer", "silver")
+    if layer not in ("silver", "gold", "source"):
+        raise BadRequest("data_agent.agent.layer is silver, gold or source")
+    for k in ("publish", "copilot"):
+        if not isinstance(agent.get(k, False), bool):
+            raise BadRequest(f"data_agent.agent.{k} must be true or false (default false)")
+    if agent.get("copilot") and not agent.get("publish"):
+        raise BadRequest("data_agent.agent.copilot needs publish: an agent is made available in Microsoft 365 Copilot only once published")
+    return {"layer": layer, "publish": agent.get("publish", False), "copilot": agent.get("copilot", False)}
+
+
+def _jobs_request(jobs) -> dict:
+    """outputs[].jobs of the pipeline: {run_once: bool, schedule: null or pipeline_jobs.schedule_spec's input}."""
+    from . import pipeline_jobs
+    if not isinstance(jobs, dict) or not isinstance(jobs.get("run_once", False), bool):
+        raise BadRequest("pipeline.jobs: {run_once: true or false, schedule: null or {every, at, hours, time_zone, start}}")
+    try:
+        spec = pipeline_jobs.schedule_spec(jobs.get("schedule"))
+    except pipeline_jobs.ScheduleError as exc:
+        raise BadRequest(f"pipeline.jobs.{exc}") from None
+    return {"run_once": jobs.get("run_once", False), "schedule": spec}
+
+
+def pipeline_run_request(body) -> dict:
+    """n185: POST /workload/v1/pipeline-run {workspace, pipeline_id, pipeline_name, run_id, started}: the run now."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    out = {}
+    for k in ("workspace", "pipeline_id", "pipeline_name", "run_id"):
+        v = body.get(k)
+        if not isinstance(v, str) or not v.strip() or len(v) > 200:
+            raise BadRequest(f"'{k}' is required")
+        out[k] = v.strip()
+    if not _GUID.match(out["pipeline_id"]) or not _GUID.match(out["run_id"]) or not _GUID.match(out["workspace"]):
+        raise BadRequest("workspace, pipeline_id and run_id are Fabric ids (GUIDs)")
+    started = body.get("started")
+    out["started"] = started if isinstance(started, str) and len(started) <= 40 else None
+    out["source_name"] = out["pipeline_name"]                     # for the error layer's words
+    return out
+
+
+def run_pipeline_status(req: dict) -> dict:
+    """The run as the card shows it (pipeline_jobs.read_run), as the signed-in user. Only reads."""
+    from . import pipeline_jobs, server as S
+    from .deploy import send
+    headers = S._headers(None)
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=False, timeout=30, **kw)
+    run = pipeline_jobs.read_run(http, req["workspace"], req["pipeline_id"], req["pipeline_name"], req["run_id"], req["started"])
+    run["note"] = pipeline_jobs.run_note(run)
+    log("pipeline_run", outcome=run["status"])
+    return run
 
 
 # ------------------------------------------------------------------ the review's decisions applied to a plan --------
@@ -549,8 +642,39 @@ def permissions(kind: str, scopes: set[str] | None) -> dict:
     out = {"needs": [" or ".join(alt) for alt in needs], "execute": "none: nothing is run or scheduled"}
     if kind == "semantic_model":                                   # n180: one refresh of the model Create makes
         out["execute"] = f"{REFRESH_PLANNED} The refresh needs {REFRESH_SCOPE}."
+    if kind == "pipeline":                                         # n185: Run once and Schedule, only when ticked
+        out["execute"] = (f"none unless Run once or Schedule is ticked; they need {EXECUTE_SCOPE} (or {EXECUTE_ALT}).")
     out["missing"] = None if scopes is None else [alt[0] for alt in needs if not set(alt) & scopes]
     return out
+
+
+# n185: the permission Run once and Schedule need. Not part of the pipeline's own needs: without it the pipeline is built
+# and the two choices are shown disabled with this explanation.
+EXECUTE_SCOPE, EXECUTE_ALT = "DataPipeline.Execute.All", "Item.Execute.All"
+FABRIC_API_APP = "00000009-0000-0000-c000-000000000000"           # Power BI Service, whose delegated permissions Fabric's are
+
+
+def az_permission_line(scope: str, app_id: str | None) -> str:
+    """The Cloud Shell line that adds one delegated permission of Power BI Service to the workload app."""
+    return (f"az ad app permission add --id {app_id or '<workload app id>'} --api {FABRIC_API_APP} --api-permissions "
+            f"\"$(az ad sp show --id {FABRIC_API_APP} --query \"oauth2PermissionScopes[?value=='{scope}'].id\" -o tsv)=Scope\"")
+
+
+def jobs_permission(scopes: set[str] | None, app_id: str | None) -> dict:
+    """Whether the sign-in can run and schedule pipelines: granted true, false (with the steps) or None (unknown)."""
+    from . import pipeline_jobs
+    granted = None if scopes is None else bool({EXECUTE_SCOPE, EXECUTE_ALT} & scopes)
+    out = {"granted": granted, "scope": EXECUTE_SCOPE, "or": EXECUTE_ALT}
+    if granted is False:
+        out.update(why=f"Your sign-in does not carry {EXECUTE_SCOPE}, which running and scheduling a pipeline need; Krusgraph "
+                       "builds the pipeline and runs or schedules nothing.",
+                   entra_steps=entra_steps(EXECUTE_SCOPE, app_id), az=az_permission_line(EXECUTE_SCOPE, app_id),
+                   consent_note=CONSENT_NOTE, manual=list(pipeline_jobs.MANUAL))
+    return out
+
+
+CONSENT_NOTE = ("Grant admin consent in the Entra portal (App registrations -> the workload app -> API permissions -> Grant "
+                "admin consent): `az ad app permission admin-consent` fails in Cloud Shell.")
 
 
 def entra_steps(scope: str, app_id: str | None) -> list[str]:
@@ -904,6 +1028,9 @@ def refresh_new_model(workspace: str, model_id: str, scopes: set[str] | None, ap
         return done({"status": "failed", "reason": type(exc).__name__})
 
 
+RUN_STEP = "Run the pipeline once in Fabric (Run) to fill the silver tables and the gold views."
+
+
 # n184: the steps on a card are plain words. A tool's name means nothing to the person in Fabric ("Run
 # create_silver_notebook's notebook first"); a sentence about another tool is left out.
 TOOL_NAME = re.compile(r"\b(?:create|export|compare|describe|validate|plan|query)_[a-z_]+\b|\b[a-z]+(?:_[a-z]+)+_draft\b")
@@ -936,12 +1063,103 @@ def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | 
         return plain_steps(list(a.get("after_creation") or []), chosen)
     if kind in ("silver_notebook", "gold_views"):
         return plain_steps(list(a.get("run") or []), chosen)
-    if kind == "pipeline":
-        return [a.get("runs", ""), "To run it regularly, add a schedule on the pipeline in Fabric (Schedule); Krusgraph adds none."]
-    if kind == "data_agent":
-        return ["Open the agent in Fabric: its data source, selected tables and example queries are under its staging configuration.",
-                "Publish it there when its answers are right; the Model creates it unpublished, so only you see the draft."]
+    if kind == "pipeline":                                         # n185: what Run once and Schedule did not do already
+        res = a.get("result") or {}
+        ran = (res.get("run") or {}).get("status") in ("Running", "Succeeded")
+        scheduled = (res.get("schedule") or {}).get("status") == "Succeeded"
+        if not ran and not scheduled:
+            return [a.get("runs", ""), "To run it regularly, add a schedule on the pipeline in Fabric (Schedule); Krusgraph adds none."]
+        return ([] if ran else [RUN_STEP]) + ([] if scheduled else ["To run it regularly, add a schedule on the pipeline in Fabric (Schedule)."])
+    if kind == "data_agent":                                       # n185: Publish and Copilot left to do, if any
+        from . import agent_publish
+        steps = ["Open the agent in Fabric: its data source, selected tables and example queries are under its staging configuration."]
+        if not (a.get("result") or {}).get("published"):
+            steps.append(agent_publish.FABRIC_STEP)
+        return steps
     return list(a.get("portal_steps") or [])
+
+
+def chosen_jobs(req: dict) -> dict:
+    """The pipeline's Run once and Schedule as chosen in this build ({} without a pipeline)."""
+    return next(((o.get("jobs") or {}) for o in req["outputs"] if o["kind"] == "pipeline"), {})
+
+
+def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_run: bool, workspace: str, headers: dict,
+               scopes: set[str] | None) -> dict:
+    """The data agent card's `agent`: the layer it reads, its examples' validation, and Publish / Copilot: what Create
+    will do (dry run) or did, and why not when it did not."""
+    from . import agent_publish
+    from .deploy import send
+    opts = o.get("agent") or {"layer": "silver", "publish": False, "copilot": False}
+    res = answer.get("result") or {}
+    sel = res.get("selection") or {}
+    out = {"layer": opts["layer"], "layer_words": answer.get("layer"), "publish": opts["publish"], "copilot": opts["copilot"],
+           "where_examples": ("Krusgraph's example questions are the agent's example queries (Example queries pane, per data source): "
+                              "Fabric uses them to answer. The chat's suggested questions are Fabric's own; no documented API sets them.")}
+    if sel:
+        out["selection"] = {k: sel.get(k) for k in ("layer", "schema", "selected", "deselected", "one_layer", "words")}
+    if res.get("examples"):
+        out["examples"] = res["examples"]
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=method != "get", timeout=30, **kw)
+    if dry_run:
+        out["words"] = ([agent_publish.publish_words(o["name"])] if opts["publish"] else
+                        ["Create leaves the agent a draft only you see: tick Publish the agent in Fabric to publish it."])
+        if opts["publish"] and jobs.get("run_once"):
+            out["words"].append("It is published after the pipeline's run has succeeded.")
+        if opts["copilot"]:
+            out["words"].append(agent_publish.copilot_words(o["name"]))
+            out["copilot_preflight"] = agent_publish.copilot_preflight(http, workspace, scopes)
+        return out
+    run_status = (after_run or {}).get("status")
+    d = agent_publish.decide(opts["publish"], sel.get("one_layer") if sel else None, bool(jobs.get("run_once")), run_status)
+    out["decision"] = d
+    out["published"] = False
+    agent_id = res.get("id")
+    if d["publish"] and agent_id:
+        r = http("post", f"{FABRIC_API}/v1/workspaces/{workspace}/dataAgents/{agent_id}/staging/publish",
+                 json={"publishedDescription": agent_publish.DESCRIPTION.format(source=o["name"])})
+        status = getattr(r, "status_code", 0)
+        if status < 400:
+            out["published"] = True
+            out["words"] = [f"Published {o['name']} in Fabric: people with access to the workspace can use it."]
+        else:
+            out["decision"] = {"publish": False, "state": "draft",
+                               "why": f"Fabric refused to publish (HTTP {status}); it stays a draft. Publish it in Fabric (Publish)."}
+    if not out["published"]:
+        out["words"] = [out["decision"]["why"]]
+    if opts["copilot"]:
+        out["copilot_preflight"] = agent_publish.copilot_preflight(http, workspace, scopes)
+        out["copilot_step"] = agent_publish.COPILOT_STEP
+    log("agent_publish", state="published" if out["published"] else out["decision"]["state"], copilot=opts["copilot"])
+    return out
+
+
+FABRIC_API = "https://api.fabric.microsoft.com"
+
+
+def _jobs_card(o: dict, answer: dict, permission: dict, dry_run: bool) -> dict:
+    """The pipeline card's `jobs`: what was asked, the permission, the dry run's sentences, and after Create the run
+    (started; the editor reads on) and the schedule (created or updated, its id and next run)."""
+    from . import pipeline_jobs
+    jobs = o.get("jobs") or {}
+    run_once, spec = bool(jobs.get("run_once")), jobs.get("schedule")
+    out = {"run_once": run_once, "schedule": spec, "permission": permission}
+    if not (run_once or spec):
+        out["words"] = ["Nothing runs and nothing is scheduled: tick Run once or Schedule to have Create do it."]
+        return out
+    if permission["granted"] is False:
+        out["words"] = ["Neither runs: " + permission["why"]]
+        return out
+    out["words"] = pipeline_jobs.describe(o["name"], run_once, spec)
+    res = answer.get("result") or {}
+    if not dry_run:
+        if "run" in res:
+            out["run"] = res["run"]
+        if "schedule" in res:
+            out["schedule_result"] = res["schedule"]
+    return out
 
 
 def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req: dict) -> list[dict]:
@@ -991,14 +1209,21 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     elif kind == "gold_views":
         text = S.create_gold_views(name=o["name"], **common)
     elif kind == "pipeline":
-        text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
-                                 **common)
+        jobs = o.get("jobs") or {}
+        allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
+        token = S.PIPELINE_JOBS.set({"wait": 0, "schedule_ids": list(req.get("schedule_ids") or [])})
+        try:
+            text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
+                                     run_once=bool(jobs.get("run_once")) and allowed,
+                                     schedule=(jobs.get("schedule") if allowed else None), **common)
+        finally:
+            S.PIPELINE_JOBS.reset(token)
     elif kind == "semantic_model":
         text = S.create_semantic_model(name=o["name"], **common)
     elif kind == "ontology":
         text = S.create_ontology(name=o["name"], **common)
-    elif kind == "data_agent":
-        text = S.create_data_agent(name=o["name"], publish=False, **common)
+    elif kind == "data_agent":                                     # n185: one layer; publishing is decided after (agent_card)
+        text = S.create_data_agent(name=o["name"], publish=False, layer=(o.get("agent") or {}).get("layer", "silver"), **common)
     elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
         from . import rayfin_app
         from .deploy import write_and_wait, find_item
@@ -1199,6 +1424,12 @@ def run_build_many(req: dict) -> dict:
                 if answer.get("kind") == "consent" and answer.get("scope"):
                     answer["entra_steps"] = entra_steps(str(answer["scope"]).split(" ")[0], app_id)
                 card["answer"] = answer
+                if kind == "data_agent" and not answer.get("error"):   # n185: the layer, the examples, Publish and Copilot
+                    card["agent"] = agent_card(o, answer, chosen_jobs(req), req.get("after_run"), dry_run, workspace, headers, scopes)
+                    if not dry_run and card["agent"].get("published"):
+                        answer.setdefault("result", {})["published"] = True
+                if kind == "pipeline":                             # n185: the two choices, what they will do or did
+                    card["jobs"] = _jobs_card(o, answer, jobs_permission(scopes, app_id), dry_run)
                 if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":
                     card["refresh"] = {"status": "planned", "note": REFRESH_PLANNED}
                     if scopes is not None and REFRESH_SCOPE not in scopes:
@@ -1216,6 +1447,14 @@ def run_build_many(req: dict) -> dict:
                     if card["created"]:
                         mark_items(workspace, headers, card["created"], mark)
                     card["portal_steps"] = _portal_steps(kind, answer, chosen, built)
+                    if kind == "data_agent" and card.get("agent"):    # n185: the state outputs.json keeps; Copilot's portal step
+                        for c in card["created"]:
+                            c["published"] = bool(card["agent"].get("published"))
+                        if card["agent"].get("decision", {}).get("state") == "waiting":
+                            card["portal_steps"] = [x for x in card["portal_steps"] if not x.startswith("In Fabric, open the agent → Publish,")]
+                        if card["agent"].get("copilot"):
+                            from . import agent_publish
+                            card["portal_steps"].append(agent_publish.COPILOT_STEP)
                     new_model = next((c["id"] for c in card["created"] if c["type"] == "SemanticModel"), None)
                     if kind == "semantic_model" and would == "create" and new_model:   # only a model this request created
                         card["refresh"] = refresh_new_model(workspace, new_model, scopes, app_id)
@@ -1236,12 +1475,23 @@ def run_build_many(req: dict) -> dict:
     out["note"] = (NOTHING_CHANGED + " This is what Create would send, output by output." if dry_run else
                    f"{ok} of {len(cards)} output(s) built." + (f" {out['to_decide']} wait for your choice: Update or a new name."
                                                               if out["to_decide"] else "")
-                   + (" Nothing runs or is scheduled." if cards else ""))
+                   + (_runs_note(cards) if cards else ""))
     if not dry_run:
         out["created"] = [x for c in cards for x in c.get("created", [])]
     if req.get("finish"):
-        out["note"] = f"{len(cards) - len(refused)} of {len(cards)} output(s) are in Fabric." + (" Nothing runs or is scheduled." if cards else "")
+        out["note"] = f"{len(cards) - len(refused)} of {len(cards)} output(s) are in Fabric." + (_runs_note(cards) if cards else "")
     return _with_schema(out, req)
+
+
+def _runs_note(cards: list[dict]) -> str:
+    """' Nothing runs or is scheduled.' unless the pipeline's Run once or Schedule did something (n185)."""
+    j = next((c.get("jobs") for c in cards if c.get("output") == "pipeline" and c.get("jobs")), None) or {}
+    did = []
+    if (j.get("run") or {}).get("run_id"):
+        did.append("one pipeline run was started")
+    if (j.get("schedule_result") or {}).get("status") == "Succeeded":
+        did.append("the pipeline's schedule was " + j["schedule_result"]["mode"])
+    return " " + (" and ".join(did).capitalize() + "; nothing else runs." if did else "Nothing runs or is scheduled.")
 
 
 # ------------------------------------------------------------------ HTTP -------------------------------------------
@@ -1365,4 +1615,5 @@ def routes(cfg, validator=None, obo=None) -> list:
     return [Route(f"{PREFIX}/schemas", endpoint(schemas_request, run_schemas, "schemas"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/review", endpoint(review_request, run_review, "review"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/check", endpoint(check_request, run_check, "check"), methods=["POST", "OPTIONS"]),
-            Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"])]
+            Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/pipeline-run", endpoint(pipeline_run_request, run_pipeline_status, "pipeline-run"), methods=["POST", "OPTIONS"])]

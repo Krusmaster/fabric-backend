@@ -244,7 +244,12 @@ def _projection(kind: str, table: str, prop: str, active: bool | None = None) ->
 
 LOG_WORDS = {"log", "logs", "audit"}          # a table named like this is no business figure for a card
 MARGIN, GAP = 16, 12
-TITLE_H, CARD_H, FOOT_H, SLICER_W = 76, 120, 24, 220
+TITLE_H, CARD_H, FOOT_H, SLICER_W = 76, 120, 36, 220
+# n185: on 9 November 2026 (package 1.0.913, 1280 x 720) the footnote "9 November 2026. Created by Krusgraph from the
+# checked plan." was clipped at the bottom (a 9 pt line and the text box's padding in 24 px) and the last row of the
+# table "Products by units" touched the table's bottom edge. The footnote's row is 36 px now, the text boxes are
+# checked like the cards (text_problems), and the table keeps TABLE_PAD_PX inside its box below the last row.
+TABLE_PAD_PX = 12
 # n180: on 9 November 2026 (demo_lh_report2, 1280 x 720) the captions under the cards' numbers ("Rows in orders", "Rows
 # in order_items", "Total quantity") and the slicer's title "Category name" were cut off: a card 96 px high held its
 # title, the number and the caption at Power BI's automatic sizes, and a dropdown slicer 44 px high held its title, its
@@ -282,12 +287,15 @@ def text_problems(v: dict, pos: dict) -> list[str]:
     elif v["type"] == "slicer":
         lines = [(v["title"], SLICER_TITLE_PT)]
         h -= DROPDOWN_PX + LINE_GAP_PX
+    elif v["type"] in ("title", "footnote"):                       # n185: the text boxes, at the sizes _visual_json sets
+        lines = [(v["text"], 18 if v["type"] == "title" else 9)]
+        w = pos["width"] - 2 * PAD_PX if v["type"] == "title" else 10 ** 6   # a footnote may wrap sideways, never down
     else:
         return []
     need = sum(px(pt) * 1.25 for _, pt in lines) + LINE_GAP_PX * (len(lines) - 1)
     if need > h:
-        out.append(f"{v['type']} {v['title']!r}: {need:.0f} px of text in {h:.0f} px")
-    out += [f"{v['type']} {v['title']!r}: {t!r} is {text_px(t, pt):.0f} px wide in {w:.0f} px" for t, pt in lines if text_px(t, pt) > w]
+        out.append(f"{v['type']} {v.get('title', v['type'])!r}: {need:.0f} px of text in {h:.0f} px")
+    out += [f"{v['type']} {v.get('title', v['type'])!r}: {t!r} is {text_px(t, pt):.0f} px wide in {w:.0f} px" for t, pt in lines if text_px(t, pt) > w]
     return out
 THEME_NAME = "Krusgraph"
 THEME_FILE = f"{THEME_NAME}.json"
@@ -560,6 +568,8 @@ def _visual_json(v: dict, name: str, pos: dict, model: dict) -> dict:
         objects["columnWidth"] = [{"properties": {"value": _lit(round(usable_w * 0.6, 2))}, "selector": {"metadata": cat["queryRef"]}},
                                   {"properties": {"value": _lit(round(usable_w * 0.4, 2))}, "selector": {"metadata": measure["queryRef"]}}]
         objects["total"] = [{"properties": {"totals": _lit(True)}}]
+        title["padding"] = [{"properties": {"top": _lit(float(TABLE_PAD_PX // 2)), "bottom": _lit(float(TABLE_PAD_PX)),   # n185
+                                            "left": _lit(5.0), "right": _lit(5.0)}}]
         if fmt["visual_sets_no_decimals"]:
             objects["columnFormatting"] = [{"properties": {"labelPrecision": _lit(0)}, "selector": {"metadata": measure["queryRef"]}}]
     else:

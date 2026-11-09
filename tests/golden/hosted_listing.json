@@ -617,6 +617,12 @@
       "description": "Primary keys replacing the inferred ones. Default: inferred. Example: {\"order_items\": [\"order_id\", \"line_no\"]}.",
       "title": "Keys"
      },
+     "layer": {
+      "default": "source",
+      "description": "Which tables the agent reads, one layer only: \"source\" (default, the source schema), \"silver\" (the silver tables create_silver_notebook writes, else the source), \"gold\" (the gold views, else the source). The plan's tables in the other layers are deselected.",
+      "title": "Layer",
+      "type": "string"
+     },
      "name": {
       "description": "Display name of the data agent; an existing item with this name is updated in place. Example: \"shop_agent\".",
       "title": "Name",
@@ -1037,7 +1043,7 @@
     "read_only_hint": false,
     "title": "Create or update the silver, gold and check pipeline in Fabric (dry run by default)"
    },
-   "description": "Creates the pipeline export_item_definitions drafts with items=[\"pipeline\"]: the silver and gold notebooks of\ncreate_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,\neach only after the one before succeeded, so a failed check fails the run. Items of these names are updated in\nplace. Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST\ncalls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are\nreplaced, nothing is deleted, nothing runs and no schedule is added. Errors: {error, kind, hint}.",
+   "description": "Creates the pipeline export_item_definitions drafts with items=[\"pipeline\"]: the silver and gold notebooks of\ncreate_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,\neach only after the one before succeeded, so a failed check fails the run. Items of these names are updated in\nplace. Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST\ncalls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are\nreplaced, nothing is deleted; nothing runs and no schedule is added unless run_once or schedule asks (both\noff by default; they need DataPipeline.Execute.All). Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -1098,6 +1104,26 @@
       "description": "Display name of the pipeline; its check notebook is <name>_check. Existing items with these names are updated in place. Example: \"pipeline_shop\".",
       "title": "Name",
       "type": "string"
+     },
+     "run_once": {
+      "default": false,
+      "description": "true starts one run of the pipeline after it is created and reads it for up to two minutes (per step: Succeeded, Failed or Running, with durations and a link). Default false: nothing runs. Needs DataPipeline.Execute.All.",
+      "title": "Run Once",
+      "type": "boolean"
+     },
+     "schedule": {
+      "anyOf": [
+       {
+        "additionalProperties": true,
+        "type": "object"
+       },
+       {
+        "type": "null"
+       }
+      ],
+      "default": null,
+      "description": "A schedule for the pipeline. Default none: nothing is scheduled. {\"every\": \"day\", \"at\": \"06:00\"} or {\"every\": \"hours\", \"hours\": 4, \"at\": \"06:00\"}, optional \"time_zone\" (default \"Europe/Stockholm\") and \"start\" (YYYY-MM-DD, default tomorrow). A schedule Krusgraph made is updated, others are left alone. Needs DataPipeline.Execute.All.",
+      "title": "Schedule"
      },
      "schema": {
       "default": "dbo",

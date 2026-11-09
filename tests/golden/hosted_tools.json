@@ -5318,6 +5318,7 @@
    },
    "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
    "dry_run": true,
+   "layer": "The agent reads the source tables in shop only.",
    "note": "Unit-tested with the REST calls mocked. The dry run was tested end to end on 27 October 2026 against a Fabric workspace with synthetic data; creating has no recorded live run in docs/LIVE-TEST.md; a data agent lineage finds in a workspace may have been made by it outside a recorded run. Without the permission the create answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, selected tables and example queries under its staging configuration; publish makes them live.",
    "personal_data": {
     "left_out": [
@@ -5583,6 +5584,7 @@
    },
    "delegated_scope": "Item.ReadWrite.All (staging routes also accept DataAgent.ReadWrite.All)",
    "dry_run": true,
+   "layer": "The agent reads the source tables in shop only.",
    "note": "Unit-tested with the REST calls mocked. The dry run was tested end to end on 27 October 2026 against a Fabric workspace with synthetic data; creating has no recorded live run in docs/LIVE-TEST.md; a data agent lineage finds in a workspace may have been made by it outside a recorded run. Without the permission the create answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, selected tables and example queries under its staging configuration; publish makes them live.",
    "personal_data": {
     "left_out": [

@@ -71,6 +71,8 @@ export interface CreatedItem {
   output?: string;
   /** n180: the plan it was built from (absent for items built before n180: "plan unknown") */
   plan?: PlanMark;
+  /** n185: a data agent Krusgraph published in Fabric */
+  published?: boolean;
 }
 
 /** n180: what an output was built from (workload_api.plan_mark): the review's plan id and schema fingerprint, the exact
@@ -92,6 +94,17 @@ export interface OutputChoice {
   model?: string;
   /** n181: the App (Rayfin, preview)'s ticked key figures, list pages and charts (option ids); absent: the defaults */
   app?: { kpis: string[]; tables: string[]; charts: string[] };
+  /** n185: the pipeline's Run once and Schedule (both off unless ticked) */
+  jobs?: { run_once: boolean; schedule: { every: "day" | "hours"; at: string; hours?: number; time_zone: string; start?: string } | null };
+  /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks (both off unless ticked) */
+  agent?: { layer: "silver" | "gold" | "source"; publish: boolean; copilot: boolean };
+}
+
+/** n185: the runs Create started and the schedules it made, so a later cleanup can remove the schedule. */
+export interface PipelineJobsRecord {
+  runs: { run_id: string; pipeline_id: string; pipeline: string; workspace: string; started?: string; status: string; at: string }[];
+  schedules: { id: string; pipeline_id: string; pipeline: string; workspace: string; every: string; at?: string; hours?: number;
+    time_zone?: string; start?: string; next_run?: string; mode?: string; recorded: string }[];
 }
 
 /** n174: the data product that bundles what the item built: only what the engine answered (workload_api._product). */
@@ -113,6 +126,8 @@ export interface OutputsDefinition {
   product?: ProductDefinition;
   /** n184: the finish of the last Create (createWords.LastCreate), so reopening shows it with its date; optional */
   last_create?: LastCreateStored;
+  /** n185: run ids and schedule ids of the pipeline (jobsWords.recordRun / recordSchedule); optional */
+  pipeline_jobs?: PipelineJobsRecord;
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */
@@ -203,6 +218,13 @@ function versionOf(obj: { version?: unknown } | undefined, part: string): number
   return v;
 }
 
+/** n185: outputs.json's pipeline_jobs, kept only when it has the shape the editor writes. */
+export function isJobsRecord(x: unknown): x is PipelineJobsRecord {
+  const v = x as PipelineJobsRecord;
+  return !!v && typeof v === "object" && Array.isArray(v.runs) && Array.isArray(v.schedules)
+    && v.schedules.every((s) => s && typeof s.id === "string") && v.runs.every((r) => r && typeof r.run_id === "string");
+}
+
 /** Version 1 is the first format, so migrating means filling defaults. Later versions add a step here per version. */
 export function migrate(def: ModelDefinition): ModelDefinition {
   return {
@@ -219,6 +241,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       created: def.outputs?.created ?? [],
       ...(def.outputs?.product && typeof def.outputs.product === "object" ? { product: def.outputs.product } : {}),
       ...(def.outputs?.last_create && typeof def.outputs.last_create === "object" ? { last_create: def.outputs.last_create } : {}),
+      ...(isJobsRecord(def.outputs?.pipeline_jobs) ? { pipeline_jobs: def.outputs.pipeline_jobs } : {}),   // n185
     },
     review: def.review,
   };

@@ -140,6 +140,9 @@ def workload_tokens(tokens):
 
 
 _PLAN_SCOPE = contextvars.ContextVar("krusgraph_plan_scope", default=None)
+# n185: the Model editor's create_pipeline call: no wait for the run (the editor reads it on its own, so no other card
+# waits) and the schedule ids outputs.json records as Krusgraph's. None for an MCP call: wait up to two minutes.
+PIPELINE_JOBS = contextvars.ContextVar("krusgraph_pipeline_jobs", default=None)
 
 
 @contextlib.contextmanager
@@ -1686,12 +1689,34 @@ def _views_personal(stmts: dict) -> dict:
                       "the keys stay. create_views has no show_personal_data: add such a column to a view by hand where you need it."}
 
 
+def _agent_layers(p, info: dict, layer: str, show_personal_data: bool) -> list[dict] | None:
+    """n185: the layers the agent may read, preferred first; the source is always the last fallback (data_agent.draft)."""
+    if layer == "source" or not info.get("schemas_enabled", True):   # without schemas silver is a prefix: the source stays
+        return None
+    if layer == "silver":
+        return [{"layer": "silver", "schema": "silver"}]
+    from . import gold as _gold_mod
+    views = _gold_mod.spec(p, info, "silver", "gold", None, show_personal_data)["views"]
+    return [{"layer": "gold", "schema": "gold", "tables": [v["name"].split(".", 1)[-1] for v in views]}]
+
+
+def _layer_words(spec: dict, layer: str) -> str:
+    """What the agent will read, as the dry run says it."""
+    if layer == "source" or not spec.get("layers"):
+        return (f"The agent reads the source tables in {spec['schema']} only."
+                + ("" if layer == "source" else f" The {layer} layer needs a lakehouse with schemas; this one has none."))
+    first = spec["layers"][0]
+    return (f"The agent reads the {first['layer']} {'views' if first['layer'] == 'gold' else 'tables'} in {first['schema']} only "
+            f"({'gold views: one wide view per fact table' if first['layer'] == 'gold' else 'cleaned, keys and links held'}), "
+            f"when they are in the lakehouse; otherwise the source tables in {spec['schema']}. Never two layers at once.")
+
+
 @mcp.tool(title="Create or update a Fabric data agent from the plan (dry run by default)", annotations=WRITE)
 @safe
 def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.AgentName, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                       confirmed: _p.Confirmed = None, publish: _p.Publish = True, show_personal_data: _p.ShowPersonalData = False,
                       validate: _p.Validate = False, dry_run: _p.DryRun = True, test_questions: _p.AgentTests = False,
-                      ctx: Context = None) -> str:
+                      layer: _p.AgentLayer = "source", ctx: Context = None) -> str:
     """Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that
     are safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example
     question/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted
@@ -1710,11 +1735,16 @@ def create_data_agent(workspace: _p.Workspace, source: _p.Source, name: _p.Agent
             counted = _evidence.validate(p, execute, max_items=200)
         finally:
             getattr(execute, "close", lambda: None)()
-    spec = _data_agent.draft(p, info, name, schema, show_personal_data, counted)
+    if layer not in ("source", "silver", "gold"):
+        return json.dumps({"error": f"layer is \"source\", \"silver\" or \"gold\"; got {layer!r}.", "kind": "bad_request",
+                           "hint": "Leave it out for the source tables."})
+    layers = _agent_layers(p, info, layer, show_personal_data)
+    spec = _data_agent.draft(p, info, name, schema, show_personal_data, counted, layers=layers)
     out = {"summary": p.summary(), "dry_run": dry_run, "agent": {k: spec[k] for k in ("name", "instructions", "datasource", "datasource_instructions",
                                                                                       "datasource_description", "tables_to_select", "fewshots")},
            "context": spec["context"],
            "rest": spec["rest"], "delegated_scope": spec["delegated_scope"],
+           "layer": _layer_words(spec, layer),
            "note": "Unit-tested with the REST calls mocked. " + _tool_status.answer_note("create_data_agent") + " Without the permission the create "
                    "answers kind=consent naming it, see docs/SCOPES.md. The portal shows the agent's data source, "
                    "selected tables and example queries under its staging configuration; publish makes them live."}
@@ -2165,15 +2195,21 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                     silver_schema: _p.SilverSchema = "silver", gold_schema: _p.GoldSchema = "gold",
                     silver_name: _p.PipelineSilverName = "", gold_name: _p.PipelineGoldName = "", keys: _p.Keys = None,
                     confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
-                    dry_run: _p.DryRun = True, ctx: Context = None) -> str:
+                    dry_run: _p.DryRun = True, run_once: _p.RunOnce = False, schedule: _p.PipelineSchedule = None,
+                    ctx: Context = None) -> str:
     """Creates the pipeline export_item_definitions drafts with items=["pipeline"]: the silver and gold notebooks of
     create_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,
     each only after the one before succeeded, so a failed check fails the run. Items of these names are updated in
     place. Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All and
     DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST
     calls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are
-    replaced, nothing is deleted, nothing runs and no schedule is added. Errors: {error, kind, hint}."""
-    from . import notebook as _notebook, pipeline as _pipeline
+    replaced, nothing is deleted; nothing runs and no schedule is added unless run_once or schedule asks (both
+    off by default; they need DataPipeline.Execute.All). Errors: {error, kind, hint}."""
+    from . import notebook as _notebook, pipeline as _pipeline, pipeline_jobs as _jobs
+    try:
+        spec = _jobs.schedule_spec(schedule)
+    except _jobs.ScheduleError as exc:
+        return json.dumps({"error": str(exc), "kind": "bad_request", "hint": "Fix the schedule, or leave it out to schedule nothing."})
     from .deploy import create_item_with_definition
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
@@ -2191,7 +2227,7 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
            "steps": [f"{n['step']}: {n['name']}" for n in build["notebooks"]],
            "stops": "When the check finds a key that is not unique or has NULLs, a reference without its row, or a gold view whose "
                     "rows or sums differ from its silver fact table, the check notebook raises an error and the pipeline run fails.",
-           "runs": _pipeline.NOT_RUN,
+           "runs": " ".join(w + "." for w in _jobs.describe(name, run_once, spec)) or _pipeline.NOT_RUN,
            "notebooks": [{"step": n["step"], "name": n["name"], "path": "notebook-content.py", "format": "fabricGitSource",
                           "description": n["description"], "content": n["content"]} for n in build["notebooks"]],
            "pipeline": {"name": name, "path": "pipeline-content.json", "description": f"Krusgraph pipeline for {build['label']}",
@@ -2206,13 +2242,26 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                      "or_update": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{{id}}/updateDefinition",
                      "lookup": f"GET {FABRIC}/v1/workspaces/{ws}/items?type=DataPipeline (an item of that name is updated in place)",
                      "delegated_scope": PIPELINE_SCOPE, "parts": ["pipeline-content.json", ".platform"]}],
-           "scopes": {"needs": [NOTEBOOK_SCOPE, PIPELINE_SCOPE], "workspace_role": "Contributor",
-                      "not_needed": "DataPipeline.Execute.All or Item.Execute.All: nothing is run or scheduled",
+           "scopes": {"needs": [NOTEBOOK_SCOPE, PIPELINE_SCOPE] + ([f"{_jobs.EXECUTE_SCOPE} (or {_jobs.EXECUTE_ALT})"] if run_once or spec else []),
+                      "workspace_role": "Contributor",
+                      **({} if run_once or spec else {"not_needed": "DataPipeline.Execute.All or Item.Execute.All: nothing is run or scheduled"}),
                       "hosted_app": ("The hosted app has these today (since 28 October 2026, docs/SCOPES.md)." if hosted else
                                      "The hosted app does not ask for these today; without them Fabric answers kind consent.")},
            "spec": PIPELINE_SPEC,
            "note": ("Unit-tested: the definitions and the order of the calls with Fabric's REST API replaced by a test double, and "
                     "the check on SQLite and a local PySpark (n110). " + _tool_status.answer_note("create_pipeline"))}
+    if run_once or spec:                                           # n185: what will run and when, and the calls
+        out["jobs"] = {"run_once": bool(run_once), "schedule": spec, "words": _jobs.describe(name, run_once, spec),
+                       "rest": ([{"step": "run once", "method": "POST", "url": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{{id}}/jobs/execute/instances",
+                                  "then": "GET .../jobs/execute/instances/{run id} until it ends, at most "
+                                          f"{_jobs.RUN_WAIT_SECONDS} s; POST /v1/workspaces/{ws}/datapipelines/pipelineruns/{{run id}}/queryactivityruns"}]
+                                if run_once else [])
+                               + ([{"step": "schedule", "method": "POST or PATCH",
+                                    "url": f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{{id}}/jobs/execute/schedules",
+                                    "body": _jobs.schedule_body(spec),
+                                    "rule": "GET the schedules first; the one Krusgraph made is updated, others are left alone"}]
+                                  if spec else []),
+                       "delegated_scope": f"{_jobs.EXECUTE_SCOPE} (or {_jobs.EXECUTE_ALT})", "spec": _jobs.SPEC}
     if dry_run:
         if len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS:
             for n in out["notebooks"]:
@@ -2241,6 +2290,15 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
     if pl.get("status") != "Succeeded":
         return _step_failed(out, name, pl, PIPELINE_SCOPE, f"creating the pipeline {name!r}")
     out["result"]["status"] = "Succeeded"
+    if (run_once or spec) and pl.get("id"):                        # n185: only when asked, after the pipeline exists
+        from .deploy import send
+        jobs_ctx = PIPELINE_JOBS.get() or {}
+        headers = {"Authorization": f"Bearer {token()}", "Content-Type": "application/json"}
+
+        def http(method, url, **kw):
+            return send(method, url, headers, write=method != "get", timeout=30, **kw)
+        out["result"].update(_jobs.apply(http, ws, pl["id"], name, run_once, spec, ours=jobs_ctx.get("schedule_ids") or (),
+                                         wait_seconds=jobs_ctx.get("wait", _jobs.RUN_WAIT_SECONDS)))
     return json.dumps(out, indent=2, default=str)
 
 

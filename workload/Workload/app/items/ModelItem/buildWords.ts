@@ -83,6 +83,8 @@ export function toRequests(choices: OutputChoice[]): OutputRequest[] {
       name: c.name,
       ...(c.type === "report" && c.model ? { model: c.model } : {}),
       ...(c.type === "rayfin_app" && c.app ? { app: c.app } : {}),       // n181: the ticked key figures, pages, charts
+      ...(c.type === "pipeline" && c.jobs ? { jobs: c.jobs } : {}),        // n185: Run once and Schedule
+      ...(c.type === "data_agent" && c.agent ? { agent: c.agent } : {}),   // n185: the layer, Publish and Copilot
     }));
 }
 
@@ -148,6 +150,7 @@ export function mergeCreated(prev: CreatedItem[], add: CreatedRef[]): CreatedIte
       type: a.type, id: a.id, name: a.name, workspace: a.workspace,
       ...(a.output ? { output: a.output } : {}),
       ...(a.plan ? { plan: a.plan } : {}),                  // n180: the plan it was built from
+      ...(a.published !== undefined ? { published: a.published } : {}),   // n185: a data agent published in Fabric
     };
     const i = out.findIndex((c) => c.id === a.id);
     if (i >= 0) out[i] = item;

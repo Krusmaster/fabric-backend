@@ -30,7 +30,7 @@ import {
 } from "@fluentui/react-components";
 import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
-import { AppChoices, BuildCard, DataProduct, EngineError, ManyAnswer, SchemasAnswer } from "./engineClient";
+import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
   AppApi, AppPreflight, GROUPS, PREVIEW_NOTE, apiLines, featureOff, isApp, nothingTicked, optionsOf, packageHref, preflightWords,
   ticked, toggle,
@@ -62,9 +62,11 @@ import {
   validName,
 } from "./buildWords";
 import { FlowView } from "./FlowView";
+import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
+import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
 import {
-  APP_STEPS_TITLE, CardState, FINISH_CSS, KEEP_UP_TO_DATE, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, nextSteps,
+  APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
   readLastCreate, running, stepsTitle,
 } from "./createWords";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
@@ -403,8 +405,11 @@ export function OutputsView(props: {
   stored?: ProductDefinition;
   onOpen: (item: OpenLink["item"]) => void;
   onPreview: () => void;
+  /** n185: the last dry run said the sign-in cannot run or schedule pipelines: the two choices are shown disabled */
+  jobsBlocked?: JobsCard["permission"];
 }) {
-  const problems = choiceProblems(props.choices);
+  const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
+  const problems = [...choiceProblems(props.choices), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
   const productOk = !props.product.on || /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,79}$/.test(props.product.name.trim());
   const set = (kind: string, patch: Partial<OutputChoice>) =>
     props.onChange(props.choices.map((c) => (c.type === kind ? { ...c, ...patch } : c)));
@@ -413,7 +418,7 @@ export function OutputsView(props: {
       <Title3>Choose what to build</Title3>
       <Body1>
         Each output is made by the same engine as the Krusgraph tools in Claude, from the keys and links you reviewed. Preview shows a
-        dry run of each; nothing is created until you choose Create, and nothing is run or scheduled.
+        dry run of each; nothing is created until you choose Create. Nothing is run, scheduled or published unless you tick it.
       </Body1>
       {props.stored && <ProductView product={props.stored} onOpen={props.onOpen} title="Data product built so far" />}
       <div className="krusgraph-outputs">
@@ -447,6 +452,10 @@ export function OutputsView(props: {
                       <Input value={c.model ?? ""} onChange={(_, d) => set(k.kind, { model: d.value })} />
                     </Field>
                   )}
+                  {k.kind === "pipeline" && (
+                    <PipelineChoices jobs={jobsOf(c)} blocked={props.jobsBlocked} onChange={(j) => set(k.kind, { jobs: j })} />
+                  )}
+                  {k.kind === "data_agent" && <AgentChoices agent={agentOf(c)} onChange={(a) => set(k.kind, { agent: a })} />}
                   <PermissionsNote needs={k.needs} />
                 </>
               )}
@@ -639,7 +648,7 @@ export function FinishView(props: { last: LastCreate; mascotsOn: boolean; timeZo
       )}
       <Subtitle2>Keep it up to date</Subtitle2>
       <ul className="krusgraph-list" aria-label="Keep it up to date">
-        {KEEP_UP_TO_DATE.map((n) => (
+        {keepUpToDate(props.last).map((n) => (
           <li key={n}><Body1>{n}</Body1></li>
         ))}
       </ul>
@@ -692,6 +701,8 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       )}
       <Problem card={c} />
       {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} />}
+      {c.output === "pipeline" && <JobsPanel card={c} />}
+      {c.output === "data_agent" && <AgentPanel card={c} />}
       {refresh && (
         <MessageBar intent={c.refresh?.status === "refreshed" ? "success" : c.refresh?.status === "planned" || c.refresh?.status === "refreshing" ? "info" : "warning"} layout="multiline">
           <MessageBarBody>
@@ -772,7 +783,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
       )}
       <PermissionsNote
         needs={c.permissions.needs}
-        extra={c.output === "semantic_model" ? "Create refreshes the model once (Dataset.ReadWrite.All); nothing else is run or scheduled." : "No run or schedule permission is used."}
+        extra={c.output === "semantic_model" ? "Create refreshes the model once (Dataset.ReadWrite.All); nothing else is run or scheduled." : c.output === "pipeline" && (c.jobs?.run_once || c.jobs?.schedule) ? `Run once and Schedule use ${c.jobs.permission.scope} (or ${c.jobs.permission.or}).` : c.output === "data_agent" && c.agent?.publish ? "Publishing uses the same permission as creating the agent." : "No run or schedule permission is used."}
       />
     </section>
   );

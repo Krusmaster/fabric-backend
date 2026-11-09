@@ -147,6 +147,16 @@ PipelineGoldName = Annotated[str, _d('Display name of the gold views notebook th
 Schedule = Annotated[bool, _d('false (default) creates the items without a schedule: a schedule needs '
                               'DataPipeline.Execute.All, which the hosted app does not request; true adds the daily '
                               'schedule where that permission is granted. Example: true.')]
+RunOnce = Annotated[bool, _d('true starts one run of the pipeline after it is created and reads it for up to two minutes '
+                             '(per step: Succeeded, Failed or Running, with durations and a link). Default false: nothing '
+                             'runs. Needs DataPipeline.Execute.All.')]
+PipelineSchedule = Annotated[dict | None, _d(
+    'A schedule for the pipeline. Default none: nothing is scheduled. {"every": "day", "at": "06:00"} or {"every": '
+    '"hours", "hours": 4, "at": "06:00"}, optional "time_zone" (default "Europe/Stockholm") and "start" (YYYY-MM-DD, '
+    'default tomorrow). A schedule Krusgraph made is updated, others are left alone. Needs DataPipeline.Execute.All.')]
+AgentLayer = Annotated[str, _d('Which tables the agent reads, one layer only: "source" (default, the source schema), '
+                               '"silver" (the silver tables create_silver_notebook writes, else the source), "gold" (the '
+                               'gold views, else the source). The plan\'s tables in the other layers are deselected.')]
 ExportItems = Annotated[list[str] | None, _d(
     'Which creating tools to export: create_backend, create_semantic_model, create_views, create_silver_notebook, '
     'create_drift_monitor, create_gold_views; or "pipeline", a draft no tool creates (silver, gold, then a check), with '

@@ -9,6 +9,7 @@
  *   Next list and how to keep it up to date. The summary is kept in outputs.json (last_create), so reopening the item
  *   shows the same finish with the date of the last Create.
  */
+import { scheduleWords } from "./jobsWords";
 import { CreatedItem } from "./ModelItemDefinition";
 import { BuildCard, OutputKind } from "./engineClient";
 import { kindInfo } from "./buildWords";
@@ -180,6 +181,12 @@ export interface FinishedOutput {
   reason?: string;
   /** the semantic model's refresh, so Next can say whether it needs one */
   refresh?: string;
+  /** n185: the pipeline run Create started (Running, Succeeded, Failed), so Next drops "run the pipeline" once it ran */
+  run?: string;
+  /** n185: the pipeline's schedule, in words ("daily at 06:00 Europe/Stockholm"), when Create set one */
+  schedule?: string;
+  /** n185: the data agent was published in Fabric */
+  published?: boolean;
 }
 
 /** What outputs.json keeps of the last Create (n184), so reopening the item shows the same finish. */
@@ -198,7 +205,17 @@ function entry(c: BuildCard): FinishedOutput {
     state: cardState(c) ?? "created",
     ...(reason ? { reason } : {}),
     ...(c.refresh?.status ? { refresh: c.refresh.status } : {}),
+    ...(c.jobs?.run?.status ? { run: c.jobs.run.status } : {}),
+    ...(c.jobs?.schedule_result?.status === "Succeeded" && c.jobs.schedule ? { schedule: scheduleWords(c.jobs.schedule) } : {}),
+    ...(c.agent?.published ? { published: true } : {}),
   };
+}
+
+/** n185: the stored finish with the pipeline run's end (read after Create) and, when the agent was sent again, its state. */
+export function withRunEnd(lc: LastCreate | undefined, run: string, published?: boolean): LastCreate | undefined {
+  if (!lc) return lc;
+  return { ...lc, outputs: lc.outputs.map((o) => (o.output === "pipeline" ? { ...o, run }
+    : o.output === "data_agent" && published !== undefined ? { ...o, published } : o)) };
 }
 
 export function lastCreateOf(cards: BuildCard[], item: string, at: string): LastCreate {
@@ -273,7 +290,9 @@ export function nextSteps(lc: LastCreate): string[] {
   const pipe = made("pipeline");
   const silver = made("silver_notebook");
   const gold = made("gold_views");
-  if (pipe) out.push(`Run the pipeline ${pipe.name} once to fill the silver and gold tables; nothing has run yet.`);
+  if (pipe && pipe.run === "Running") out.push(`Follow the run of ${pipe.name} in Fabric (the link on its card); Krusgraph started it.`);
+  else if (pipe && pipe.run === "Failed") out.push(`The run of ${pipe.name} failed: see its card for the step and why, fix it, and run it again in Fabric.`);
+  else if (pipe && pipe.run !== "Succeeded") out.push(`Run the pipeline ${pipe.name} once to fill the silver and gold tables; nothing has run yet.`);
   else if (silver) out.push(`Run the notebook ${silver.name}${gold ? `, then ${gold.name},` : ""} to fill the silver${gold ? " and gold" : ""} tables; nothing has run yet.`);
   else if (gold) out.push(`Run the notebook ${gold.name} once the silver tables are filled.`);
   const model = made("semantic_model");
@@ -285,7 +304,8 @@ export function nextSteps(lc: LastCreate): string[] {
   const onto = made("ontology");
   if (onto) out.push(`Review the ontology ${onto.name} in Fabric.`);
   const agent = made("data_agent");
-  if (agent) out.push(`Ask the data agent ${agent.name} a few questions, and publish it in Fabric when its answers are right (it is an unpublished draft).`);
+  if (agent && agent.published) out.push(`Ask the data agent ${agent.name} a few questions: it is published, so people with access to the workspace can use it.`);
+  else if (agent) out.push(`Ask the data agent ${agent.name} a few questions, and publish it in Fabric when its answers are right (it is an unpublished draft).`);
   const app = made("rayfin_app");
   if (app) out.push(`Publish the App ${app.name}: download the package on its card and run its commands in a terminal with Node (e.g. Azure Cloud Shell).`);
   if (lc.outputs.some((o) => o.state === "choose")) out.push("Choose Update or a new name on the cards that ask for it.");
@@ -295,11 +315,20 @@ export function nextSteps(lc: LastCreate): string[] {
 }
 
 export const KEEP_UP_TO_DATE: string[] = [
-  "When the data changes, run the pipeline again, or give it a schedule in Fabric; Krusgraph adds none. The semantic model " +
-    "is Direct Lake, so it reads the new rows of the gold and silver tables without being built again.",
+  "When the data changes: the pipeline's schedule runs it (tick Schedule on the pipeline card, or add one in Fabric), " +
+    "or run it yourself. The semantic model is Direct Lake, so it reads the new rows of the gold and silver tables " +
+    "without being built again.",
   "When tables or columns change, open this Krusgraph Model item again and choose “Check against the rows again”. " +
     "Create then shows what is out of date, with Update or a new name on each card.",
 ];
+
+/** n185: Keep it up to date for this finish: the first line names the schedule Create set, when there is one. */
+export function keepUpToDate(lc: LastCreate | undefined): string[] {
+  const pipe = lc?.outputs.find((o) => o.output === "pipeline");
+  if (!pipe?.schedule) return KEEP_UP_TO_DATE;
+  return [`When the data changes: the pipeline ${pipe.name} runs on its schedule, ${pipe.schedule}. The semantic model is ` +
+    "Direct Lake, so it reads the new rows of the gold and silver tables without being built again.", KEEP_UP_TO_DATE[1]];
+}
 
 /** The Create cards a finish is drawn from: the live run's, else none (the stored summary stands in). */
 export function finishedOf(cards: BuildCard[], item: string, at: string): LastCreate | undefined {

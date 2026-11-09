@@ -104,6 +104,102 @@ export interface OutputRequest {
   model?: string;
   /** n181: the App's ticked options (ids from its dry run); absent: the defaults */
   app?: AppChoices;
+  /** n185: the pipeline's Run once and Schedule, both off unless ticked */
+  jobs?: PipelineJobs;
+  /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks, both off unless ticked */
+  agent?: AgentOptions;
+}
+
+/** n185: a schedule as the engine takes it (pipeline_jobs.schedule_spec). */
+export interface ScheduleChoice {
+  every: "day" | "hours";
+  at: string;
+  hours?: number;
+  time_zone: string;
+  /** YYYY-MM-DD; absent: tomorrow */
+  start?: string;
+}
+
+export interface PipelineJobs {
+  run_once: boolean;
+  schedule: ScheduleChoice | null;
+}
+
+export interface AgentOptions {
+  layer: "silver" | "gold" | "source";
+  publish: boolean;
+  copilot: boolean;
+}
+
+/** n185: one activity of a pipeline run (pipeline_jobs.activities). */
+export interface RunActivity {
+  activity: string;
+  status: "Succeeded" | "Failed" | "Running";
+  seconds?: number | null;
+  duration?: string;
+  error?: string;
+}
+
+/** n185: a pipeline run as the card shows it (pipeline_jobs.read_run / wait_run / start_run). */
+export interface PipelineRun {
+  status: "Running" | "Succeeded" | "Failed" | "NotStarted" | "Unknown";
+  run_id?: string;
+  started?: string;
+  duration?: string;
+  why?: string;
+  note?: string;
+  still_running?: boolean;
+  links?: { run?: string; pipeline?: string };
+  activities?: RunActivity[];
+  kind?: string;
+  scope?: string;
+  manual?: string[];
+}
+
+export interface ScheduleResult {
+  status: "Succeeded" | "Failed";
+  mode?: "created" | "updated";
+  id?: string;
+  next_run?: string;
+  next_run_words?: string;
+  words?: string;
+  note?: string;
+  why?: string;
+  kind?: string;
+  others_untouched?: number;
+}
+
+/** n185: the pipeline card's Run once and Schedule (workload_api._jobs_card). */
+export interface JobsCard {
+  run_once: boolean;
+  schedule: ScheduleChoice | null;
+  permission: { granted: boolean | null; scope: string; or: string; why?: string; entra_steps?: string[]; az?: string; consent_note?: string; manual?: string[] };
+  words: string[];
+  run?: PipelineRun;
+  schedule_result?: ScheduleResult;
+}
+
+export interface CopilotRequirement {
+  requirement: string;
+  status: "ok" | "missing" | "unverified";
+  detail: string;
+  doc: string;
+}
+
+/** n185: the data agent card's layer, examples and publishing (workload_api.agent_card). */
+export interface AgentCard {
+  layer: AgentOptions["layer"];
+  layer_words?: string;
+  publish: boolean;
+  copilot: boolean;
+  where_examples: string;
+  selection?: { layer: string; schema: string; selected: number | null; deselected: number; one_layer: boolean; words: string };
+  examples?: { status: string; count?: number; valid?: number; invalid?: number; validating?: number; invalid_examples?: { question: string; reason?: string }[] };
+  words?: string[];
+  decision?: { publish: boolean; state: "draft" | "waiting" | "publish"; why: string };
+  published?: boolean;
+  copilot_preflight?: { requirements: CopilotRequirement[]; missing: number; unverified: number; words: string; step: string };
+  copilot_step?: string;
 }
 
 /** n181: what the App (Rayfin, preview) shows, as option ids (rayfin_app.options). */
@@ -123,6 +219,8 @@ export interface CreatedRef {
   label?: string;
   /** n180: the plan it was built from; outputs.json keeps it */
   plan?: PlanMark;
+  /** n185: a data agent Krusgraph published in Fabric */
+  published?: boolean;
 }
 
 /** n180: an existing item was built from another plan, or by Krusgraph before plans were recorded. */
@@ -187,6 +285,10 @@ export interface BuildCard {
   refresh?: ModelRefresh;
   /** n184: the report's visuals in the dry run this Create followed (createWords.visualCount), set by createEach */
   dry_run_visuals?: number;
+  /** n185: the pipeline's Run once and Schedule */
+  jobs?: JobsCard;
+  /** n185: the data agent's layer and publishing */
+  agent?: AgentCard;
 }
 
 /** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait
@@ -331,7 +433,7 @@ export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
 async function call<T>(
   workloadClient: WorkloadClientAPI,
-  route: "review" | "check" | "build" | "schemas",
+  route: "review" | "check" | "build" | "schemas" | "pipeline-run",
   body: object,
   waitMs = 0,
   fetchImpl: Fetch = (u, i) => fetch(u, i)
@@ -424,17 +526,28 @@ export function buildOne(
   all: OutputRequest[],
   reviewFile: ReviewFile,
   created: CreatedRef[],
-  fetchImpl?: Fetch
+  fetchImpl?: Fetch,
+  extra: { schedule_ids?: string[]; after_run?: { status: string } } = {}
 ): Promise<ManyAnswer> {
   // every chosen output goes along (the pipeline runs the silver and gold notebooks chosen with it); `only` is built
   const outputs = all.map((o) => (o.kind === output.kind ? output : o));
   return call<ManyAnswer>(
     workloadClient,
     "build",
-    { ...source, outputs, only: [output.kind], review: reviewFile, dry_run: false, product: null, created, skip_built: true },
+    { ...source, outputs, only: [output.kind], review: reviewFile, dry_run: false, product: null, created,
+      skip_built: !extra.after_run, ...extra },
     BUILD_WAIT_MS,
     fetchImpl
   );
+}
+
+/** n185: the pipeline run Create started, read once (POST /workload/v1/pipeline-run); the editor asks again until it ends. */
+export function pipelineRun(
+  workloadClient: WorkloadClientAPI,
+  run: { workspace: string; pipeline_id: string; pipeline_name: string; run_id: string; started?: string },
+  fetchImpl?: Fetch
+): Promise<PipelineRun> {
+  return call<PipelineRun>(workloadClient, "pipeline-run", run, 30_000, fetchImpl);
 }
 
 /** n180: Update of one output built from another plan: dryRun true first (nothing is written; the card gives

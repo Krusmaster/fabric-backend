@@ -147,6 +147,15 @@ new commit is enough.
    data agent and **App (Rayfin, preview)**. The App needs one more tenant setting, **Enable Fabric App Items
    (preview)** (Admin portal → Tenant settings → Microsoft Fabric), which a pilot turns on only if they want it; the
    editor checks it first and says so (`docs/RAYFIN-APP.md`). Its pages are published by the pilot with `rayfin up`.
+6. The pipeline's two choices (n185), both off until the pilot ticks them: **Run once after Create** (one run of the
+   pipeline: silver, then gold, then the check, read on the card per step with durations and a link to the run) and
+   **Schedule** (daily at a time, or every N hours, in a time zone, default Europe/Stockholm, from a start date; the
+   card shows the next run). Both need the delegated permission **`DataPipeline.Execute.All`** (Power BI Service) on
+   the workload app, granted with admin consent in the pilot's tenant. Without it the two choices are shown disabled
+   with that explanation and the manual steps in Fabric (Run, Schedule), and Create builds the pipeline and runs
+   nothing. A Krusgraph schedule is updated on the next Create, never duplicated; a schedule Krusgraph did not make is
+   never touched. The run ids and schedule ids are kept in the item's `outputs.json` (`pipeline_jobs`), so a later
+   cleanup can remove the schedule (`docs/WORKLOAD-DEV.md`, Hosted, step 14).
 
 **Check on first run:** the exact labels on the Publish tab, whether tenant ids are entered one at a time or as a
 list, and what the tab shows once published (state, version, tenant count). Note them here.

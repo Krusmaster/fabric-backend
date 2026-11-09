@@ -190,7 +190,7 @@ describe("Addition 2: the finish", () => {
   });
 
   it("says how to keep it up to date", () => {
-    expect(KEEP_UP_TO_DATE[0]).toContain("run the pipeline again, or give it a schedule");
+    expect(KEEP_UP_TO_DATE[0]).toContain("the pipeline's schedule runs it (tick Schedule on the pipeline card, or add one in Fabric)");
     expect(KEEP_UP_TO_DATE[0]).toContain("Direct Lake");
     expect(KEEP_UP_TO_DATE[1]).toContain("open this Krusgraph Model item again and choose “Check against the rows again”");
     expect(KEEP_UP_TO_DATE[1]).toContain("Update or a new name");

@@ -449,9 +449,10 @@ editor's unit tests (`buildWords.test.ts`, `dataFlow.test.ts`). In this order:
    | App (Rayfin, preview), n181 | `Item.ReadWrite.All` (Create App Backend; the package path needs none) | |
    | App preflight, optional (n181) | `Tenant.Read.All` (reads "Enable Fabric App Items (preview)"; only a Fabric administrator's sign-in can) | |
 
-   If step 3.3 already granted `Item.ReadWrite.All`, nothing is missing. **Do not add** `DataPipeline.Execute.All`,
-   `Notebook.Execute.All`, `Item.Execute.All` or `Lakehouse.Execute.All`: the item never runs or schedules a notebook
-   or a pipeline, and the code never asks for them. After the consent, reload the Fabric tab so the editor signs in
+   If step 3.3 already granted `Item.ReadWrite.All`, nothing is missing. Do not add `Notebook.Execute.All`,
+   `Item.Execute.All` or `Lakehouse.Execute.All`: the item never runs a notebook on its own. Since n185 the pipeline's
+   **Run once** and **Schedule** need `DataPipeline.Execute.All` (step 14). Add it only if you want those two choices;
+   without it they are shown disabled and nothing runs. After the consent, reload the Fabric tab so the editor signs in
    again with the new permission.
 
    When the token lacks one, the dry run's card says so, and Create refuses that output with `kind: consent`, the
@@ -802,6 +803,79 @@ the model refreshed by Create). Checked by `app/items/ModelItem/createWords.test
    `demo_lh_api`. Create counts "n of 9 created" while it runs, ends with the banner, marks, *Next* and *Keep it up to
    date*, and shows them again when the item is reopened.
 
+### 14. Round n185: Run once and Schedule on the pipeline, the data agent's layer and publishing
+
+Round n185 (9 November 2026). The founder's live Create made all nine outputs; he then ran demo_lh_pipeline by hand
+(Silver tables succeeded in 1m59s, then Gold views, then the check) and asked for it to be automated. Nothing in this
+round ran against Fabric. It is checked by `tests/test_n185_pipeline_jobs.py`, `tests/test_n185_agent.py` and
+`app/items/ModelItem/jobsWords.test.ts`, with a fake Fabric job and an in-memory data agent API. The sources are in
+`fabric_backend/pipeline_jobs.py`, `fabric_backend/agent_publish.py` and `docs/DATA-AGENT-PUBLISH.md`.
+
+**The defaults have not changed:** with nothing ticked, Krusgraph runs nothing, schedules nothing and publishes nothing.
+
+**What the editor does.**
+
+1. **Pipeline: Run once after Create** (off). After the pipeline and its three notebooks exist, Create starts one run
+   (Job Scheduler, Run On Demand: `POST /v1/workspaces/{ws}/dataPipelines/{id}/jobs/execute/instances`) and does not
+   wait for it, so no other card waits. The editor reads the run (`POST /workload/v1/pipeline-run`, which reads Get
+   Item Job Instance and the pipeline's activity runs) every 15 s for at most 10 minutes. The card shows Succeeded,
+   Failed or Running per step with its duration, and a link to the run in Fabric. At the bound it says the run is
+   still going, with the link. When the run succeeds, *Next* drops "run the pipeline".
+2. **Pipeline: Schedule** (off). Daily at a time, or every N hours, in a time zone (default Europe/Stockholm), from a
+   start date (default tomorrow; never in the past, which would start a run at once). The card shows the next run time.
+   - Krusgraph lists the pipeline's schedules first. The one Krusgraph made is updated, so there is never a second.
+   - Krusgraph knows its own by id: `outputs.json` `pipeline_jobs.schedules`, and a `[Krusgraph schedule <id>]` marker
+     in the pipeline's description for the MCP tool.
+   - A schedule Krusgraph did not make is never changed or removed.
+3. **The dry run** says exactly what Create will do: "Create starts one run of demo_lh_pipeline: silver, then gold, then
+   the check" and "Create adds a daily schedule at 06:00 Europe/Stockholm, starting 10 November 2026; the first run is
+   …".
+4. **outputs.json** keeps `pipeline_jobs` (`runs`: run id, pipeline id, status; `schedules`: id, pipeline id, the
+   choice, next run), so a later cleanup can remove the schedule (`DELETE …/dataPipelines/{id}/jobs/execute/schedules/{id}`).
+5. **Data agent: one layer.** The agent reads the silver tables when they are in the lakehouse (the default), the gold
+   views as an option, otherwise the source tables, and never two copies of a table. Its examples are written for that
+   layer, and their validation is shown. When Run once is ticked, the agent Krusgraph made is set to the silver tables
+   after the run succeeds.
+6. **Data agent: Publish the agent in Fabric** (off) and **Also make it available in Microsoft 365 Copilot** (off; only
+   with the first). Publishing needs all three: ticked, one layer, and, with Run once, a run that succeeded.
+   - Microsoft documents no API for Copilot. Its card is a preflight (paid capacity F2+, tenant settings, licences;
+     Unverified where Fabric's API cannot read them) and the portal step.
+   - `outputs.json` records `published` on the agent.
+7. **The MCP tool** `create_pipeline` takes the same two choices as `run_once` (default false) and `schedule` (default
+   none), with the same dry-run wording. It waits up to two minutes for the run. `create_data_agent` takes `layer`
+   (default `source`).
+
+**Keep it up to date** now reads:
+- **Data changes:** the pipeline's schedule runs it (tick Schedule on the pipeline card, or add one in Fabric). When
+  Create set the schedule, the line names it ("runs on its schedule, daily at 06:00 Europe/Stockholm").
+- **Tables or columns change:** open this Krusgraph Model item again, choose *Check against the rows again*, and Create
+  shows what is out of date with Update or a new name.
+
+**For the founder.**
+
+1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
+   --dry-run`, then `bash deploy/krusgraph.sh --update`.
+2. **New permission, only if you want Run once and Schedule:** `DataPipeline.Execute.All` (Power BI Service, delegated)
+   on the workload app. In Cloud Shell:
+
+   ```bash
+   az ad app permission add --id 853a0cf0-7d35-42b7-b384-26178755a72a --api 00000009-0000-0000-c000-000000000000 \
+     --api-permissions "$(az ad sp show --id 00000009-0000-0000-c000-000000000000 --query "oauth2PermissionScopes[?value=='DataPipeline.Execute.All'].id" -o tsv)=Scope"
+   ```
+
+   Then grant admin consent **in the Entra portal**: App registrations → Krusgraph workload (dev) → API permissions →
+   **Grant admin consent for <your organisation>** → Yes. `az ad app permission admin-consent` fails in Cloud Shell.
+   Reload the Fabric tab afterwards. Publishing the agent needs nothing new: it uses `Item.ReadWrite.All` or
+   `DataAgent.ReadWrite.All`, the same scopes creating the agent already needs.
+3. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+   853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern → Workloads → Upload → Activate (step 6.2 to 6.4).
+4. **Try it** on demo_lh:
+   - Tick *Run once after Create* and *Schedule* (daily 06:00) on the pipeline, and *Publish the agent in Fabric* on the
+     data agent. Leave *Microsoft 365 Copilot* off on the trial tenant: its card should name the trial capacity.
+   - Preview, read the cards, then Create.
+   - The pipeline card should show the run per step and the next run. The agent should read `silver` only and be
+     published once the run has succeeded.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it
@@ -827,7 +901,8 @@ the model refreshed by Create). Checked by `app/items/ModelItem/createWords.test
   addition to the shared renderer.
 - **Result**: each created item with **Open in Fabric**, and the portal steps still left, as the tools say them:
   refresh the semantic model once, introspection and permissions on the API, run the notebooks or the pipeline and add
-  a schedule yourself (the item adds none), publish the data agent when it answers well.
+  a schedule yourself unless Run once and Schedule were ticked (n185), publish the data agent when it answers well
+  unless Publish was ticked.
 
 ### What the editor does since n173
 

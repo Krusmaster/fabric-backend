@@ -35,7 +35,7 @@ import { callNotificationOpen } from "../../controller/NotificationController";
 import { navigateToItem } from "../../controller/NavigationController";
 import { ItemEditor, Ribbon, RibbonAction, createSaveAction } from "../../components/ItemEditor";
 import * as engine from "./engineClient";
-import { lastCreateOf, readLastCreate, withCard } from "./createWords";
+import { lastCreateOf, readLastCreate, withCard, withRunEnd } from "./createWords";
 import { rememberWorkloadOf } from "../../controller/ConfigurationController";
 import {
   DefinitionError,
@@ -55,6 +55,9 @@ import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, Review
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
 import { withAppChoices } from "./appWords";
+import {
+  MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
+} from "./jobsWords";
 import { AppChoices } from "./engineClient";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
@@ -287,7 +290,8 @@ export function ModelItemEditor(props: PageProps) {
       outputs,
       def.outputs.created,
       async (o, created) => {
-        const a = await engine.buildOne(workloadClient, src, o, outputs, def.review, created);
+        const a = await engine.buildOne(workloadClient, src, o, outputs, def.review, created, undefined,
+          { schedule_ids: scheduleIds(def.outputs.pipeline_jobs) });
         if ((a.created ?? []).length) {               // kept at once: a later lost answer cannot lose these ids
           d = { ...d, outputs: { ...d.outputs, outputs: choices, created: mergeCreated(d.outputs.created, a.created) } };
           setDef(d);
@@ -315,6 +319,62 @@ export function ModelItemEditor(props: PageProps) {
     }
     setResult(a);
     d = { ...d, item: { ...d.item, view: "result" as const }, outputs: afterCreate(d.outputs, choices, a, new Date().toISOString()) };
+    d = withJobRecords(d, run.cards);                            // n185: run and schedule ids, for a later cleanup
+    setDef(d);
+    await save(d);
+    await followRun(d, run.cards, src, outputs);
+  }
+
+  /** n185: the schedule Create set and the run it started, into outputs.json (pipeline_jobs). */
+  function withJobRecords(d: ModelDefinition, cards: engine.BuildCard[]): ModelDefinition {
+    const card = cards.find((c) => c.output === "pipeline");
+    const pipe = pipelineItem(card);
+    if (!card || !pipe) return d;
+    const at = new Date().toISOString();
+    let rec = recordSchedule(d.outputs.pipeline_jobs, pipe, card, at);
+    if (card.jobs?.run) rec = recordRun(rec, pipe, card.jobs.run, at);
+    return { ...d, outputs: { ...d.outputs, pipeline_jobs: rec } };
+  }
+
+  /** n185: the run Create started, read every POLL_MS for at most MAX_WAIT_MS (no other card waits for it). When it
+   * ends, its card, the finish and outputs.json say so; the data agent Krusgraph made is sent again with the run's end,
+   * so it reads the silver tables and, if Publish was ticked and the run succeeded, is published. */
+  async function followRun(d0: ModelDefinition, cards: engine.BuildCard[], src: engine.SourceRequest, outputs: engine.OutputRequest[]) {
+    const card = cards.find((c) => c.output === "pipeline");
+    const pipe = pipelineItem(card);
+    let run = card?.jobs?.run;
+    if (!card || !pipe || !run?.run_id || runFinished(run)) return;
+    const until = Date.now() + MAX_WAIT_MS;
+    while (!runFinished(run) && Date.now() < until) {
+      await new Promise((r) => setTimeout(r, POLL_MS));
+      try {
+        run = await engine.pipelineRun(workloadClient, { workspace: pipe.workspace, pipeline_id: pipe.id, pipeline_name: pipe.name,
+          run_id: run!.run_id as string, started: run!.started });
+      } catch {
+        continue;                                               // one lost read is not the run's end; the bound still holds
+      }
+      replaceCard({ ...card, jobs: { ...card.jobs!, run } });
+    }
+    if (!runFinished(run)) run = stillRunning(run!);
+    replaceCard({ ...card, jobs: { ...card.jobs!, run } });
+    const at = new Date().toISOString();
+    let d = { ...d0, outputs: { ...d0.outputs, pipeline_jobs: recordRun(d0.outputs.pipeline_jobs, pipe, run!, at),
+      last_create: withRunEnd(readLastCreate(d0.outputs.last_create), run!.status) } };
+    const agentOut = outputs.find((o) => o.kind === "data_agent");
+    if (agentOut && agentAfterRun(cards, run!)) {
+      try {
+        const a = await engine.buildOne(workloadClient, src, agentOut, outputs, d.review, d.outputs.created, undefined,
+          { schedule_ids: scheduleIds(d.outputs.pipeline_jobs), after_run: { status: run!.status } });
+        const agentCard = a.outputs.find((c) => c.output === "data_agent");
+        if (agentCard) {
+          replaceCard({ ...agentCard, status: "done" });
+          d = { ...d, outputs: { ...d.outputs, created: mergeCreated(d.outputs.created, agentCard.created ?? []),
+            last_create: withRunEnd(readLastCreate(d.outputs.last_create), run!.status, !!agentCard.agent?.published) } };
+        }
+      } catch {
+        /* the agent stays as Create left it; its card says so */
+      }
+    }
     setDef(d);
     await save(d);
   }
@@ -432,6 +492,7 @@ export function ModelItemEditor(props: PageProps) {
           stored={def.outputs.product}
           onOpen={openItem}
           onPreview={previewBuild}
+          jobsBlocked={jobsBlocked(preview?.outputs)}
         />
       ),
     },
