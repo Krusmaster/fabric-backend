@@ -758,6 +758,39 @@ Round n184 (9 November 2026). Checked by `app/items/ModelItem/fabricIcons.test.t
   at the earlier default follows the chosen lakehouse, also when a saved item is opened again; a name typed by hand,
   or one an item was already built under, stays.
 
+**Additions from the founder's live Create** (9 November 2026, 19:20 CET, package 1.0.913, all nine outputs created,
+the model refreshed by Create). Checked by `app/items/ModelItem/createWords.test.ts` and `tests/test_n184_create_texts.py`.
+
+- **While Create runs**, Builder's line counts what has happened so far ("4 of 9 created, 1 creating, 4 waiting"); it
+  said "Nothing was created: each card below says why" while outputs were already in Fabric.
+- **The data product's list** names each item by its own type: the pipeline's output holds the silver, gold and check
+  notebooks, which are listed as Notebook, as the Open links already did.
+- **Plain steps.** The gold card says "Run demo_lh_silver first" (the silver notebook of this Create), not the tool's
+  name; no step on a card names a tool (`workload_api.plain_steps`). The report card no longer says
+  "export_item_definitions does not include reports", and says "refresh it once" only when Create's refresh of the model
+  failed or was skipped for want of a permission.
+- **The report's visuals** are counted the same way on both cards: charts, cards, the table and slicers, not the page's
+  title and footnote. When Create draws fewer than the dry run did, the card says so: the dry run draws from this build's
+  draft of the model, Create from the model as Fabric returns it after creating it, and each visual not drawn is listed
+  with its reason. Why the live run drew 8 against 10 was not reproduced here (no live Fabric in CI); the card now names
+  the difference the next time it happens.
+- **"Updated" pipeline on a fresh workspace.** The pipeline also writes its notebooks, and the silver and gold notebooks
+  the same Create had made a moment earlier exist, so the ownership check said "update". Now only the pipeline item
+  itself decides: "created" when it did not exist before (`workload_api._ownership`).
+- **The App card** says "Empty App item created; its pages and connector come from the package and commands below", and
+  the commands are under "Still to do (in a terminal with Node, e.g. Azure Cloud Shell)".
+- **A clear finish.** When every chosen output has its answer: a banner, "Done: 9 of 9 created in demo" (green; the name
+  is the Krusgraph Model item's, as the editor does not know the workspace's name) or "Done with problems: 7 of 9
+  created, 2 failed" (red, amber when outputs only wait for a choice), with each reason; Onto and Builder celebrate when
+  the mascots are on and every output is done (they hop only under `prefers-reduced-motion: no-preference`; with the
+  mascots off no figure is drawn). Each card's title has a mark: green created, amber created with a step still to do
+  (the App's pages, a model Create could not refresh, a report on it) or waiting for a choice, red failed. Under the
+  banner, *Next* (run the pipeline, or the silver then gold notebooks; open the report; publish the data agent when its
+  answers are right; the App's terminal steps) and *Keep it up to date* (data changes: the pipeline run or a schedule,
+  the model is Direct Lake; tables or columns change: open the item, *Check against the rows again*, and Create shows
+  what is out of date with Update or a new name). The finish is kept in `outputs.json` as `last_create` and shown again,
+  with the date of the last Create, when the item is reopened; an Update on a card changes its line.
+
 **For the founder.**
 
 1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
@@ -766,7 +799,8 @@ Round n184 (9 November 2026). Checked by `app/items/ModelItem/fabricIcons.test.t
    853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern → Workloads → Upload → Activate (step 6.2 to 6.4).
 3. **Check**: open a Krusgraph Model, *Choose what to build* shows an icon left of each output; Preview and Create
    cards show the same; *About and notices* opens with the trademark line; a new Model on `demo_lh` proposes
-   `demo_lh_api`.
+   `demo_lh_api`. Create counts "n of 9 created" while it runs, ends with the banner, marks, *Next* and *Keep it up to
+   date*, and shows them again when the item is reopened.
 
 ### What the editor does since n174
 

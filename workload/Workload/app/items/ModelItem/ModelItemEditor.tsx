@@ -35,6 +35,7 @@ import { callNotificationOpen } from "../../controller/NotificationController";
 import { navigateToItem } from "../../controller/NavigationController";
 import { ItemEditor, Ribbon, RibbonAction, createSaveAction } from "../../components/ItemEditor";
 import * as engine from "./engineClient";
+import { lastCreateOf, readLastCreate, withCard } from "./createWords";
 import { rememberWorkloadOf } from "../../controller/ConfigurationController";
 import {
   DefinitionError,
@@ -297,6 +298,9 @@ export function ModelItemEditor(props: PageProps) {
       (cards) => setResult((r) => ({ ...(r ?? base), outputs: cards, refused: cards.filter((c) => c.refusal || c.answer?.error).length } as engine.ManyAnswer)),
       preview
     );
+    // n184 (addition 2): the finish is kept at once, so the banner shows and reopening the item shows it again
+    d = { ...d, outputs: { ...d.outputs, last_create: lastCreateOf(run.cards, itemMeta?.displayName ?? "", new Date().toISOString()) } };
+    setDef(d);
     let a: engine.ManyAnswer = {
       ...base, outputs: run.cards, created: run.cards.flatMap((c) => c.created ?? []),
       refused: run.cards.filter((c) => c.refusal || c.answer?.error).length,
@@ -333,8 +337,10 @@ export function ModelItemEditor(props: PageProps) {
         engine.updateOne(workloadClient, src, o, outputs, def.review, def.outputs.created, dryRun, confirm)
       );
       replaceCard(got.card);
-      if (got.created.length) {
-        const d = { ...def, outputs: { ...def.outputs, outputs: choices, created: mergeCreated(def.outputs.created, got.created) } };
+      const last = withCard(readLastCreate(def.outputs.last_create), got.card, new Date().toISOString());   // n184
+      if (got.created.length || (last && !got.card.dry_run)) {
+        const d = { ...def, outputs: { ...def.outputs, outputs: choices, created: mergeCreated(def.outputs.created, got.created),
+          ...(last ? { last_create: last } : {}) } };
         setDef(d);
         await save(d);
       }

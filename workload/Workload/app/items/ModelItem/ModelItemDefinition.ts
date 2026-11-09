@@ -111,6 +111,15 @@ export interface OutputsDefinition {
   created: CreatedItem[];
   /** n174: optional, so a version 1 file without it reads as before */
   product?: ProductDefinition;
+  /** n184: the finish of the last Create (createWords.LastCreate), so reopening shows it with its date; optional */
+  last_create?: LastCreateStored;
+}
+
+/** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */
+export interface LastCreateStored {
+  at: string;
+  item: string;
+  outputs: { output: string; label: string; name: string; state: string; reason?: string; refresh?: string }[];
 }
 
 export interface ItemSettings {
@@ -209,6 +218,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       outputs: def.outputs?.outputs ?? [],
       created: def.outputs?.created ?? [],
       ...(def.outputs?.product && typeof def.outputs.product === "object" ? { product: def.outputs.product } : {}),
+      ...(def.outputs?.last_create && typeof def.outputs.last_create === "object" ? { last_create: def.outputs.last_create } : {}),
     },
     review: def.review,
   };

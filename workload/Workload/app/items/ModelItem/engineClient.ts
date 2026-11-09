@@ -185,6 +185,8 @@ export interface BuildCard {
   confirm_update?: string;
   /** n180: the one refresh of a semantic model this Create made (planned in the dry run) */
   refresh?: ModelRefresh;
+  /** n184: the report's visuals in the dry run this Create followed (createWords.visualCount), set by createEach */
+  dry_run_visuals?: number;
 }
 
 /** n180 (workload_api.refresh_new_model): planned in the dry run; refreshed, refreshing (still running when the wait

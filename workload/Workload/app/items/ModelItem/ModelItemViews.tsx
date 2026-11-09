@@ -28,7 +28,7 @@ import {
   Title3,
   Tooltip,
 } from "@fluentui/react-components";
-import { CheckmarkStarburst24Regular, Open24Regular } from "@fluentui/react-icons";
+import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Filled, Open24Regular, Warning20Filled } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
@@ -53,7 +53,6 @@ import {
   cardProblem,
   cardTitle,
   choiceProblems,
-  kindInfo,
   nameAction,
   needsChoice,
   refreshWords,
@@ -64,6 +63,10 @@ import {
 } from "./buildWords";
 import { FlowView } from "./FlowView";
 import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
+import {
+  APP_STEPS_TITLE, CardState, FINISH_CSS, KEEP_UP_TO_DATE, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, nextSteps,
+  readLastCreate, running, stepsTitle,
+} from "./createWords";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
 import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES, MASCOT_SVG } from "./cardMap.generated";
 import {
@@ -568,6 +571,7 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
         ))}
       </ul>
       <Caption1>{a.why_not_published}</Caption1>
+      <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>
       <ol className="krusgraph-steps" aria-label="Commands">
         {(a.commands ?? []).map((x: { step: string; command: string }) => (
           <li key={x.command}><Body1>{x.step}: </Body1><code>{x.command}</code></li>
@@ -579,6 +583,67 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
         </div>
       )}
     </div>
+  );
+}
+
+/** n184 (addition 2): the mark on a card's title once Create answered for it: green created, amber created with a step
+ * still to do (or waiting for a choice), red failed. The word is in the label for screen readers and in the tooltip. */
+export function StateMark(props: { state?: CardState }) {
+  if (!props.state || STATE_MARK[props.state].tone === "neutral") return null;
+  const m = STATE_MARK[props.state];
+  const Icon = m.tone === "success" ? CheckmarkCircle20Filled : m.tone === "danger" ? ErrorCircle20Filled : Warning20Filled;
+  return (
+    <span className={`krusgraph-mark krusgraph-mark-${m.tone}`} role="img" aria-label={m.label} title={m.label} data-state={props.state}>
+      <Icon aria-hidden />
+    </span>
+  );
+}
+
+/** n184 (addition 2): the finish of a Create: the banner (with Onto and Builder celebrating, when the mascots are on and
+ * every output is done), Next, and how to keep it up to date. From the live run, or from outputs.json when reopened. */
+export function FinishView(props: { last: LastCreate; mascotsOn: boolean; timeZone?: string }) {
+  const b = banner(props.last, props.timeZone);
+  const next = nextSteps(props.last);
+  const intent = b.tone === "success" ? "success" : b.tone === "danger" ? "error" : "warning";
+  return (
+    <section className={`krusgraph-finish krusgraph-finish-${b.tone}`} aria-label="Create is done" data-tone={b.tone}>
+      <style>{FINISH_CSS}</style>
+      {props.mascotsOn ? (
+        <ul className={`krusgraph-mascots${b.glad ? " krusgraph-cheer" : ""}`}>
+          <style>{MASCOT_CSS}</style>
+          <MascotSays kind="onto" text={b.title} pose={b.glad ? "celebrate" : "notice"} glad={b.glad} />
+          <MascotSays kind="builder" text={b.when} pose={b.glad ? "celebrate" : "point"} glad={b.glad} />
+        </ul>
+      ) : null}
+      <MessageBar intent={intent} layout="multiline" className="krusgraph-banner">
+        <MessageBarBody>
+          <strong>{b.title}</strong> {b.when}
+          {b.reasons.length > 0 && (
+            <ul className="krusgraph-list" aria-label="What needs you">
+              {b.reasons.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+        </MessageBarBody>
+      </MessageBar>
+      {next.length > 0 && (
+        <>
+          <Subtitle2>Next</Subtitle2>
+          <ol className="krusgraph-steps" aria-label="Next">
+            {next.map((n) => (
+              <li key={n}><Body1>{n}</Body1></li>
+            ))}
+          </ol>
+        </>
+      )}
+      <Subtitle2>Keep it up to date</Subtitle2>
+      <ul className="krusgraph-list" aria-label="Keep it up to date">
+        {KEEP_UP_TO_DATE.map((n) => (
+          <li key={n}><Body1>{n}</Body1></li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -615,7 +680,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   const refused = !!(c.refusal || c.answer?.error);
   return (
     <section className={`krusgraph-output${refused ? " refused" : ""}`} aria-label={cardTitle(c)} data-output={c.output}>
-      <ItemTitle kind={c.output}><Subtitle2>{cardTitle(c)}</Subtitle2></ItemTitle>
+      <ItemTitle kind={c.output}><Subtitle2>{cardTitle(c)}</Subtitle2><StateMark state={cardState(c)} /></ItemTitle>
       {facts.length > 0 && (
         <ul className="krusgraph-list">
           {facts.map((f) => (
@@ -650,9 +715,9 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           ))}
         </div>
       )}
-      {(c.portal_steps ?? []).filter(Boolean).length > 0 && (
+      {c.output !== "rayfin_app" && (c.portal_steps ?? []).filter(Boolean).length > 0 && (
         <>
-          <Caption1>Still to do in the Fabric portal</Caption1>
+          <Caption1>{stepsTitle(c.output)}</Caption1>
           <ul className="krusgraph-list">
             {(c.portal_steps ?? []).filter(Boolean).map((s) => (
               <li key={s}>
@@ -730,7 +795,7 @@ export function ProductView(props: {
         {items.map((x) => (
           <li key={x.id || `${x.output}:${x.name}`}>
             <Body1>
-              {kindInfo(x.output ?? "")?.label ?? x.type} {x.name}
+              {itemTypeLabel(x.type, x.output)} {x.name}
               {x.would ? ` (${x.would === "update" ? "would be updated" : "would be created"})` : ""}
             </Body1>
           </li>
@@ -821,18 +886,24 @@ export function ResultView(props: {
   outputs: OutputsDefinition;
   onOpen: (item: OpenLink["item"]) => void;
   mascotsOn: boolean;
+  timeZone?: string;
 } & CardActions) {
   const a = props.answer;
+  const live = !!a && (a.outputs.length === 0 || running(a.outputs));
+  // n184: the finish, from outputs.json (the editor writes it as soon as every card has its answer, and reopening reads it)
+  const last = live ? undefined : readLastCreate(props.outputs.last_create);
   const said = a ? resultLine(a) : "This item built these before. Open each in Fabric; choose outputs again to update them.";
   const stored = props.outputs.product;
   const earlier = openLinks(props.outputs.created);
   return (
     <div className="krusgraph-view">
       <Title3>Built in Fabric</Title3>
-      {props.mascotsOn ? (
+      {last ? (
+        <FinishView last={last} mascotsOn={props.mascotsOn} timeZone={props.timeZone} />
+      ) : props.mascotsOn ? (
         <ul className="krusgraph-mascots">
           <style>{MASCOT_CSS}</style>
-          <MascotSays kind="builder" text={said} pose="point" glad={!!a && !a.refused} />
+          <MascotSays kind="builder" text={said} pose="point" />
         </ul>
       ) : (
         <Body1>{said}</Body1>

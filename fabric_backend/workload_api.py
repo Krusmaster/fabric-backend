@@ -609,7 +609,8 @@ def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, 
     a report is never updated (create_report adds one item and never updates it)."""
     from . import server as S
     found, would = {}, "create"
-    for typ, name in _names(o, chosen, req["schema"]):
+    names = _names(o, chosen, req["schema"])
+    for typ, name in names:
         existing = S._find_item(workspace, name, headers, typ)
         if not existing:
             continue
@@ -622,7 +623,11 @@ def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, 
             return would, {"error": f"{name!r} was built by this Model, and a {KINDS[o['kind']]['label'].lower()} is never updated in place; "
                                     "nothing was written.", "kind": "already_exists", "existing": {"type": typ, "id": existing, "name": name},
                            "hint": "Choose a new name to create another one."}, found
-        would = "update"
+        if (typ, name) == names[0]:
+            # n184 (the founder's live Create, 9 November 2026): only the output's own item decides "updated". The pipeline
+            # also rewrites its notebooks, and the silver and gold notebooks this same Create made a moment earlier exist,
+            # which made a pipeline that did not exist say "updated".
+            would = "update"
     return would, None, found
 
 
@@ -899,12 +904,38 @@ def refresh_new_model(workspace: str, model_id: str, scopes: set[str] | None, ap
         return done({"status": "failed", "reason": type(exc).__name__})
 
 
-def _portal_steps(kind: str, a: dict) -> list[str]:
-    """What is still to do in the Fabric portal, as the tool's own answer says it."""
-    if kind == "semantic_model" or kind in ("report", "ontology"):
-        return list(a.get("after_creation") or [])
+# n184: the steps on a card are plain words. A tool's name means nothing to the person in Fabric ("Run
+# create_silver_notebook's notebook first"); a sentence about another tool is left out.
+TOOL_NAME = re.compile(r"\b(?:create|export|compare|describe|validate|plan|query)_[a-z_]+\b|\b[a-z]+(?:_[a-z]+)+_draft\b")
+REPORT_REFRESH_STEP = "If the model was just created, refresh it once"
+
+
+def plain_steps(steps: list[str], chosen: dict) -> list[str]:
+    """The steps of a card without tool names: the silver notebook's step names the notebook this Create builds."""
+    silver = chosen.get("silver_notebook")
+    out = []
+    for step in steps:
+        step = step.replace("Run create_silver_notebook's notebook first", f"Run {silver} first" if silver else "Run the silver notebook first")
+        if TOOL_NAME.search(step):
+            continue
+        out.append(step)
+    return out
+
+
+def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | None = None) -> list[str]:
+    """What is still to do, as the tool's own answer says it, in plain words (plain_steps). The report's "refresh it once"
+    stays only when this Create's model was not refreshed (failed, or skipped for want of a permission): a model Create
+    refreshed, or one that existed before, needs no such step on the report's card."""
+    chosen = chosen or {}
+    if kind == "report":
+        model = (built or {}).get("semantic_model") or {}
+        status = (model.get("refresh") or {}).get("status")
+        steps = [x for x in (a.get("after_creation") or []) if not (x.startswith(REPORT_REFRESH_STEP) and status not in ("failed", "not_run"))]
+        return plain_steps(steps, chosen)
+    if kind in ("semantic_model", "ontology"):
+        return plain_steps(list(a.get("after_creation") or []), chosen)
     if kind in ("silver_notebook", "gold_views"):
-        return list(a.get("run") or [])
+        return plain_steps(list(a.get("run") or []), chosen)
     if kind == "pipeline":
         return [a.get("runs", ""), "To run it regularly, add a schedule on the pipeline in Fabric (Schedule); Krusgraph adds none."]
     if kind == "data_agent":
@@ -1184,7 +1215,7 @@ def run_build_many(req: dict) -> dict:
                     card.pop("confirm_update", None)
                     if card["created"]:
                         mark_items(workspace, headers, card["created"], mark)
-                    card["portal_steps"] = _portal_steps(kind, answer)
+                    card["portal_steps"] = _portal_steps(kind, answer, chosen, built)
                     new_model = next((c["id"] for c in card["created"] if c["type"] == "SemanticModel"), None)
                     if kind == "semantic_model" and would == "create" and new_model:   # only a model this request created
                         card["refresh"] = refresh_new_model(workspace, new_model, scopes, app_id)

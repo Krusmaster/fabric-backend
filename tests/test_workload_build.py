@@ -240,7 +240,8 @@ def test_create_builds_the_flow_the_model_and_its_report_and_says_what_is_left(m
     assert cards["report"]["answer"]["report"]["bound_to"]["id"] == NEW_SM
     # the portal steps are the tools' own
     assert cards["semantic_model"]["portal_steps"][0].startswith("Refresh the model once")
-    assert cards["report"]["portal_steps"] == list(server.REPORT_AFTER_CREATION)
+    # n184: no tool names; the model was not refreshed here (no permission), so the report keeps "refresh it once"
+    assert cards["report"]["portal_steps"] == [x for x in server.REPORT_AFTER_CREATION if "export_item_definitions" not in x]
     assert cards["silver_notebook"]["portal_steps"] == cards["silver_notebook"]["answer"]["run"]
     assert cards["pipeline"]["portal_steps"][0] == pipeline.NOT_RUN and "schedule" in cards["pipeline"]["portal_steps"][1]
     # nothing ran and nothing was scheduled

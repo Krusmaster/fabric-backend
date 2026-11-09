@@ -11,6 +11,7 @@ import { CreatedItem, OutputChoice, OutputsDefinition, ProductDefinition } from 
 import {
   BuildCard, CreatedRef, DataProduct, EngineCallError, EngineError, ExistingCounts, ManyAnswer, OutputKind, OutputRequest,
 } from "./engineClient";
+import { appFacts, itemTypeLabel, progressLine, reportFacts, running, visualCount } from "./createWords";
 
 export interface KindInfo {
   kind: OutputKind;
@@ -205,9 +206,7 @@ export function openLinks(items: CreatedItem[]): OpenLink[] {
   return items
     .filter((c) => c.id)
     .map((c) => {
-      const out = outputOf(c);
-      const info = out ? kindInfo(out) : undefined;
-      const what = c.type === "Notebook" && out === "pipeline" ? "Notebook" : info?.label ?? c.type;
+      const what = itemTypeLabel(c.type, outputOf(c));          // n184: the item's own type (a pipeline's notebooks too)
       return { label: `${what} ${c.name}`, item: { id: c.id, workspaceId: c.workspace, type: c.type, displayName: c.name } };
     });
 }
@@ -247,11 +246,10 @@ export function cardFacts(c: BuildCard): string[] {
       return (a.steps as string[]) ?? [];
     case "semantic_model":
       return modelFacts(a.summary);
-    case "report": {
-      const r = a.report ?? {};
-      const on = r.bound_to?.semantic_model ? ` on ${r.bound_to.semantic_model}` : "";
-      return [`One page with ${n(r.visuals)} visual(s)${on}`];
-    }
+    case "report":
+      return reportFacts(c);                                   // n184: one count for the dry run and Create
+    case "rayfin_app":
+      return appFacts(c);                                      // n184: the App item is empty until the package is published
     case "graphql":
       return a.summary ? [String(a.summary).split("\n")[0]] : [];
     case "ontology":
@@ -430,6 +428,8 @@ export async function createEach(
     try {
       const a = await send(o, made);
       card = { ...(a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind))), status: "done" };
+      const drawn = before(o.kind)?.answer?.report;
+      if (o.kind === "report" && drawn) card = { ...card, dry_run_visuals: visualCount(drawn) };   // n184: (d)
       made = mergeCreated(made as CreatedItem[], a.created ?? card.created ?? []);
     } catch (e) {
       card = failedCard(o, e, before(o.kind));
@@ -455,6 +455,7 @@ export function previewLine(a: ManyAnswer): string {
 }
 
 export function resultLine(a: ManyAnswer): string {
+  if (running(a.outputs)) return progressLine(a.outputs);     // n184: "4 of 9 created, 1 creating, 4 waiting"
   const lost = a.outputs.filter((c) => c.status === "lost").length;
   if (lost)
     return `${lost} output(s) gave no answer yet; they may still be running in Fabric. Reopen this item in a minute and choose Create again: what is built is skipped.`;

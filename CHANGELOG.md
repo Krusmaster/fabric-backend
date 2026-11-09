@@ -17,6 +17,14 @@ next deploy.
   extension development; *About and notices* in the editor and `THIRD_PARTY_NOTICES.md` carry the terms and the
   trademark line. **Default names** follow one pattern from the lakehouse (`demo_lh_api`, no longer `demo_api`).
   `docs/WORKLOAD-DEV.md` step 13. Needs a redeploy and a new workload package version.
+- Round n184, additions from the founder's live Create: while Create runs, the line counts "4 of 9 created, 1 creating,
+  4 waiting"; the data product lists the pipeline's notebooks as notebooks; no card step names a tool ("Run
+  demo_lh_silver first"), the report asks for a refresh only when Create's refresh did not happen; the report's visuals
+  are counted alike in the dry run and on Create, with what was not drawn and why; a pipeline that did not exist says
+  created; the App card says the App item is empty and puts its commands under "Still to do (in a terminal with Node)".
+  **Create ends clearly**: a banner ("Done: 9 of 9 created in demo", or "Done with problems" with the reasons), the
+  mascots celebrating (mascot switch and reduced motion respected), a green, amber or red mark on each card, *Next* and
+  *Keep it up to date*, kept in `outputs.json` and shown again with its date when the item is reopened.
 - Round n183: the **product diagram is a data flow**, on the home page and on `/choose`: your tables in Fabric
   (lakehouse, warehouse, mirrored databases) → one Krusgraph engine (keys and links, checked against your rows) → built
   in Fabric (semantic model, report, ontology, API for GraphQL, pipeline and notebooks, data agent, App (Rayfin, preview),
