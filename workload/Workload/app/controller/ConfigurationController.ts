@@ -120,10 +120,31 @@ export function isWorkloadItemConfigured(itemName: string): boolean {
   return getConfiguredWorkloadItems().some(item => item.name === itemName);
 }
 
+// Krusgraph (n176): one hosted editor (workload.krusgraph.com) serves two workload names, Org.Krusgraph (development)
+// and Krusgraph.Modeler (published), so the name the build was made with is only the fallback; the item Fabric opens
+// says which workload it belongs to.
+let runtimeWorkloadName = '';
+
+/** "Krusgraph.Modeler.Model" -> "Krusgraph.Modeler": the item type without its last part; "" when there is none. */
+export function workloadNameOf(itemType?: string | null): string {
+  const type = (itemType || '').trim();
+  const dot = type.lastIndexOf('.');
+  return dot > 0 ? type.substring(0, dot) : '';
+}
+
+/** Remembers the workload of the item being edited (from its item type); a type without a workload part is ignored. */
+export function rememberWorkloadOf(itemType?: string | null): string {
+  const name = workloadNameOf(itemType);
+  if (name) {
+    runtimeWorkloadName = name;
+  }
+  return getWorkloadName();
+}
+
 /**
- * Gets the workload name from environment variables
+ * Gets the workload name: the one of the item being edited, else the build's WORKLOAD_NAME
  * @returns The workload name (e.g., "Org.FabricTools")
  */
 export function getWorkloadName(): string {
-  return process.env.WORKLOAD_NAME || '';
+  return runtimeWorkloadName || process.env.WORKLOAD_NAME || '';
 }

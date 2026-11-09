@@ -87,7 +87,9 @@ The Fabric workload in `workload/` is a fork of Microsoft's starter kit `microso
 was opened and read at that commit and is kept as `workload/LICENSE`. The kit's `Workload/`, `scripts/` and `tools/` were
 copied; the HelloWorld item became the Model item and its editor was rewritten; other changes carry a `Krusgraph:`
 comment. It is listed in `THIRD_PARTY_NOTICES.md` (vendored section). The development workload name is `Org.Krusgraph`;
-no round uploads or uses a `Krusgraph.*` name (the first upload reserves it for good; `docs/WORKLOAD-DEV.md`).
+the permanent name, the founder's decision of 9 November 2026, is `Krusgraph.Modeler` (`docs/WORKLOAD-PUBLISH.md`). The
+package builds only these two; no other `Krusgraph.*` name is used anywhere (the first upload reserves a name for good),
+and only the founder uploads.
 
 `docs/ECOSYSTEM-WATCHLIST.md` keeps the related MCP servers with their licence as observed or "not verified".
 

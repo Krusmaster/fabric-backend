@@ -1,0 +1,32 @@
+<div data-page="pilot-fabric">
+<article class="wrap prose pilot-fabric-page">
+  <p class="eyebrow">Pilot in Microsoft Fabric</p>
+  <h1>{{PRODUCT}} in Fabric: what your administrator does</h1>
+  <p class="lede">{{PRODUCT}} adds one item type to Microsoft Fabric, <strong>Krusgraph Model</strong>. Kruse Consulting AB publishes it as <code>Krusgraph.Modeler</code> to a small number of selected organisations. It is not listed in Fabric’s Workload Hub and has not been validated by Microsoft, which is why step 2 is needed. Kruse Consulting AB is not affiliated with Microsoft.</p>
+  <p>Do the steps in this order. Each one is done once for your organisation.</p>
+
+  <ol class="pilot-steps">
+    <li id="tenant-id"><h2 class="h3">Send us your tenant id</h2>
+      <p>It is shown in the Microsoft Entra admin centre under <strong>Overview → Tenant ID</strong>. Send it to <a href="mailto:{{CONTACT}}?subject=Krusgraph%20pilot%20in%20Fabric">{{CONTACT}}</a>. We add it to Fabric’s list of selected tenants for the workload and to the list of organisations our server answers, and reply when both are done. Fabric says it can take up to 10 minutes after that before the workload shows.</p>
+      <p class="muted">Until then, people in your organisation either do not see {{PRODUCT}}, or the editor says “{{PRODUCT}} is not turned on for your organisation yet.” with your tenant id. Nothing is read or changed in that case.</p></li>
+    <li id="tenant-setting"><h2 class="h3">Turn on the tenant setting for workloads not validated by Microsoft</h2>
+      <p>In the Fabric admin portal, <strong>Tenant settings → Additional workloads</strong>:</p>
+      <ul>
+        <li><strong>Users can see and work with additional workloads not validated by Microsoft</strong>: on, for the organisation or for a security group of the people in the pilot.</li>
+        <li><strong>Capacity admins and contributors can add and remove additional workloads</strong> (or the preview setting for workspace admins, where your tenant has it): on, for the people who will add {{PRODUCT}} to a capacity or workspace.</li>
+      </ul>
+      <p>The capacity’s administrator then allows the workload in the capacity settings. Microsoft notes that with these settings on, data and access tokens, including name and email, are sent to the workload’s publisher; <a href="/it">For your IT department</a> says what {{PRODUCT}} keeps and for how long. The workload needs a workspace on a Fabric capacity: it does not run on Power BI Pro alone, and it is blocked where Private Link is on.</p></li>
+    <li id="consent"><h2 class="h3">Grant admin consent for the {{PRODUCT}} workload app</h2>
+      <p>The editor calls our engine with your users’ own permissions (delegated). A Global Administrator or Privileged Role Administrator grants consent once, at this address with your tenant id in place of <code>&lt;your tenant id&gt;</code>:</p>
+      <p><code class="pilot-consent">https://login.microsoftonline.com/&lt;your tenant id&gt;/adminconsent?client_id=853a0cf0-7d35-42b7-b384-26178755a72a</code></p>
+      <p>Every call runs as the person using the editor, with that person’s Fabric rights. The permissions and why each is needed are on <a href="/it#permissions">For your IT department</a>. To withdraw consent later: Entra admin centre → <strong>Enterprise applications</strong> → the {{PRODUCT}} app → delete it or remove its permissions.</p></li>
+    <li id="network"><h2 class="h3">Allow the two addresses through your network</h2>
+      <p>If outbound web traffic is filtered, allow HTTPS (port 443) to <code>krusgraph.com</code> and <code>workload.krusgraph.com</code> (the editor inside Fabric and its engine). Both are hosted in Azure, Sweden Central. <a href="/it#network">For your IT department</a> has the details and what it looks like when they are blocked.</p></li>
+    <li id="new-item"><h2 class="h3">Create a Krusgraph Model</h2>
+      <p>In a workspace on the Fabric capacity: <strong>+ New item → Krusgraph Model</strong>. Choose a lakehouse in the workspace and a schema; {{PRODUCT}} proposes keys and relationships, each with the rule that found it. You accept or reject each one and see a dry run before anything is created. We suggest a first try on a lakehouse with test data.</p></li>
+  </ol>
+
+  <p class="muted tiny">Screenshots we send of these steps use the synthetic shop schema from {{PRODUCT}}’s open source code, not anyone’s data. If something does not work, write to <a href="mailto:{{CONTACT}}">{{CONTACT}}</a> with the text the screen showed; please do not send table contents. To leave the pilot, tell us and we remove your tenant id from both lists; you can remove the consent and turn the setting off yourself at any time.</p>
+  <p class="muted tiny">The same steps as a document: <a href="{{GITHUB}}/blob/main/docs/PILOT-ONBOARDING.md" rel="noopener">docs/PILOT-ONBOARDING.md</a>. A pilot of the work itself, with a number your team cannot agree on, is on <a href="/partners">Try a pilot</a>.</p>
+</article>
+</div>

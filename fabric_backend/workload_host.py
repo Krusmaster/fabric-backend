@@ -34,6 +34,7 @@ HOST_ENV = "KRUSGRAPH_WORKLOAD_HOST"
 DIST_ENV = "KRUSGRAPH_WORKLOAD_DIST"
 DEFAULT_DIST = "/app/workload-dist"
 SCOPE_META = "krusgraph-engine-scope"
+SCOPES_META = "krusgraph-engine-scopes"      # n176: every accepted scope, space separated; the editor picks its workload's
 
 CLOSE_SCRIPT = "window.close();"
 CLOSE_HASH = "'sha256-" + base64.b64encode(hashlib.sha256(CLOSE_SCRIPT.encode()).digest()).decode() + "'"
@@ -69,13 +70,20 @@ def configured_host() -> str:
     return value
 
 
-def engine_scope() -> str:
-    """The scope the hosted editor asks the Fabric host for, from the server's own workload settings (entra.WorkloadConfig):
-    <KRUSGRAPH_WORKLOAD_APP_ID_URI>/<KRUSGRAPH_WORKLOAD_SCOPE>. Injected into index.html, so the image needs no rebuild
-    when the Entra app changes."""
-    uri = os.environ.get("KRUSGRAPH_WORKLOAD_APP_ID_URI", "").strip().rstrip("/")
+def engine_scopes() -> list[str]:
+    """The scopes the hosted editor may ask the Fabric host for, from the server's own workload settings
+    (entra.WorkloadConfig): <URI>/<KRUSGRAPH_WORKLOAD_SCOPE> for each URI of KRUSGRAPH_WORKLOAD_APP_ID_URI (a comma list
+    while Org.Krusgraph and Krusgraph.Modeler both run, n176). Injected into index.html, so the image needs no rebuild
+    when the Entra app changes; the editor takes the one whose URI ends in its own workload name, else the first."""
+    from .entra import split_uris
     scope = os.environ.get("KRUSGRAPH_WORKLOAD_SCOPE", "").strip() or "user_impersonation"
-    return f"{uri}/{scope}" if uri else ""
+    return [f"{uri}/{scope}" for uri in split_uris(os.environ.get("KRUSGRAPH_WORKLOAD_APP_ID_URI", ""))]
+
+
+def engine_scope() -> str:
+    """The first (primary) scope; "" when the workload app is not configured."""
+    scopes = engine_scopes()
+    return scopes[0] if scopes else ""
 
 
 def request_host(scope) -> str:
@@ -105,7 +113,8 @@ class Editor:
         if not index.is_file():
             return None
         body = index.read_text(encoding="utf-8")
-        meta = f'<meta name="{SCOPE_META}" content="{html.escape(engine_scope(), quote=True)}">'
+        meta = (f'<meta name="{SCOPE_META}" content="{html.escape(engine_scope(), quote=True)}">'
+                f'<meta name="{SCOPES_META}" content="{html.escape(" ".join(engine_scopes()), quote=True)}">')
         body = body.replace("<head>", "<head>" + meta, 1) if "<head>" in body else meta + body
         return body.encode("utf-8")
 

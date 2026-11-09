@@ -12,6 +12,7 @@ import {
 } from '@ms-fabric/workload-client';
 import { callPageOpen } from './controller/PageController';
 import { callNotificationOpen } from './controller/NotificationController';
+import { workloadNameOf } from './controller/ConfigurationController';
 // [JOB_SUPPORT] Job scheduling - To enable, run: scripts/Setup/CreateJob.ps1
 // import { callRunItemJob } from './controller/JobSchedulerController';
 // import { getJobDetailsPane } from './utils/jobUtils';
@@ -41,7 +42,8 @@ export async function initialize(params: InitParams) {
     const workloadClient = createWorkloadClient();
     console.log('✅ WorkloadClient created successfully');
 
-    const sampleWorkloadName = process.env.WORKLOAD_NAME;
+    // Krusgraph (n176): the workload of the item at hand (Org.Krusgraph or Krusgraph.Modeler), else the build's name
+    const workloadOf = (itemType?: string) => workloadNameOf(itemType) || process.env.WORKLOAD_NAME;
 
     workloadClient.action.onAction(async function ({ action, data }) {
         console.log(`🧭 Started action ${action} with data:`, data);
@@ -52,7 +54,7 @@ export async function initialize(params: InitParams) {
                 const itemTypeName = createdItem.itemType.substring(createdItem.itemType.lastIndexOf('.') + 1);
                 path = `/${itemTypeName}Item-editor`;
                 console.log(`Item created successfully, redirecting to ${path}/${createdItem.objectId}`);
-                await callPageOpen(workloadClient, sampleWorkloadName, `${path}/${createdItem.objectId}`);
+                await callPageOpen(workloadClient, workloadOf(createdItem.itemType), `${path}/${createdItem.objectId}`);
                 return Promise.resolve({ succeeded: true });
 
             case 'item.onCreationFailure': {
@@ -75,7 +77,7 @@ export async function initialize(params: InitParams) {
                         name: 'about',
                         displayName: t('Item_About_Label'),
                         workloadSettingLocation: {
-                            workloadName: sampleWorkloadName,
+                            workloadName: workloadOf(createdItem.itemType),
                             route: `/${itemTypeName}Item-about/${createdItem.objectId}`,
                         }
                     },
@@ -87,7 +89,7 @@ export async function initialize(params: InitParams) {
                             name: 'apps_20_regular',
                         },
                         workloadSettingLocation: {
-                            workloadName: sampleWorkloadName,
+                            workloadName: workloadOf(createdItem.itemType),
                             route: `/${itemTypeName}Item-settings/${createdItem.objectId}`,
                         }
                     }

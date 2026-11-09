@@ -101,6 +101,14 @@ class TokenError(Exception):
     pass
 
 
+class TenantNotAllowed(TokenError):
+    """A valid token from a tenant outside the allowed list (n176): answered with a plain refusal, not a sign-in loop."""
+
+    def __init__(self, tenant: str) -> None:
+        super().__init__("tenant not allowed on this server")
+        self.tenant = tenant
+
+
 class Validator:
     """Validates Entra v2 access tokens issued for this app, from any consenting tenant."""
 
@@ -123,7 +131,7 @@ class Validator:
         if str(claims.get("iss", "")).lower() != f"{AUTHORITY}/{tid}/v2.0":     # GUIDs compare without case
             raise TokenError("issuer does not match the token's tenant")
         if self.cfg.allowed_tenants and tid not in self.cfg.allowed_tenants:
-            raise TokenError("tenant not allowed on this server")
+            raise TenantNotAllowed(tid)
         need = getattr(self.cfg, "required_scope", "user_impersonation")     # the workload app may name its own scope
         scopes = claims.get("scp")
         if not isinstance(scopes, str) or need not in scopes.split():
@@ -213,23 +221,33 @@ class WorkloadConfig:
     Configuration (environment); all unset = the workload routes are off:
       KRUSGRAPH_WORKLOAD_CLIENT_ID         the workload app's client id (the FRONTEND_APPID of workload/.env.dev)
       KRUSGRAPH_WORKLOAD_CLIENT_SECRET     its secret (never logged)
-      KRUSGRAPH_WORKLOAD_APP_ID_URI        its Application ID URI (api://localdevinstance/<tenant>/Org.Krusgraph/<x> in development)
+      KRUSGRAPH_WORKLOAD_APP_ID_URI        its Application ID URI (api://localdevinstance/<tenant>/Org.Krusgraph/<x> in development);
+                                           a comma list while two workload names use the same app (n176), e.g.
+                                           https://krusgraph.com/workload/workload/Krusgraph.Modeler,
+                                           https://krusgraph.com/workload/workload/Org.Krusgraph. Tokens for any of them
+                                           are accepted; the first is the primary one
       KRUSGRAPH_WORKLOAD_SCOPE             the delegated scope the editor asks for (default user_impersonation)
       KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS   optional comma list of tenant ids; empty = any tenant whose admin consented
     """
     client_id: str
     client_secret: str = field(repr=False)
-    app_id_uri: str = ""
+    app_id_uri: str = ""                        # the first of app_id_uris
     required_scope: str = "user_impersonation"
     allowed_tenants: set[str] = field(default_factory=set)
     secret_reader: object = field(default=None, repr=False, compare=False)    # same shape as EntraConfig, for OnBehalfOf
+    app_id_uris: list[str] = field(default_factory=list)                      # every accepted URI, app_id_uri first
+
+    def __post_init__(self) -> None:
+        uris = list(self.app_id_uris) or split_uris(self.app_id_uri)
+        self.app_id_uris = uris
+        self.app_id_uri = uris[0] if uris else ""
 
     def secret(self, refresh: bool = False) -> str:
         return self.client_secret
 
     @property
     def audiences(self) -> list[str]:
-        return [self.app_id_uri, self.client_id, f"api://{self.client_id}"]
+        return [*self.app_id_uris, self.client_id, f"api://{self.client_id}"]
 
     @classmethod
     def from_env(cls, mcp: "EntraConfig | None" = None) -> "WorkloadConfig | None":
@@ -239,9 +257,22 @@ class WorkloadConfig:
         if not all((cid, sec, uri)):
             raise ValueError("The Fabric workload routes require KRUSGRAPH_WORKLOAD_CLIENT_ID, KRUSGRAPH_WORKLOAD_CLIENT_SECRET "
                              "and KRUSGRAPH_WORKLOAD_APP_ID_URI (or none of them, to keep the routes off)")
-        if mcp is not None and (cid.lower() == mcp.client_id.lower() or uri.rstrip("/") in mcp.audiences):
+        uris = split_uris(uri)
+        if not uris:
+            raise ValueError("KRUSGRAPH_WORKLOAD_APP_ID_URI names no URI")
+        if mcp is not None and (cid.lower() == mcp.client_id.lower() or any(u in mcp.audiences for u in uris)):
             raise ValueError("The workload needs its own Entra app: KRUSGRAPH_WORKLOAD_CLIENT_ID and _APP_ID_URI must differ "
                              "from the MCP app's ENTRA_CLIENT_ID and MCP_PUBLIC_URL")
         scope = os.environ.get("KRUSGRAPH_WORKLOAD_SCOPE", "").strip() or "user_impersonation"
         allowed = {t.strip().lower() for t in os.environ.get("KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS", "").split(",") if t.strip()}
-        return cls(cid, sec, uri.rstrip("/"), scope, allowed)
+        return cls(cid, sec, uris[0], scope, allowed, app_id_uris=uris)
+
+
+def split_uris(value: str) -> list[str]:
+    """KRUSGRAPH_WORKLOAD_APP_ID_URI as a list: comma or space separated, trailing slashes dropped, duplicates once."""
+    out: list[str] = []
+    for part in (value or "").replace(",", " ").split():
+        part = part.strip().rstrip("/")
+        if part and part not in out:
+            out.append(part)
+    return out

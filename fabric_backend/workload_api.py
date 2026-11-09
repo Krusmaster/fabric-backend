@@ -855,12 +855,25 @@ def cors_headers(origin: str | None) -> dict:
     return {"Vary": "Origin"}
 
 
+PILOT_PAGE = "https://krusgraph.com/pilot/fabric"
+
+
+def tenant_refusal(tenant: str) -> dict:
+    """What a signed-in user from a tenant outside KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS sees in the editor (n176): who to ask
+    and what to send, in plain words. The tenant id is the user's own; nothing about other tenants is said."""
+    return {"error": "Krusgraph is not turned on for your organisation yet.",
+            "hint": (f"It runs for a small number of pilot organisations. Your Fabric administrator can ask for it at "
+                     f"hello@krusgraph.com with your tenant id, {tenant}; the steps are at {PILOT_PAGE}. Nothing was read or "
+                     f"changed."),
+            "kind": "tenant_not_allowed", "tenant": tenant, "pilot_page": PILOT_PAGE}
+
+
 def routes(cfg, validator=None, obo=None) -> list:
     """The three routes, bound to the workload app's validator and on-behalf-of exchange (doubles in tests)."""
     from starlette.concurrency import run_in_threadpool
     from starlette.responses import JSONResponse, Response
     from starlette.routing import Route
-    from .entra import Validator, OnBehalfOf, TokenError
+    from .entra import Validator, OnBehalfOf, TokenError, TenantNotAllowed
     from .errors import explain
     from .workload_host import same_host_origin       # n168: the hosted editor's own calls are same-origin, no CORS
     validator = validator or Validator(cfg)
@@ -904,6 +917,8 @@ def routes(cfg, validator=None, obo=None) -> list:
                              {"WWW-Authenticate": 'Bearer error="invalid_request"'})
             try:
                 claims = await run_in_threadpool(validator.validate, token)
+            except TenantNotAllowed as e:              # n176: a clear answer the editor shows, not a sign-in loop
+                return reply(tenant_refusal(e.tenant), 403, origin)
             except TokenError as e:
                 return reply({"error": str(e), "kind": "sign_in"}, 401, origin, {"WWW-Authenticate": 'Bearer error="invalid_token"'})
             try:

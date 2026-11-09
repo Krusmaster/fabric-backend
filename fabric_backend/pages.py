@@ -52,6 +52,8 @@ PAGES = {
                   "Bring one number your team cannot agree on: a first assessment says what it would take, a {{PRODUCT}} pilot explains the number with the counts behind it and leaves a reviewed model. Kruse Consulting AB; not affiliated with Microsoft.", "partners"),
     "/partners/workspace": ("workspace.html", "A sample pilot — {{PRODUCT}}",
                             "A sample {{PRODUCT}} pilot on a synthetic shop schema: Connect, Explore, Review, Build. No customer workspace is connected.", "partners"),
+    "/pilot/fabric": ("pilot_fabric.html", "Pilot in Microsoft Fabric — {{PRODUCT}}",
+                      "What a pilot organisation's administrator does to use the Krusgraph Model item in Microsoft Fabric: send the tenant id, turn on the tenant setting for workloads not validated by Microsoft, grant admin consent, allow two addresses, then New item.", "partners"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",

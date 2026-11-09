@@ -9,6 +9,15 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n176: **Krusgraph.Modeler**, the permanent workload name (the founder's decision of 9 November 2026), for up to
+  20 selected tenants. `workload/scripts/build-package --name Krusgraph.Modeler` builds it (item type
+  `Krusgraph.Modeler.Model`); `Org.Krusgraph` stays the default, and every other `Krusgraph.*`
+  name is refused. The name is written once, in the build. The hosted editor reads the workload from the item it opens,
+  so one image serves both names; `KRUSGRAPH_WORKLOAD_APP_ID_URI` takes a comma list and tokens for each URI are accepted.
+  A user from a tenant outside `KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS` gets a 403 with `kind: tenant_not_allowed` and a plain
+  message in the editor, no longer a 401 sign-in answer. `docs/WORKLOAD-PUBLISH.md` (the founder's steps: Entra, server,
+  upload with the irreversible name dialog, Selected tenants, next pilot, withdrawing; keep the existing app as the
+  production app), `docs/PILOT-ONBOARDING.md` and the page `/pilot/fabric` (the pilot administrator's five steps).
 - Round n179: Create in the Krusgraph Model sends one request per output (the model before its report), each card with
   its own progress and result; a lost answer says "no answer yet, it may still be running in Fabric" on its card instead
   of "Failed to fetch" for the page; the created ids are saved after each output. A re-run (`skip_built`) shows the

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The Org.Krusgraph workload package for the hosted editor (n168; docs/WORKLOAD-DEV.md, "Hosted (no laptop)").
+"""The workload package for the hosted editor (n168, n176; docs/WORKLOAD-DEV.md, docs/WORKLOAD-PUBLISH.md).
 
 Builds the NuGet package (.nupkg) that the founder uploads in Fabric (OneLake catalog -> Govern -> Workloads) from the
 templates in workload/Workload/Manifest, with the frontend at https://workload.krusgraph.com. Python's standard library
@@ -8,12 +8,19 @@ scripts/Build/BuildManifestPackage.ps1 does (items moved to the root, {{PLACEHOL
 rules: *.xml -> BE, *.json -> FE, assets -> FE/assets) and writes the package the way `nuget pack` lays it out (the
 nuspec at the root, [Content_Types].xml, _rels/.rels and the core-properties part).
 
-It never uploads anything and never contacts Fabric, Entra or Azure. The workload name is Org.Krusgraph and nothing
-else: a Krusgraph.* name is reserved in the tenant for good at its first upload (docs/WORKLOAD-FEASIBILITY.md, section 5,
-step 3), so the script refuses it.
+It never uploads anything and never contacts Fabric, Entra or Azure. Two names are allowed (n176):
+
+  Org.Krusgraph       the default: the founder's development workload, internal to the company tenant
+  Krusgraph.Modeler   the permanent name chosen on 9 November 2026 (publisher part Krusgraph, workload part Modeler),
+                      published to up to 20 selected tenants (docs/WORKLOAD-PUBLISH.md)
+
+Every other Krusgraph.* name is refused: a Krusgraph.* name is reserved in the tenant for good at its first upload
+(docs/WORKLOAD-FEASIBILITY.md, section 5, step 3). The item type is <name>.Model; the manifest, the nuspec, Product.json
+and the item files all take the name from here, through the {{WORKLOAD_NAME}} placeholder, never written twice.
 
   workload/scripts/build-package --frontend-app-id <the workload app's Application (client) ID> [--version 1.0.N]
-                                 [--frontend-url https://workload.krusgraph.com] [--out workload/build/package]
+                                 [--name Krusgraph.Modeler] [--frontend-url https://workload.krusgraph.com]
+                                 [--out workload/build/package]
 """
 from __future__ import annotations
 
@@ -31,7 +38,9 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 WORKLOAD = HERE.parent
 MANIFEST = WORKLOAD / "Workload" / "Manifest"
-WORKLOAD_NAME = "Org.Krusgraph"
+WORKLOAD_NAME = "Org.Krusgraph"                 # the default: the founder's development path
+PUBLISHED_NAME = "Krusgraph.Modeler"            # the permanent name (founder's decision, 9 November 2026)
+NAMES = (WORKLOAD_NAME, PUBLISHED_NAME)
 FRONTEND_URL = "https://workload.krusgraph.com"
 ITEM_NAMES = ("Model",)
 VERIFIED_DOMAIN = "krusgraph.com"
@@ -66,7 +75,23 @@ def check_frontend_url(url: str) -> str:
     return url.strip().rstrip("/")
 
 
-def values(frontend_app_id: str, version: str, frontend_url: str) -> dict:
+def check_name(name: str) -> str:
+    """Org.Krusgraph or Krusgraph.Modeler; any other name, a Krusgraph.* one above all, is refused."""
+    if name in NAMES:
+        return name
+    if name.lower().startswith("krusgraph."):
+        raise PackageError(f"{name} is a Krusgraph.* name other than {PUBLISHED_NAME}; its first upload would reserve it in "
+                           f"the tenant for good. Only {PUBLISHED_NAME} (or {WORKLOAD_NAME}) is built")
+    raise PackageError(f"--name must be {WORKLOAD_NAME} or {PUBLISHED_NAME}, not {name!r}")
+
+
+def item_type(name: str, item: str = "Model") -> str:
+    """The item type Fabric registers: <workload name>.<item>, e.g. Krusgraph.Modeler.Model."""
+    return f"{check_name(name)}.{item}"
+
+
+def values(frontend_app_id: str, version: str, frontend_url: str, name: str = WORKLOAD_NAME) -> dict:
+    name = check_name(name)
     if not _GUID.match(frontend_app_id or ""):
         raise PackageError("--frontend-app-id must be the workload Entra app's Application (client) ID, a GUID")
     if frontend_app_id == "00000000-0000-0000-0000-000000000000":
@@ -74,7 +99,7 @@ def values(frontend_app_id: str, version: str, frontend_url: str) -> dict:
     if not _VERSION.match(version):
         raise PackageError(f"--version must look like 1.0.12, not {version!r}")
     url = check_frontend_url(frontend_url)
-    return {"WORKLOAD_NAME": WORKLOAD_NAME, "WORKLOAD_ID": WORKLOAD_NAME, "WORKLOAD_VERSION": version,
+    return {"WORKLOAD_NAME": name, "WORKLOAD_ID": name, "WORKLOAD_VERSION": version,
             "FRONTEND_APPID": frontend_app_id.lower(), "FRONTEND_URL": url, "FRONTEND_REDIRECT_URI": url + "/close",
             "ITEM_NAMES": ",".join(ITEM_NAMES), "WORKLOAD_HOSTING_TYPE": "FERemote", "ENVIRONMENT_DISPLAY_NAME_SUFFIX": ""}
 
@@ -123,16 +148,26 @@ def nuspec(vals: dict, manifest: Path = MANIFEST) -> str:
 
 def check(files: dict[str, bytes], vals: dict) -> None:
     """What must hold before the founder uploads: the name, the hosted URL, the app id, the sizes."""
+    name = check_name(vals["WORKLOAD_NAME"])
     workload_xml = files["BE/WorkloadManifest.xml"].decode()
-    if f'WorkloadName="{WORKLOAD_NAME}"' not in workload_xml or f"<Url>{vals['FRONTEND_URL']}</Url>" not in workload_xml:
-        raise PackageError("WorkloadManifest.xml does not name Org.Krusgraph and the hosted frontend URL")
+    if f'WorkloadName="{name}"' not in workload_xml or f"<Url>{vals['FRONTEND_URL']}</Url>" not in workload_xml:
+        raise PackageError(f"WorkloadManifest.xml does not name {name} and the hosted frontend URL")
     if f"<AppId>{vals['FRONTEND_APPID']}</AppId>" not in workload_xml:
         raise PackageError("WorkloadManifest.xml does not carry the workload app's id")
-    for name, data in files.items():
-        if name.endswith((".xml", ".json")) and re.search(rb"Krusgraph\.(?!com)[A-Za-z]", data.replace(b"Org.Krusgraph", b"")):
-            raise PackageError(f"{name} names a Krusgraph.* workload; only Org.Krusgraph may be used")
-        if name.endswith((".xml", ".json")) and b"localhost" in data:
-            raise PackageError(f"{name} still points at localhost")
+    if f'TypeName="{item_type(name)}"' not in files["BE/ModelItem.xml"].decode():
+        raise PackageError(f"ModelItem.xml does not register the item type {item_type(name)}")
+    other = [n for n in NAMES if n != name]
+    for path, data in files.items():
+        if not path.endswith((".xml", ".json")):
+            continue
+        rest = data.replace(name.encode(), b"")
+        if any(n.encode() in rest for n in other):
+            raise PackageError(f"{path} names {other[0]} in a {name} package; the name comes from the build only")
+        found = re.search(rb"Krusgraph\.(?!com)[A-Za-z][A-Za-z.]*", rest.replace(b"Org.Krusgraph", b""))
+        if found:
+            raise PackageError(f"{path} names the workload {found.group().decode()}; only {name} may be used here")
+        if b"localhost" in data:
+            raise PackageError(f"{path} still points at localhost")
     product = files["FE/Product.json"]
     json.loads(product)
     if len(product) > 50 * 1024:
@@ -149,13 +184,14 @@ def content_types(names) -> str:
 
 
 def build(frontend_app_id: str, version: str | None = None, frontend_url: str = FRONTEND_URL,
-          out_dir: Path | None = None, manifest: Path = MANIFEST) -> Path:
-    vals = values(frontend_app_id, version or default_version(), frontend_url)
+          out_dir: Path | None = None, manifest: Path = MANIFEST, name: str = WORKLOAD_NAME) -> Path:
+    vals = values(frontend_app_id, version or default_version(), frontend_url, name)
+    wname = vals["WORKLOAD_NAME"]
     files = staged_files(vals, manifest)
     check(files, vals)
-    spec_name = f"{WORKLOAD_NAME}.nuspec"
+    spec_name = f"{wname}.nuspec"
     spec = nuspec(vals, manifest)
-    core_id = uuid.uuid5(uuid.NAMESPACE_URL, f"{WORKLOAD_NAME}/{vals['WORKLOAD_VERSION']}").hex
+    core_id = uuid.uuid5(uuid.NAMESPACE_URL, f"{wname}/{vals['WORKLOAD_VERSION']}").hex
     core_name = f"package/services/metadata/core-properties/{core_id}.psmdcp"
     rels = ('<?xml version="1.0" encoding="utf-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
             f'<Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/{spec_name}" Id="R1" />'
@@ -165,12 +201,12 @@ def build(frontend_app_id: str, version: str | None = None, frontend_url: str = 
             'xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
             'xmlns="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">'
             f"<dc:creator>Kruse Consulting AB</dc:creator><dc:description>A NuGet package that holds the manifests for the "
-            f"{WORKLOAD_NAME} workload.</dc:description><dc:identifier>{WORKLOAD_NAME}</dc:identifier>"
+            f"{wname} workload.</dc:description><dc:identifier>{wname}</dc:identifier>"
             f"<version>{vals['WORKLOAD_VERSION']}</version><keywords></keywords>"
             "<lastModifiedBy>workload/scripts/build-package</lastModifiedBy></coreProperties>")
     out_dir = Path(out_dir or WORKLOAD / "build" / "package")
     out_dir.mkdir(parents=True, exist_ok=True)
-    target = out_dir / f"{WORKLOAD_NAME}.{vals['WORKLOAD_VERSION']}.nupkg"
+    target = out_dir / f"{wname}.{vals['WORKLOAD_VERSION']}.nupkg"
     with tempfile.TemporaryDirectory() as tmp:
         partial = Path(tmp) / target.name
         with zipfile.ZipFile(partial, "w", zipfile.ZIP_DEFLATED) as z:
@@ -193,18 +229,24 @@ def build(frontend_app_id: str, version: str | None = None, frontend_url: str = 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--frontend-app-id", required=True, help="the workload Entra app's Application (client) ID")
+    ap.add_argument("--name", default=WORKLOAD_NAME,
+                    help=f"{WORKLOAD_NAME} (default, the development workload) or {PUBLISHED_NAME} (the published one)")
     ap.add_argument("--version", help="the package version, 1.0.N; default 1.0.<commits on this checkout>")
     ap.add_argument("--frontend-url", default=FRONTEND_URL, help=f"default {FRONTEND_URL}")
     ap.add_argument("--out", type=Path, help="output folder; default workload/build/package (git-ignored)")
     a = ap.parse_args(argv)
     try:
-        path = build(a.frontend_app_id, a.version, a.frontend_url, a.out)
+        path = build(a.frontend_app_id, a.version, a.frontend_url, a.out, name=a.name)
     except PackageError as e:
         print(f"STOP: {e}", file=sys.stderr)
         return 1
-    print(f"Built {path} ({path.stat().st_size} bytes): {WORKLOAD_NAME}, frontend {a.frontend_url.rstrip('/')}.")
+    print(f"Built {path} ({path.stat().st_size} bytes): {a.name}, item type {item_type(a.name)}, "
+          f"frontend {a.frontend_url.rstrip('/')}.")
     print("Nothing was uploaded. Upload it yourself in Fabric: OneLake catalog -> Govern -> Workloads -> Upload workload "
           "(docs/WORKLOAD-DEV.md, \"Hosted (no laptop)\").")
+    if a.name == PUBLISHED_NAME:
+        print(f"{PUBLISHED_NAME}: the first upload asks you to confirm the name, and that cannot be undone. "
+              "Read docs/WORKLOAD-PUBLISH.md first.")
     return 0
 
 

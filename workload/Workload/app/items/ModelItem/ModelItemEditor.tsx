@@ -35,6 +35,7 @@ import { callNotificationOpen } from "../../controller/NotificationController";
 import { navigateToItem } from "../../controller/NavigationController";
 import { ItemEditor, Ribbon, RibbonAction, createSaveAction } from "../../components/ItemEditor";
 import * as engine from "./engineClient";
+import { rememberWorkloadOf } from "../../controller/ConfigurationController";
 import {
   DefinitionError,
   ModelDefinition,
@@ -129,6 +130,7 @@ export function ModelItemEditor(props: PageProps) {
       setIsLoading(true);
       try {
         const got = await callGetItem(workloadClient, itemObjectId);
+        rememberWorkloadOf(got.item.type);   // n176: Org.Krusgraph or Krusgraph.Modeler, for the engine scope
         const parts = await callGetItemDefinition(workloadClient, itemObjectId);
         const loaded = fromParts(parts?.definition?.parts);
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });

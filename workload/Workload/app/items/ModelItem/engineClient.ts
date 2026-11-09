@@ -17,6 +17,7 @@ import { WorkloadClientAPI } from "@ms-fabric/workload-client";
 import { ReviewFile } from "./ModelItemDefinition";
 import { MapData } from "./cardMap";
 import { CheckTotals } from "./modelWords";
+import { getWorkloadName } from "../../controller/ConfigurationController";
 
 export interface EngineError {
   error: string;
@@ -234,10 +235,35 @@ export function lostAnswer(route: string, seconds: number, aborted: boolean): En
  * (Azure Container Apps, "Request time out is 240 seconds"), so the editor waits a little less than that. */
 export const BUILD_WAIT_MS = 230_000;
 
-/** The scope to ask the Fabric host for: the build's KRUSGRAPH_ENGINE_SCOPE, else the hosting server's meta tag. */
-export function engineScope(built: string | undefined, doc?: { querySelector(selector: string): Element | null }): string {
+/** n176: of several scopes, the one whose URI names this workload as a whole path part, else the first. */
+export function pickScope(scopes: string[], workloadName?: string): string {
+  const list = scopes.map((s) => s.trim()).filter((s) => s.length > 0);
+  if (workloadName) {
+    const mine = list.find((s) => s.split("/").includes(workloadName));
+    if (mine) {
+      return mine;
+    }
+  }
+  return list[0] ?? "";
+}
+
+/**
+ * The scope to ask the Fabric host for: the build's KRUSGRAPH_ENGINE_SCOPE, else the hosting server's meta tags. While
+ * Org.Krusgraph and Krusgraph.Modeler both run (n176) the server lists every scope in krusgraph-engine-scopes and the
+ * editor takes the one of its own workload; krusgraph-engine-scope (one value) is the older form.
+ */
+export function engineScope(
+  built: string | undefined,
+  doc?: { querySelector(selector: string): Element | null },
+  workloadName?: string
+): string {
   if (built) {
     return built;
+  }
+  const many = (doc?.querySelector('meta[name="krusgraph-engine-scopes"]')?.getAttribute("content") || "").split(/\s+/);
+  const picked = pickScope(many, workloadName);
+  if (picked) {
+    return picked;
   }
   const meta = doc?.querySelector('meta[name="krusgraph-engine-scope"]');
   return (meta?.getAttribute("content") || "").trim();
@@ -252,7 +278,8 @@ async function call<T>(
   waitMs = 0,
   fetchImpl: Fetch = (u, i) => fetch(u, i)
 ): Promise<T> {
-  const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document);
+  const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document,
+    getWorkloadName());
   if (!scope) {
     throw new EngineCallError({ error: "No engine scope: set KRUSGRAPH_ENGINE_SCOPE in the workload's .env file, or KRUSGRAPH_WORKLOAD_APP_ID_URI on the hosting server", kind: "server_config" }, 0);
   }

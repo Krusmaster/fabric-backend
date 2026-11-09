@@ -10,6 +10,9 @@ Nothing in this round was created, registered or changed in Entra, Azure or Fabr
 covered by unit tests (`tests/test_workload_api.py`, `workload/Workload/app/items/ModelItem/ModelItemDefinition.test.ts`),
 not by a live run. The items marked **Check on the first run** are what the study left unconfirmed.
 
+This page is the development workload, `Org.Krusgraph`. Publishing the permanent name `Krusgraph.Modeler` to selected
+pilot tenants (n176) is `docs/WORKLOAD-PUBLISH.md`; the pilot's administrator's steps are `docs/PILOT-ONBOARDING.md`.
+
 The workload name for development is **`Org.Krusgraph`**. The `Org.` form needs no registration. **Never use or upload a
 `Krusgraph.*` name**: the first upload reserves that name in the tenant for good, and choosing it is checklist step 9.
 Developer mode (DevGateway) uploads nothing to the tenant's workload catalogue.
