@@ -359,3 +359,12 @@
     margin: 8px 0 0;
   }
 }
+
+// n189: the App card's accent presets: a small swatch beside each name (the name says it; the swatch is decoration)
+.krusgraph-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  vertical-align: -1px;
+}

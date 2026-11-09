@@ -243,11 +243,7 @@ def build_request(body) -> dict:
             raise BadRequest(f"{o['kind']} is chosen twice; one of each per build")
         c = {"kind": o["kind"], "name": _item_name(o.get("name"), KINDS[o["kind"]]["label"] + " name")}
         if o["kind"] == "rayfin_app" and o.get("app") is not None:     # n181: the ticked key figures, pages and charts
-            app = o["app"]
-            if not isinstance(app, dict) or any(not isinstance(app.get(k, []), list) or not all(isinstance(i, str) for i in app.get(k, []))
-                                                for k in ("kpis", "tables", "charts")):
-                raise BadRequest("rayfin_app.app: {kpis, tables, charts}, each a list of option ids from the dry run")
-            c["app"] = {k: list(app.get(k, [])) for k in ("kpis", "tables", "charts")}
+            c["app"] = _app_request(o["app"])
         if o["kind"] == "data_agent" and o.get("agent") is not None:  # n185: one layer; Publish and Copilot, both off by default
             c["agent"] = _agent_request(o["agent"])
         if o["kind"] == "pipeline" and o.get("jobs") is not None:    # n185: Run once and Schedule, both off by default
@@ -314,6 +310,31 @@ def build_request(body) -> dict:
 
 
 _GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+
+
+def _app_request(app) -> dict:
+    """n181/n189: the App's choices as outputs.json keeps them: kpis, tables, charts and filters (lists of option ids;
+    filters absent: the defaults), chart_types {chart id: bar|line|table}, page_order [page ids], accent (a preset).
+    Whether an id or a type fits the plan is rayfin_app.resolve's to say (a bad_input answer with the options)."""
+    if not isinstance(app, dict) or any(not isinstance(app.get(k, []), list) or not all(isinstance(i, str) for i in app.get(k, []))
+                                        for k in ("kpis", "tables", "charts", "filters", "page_order")):
+        raise BadRequest("rayfin_app.app: {kpis, tables, charts, filters, page_order}, each a list of ids from the dry run; "
+                         "chart_types {chart id: bar|line|table}; accent")
+    out = {k: list(app.get(k, [])) for k in ("kpis", "tables", "charts")}
+    if app.get("filters") is not None:
+        out["filters"] = list(app["filters"])
+    types = app.get("chart_types")
+    if types is not None:
+        if not isinstance(types, dict) or not all(isinstance(k, str) and v in ("bar", "line", "table") for k, v in types.items()):
+            raise BadRequest("rayfin_app.app.chart_types: {chart id: bar, line or table}")
+        out["chart_types"] = dict(types)
+    if app.get("page_order"):
+        out["page_order"] = list(app["page_order"])
+    if app.get("accent") is not None:
+        if not isinstance(app["accent"], str) or len(app["accent"]) > 20:
+            raise BadRequest("rayfin_app.app.accent: one of the presets the dry run lists")
+        out["accent"] = app["accent"]
+    return out
 
 
 def _agent_request(agent) -> dict:
@@ -1236,7 +1257,7 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         create = (lambda url, body: write_and_wait(url, body, headers, mode="created", item_type="AppBackend",
                                                    find=lambda: find_item(ws, o["name"], headers, "AppBackend")))
         return rayfin_app.answer(p, info, headers, o["name"], o.get("app"), dry_run, token_scopes(), req["workspace"],
-                                 create=None if dry_run else create, pre=pre)
+                                 create=None if dry_run else create, pre=pre, title=(req.get("product") or {}).get("name"))
     elif kind == "report":
         model = o.get("model")
         if not model:

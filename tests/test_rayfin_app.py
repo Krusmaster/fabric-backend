@@ -394,5 +394,5 @@ def test_the_app_package_type_checks_with_the_pinned_template(ticks, shop_rows, 
     r = subprocess.run(["node", str(root / "node_modules" / "typescript" / "bin" / "tsc"), "-p", "tsconfig.json", "--noEmit",
                         "--tsBuildInfoFile", str(root / ".tsbuildinfo-noemit")], cwd=root, capture_output=True, text=True, timeout=600)
     assert r.returncode == 0, r.stdout + r.stderr
-    for page in ("src/pages/KpisPage.tsx", "src/pages/ChartsPage.tsx", "src/App.tsx"):
+    for page in ("src/pages/OverviewPage.tsx", "src/lib/app-data.ts", "src/App.tsx"):              # n189: one overview page
         assert (root / page).exists()

@@ -28,7 +28,13 @@ jobs:
       - if: steps.browsers.outputs.cache-hit != 'true'
         run: npx playwright install chromium
       - run: node -e "require('playwright').chromium.launch().then(b => b.close())" || npx playwright install-deps chromium
+      # n189: tests/test_n189_rayfin_design.py writes its screenshots of the generated Rayfin App (1280 x 720 and 375 x 812,
+      # light and dark) here; they are kept as an artifact of the run, never committed
       - run: pytest -q
+        env: { RAYFIN_APP_SHOTS: "${{ runner.temp }}/rayfin-app-shots" }
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with: { name: rayfin-app-shots, path: "${{ runner.temp }}/rayfin-app-shots", if-no-files-found: ignore, retention-days: 14 }
   notebooks:
     # The generated Fabric notebooks (silver tables, drift monitor) run on a local Spark against the shop seed:
     # tests/test_spark_notebooks.py imports only pure modules, so no server dependencies; Delta is not available in a

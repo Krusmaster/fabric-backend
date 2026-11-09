@@ -1,7 +1,7 @@
 {
   "name": "krusgraph-rayfin-check",
   "private": true,
-  "description": "Pinned packages for tests/test_rayfin_app.py: the generated Rayfin files are compiled with these versions. Rayfin 1.36.2 is the version of the run of 5 November 2026; TypeScript 5.7.3 is what the data-app template of @microsoft/rayfin-cli 1.36.2 resolves (~5.7.2).",
+  "description": "Pinned packages for tests/test_rayfin_app.py: the generated Rayfin files are compiled with these versions. Rayfin 1.36.2 is the version of the run of 5 November 2026; TypeScript 5.7.3 is what the data-app template of @microsoft/rayfin-cli 1.36.2 resolves (~5.7.2). n189: react and react-dom (the template's ^19) and axe-core render the generated App package for its screenshots and accessibility checks (tests/test_n189_rayfin_design.py).",
   "type": "module",
   "devDependencies": {
     "@microsoft/rayfin-cli": "1.36.2",
@@ -10,6 +10,9 @@
     "@microsoft/rayfin-connectors": "1.36.2",
     "@microsoft/rayfin-core": "1.36.2",
     "@types/react": "19.2.14",
+    "axe-core": "4.14.0",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
     "typescript": "5.7.3",
     "vite": "7.3.7"
   }

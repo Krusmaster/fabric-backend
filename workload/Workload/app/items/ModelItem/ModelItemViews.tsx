@@ -32,7 +32,8 @@ import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Fill
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
-  AppApi, AppPreflight, GROUPS, PREVIEW_NOTE, apiLines, featureOff, isApp, nothingTicked, optionsOf, packageHref, preflightWords,
+  AppApi, AppDesign, AppPreflight, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, chartTypes, designLines,
+  editHref, featureOff, isApp, movePage, nothingTicked, optionsOf, packageHref, pagesInOrder, preflightWords, setAccent, setChartType,
   ticked, toggle,
 } from "./appWords";
 import {
@@ -556,23 +557,73 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
     <div aria-label="App (Rayfin, preview)">
       <Badge appearance="tint" color="warning">Preview</Badge> <Caption1>{PREVIEW_NOTE}</Caption1>
       <Body1>{preflightWords(a.preflight as AppPreflight)}</Body1>
-      {opts && GROUPS.map((g) => (
+      {opts && GROUPS.filter((g) => opts[g.key]).map((g) => (
         <fieldset key={g.key} className="krusgraph-output">
           <legend>{g.title}</legend>
-          {opts[g.key].map((o) => (
-            <Checkbox key={o.id} label={`${o.label} (${o.why})`} checked={now[g.key].includes(o.id)} disabled={!props.onAppChoices}
+          {(opts[g.key] ?? []).map((o) => (
+            <Checkbox key={o.id} label={`${o.label} (${o.why})`} checked={(now[g.key] ?? []).includes(o.id)} disabled={!props.onAppChoices}
               onChange={(_, d) => props.onAppChoices?.(toggle(now, g.key, o.id, !!d.checked))} />
           ))}
         </fieldset>
       ))}
+      {opts && chartTypes(opts, now).length > 0 && (
+        <fieldset className="krusgraph-output">
+          <legend>Chart type</legend>
+          {chartTypes(opts, now).map((ch) => (
+            <Field key={ch.id} label={ch.label}>
+              <RadioGroup layout="horizontal" value={ch.type} disabled={!props.onAppChoices}
+                onChange={(_, d) => props.onAppChoices?.(setChartType(now, ch.id, d.value as "bar" | "line" | "table"))}>
+                {ch.types.map((t) => <Radio key={t} value={t} label={CHART_TYPE_WORDS[t]} />)}
+              </RadioGroup>
+            </Field>
+          ))}
+        </fieldset>
+      )}
+      {opts && pagesInOrder(opts, now).length > 1 && (
+        <fieldset className="krusgraph-output">
+          <legend>Order of the pages</legend>
+          <ol className="krusgraph-steps" aria-label="Pages, in order">
+            {pagesInOrder(opts, now).map((pg, i, all) => (
+              <li key={pg.id}>
+                <Body1>{pg.label} </Body1>
+                <Button size="small" appearance="subtle" aria-label={`Move ${pg.label} up`} disabled={!props.onAppChoices || i === 0}
+                  onClick={() => props.onAppChoices?.(movePage(opts, now, pg.id, -1))}>Up</Button>
+                <Button size="small" appearance="subtle" aria-label={`Move ${pg.label} down`} disabled={!props.onAppChoices || i === all.length - 1}
+                  onClick={() => props.onAppChoices?.(movePage(opts, now, pg.id, 1))}>Down</Button>
+              </li>
+            ))}
+          </ol>
+        </fieldset>
+      )}
+      {opts?.accents && (
+        <fieldset className="krusgraph-output">
+          <legend>Colour accent</legend>
+          <RadioGroup layout="horizontal" value={now.accent ?? "blue"} disabled={!props.onAppChoices} aria-label="Colour accent"
+            onChange={(_, d) => props.onAppChoices?.(setAccent(now, d.value))}>
+            {opts.accents.map((x) => (
+              <Radio key={x.id} value={x.id} label={<span><span aria-hidden className="krusgraph-swatch" style={{ background: x.light }} /> {x.label}</span>} />
+            ))}
+          </RadioGroup>
+        </fieldset>
+      )}
       {nothingTicked(now) && <MessageBar intent="warning"><MessageBarBody>Tick at least one key figure, list page or chart.</MessageBarBody></MessageBar>}
-      {changed && <Caption1>Your ticks are saved in this item; choose Preview again to see the pages with them.</Caption1>}
+      {changed && <Caption1>Your choices are saved in this item; choose Preview again to see the pages with them.</Caption1>}
       <Subtitle2>Pages</Subtitle2>
       <ul className="krusgraph-list">
         {(a.pages ?? []).map((p: { id: string; title: string; shows: string[] }) => (
           <li key={p.id}><Body1>{p.title}: {p.shows.join(", ")}</Body1></li>
         ))}
       </ul>
+      {a.design && (
+        <>
+          <Subtitle2>Look and layout</Subtitle2>
+          <ul className="krusgraph-list" aria-label="Look and layout">
+            {designLines(a.design as AppDesign).map((l) => (
+              <li key={l}><Body1>{l}</Body1></li>
+            ))}
+          </ul>
+        </>
+      )}
       <Subtitle2>Connector and its GraphQL API</Subtitle2>
       <ul className="krusgraph-list">
         {apiLines(api).map((l) => (
@@ -589,6 +640,12 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       {href && (
         <div className="krusgraph-actions">
           <a href={href} download={a.package.filename}>Download the package ({a.package.filename})</a>
+        </div>
+      )}
+      {editHref(a.edit_yourself) && (
+        <div className="krusgraph-actions" aria-label={EDIT_TITLE}>
+          <a href={editHref(a.edit_yourself)} download={a.edit_yourself.file ?? "EDIT-WITH-AI.md"}>{EDIT_TITLE}</a>
+          <Caption1> {EDIT_NOTE}</Caption1>
         </div>
       )}
     </div>

@@ -138,18 +138,21 @@ def test_the_shop_defaults(shop_rows):
     assert d["kpis"] == ["rows:orders", "rows:order_items", "sum:order_items.quantity"]
     assert sorted(d["tables"]) == ["table:order_items", "table:orders", "table:products"]
     labels = {c["id"]: c["label"] for c in o["charts"]}
-    assert [labels[i] for i in d["charts"]] == ["Total quantity by customers (country)", "Total quantity by categories (name)"]
+    assert [labels[i] for i in d["charts"]] == ["Total quantity by customers (country)", "Total quantity by categories (name)",
+                                                "Total quantity by month (orders.order_date)"]       # n189: the line chart
     # personal data by name is never a chart's label (customers.name, addresses.city)
-    assert not any(c["label_column"] in ("name",) and c["label_table"] == "customers" for c in o["charts"])
-    assert not any(c["label_table"] == "addresses" for c in o["charts"])
+    cats = [c for c in o["charts"] if c["kind"] == "category"]                # n189: time charts have a date, no label
+    assert not any(c["label_column"] in ("name",) and c["label_table"] == "customers" for c in cats)
+    assert not any(c["label_table"] == "addresses" for c in cats)
 
 
 def test_the_ticks_go_with_the_request_and_a_gone_id_is_listed(make):
     client, fake, priv = make(Apps())
     rv = _review(client, priv)
     a = _app(client, priv, rv, app={"kpis": ["rows:orders"], "tables": [], "charts": ["chart:nope"]})["answer"]
-    assert a["chosen"] == {"kpis": ["rows:orders"], "tables": [], "charts": []} and a["gone"] == ["chart:nope"]
-    assert [p["id"] for p in a["pages"]] == ["kpis"]
+    assert {k: a["chosen"][k] for k in ("kpis", "tables", "charts")} == {"kpis": ["rows:orders"], "tables": [], "charts": []}
+    assert a["gone"] == ["chart:nope"]
+    assert [p["id"] for p in a["pages"]] == ["overview"]                   # n189: key figures and charts share the overview
     r = _post(client, "/build", {**SRC, "review": rv, "outputs": [{**APP, "app": {"kpis": "x"}}]}, priv)
     assert r.status_code == 400
     nothing = _app(client, priv, rv, app={"kpis": [], "tables": [], "charts": []})["answer"]
@@ -165,7 +168,7 @@ def test_the_dry_run_shows_the_pages_and_a_read_only_api_with_every_link(make):
     card = _app(client, priv, rv)
     a = card["answer"]
     assert a["dry_run"] is True and a["preview"] is True and a["label"] == "App (Rayfin, preview)"
-    assert [p["title"] for p in a["pages"]][:2] == ["Key figures", "Charts"]
+    assert [p["title"] for p in a["pages"]][:1] == ["Overview"]          # n189: key figures, charts and filters on one page
     api = a["api"]
     assert api["read_only"] is True and api["mutations"] == [] and api["operations"] == ["read"]
     assert all(set(t["queries"]) <= {"Query", "Query_by_pk"} for t in api["types"])
@@ -173,7 +176,7 @@ def test_the_dry_run_shows_the_pages_and_a_read_only_api_with_every_link(make):
     assert len(links) == len(api["links"]) and ("orders.customer_id", "customers.customer_id") in links
     files = zipfile.ZipFile(io.BytesIO(base64.b64decode(a["package"]["zip_base64"])))
     names = set(files.namelist())
-    assert {"rayfin/tsconfig.json", "src/App.tsx", "src/lib/app-connectors.ts", "KRUSGRAPH-APP.md"} <= names
+    assert {"rayfin/tsconfig.json", "src/App.tsx", "src/lib/app-connectors.ts", "KRUSGRAPH-APP.md", "EDIT-WITH-AI.md"} <= names
     for n in names:
         text = files.read(n).decode()
         assert "declare " not in text and not __import__("re").search(r"'(create|update|delete)'", text), n

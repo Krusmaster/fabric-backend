@@ -92,8 +92,12 @@ export interface OutputChoice {
   writable?: false;
   /** a report's existing semantic model; empty for the model this item builds */
   model?: string;
-  /** n181: the App (Rayfin, preview)'s ticked key figures, list pages and charts (option ids); absent: the defaults */
-  app?: { kpis: string[]; tables: string[]; charts: string[] };
+  /** n181: the App (Rayfin, preview)'s ticked key figures, list pages and charts (option ids); absent: the defaults.
+   * n189: its filters, each chart's type, the order of the pages and the accent */
+  app?: {
+    kpis: string[]; tables: string[]; charts: string[]; filters?: string[];
+    chart_types?: Record<string, "bar" | "line" | "table">; page_order?: string[]; accent?: string;
+  };
   /** n185: the pipeline's Run once and Schedule (both off unless ticked) */
   jobs?: { run_once: boolean; schedule: { every: "day" | "hours"; at: string; hours?: number; time_zone: string; start?: string } | null };
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks (both off unless ticked) */

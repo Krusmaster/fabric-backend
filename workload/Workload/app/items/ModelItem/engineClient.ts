@@ -202,12 +202,19 @@ export interface AgentCard {
   copilot_step?: string;
 }
 
-/** n181: what the App (Rayfin, preview) shows, as option ids (rayfin_app.options). */
+/** n181: what the App (Rayfin, preview) shows, as option ids (rayfin_app.options). n189: which filters, each chart's
+ * type, the order of the pages and the accent; absent: the defaults. */
 export interface AppChoices {
   kpis: string[];
   tables: string[];
   charts: string[];
+  filters?: string[];
+  chart_types?: Record<string, AppChartType>;
+  page_order?: string[];
+  accent?: string;
 }
+
+export type AppChartType = "bar" | "line" | "table";
 
 export interface CreatedRef {
   type: string;

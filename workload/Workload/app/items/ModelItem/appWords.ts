@@ -8,7 +8,7 @@
  * (OutputChoice.app) and sent with the next dry run and Create.
  */
 import { OutputChoice } from "./ModelItemDefinition";
-import { AppChoices, BuildCard } from "./engineClient";
+import { AppChartType, AppChoices, BuildCard } from "./engineClient";
 
 export interface AppOption {
   id: string;
@@ -17,12 +17,35 @@ export interface AppOption {
   why: string;
 }
 
+export interface AppChartOption extends AppOption {
+  kind?: "category" | "time";
+  types?: AppChartType[];
+  type?: AppChartType;
+}
+
 export interface AppOptions {
   kpis: AppOption[];
   tables: AppOption[];
-  charts: AppOption[];
+  charts: AppChartOption[];
+  /** n189: the slicers; each applies to the key figures and charts whose table links to it */
+  filters?: AppOption[];
+  pages?: { id: string; label: string }[];
+  accents?: { id: string; label: string; light: string; dark: string }[];
   left_out?: string[];
 }
+
+/** n189: the look and the layout the dry run used (rayfin_app.package's `design`). */
+export interface AppDesign {
+  accent: string;
+  accent_colours: { light: string; dark: string };
+  page_order: string[];
+  charts: { id: string; label: string; type: AppChartType }[];
+  filters: { id: string; label: string; kind: "values" | "dates"; reaches: string[] }[];
+  last_refresh: string | null;
+  look: string;
+}
+
+type TickGroup = "kpis" | "tables" | "charts" | "filters";
 
 export interface AppPreflight {
   status: "on" | "off" | "unknown";
@@ -42,11 +65,20 @@ export interface AppApi {
   note: string;
 }
 
-export const GROUPS: { key: keyof AppChoices; title: string }[] = [
+export const GROUPS: { key: TickGroup; title: string }[] = [
   { key: "kpis", title: "Key figures" },
   { key: "tables", title: "List pages" },
   { key: "charts", title: "Charts" },
+  { key: "filters", title: "Filters (slicers on the overview)" },
 ];
+
+export const CHART_TYPE_WORDS: Record<AppChartType, string> = { bar: "Bar", line: "Line", table: "Table" };
+
+/** n189: the link on the card to the package's EDIT-WITH-AI.md */
+export const EDIT_TITLE = "Change the app yourself";
+export const EDIT_NOTE = "Open the project in Claude (with Krusgraph for Claude), VS Code or Lovable: a prompt to start from, the "
+  + "rules (read-only connector, no secrets in code, keep the type check green) and how to publish again with npx rayfin up. "
+  + "The same file is in the package.";
 
 export const PREVIEW_NOTE = "Fabric Apps and Rayfin are in preview.";
 
@@ -65,16 +97,89 @@ export function optionsOf(c: BuildCard): AppOptions | undefined {
   return c.answer?.options as AppOptions | undefined;
 }
 
-/** The ticks to show: the person's own (outputs.json), else what the dry run used (the defaults). */
+/** The ticks to show: the person's own (outputs.json), else what the dry run used (the defaults). n189: the filters,
+ * chart types, page order and accent come along when the dry run (or the person) has them. */
 export function ticked(c: BuildCard, saved?: AppChoices): AppChoices {
-  if (saved) return saved;
   const ch = c.answer?.chosen as AppChoices | undefined;
-  return { kpis: ch?.kpis ?? [], tables: ch?.tables ?? [], charts: ch?.charts ?? [] };
+  if (saved) {
+    // an outputs.json from before n189 has no filters, types, order or accent: show what the dry run used for them
+    return {
+      ...(ch?.filters && !saved.filters ? { filters: ch.filters } : {}),
+      ...(ch?.chart_types && !saved.chart_types ? { chart_types: ch.chart_types } : {}),
+      ...(ch?.page_order && !saved.page_order ? { page_order: ch.page_order } : {}),
+      ...(ch?.accent && !saved.accent ? { accent: ch.accent } : {}),
+      ...saved,
+    };
+  }
+  return {
+    kpis: ch?.kpis ?? [], tables: ch?.tables ?? [], charts: ch?.charts ?? [],
+    ...(ch?.filters ? { filters: ch.filters } : {}),
+    ...(ch?.chart_types ? { chart_types: ch.chart_types } : {}),
+    ...(ch?.page_order ? { page_order: ch.page_order } : {}),
+    ...(ch?.accent ? { accent: ch.accent } : {}),
+  };
 }
 
-export function toggle(choices: AppChoices, group: keyof AppChoices, id: string, on: boolean): AppChoices {
-  const rest = choices[group].filter((x) => x !== id);
+export function toggle(choices: AppChoices, group: TickGroup, id: string, on: boolean): AppChoices {
+  const rest = (choices[group] ?? []).filter((x) => x !== id);
   return { ...choices, [group]: on ? [...rest, id] : rest };
+}
+
+/** n189: the ticked charts with the types each allows and the one chosen (the option's default when none). */
+export function chartTypes(opts: AppOptions | undefined, choices: AppChoices): { id: string; label: string; types: AppChartType[]; type: AppChartType }[] {
+  return (opts?.charts ?? [])
+    .filter((o) => choices.charts.includes(o.id))
+    .map((o) => {
+      const types = o.types ?? ["bar", "table"];
+      const want = choices.chart_types?.[o.id];
+      return { id: o.id, label: o.label, types, type: want && types.includes(want) ? want : o.type ?? types[0] };
+    });
+}
+
+export function setChartType(choices: AppChoices, id: string, type: AppChartType): AppChoices {
+  return { ...choices, chart_types: { ...(choices.chart_types ?? {}), [id]: type } };
+}
+
+/** n189: the pages the ticks make, in the chosen order (the overview first unless moved; then the list pages). */
+export function pagesInOrder(opts: AppOptions | undefined, choices: AppChoices): { id: string; label: string }[] {
+  const label = new Map((opts?.pages ?? []).map((p) => [p.id, p.label]));
+  const ids = [...(choices.kpis.length || choices.charts.length ? ["overview"] : []), ...choices.tables];
+  const order = (choices.page_order ?? []).filter((i) => ids.includes(i));
+  return [...order, ...ids.filter((i) => !order.includes(i))].map((id) => ({ id, label: label.get(id) ?? id }));
+}
+
+/** n189: moves a page up (-1) or down (+1); the whole order is stored, so a later tick lands at the end. */
+export function movePage(opts: AppOptions | undefined, choices: AppChoices, id: string, by: -1 | 1): AppChoices {
+  const ids = pagesInOrder(opts, choices).map((p) => p.id);
+  const i = ids.indexOf(id);
+  const j = i + by;
+  if (i < 0 || j < 0 || j >= ids.length) return choices;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  return { ...choices, page_order: ids };
+}
+
+export function setAccent(choices: AppChoices, accent: string): AppChoices {
+  return { ...choices, accent };
+}
+
+/** n189: what the dry run says about the look and the layout, in plain lines. */
+export function designLines(d: AppDesign | undefined): string[] {
+  if (!d) return [];
+  return [
+    `Accent: ${d.accent} (${d.accent_colours.light} in light, ${d.accent_colours.dark} in dark)`,
+    `Pages, in this order: ${d.page_order.join(", ")}`,
+    ...d.charts.map((c) => `${c.label}: ${CHART_TYPE_WORDS[c.type].toLowerCase()} chart`),
+    ...(d.filters.length
+      ? d.filters.map((f) => `Filter ${f.label} (${f.kind === "dates" ? "a date range" : "a value list"}): applies to ${f.reaches.length ? f.reaches.join(", ") : "nothing ticked"}`)
+      : ["No filters"]),
+    d.last_refresh ? `Last refresh: the latest ${d.last_refresh}` : "Last refresh: when the page read the data (the plan has no load-time column)",
+    d.look,
+  ];
+}
+
+/** n189: a data: URL for EDIT-WITH-AI.md, to open or save from the card. */
+export function editHref(edit: { markdown: string } | undefined): string | undefined {
+  return edit?.markdown ? `data:text/markdown;charset=utf-8,${encodeURIComponent(edit.markdown)}` : undefined;
 }
 
 export function nothingTicked(c: AppChoices): boolean {
