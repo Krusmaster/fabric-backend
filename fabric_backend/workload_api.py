@@ -46,6 +46,12 @@ end of its Fabric description. On a re-run an item recorded with another plan, o
 skipped as built: its card says which plan it was built from and offers Update (where the tool updates in place; the
 dry run first, whose confirm_update the Create must send back) or a new name. Cards of existing items carry what the
 item holds where one read of its definition says it (existing_counts), never a zero for what was not read.
+
+n181: one more output, App (Rayfin, preview) (rayfin_app.py, docs/RAYFIN-APP.md). The tenant setting "Enable Fabric App
+Items (preview)" is checked before the source is read (off: the admin card, nothing more); the ticked key figures, list
+pages and charts come as outputs[].app; the dry run gives the pages, the read-only connector and its API with every
+link, the package and the commands; Create makes the empty App item by Create App Backend (the only documented call)
+and records it like every other output. Fabric's 403 "The feature is not available" is the same admin card.
 """
 from __future__ import annotations
 
@@ -87,6 +93,11 @@ KINDS = {
                  "needs": (("Item.ReadWrite.All",),), "suffix": "ontology"},
     "data_agent": {"label": "Data agent", "type": "DataAgent", "tool": "create_data_agent", "updates": True,
                    "needs": (("DataAgent.ReadWrite.All", "Item.ReadWrite.All"),), "suffix": "agent"},
+    # n181: the App item (AppBackend, preview) by Create App Backend (Item.ReadWrite.All); its pages, read-only connector
+    # and GraphQL API go in with the package and `rayfin up` (rayfin_app.py). Never updated: an App of that name is not
+    # rebuilt, a new name is offered.
+    "rayfin_app": {"label": "App (Rayfin, preview)", "type": "AppBackend", "tool": "rayfin_connector", "updates": False,
+                   "needs": (("Item.ReadWrite.All",),), "suffix": "app"},
 }
 ORDER = tuple(KINDS)
 WORKLOAD_APP_NAME = "Krusgraph workload (dev)"
@@ -213,6 +224,12 @@ def build_request(body) -> dict:
         if any(c["kind"] == o["kind"] for c in chosen):
             raise BadRequest(f"{o['kind']} is chosen twice; one of each per build")
         c = {"kind": o["kind"], "name": _item_name(o.get("name"), KINDS[o["kind"]]["label"] + " name")}
+        if o["kind"] == "rayfin_app" and o.get("app") is not None:     # n181: the ticked key figures, pages and charts
+            app = o["app"]
+            if not isinstance(app, dict) or any(not isinstance(app.get(k, []), list) or not all(isinstance(i, str) for i in app.get(k, []))
+                                                for k in ("kpis", "tables", "charts")):
+                raise BadRequest("rayfin_app.app: {kpis, tables, charts}, each a list of option ids from the dry run")
+            c["app"] = {k: list(app.get(k, [])) for k in ("kpis", "tables", "charts")}
         if o["kind"] == "report" and o.get("model") not in (None, ""):
             if not isinstance(o["model"], str) or len(o["model"]) > 123:
                 raise BadRequest("report.model: the name or id of an existing semantic model, or empty for the one this build makes")
@@ -776,7 +793,7 @@ def existing_counts(kind: str, items: list[dict], workspace: str, headers: dict)
     what was read and found is returned: an empty answer means show no counts, never zero."""
     from .lineage import rest_definition_parts
     first = next((c for c in items if c.get("output", kind) == kind and c["type"] == KINDS[kind]["type"]), None)
-    if first is None or kind in ("pipeline", "graphql", "ontology"):
+    if first is None or kind in ("pipeline", "graphql", "ontology", "rayfin_app"):
         return {}
     try:
         if kind == "data_agent":
@@ -951,6 +968,19 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
         text = S.create_ontology(name=o["name"], **common)
     elif kind == "data_agent":
         text = S.create_data_agent(name=o["name"], publish=False, **common)
+    elif kind == "rayfin_app":                                     # n181: preflight first, then the package (rayfin_app.py)
+        from . import rayfin_app
+        from .deploy import write_and_wait, find_item
+        headers = S._headers(None)
+        pre, off = rayfin_app.first_check(headers, token_scopes(), dry_run)
+        if off:
+            return off
+        p, info = S._source_inputs(req["workspace"], req["source"], req["schema"], keys, confirmed, None)
+        ws = info["workspace_id"]
+        create = (lambda url, body: write_and_wait(url, body, headers, mode="created", item_type="AppBackend",
+                                                   find=lambda: find_item(ws, o["name"], headers, "AppBackend")))
+        return rayfin_app.answer(p, info, headers, o["name"], o.get("app"), dry_run, token_scopes(), req["workspace"],
+                                 create=None if dry_run else create, pre=pre)
     elif kind == "report":
         model = o.get("model")
         if not model:

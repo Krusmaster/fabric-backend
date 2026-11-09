@@ -92,6 +92,9 @@ Connector = Annotated[str, _d('Connector name; files go under rayfin/connectors/
                               'Example: "shop".')]
 RayfinRelationships = Annotated[bool, _d('false leaves the @one/@many relationship fields out. Default true. '
                                          'Example: false.')]
+RayfinApp = Annotated[bool, _d('true: a whole App (Rayfin, preview) package instead: first checks that Fabric App items '
+                               'are on, then key figures, list pages and charts from the plan over a read-only '
+                               'connector with every link, and the publish commands. Default false.')]
 CheckRows = Annotated[bool, _d(
     'true: with row counts. Default false.')]
 OntologyDraftName = Annotated[str, _d('Name of the ontology in the draft. Default "ontology". Example: "shop_ontology".')]

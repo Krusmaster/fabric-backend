@@ -446,6 +446,8 @@ editor's unit tests (`buildWords.test.ts`, `dataFlow.test.ts`). In this order:
    | API for GraphQL | `GraphQLApi.ReadWrite.All` | `Item.ReadWrite.All` |
    | Ontology | `Item.ReadWrite.All` | |
    | Data agent | `DataAgent.ReadWrite.All` | `Item.ReadWrite.All` |
+   | App (Rayfin, preview), n181 | `Item.ReadWrite.All` (Create App Backend; the package path needs none) | |
+   | App preflight, optional (n181) | `Tenant.Read.All` (reads "Enable Fabric App Items (preview)"; only a Fabric administrator's sign-in can) | |
 
    If step 3.3 already granted `Item.ReadWrite.All`, nothing is missing. **Do not add** `DataPipeline.Execute.All`,
    `Notebook.Execute.All`, `Item.Execute.All` or `Lakehouse.Execute.All`: the item never runs or schedules a notebook
@@ -643,12 +645,52 @@ and the cards' captions and the slicer's title "Category name" were cut off. Sin
    24 pt, caption 11 pt, smaller only for a long measure name), the slicers 76 px with their header off and a 10 pt
    title. `report.text_problems` checks every card and slicer of a page in the tests. Not yet seen in Fabric.
 
+### 11. Round n181: App (Rayfin, preview), one more output of the plan
+
+Round n181 (9 November 2026). Fabric Apps and Rayfin are in preview. The findings with their sources are in
+`docs/RAYFIN-APP.md`; in short, Microsoft documents a call that creates an **empty** App item (Create App Backend,
+`POST /v1/workspaces/{ws}/appBackends`, `Item.ReadWrite.All`), and no definition for its pages, connector or API. Verified
+in unit tests only (`tests/test_n181_rayfin_app.py`, the `tsc` checks in `tests/test_rayfin_app.py`,
+`workload/Workload/app/items/ModelItem/appWords.test.ts`); nothing ran against Fabric.
+
+**What the editor does.**
+
+1. **Choose what to build** has **App (Rayfin, preview)**. **Preview** first checks the tenant setting **Enable
+   Fabric App Items (preview)** (`GET /v1/admin/tenantsettings`, only readable by a Fabric administrator with
+   `Tenant.Read.All`). Off: a plain card with the setting, where it is (Admin portal → Tenant settings → Microsoft
+   Fabric) and the steps for the administrator; nothing else is read or built. Cannot be read: the card says so, and
+   Create's own answer decides; its 403 "The feature is not available" is shown as the same admin card.
+2. **Ticks, no AI**: key figures (row counts, the semantic model draft's sums), list pages (one per table) and charts
+   (a sum by a dimension one or two links away). Shop's defaults: rows in orders and order_items, total quantity;
+   order_items, orders and products; quantity by category and by customer country. The ticks are saved in
+   `outputs.json` (`outputs[].app`) as soon as they change.
+3. **The dry run** shows the pages, the connector (`rayfin_connector`'s files, `operations: ['read']`, every link the
+   review kept, R5 `ship_to_id → addresses` included) and its API: queries only, no mutation types. **Download the
+   package** (a zip for the `dataapp` template, with `rayfin/tsconfig.json`) and the commands with the workspace filled
+   in: `npm create ...`, `npx rayfin login`, `npx rayfin connector add ... --operations read`, `npx rayfin up`.
+4. **Create** makes the App item by the documented call, records its id and plan in `outputs.json` and in its
+   description, and links to it. The pages go in with the package and the commands: the card says why the editor
+   cannot publish them. An App item of that name that Krusgraph did not make is refused; an App Krusgraph made is
+   never updated (a new name is offered); shop-desk, shop_desk_gql and shop_api are never written.
+
+**For the founder.**
+
+1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
+   --dry-run`, then `bash deploy/krusgraph.sh --update`.
+2. **Permissions**: nothing new if `Item.ReadWrite.All` is already granted (step 7). Optional `Tenant.Read.All` for the
+   preflight; the `az ad app permission add` and `admin-consent` lines are in `docs/RAYFIN-APP.md`, section 6.
+3. **Upload a new package version**: `bash workload/scripts/build-package --frontend-app-id
+   853a0cf0-7d35-42b7-b384-26178755a72a`, Govern → Workloads → Upload → Activate (step 6.2 to 6.4). The manifest did
+   not change.
+4. **Try it** on **shop_krusgraph**: tick App (Rayfin, preview) only → Preview → read the card → Create is your call
+   (it creates one empty App item, `<lakehouse>_app`). Then the four commands on your laptop.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it
   needs. A report is built on the semantic model chosen above, or on one already in the workspace (its name in
   **Built on**). Several at once; the engine runs them in this order: silver notebook, gold views, pipeline, semantic
-  model, report, API for GraphQL, ontology, data agent.
+  model, report, API for GraphQL, ontology, data agent, and since n181 App (Rayfin, preview), `docs/RAYFIN-APP.md`.
 - **Preview**: one card per output from that output's own MCP tool (`/workload/v1/build` with `outputs: [{kind, name}]`,
   on-behalf-of you, dry run): what it would create or update, a few facts from the dry run, and anything that would
   stop it. An item of the same name that this Model did not build is never written (`already_exists`: choose another

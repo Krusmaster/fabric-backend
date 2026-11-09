@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n181: **App (Rayfin, preview)** is one more output of the Krusgraph Model item. Preview first checks the tenant
+  setting "Enable Fabric App Items (preview)". When it is off, a plain card names the setting and says where an
+  administrator turns it on, and nothing more happens. Fabric's own 403 "The feature is not available" gets the same
+  card. The person ticks key figures, list pages and charts; these are rules over the plan, use no AI and are stored in
+  outputs.json. The dry run shows the pages and the read-only connector. Its API has queries only and no mutation
+  types, and carries every link, R5 ship_to_id included. A package for the `dataapp` template comes with it, with
+  `rayfin/tsconfig.json`; CI runs `tsc --noEmit` on it. It also gives the `rayfin login`, `connector add` and
+  `rayfin up` commands. Create makes the App item with Microsoft's documented call (Create App Backend,
+  Item.ReadWrite.All) and records its id and plan. The pages are published with the package, because no App item
+  definition is documented. The MCP tool `rayfin_connector` takes `app=true` for the same package, with the same
+  preflight. Sources: `docs/RAYFIN-APP.md`.
 - Round n177, follow-up (the founder, 9 November 2026, evening): **four product names** on `/choose`, in the diagram and
   in the workload docs: Krusgraph for Fabric (the Krusgraph Model item), Krusgraph for Claude (the MCP connector, which
   works in other MCP clients too), Krusgraph for Lovable and Krusgraph Open Source. The docs group is now *Krusgraph for

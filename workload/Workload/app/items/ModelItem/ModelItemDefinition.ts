@@ -90,6 +90,8 @@ export interface OutputChoice {
   writable?: false;
   /** a report's existing semantic model; empty for the model this item builds */
   model?: string;
+  /** n181: the App (Rayfin, preview)'s ticked key figures, list pages and charts (option ids); absent: the defaults */
+  app?: { kpis: string[]; tables: string[]; charts: string[] };
 }
 
 /** n174: the data product that bundles what the item built: only what the engine answered (workload_api._product). */

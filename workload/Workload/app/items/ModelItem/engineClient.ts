@@ -94,13 +94,23 @@ export type OutputKind =
   | "report"
   | "graphql"
   | "ontology"
-  | "data_agent";
+  | "data_agent"
+  | "rayfin_app";
 
 /** One chosen output: its kind and the name of the item; a report may name an existing semantic model. */
 export interface OutputRequest {
   kind: OutputKind;
   name: string;
   model?: string;
+  /** n181: the App's ticked options (ids from its dry run); absent: the defaults */
+  app?: AppChoices;
+}
+
+/** n181: what the App (Rayfin, preview) shows, as option ids (rayfin_app.options). */
+export interface AppChoices {
+  kpis: string[];
+  tables: string[];
+  charts: string[];
 }
 
 export interface CreatedRef {

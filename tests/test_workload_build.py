@@ -23,7 +23,8 @@ from fabric_backend.entra import Validator  # noqa: E402
 ALL = [{"kind": "report", "name": "shop_report"}, {"kind": "semantic_model", "name": "shop_sales"},
        {"kind": "pipeline", "name": "shop_flow"}, {"kind": "gold_views", "name": "shop_gold"},
        {"kind": "silver_notebook", "name": "shop_silver"}, {"kind": "graphql", "name": "shop_model_api"},
-       {"kind": "ontology", "name": "shop_onto"}, {"kind": "data_agent", "name": "shop_agent"}]
+       {"kind": "ontology", "name": "shop_onto"}, {"kind": "data_agent", "name": "shop_agent"},
+       {"kind": "rayfin_app", "name": "shop_app"}]
 NEW_SM = "bbbbbbbb-0000-0000-0000-000000000001"             # Fabric's ids are GUIDs; create_report takes a model by its id
 EVERY_SCOPE = "Workspace.Read.All Lakehouse.Read.All Item.ReadWrite.All"
 

@@ -375,3 +375,24 @@ def test_the_blankapp_compile_check_fails_on_a_wrong_column(shop, node_modules, 
     r = subprocess.run(["node", str(root / "node_modules" / "typescript" / "bin" / "tsc"), "-b",
                         f"{BLANKAPP_APP_DIR}/tsconfig.json"], cwd=root, capture_output=True, text=True, timeout=600)
     assert r.returncode != 0 and "nope" in r.stdout
+
+
+@pytest.mark.parametrize("ticks", ["defaults", "everything"])
+def test_the_app_package_type_checks_with_the_pinned_template(ticks, shop_rows, node_modules, tmp_path):
+    """n181: the App (Rayfin, preview) package (rayfin_app.package: the connector with every link, read-only, the key
+    figures, charts and list pages, src/App.tsx and rayfin/tsconfig.json) compiles for `rayfin up` and passes
+    `tsc --noEmit` in a project laid out like the `dataapp` template, with the pinned packages. No `declare` field."""
+    from fabric_backend import rayfin_app
+    opts = rayfin_app.options(shop_rows)
+    choices = None if ticks == "defaults" else {k: [o["id"] for o in opts[k]] for k in ("kpis", "tables", "charts")}
+    files = rayfin_app.package(shop_rows, rayfin_app.resolve(opts, choices))["files"]
+    assert files[RAYFIN_TSCONFIG_PATH] == RAYFIN_TSCONFIG
+    assert not any(re.search(r"^\s*declare\s", t, flags=re.M) for t in files.values())
+    root = _project(tmp_path / ticks, node_modules, files)
+    r = _tsc(root, "rayfin/tsconfig.json")
+    assert r.returncode == 0, r.stdout + r.stderr
+    r = subprocess.run(["node", str(root / "node_modules" / "typescript" / "bin" / "tsc"), "-p", "tsconfig.json", "--noEmit",
+                        "--tsBuildInfoFile", str(root / ".tsbuildinfo-noemit")], cwd=root, capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, r.stdout + r.stderr
+    for page in ("src/pages/KpisPage.tsx", "src/pages/ChartsPage.tsx", "src/App.tsx"):
+        assert (root / page).exists()

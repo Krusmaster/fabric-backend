@@ -143,6 +143,10 @@ new commit is enough.
 3. "It might take up to 10 minutes" before the pilot's users see it [L1].
 4. Tell the pilot's administrator to follow `/pilot/fabric` (or send `docs/PILOT-ONBOARDING.md`): the tenant setting,
    admin consent, the network, then **+ New item**.
+5. The item's outputs (n181): silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology,
+   data agent and **App (Rayfin, preview)**. The App needs one more tenant setting, **Enable Fabric App Items
+   (preview)** (Admin portal → Tenant settings → Microsoft Fabric), which a pilot turns on only if they want it; the
+   editor checks it first and says so (`docs/RAYFIN-APP.md`). Its pages are published by the pilot with `rayfin up`.
 
 **Check on first run:** the exact labels on the Publish tab, whether tenant ids are entered one at a time or as a
 list, and what the tab shows once published (state, version, tenant count). Note them here.

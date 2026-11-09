@@ -53,6 +53,8 @@ import {
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
+import { withAppChoices } from "./appWords";
+import { AppChoices } from "./engineClient";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
 
@@ -244,6 +246,15 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
+  /** n181: the App's ticks, kept in outputs.json at once (the item stores the choices) and sent with Preview and Create. */
+  async function chooseApp(app: AppChoices) {
+    const next = withAppChoices(choices, app);
+    setChoices(next);
+    const d = { ...def, outputs: { ...def.outputs, outputs: next } };
+    setDef(d);
+    await save(d);
+  }
+
   /** n174: every chosen output, one dry run each (the engine calls each MCP tool with dry_run=true). */
   async function previewBuild() {
     const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
@@ -418,7 +429,8 @@ export function ModelItemEditor(props: PageProps) {
     },
     {
       name: "preview",
-      component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} createLabel={createLabel(preview)} /> : null),
+      component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
+        appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp} /> : null),
     },
     {
       name: "result",

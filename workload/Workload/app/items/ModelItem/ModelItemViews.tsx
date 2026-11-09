@@ -30,7 +30,11 @@ import {
 } from "@fluentui/react-components";
 import { CheckmarkStarburst24Regular, Open24Regular } from "@fluentui/react-icons";
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
-import { BuildCard, DataProduct, EngineError, ManyAnswer, SchemasAnswer } from "./engineClient";
+import { AppChoices, BuildCard, DataProduct, EngineError, ManyAnswer, SchemasAnswer } from "./engineClient";
+import {
+  AppApi, AppPreflight, GROUPS, PREVIEW_NOTE, apiLines, featureOff, isApp, nothingTicked, optionsOf, packageHref, preflightWords,
+  ticked, toggle,
+} from "./appWords";
 import {
   CreatedItem,
   OutputChoice,
@@ -477,7 +481,7 @@ export function OutputsView(props: {
 
 function Problem({ card }: { card: BuildCard }) {
   const p = cardProblem(card);
-  if (!p) return null;
+  if (!p || featureOff(card)) return null;                  // n181: the App's admin card says it in full
   const warn = !card.refusal && !card.answer?.error;
   return (
     <MessageBar intent={warn ? "warning" : "error"} layout="multiline">
@@ -503,6 +507,76 @@ export interface CardActions {
   onUpdate?: (card: BuildCard) => void;
   onNewName?: (card: BuildCard) => void;
   busy?: boolean;
+  /** n181: the App's ticks as stored in outputs.json, and how to change them */
+  appChoices?: AppChoices;
+  onAppChoices?: (choices: AppChoices) => void;
+}
+
+/** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
+export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoices?: (c: AppChoices) => void }) {
+  const c = props.card;
+  const off = featureOff(c);
+  if (off) {
+    return (
+      <MessageBar intent="warning" layout="multiline" aria-label="Fabric App items are off">
+        <MessageBarBody>
+          {off.error} Setting: “{off.setting}”{off.where ? `, ${off.where}` : ""}.
+          <ol className="krusgraph-steps" aria-label="Steps for a Fabric administrator">
+            {off.steps.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </MessageBarBody>
+      </MessageBar>
+    );
+  }
+  const a = c.answer as Record<string, any> | undefined;
+  if (!a || a.error) return null;
+  const opts = optionsOf(c);
+  const now = ticked(c, props.saved);
+  const changed = !!props.saved && JSON.stringify(props.saved) !== JSON.stringify(ticked(c));
+  const api = a.api as AppApi | undefined;
+  const href = packageHref(a.package);
+  return (
+    <div aria-label="App (Rayfin, preview)">
+      <Badge appearance="tint" color="warning">Preview</Badge> <Caption1>{PREVIEW_NOTE}</Caption1>
+      <Body1>{preflightWords(a.preflight as AppPreflight)}</Body1>
+      {opts && GROUPS.map((g) => (
+        <fieldset key={g.key} className="krusgraph-output">
+          <legend>{g.title}</legend>
+          {opts[g.key].map((o) => (
+            <Checkbox key={o.id} label={`${o.label} (${o.why})`} checked={now[g.key].includes(o.id)} disabled={!props.onAppChoices}
+              onChange={(_, d) => props.onAppChoices?.(toggle(now, g.key, o.id, !!d.checked))} />
+          ))}
+        </fieldset>
+      ))}
+      {nothingTicked(now) && <MessageBar intent="warning"><MessageBarBody>Tick at least one key figure, list page or chart.</MessageBarBody></MessageBar>}
+      {changed && <Caption1>Your ticks are saved in this item; choose Preview again to see the pages with them.</Caption1>}
+      <Subtitle2>Pages</Subtitle2>
+      <ul className="krusgraph-list">
+        {(a.pages ?? []).map((p: { id: string; title: string; shows: string[] }) => (
+          <li key={p.id}><Body1>{p.title}: {p.shows.join(", ")}</Body1></li>
+        ))}
+      </ul>
+      <Subtitle2>Connector and its GraphQL API</Subtitle2>
+      <ul className="krusgraph-list">
+        {apiLines(api).map((l) => (
+          <li key={l}><Body1>{l}</Body1></li>
+        ))}
+      </ul>
+      <Caption1>{a.why_not_published}</Caption1>
+      <ol className="krusgraph-steps" aria-label="Commands">
+        {(a.commands ?? []).map((x: { step: string; command: string }) => (
+          <li key={x.command}><Body1>{x.step}: </Body1><code>{x.command}</code></li>
+        ))}
+      </ol>
+      {href && (
+        <div className="krusgraph-actions">
+          <a href={href} download={a.package.filename}>Download the package ({a.package.filename})</a>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["item"]) => void } & CardActions) {
@@ -526,6 +600,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
         </ul>
       )}
       <Problem card={c} />
+      {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} />}
       {refresh && (
         <MessageBar intent={c.refresh?.status === "refreshed" ? "success" : c.refresh?.status === "planned" || c.refresh?.status === "refreshing" ? "info" : "warning"} layout="multiline">
           <MessageBarBody>
@@ -655,7 +730,14 @@ export function ProductView(props: {
 
 // ------------------------------------------------------------------ 4. preview (dry run) ----------------------------
 
-export function PreviewView(props: { answer: ManyAnswer; onCreate: () => void; mascotsOn: boolean; createLabel: string }) {
+export function PreviewView(props: {
+  answer: ManyAnswer;
+  onCreate: () => void;
+  mascotsOn: boolean;
+  createLabel: string;
+  appChoices?: AppChoices;
+  onAppChoices?: (choices: AppChoices) => void;
+}) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
   const builder = previewLine(a);
@@ -681,7 +763,7 @@ export function PreviewView(props: { answer: ManyAnswer; onCreate: () => void; m
       {a.product && <ProductView product={a.product} title="Data product (dry run)" />}
       {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
       {a.outputs.map((c) => (
-        <OutputCard key={c.output} card={c} />
+        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} />
       ))}
       {a.left_out_by_review.length > 0 && (
         <section>

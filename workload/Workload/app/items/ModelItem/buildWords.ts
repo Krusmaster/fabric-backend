@@ -48,6 +48,9 @@ export const KINDS: KindInfo[] = [
   { kind: "data_agent", label: "Data agent", type: "DataAgent", suffix: "agent", updates: true,
     needs: ["DataAgent.ReadWrite.All or Item.ReadWrite.All"],
     what: "A data agent with the plan as its instructions and example questions, left unpublished as a draft." },
+  { kind: "rayfin_app", label: "App (Rayfin, preview)", type: "AppBackend", suffix: "app", updates: false,
+    needs: ["Item.ReadWrite.All"],
+    what: "A Fabric App (preview): key figures, list pages and charts you tick, over a read-only connector with every link. Create makes the App item; its pages are published with the package and three commands." },
 ];
 
 export const ORDER: OutputKind[] = KINDS.map((k) => k.kind);
@@ -74,7 +77,12 @@ export function toRequests(choices: OutputChoice[]): OutputRequest[] {
   return choices
     .filter((c) => c.enabled && kindInfo(c.type))
     .sort((a, b) => ORDER.indexOf(a.type as OutputKind) - ORDER.indexOf(b.type as OutputKind))
-    .map((c) => ({ kind: c.type as OutputKind, name: c.name, ...(c.type === "report" && c.model ? { model: c.model } : {}) }));
+    .map((c) => ({
+      kind: c.type as OutputKind,
+      name: c.name,
+      ...(c.type === "report" && c.model ? { model: c.model } : {}),
+      ...(c.type === "rayfin_app" && c.app ? { app: c.app } : {}),       // n181: the ticked key figures, pages, charts
+    }));
 }
 
 /** What a chosen output's problems are before any call: a bad name, two notebooks of one name, a report with no model. */

@@ -59,7 +59,7 @@ const ANSWER: ManyAnswer = {
 
 describe("the outputs", () => {
   it("are every output the MCP tools build, the data flow first and the model before its report", () => {
-    expect(ORDER).toEqual(["silver_notebook", "gold_views", "pipeline", "semantic_model", "report", "graphql", "ontology", "data_agent"]);
+    expect(ORDER).toEqual(["silver_notebook", "gold_views", "pipeline", "semantic_model", "report", "graphql", "ontology", "data_agent", "rayfin_app"]);
     expect(KINDS.every((k) => k.needs.every((n) => !n.includes("Execute")))).toBe(true);
     expect(KINDS.find((k) => k.kind === "pipeline").needs).toEqual(["Notebook.ReadWrite.All or Item.ReadWrite.All",
       "DataPipeline.ReadWrite.All or Item.ReadWrite.All"]);
