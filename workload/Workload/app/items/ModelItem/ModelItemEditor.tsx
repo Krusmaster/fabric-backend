@@ -452,7 +452,8 @@ export function ModelItemEditor(props: PageProps) {
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
-      ribbon={(context) => <Ribbon homeToolbarActions={homeActions()} viewContext={context} />}
+      ribbon={(context) => <Ribbon homeToolbarActions={homeActions()} viewContext={context}
+        logo={<img src="/assets/krusgraph-item-icon.png" alt="Krusgraph Model" width={24} height={24} />} />}
       views={views}
       viewSetter={(setter) => {
         if (!setView) setSetView(() => setter);

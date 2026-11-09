@@ -181,6 +181,15 @@ creates Fabric items from that plan only when you ask. Four parts, with how far 
 
 The status words come from the same list as the [tool reference](#test-status), and change there first.
 
+**Build on the relationships you've reviewed.** Once the plan is reviewed and checked, the same plan gives:
+
+- **Documentation of the schema:** a data dictionary in Markdown, or dbt tests, with the checks you ran.
+  [What you can ask](#what-you-can-ask).
+- **What an app needs:** an API for GraphQL from the plan and the setup steps an app still needs.
+  [Use with Lovable](/lovable).
+- **Model drafts:** a Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and
+  relationships. [Fabric IQ: the same graph as an ontology](#fabric-iq-the-same-graph-as-an-ontology).
+
 ### Ontologies
 
 An ontology gives your tables and relationships business names. Each table becomes an **entity type** with
@@ -635,8 +644,10 @@ You create it with **+ New item → Krusgraph Model** in a workspace on a Fabric
 4. **The map and the mascots.** The tables and their links drawn as on the cards in Claude; **List** shows the same as
    rows for the keyboard and screen readers. Onto says the numbers, Thinker the check and the questions, Builder what
    comes next; a switch turns them off and their sentences become plain text.
-5. **Choose what to build**: silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology
-   and data agent, each with its name and the permission it needs, and optionally a **data product** over them.
+5. **Choose what to build**: silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology,
+   data agent and App (Rayfin, preview), each with its name and the permission it needs, and optionally a **data
+   product** over them. The App needs the tenant setting *Enable Fabric App Items (preview)*; Create makes the App item,
+   and its pages and read-only connector come as a package you publish.
 6. **Dry run.** One card per output, made by that output's own tool, saying what it would create or update. Nothing is
    written yet. An item of the same name that this Model did not build is never written over.
 7. **Create.** One output at a time, each card with its own result and **Open in Fabric**. The **data flow** is drawn:
@@ -716,6 +727,16 @@ Both are hosted in Azure, Sweden Central. Fabric (`app.fabric.microsoft.com`) an
 The status words, then each tool: what it reads, returns or changes.
 
 ### Test status
+
+**In short.** {{PRODUCT}} is a preview service; a tool that has not run against a live Fabric workspace is marked
+experimental. Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. {{CREATE_API_STATUS}}. The semantic model:
+{{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. Krusgraph for Fabric, the Krusgraph Model item,
+creates a semantic model, a report, an ontology, an API for GraphQL, a pipeline, notebooks, a data agent and, since
+round n181, an App (Rayfin, preview); its outputs are covered by unit tests against test doubles of Fabric and are not
+yet among the runs [the live test record](https://github.com/Krusmaster/fabric-backend/blob/main/docs/LIVE-TEST.md)
+lists. {{PRODUCT}} is published in the official
+[MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as
+`com.krusgraph/krusgraph`.
 
 Each tool in the table below carries one of these. They come from one list of fields per tool (where it is available,
 what it changes, how it is tested and whether it ran live; `fabric_backend/tool_status.py`), so a tool has the same

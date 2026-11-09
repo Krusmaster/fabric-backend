@@ -86,6 +86,11 @@ export interface RibbonProps {
    */
   rightActionButtons?: RibbonActionButton[];
 
+  /**
+   * Krusgraph (n183): an optional logo at the top left of the ribbon, before the tabs (the item's icon)
+   */
+  logo?: React.ReactNode;
+
 }
 
 /**
@@ -140,7 +145,8 @@ export const Ribbon: React.FC<RibbonProps> = ({
   className = '',
   viewContext,
   homeToolbarLabel,
-  rightActionButtons = []
+  rightActionButtons = [],
+  logo
 }) => {
   const { t } = useTranslation();
   const [selectedTab, setSelectedTab] = React.useState<string>(defaultSelectedTab);
@@ -184,6 +190,7 @@ export const Ribbon: React.FC<RibbonProps> = ({
       <div className="ribbon-header">
         {/* Left side - Back Button for Detail Views or Tab Navigation */}
         <div className="ribbon-header__left">
+          {logo ? <div className="ribbon-logo">{logo}</div> : null}
           {isDetailView ? (
             <div className="ribbon-back-button-container">
               <Tooltip content="Back" relationship="label">

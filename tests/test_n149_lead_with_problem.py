@@ -77,15 +77,16 @@ def test_the_floating_demo_button_is_on_the_home_page_check_and_deeper_pages(cli
 
 
 def test_the_status_is_said_once_by_the_tools_list(client):
+    """n183: the home page says the status once, in one line linking the test status per tool; the long status (the
+    live run, experimental tools) is in the docs."""
     html = client.get("/").text
     main = html[html.index("<main"):html.index("</main>")]
-    tools = main.index('id="build-on"')
-    pitch = main[:tools]
-    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):   # the replay is in the pitch again (n154)
+    pitch = main[:main.index('id="offering"')]                 # the hub further down keeps its own sources' status
+    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):
         assert word not in pitch, word
-    status = re.findall(r'<p class="muted tiny build-status" id="status">(.*?)</p>', main, re.S)
-    assert len(status) == 1 and "experimental" in status[0] and "Tested end to end on" in status[0]
-    assert main.count("Tested end to end on") == 1
+    assert "Tested end to end on" not in main
+    status = re.findall(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', main, re.S)
+    assert status == ['Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.']
 
 
 def test_the_client_chooser_is_on_start_in_the_step_that_adds_the_connector(client):

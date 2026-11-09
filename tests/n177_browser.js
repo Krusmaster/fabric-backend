@@ -60,12 +60,20 @@ async function site(base) {
         const box = document.getElementById('offering'), ways = [...box.querySelectorAll('.off-way-a')];
         const rects = ways.map((a) => a.getBoundingClientRect());
         const eng = box.querySelector('.off-engine-box').getBoundingClientRect(), built = box.querySelector('.off-built').getBoundingClientRect();
+        const ins = box.querySelector('.off-ways').getBoundingClientRect(), src = box.querySelector('.off-src').getBoundingClientRect();
+        const det = box.querySelector('details.off-words');
+        const mid = (r) => (r.top + r.bottom) / 2;
         return {
           ways: ways.map((a) => ({ href: a.getAttribute('href'), name: a.querySelector('.off-way-n').textContent, data: a.querySelector('.off-way-data').textContent })),
           words: [...box.querySelectorAll('.off-words-l li')].map((li) => ({ text: li.textContent, href: li.querySelector('a').getAttribute('href') })),
           built: [...box.querySelectorAll('.off-built li')].map((li) => li.textContent),
-          stacked: eng.top >= Math.max(...rects.map((r) => r.bottom)) - 1 && built.top >= eng.bottom - 1,
-          side: eng.left >= Math.max(...rects.map((r) => r.right)) - 1 && built.left >= eng.right - 1,
+          // n183: ways in -> tables -> engine -> built
+          stacked: ins.bottom <= src.top + 1 && src.bottom <= eng.top + 1 && eng.bottom <= built.top + 1,
+          flow: ins.bottom <= Math.min(src.top, eng.top, built.top) + 1 && src.right <= eng.left + 1 && eng.right <= built.left + 1
+                && Math.abs(mid(src) - mid(eng)) < eng.height && Math.abs(mid(built) - mid(eng)) < built.height,
+          rects: [ins, src, eng, built].map((r) => [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)]),
+          details: det && { open: det.open, summary: det.querySelector('summary').textContent.trim(), items: det.querySelectorAll('.off-words-l li').length },
+          pics: [...box.querySelectorAll('.off-pic-svg')].map((s) => ({ role: s.getAttribute('role'), label: s.getAttribute('aria-label'), w: Math.round(s.getBoundingClientRect().width) })),
           overflow: document.documentElement.scrollWidth - innerWidth,
           bg: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(box.querySelector('.off-engine-n')).color,
           img: box.querySelectorAll('img').length,

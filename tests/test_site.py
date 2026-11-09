@@ -82,8 +82,10 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     # n149: the status is said once, by the tools list, not in the steps
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "xperimental" not in step3
-    status = re.search(r'<p class="muted tiny build-status" id="status">(.*?)</p>', html, re.S).group(1)
-    assert "experimental" in status and 'href="/docs#test-status"' in status
+    # n183: the home page keeps one status line; the long status is in the docs' test status
+    status = re.search(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', html, re.S).group(1)
+    assert status == 'Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.'
+    assert "a tool that has not run against a live Fabric workspace is marked experimental" in docs_all(client)
     assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
 
 
@@ -474,9 +476,9 @@ def test_pages_point_agents_at_their_markdown_twin_and_home_declares_the_website
 
 
 def test_fabric_iq_is_described_on_home_docs_and_llms(client):
-    home = client.get("/").text
-    assert 'id="fabric-iq"' in home and 'href="/docs#fabric-iq-the-same-graph-as-an-ontology"' in home and "preview" in home
+    # n183: the "Build on the relationships you've reviewed" list moved from the home page to the docs' How it works
     docs = docs_all(client)
+    assert "Build on the relationships you've reviewed." in docs and "Fabric IQ ontology draft (preview)" in docs
     assert '<h1 id="fabric-iq-the-same-graph-as-an-ontology">' in docs and "ontology_draft" in docs and "Item.ReadWrite.All" in docs
     assert "ontology_draft" in client.get("/docs.md").text and "`ontology_draft`" in client.get("/llms.txt").text
     assert "Fabric IQ" in client.get("/llms-full.txt").text
@@ -500,7 +502,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "never a cold start" not in docs and "well under a second" not in docs
     home = client.get("/").text
     from fabric_backend import tool_status as ts
-    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in home and "no new item was created" in home
+    assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in docs and "no new item was created" in docs
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
     assert "Thirty-nine tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
@@ -524,9 +526,8 @@ def test_local_page_registry_line_and_plugin_coming_soon(client):
     assert "Tried on 28 October 2026:" in html and "Not yet tried:" in html and 'href="/docs"' in html    # n146
     assert 'href="/local"' in docs_all(client) and "/local" in client.get("/sitemap.xml").text
     assert "https://krusgraph.test/local.md" in client.get("/llms.txt").text and "/local.md -->" in client.get("/llms-full.txt").text
-    for page in ("/", "/docs"):
-        t = client.get(page).text if page == "/" else docs_all(client)
-        assert "registry.modelcontextprotocol.io" in t and "com.krusgraph/krusgraph" in t
+    t = docs_all(client)                                       # n183: the registry line moved from the home page to the docs
+    assert "registry.modelcontextprotocol.io" in t and "com.krusgraph/krusgraph" in t
     docs = docs_all(client)
     assert "coming soon" in docs and "plugin/krusgraph" in docs and "not published yet" in docs
     for t in (docs, client.get("/").text, client.get("/llms.txt").text):
@@ -754,11 +755,11 @@ def test_experimental_status_sits_next_to_the_creating_step(client):
     status, so the claim and its status cannot drift apart on different parts of the page."""
     # n149 (the UX review of 7 November 2026): on the home page the status is said once, in the tools list's section,
     # where the creating tools are offered; the steps above it make no claim about creating
+    # n183: the home page has one status line linking the test status, which says what is experimental
     home = client.get("/").text
-    tools = re.search(r'<section[^>]*id="build-on".*?</section>', home, re.S).group(0)
-    assert "xperimental" in tools and 'href="/docs#test-status"' in tools and "API" in tools
-    pitch = home[:home.index('id="build-on"')]
-    assert "xperimental" not in pitch and "Tested end to end on" not in pitch
+    pitch = home[:home.index('id="offering"')]                 # the hub further down keeps its own sources' status
+    assert "xperimental" not in pitch and "Tested end to end on" not in home and 'href="/docs#test-status">Test status per tool' in home
+    assert "xperimental" in docs_all(client)
     start = client.get("/start").text
     assert re.search(r"create_backend[^<]{0,200}", start) and "xperimental" in start
     lovable = client.get("/lovable").text
@@ -1066,8 +1067,9 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
-    assert "403" not in text and "cause unknown" not in text and "The semantic model: created live; reviewed in Fabric" in text
-    assert "the ontology: created live; reviewed in Fabric" in text and "not yet reviewed" not in text
+    docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
+    assert "403" not in text and "cause unknown" not in text and "The semantic model: created live; reviewed in Fabric" in docs
+    assert "the ontology: created live; reviewed in Fabric" in docs and "not yet reviewed" not in text
 
 
 def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
@@ -1127,8 +1129,8 @@ def test_the_played_session_has_four_real_turns_and_renders_status_from_tool_sta
     assert "7 entity types (5 with a key) and 7 relationship types, 0 skipped" in box and "shop_ontology" in box
     assert "shop_model_live" in box and "6 active relationships and 1 inactive" in box and "4 measures" in box
     # n149: the creating tools' status is said once, by the tools list, from tool_status
-    status = re.search(r'<p class="muted tiny build-status" id="status">(.*?)</p>', html, re.S).group(1)
-    assert ts.short("create_ontology") in status and ts.short("create_semantic_model") in status
+    docs = docs_all(client)                                   # n183: said in the docs' test status, not on the home page
+    assert ts.short("create_ontology") in docs and ts.short("create_semantic_model") in docs
     assert "report" not in box.lower() and "visual" not in box.lower()
     cap = re.search(r"<figcaption.*?</figcaption>", box, re.S).group(0)
     # n165: questions 1 and 2 are the engine's answers on the synthetic shop data, run on 8 November 2026

@@ -125,9 +125,13 @@ def test_the_icons_are_the_logo_mark_not_the_starter_kit_s_purple():
     coral, green, violet = (0xF2, 0x73, 0x5C), (0x9D, 0xB8, 0xA0), (0xA9, 0x9A, 0xD8)
     w = MANIFEST / "assets/images/Workload_Icon.png"
     assert near(_rgb(w, 32, 16), coral) and near(_rgb(w, 16, 46), green) and near(_rgb(w, 48, 46), violet)
-    i = MANIFEST / "assets/images/ModelItem_Icon.png"
-    assert near(_rgb(i, 24, 10), coral) and near(_rgb(i, 10, 36), green) and near(_rgb(i, 38, 36), violet)
-    assert _rgb(i, 0, 0)[3] == 0                                     # transparent ground: one image for light and dark
+    # n183: the item icon is Fluent-style, the three nodes inside a rounded container (interior 28 px of 48, centred)
+    for name, k in (("ModelItem_Icon.png", 1), ("ModelItem_Icon_Active.png", 1), ("ModelItem_Icon_Small.png", .5)):
+        i = MANIFEST / "assets/images" / name
+        at = lambda x, y: _rgb(i, round(x * k), round(y * k))       # noqa: E731
+        soft = lambda a, b: all(abs(x - y) <= 26 for x, y in zip(a[:3], b))   # noqa: E731  (each node is a soft sphere)
+        assert soft(at(24, 15), coral) and soft(at(15, 32), green) and soft(at(33, 32), violet), name
+        assert _rgb(i, 0, 0)[3] == 0, name                           # the container's rounded corner leaves the ground clear
 
 
 # ------------------------------------------------------------------ the text -----------------------------------------

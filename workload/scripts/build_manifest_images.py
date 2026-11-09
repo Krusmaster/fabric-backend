@@ -17,6 +17,17 @@ Playwright and Chromium (as tests/test_browser.py; CHROMIUM=<path> picks the bro
   fonts/), the logo and the three mascots (fabric_backend/mcp_apps_mascots.py). No Microsoft logos;
 - the editor's loading view: app/assets/krusgraph-icon.png, a copy of the workload icon, in place of the kit's
   Fabric logo;
+- n183: the Krusgraph Model item's icons are Fluent-style (`fluent_item`): a rounded container with a soft gradient and a
+  slight depth, and Krusgraph's own interior, the three connected nodes, in Krusgraph's own colours (coral, green,
+  violet on cream); no Microsoft colour sequence and no Microsoft product shape. Sized by Microsoft's item icon guideline
+  (publishing-requirements-item, 1.2 "Item has a clear icon", Learn, ms.date 24 February 2026, read 9 November 2026):
+  "Filetype icons are comprised of a container and an interior Fluent system icon", sizes 20/24/32/40/48/64, the
+  interior "28px in 48px container" and "14px in 24px container", centred, strokes 1px or 1.5px "if an icon is composed
+  of only/mostly strokes"; 1.2.1 asks for a distinct active icon (ModelItem_Icon_Active.png, the warmer container). The
+  editor shows the same 48 px file as its logo at the top left (app/assets/krusgraph-item-icon.png). The workload icon
+  and favicon stay the brand's logo mark;
+- n183: the banner carries no text and no logo, only the site's shapes and the mascots on the right: Fabric's workload
+  page writes the workload's name and description over the banner's left side, where our text overlapped it;
 - the quick look: the editor's map, drawn by the same code the editor imports (cardMap.generated.ts comes from
   fabric_backend/mcp_apps_pictures.py), on seed.py's synthetic shop with every check passed.
 
@@ -35,6 +46,7 @@ ROOT = Path(__file__).resolve().parents[2]
 IMAGES = ROOT / "workload" / "Workload" / "Manifest" / "assets" / "images"
 STATIC = ROOT / "fabric_backend" / "static"
 EDITOR_ICON = ROOT / "workload" / "Workload" / "app" / "assets" / "krusgraph-icon.png"   # the editor's loading view
+EDITOR_LOGO = ROOT / "workload" / "Workload" / "app" / "assets" / "krusgraph-item-icon.png"   # n183: the editor's top-left logo
 
 # file -> (width, height, what it is). Icons: one of the sizes Microsoft's validator approves (16, 20, 24, 32, 40, 48 or 64
 # px square; microsoft/fabric-extensibility-toolkit-validator 78e17c3, ImageValidator, as tools/hub_readiness.py reads
@@ -42,9 +54,9 @@ EDITOR_ICON = ROOT / "workload" / "Workload" / "app" / "assets" / "krusgraph-ico
 SIZES = {
     "Workload_Icon.png": (64, 64, "workload icon: the logo mark on the cream tile"),
     "Workload_Favicon.png": (32, 32, "the workload's favicon: the same mark"),
-    "ModelItem_Icon.png": (48, 48, "Krusgraph Model item: New item card, workspace list, editor tab"),
-    "ModelItem_Icon_Small.png": (24, 24, "the New item card's small icon"),
-    "ModelItem_Icon_Active.png": (48, 48, "the item's active icon (its open tab): the same mark on the cream tile"),
+    "ModelItem_Icon.png": (48, 48, "Krusgraph Model item, Fluent-style: New item card, workspace list, editor tab"),
+    "ModelItem_Icon_Small.png": (24, 24, "the New item card's small icon, Fluent-style"),
+    "ModelItem_Icon_Active.png": (48, 48, "the item's active icon (its open tab): the Fluent-style icon, warmer container"),
     "Workload_Hub_Banner.png": (1920, 240, "the workload page's banner"),
     "Workload_Hub_GetStarted_1.png": (320, 180, "the getting-started card"),
     "Workload_Hub_SlideMedia_1.png": (985, 552, "the quick look: the editor's map"),
@@ -65,13 +77,34 @@ def mark(size: int, tile: bool, link: str = "#8C8792", width: float = 2.4) -> st
             f'<circle cx="48" cy="46" r="8" fill="{VIOLET}"/></svg>')
 
 
-def item_mark(size: int) -> str:
-    """The item icon: no tile, the dots a little larger and the links heavier, so 24 and 48 px stay crisp."""
-    w = 4.2 if size <= 24 else 3.4
-    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 4 56 56" width="{size}" height="{size}">'
-            f'<path d="M32 16 L16 46 M32 16 L48 46 M16 46 H48" stroke="#8C8792" stroke-width="{w}" stroke-linecap="round"/>'
-            f'<circle cx="32" cy="16" r="9.5" fill="{CORAL}"/><circle cx="16" cy="46" r="9.5" fill="{GREEN}"/>'
-            f'<circle cx="48" cy="46" r="9.5" fill="{VIOLET}"/></svg>')
+# n183: the Fluent-style item icon, drawn in a 48 x 48 box. The interior (the three connected nodes) fills 28 px of it,
+# centred (10..38), as Microsoft's item icon guideline sizes it; at 24 px the same drawing gives the 14 px interior.
+NODES = ((24, 14.6, CORAL, "#FFB29A", "#D9604B"), (14.6, 32.4, GREEN, "#CDDFCD", "#84A188"),
+         (33.4, 32.4, VIOLET, "#D4CBF0", "#9282C6"))
+
+
+def fluent_item(size: int, active: bool = False) -> str:
+    """The Krusgraph Model item icon: a rounded container with a soft top-to-bottom gradient and a slight depth (a soft
+    shadow line under it and a light rim), and the three connected nodes, each a soft sphere, in Krusgraph's colours."""
+    top, bottom, rim = (("#FFF4EF", "#F9D9CF", "#E9A894") if active else ("#FFFFFF", "#F3ECE6", "#D8CEC5"))
+    nodes = "".join(
+        f'<radialGradient id="n{i}" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="{light}"/>'
+        f'<stop offset=".55" stop-color="{base}"/><stop offset="1" stop-color="{dark}"/></radialGradient>'
+        for i, (_x, _y, base, light, dark) in enumerate(NODES))
+    dots = "".join(f'<circle cx="{x}" cy="{y}" r="5.1" fill="url(#n{i})"/>'
+                   f'<ellipse cx="{x - 1.5}" cy="{y - 1.9}" rx="1.7" ry="1.1" fill="#fff" opacity=".55"/>'
+                   for i, (x, y, *_rest) in enumerate(NODES))
+    (ax, ay, *_a), (bx, by, *_b), (cx, cy, *_c) = NODES
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="{size}" height="{size}"><defs>'
+            f'<linearGradient id="ct" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/>'
+            f'<stop offset="1" stop-color="{bottom}"/></linearGradient>'
+            '<linearGradient id="ln" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8C8792"/>'
+            f'<stop offset="1" stop-color="#6E6874"/></linearGradient>{nodes}</defs>'
+            f'<rect x="3" y="4.4" width="42" height="42" rx="10" fill="#5B4A3A" opacity=".16"/>'
+            f'<rect x="3" y="3" width="42" height="42" rx="10" fill="url(#ct)" stroke="{rim}" stroke-width="1"/>'
+            f'<rect x="4" y="4" width="40" height="20" rx="9" fill="#fff" opacity=".35"/>'
+            f'<path d="M{ax} {ay} L{bx} {by} M{ax} {ay} L{cx} {cy} M{bx} {by} H{cx}" stroke="url(#ln)" stroke-width="1.5" '
+            f'stroke-linecap="round"/>{dots}</svg>')
 
 
 def _page(body: str, w: int, h: int, css: str = "", transparent: bool = False) -> str:
@@ -100,9 +133,8 @@ def banner() -> str:
       .say{font-size:28px;color:#5B5660;margin-top:14px;max-width:980px}
       .mascots{position:absolute;right:120px;bottom:6px;display:flex;align-items:flex-end;gap:6px}
     """)
-    body = (f'<div class="arc"></div><div class="arc2"></div><div class="wrap">{mark(150, True)}'
-            f'<div><div class="word">Krusgraph</div><div class="say">Keys and relationships for your lakehouse, '
-            f'with the rule behind each one. Review them, then build.</div></div></div>'
+    # n183: no text and no logo: Fabric's workload page writes the name and description over the left side
+    body = (f'<div class="arc"></div><div class="arc2"></div>'
             f'<div class="mascots">{_mascots(168, ("rest", "rest", "rest"))}</div>')
     return _page(body, 1920, 240, css)
 
@@ -184,9 +216,10 @@ def quick_look_page() -> str:
 
 def pages() -> dict[str, tuple[str, bool]]:
     tile = lambda n: _page(mark(n, True), n, n, "svg{display:block}", transparent=True)   # noqa: E731
-    item = lambda n: _page(item_mark(n), n, n, "svg{display:block}", transparent=True)   # noqa: E731
+    item = lambda n, active=False: _page(fluent_item(n, active), n, n, "svg{display:block}", transparent=True)   # noqa: E731
     return {"Workload_Icon.png": (tile(64), True), "Workload_Favicon.png": (tile(32), True), "ModelItem_Icon.png": (item(48), True),
-            "ModelItem_Icon_Small.png": (item(24), True), "ModelItem_Icon_Active.png": (tile(48), True), "Workload_Hub_Banner.png": (banner(), False),
+            "ModelItem_Icon_Small.png": (item(24), True), "ModelItem_Icon_Active.png": (item(48, True), True),
+            "Workload_Hub_Banner.png": (banner(), False),
             "Workload_Hub_GetStarted_1.png": (getting_started(), False),
             "Workload_Hub_SlideMedia_1.png": (quick_look_page(), False)}
 
@@ -230,6 +263,8 @@ def main(argv: list[str]) -> int:
         print(f"wrote {Path(j['out']).name} ({j['w']}x{j['h']})")
     EDITOR_ICON.write_bytes((IMAGES / "Workload_Icon.png").read_bytes())
     print(f"wrote {EDITOR_ICON.relative_to(ROOT)} (a copy of Workload_Icon.png)")
+    EDITOR_LOGO.write_bytes((IMAGES / "ModelItem_Icon.png").read_bytes())
+    print(f"wrote {EDITOR_LOGO.relative_to(ROOT)} (a copy of ModelItem_Icon.png)")
     return 0
 
 

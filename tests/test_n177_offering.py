@@ -51,7 +51,7 @@ def test_the_four_ways_in_the_founders_order_with_every_question_answered():
             assert v and (isinstance(v, str) or all(isinstance(x, str) and x for x in v)), (w["key"], key)
     # the decision guide, in the founder's words, each to its way
     assert offering.DECIDE == (("I already use Claude", "claude"), ("We work in Fabric and do not want an AI chat", "fabric"),
-                               ("We build an app in Lovable", "lovable"), ("We code in VS Code", "claude"),
+                               ("We build an app in Lovable", "lovable"), ("We code in VS Code or Cursor", "claude"),
                                ("Nothing may leave our Azure", "self"))
 
 
@@ -128,7 +128,7 @@ def test_the_diagram_lists_the_four_ways_in_words_and_links_each_to_its_docs(cli
             assert client.get(href).status_code == 200, href
         built = re.findall(r"<li>([^<]+)</li>", box[box.index('class="off-built"'):box.index('class="off-words"')])
         assert built == list(offering.BUILT)
-        assert 'aria-describedby="offering-words-h"' in box and 'aria-hidden="true"' in box
+        assert 'aria-describedby="offering-words"' in box and 'aria-hidden="true"' in box    # n183: the words in a <details>
     # the trademark line stays in the footer, and the diagram uses no logo file
     assert "Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation" in client.get("/choose").text
     assert not re.search(r"<img[^>]+(microsoft|fabric)", client.get("/choose").text, re.I)
@@ -288,7 +288,11 @@ def test_browser_the_diagram_renders_stacks_on_a_phone_and_every_way_is_a_focusa
         assert [w["name"] for w in d["ways"]] == WAY_NAMES, key
         assert [w["text"].split(":")[0] for w in d["words"]] == WAY_NAMES and [w["href"] for w in d["words"]] == [w["href"] for w in d["ways"]], key
         assert d["built"] == list(offering.BUILT) and d["img"] == 0 and d["overflow"] <= 0, key
-        assert (d["side"], d["stacked"]) == ((True, False) if width == "1280" else (False, True)), key
+        # n183: a data flow; at 1280 the ways in sit above the engine and tables -> engine -> built run left to right; at
+        # 375 everything stacks in the same order: ways in, tables, engine, built
+        assert (d["flow"], d["stacked"]) == ((True, False) if width == "1280" else (False, True)), (key, d["rects"])
+        assert d["details"] == {"open": False, "summary": "The diagram in words", "items": 4}, key
+        assert len(d["pics"]) == 4 and all(p["role"] == "img" and p["label"] and p["w"] >= 48 for p in d["pics"]), key
         assert [f["href"] for f in d["focus"]] == [w["href"] for w in d["ways"]] and all(f["ring"] for f in d["focus"]), key
         assert d["bg"] == ("rgb(31, 27, 25)" if scheme == "dark" else "rgb(251, 248, 245)"), key
     assert set(browser_site["linkStatus"].values()) == {200}, browser_site["linkStatus"]
@@ -373,7 +377,7 @@ def test_the_four_product_names_appear_on_the_which_krusgraph_page(client):
     box = h[h.index('id="offering"'):]
     box = box[:box.index("</section>")]
     assert box.count('class="logo-mark"') == 1 and pages._LOGO in box       # the one Krusgraph logo, on the engine
-    assert "off-i" not in box and "data-mascot" not in box and "<img" not in box
+    assert 'class="off-i ' not in box and "<img" not in box       # n183: the product cards' mascots are inline SVG
     for path in [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-for-fabric"]:
         t = _plain(client.get(path).text)
         assert "Krusgraph in Fabric" not in t, path

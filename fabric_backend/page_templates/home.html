@@ -59,6 +59,10 @@
   </div>
 </section>
 
+{{HOME_OFFERING}}
+{{HOME_CHOOSE}}
+<p class="wrap muted tiny home-status" id="status">{{PRODUCT}} is a preview service. <a href="/docs#test-status">Test status per tool</a>.</p>
+
 <section class="wrap two-paths" id="paths" aria-labelledby="paths-h">
   <h2 id="paths-h">Then: on your own, or with help on one number.</h2>
   <div class="grid-2">
@@ -76,18 +80,7 @@
   </ol>
 </section>
 
-<section class="wrap" id="build-on" aria-labelledby="build-on-h">
-  <h2 id="build-on-h">Build on the relationships you’ve reviewed.</h2>
-  <ul class="build-rows">
-    <li><h3>Document the schema</h3><p>A data dictionary in Markdown or dbt tests from the plan, with the checks you ran. <a href="/docs#what-you-can-ask">What you can ask</a>.</p></li>
-    <li><h3>Prepare an app</h3><p>A GraphQL API from the plan and the setup steps an app still needs. <a href="/lovable">Use it with Lovable</a>.</p></li>
-    <li id="fabric-iq"><h3>Explore model drafts</h3><p>A Power BI semantic model in TMDL, or a Fabric IQ ontology draft (preview), with the same keys and relationships. <a href="/docs#fabric-iq-the-same-graph-as-an-ontology">Read about ontology drafts</a>.</p></li>
-  </ul>
-  <p class="muted tiny build-status" id="status">Status: {{PRODUCT}} is a preview service; a tool that has not run against a live Fabric workspace is marked experimental. Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. {{CREATE_API_STATUS}}. The semantic model: {{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. <a href="/docs#test-status">Test status per tool</a>. Published in the official <a href="https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph" rel="noopener">MCP Registry</a> as <code>com.krusgraph/krusgraph</code>.</p>
-</section>
 
-{{HOME_OFFERING}}
-{{HOME_CHOOSE}}
 
 {{HOME_HUB}}
 

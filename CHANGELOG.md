@@ -9,6 +9,22 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n183: the **product diagram is a data flow**, on the home page and on `/choose`: your tables in Fabric
+  (lakehouse, warehouse, mirrored databases) → one Krusgraph engine (keys and links, checked against your rows) → built
+  in Fabric (semantic model, report, ontology, API for GraphQL, pipeline and notebooks, data agent, App (Rayfin, preview),
+  data product). The four products sit above the engine as the ways to drive it, each with its "Data passes:" line;
+  on a phone everything stacks in that order. "The diagram in words" is a collapsed `<details>` under it. Each product
+  card has its **mascot hugging a symbol** we draw ourselves (the founder's decision): Onto with a data table for
+  Fabric, the Thinker with a speech bubble for Claude, the Builder with an app screen for Lovable, Onto with code
+  brackets for Open Source, with "for ..." under it; inline SVG with alt text, hidden by the mascot switch, and no
+  partner logo anywhere. The **home page is calmer**: hero, demo, the diagram, the five-row guide ("We code in VS Code or
+  Cursor" → Krusgraph for Claude (any MCP client)) and one line, "Krusgraph is a preview service. Test status per
+  tool."; the "Build on the relationships you've reviewed" list moved to the docs' *How it works*, the long status
+  paragraph to the docs' *Test status*, which now also says what the Krusgraph Model item creates, the App included.
+  The **Krusgraph Model item icon** is Fluent-style (a rounded container, a soft gradient, a slight depth, the three
+  connected nodes in Krusgraph's colours), sized by Microsoft's item icon guideline, and is the editor's logo at the top
+  left. The workload's banner has no text, so the workload page's own text no longer runs into it. Needs a redeploy and
+  a new workload package version (new icons and banner): `docs/WORKLOAD-DEV.md`, section 12.
 - Round n181: **App (Rayfin, preview)** is one more output of the Krusgraph Model item. Preview first checks the tenant
   setting "Enable Fabric App Items (preview)". When it is off, a plain card names the setting and says where an
   administrator turns it on, and nothing more happens. Fabric's own 403 "The feature is not available" gets the same

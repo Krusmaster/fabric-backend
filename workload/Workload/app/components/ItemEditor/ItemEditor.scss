@@ -1258,3 +1258,6 @@
     gap: var(--spacingHorizontalXXS) !important;
   }
 }
+// Krusgraph (n183): the item's icon as the logo at the top left of the ribbon
+.ribbon-logo { display: flex; align-items: center; flex-shrink: 0; margin-right: 8px; }
+.ribbon-logo img { display: block; width: 24px; height: 24px; }

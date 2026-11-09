@@ -685,6 +685,38 @@ in unit tests only (`tests/test_n181_rayfin_app.py`, the `tsc` checks in `tests/
 4. **Try it** on **shop_krusgraph**: tick App (Rayfin, preview) only → Preview → read the card → Create is your call
    (it creates one empty App item, `<lakehouse>_app`). Then the four commands on your laptop.
 
+### 12. Round n183: a Fluent-style item icon, the logo in the editor, a banner without text
+
+Round n183 (9 November 2026). Checked by `tests/test_n183_site.py` and `tests/test_workload_manifest.py`; nothing ran
+in Fabric.
+
+- **The item icon** (`ModelItem_Icon.png` 48 px, `ModelItem_Icon_Small.png` 24 px, `ModelItem_Icon_Active.png` 48 px)
+  is Fluent-style: a rounded container with a soft gradient and a slight depth, and Krusgraph's own interior, the three
+  connected nodes in Krusgraph's coral, green and violet. It uses no Microsoft colour sequence and no Microsoft product
+  shape. The active icon has a warmer container. The workload icon (64 px) and favicon (32 px) stay the Krusgraph logo
+  mark, the brand. The guidance followed is Microsoft Learn, *Fabric Extensibility toolkit validation guidelines and
+  requirements for items*, 1.2 "Item has a clear icon" and 1.2.1 "Item has a clear active icon"
+  (<https://learn.microsoft.com/fabric/extensibility-toolkit/publishing-requirements-item>, ms.date 24 February 2026,
+  read 9 November 2026): "Filetype icons are comprised of a container and an interior Fluent system icon"; sizes
+  "20 / 24 / 32 / 40 / 48 / 64"; "28px in 48px container" and "14px in 24px container"; "The interior icon should be
+  centered within the container"; links at 1.5 px, as allowed when "an icon is composed of only/mostly strokes".
+  `workload/scripts/build_manifest_images.py` (`fluent_item`) draws them.
+- **The editor's logo**: the same 48 px item icon, shown at 24 px at the top left of the ribbon, before the Home tab
+  (`app/assets/krusgraph-item-icon.png`; the kit's `Ribbon` has a new optional `logo`).
+- **The banner** (`Workload_Hub_Banner.png`) has no text and no logo, only the site's shapes and the three mascots on the
+  right. The workload page in Fabric writes the workload's name and description over the banner's left side, where the
+  old banner's own "Krusgraph" and tagline overlapped them.
+
+**For the founder.**
+
+1. **Redeploy** (Cloud Shell, `~/fabric-backend`): `git pull --rebase origin main`, `bash deploy/krusgraph.sh --update
+   --dry-run`, then `bash deploy/krusgraph.sh --update` (the site's diagram, the home page and the editor's logo).
+2. **Upload a new package version**, because the manifest's images changed (new item icons and banner):
+   `bash workload/scripts/build-package --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a`, then Govern →
+   Workloads → Upload → Activate (step 6.2 to 6.4).
+3. **Check**: + New item, the workspace list and the editor tab show the new icon; the editor shows it at the top left;
+   the workload page's own text no longer runs into the banner's text.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it

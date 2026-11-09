@@ -12,7 +12,8 @@ AI model: it is said plainly, here and in the docs.
 
 The founder, 9 November 2026 (evening): four products, named Krusgraph for Fabric (the Krusgraph Model item), Krusgraph
 for Claude (the MCP connector, which works in other MCP clients too), Krusgraph for Lovable and Krusgraph Open Source;
-one Krusgraph logo everywhere, no product logos and no mascot per product. The chat on krusgraph.com and /check are ways
+one Krusgraph logo everywhere, no product logos. n183 (the founder's decision, 9 November 2026): each product card has
+its mascot hugging a symbol we draw ourselves (PICTURES); still no product logo and no partner logo. The chat on krusgraph.com and /check are ways
 to try it, not products; the drift monitor, the SAP pack and the dbt export are features; Marketplace is where you buy.
 Partner names (Fabric, Claude, Lovable) are plain text only: no Microsoft, Anthropic or Lovable logo, and never one
 next to the mascots or our logo. The footer carries the trademark line.
@@ -93,8 +94,8 @@ def _status_fabric() -> str:
             "Workload Hub listing: planned, not available.")
 
 
-# The four products, in the founder's order. `colour` is a site token (the mascots' colours and mustard), used for a
-# border only: no product logo. `data` says where the data passes.
+# The four products, in the founder's order. `colour` is a site token (n183: the colour of the product's mascot, mustard
+# for Open Source), used for a border only: no product logo. `data` says where the data passes.
 WAYS = (
     {"key": "fabric", "name": "Krusgraph for Fabric", "short": "The Krusgraph Model item in Fabric", "colour": "sage",
      "docs": FABRIC_DOCS,
@@ -104,8 +105,8 @@ WAYS = (
                "Your Entra admin's consent for the workload app, once"],
      "how": "The Krusgraph Model item, which you click through in Fabric: choose a lakehouse and a schema, review the keys "
             "and links, check them against the rows, choose outputs, see the dry run, then Create. No AI.",
-     "builds": "Silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology and data agent, "
-               "with a data product over them and the data flow drawn.",
+     "builds": "Silver notebook, gold views, pipeline, semantic model, report, API for GraphQL, ontology, data agent and an "
+               "App (Rayfin, preview), with a data product over them and the data flow drawn.",
      "data": "Krusgraph's engine (Azure, Sweden Central) and your Fabric. It uses no AI model, so nothing goes to an AI "
              "provider.",
      "data_short": "Krusgraph (Sweden Central) only; no AI",
@@ -115,7 +116,7 @@ WAYS = (
                "Pilot only; not in Fabric's Workload Hub",
                "Does not run or schedule the notebooks or the pipeline it creates"]},
     {"key": "claude", "name": "Krusgraph for Claude", "short": "The MCP connector, in Claude and other MCP clients",
-     "colour": "coral", "docs": "/start",
+     "colour": "lav", "docs": "/start",
      "who": _claude_who,
      "needs": ["Claude with a custom connector, or another MCP client that signs in with OAuth",
                "A Microsoft work account and a Fabric workspace on a capacity",
@@ -132,7 +133,7 @@ WAYS = (
      "status": _status_claude,
      "lacks": ["Needs an AI chat licence and your admin's consent",
                "Cannot run or schedule a notebook or pipeline on the hosted service"]},
-    {"key": "lovable", "name": "Krusgraph for Lovable", "short": "Plan and build an app's API from Lovable", "colour": "lav",
+    {"key": "lovable", "name": "Krusgraph for Lovable", "short": "Plan and build an app's API from Lovable", "colour": "coral",
      "docs": "/lovable",
      "who": "People who build an app in Lovable on their Fabric data.",
      "needs": ["Lovable, with Krusgraph added as a custom MCP connector",
@@ -166,20 +167,35 @@ WAYS = (
                "Krusgraph for Fabric is not part of it"]},
 )
 
-# What is built in Fabric, the diagram's right-hand column.
-BUILT = ("Semantic model", "Report", "Ontology", "API for GraphQL", "Pipeline and notebooks", "Data agent", "Data product")
+# What is built in Fabric, the diagram's right-hand column. n183: the App (Rayfin, preview), which only the Krusgraph Model
+# item creates (APP_NOTE; docs/RAYFIN-APP.md).
+BUILT = ("Semantic model", "Report", "Ontology", "API for GraphQL", "Pipeline and notebooks", "Data agent", "App (Rayfin, preview)",
+         "Data product")
+APP_NOTE = ("The App (Rayfin, preview) is built by Krusgraph for Fabric only: Create makes the empty App item, and its pages "
+            "and read-only connector come as a package you publish (no App item definition is documented).")
 
 NO_AI = ("Krusgraph for Fabric (the Krusgraph Model item) uses no AI model: the keys and links come from the engine's named rules and "
          "the checks count your rows. A data agent it creates is Fabric's own item, and Fabric's AI answers there when "
          "someone asks it.")
 
 # The decision guide, in the founder's words (9 November 2026), each to a product. "Code in VS Code" goes to Krusgraph for
-# Claude: the connector works in other MCP clients too (the founder, 9 November 2026, evening).
+# Claude: the connector works in other MCP clients too (the founder, 9 November 2026, evening). n183: the row reads "We code
+# in VS Code or Cursor" -> "Krusgraph for Claude (any MCP client)" (decide_suffix).
 DECIDE = (("I already use Claude", "claude"),
           ("We work in Fabric and do not want an AI chat", "fabric"),
           ("We build an app in Lovable", "lovable"),
-          ("We code in VS Code", "claude"),
+          ("We code in VS Code or Cursor", "claude"),
           ("Nothing may leave our Azure", "self"))
+
+
+def decide_suffix(q: str) -> str:
+    """What follows the product's name in a row of the guide. VS Code and Cursor sign in to the hosted service only through
+    client registration (/mcp/connect), so the row says so, or that the hosted service cannot sign them in today."""
+    if q != "We code in VS Code or Cursor":
+        return ""
+    if _lovable_on():                                  # client registration on
+        return " (any MCP client, through /mcp/connect)"
+    return " (any MCP client, though the hosted service cannot sign VS Code or Cursor in today: host your own Krusgraph)"
 
 # Not products: how to try it, the features, and where to buy (the founder, 9 November 2026, evening).
 NOT_PRODUCTS = ("The chat demo on this site and Check my tables (/check) are ways to try Krusgraph, not products. The drift "
@@ -201,6 +217,9 @@ def _e(s: str) -> str:
 
 
 # ------------------------------------------------------------------ the diagram ---------------------------------------
+# n183 (the founder, 9 November 2026): the diagram is a data flow, left to right: your tables in Fabric -> one Krusgraph
+# engine -> what is built in Fabric, with the four products above the engine as the ways to drive it. On a phone it stacks
+# in the same order as the HTML: the ways in, the tables, the engine, what is built.
 
 def _logo() -> str:
     """The one Krusgraph logo, the site's own (pages._LOGO): the engine wears it; the products have none of their own."""
@@ -208,47 +227,133 @@ def _logo() -> str:
     return _LOGO
 
 
-def _arrow(cls: str, ends: int, fan_in: bool) -> str:
-    """A connector between the columns: on a wide screen a fan of lines (the four products into the engine, the engine out to
-    what is built), stretched to the column's height; on a phone a single arrow down (CSS shows one or the other)."""
-    ys = [100 * (i + .5) / ends for i in range(ends)]
-    lines = "".join(f'<path d="M0 {y:.1f} C20 {y:.1f} 20 50 40 50"/>' if fan_in else f'<path d="M0 50 C20 50 20 {y:.1f} 40 {y:.1f}"/>'
-                    for y in ys)
-    return (f'<div class="off-arrow {cls}" aria-hidden="true">'
-            f'<svg class="off-fan" viewBox="0 0 40 100" preserveAspectRatio="none" focusable="false">{lines}</svg>'
+def _arrow(cls: str, down_only: bool = False) -> str:
+    """A connector: on a wide screen an arrow to the right (or down, for the ways in above the engine), on a phone an arrow
+    down (CSS shows one or the other)."""
+    right = ('' if down_only else '<svg class="off-right" viewBox="0 0 44 24" focusable="false"><path d="M3 12h36M32 5l7 7-7 7"/></svg>')
+    return (f'<div class="off-arrow {cls}" aria-hidden="true">{right}'
             '<svg class="off-down" viewBox="0 0 24 32" focusable="false"><path d="M12 2v26M5 21l7 7 7-7"/></svg></div>')
 
 
+# ---- the mascot pictures (n183, the founder's decision of 9 November 2026) -------------------------------------------
+# Each product card has a mascot hugging a symbol we draw ourselves, in Krusgraph's style: a data table for Fabric, a
+# speech bubble for Claude, an app screen for Lovable, code brackets for Open Source, with "for ..." under it. The figures
+# are the site's own (static/mascots.js KINDS, read by mcp_apps_mascots), drawn flat, in the heart pose's hug (the arms
+# turned inwards), with no gradient ids, so four on a page never clash. No partner logo is drawn or referenced: partner
+# names are plain text. The pictures are decoration with alt text; the site's mascot switch hides them (mascot-only).
+
+INK = "#3A3340"
+SYMBOLS = {      # the symbol in a 40 x 28 box
+    "table": (f'<rect x="1" y="1" width="38" height="26" rx="4" fill="#fff" stroke="{INK}" stroke-width="1.6"/>'
+              '<path d="M1 5a4 4 0 0 1 4-4h30a4 4 0 0 1 4 4v3H1z" fill="#E3A93B"/>'
+              f'<path d="M1 8h38M1 14.5h38M1 21h38M14 8v19M27 8v19" stroke="{INK}" stroke-width="1.1" opacity=".55"/>'
+              f'<rect x="1" y="1" width="38" height="26" rx="4" fill="none" stroke="{INK}" stroke-width="1.6"/>'),
+    "bubble": (f'<path d="M8 1h24a7 7 0 0 1 7 7v8a7 7 0 0 1-7 7H16l-8 5 1.5-5.2A7 7 0 0 1 1 16V8a7 7 0 0 1 7-7z" fill="#fff" '
+               f'stroke="{INK}" stroke-width="1.6" stroke-linejoin="round"/>'
+               '<circle cx="12" cy="12" r="3" fill="#F2735C"/><circle cx="20" cy="12" r="3" fill="#9DB8A0"/>'
+               '<circle cx="28" cy="12" r="3" fill="#A99AD8"/>'),
+    "screen": (f'<rect x="1" y="1" width="38" height="26" rx="4" fill="#fff" stroke="{INK}" stroke-width="1.6"/>'
+               f'<path d="M1 7h38" stroke="{INK}" stroke-width="1.1" opacity=".55"/>'
+               '<circle cx="5.5" cy="4" r="1.3" fill="#F2735C"/><circle cx="9.5" cy="4" r="1.3" fill="#E3A93B"/>'
+               '<circle cx="13.5" cy="4" r="1.3" fill="#9DB8A0"/>'
+               '<rect x="5" y="11" width="12" height="12" rx="2.5" fill="#CDDFCD"/>'
+               f'<path d="M21 13h14M21 17.5h10M21 22h12" stroke="{INK}" stroke-width="1.6" stroke-linecap="round" opacity=".7"/>'),
+    "code": (f'<rect x="1" y="1" width="38" height="26" rx="6" fill="#fff" stroke="{INK}" stroke-width="1.6"/>'
+             f'<path d="M14 8l-6 6 6 6M26 8l6 6-6 6" fill="none" stroke="{INK}" stroke-width="2.6" stroke-linecap="round" '
+             'stroke-linejoin="round"/><path d="M22.5 6l-5 16" stroke="#F2735C" stroke-width="2.6" stroke-linecap="round"/>'),
+}
+# product -> (figure, symbol, what the symbol is, "for ...")
+PICTURES = {"fabric": ("onto", "table", "a data table", "for Fabric"),
+            "claude": ("thinker", "bubble", "a speech bubble", "for Claude"),
+            "lovable": ("builder", "screen", "an app screen", "for Lovable"),
+            "self": ("onto", "code", "code brackets", "Open Source")}
+# where the symbol sits on each figure (x, y, width, height in the figure's 120 x 120 box): below the eyes, between the arms
+_HUG = {"onto": (30, 77, 60, 30), "thinker": (35, 70, 50, 34), "builder": (35, 66, 50, 36)}
+_HUG_TURN = 44                  # degrees each arm turns inwards (the heart pose turns 38)
+
+
+def picture_svg(key: str) -> str:
+    """One product's picture: the mascot hugging its symbol, flat inline SVG with alt text (role="img")."""
+    from . import mcp_apps_mascots as M
+    kind, sym, what, _for = PICTURES[key]
+    k = M.kinds()[kind]
+    n = M._n
+    eyes = "".join(f'<circle cx="{n(x)}" cy="{n(y)}" r="{n(k["eyeR"])}" fill="#1B1B1F"/>'
+                   f'<circle cx="{n(x + 1.2)}" cy="{n(y - 1.3)}" r="1.15" fill="#fff"/>' for x, y in k["eyes"])
+    blush = "".join(f'<ellipse cx="{n(x)}" cy="{n(y)}" rx="5" ry="2.8" fill="{k["cheek"]}" opacity=".6"/>' for x, y in k["blush"])
+    hx, hy, hrx, hry, hrot = k["hl"]
+    sx, sy, srx, sry = k["shadow"]
+    bx, by, bw, bh = _HUG[kind]
+    scale = min(bw / 40, bh / 28)
+    tx, ty = bx + (bw - 40 * scale) / 2, by + (bh - 28 * scale) / 2
+
+    def arm(a: list, turn: float) -> str:
+        x, y, angle = a
+        rx, ry = k["armRX"], k["armRY"]
+        return (f'<g transform="rotate({n(angle + turn)} {n(x)} {n(y)})">'
+                f'<ellipse cx="{n(x)}" cy="{n(y + ry - 3)}" rx="{n(rx)}" ry="{n(ry)}" fill="{k["fill"]}" stroke="{k["dark"]}" '
+                f'stroke-width="1.1" stroke-opacity=".7"/>'
+                f'<ellipse cx="{n(x - 1.5)}" cy="{n(y + 2)}" rx="2.4" ry="4" fill="#fff" opacity=".22"/></g>')
+    label = f'{M.NAMES[kind]}, the Krusgraph mascot, hugging {what}: Krusgraph {_for}'
+    return (f'<svg class="off-pic-svg" viewBox="8 16 104 98" role="img" aria-label="{_e(label)}" focusable="false">'
+            f'<ellipse cx="{n(sx)}" cy="{n(sy)}" rx="{n(srx)}" ry="{n(sry)}" fill="{k["dark"]}" opacity=".35"/>'
+            f'<path d="{k["body"]}" fill="{k["fill"]}" stroke="{k["dark"]}" stroke-width="1.2" stroke-opacity=".6"/>'
+            f'<ellipse cx="{n(hx)}" cy="{n(hy)}" rx="{n(hrx)}" ry="{n(hry)}" fill="{k["light"]}" opacity=".85" '
+            f'transform="rotate({n(hrot)} {n(hx)} {n(hy)})"/>{blush}{eyes}'
+            f'<g transform="translate({tx:.2f} {ty:.2f}) scale({scale:.3f})">{SYMBOLS[sym]}</g>'
+            + arm(k["armL"], -_HUG_TURN) + arm(k["armR"], _HUG_TURN) + "</svg>")
+
+
+def picture_html(key: str) -> str:
+    _kind, _sym, _what, label = PICTURES[key]
+    return (f'<span class="off-pic mascot-only">{picture_svg(key)}'
+            f'<span class="off-pic-for" aria-hidden="true">{_e(label)}</span></span>')
+
+
+SOURCES = ("Lakehouse", "Warehouse", "Mirrored databases")
+ENGINE_SUB = "Keys and links, checked against your rows"
+
+
 def diagram_html(heading: str = "One engine, four products", level: int = 2, hid: str = "offering-h") -> str:
-    """The product offering: the four products on the left, the one engine in the middle, what is built in Fabric on the right.
-    Each way is a link to its docs (keyboard focus, a visible ring). The list under it says the same in words."""
+    """The product offering as a data flow: your tables in Fabric -> one Krusgraph engine -> built in Fabric, the four
+    products above the engine as the ways to drive it. Each product is a link to its docs (keyboard focus, a visible ring).
+    The words under it, in a collapsed <details>, say the same for screen readers and anyone who prefers text."""
     ways = "".join(
         f'<li class="off-way {w["colour"]}" data-way="{w["key"]}"><a href="{val(w, "docs")}" class="off-way-a">'
+        f'{picture_html(w["key"])}'
         f'<span class="off-way-h"><span class="off-way-n">{_e(w["name"])}</span></span>'
         f'<span class="off-way-who">{_e(val(w, "who"))}</span>'
         f'<span class="off-way-data"><span class="off-k">Data passes:</span> {_e(w["data_short"])}</span></a></li>'
         for w in WAYS)
     built = "".join(f"<li>{_e(b)}</li>" for b in BUILT)
+    sources = "".join(f"<li>{_e(s)}</li>" for s in SOURCES)
     words = "".join(
         f'<li><a href="{val(w, "docs")}">{_e(w["name"])}</a>: for {_e(val(w, "who")[0].lower() + val(w, "who")[1:])} '
         f'Data passes: {_e(w["data_short"])}.</li>' for w in WAYS)
+    built_words = ", ".join(b if b.startswith(("API", "App")) else b.lower() for b in BUILT)
     return f"""<section class="wrap offering" id="offering" aria-labelledby="{hid}">
   <h{level} id="{hid}">{_e(heading)}</h{level}>
-  <p class="intro">The same Krusgraph engine reads your tables, proposes keys and links with the rule behind each, and checks them against your rows. It comes as four products; each builds the same items in Fabric.</p>
-  <figure class="off-fig" aria-describedby="offering-words-h">
-    <div class="off-grid">
-      <ul class="off-ways" aria-label="The four products">{ways}</ul>
-      {_arrow("off-a1", len(WAYS), True)}
-      <div class="off-engine"><div class="off-engine-box">{_logo()}<p class="off-engine-n">One Krusgraph engine</p><p class="off-engine-s">Keys, links and the rule behind each, checked against your rows</p></div></div>
-      {_arrow("off-a2", len(BUILT), False)}
-      <div class="off-built"><p class="off-built-h">Built in Microsoft Fabric</p><ul>{built}</ul></div>
+  <p class="intro">Your tables in Fabric go into one Krusgraph engine, which proposes keys and links with the rule behind each and checks them against your rows. What it builds lands in Fabric. Four products are the ways to drive it.</p>
+  <figure class="off-fig" aria-describedby="offering-words">
+    <div class="off-flow">
+      <div class="off-in"><p class="off-in-h">Choose how you work</p>
+        <ul class="off-ways" aria-label="The four products: the ways to drive the engine">{ways}</ul></div>
+      {_arrow("off-a0", down_only=True)}
+      <div class="off-src"><p class="off-col-h">Your tables in Fabric</p><ul>{sources}</ul></div>
+      {_arrow("off-a1")}
+      <div class="off-engine"><div class="off-engine-box">{_logo()}<p class="off-engine-n">One Krusgraph engine</p><p class="off-engine-s">{_e(ENGINE_SUB)}</p></div></div>
+      {_arrow("off-a2")}
+      <div class="off-built"><p class="off-col-h off-built-h">Built in Fabric</p><ul>{built}</ul></div>
     </div>
   </figure>
-  <div class="off-words">
-    <h{level + 1} id="offering-words-h" class="off-words-h">The diagram in words</h{level + 1}>
+  <details class="off-words">
+    <summary id="offering-words-h" class="off-words-h">The diagram in words</summary>
+    <div id="offering-words">
+    <p>Your tables in Fabric ({_e(", ".join(s.lower() for s in SOURCES))}) go into one Krusgraph engine, which proposes keys and links and checks them against your rows. What it builds lands in Fabric: {_e(built_words)}. The four products are the ways to drive the engine:</p>
     <ul class="off-words-l">{words}</ul>
-    <p class="muted tiny">All four use the same engine. What it builds in Fabric: {_e(", ".join(b.lower() if b != "API for GraphQL" else b for b in BUILT))}. Krusgraph for Fabric uses no AI model. <a href="{CHOOSE}">Which Krusgraph should I use?</a></p>
-  </div>
+    <p class="muted tiny">{_e(APP_NOTE)} Krusgraph for Fabric uses no AI model. <a href="{CHOOSE}">Which Krusgraph should I use?</a></p>
+    </div>
+  </details>
 </section>"""
 
 
@@ -276,7 +381,7 @@ def compare_html() -> str:
 
 def decide_html() -> str:
     items = "".join(f'<li class="{way(k)["colour"]}"><span class="dec-if">“{_e(q)}”</span> <span aria-hidden="true">→</span> '
-                    f'<a href="{val(way(k), "docs")}">{_e(way(k)["name"])}</a></li>' for q, k in DECIDE)
+                    f'<a href="{val(way(k), "docs")}">{_e(way(k)["name"])}</a>{_e(decide_suffix(q))}</li>' for q, k in DECIDE)
     return f'<ul class="decide">{items}</ul>'
 
 
@@ -303,7 +408,7 @@ def choose_md() -> str:
            "## Decision guide", ""]
     from .pages import site_url
     o = site_url()
-    out += [f"- \"{q}\" → [{way(k)['name']}]({o}{val(way(k), 'docs')})" for q, k in DECIDE]
+    out += [f"- \"{q}\" → [{way(k)['name']}]({o}{val(way(k), 'docs')}){decide_suffix(q)}" for q, k in DECIDE]
     out += ["", NO_AI, ""]
     for w in WAYS:
         out += [f"## {w['name']}", ""]
@@ -311,7 +416,7 @@ def choose_md() -> str:
             v = val(w, key)
             out.append(f"- **{label}:** " + ("; ".join(v) if isinstance(v, (list, tuple)) else v))
         out += [f"- **Docs:** {o}{val(w, 'docs')}", ""]
-    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", NOT_PRODUCTS, ""]
+    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, ""]
     return "\n".join(out)
 
 
