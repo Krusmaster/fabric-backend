@@ -128,7 +128,14 @@ az ad app permission list --id "$APP_ID" -o table
 Add `Tenant.Read.All` only if a Fabric administrator should see the setting checked. Without it the preflight says
 "could not check" and Create's own answer decides.
 
-## 7. What is never touched
+## 7. In Claude (MCP)
+
+`rayfin_connector` runs the same preflight before it reads the source. When the setting is off, it answers with the
+admin card, `kind: feature_disabled`. When the setting cannot be read, its answer is the connector files as before.
+The App package itself is the editor's output; adding a parameter would have taken the hosted tool listing over its
+size cap (`tests/test_tool_descriptions.py`).
+
+## 8. What is never touched
 
 - Create writes only the App item it makes, and only under a name no other item has. An App item of that name that
   Krusgraph did not make is refused (`already_exists`).

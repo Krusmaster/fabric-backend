@@ -18,8 +18,8 @@ next deploy.
   `rayfin/tsconfig.json`; CI runs `tsc --noEmit` on it. It also gives the `rayfin login`, `connector add` and
   `rayfin up` commands. Create makes the App item with Microsoft's documented call (Create App Backend,
   Item.ReadWrite.All) and records its id and plan. The pages are published with the package, because no App item
-  definition is documented. The MCP tool `rayfin_connector` takes `app=true` for the same package, with the same
-  preflight. Sources: `docs/RAYFIN-APP.md`.
+  definition is documented. The MCP tool `rayfin_connector` runs the same preflight first and answers with the admin card
+  when App items are off (no new parameter: the tool listing stays under its size cap). Sources: `docs/RAYFIN-APP.md`.
 - Round n177, follow-up (the founder, 9 November 2026, evening): **four product names** on `/choose`, in the diagram and
   in the workload docs: Krusgraph for Fabric (the Krusgraph Model item), Krusgraph for Claude (the MCP connector, which
   works in other MCP clients too), Krusgraph for Lovable and Krusgraph Open Source. The docs group is now *Krusgraph for

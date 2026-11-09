@@ -2982,6 +2982,10 @@
   "rest": [
    [
     "GET",
+    "/v1/admin/tenantsettings"
+   ],
+   [
+    "GET",
     "/v1/workspaces"
    ],
    [

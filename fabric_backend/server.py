@@ -840,26 +840,14 @@ def _relationships_lost(found, name, p, source_id, source_type, writable, tables
 @safe
 def rayfin_connector(workspace: _p.Workspace, source: _p.Source, connector: _p.Connector = "data", schema: _p.Schema = "dbo",
                      keys: _p.Keys = None, confirmed: _p.Confirmed = None,
-                     tables: _p.TablesOnly = None, relationships: _p.RayfinRelationships = True, app: _p.RayfinApp = False,
-                     ctx: Context = None) -> str:
+                     tables: _p.TablesOnly = None, relationships: _p.RayfinRelationships = True, ctx: Context = None) -> str:
     """Generates Rayfin (Fabric Apps) connector entity files and schema.ts from the plan, with keys and @one/@many
-    relationships. Requires workspace and source. Returns JSON {path: file content}. app=true: the App (Rayfin,
-    preview) package, after checking that Fabric App items are on. Changes nothing in Fabric.
+    relationships. Requires workspace and source. Returns JSON {path: file content}. Changes nothing in Fabric.
     Errors: {error, kind, hint}."""
-    if app:                                                    # n181: the preflight before anything else
-        from . import rayfin_app
-        headers = _headers(ctx)
-        pre, off = rayfin_app.first_check(headers, None, True)
-        if off:
-            return json.dumps(off, indent=2)
-        p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
-        out = rayfin_app.answer(p, info, headers, f"{rayfin_app._connector_name(p.schema.schema).replace('-', '_')}_app", None, True,
-                                None, workspace, pre=pre)
-        if "package" in out:                                   # the files themselves; the zip is the editor's download
-            import base64, io, zipfile
-            z = zipfile.ZipFile(io.BytesIO(base64.b64decode(out.pop("package")["zip_base64"])))
-            out["files"] = {n: z.read(n).decode() for n in z.namelist()}
-        return json.dumps(out, indent=2)
+    from . import rayfin_app                                   # n181: Fabric App items on? Checked before anything else
+    _pre, off = rayfin_app.first_check(_headers(ctx), None, True)
+    if off:
+        return json.dumps(off, indent=2)
     p, item, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)

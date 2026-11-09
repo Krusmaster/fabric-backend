@@ -230,10 +230,11 @@ def test_without_item_readwrite_all_create_is_refused_with_the_consent_steps(mak
 
 # ------------------------------------------------------------------ MCP -------------------------------------------
 
-def test_the_mcp_tool_checks_first_and_stops_when_off(monkeypatch):
+def test_rayfin_connector_checks_first_and_stops_when_off(monkeypatch):
     monkeypatch.setattr(server, "_headers", lambda ctx: {})
     monkeypatch.setattr(rayfin_app, "preflight", lambda h, s: {"status": "off", **rayfin_app.off_card("The tenant setting is off.")})
     read = []
     monkeypatch.setattr(server, "_source_inputs", lambda *a, **k: read.append(a))
-    out = json.loads(server.rayfin_connector(workspace="demo", source="shop_lh", schema="shop", app=True))
+    monkeypatch.setattr(server, "_plan", lambda *a, **k: read.append(a))
+    out = json.loads(server.rayfin_connector(workspace="demo", source="shop_lh", schema="shop"))
     assert out["kind"] == "feature_disabled" and out["admin_steps"] and read == []
