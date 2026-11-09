@@ -104,7 +104,7 @@ What this means for us:
 1. Most ontology building blocks **are** writable through the definition, in preview. Namespaces, inheritance,
    synonyms, rules and descriptions can be generated.
 2. Versioning, health, graph creation from an ontology, endorsement and "Approved for Copilot" are portal-only or
-   undocumented. We should not build on them yet. We ask Microsoft (section 5).
+   undocumented. We should not build on them yet. We ask Microsoft (section 6).
 3. Actions are not an ontology feature today. Rules are text.
 
 ---
@@ -143,6 +143,12 @@ Code read on 9 November 2026 at `a6b4c2a`.
 One thing to check, not a known bug: the Learn page names entity parts `entities/{namespace}#{name}.tmdl`. Krusgraph
 writes `entities/{name}.tmdl`. The live create on 28 October worked. We should run a Get Definition on that item and
 compare before we add namespaces.
+
+### Gaps to fix in a later round
+
+| Gap | What happens today | Fix | Effort |
+|---|---|---|---|
+| `create_ontology` overwrites by name | The MCP tool updates any ontology with the given name in place, including one Krusgraph did not create. An update replaces the whole definition, so entity types not in the plan leave it (`server.py:916` docstring). The Model item does not have this problem: it skips items it did not build (`workload_api.py`). | Before an update, check that the item was made by Krusgraph (its description or a recorded id), otherwise refuse with a clear error unless the caller says to replace it. The same check for the other creating tools that update by name. | S |
 
 ---
 
@@ -235,7 +241,51 @@ We make no claims about speed, compliance or endorsement. Microsoft does not end
 
 ---
 
-## 5. For the Microsoft meeting
+## 5. Krusgraph and Foundry IQ
+
+From the same talk. Foundry IQ's agentic RAG flow takes knowledge sources (SharePoint, Fabric IQ, ADLS Gen2, Work IQ,
+AI Search index, web, file, Azure SQL, Azure blob, OneLake, MCP) into a knowledge base. The knowledge base plans
+queries, searches the sources in parallel and merges the results. A Foundry agent or a custom agent reaches it through
+the Retrieve API or an MCP endpoint. One slide answered a mechanic's question from "Parts & inventory" (shown with the
+ontology icon), FAA rules, SOPs and code.
+
+### What Learn says (read 9 November 2026)
+
+| Fact | Status | Source |
+|---|---|---|
+| Knowledge source kinds: search index, Azure blob, OneLake (GA); Azure SQL, file, indexed SharePoint (preview, indexed); remote SharePoint, Fabric data agent, Fabric ontology, MCP server, Work IQ (preview, remote); web (GA, remote) | Mixed | Verified: https://learn.microsoft.com/en-us/azure/search/agentic-knowledge-source-overview (2026-09-01, updated 2026-09-17) |
+| Fabric ontology knowledge source: kind `fabricOntology`, takes `workspaceId` and `ontologyId`. Auth is on-behalf-of: the end user's token, scoped to `https://search.azure.com/.default`, goes in the `x-ms-query-source-authorization` header. Search service and Fabric in the same tenant. | Preview | Verified: https://learn.microsoft.com/en-us/azure/search/agentic-knowledge-source-how-to-fabric-ontology (2026-06-02) |
+| MCP server knowledge source: kind `mcpServer`. "The server must be reachable from Azure AI Search over HTTPS." You list the allowed tools by name; the knowledge base's model picks which to call and writes the arguments. | Preview (`2026-08-01-preview`) | Verified: https://learn.microsoft.com/en-us/azure/search/agentic-knowledge-source-how-to-mcp-server (2026-08-17) |
+| MCP server auth: `foundryConnection` (only when a Foundry Agent Service agent calls the knowledge base) or `storedHeaders` (static headers, "for static, long-lived credentials, such as API keys", "not intended for per-user credentials or rotating tokens"). Headers can also be passed per retrieve request. | Preview | Verified: same page |
+| MCP server auth with Entra on-behalf-of, managed identity or OAuth | Not documented for `mcpServer` | Unverified |
+| MCP transport (streamable HTTP or SSE) | Not stated | Unverified |
+| How a Foundry agent connects: the knowledge base's MCP endpoint `{search}/knowledgebases/{name}/mcp`, one tool `knowledge_base_retrieve`, a `RemoteTool` project connection with the project's managed identity | Preview | Verified: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/foundry-iq-connect (updated 2026-10-23) |
+| The "planning and review loop, parallel hybrid search, merged results" wording | From the slide | Unverified (not checked on Learn) |
+
+### Two paths
+
+**1. Indirect: the ontology Krusgraph builds is the Fabric IQ source.** Works with what exists today. `create_ontology`
+makes the ontology item; a Foundry IQ knowledge base adds it as a `fabricOntology` source. The answer then rests on
+keys and links that were checked against the rows. Nothing to build on our side. The user's own token flows through
+(OBO), so Fabric's permissions apply. Effort: none (a how-to page, S).
+
+**2. Direct: Krusgraph's read-only tools as an MCP knowledge source.** An agent asks "how does a work order connect to
+a part?" and the knowledge base calls `join_path`, `data_dictionary`, `lineage`, `plan_backend` or `validate_plan`.
+These are the tables' structure and the checks, not row content.
+
+What we would need:
+
+| Need | Today | Gap | Effort |
+|---|---|---|---|
+| A read-only endpoint with no Create tools | `KRUSGRAPH_READ_ONLY=1` removes every creating tool (`fabric_backend/switches.py`); `KRUSGRAPH_NO_ROW_VALUES=1` removes `sample_rows` and row values | Run it as a separate hosted endpoint | S |
+| Auth Foundry supports | Our hosted server takes the user's Entra token and exchanges it on-behalf-of the user for Fabric and SQL (`fabric_backend/entra.py` `OnBehalfOf`) | `mcpServer` documents only static headers or a Foundry connection. A static API key carries no user, so the tools could not read the lakehouse as the user. Options: a per-request header with the user's token (documented as possible, untested), or a per-tenant key tied to a workspace identity with read access (new, needs care) | M to L |
+| Tool choice by the knowledge base's model | Our tool descriptions are written for agents | Allow only a small list (`join_path`, `data_dictionary`, `lineage`); check that answers stay short | S |
+
+Recommendation: lead with path 1 now. Ask Microsoft about auth before building path 2.
+
+---
+
+## 6. For the Microsoft meeting
 
 **The story in five bullets**
 
@@ -253,7 +303,7 @@ We make no claims about speed, compliance or endorsement. Microsoft does not end
 3. Dry run: pick outputs (model, report, ontology, data agent); show what would be created.
 4. Create: build them; open the ontology and the report in Fabric.
 
-**Five questions to ask Microsoft**
+**Questions to ask Microsoft**
 
 1. Which ontology features are writable via the definition API, and which will stay portal-only (graph from
    ontology, named versions, data agent with an ontology source)? Is the `entities/{ns}#{name}.tmdl` naming required?
@@ -265,3 +315,6 @@ We make no claims about speed, compliance or endorsement. Microsoft does not end
    tables? Is writing the `Copilot/` folder through the semantic model definition supported?
 5. What does a Workload Hub listing need for a workload that creates IQ items, and is there a preview path for
    partners?
+6. For an MCP server knowledge source in Foundry IQ, which auth is planned beyond static headers and a Foundry
+   connection: will an end user's token (on-behalf-of) be passed to the MCP server, as it is for the Fabric ontology
+   source?
