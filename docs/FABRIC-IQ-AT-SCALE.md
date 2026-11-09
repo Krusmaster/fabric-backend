@@ -1,9 +1,11 @@
 # Krusgraph and Fabric IQ at scale
 
-Round n182. A design note, docs only, nothing implemented here. Written 9 November 2026, after a Microsoft talk on
-Fabric IQ, ahead of a meeting with Microsoft on 11 or 13 November.
+Round n182. A design note, docs only, nothing implemented here. Written 9 November 2026, ahead of a meeting with Microsoft on
+11 or 13 November.
 
-The audience's comment at the talk: all of this is complex. Fabric IQ gives the building blocks. Krusgraph builds them
+This is Krusgraph's own view. Every statement about Microsoft products rests on public sources cited here; anything
+we could not check in a public source is marked Unverified. Our observation: Fabric IQ has many building blocks, and
+assembling them is work. Fabric IQ gives the building blocks. Krusgraph builds them
 for you from your tables and checks them against your rows.
 
 How to read the status columns:
@@ -40,7 +42,7 @@ The definition parts in the TMDL format: `.platform`, `database.tmdl`, `model.tm
 partitions and measures), `entities/{namespace}#{name}.tmdl`, `relationships.tmdl`, `entityRelationships.tmdl`,
 `expressions.tmdl`, `namespaces/*.tmdl`, `rules/*.tmdl`.
 
-| Building block (Microsoft's slide) | Status | Writable via REST / definition? | Source |
+| Building block | Status | Writable via REST / definition? | Source |
 |---|---|---|---|
 | Ontology item, Items API | Preview | Yes | Verified: ontology/items (2026-09-23) |
 | Namespaces | Preview | Yes: `namespaces/*.tmdl`, references as `ns#name` | Verified: ontology-definition |
@@ -71,7 +73,7 @@ Overall status:
   https://learn.microsoft.com/en-us/fabric/iq/connectors/microsoft-365-copilot-overview (2026-09-15).
 - The public preview announcement at Ignite 2025 (Fabric blog, "From data platform to intelligence platform:
   introducing Microsoft Fabric IQ"): Unverified, blog not reachable.
-- "Fabric IQ with Power BI" as a plugin in Copilot Cowork, as on the slide: no Learn page found. Unverified.
+- Fabric IQ as a plugin in Copilot Cowork: no Learn page found. Unverified.
 
 ### 1.2 Graph and data agent
 
@@ -104,7 +106,7 @@ What this means for us:
 1. Most ontology building blocks **are** writable through the definition, in preview. Namespaces, inheritance,
    synonyms, rules and descriptions can be generated.
 2. Versioning, health, graph creation from an ontology, endorsement and "Approved for Copilot" are portal-only or
-   undocumented. We should not build on them yet. We ask Microsoft (section 6).
+   undocumented. We should not build on them yet. We ask Microsoft (section 7).
 3. Actions are not an ontology feature today. Rules are text.
 
 ---
@@ -157,7 +159,7 @@ compare before we add namespaces.
 The idea: a team does not want one ontology. It wants one per data product, and a shared core across them. Krusgraph
 proposes each piece from checked data, shows it as a diff, and builds it on Create.
 
-### 3.1 Microsoft's four "when to use the ontology" cases
+### 3.1 Four common ontology cases (our framing)
 
 | Case | How Krusgraph helps today | What is missing |
 |---|---|---|
@@ -213,16 +215,16 @@ Three proof points that are true today:
 3. Nothing changes in Fabric until Create: every creating tool is a dry run by default, and the Model item never
    writes over an item of the same name that it did not build (`workload_api.py`).
 
-Microsoft's "best starting point" slide, and what Krusgraph builds from one plan:
+Common needs, the Fabric item we see as the natural starting point for each, and what Krusgraph builds from one plan:
 
-| Requirement (Microsoft's slide) | Best starting point | Krusgraph builds it today? |
+| Need | Starting point in Fabric | Krusgraph builds it today? |
 |---|---|---|
 | Store, transform, process data | Lakehouse or warehouse | Yes: silver and gold notebooks, pipeline, views |
 | Power BI reports, trusted KPIs | Semantic model | Yes: semantic model and a report |
 | Shared entities and relationships for AI agents | Ontology | Yes, one source per ontology (preview item) |
 | Relationship paths, dependencies, impact | Graph, optionally from an ontology | Partly: our own path finding (`join_path`); Fabric's graph is made from the ontology in the portal |
 | Natural-language questions over a domain | Data agent, with ontology when useful | Yes: data agent over the source; ontology as its source not via API |
-| Apps on the data | (not on the slide) | API for GraphQL today; app (Rayfin, preview) in n181 |
+| Apps on the data | API for GraphQL, App (preview) | API for GraphQL today; app (Rayfin, preview) in n181 |
 | Budgets and forecasts | Fabric Planning | Out of scope |
 
 Today vs direction:
@@ -243,11 +245,10 @@ We make no claims about speed, compliance or endorsement. Microsoft does not end
 
 ## 5. Krusgraph and Foundry IQ
 
-From the same talk. Foundry IQ's agentic RAG flow takes knowledge sources (SharePoint, Fabric IQ, ADLS Gen2, Work IQ,
-AI Search index, web, file, Azure SQL, Azure blob, OneLake, MCP) into a knowledge base. The knowledge base plans
-queries, searches the sources in parallel and merges the results. A Foundry agent or a custom agent reaches it through
-the Retrieve API or an MCP endpoint. One slide answered a mechanic's question from "Parts & inventory" (shown with the
-ontology icon), FAA rules, SOPs and code.
+Foundry IQ puts knowledge sources (indexed ones such as OneLake and remote ones such as a Fabric ontology or an MCP
+server) behind a knowledge base. A Foundry agent or a custom agent reaches the knowledge base through the Retrieve API
+or its MCP endpoint (sources below). An example of the kind of question this serves: a technician asks about a part,
+and the answer combines parts and inventory data (an ontology) with procedures and rules (documents).
 
 ### What Learn says (read 9 November 2026)
 
@@ -260,7 +261,6 @@ ontology icon), FAA rules, SOPs and code.
 | MCP server auth with Entra on-behalf-of, managed identity or OAuth | Not documented for `mcpServer` | Unverified |
 | MCP transport (streamable HTTP or SSE) | Not stated | Unverified |
 | How a Foundry agent connects: the knowledge base's MCP endpoint `{search}/knowledgebases/{name}/mcp`, one tool `knowledge_base_retrieve`, a `RemoteTool` project connection with the project's managed identity | Preview | Verified: https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/foundry-iq-connect (updated 2026-10-23) |
-| The "planning and review loop, parallel hybrid search, merged results" wording | From the slide | Unverified (not checked on Learn) |
 
 ### Two paths
 
@@ -285,7 +285,50 @@ Recommendation: lead with path 1 now. Ask Microsoft about auth before building p
 
 ---
 
-## 6. For the Microsoft meeting
+## 6. Data products: where Krusgraph fits
+
+Krusgraph's view, based on the public pages cited below.
+
+### Fabric gives the governance foundation
+
+| Fabric feature | What it does | Source |
+|---|---|---|
+| OneLake catalog | Explore, Govern and Secure experiences: find items, see governance status and recommended actions | Verified: https://learn.microsoft.com/en-us/fabric/governance/onelake-catalog-overview (2026-08-26) |
+| Domains and subdomains | Group workspaces by business area; subdomains managed by the parent domain's admins | Verified: https://learn.microsoft.com/en-us/fabric/governance/domains (2025-05-01, updated 2026-09-29) |
+| Endorsement | Promoted, certified, master data (portal; no set API found) | Verified: section 1.3 |
+| Sensitivity labels | Labels and policies from Microsoft Purview Information Protection on Fabric items | Verified: https://learn.microsoft.com/en-us/fabric/governance/information-protection (2026-07-13) |
+| Purview with Fabric | Information protection, DLP, audit, insider risk, governance of Copilot and agents | Verified: https://learn.microsoft.com/en-us/fabric/governance/microsoft-purview-fabric (2026-08-26) |
+| Purview Unified Catalog data products | "A group of data assets, such as tables, files, and Power BI reports, with a defined use case", with owners, in one governance domain, accessed through an access policy | Verified: https://learn.microsoft.com/en-us/purview/unified-catalog-data-products (2024-04-08, updated 2025-11-18) |
+| Lineage view | Items in one workspace and their connections; impact analysis for other workspaces | Verified: https://learn.microsoft.com/en-us/fabric/governance/lineage (updated 2026-06-04) |
+| Public Fabric roadmap (roadmap.fabric.microsoft.com) | Could not be opened from this session | Unverified |
+
+### Krusgraph builds the data product on top
+
+The Krusgraph Model item is the data product's manifest: its sources, the checked keys and links, the outputs with
+their ids, and (to add, section 3.2 piece 2) owner, version and contract. From one checked plan it builds the semantic
+model, ontology, data agent, API and app. Fabric's catalog, domains, labels and Purview then govern those items as
+they govern any other.
+
+### What Krusgraph can add now, next to governance
+
+| Addition | What it gives | Today | Where |
+|---|---|---|---|
+| Descriptions and synonyms | Glossary-like terms on the model and the ontology, so Copilot and people read the same meaning | Partial: rule text on entities and links, descriptions on measures; synonyms not written yet | `ontology.py`, `semantic_model.py`; section 3.2 piece 3 |
+| Lineage from the plan | Which objects build on which tables and columns, read from the workspace | Done (read only) | `lineage` tool, `server.py:2512` |
+| A health signal | Keys and links passed, failed or not checked; schema changes since last night and what they reach | Partial (not one health line yet) | `evidence.py`, `monitor.py`; section 3.2 piece 4 |
+| KPI and OKR style views | An App over the checked plan with key figures, list pages and charts | Preview (n181) | `rayfin.py`, `rayfin_app.py`, docs/RAYFIN-APP.md |
+| Catalog descriptions and tags | What Krusgraph knows, written as item descriptions and tags | Draft only, calls not sent | `catalog.py` |
+
+### Design principle
+
+Align with Fabric's catalog, domains and access flows. Do not build a parallel governance layer. Krusgraph writes into
+what Fabric offers: item descriptions, tags, domains, the semantic model and ontology definitions. When Fabric adds a
+native place for something Krusgraph keeps today (a contract, an owner, a health status, a version), Krusgraph writes
+into it instead of competing with it.
+
+---
+
+## 7. For the Microsoft meeting
 
 **The story in five bullets**
 
@@ -318,3 +361,5 @@ Recommendation: lead with path 1 now. Ask Microsoft about auth before building p
 6. For an MCP server knowledge source in Foundry IQ, which auth is planned beyond static headers and a Foundry
    connection: will an end user's token (on-behalf-of) be passed to the MCP server, as it is for the Fabric ontology
    source?
+7. How do you want partners to build data products so they fit with Purview and the OneLake catalog: which item
+   metadata, domains and access flows should a partner workload write to?
