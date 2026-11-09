@@ -1,4 +1,4 @@
-"""Round n177: Krusgraph in Fabric in the docs, which Krusgraph to use when (/choose), the product offering diagram on the
+"""Round n177: Krusgraph for Fabric in the docs, which Krusgraph to use when (/choose), the product offering diagram on the
 home page and /choose, /start's "Use it in Fabric", and the founder's site fixes of 8-9 November 2026 (the film in full
 screen on a phone, the chat demo's end and status words, the /check map, the dbt flow in the chat and on the card).
 The browser half runs tests/n177_browser.js against a local server and the card."""
@@ -24,7 +24,7 @@ from fabric_backend.infer import plan
 
 ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / "fabric_backend" / "static"
-WAY_NAMES = ["Krusgraph in Claude", "Krusgraph in other agents", "Run Krusgraph yourself", "Krusgraph in Fabric"]
+WAY_NAMES = ["Krusgraph for Fabric", "Krusgraph for Claude", "Krusgraph for Lovable", "Krusgraph Open Source"]
 
 
 @pytest.fixture
@@ -51,14 +51,15 @@ def test_the_four_ways_in_the_founders_order_with_every_question_answered():
             assert v and (isinstance(v, str) or all(isinstance(x, str) and x for x in v)), (w["key"], key)
     # the decision guide, in the founder's words, each to its way
     assert offering.DECIDE == (("I already use Claude", "claude"), ("We work in Fabric and do not want an AI chat", "fabric"),
-                               ("We build an app in Lovable or code in VS Code", "agents"), ("Nothing may leave our Azure", "self"))
+                               ("We build an app in Lovable", "lovable"), ("We code in VS Code", "claude"),
+                               ("Nothing may leave our Azure", "self"))
 
 
 def test_the_fabric_item_says_plainly_it_uses_no_ai_and_where_data_passes():
     f = offering.way("fabric")
     assert "no AI" in f["data_short"] and "uses no AI model" in f["data"] and "No AI." in f["how"]
-    assert offering.NO_AI.startswith("The Krusgraph Model item in Fabric uses no AI model")
-    assert "Anthropic" in offering.way("claude")["data"] and "AI provider" in offering.way("agents")["data"]
+    assert offering.NO_AI.startswith("Krusgraph for Fabric (the Krusgraph Model item) uses no AI model")
+    assert "Anthropic" in offering.way("claude")["data"] and "AI provider" in offering.way("lovable")["data"]
     assert offering.way("self")["data"].startswith("Only your environment")
     # the workload's own code calls no AI model
     for f in ("workload_api.py", "workload_host.py"):
@@ -68,19 +69,18 @@ def test_the_fabric_item_says_plainly_it_uses_no_ai_and_where_data_passes():
 
 def test_status_lines_say_no_more_than_tool_status_and_live_test():
     claude = next(c for c in ts.CLIENTS if c.name == "Claude")
-    assert offering.val(offering.way("claude"), "status") == f"{claude.status} since {claude.works_since} (docs/LIVE-TEST.md)."
+    assert offering.val(offering.way("claude"), "status").startswith(f"Claude: {claude.status} since {claude.works_since} (docs/LIVE-TEST.md).")
     fabric = offering.val(offering.way("fabric"), "status")
     assert "Not yet among the runs docs/LIVE-TEST.md records" in fabric and "planned, not available" in fabric
     live = (ROOT / "docs" / "LIVE-TEST.md").read_text(encoding="utf-8")
     assert "Krusgraph Model" not in live and "workload" not in live.lower()      # if a run is recorded, say it here too
     me = offering.val(offering.way("self"), "status")
     assert ts.LOCAL_TRIED_NOTE in me and all(t in me for t in ts.LOCAL_TRIED_TOOLS)
-    agents = offering.val(offering.way("agents"), "status")
-    if not offering._agent_names():                                           # client registration off: only Claude signs in
-        assert agents.startswith("Not supported on the hosted service today")
-    for c in ([] if not offering._agent_names() else ts.CLIENTS):
-        if c.path == "/mcp/connect" and c.status != "Tested end to end":
-            assert c.name in agents and "Experimental" in agents
+    claude_status = offering.val(offering.way("claude"), "status")
+    if not offering._mcp_clients():                                           # client registration off: only Claude signs in
+        assert "Other MCP clients" not in claude_status
+    lovable = offering.val(offering.way("lovable"), "status")
+    assert "Lovable's own Fabric connector: Tested end to end" in lovable
     # no speed or compliance claims anywhere in the offering
     text = offering.choose_md().lower()
     for word in ("faster", "fast ", "seconds", "gdpr", "compliant", "compliance", "certified", "secure", "soc 2", "iso"):
@@ -105,7 +105,7 @@ def test_choose_page_has_the_guide_the_diagram_and_the_comparison(client):
     assert "<h1>Which Krusgraph should I use?</h1>" in h
     for q, k in offering.DECIDE:
         assert f"“{q}”" in h
-    assert 'id="offering"' in h and 'class="table-wrap choose-table"' in h and "No AI in the Fabric item." in h
+    assert 'id="offering"' in h and 'class="table-wrap choose-table"' in h and "No AI in Krusgraph for Fabric." in h
     table = h[h.index("choose-table"):]
     for _key, label in offering.ROWS:
         assert f'<th scope="row">{label}</th>' in table
@@ -143,7 +143,7 @@ def test_start_has_use_it_in_fabric_next_to_claude_and_other_agents(client):
     h = client.get("/start").text
     paths = re.findall(r'<a class="card soft path-card[^"]*" href="([^"]+)"[^>]*><h2 class="h3">([^<]+)</h2>', h)
     assert [t for _, t in paths] == ["Explore without an account", "Connect Claude or another agent", "Use it in Fabric"]
-    assert dict((t, href) for href, t in paths)["Use it in Fabric"] == "/docs/krusgraph-in-fabric"
+    assert dict((t, href) for href, t in paths)["Use it in Fabric"] == "/docs/krusgraph-for-fabric"
     assert 'connect-fabric' not in h                     # the client chooser keeps the founder's order of n80 (Claude, Lovable, others)
     assert 'id="which"' in h
     md = client.get("/start.md").text
@@ -151,10 +151,10 @@ def test_start_has_use_it_in_fabric_next_to_claude_and_other_agents(client):
 
 
 def test_docs_have_krusgraph_in_fabric_with_its_pages(client):
-    paths = [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-in-fabric"]
-    assert paths == ["/docs/krusgraph-in-fabric", "/docs/krusgraph-in-fabric/what-the-krusgraph-model-item-does",
-                     "/docs/krusgraph-in-fabric/add-it-to-your-fabric", "/docs/krusgraph-in-fabric/permissions-in-plain-words",
-                     "/docs/krusgraph-in-fabric/network-hosts", "/docs/krusgraph-in-fabric/troubleshooting"]
+    paths = [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-for-fabric"]
+    assert paths == ["/docs/krusgraph-for-fabric", "/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does",
+                     "/docs/krusgraph-for-fabric/add-it-to-your-fabric", "/docs/krusgraph-for-fabric/permissions-in-plain-words",
+                     "/docs/krusgraph-for-fabric/network-hosts", "/docs/krusgraph-for-fabric/troubleshooting"]
     group = _plain(client.get(paths[0]).text)
     assert "uses no AI model" in group and "Workload Hub is planned and not available" in group
     add = client.get(paths[2]).text
@@ -173,11 +173,11 @@ def test_docs_have_krusgraph_in_fabric_with_its_pages(client):
     for p in paths:
         assert client.get(p).status_code == 200
     # the docs menu lists the group, and the "more" list has /choose
-    assert 'href="/docs/krusgraph-in-fabric"' in client.get("/docs").text and 'href="/choose"' in client.get("/docs").text
+    assert 'href="/docs/krusgraph-for-fabric"' in client.get("/docs").text and 'href="/choose"' in client.get("/docs").text
 
 
 def test_the_screenshots_are_the_editors_labelled_synthetic_and_served(client):
-    h = client.get("/docs/krusgraph-in-fabric/what-the-krusgraph-model-item-does").text
+    h = client.get("/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does").text
     imgs = re.findall(r'<img src="(/static/workload-shots/[^"]+\.webp)" alt="([^"]+)"', h)
     assert [Path(s).stem for s, _ in imgs] == [n for n, _ in offering.SHOTS]
     for src, alt in imgs:
@@ -294,12 +294,12 @@ def test_browser_the_diagram_renders_stacks_on_a_phone_and_every_way_is_a_focusa
     assert set(browser_site["linkStatus"].values()) == {200}, browser_site["linkStatus"]
     c = browser_site["choose"]
     assert c["heads"][1:] == WAY_NAMES and c["rows"] == [label for _, label in offering.ROWS]
-    assert c["decide"][1] == "“We work in Fabric and do not want an AI chat” → Krusgraph in Fabric"
+    assert c["decide"][1] == "“We work in Fabric and do not want an AI chat” → Krusgraph for Fabric"
 
 
 def test_browser_start_and_the_docs_screenshots(browser_site):
     s = browser_site["start"]
-    assert s["paths"][-1] == "Use it in Fabric" and s["fabricHref"] == "/docs/krusgraph-in-fabric" and s["short"]
+    assert s["paths"][-1] == "Use it in Fabric" and s["fabricHref"] == "/docs/krusgraph-for-fabric" and s["short"]
     shots = browser_site["shots"]
     assert [Path(x["src"]).stem for x in shots] == [n for n, _ in offering.SHOTS]
     assert all(x["w"] == 1280 and "Synthetic data" in x["cap"] for x in shots)
@@ -339,14 +339,45 @@ def test_browser_the_dbt_card_draws_the_flow_and_opens_one_box_at_a_time(tmp_pat
     assert "- name: customers" in a["open"][0] and "unique" in a["open"][0]
 
 
-def test_with_client_registration_on_the_agents_way_names_the_tested_clients(monkeypatch):
+def test_with_client_registration_on_krusgraph_for_claude_names_the_other_mcp_clients(monkeypatch):
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", "1")
-    if not offering._agent_names():
+    if not offering._mcp_clients():
         pytest.skip("client registration could not be turned on here")
-    s = offering.val(offering.way("agents"), "status")
+    s = offering.val(offering.way("claude"), "status")
+    names = set(offering._mcp_clients())
     for c in ts.CLIENTS:
-        if c.path == "/mcp/connect" and c.status == "Tested end to end" and c.works_since:
+        if c.path == "/mcp/connect" and c.status == "Tested end to end" and c.works_since and c.name in names:
             assert f"{c.name} (since {c.works_since})" in s
-        elif c.path == "/mcp/connect":
+        elif c.path == "/mcp/connect" and c.status != "Tested end to end":
             assert c.name in s and "Experimental" in s
-    assert offering.val(offering.way("agents"), "docs") == "/docs/get-started/other-mcp-clients"
+    assert "/mcp/connect" in offering.val(offering.way("claude"), "who")
+    assert "In Lovable's chat (MCP): Tested end to end since 30 October 2026." in offering.val(offering.way("lovable"), "status")
+
+
+# ------------------------------------------------------------------ n177 follow-up: the four product names -------------
+
+def test_the_four_product_names_appear_on_the_which_krusgraph_page(client):
+    """The founder, 9 November 2026 (evening): Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable and
+    Krusgraph Open Source, on /choose (the guide, the diagram, the table), its Markdown twin and the workload docs; the old
+    names are gone; one logo (the site's own), no product logo, and no partner logo."""
+    h = client.get("/choose").text
+    plain = _plain(h)
+    for name in WAY_NAMES:
+        assert name in plain, name
+        assert plain.count(name) >= 3, name                             # the guide or the text, the diagram, the table
+    md = client.get("/choose.md").text
+    assert all(f"## {n}" in md for n in WAY_NAMES)
+    for old in ("Krusgraph in Claude", "Krusgraph in other agents", "Run Krusgraph yourself", "Krusgraph in Fabric"):
+        assert old not in plain and old not in md, old
+    assert "ways to try Krusgraph, not products" in plain and "features of the products" in plain and "Marketplace" in plain
+    box = h[h.index('id="offering"'):]
+    box = box[:box.index("</section>")]
+    assert box.count('class="logo-mark"') == 1 and pages._LOGO in box       # the one Krusgraph logo, on the engine
+    assert "off-i" not in box and "data-mascot" not in box and "<img" not in box
+    for path in [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-for-fabric"]:
+        t = _plain(client.get(path).text)
+        assert "Krusgraph in Fabric" not in t, path
+    assert "Krusgraph for Fabric" in _plain(client.get("/docs/krusgraph-for-fabric").text)
+    # partner names are plain text: no file on the site is a Microsoft, Anthropic or Lovable logo
+    names = [p.name.lower() for p in STATIC.rglob("*") if p.is_file()]
+    assert not [n for n in names if re.search(r"microsoft|anthropic|claude|lovable|fabric-logo", n)], names

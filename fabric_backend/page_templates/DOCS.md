@@ -610,16 +610,17 @@ and the documentation each draft rests on: [docs/DATABRICKS.md](https://github.c
 Databricks' own managed MCP servers (Genie, Databricks SQL, Unity Catalog functions) answer questions and run SQL;
 {{PRODUCT}} is the part that works out how the tables relate. {{PRODUCT}} is not affiliated with Databricks.
 
-## Krusgraph in Fabric
+## Krusgraph for Fabric
 
-{{PRODUCT}} also comes as an item inside Microsoft Fabric: **Krusgraph Model**. It is the same engine as the connector
-in Claude, without a chat: you click through the review and the build in Fabric's own editor. It uses **no AI model**:
+**Krusgraph for Fabric** is {{PRODUCT}} as an item inside Microsoft Fabric, the **Krusgraph Model**. It is the same
+engine as Krusgraph for Claude, without a chat: you click through the review and the build in Fabric's own editor. It uses **no AI model**:
 the keys and links come from the engine's named rules, the checks count your rows, and nothing goes to an AI provider.
 A data agent it creates is Fabric's own item, and Fabric's AI answers there when someone asks it.
 
 Today it is a pilot for selected organisations (Fabric allows up to 20 tenants for a workload that is not listed yet),
 on request. A listing in Fabric's Workload Hub is planned and not available. Which of the four ways to use
-{{PRODUCT}} suits you: [Which Krusgraph should I use?](/choose)
+{{PRODUCT}} suits you (Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable or Krusgraph Open Source):
+[Which Krusgraph should I use?](/choose)
 
 ### What the Krusgraph Model item does
 
@@ -680,7 +681,7 @@ output, with the steps for your administrator.
 <!-- figure:workload-permissions -->
 <!-- /figure -->
 
-The item never deletes anything, never runs or schedules a notebook or pipeline, and keeps no table contents. What is
+Krusgraph for Fabric never deletes anything, never runs or schedules a notebook or pipeline, and keeps no table contents. What is
 stored and for how long is on [For your IT department](/it#permissions); to withdraw consent, your administrator
 removes the app under **Enterprise applications** in Entra.
 
@@ -701,7 +702,7 @@ Both are hosted in Azure, Sweden Central. Fabric (`app.fabric.microsoft.com`) an
 
 | You see | What to do |
 | --- | --- |
-| Krusgraph Model keeps loading, or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A web filter blocks a domain it does not know yet. Ask IT to allow the two [network hosts](/docs/krusgraph-in-fabric/network-hosts), then reload the Fabric tab. |
+| Krusgraph Model keeps loading, or `ERR_SSL_VERSION_OR_CIPHER_MISMATCH` for `workload.krusgraph.com` | A web filter blocks a domain it does not know yet. Ask IT to allow the two [network hosts](/docs/krusgraph-for-fabric/network-hosts), then reload the Fabric tab. |
 | Krusgraph Model is not under + New item | Your organisation is not in the pilot yet, the tenant setting for workloads not validated by Microsoft is off for you, or the workspace is not on a capacity. [Pilot in Microsoft Fabric](/pilot/fabric) has the steps. |
 | "{{PRODUCT}} is not turned on for your organisation yet." | Your tenant id is not on the pilot's list yet. Nothing was read or changed. Write to us with the tenant id it shows. |
 | A card says `consent` | Your sign-in lacks the permission the card names. Your administrator adds it to the workload's Entra app and consents; the card lists the steps. Then reload the Fabric tab. |

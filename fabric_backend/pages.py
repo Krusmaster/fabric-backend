@@ -56,7 +56,7 @@ PAGES = {
     "/pilot/fabric": ("pilot_fabric.html", "Pilot in Microsoft Fabric — {{PRODUCT}}",
                       "What a pilot organisation's administrator does to use the Krusgraph Model item in Microsoft Fabric: send the tenant id, turn on the tenant setting for workloads not validated by Microsoft, grant admin consent, allow two addresses, then New item.", "partners"),
     "/choose": ("choose.html", "Which Krusgraph should I use? — {{PRODUCT}}",
-                "Krusgraph in Claude, in other AI agents, run yourself, or as the Krusgraph Model item in Microsoft Fabric: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
+                "Krusgraph for Fabric, Krusgraph for Claude, Krusgraph for Lovable or Krusgraph Open Source: who each is for, what it needs, where your data passes, its status and what it lacks today.", "product"),
     "/use-cases": ("use_cases.html", "Use cases — {{PRODUCT}}",
                    "Start from an undocumented lakehouse, a join to check or an app to build. Three synthetic examples drawn as maps show what {{PRODUCT}} proposes and what still needs your judgement.", "usecases"),
     "/use-cases/build": ("use_cases_build.html", "What you can build from a plan — {{PRODUCT}}",
@@ -1236,7 +1236,7 @@ def _with_toc(rendered: str) -> str:
 # rendered, so every line of it is on exactly one page and /docs.md is the same text as before. The intro and "Why" are
 # /docs itself (the overview); each other "##" section is a group page (its heading and the lines before its first "###")
 # and each "###" a page under it. The menu labels of the groups are below; the rest of the menu is the headings.
-DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph in Fabric", "Reference",
+DOCS_GROUPS = ["Overview", "Get started", "Concepts", "Explore and check", "Build from a plan", "Krusgraph for Fabric", "Reference",
                "Hosting and permissions"]
 DOCS_MORE = [("/choose", "Which Krusgraph should I use?"), ("/start", "The set-up guide"), ("/it", "For your IT department"), ("/lovable", "Use with Lovable")]
 

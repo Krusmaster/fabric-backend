@@ -117,7 +117,7 @@ async function site(base) {
       fabricHref: document.querySelector('.path-fabric').getAttribute('href'),
       short: !!document.querySelector('#which .decide'),
     }));
-    await page.goto(base + '/docs/krusgraph-in-fabric/what-the-krusgraph-model-item-does', { waitUntil: 'networkidle' });
+    await page.goto(base + '/docs/krusgraph-for-fabric/what-the-krusgraph-model-item-does', { waitUntil: 'networkidle' });
     out.shots = await page.evaluate(async () => {
       const imgs = [...document.querySelectorAll('figure.shot img')];
       await Promise.all(imgs.map((i) => i.decode().catch(() => null)));

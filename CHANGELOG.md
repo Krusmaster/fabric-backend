@@ -9,6 +9,13 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n177, follow-up (the founder, 9 November 2026, evening): **four product names** on `/choose`, in the diagram and
+  in the workload docs: Krusgraph for Fabric (the Krusgraph Model item), Krusgraph for Claude (the MCP connector, which
+  works in other MCP clients too), Krusgraph for Lovable and Krusgraph Open Source. The docs group is now *Krusgraph for
+  Fabric* (`/docs/krusgraph-for-fabric`). There is one Krusgraph logo, the site's own, on the engine: no product icons,
+  no mascot per product, and partner names as plain text only. `/choose` says that the chat demo and /check are ways to
+  try it, that the drift monitor, the SAP pack and the dbt export are features, and that buying through Microsoft
+  Marketplace is planned.
 - Round n177: **Which Krusgraph should I use?** A new page, `/choose` (and `/choose.md`), compares the four ways: in
   Claude, in other AI agents over MCP, run it yourself, and the Krusgraph Model item in Fabric. For each it says who it
   is for, what you need, how you work, what it builds, where the data passes, what is free or paid (only what /pricing

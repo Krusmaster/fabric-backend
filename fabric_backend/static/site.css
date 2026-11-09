@@ -1519,7 +1519,6 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 @media (prefers-reduced-motion:reduce){.off-way-a{transition:none}.off-way-a:hover,.off-way-a:focus-visible{transform:none}}
 .off-way-h{display:flex;align-items:center;gap:8px}
 .off-way-n{font-family:var(--font-head);font-weight:600;font-size:18px;line-height:1.2;text-decoration:underline;text-decoration-color:var(--c);text-decoration-thickness:2px;text-underline-offset:4px}
-.off-i{width:22px;height:22px;flex:none;fill:none;stroke:var(--ci);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .off-way-who{font-size:14.5px;line-height:1.45;color:var(--muted)}
 .off-way-data{font-size:13.5px;line-height:1.4}
 .off-k{font-weight:700;color:var(--ci)}
@@ -1529,9 +1528,7 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .off-a2 .off-fan{height:auto;align-self:center;aspect-ratio:40/240}
 .off-down{display:none;width:24px;height:32px}
 .off-engine-box{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
-.off-engine-g{width:120px;height:84px;display:block;margin:0 auto 6px}
-.off-e-l{fill:none;stroke:var(--line-strong);stroke-width:2.5;stroke-linecap:round}
-.off-e-n{stroke:var(--card);stroke-width:2}.off-e-n.coral{fill:var(--coral)}.off-e-n.sage{fill:var(--sage)}.off-e-n.lav{fill:var(--lav)}.off-e-n.mustard{fill:var(--mustard)}
+.off-engine-box .logo-mark{width:72px;height:72px;display:block;margin:0 auto 6px}   /* the one Krusgraph logo (n177) */
 .off-engine-n{font-family:var(--font-head);font-weight:600;font-size:20px;line-height:1.15;margin:0 0 4px}
 .off-engine-s{font-size:13.5px;color:var(--muted);margin:0;line-height:1.4}
 .off-built{background:var(--card-2);border:1.5px dashed var(--line-strong);border-radius:var(--radius-s);padding:14px 16px}
