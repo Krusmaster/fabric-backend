@@ -1138,7 +1138,7 @@ def plain_steps(steps: list[str], chosen: dict) -> list[str]:
     return out
 
 
-def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | None = None) -> list[str]:
+def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | None = None, jobs: dict | None = None) -> list[str]:
     """What is still to do, as the tool's own answer says it, in plain words (plain_steps). The report's "refresh it once"
     stays only when this Create's model was not refreshed (failed, or skipped for want of a permission): a model Create
     refreshed, or one that existed before, needs no such step on the report's card."""
@@ -1151,6 +1151,8 @@ def _portal_steps(kind: str, a: dict, chosen: dict | None = None, built: dict | 
     if kind in ("semantic_model", "ontology"):
         return plain_steps(list(a.get("after_creation") or []), chosen)
     if kind in ("silver_notebook", "gold_views"):
+        if chosen.get("pipeline") and (jobs or {}).get("run_once"):   # n197: run by this Create's pipeline, not "Run all"
+            return [f"It runs in {chosen['pipeline']}: Create started one run of it (Run once); follow it on the pipeline's card."]
         return plain_steps(list(a.get("run") or []), chosen)
     if kind == "pipeline":                                         # n185: what Run once and Schedule did not do already
         res = a.get("result") or {}
@@ -1649,7 +1651,7 @@ def run_build_many(req: dict) -> dict:
                     card.pop("confirm_update", None)
                     if card["created"]:
                         mark_items(workspace, headers, card["created"], mark)
-                    card["portal_steps"] = _portal_steps(kind, answer, chosen, built)
+                    card["portal_steps"] = _portal_steps(kind, answer, chosen, built, chosen_jobs(req))
                     if kind == "data_agent" and card.get("agent"):    # n185: the state outputs.json keeps; Copilot's portal step
                         for c in card["created"]:
                             c["published"] = bool(card["agent"].get("published"))

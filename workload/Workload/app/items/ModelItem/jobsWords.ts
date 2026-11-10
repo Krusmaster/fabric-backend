@@ -11,8 +11,10 @@
 import { OutputChoice, PipelineJobsRecord } from "./ModelItemDefinition";
 import { AgentOptions, BuildCard, CreatedRef, JobsCard, PipelineJobs, PipelineRun, ScheduleChoice } from "./engineClient";
 
-export const POLL_MS = 15_000;
-export const MAX_WAIT_MS = 10 * 60_000;
+export const POLL_MS = 10_000;
+/** n197: a demo pipeline (silver, gold, check) can take a quarter of an hour on a small capacity; the run is followed
+ * this long, and a reopened item follows it again */
+export const MAX_WAIT_MS = 45 * 60_000;
 export const DEFAULT_TIME_ZONE = "Europe/Stockholm";
 /** The time zones the engine maps to Fabric's Windows ids (pipeline_jobs.WINDOWS_ZONES). */
 export const TIME_ZONES = [
@@ -74,6 +76,7 @@ export function runHeadline(run: PipelineRun): { tone: "success" | "danger" | "i
   if (run.status === "Succeeded") return { tone: "success", text: `The run succeeded${run.duration ? ` in ${run.duration}` : ""}.` };
   if (run.status === "Failed") return { tone: "danger", text: `The run failed${run.why ? `: ${run.why}` : ""}.` };
   if (run.status === "NotStarted") return { tone: "warning", text: run.why ?? "The run did not start." };
+  if (run.fabric_status === "NotStarted") return { tone: "info", text: "Queued in Fabric: the run waits for the capacity to start it." };
   return { tone: "info", text: run.note ?? "The run is going on in Fabric." };
 }
 
@@ -126,4 +129,11 @@ export const LAYER_LABEL: Record<AgentOptions["layer"], string> = {
 /** The Copilot tick is only offered once Publish is ticked; unticking Publish unticks Copilot too. */
 export function withPublish(a: AgentOptions, publish: boolean): AgentOptions {
   return { ...a, publish, copilot: publish ? a.copilot : false };
+}
+
+/** n197 (item 2): the permissions the run's card uses, listed on the card: only those already granted for Run once. */
+export function runPermissionLine(j: JobsCard): string {
+  const p = j.permission;
+  return `Permissions: starting and reading the run use ${p.scope}${p.or ? ` (or ${p.or})` : ""} on the workload app, the one Run once ` +
+    "already needs (Fabric's Job Scheduler API: Run On Demand Item Job, Get Item Job Instance, and the pipeline's activity runs); nothing else.";
 }

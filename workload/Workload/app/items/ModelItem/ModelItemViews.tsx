@@ -16,6 +16,7 @@ import {
   Checkbox,
   Field,
   Input,
+  Link,
   MessageBar,
   MessageBarBody,
   Radio,
@@ -63,6 +64,7 @@ import {
   validName,
 } from "./buildWords";
 import { FlowView } from "./FlowView";
+import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
 import { ICON_SIZE, NOTICES, itemIcon } from "./fabricIcons";
@@ -521,6 +523,8 @@ function Problem({ card }: { card: BuildCard }) {
  * the Update's dry run, the update itself. */
 export interface CardActions {
   onUpdate?: (card: BuildCard) => void;
+  /** n197: send this card's step again (a red card, no answer, or held back by a failed run) */
+  onRetry?: (card: BuildCard) => void;
   onNewName?: (card: BuildCard) => void;
   busy?: boolean;
   /** n181: the App's ticks as stored in outputs.json, and how to change them */
@@ -795,8 +799,30 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
           </ul>
         </>
       )}
-      {c.status === "running" && <Spinner size="tiny" label="Creating in Fabric…" />}
-      {c.already_built && <Body1>Already in the workspace, built from this plan by an earlier Create; nothing was written again.</Body1>}
+      {c.status === "running" && <Spinner size="tiny" label={progressLabel(c)} />}
+      {c.status === "running" && c.progress?.state === "waiting_capacity" && (
+        <MessageBar intent="warning" layout="multiline" aria-label="Waiting for capacity">
+          <MessageBarBody>
+            {c.progress.words ?? "Waiting for capacity: Fabric is throttling the capacity; the step is tried again by itself."}{" "}
+            {c.progress.capacity_app && <Link href={c.progress.capacity_app} target="_blank">The Capacity Metrics app</Link>}
+          </MessageBarBody>
+        </MessageBar>
+      )}
+      {c.status === "running" && c.progress?.state === "pending_fabric" && (
+        <MessageBar intent="info" layout="multiline" aria-label="Still running in Fabric">
+          <MessageBarBody>{c.progress.words ?? "Still running in Fabric; Krusgraph follows it."}</MessageBarBody>
+        </MessageBar>
+      )}
+      {c.after_run_words && c.after_run === "waiting" && <Body1>{c.after_run_words}</Body1>}
+      {c.already_built && <Body1>{c.dry_run ? "Already built from this plan by an earlier Create; Create skips it." :
+        (c.answer?.note as string | undefined) ?? "Already in the workspace, built from this plan by an earlier Create; nothing was written again."}</Body1>}
+      {!c.dry_run && props.onRetry && canRetry(c) && (
+        <div className="krusgraph-actions">
+          <Button appearance="primary" disabled={props.busy} onClick={() => props.onRetry?.(c)}>
+            Try again
+          </Button>
+        </div>
+      )}
       {choose && (
         <>
           <Body1>
@@ -865,6 +891,7 @@ export function ProductView(props: {
             <Body1>
               {itemTypeLabel(x.type, x.output)} {x.name}
               {x.would ? ` (${x.would === "update" ? "would be updated" : "would be created"})` : ""}
+              {(x as { earlier?: boolean }).earlier ? " (earlier Create)" : ""}
             </Body1>
           </li>
         ))}
@@ -955,8 +982,13 @@ export function ResultView(props: {
   onOpen: (item: OpenLink["item"]) => void;
   mascotsOn: boolean;
   timeZone?: string;
+  /** n197: send every red, unanswered or stopped card again */
+  onCreateRest?: () => void;
+  /** n197: one line when the saved state or the engine could not be read on reopening (Fabric busy) */
+  notice?: string;
 } & CardActions) {
   const a = props.answer;
+  const rest = a && !running(a.outputs) ? toRetry(a.outputs) : [];
   const live = !!a && (a.outputs.length === 0 || running(a.outputs));
   // n184: the finish, from outputs.json (the editor writes it as soon as every card has its answer, and reopening reads it)
   const last = live ? undefined : readLastCreate(props.outputs.last_create);
@@ -966,6 +998,18 @@ export function ResultView(props: {
   return (
     <div className="krusgraph-view">
       <Title3>Built in Fabric</Title3>
+      {props.notice && (
+        <MessageBar intent="warning" aria-label="Fabric is busy">
+          <MessageBarBody>{props.notice}</MessageBarBody>
+        </MessageBar>
+      )}
+      {rest.length > 0 && props.onCreateRest && (
+        <div className="krusgraph-actions">
+          <Button appearance="primary" disabled={props.busy} onClick={() => props.onCreateRest?.()}>
+            {`Create the rest (${rest.length})`}
+          </Button>
+        </div>
+      )}
       {last ? (
         <FinishView last={last} mascotsOn={props.mascotsOn} timeZone={props.timeZone} />
       ) : props.mascotsOn ? (
@@ -980,7 +1024,8 @@ export function ResultView(props: {
       {a?.flow && <FlowView flow={a.flow} mascotsOn={false} idPrefix="kg-flow-result" />}
       {a ? (
         a.outputs.map((c) => (
-          <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy} />
+          <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy}
+            onRetry={props.onRetry} />
         ))
       ) : (
         <section>

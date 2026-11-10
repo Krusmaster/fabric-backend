@@ -216,9 +216,14 @@ export function openLinks(items: CreatedItem[]): OpenLink[] {
 
 /** The card's title: what Create would do, or why it will not. */
 export function cardTitle(c: BuildCard): string {
+  if (c.status === "waiting" && c.after_run === "waiting") return `${c.label} ${c.name}: waits for the pipeline's run`;
   if (c.status === "waiting") return `${c.label} ${c.name}: waiting`;
+  if (c.status === "running" && c.progress?.state === "waiting_capacity") return `${c.label} ${c.name}: waiting for capacity`;
+  if (c.status === "running" && c.progress?.state === "pending_fabric") return `${c.label} ${c.name}: still running in Fabric`;
   if (c.status === "running") return `${c.label} ${c.name}: creating in Fabric…`;
   if (c.status === "lost") return `${c.label} ${c.name}: no answer yet`;
+  if (c.after_run === "stopped") return `${c.label} ${c.name}: not built, the pipeline's run did not succeed`;
+  if (c.already_built && c.dry_run) return `${c.label} ${c.name}: already built, skipped`;
   if (c.already_built) return `${c.label} ${c.name}: already built`;
   if (needsChoice(c)) return `${c.label} ${c.name}: ${c.built_from!.words}`;
   if (c.refusal) return `${c.label} ${c.name}: not built`;
@@ -430,7 +435,8 @@ export async function createEach(
     let card: BuildCard;
     try {
       const a = await send(o, made);
-      card = { ...(a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind))), status: "done" };
+      const got = a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind));
+      card = { ...got, status: got.after_run === "waiting" ? "waiting" : "done" };   // n197: held for the pipeline's run
       const drawn = before(o.kind)?.answer?.report;
       if (o.kind === "report" && drawn) card = { ...card, dry_run_visuals: visualCount(drawn) };   // n184: (d)
       made = mergeCreated(made as CreatedItem[], a.created ?? card.created ?? []);
@@ -448,12 +454,18 @@ export function previewLine(a: ManyAnswer): string {
   const ok = a.outputs.length - a.refused;
   const total = a.outputs.length;
   const verbs = a.outputs.filter((c) => !c.refusal && !c.answer?.error);
-  const upd = verbs.filter((c) => c.would === "update").length;
+  const skipped = verbs.filter((c) => c.already_built).length;    // n197: what Create skips, as Create says it
+  const upd = verbs.filter((c) => c.would === "update" && !c.already_built && !needsChoice(c)).length;
   if (!ok) return "Nothing can be built as it stands: each card below says why.";
+  const jobs = a.outputs.find((c) => c.output === "pipeline")?.jobs;
+  const runs = jobs && jobs.permission?.granted !== false
+    ? [jobs.run_once ? "runs the pipeline once" : "", jobs.schedule ? "sets its schedule" : ""].filter(Boolean)
+    : [];
   return (
-    `This is the dry run: nothing exists yet. Create makes ${ok} of ${total}` +
+    `This is the dry run: nothing is written yet. Create makes ${ok - skipped} of ${total}` +
     (upd ? ` (${upd} updated in place)` : "") +
-    ". Nothing is run or scheduled."
+    (skipped ? `; ${skipped} already built from this plan, skipped` : "") +
+    (runs.length ? `, then ${runs.join(" and ")}.` : ". Nothing is run or scheduled.")
   );
 }
 

@@ -17,7 +17,7 @@
  * them in order and keeps the created ids and the product in outputs.json. Re-opened, the item shows its product and
  * offers Update where the output's tool updates in place, a new name where it does not (a report).
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { NotificationType } from "@ms-fabric/workload-client";
 import {
@@ -35,7 +35,7 @@ import { callNotificationOpen } from "../../controller/NotificationController";
 import { navigateToItem } from "../../controller/NavigationController";
 import { ItemEditor, Ribbon, RibbonAction, createSaveAction } from "../../components/ItemEditor";
 import * as engine from "./engineClient";
-import { lastCreateOf, readLastCreate, withCard, withRunEnd } from "./createWords";
+import { lastCreateOf, readLastCreate, withCard } from "./createWords";
 import { rememberWorkloadOf } from "../../controller/ConfigurationController";
 import {
   DefinitionError,
@@ -49,8 +49,13 @@ import {
   toParts,
 } from "./ModelItemDefinition";
 import {
-  OpenLink, afterCreate, choicesFor, createEach, createLabel, failedCard, mergeCreated, newNameFor, runUpdate, schemaToUse, toRequests,
+  OpenLink, afterCreate, choicesFor, createEach, createLabel, failedCard, mergeCreated, pendingCard, requestFor, runUpdate, schemaToUse,
+  toRequests,
 } from "./buildWords";
+import {
+  CreateRunRecord, Known, heldCard, knownOf, markEarlier, namesWithOneSuffix, newCreateId, readRun, settlePending, startRun, stoppedCard,
+  toRetry, waitsForRun, withOperation, withPending, withProgress,
+} from "./createRun";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
@@ -61,6 +66,17 @@ import {
 import { AppChoices } from "./engineClient";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
+const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
+const NOTHING_KNOWN: Known = { answers: {}, running: {}, progress: {} };
+/** n197: what a reopened item says, in one line, when Fabric or the engine is too busy to answer */
+export const BUSY_LINE = "Fabric is busy, try again in a few minutes.";
+
+/** n197: an answer that means "busy" (throttled capacity, no answer, a network that did not get through). */
+export function isBusy(e: unknown): boolean {
+  const kind = e instanceof engine.EngineCallError ? e.answer.kind : "";
+  const text = e instanceof engine.EngineCallError ? `${e.answer.error} ${e.status}` : String((e as Error)?.message ?? e);
+  return ["throttled", "rate_limited", "no_answer", "fabric_unavailable", "timeout"].includes(kind) || /429|throttl|busy|capacity|fetch|timeout|503/i.test(text);
+}
 
 export function ModelItemEditor(props: PageProps) {
   const { workloadClient } = props;
@@ -82,6 +98,10 @@ export function ModelItemEditor(props: PageProps) {
   const [preview, setPreview] = useState<engine.ManyAnswer>();
   const [result, setResult] = useState<engine.ManyAnswer>();
   const [updating, setUpdating] = useState(false);
+  /** n197: a Create (or its follow-up) is going on: Create is not offered twice */
+  const [creating, setCreating] = useState(false);
+  /** n197: one line on the result when the saved state or the engine could not be read */
+  const [notice, setNotice] = useState<string>();
   const [setView, setSetView] = useState<(v: string) => void>();
   const view = def.item.view;
 
@@ -133,6 +153,18 @@ export function ModelItemEditor(props: PageProps) {
     setView?.("review");
   }
 
+  /** n197: the review read again in the background on reopening an item that has outputs; the result stays in view.
+   * A busy Fabric is one line, never a page without its flow. */
+  async function replanQuietly(d: ModelDefinition) {
+    try {
+      const a = await engine.review(workloadClient, sourceRequest(d), d.review, {});
+      setMap(a.map);
+      setDef((x) => ({ ...exactSchema(x, a.schema_used), review: a.review }));
+    } catch (e) {
+      if (isBusy(e)) setNotice(BUSY_LINE);
+    }
+  }
+
   // ---------------------------------------------------------------- load
   useEffect(() => {
     (async () => {
@@ -148,14 +180,28 @@ export function ModelItemEditor(props: PageProps) {
         setChoices(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? got.item.displayName,
           loaded.source ? { displayName: got.item.displayName, created: loaded.outputs.created } : undefined));
         setProduct({ on: !!loaded.outputs.product, name: loaded.outputs.product?.name ?? got.item.displayName });
+        // n197: an item with outputs (or a Create in progress) opens on its result: the summary, the flow and the cards
+        const hasResult = loaded.outputs.created.length > 0 || !!readRun(loaded.outputs.create_run);
+        if (hasResult) {
+          defRef.current = { ...loaded, item: { ...loaded.item, view: "result" } };
+          metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
+          setDef(defRef.current);
+        }
         setIsLoading(false);
         if (loaded.source) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName, loaded.source.schema);
-        if (loaded.source && loaded.review) {
+        if (hasResult && loaded.source) {
+          if (loaded.review) void replanQuietly(loaded);
+          await reopen(defRef.current, got.item.id);
+          setDirty(false);
+        } else if (loaded.source && loaded.review) {
           await plan({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
           setDirty(false);
         }
       } catch (e) {
-        setError({ error: e instanceof DefinitionError ? e.message : `The item could not be opened: ${e?.message ?? e}`, kind: "definition" });
+        // n197: Fabric throttled or failed the read of the item's saved state: one line, not a page without its flow
+        const busy = isBusy(e) || /429|throttl|busy|capacity/i.test(String(e?.message ?? e));
+        setError({ error: e instanceof DefinitionError ? e.message : busy ? BUSY_LINE : `The item could not be opened: ${e?.message ?? e}. ${BUSY_LINE}`,
+          kind: busy ? "fabric_busy" : "definition" });
         setIsLoading(false);
       }
     })();
@@ -273,56 +319,159 @@ export function ModelItemEditor(props: PageProps) {
     go("preview");
   }
 
-  /** n179: one request per output in the engine's order, each card with its own progress and result. A closed
-   * connection costs one card ("no answer yet"), never the others; the created ids are saved after each output, so a
-   * re-run skips what is built and retries only the rest. Then the data product and the flow, from the created ids. */
-  async function create() {
+  // ---------------------------------------------------------------- n197: Create in the background
+  // Each step answers at once with an operation id (engineClient.call reads it until it ends); before a step is sent its
+  // items are recorded as pending in outputs.json and its operation id is kept in create_run, so a reload, a closed tab
+  // or a phone asleep loses nothing: reopening reads the item's operations and goes on with the same run.
+  const defRef = useRef<ModelDefinition>(def);
+  defRef.current = def;
+  const metaRef = useRef(itemMeta);
+  metaRef.current = itemMeta;
+  const cardsRef = useRef<engine.BuildCard[]>([]);
+  const saving = useRef<Promise<unknown>>(Promise.resolve());
+
+  /** setDef and a save after the previous save (two saves never race); resolves when this one has been sent. */
+  function persist(next: ModelDefinition): Promise<unknown> {
+    defRef.current = next;
+    setDef(next);
+    const meta = metaRef.current;
+    if (!meta) return saving.current;
+    saving.current = saving.current
+      .then((): Promise<unknown> => callUpdateItemDefinition(workloadClient, meta.id, toParts(next) as never, false))
+      .catch((): undefined => undefined);
+    return saving.current;
+  }
+
+  function update(fn: (d: ModelDefinition) => ModelDefinition): Promise<unknown> {
+    return persist(fn(defRef.current));
+  }
+
+  function showCards(cards: engine.BuildCard[]) {
+    cardsRef.current = cards;
+    setResult((r) => ({ ...(r ?? EMPTY_RESULT), outputs: cards, refused: cards.filter((c) => c.refusal || c.answer?.error).length } as engine.ManyAnswer));
+  }
+
+  function replaceCard(card: engine.BuildCard) {
+    showCards(cardsRef.current.map((x) => (x.output === card.output ? card : x)));
+  }
+
+  /** One Create step: the answer the engine already has (a reopened item), the operation still running (read again,
+   * never sent twice), or a new request with this output's items recorded as pending first. */
+  async function sendStep(o: engine.OutputRequest, made: engine.CreatedRef[], outputs: engine.OutputRequest[], src: engine.SourceRequest,
+    known: Known, extra: engine.StepExtra = {}): Promise<engine.ManyAnswer> {
+    let a: engine.ManyAnswer | undefined = extra.refresh_only ? undefined : known.answers[o.kind];
+    if (!a) {
+      const resume = extra.refresh_only ? undefined : known.running[o.kind];
+      if (!resume && !extra.refresh_only) {
+        await update((d) => ({ ...d, outputs: { ...d.outputs, pending: withPending(d.outputs.pending, o, outputs, src.schema, new Date().toISOString()) } }));
+      }
+      const d = defRef.current;
+      const runId = readRun(d.outputs.create_run)?.id;
+      a = await engine.buildOne(workloadClient, src, o, outputs, d.review, made, undefined,
+        { schedule_ids: scheduleIds(d.outputs.pipeline_jobs), item_id: metaRef.current?.id, ...(runId ? { create_id: runId } : {}),
+          pending: d.outputs.pending ?? [], ...extra },
+        {
+          resume,
+          onStarted: (id) => {
+            if (extra.refresh_only) return;
+            void update((x) => {
+              const r = readRun(x.outputs.create_run);
+              return r ? { ...x, outputs: { ...x.outputs, create_run: withOperation(r, o.kind, id) } } : x;
+            });
+          },
+          onProgress: (st) => {
+            const now = cardsRef.current.find((c) => c.output === o.kind);
+            if (now && now.status === "running") replaceCard(withProgress(now, st));
+          },
+        });
+    }
+    const card = a.outputs[0];
+    const made2 = a.created ?? card?.created ?? [];
+    await update((d) => {
+      const x = { ...d, outputs: { ...d.outputs, outputs: d.outputs.outputs.length ? d.outputs.outputs : choices,
+        created: mergeCreated(d.outputs.created, made2), ...(card ? { pending: settlePending(d.outputs.pending, card, made2) } : {}) } };
+      return card?.output === "pipeline" && card.jobs?.run?.run_id ? withJobRecords(x, [card]) : x;   // the run, kept at once
+    });
+    return a;
+  }
+
+  /** n179/n197: one step per output in the engine's order, each card with its own progress and result. A lost answer
+   * costs one card, never the others; the created ids and the pending items are saved as each step ends. Then the data
+   * product and the flow, from the created ids, and the pipeline's run followed with what waits for it. */
+  async function create(resumeFrom?: { run: CreateRunRecord; known: Known }) {
     setError(undefined);
     setBusy(undefined);
-    const src = sourceRequest(def);
-    const outputs = toRequests(choices);
-    const productReq = product.on ? { name: product.name.trim() } : null;
-    const base = { dry_run: false, order: outputs.map((o) => o.kind), left_out_by_review: [] as engine.LeftOut[], refused: 0, note: "" };
-    setResult({ ...base, outputs: [] } as engine.ManyAnswer);
+    const d0 = defRef.current;
+    const src = sourceRequest(d0);
+    const outputs = resumeFrom ? resumeFrom.run.outputs : toRequests(choices);
+    const productReq = product.on ? { name: product.name.trim() } : d0.outputs.product ? { name: d0.outputs.product.name } : null;
+    const run = resumeFrom?.run ?? startRun(newCreateId(), outputs, new Date().toISOString());
+    const known: Known = resumeFrom?.known ?? { answers: {}, running: {}, progress: {} };
+    const held = waitsForRun(outputs);
+    await persist({ ...d0, item: { ...d0.item, view: "result" }, outputs: { ...d0.outputs, outputs: resumeFrom ? d0.outputs.outputs : choices,
+      create_run: run } });
+    showCards([]);
     go("result");
-    let d = def;
-    const run = await createEach(
-      outputs,
-      def.outputs.created,
-      async (o, created) => {
-        const a = await engine.buildOne(workloadClient, src, o, outputs, def.review, created, undefined,
-          { schedule_ids: scheduleIds(def.outputs.pipeline_jobs) });
-        if ((a.created ?? []).length) {               // kept at once: a later lost answer cannot lose these ids
-          d = { ...d, outputs: { ...d.outputs, outputs: choices, created: mergeCreated(d.outputs.created, a.created) } };
-          setDef(d);
-          await callUpdateItemDefinition(workloadClient, itemMeta.id, toParts(d) as never, false);
-        }
-        return a;
-      },
-      (cards) => setResult((r) => ({ ...(r ?? base), outputs: cards, refused: cards.filter((c) => c.refusal || c.answer?.error).length } as engine.ManyAnswer)),
-      preview
-    );
-    // n184 (addition 2): the finish is kept at once, so the banner shows and reopening the item shows it again
-    d = { ...d, outputs: { ...d.outputs, last_create: lastCreateOf(run.cards, itemMeta?.displayName ?? "", new Date().toISOString()) } };
-    setDef(d);
-    let a: engine.ManyAnswer = {
-      ...base, outputs: run.cards, created: run.cards.flatMap((c) => c.created ?? []),
-      refused: run.cards.filter((c) => c.refusal || c.answer?.error).length,
-    } as engine.ManyAnswer;
-    if (run.cards.some((c) => c.created?.length)) {
+    setCreating(true);
+    try {
+      const done = await createEach(
+        outputs,
+        defRef.current.outputs.created,
+        async (o, made) => {
+          if (held.includes(o.kind) && !known.answers[o.kind]) {
+            return { outputs: [heldCard(pendingCard(o, "waiting", preview?.outputs.find((c) => c.output === o.kind)))], created: [] } as unknown as engine.ManyAnswer;
+          }
+          const ran = resumeFrom && o.kind === "pipeline" && !known.answers.pipeline ? runOf(resumeFrom.run) : undefined;
+          if (ran) {
+            // resumed without the engine's answer: the run this Create started is followed, never started a second time
+            const a = await sendStep({ ...o, jobs: { ...(o.jobs ?? { schedule: null }), run_once: false } }, made, outputs, src, known);
+            const c = a.outputs[0];
+            return { ...a, outputs: [{ ...c, jobs: c?.jobs ? { ...c.jobs, run_once: true, run: ran } : c?.jobs }] } as engine.ManyAnswer;
+          }
+          return sendStep(o, made, outputs, src, known);
+        },
+        (cards) => {
+          // the operation's own state while a step runs (a reopened item: waiting for capacity, still in Fabric)
+          showCards(cards.map((c) => (c.status === "running" && known.progress[c.output] ? withProgress(c, known.progress[c.output]!) : c)));
+        },
+        preview
+      );
+      await finishCreate(done.cards, src, outputs, productReq);
+      await followRun(cardsRef.current, src, outputs);
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  /** n197: the pipeline run this Create started, as outputs.json recorded it (none: not started yet). */
+  function runOf(r: CreateRunRecord): engine.PipelineRun | undefined {
+    const rec = (defRef.current.outputs.pipeline_jobs?.runs ?? []).filter((x) => (x.at ?? "") >= r.at).slice(-1)[0];
+    return rec ? { status: rec.status as engine.PipelineRun["status"], run_id: rec.run_id, started: rec.started } : undefined;
+  }
+
+  /** The data product and the flow of the whole Create, the stored finish, the run and schedule records. */
+  async function finishCreate(cards: engine.BuildCard[], src: engine.SourceRequest, outputs: engine.OutputRequest[], productReq: { name: string } | null) {
+    const thisRun = cards.flatMap((c) => c.created ?? []);
+    let a: engine.ManyAnswer = { ...EMPTY_RESULT, outputs: cards, created: thisRun,
+      refused: cards.filter((c) => c.refusal || c.answer?.error).length } as engine.ManyAnswer;
+    if (thisRun.length) {
       try {
-        const f = await engine.finish(workloadClient, src, outputs, def.review, productReq, run.created);
-        a = { ...a, product: f.product, flow: f.flow, row_check: f.row_check };
+        const f = await engine.finish(workloadClient, src, outputs, defRef.current.review, productReq, defRef.current.outputs.created);
+        const product = f.product ? { ...f.product, items: markEarlier(f.product.items as engine.CreatedRef[], thisRun) } : undefined;
+        a = { ...a, product: product as engine.DataProduct | undefined, flow: f.flow, row_check: f.row_check };
       } catch {
         /* the cards stand on their own; the product and the flow come with the next Create */
       }
     }
     setResult(a);
-    d = { ...d, item: { ...d.item, view: "result" as const }, outputs: afterCreate(d.outputs, choices, a, new Date().toISOString()) };
-    d = withJobRecords(d, run.cards);                            // n185: run and schedule ids, for a later cleanup
-    setDef(d);
-    await save(d);
-    await followRun(d, run.cards, src, outputs);
+    cardsRef.current = cards;
+    const at = new Date().toISOString();
+    let d = defRef.current;
+    d = { ...d, outputs: { ...afterCreate(d.outputs, d.outputs.outputs.length ? d.outputs.outputs : choices, a, at),
+      last_create: lastCreateOf(cards, metaRef.current?.displayName ?? "", at) } };
+    if (a.product && d.outputs.product) d = { ...d, outputs: { ...d.outputs, product: { ...d.outputs.product, items: markEarlier(d.outputs.product.items, thisRun) } } };
+    d = withJobRecords(d, cards);                                // n185: run and schedule ids, for a later cleanup
+    await persist(d);
   }
 
   /** n185: the schedule Create set and the run it started, into outputs.json (pipeline_jobs). */
@@ -336,14 +485,22 @@ export function ModelItemEditor(props: PageProps) {
     return { ...d, outputs: { ...d.outputs, pipeline_jobs: rec } };
   }
 
-  /** n185: the run Create started, read every POLL_MS for at most MAX_WAIT_MS (no other card waits for it). When it
-   * ends, its card, the finish and outputs.json say so; the data agent Krusgraph made is sent again with the run's end,
-   * so it reads the silver tables and, if Publish was ticked and the run succeeded, is published. */
-  async function followRun(d0: ModelDefinition, cards: engine.BuildCard[], src: engine.SourceRequest, outputs: engine.OutputRequest[]) {
+  /** n185/n197: the run Create started, read every POLL_MS for at most MAX_WAIT_MS (no other card waits for it). When
+   * it has succeeded: the model this Create made is refreshed once, the report waiting for the run is made, and the data
+   * agent is sent again (its examples checked against the filled tables; published if Publish was ticked). When it
+   * failed: those steps stop, their cards say why in plain words and offer Try again. */
+  async function followRun(cards: engine.BuildCard[], src: engine.SourceRequest, outputs: engine.OutputRequest[]) {
     const card = cards.find((c) => c.output === "pipeline");
     const pipe = pipelineItem(card);
     let run = card?.jobs?.run;
-    if (!card || !pipe || !run?.run_id || runFinished(run)) return;
+    const markDone = () => update((d) => {
+      const r = readRun(d.outputs.create_run);
+      return r ? { ...d, outputs: { ...d.outputs, create_run: { ...r, finished: true } } } : d;
+    });
+    if (!card || !pipe || !run?.run_id) {
+      await markDone();
+      return;
+    }
     const until = Date.now() + MAX_WAIT_MS;
     while (!runFinished(run) && Date.now() < until) {
       await new Promise((r) => setTimeout(r, POLL_MS));
@@ -353,34 +510,139 @@ export function ModelItemEditor(props: PageProps) {
       } catch {
         continue;                                               // one lost read is not the run's end; the bound still holds
       }
-      replaceCard({ ...card, jobs: { ...card.jobs!, run } });
+      const now = cardsRef.current.find((c) => c.output === "pipeline") ?? card;
+      replaceCard({ ...now, jobs: { ...now.jobs!, run } });
     }
-    if (!runFinished(run)) run = stillRunning(run!);
-    replaceCard({ ...card, jobs: { ...card.jobs!, run } });
-    const at = new Date().toISOString();
-    let d = { ...d0, outputs: { ...d0.outputs, pipeline_jobs: recordRun(d0.outputs.pipeline_jobs, pipe, run!, at),
-      last_create: withRunEnd(readLastCreate(d0.outputs.last_create), run!.status) } };
-    const agentOut = outputs.find((o) => o.kind === "data_agent");
-    if (agentOut && agentAfterRun(cards, run!)) {
-      try {
-        const a = await engine.buildOne(workloadClient, src, agentOut, outputs, d.review, d.outputs.created, undefined,
-          { schedule_ids: scheduleIds(d.outputs.pipeline_jobs), after_run: { status: run!.status } });
-        const agentCard = a.outputs.find((c) => c.output === "data_agent");
-        if (agentCard) {
-          replaceCard({ ...agentCard, status: "done" });
-          d = { ...d, outputs: { ...d.outputs, created: mergeCreated(d.outputs.created, agentCard.created ?? []),
-            last_create: withRunEnd(readLastCreate(d.outputs.last_create), run!.status, !!agentCard.agent?.published) } };
+    if (!runFinished(run)) {
+      run = stillRunning(run!);
+      const now = cardsRef.current.find((c) => c.output === "pipeline") ?? card;
+      replaceCard({ ...now, jobs: { ...now.jobs!, run } });
+      await update((d) => ({ ...d, outputs: { ...d.outputs, pipeline_jobs: recordRun(d.outputs.pipeline_jobs, pipe, run!, new Date().toISOString()),
+        last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", new Date().toISOString()) } }));
+      return;                                                   // reopening the item follows it again (create_run not finished)
+    }
+    const ok = run!.status === "Succeeded";
+    const why = run!.why ?? (ok ? "" : run!.status === "NotStarted" ? "it did not start" : "it failed");
+    const made = () => defRef.current.outputs.created;
+    // 1. the model this Create made, refreshed once
+    const model = cardsRef.current.find((c) => c.output === "semantic_model");
+    if (model && model.refresh?.status === "planned" && model.created?.length) {
+      if (ok) {
+        try {
+          const a = await sendStep(outputs.find((o) => o.kind === "semantic_model")!, made(), outputs, src, NOTHING_KNOWN, { refresh_only: true });
+          const r = a.outputs[0]?.refresh;
+          if (r) replaceCard({ ...model, refresh: r });
+        } catch (e) {
+          replaceCard({ ...model, refresh: { status: "failed", reason: e instanceof engine.EngineCallError ? e.answer.error : String(e) } });
         }
+      } else {
+        replaceCard({ ...model, refresh: { status: "not_run", reason: `the pipeline's run did not succeed (${why})` } });
+      }
+    }
+    // 2. what waited for the run (the report)
+    for (const held of cardsRef.current.filter((c) => c.after_run === "waiting")) {
+      const o = outputs.find((x) => x.kind === held.output);
+      if (!o) continue;
+      if (!ok) {
+        replaceCard(stoppedCard(held, why));
+        continue;
+      }
+      replaceCard({ ...pendingCard(o, "running"), after_run: undefined });
+      try {
+        const a = await sendStep(requestFor(o, outputs, made()), made(), outputs, src, NOTHING_KNOWN);
+        replaceCard({ ...a.outputs[0], status: "done" });
+      } catch (e) {
+        replaceCard(failedCard(o, e, held));
+      }
+    }
+    // 3. the data agent, with the run's end
+    const agentOut = outputs.find((o) => o.kind === "data_agent");
+    if (agentOut && agentAfterRun(cardsRef.current, run!)) {
+      try {
+        const a = await sendStep(agentOut, made(), outputs, src, NOTHING_KNOWN, { after_run: { status: run!.status } });
+        const agentCard = a.outputs.find((c) => c.output === "data_agent");
+        if (agentCard) replaceCard({ ...agentCard, status: "done" });
       } catch {
         /* the agent stays as Create left it; its card says so */
       }
     }
-    setDef(d);
-    await save(d);
+    const pipeNow = cardsRef.current.find((c) => c.output === "pipeline");
+    if (pipeNow) replaceCard({ ...pipeNow, jobs: { ...pipeNow.jobs!, run } });
+    const at = new Date().toISOString();
+    await update((d) => {
+      const r = readRun(d.outputs.create_run);
+      return { ...d, outputs: { ...d.outputs, created: mergeCreated(d.outputs.created, cardsRef.current.flatMap((c) => c.created ?? [])),
+        pipeline_jobs: recordRun(d.outputs.pipeline_jobs, pipe, run!, at),
+        last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", readLastCreate(d.outputs.last_create)?.at ?? at),
+        ...(r ? { create_run: { ...r, finished: true } } : {}) } };
+    });
   }
 
-  function replaceCard(card: engine.BuildCard) {
-    setResult((r) => (r ? { ...r, outputs: r.outputs.map((x) => (x.output === card.output ? card : x)) } : r));
+  /** n197 (2b): Try again on one card: its step sent again (what Fabric finished meanwhile is adopted through pending). */
+  async function retryCard(card: engine.BuildCard) {
+    const d = defRef.current;
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const o = outputs.find((x) => x.kind === card.output);
+    if (!o) return;
+    const src = sourceRequest(d);
+    setUpdating(true);
+    replaceCard({ ...pendingCard(o, "running", card), after_run: undefined, after_run_words: undefined });
+    let got: engine.BuildCard;
+    try {
+      const a = await sendStep(requestFor(o, outputs, d.outputs.created), d.outputs.created, outputs, src, NOTHING_KNOWN);
+      got = { ...a.outputs[0], status: "done" };
+    } catch (e) {
+      got = failedCard(o, e, card);
+    }
+    replaceCard(got);
+    const at = new Date().toISOString();
+    await update((x) => ({ ...x, outputs: { ...x.outputs, last_create: lastCreateOf(cardsRef.current, metaRef.current?.displayName ?? "", at) } }));
+    setUpdating(false);
+    if (got.output === "pipeline" && got.jobs?.run?.run_id && !runFinished(got.jobs.run)) {
+      await update((x) => withJobRecords(x, cardsRef.current));
+      await followRun(cardsRef.current, src, outputs);
+    }
+  }
+
+  /** n197 (2b): every red, unanswered or stopped card sent again, one after another. */
+  async function createRest() {
+    for (const c of toRetry(cardsRef.current)) {
+      await retryCard(c);
+    }
+  }
+
+  /** n197: reopening an item with outputs lands on its result: the cards of its last Create (from the engine's
+   * operations, else rebuilt from the created ids), the flow and the product; a Create still in progress goes on. */
+  async function reopen(loaded: ModelDefinition, itemId: string) {
+    const run = readRun(loaded.outputs.create_run);
+    let ops: engine.OperationState[] = [];
+    if (run) {
+      try {
+        ops = (await engine.itemOperations(workloadClient, itemId)).operations;
+      } catch (e) {
+        if (isBusy(e)) setNotice(BUSY_LINE);
+      }
+    }
+    const known = run ? knownOf(run, ops) : NOTHING_KNOWN;
+    if (run && !run.finished) {
+      await create({ run, known });
+      return;
+    }
+    const outputs = run?.outputs ?? toRequests(choicesFor(loaded.outputs.outputs, loaded.source?.displayName ?? "").filter((c) => c.enabled));
+    const src = sourceRequest(loaded);
+    try {
+      const f = await engine.finish(workloadClient, src, outputs, loaded.review, loaded.outputs.product ? { name: loaded.outputs.product.name } : null,
+        loaded.outputs.created);
+      const cards = f.outputs.map((c) => {
+        const ans = known.answers[c.output]?.outputs?.[0];
+        return { ...(ans ?? c), status: "done" as const };
+      });
+      cardsRef.current = cards;
+      const thisRun = run ? cards.flatMap((c) => c.created ?? []) : loaded.outputs.created;
+      setResult({ ...f, outputs: cards, product: f.product ? { ...f.product, items: markEarlier(f.product.items as engine.CreatedRef[], thisRun) } as engine.DataProduct : undefined });
+    } catch (e) {
+      setNotice(isBusy(e) ? BUSY_LINE : `The last Create's cards could not be read again (${e instanceof engine.EngineCallError ? e.answer.error : String(e)}); what was built is listed below.`);
+    }
   }
 
   /** n180: Update of an output built from another plan: the dry run first (its card shows what would change and offers
@@ -411,11 +673,12 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
-  /** n180: keep the item built from another plan as it is; the output gets a free name and the outputs view opens. */
+  /** n180: keep the item built from another plan as it is; the outputs get a free name and the outputs view opens.
+   * n197: one name suffix per Create: every output of it gets the same free suffix (demo_lh_model_3, demo_lh_report_3). */
   function newNameForCard(card: engine.BuildCard) {
-    const taken = [...def.outputs.created.map((c) => c.name), ...choices.map((c) => c.name)];
-    const name = newNameFor(card, taken);
-    setChoices((cs) => cs.map((c) => (c.type === card.output ? { ...c, name } : c)));
+    const taken = [...def.outputs.created.map((c) => c.name), ...choices.map((c) => c.name), ...(card.existing_items ?? []).map((c) => c.name),
+      ...(def.outputs.pending ?? []).map((p) => p.name)];
+    setChoices((cs) => namesWithOneSuffix(cs, taken));
     setDirty(true);
     go("outputs");
   }
@@ -434,7 +697,7 @@ export function ModelItemEditor(props: PageProps) {
       actions.push({ key: "refresh", icon: ArrowClockwise24Regular, label: "Read the lakehouse again", onClick: () => plan(def), disabled: !!busy });
       actions.push({ key: "next", icon: ArrowRight24Regular, label: "Next", onClick: () => go("outputs") });
     }
-    if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: create, disabled: !!busy });
+    if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: () => create(), disabled: !!busy || creating });
     if (back[view]) actions.push({ key: "back", icon: ArrowLeft24Regular, label: "Back", onClick: () => go(back[view]) });
     return actions;
   };
@@ -498,7 +761,7 @@ export function ModelItemEditor(props: PageProps) {
     },
     {
       name: "preview",
-      component: wrap(preview ? <PreviewView answer={preview} onCreate={create} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
+      component: wrap(preview ? <PreviewView answer={preview} onCreate={() => { if (!creating) void create(); }} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp} /> : null),
     },
     {
@@ -511,7 +774,10 @@ export function ModelItemEditor(props: PageProps) {
             mascotsOn={mascotsOn}
             onUpdate={updateCard}
             onNewName={newNameForCard}
-            busy={updating}
+            onRetry={retryCard}
+            onCreateRest={createRest}
+            notice={notice}
+            busy={updating || creating}
           /> : null
       ),
     },

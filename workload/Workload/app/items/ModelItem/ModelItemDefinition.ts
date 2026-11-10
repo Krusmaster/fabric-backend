@@ -73,6 +73,8 @@ export interface CreatedItem {
   plan?: PlanMark;
   /** n185: a data agent Krusgraph published in Fabric */
   published?: boolean;
+  /** n197: in the data product, an item an earlier Create of this item built */
+  earlier?: boolean;
 }
 
 /** n180: what an output was built from (workload_api.plan_mark): the review's plan id and schema fingerprint, the exact
@@ -132,6 +134,10 @@ export interface OutputsDefinition {
   last_create?: LastCreateStored;
   /** n185: run ids and schedule ids of the pipeline (jobsWords.recordRun / recordSchedule); optional */
   pipeline_jobs?: PipelineJobsRecord;
+  /** n197: items a Create step sent before its answer came (createRun.withPending); adopted when Fabric finishes them */
+  pending?: { output: string; type: string; name: string; at?: string }[];
+  /** n197: the Create in progress or last run: its id, outputs and operation ids (createRun.CreateRunRecord) */
+  create_run?: unknown;
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */
@@ -246,6 +252,8 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       ...(def.outputs?.product && typeof def.outputs.product === "object" ? { product: def.outputs.product } : {}),
       ...(def.outputs?.last_create && typeof def.outputs.last_create === "object" ? { last_create: def.outputs.last_create } : {}),
       ...(isJobsRecord(def.outputs?.pipeline_jobs) ? { pipeline_jobs: def.outputs.pipeline_jobs } : {}),   // n185
+      ...(Array.isArray(def.outputs?.pending) ? { pending: def.outputs.pending.filter((x) => x && typeof x.name === "string" && typeof x.type === "string") } : {}),   // n197
+      ...(def.outputs?.create_run && typeof def.outputs.create_run === "object" ? { create_run: def.outputs.create_run } : {}),   // n197
     },
     review: def.review,
   };

@@ -143,6 +143,8 @@ export interface RunActivity {
 /** n185: a pipeline run as the card shows it (pipeline_jobs.read_run / wait_run / start_run). */
 export interface PipelineRun {
   status: "Running" | "Succeeded" | "Failed" | "NotStarted" | "Unknown";
+  /** Fabric's own status of the job instance (NotStarted: queued, InProgress, Completed, Failed, ...) */
+  fabric_status?: string;
   run_id?: string;
   started?: string;
   duration?: string;
@@ -194,7 +196,9 @@ export interface AgentCard {
   copilot: boolean;
   where_examples: string;
   selection?: { layer: string; schema: string; selected: number | null; deselected: number; one_layer: boolean; words: string };
-  examples?: { status: string; count?: number; valid?: number; invalid?: number; validating?: number; invalid_examples?: { question: string; reason?: string }[] };
+  examples?: { status: string; count?: number; valid?: number; invalid?: number; validating?: number; invalid_examples?: { question: string; reason?: string }[];
+    /** n197: not_checked: why (the run writes the tables) */
+    words?: string; rechecked?: number };
   words?: string[];
   decision?: { publish: boolean; state: "draft" | "waiting" | "publish"; why: string };
   published?: boolean;
@@ -262,8 +266,17 @@ export interface Refusal extends EngineError {
 
 export interface BuildCard {
   output: OutputKind;
-  /** n179, Create one output per request: waiting, running, done, or lost (the browser did not get the answer) */
+  /** n179, Create one output per request: waiting, running, done, or lost (the browser did not get the answer).
+   * n197: running carries the operation's own state while Fabric makes it wait (`progress`). */
   status?: "waiting" | "running" | "done" | "lost";
+  /** n197: while running: waiting for capacity (Fabric throttles) or still running in Fabric, in words */
+  progress?: { state: "running" | "waiting_capacity" | "pending_fabric"; words?: string; capacity_app?: string };
+  /** n197: the operation of this step (a reopened item reads it again) */
+  operation_id?: string;
+  /** n197: held back until the pipeline's run has succeeded (the report, with Run once ticked) */
+  after_run?: "waiting" | "stopped";
+  /** n197: why it was held back or stopped, in plain words */
+  after_run_words?: string;
   /** n179: every item of the output was already in the workspace from an earlier Create; nothing was written */
   already_built?: boolean;
   label: string;
@@ -398,9 +411,55 @@ export function lostAnswer(route: string, seconds: number, aborted: boolean): En
   };
 }
 
-/** One output's Create can take minutes (an ontology makes an eventhouse); the ingress cuts a request at 240 s
- * (Azure Container Apps, "Request time out is 240 seconds"), so the editor waits a little less than that. */
-export const BUILD_WAIT_MS = 230_000;
+/** n197: no request to the engine is held open longer than this. The founder's live Create of 10 November 2026 met the
+ * old 230 s wait (set under Azure Container Apps' 240 s ingress timeout) on the report and "Failed to fetch" on a phone:
+ * now each request answers at once (202 and an operation id, `Prefer: respond-async`) and the editor reads the
+ * operation (POST /workload/v1/operation) until it ends, each read a short request of its own. */
+export const REQUEST_WAIT_MS = 30_000;
+/** kept for the callers that name it: every request now waits at most REQUEST_WAIT_MS */
+export const BUILD_WAIT_MS = REQUEST_WAIT_MS;
+/** between two reads of an operation: quick at first, then every few seconds */
+export const OPERATION_POLL_MS = [1_000, 2_000, 2_000, 3_000, 5_000];
+/** how long the editor reads one operation before it says "still working; reopen the item": a Create step may wait
+ * for capacity (about twenty minutes) and for Fabric's long-running operations (twenty more) */
+export const OPERATION_MAX_MS = 50 * 60_000;
+
+/** n197: a background operation as POST /workload/v1/operation answers it (fabric_backend/operations.py). */
+export interface OperationState {
+  operation_id: string;
+  id: string;
+  route: string;
+  status: "running" | "waiting_capacity" | "pending_fabric" | "done" | "lost";
+  started?: string;
+  updated?: string;
+  output?: OutputKind;
+  item?: string;
+  create?: string;
+  http?: number;
+  progress?: { words?: string; capacity_app?: string; attempt?: number; wait?: number };
+  lost?: string;
+  answer?: any;
+}
+
+export interface CallOptions {
+  /** called once with the operation's id, as soon as the engine has it (to keep it in the item) */
+  onStarted?: (operationId: string) => void;
+  /** called with each state read while it runs (waiting for capacity, still running in Fabric) */
+  onProgress?: (state: OperationState) => void;
+  /** read this operation instead of sending the request again (a reopened item resumes its Create) */
+  resume?: string;
+  maxWaitMs?: number;
+  sleep?: (ms: number) => Promise<void>;
+}
+
+/** n197: the answer of an operation the engine lost (its replica stopped): like a lost request, the step is tried again. */
+export function lostOperation(state: OperationState): EngineError {
+  return {
+    error: state.lost || "The Krusgraph engine stopped working on this step.",
+    kind: "no_answer",
+    hint: "It may still have been made in Fabric. Try again: an item this Create sent is adopted when it is there, and only the rest is made.",
+  };
+}
 
 /** n176: of several scopes, the one whose URI names this workload as a whole path part, else the first. */
 export function pickScope(scopes: string[], workloadName?: string): string {
@@ -438,12 +497,69 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation";
+
+/** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
+ * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
 async function call<T>(
   workloadClient: WorkloadClientAPI,
-  route: "review" | "check" | "build" | "schemas" | "pipeline-run",
+  route: Route,
   body: object,
-  waitMs = 0,
-  fetchImpl: Fetch = (u, i) => fetch(u, i)
+  waitMs = REQUEST_WAIT_MS,
+  fetchImpl: Fetch = (u, i) => fetch(u, i),
+  opts: CallOptions = {}
+): Promise<T> {
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  let first: any;
+  if (opts.resume) {
+    first = { operation_id: opts.resume, status: "running" };
+  } else {
+    first = await callOnce<any>(workloadClient, route, body, Math.min(waitMs || REQUEST_WAIT_MS, REQUEST_WAIT_MS), fetchImpl,
+      route !== "operation" && route !== "pipeline-run");
+    if (!first || first.__status !== 202) {
+      if (first) delete first.__status;
+      return first as T;
+    }
+  }
+  const id: string = first.operation_id;
+  opts.onStarted?.(id);
+  const until = Date.now() + (opts.maxWaitMs ?? OPERATION_MAX_MS);
+  let n = 0;
+  let misses = 0;
+  while (Date.now() < until) {
+    await sleep(OPERATION_POLL_MS[Math.min(n++, OPERATION_POLL_MS.length - 1)]);
+    let state: OperationState;
+    try {
+      state = await callOnce<OperationState>(workloadClient, "operation", { operation_id: id }, REQUEST_WAIT_MS, fetchImpl, false);
+    } catch (e) {
+      // a phone asleep, a network change, a busy engine: reading again is always safe; a missing operation is not
+      if (e instanceof EngineCallError && e.status === 404) throw e;
+      misses++;
+      continue;
+    }
+    misses = 0;
+    if (state.status === "done") {
+      const http = state.http ?? 200;
+      if (http >= 400 || state.answer?.error) throw new EngineCallError(state.answer as EngineError, http);
+      return state.answer as T;
+    }
+    if (state.status === "lost") throw new EngineCallError(lostOperation(state), 0);
+    opts.onProgress?.(state);
+  }
+  throw new EngineCallError({
+    error: `The Krusgraph engine is still working on this ${route === "build" ? "step" : "request"}` + (misses ? " (the last reads did not get through)" : "") + ".",
+    kind: "no_answer",
+    hint: "Nothing is lost: reopen the item later and it shows where it is, or choose Try again.",
+  }, 0);
+}
+
+async function callOnce<T>(
+  workloadClient: WorkloadClientAPI,
+  route: Route,
+  body: object,
+  waitMs: number,
+  fetchImpl: Fetch,
+  background: boolean
 ): Promise<T> {
   const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document,
     getWorkloadName());
@@ -459,7 +575,7 @@ async function call<T>(
   try {
     response = await fetchImpl(`${base}/workload/v1/${route}`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", ...(background ? { Prefer: "respond-async" } : {}) },
       body: JSON.stringify(body),
       ...(abort ? { signal: abort.signal } : {}),
     });
@@ -478,7 +594,18 @@ async function call<T>(
   if (!response.ok || (answer as EngineError).error) {
     throw new EngineCallError(answer as EngineError, response.status);
   }
+  if (background) (answer as any).__status = response.status;
   return answer as T;
+}
+
+/** n197: the operations of the item's latest Create, each with its state and, once done, its answer (a reopened item
+ * shows the same run and goes on with it). */
+export function itemOperations(
+  workloadClient: WorkloadClientAPI,
+  itemId: string,
+  fetchImpl?: Fetch
+): Promise<{ item: string; create: string | null; operations: OperationState[] }> {
+  return call(workloadClient, "operation", { item_id: itemId }, REQUEST_WAIT_MS, fetchImpl);
 }
 
 export function review(
@@ -534,7 +661,8 @@ export function buildOne(
   reviewFile: ReviewFile,
   created: CreatedRef[],
   fetchImpl?: Fetch,
-  extra: { schedule_ids?: string[]; after_run?: { status: string } } = {}
+  extra: StepExtra = {},
+  opts: CallOptions = {}
 ): Promise<ManyAnswer> {
   // every chosen output goes along (the pipeline runs the silver and gold notebooks chosen with it); `only` is built
   const outputs = all.map((o) => (o.kind === output.kind ? output : o));
@@ -544,8 +672,28 @@ export function buildOne(
     { ...source, outputs, only: [output.kind], review: reviewFile, dry_run: false, product: null, created,
       skip_built: !extra.after_run, ...extra },
     BUILD_WAIT_MS,
-    fetchImpl
+    fetchImpl,
+    opts
   );
+}
+
+/** n197: what a Create step sends besides its output: the pipeline's schedules, the run's end (agent, report), the item
+ * and the Create it belongs to, and outputs.json's pending items (adopted when Fabric finished them after a wait). */
+export interface StepExtra {
+  schedule_ids?: string[];
+  after_run?: { status: string };
+  item_id?: string;
+  create_id?: string;
+  pending?: PendingItem[];
+  refresh_only?: boolean;
+}
+
+/** n197: an item a Create sent to Fabric, recorded before its answer (outputs.json pending). */
+export interface PendingItem {
+  output: string;
+  type: string;
+  name: string;
+  at?: string;
 }
 
 /** n185: the pipeline run Create started, read once (POST /workload/v1/pipeline-run); the editor asks again until it ends. */
@@ -554,7 +702,7 @@ export function pipelineRun(
   run: { workspace: string; pipeline_id: string; pipeline_name: string; run_id: string; started?: string },
   fetchImpl?: Fetch
 ): Promise<PipelineRun> {
-  return call<PipelineRun>(workloadClient, "pipeline-run", run, 30_000, fetchImpl);
+  return call<PipelineRun>(workloadClient, "pipeline-run", run, REQUEST_WAIT_MS, fetchImpl);
 }
 
 /** n180: Update of one output built from another plan: dryRun true first (nothing is written; the card gives

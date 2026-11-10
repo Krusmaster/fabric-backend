@@ -8,6 +8,7 @@ import { Body1, Caption1, Checkbox, Dropdown, Field, Input, Link, MessageBar, Me
 import { AgentOptions, BuildCard, JobsCard, PipelineJobs } from "./engineClient";
 import {
   LAYER_LABEL, TIME_ZONES, activityLines, defaultSchedule, runHeadline, scheduleProblems, scheduleWords, withPublish,
+  runPermissionLine,
 } from "./jobsWords";
 
 function Steps(props: { items?: string[]; label: string }) {
@@ -134,6 +135,7 @@ export function JobsPanel(props: { card: BuildCard }) {
                 </ul>
               )}
               {run.links?.run && <div><Link href={run.links.run} target="_blank">Open the run in Fabric</Link></div>}
+              <Caption1>{runPermissionLine(j)}</Caption1>
               {run.manual && <Steps items={run.manual} label="In Fabric" />}
             </MessageBarBody>
           </MessageBar>
@@ -166,7 +168,9 @@ export function AgentPanel(props: { card: BuildCard }) {
           {`Examples in Fabric: ${ex.valid ?? 0} valid, ${ex.invalid ?? 0} invalid, ${ex.validating ?? 0} still being checked.`}
         </Caption1>
       )}
-      {(ex?.invalid_examples ?? []).length > 0 && (
+      {ex && ex.status === "not_checked" && <Caption1>{ex.words ?? "Example queries: not checked yet."}</Caption1>}
+      {ex && ex.status === "read" && !!ex.rechecked && <Caption1>{`${ex.rechecked} example(s) Fabric could not check at first were checked again after the run.`}</Caption1>}
+      {ex?.status !== "not_checked" && (ex?.invalid_examples ?? []).length > 0 && (
         <ul className="krusgraph-list" aria-label="Invalid examples">
           {(ex?.invalid_examples ?? []).map((x) => (
             <li key={x.question}>{`${x.question}: ${x.reason ?? "invalid"}`}</li>

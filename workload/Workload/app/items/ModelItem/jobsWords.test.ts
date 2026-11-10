@@ -127,7 +127,7 @@ describe("the run on the card", () => {
     const running: PipelineRun = { status: "Running", run_id: "r", links: { run: "https://x" } };
     expect(runFinished(running)).toBe(false);
     const late = stillRunning(running);
-    expect(late.note).toBe("Still running after 10 minutes; it goes on in Fabric. Follow it with the link.");
+    expect(late.note).toBe("Still running after 45 minutes; it goes on in Fabric. Follow it with the link.");
     expect(runHeadline(late).tone).toBe("info");
   });
 
