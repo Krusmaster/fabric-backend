@@ -642,3 +642,5 @@ rules, and Krusgraph for Claude.
 
 8. **Catalog and domains in Fabric.** Send `catalog.py`'s descriptions and tags for each product's items after the
    user approves, and show the domain steps an administrator takes. Engine and Docs, effort S. Never sets endorsement.
+
+Lifecycle (health over time, suggested fixes, autonomy levels, the Lifecycle view and the opt-in Claude agent in the customer's own Azure): `docs/LIFECYCLE-DESIGN.md` (n191).
