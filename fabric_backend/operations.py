@@ -207,8 +207,9 @@ def start(route: str, owner: str, work, *, tokens=None, item: str | None = None,
                 stop.set()
             finish(live, answer, status, round(time.monotonic() - started, 1))
 
+    answer_now = public(dict(op))     # n204: taken before the thread starts, which may already change op (a CI race)
     threading.Thread(target=run, name=f"krusgraph-op-{op_id[:8]}", daemon=True).start()
-    return public(op)
+    return answer_now
 
 
 def finish(live: Live, answer: dict, status: int, seconds: float) -> None:
