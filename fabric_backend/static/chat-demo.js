@@ -556,7 +556,7 @@
   // data attributes on the launch button, like the status sentences
   function leave() {
     return [{ label: launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' },
-            { label: launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }];
+            { label: launch.getAttribute('data-label-connect') || 'Connect Microsoft Fabric', why: 'Opens the set-up guide.', href: '/start' }];
   }
   // n162: fixing data and the dbt project are steps like the others (until n162 links to the docs, n154): each shows
   // what the engine answered on the example when the plan JSON was built (validate_plan with fixes=true, dbt_schema

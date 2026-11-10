@@ -9,6 +9,22 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n190: **the home page redesigned after the outside UX review of 9 November 2026.** One promise ("Your data
+  already has connections. Krusgraph finds them.") with **Try the free demo** (the guided demo, no account) and
+  **Connect Microsoft Fabric** (the label is now that everywhere); four intent tiles (Find broken relationships,
+  Understand how my tables connect, Build a Power BI model, Prepare my data for an AI agent) that open /check on the
+  sample with `intent=…` and land on the findings, the map, the Power BI draft or the ontology and evidence; the
+  engine's map of the sample under the hero; a before and after computed from the engine's run, with each issue in
+  plain words and its check and rule on expand; **What you can build** with one status chip per output (Tested live,
+  Preview, Experimental) from the new `fabric_backend/claims.py`, derived from `tool_status.py`, and the same chips on
+  /start, /choose, /pricing, the docs' *Test status* and the Markdown twins; one sentence on running and scheduling
+  (only Krusgraph for Fabric, opt-in, with `DataPipeline.Execute.All`), which resolves the contradiction the review
+  found; /choose no longer says Krusgraph for Fabric never runs the pipeline (n185 added Run once and Schedule). The
+  navigation is Product, Examples, How it works, Pricing, Docs and **Try free demo**. /check, the blog, the pilot,
+  GitHub and the legal pages are in the footer. The session replay, the hub, the film, the FAQ and the developer
+  note left the home page (the film stays on /docs). `docs/WEBSITE_UX_AUDIT.md`, `docs/WEBSITE_COPY_REWRITE.md` and
+  `docs/WEBSITE_IMPLEMENTATION_PLAN.md`; tests in `tests/test_n190_site.py` and `tests/n190_browser.js` (375, 768
+  and 1440 px, light and dark). Redeploy to publish.
 - Round n188: the home page's points are three: **Checked against your rows**, **Errors before anyone sees them** and
   **One checked plan, every starting point** (what the Krusgraph Model item creates from the reviewed plan; the silver
   and gold tables fill when the pipeline runs; /check gives drafts). The SAP point moved to its own page, **/sap**: the

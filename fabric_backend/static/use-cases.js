@@ -1,4 +1,4 @@
-// /use-cases (n59): each example's map, drawn by map.js (the renderer /check uses) from the engine events embedded in
+// /use-cases (n59) and the home page (n190): each example's map, drawn by map.js (the renderer /check uses) from the engine events embedded in
 // the page. The findings under a map are buttons that mark their relationship or table, as on /check; with
 // prefers-reduced-motion the map appears without animation.
 (function () {
@@ -9,7 +9,7 @@
     try { data = JSON.parse(fig.querySelector(".uc-map-data").textContent); } catch (e) { return; }
     const map = new window.KrusMap.MapView(fig.querySelector(".check-map"), { still });
     data.steps.forEach((s) => map.update(s));
-    const card = fig.closest(".uc-ex");
+    const card = fig.closest(".uc-ex, .home-map");          // n190: the home page's map too
     const buttons = card.querySelectorAll("[data-finding]");
     buttons.forEach((b) => b.addEventListener("click", () => {
       const f = data.findings[Number(b.dataset.finding)];

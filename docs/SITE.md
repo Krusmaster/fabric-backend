@@ -160,7 +160,7 @@ is.
 - **Behaviour.** The chat never opens by itself on a first visit and nothing appears over the page before the click.
   Buttons only: no free text, no AI. The one request it makes is `GET /demo/plan.json`; it sets no cookie, writes
   nothing to `localStorage`, and logs no event (`/demo/plan.json` is not one of the paths `usage.page_view` counts). The
-  links (`/check`, `/check?example=sample`, and "Connect to my Fabric" (n158: the n149 labels, `pages.CHECK_LABEL` and `CONNECT_LABEL`, as data attributes on the launch button), labelled "Opens the set-up guide.", to `/start`)
+  links (`/check`, `/check?example=sample`, and "Connect Microsoft Fabric" (n158: the n149 labels, `pages.CHECK_LABEL` and `CONNECT_LABEL`, as data attributes on the launch button), labelled "Opens the set-up guide.", to `/start`)
   open in the same tab and close the chat. If the plan cannot be fetched, the chat says so in one sentence and links to
   `/check?example=sample`. If the script cannot load, the click goes on to that page instead.
 - **Memory within the tab (n93).** The steps clicked and whether the chat is open are kept in `sessionStorage` under the

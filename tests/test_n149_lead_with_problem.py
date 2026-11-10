@@ -18,12 +18,12 @@ from fabric_backend.discovery import PUBLIC_PAGES
 from tests.test_site import client  # noqa: F401  (the site's test client)
 from test_browser import CHROMIUM, ROOT, _playwright_available, site  # noqa: F401
 
-CHECK, CONNECT = "Check my tables", "Connect to my Fabric"
+CHECK, CONNECT = "Check my tables", "Connect Microsoft Fabric"
 ARTICLE = "/blog/fabric-totals-double-after-join"
 
 
 def _buttons(html):
-    return re.findall(r'<a class="btn [^"]*" href="([^"#?]+)(?:#[^"]*)?">([^<]+)</a>', html)
+    return re.findall(r'<a class="btn [^"]*" href="([^"#?]+)(?:#[^"]*)?"(?: data-cta="\w+")?>([^<]+)</a>', html)   # n190: data-cta
 
 
 def test_the_labels_are_constants_the_pages_render():
@@ -35,7 +35,8 @@ def test_the_two_ways_in_have_one_label_each(client, path):
     html = client.get(path).text
     main = html[html.index("<main"):html.index("</main>")]
     buttons = _buttons(main)
-    assert ("/check", CHECK) in buttons or path == "/check"                       # /check itself has no button to /check
+    # n190: the home page's primary button is the free demo (the guided demo on /check), not /check alone
+    assert ("/check", CHECK) in buttons or path in ("/check", "/")
     assert ("/start", CONNECT) in buttons or ("/start", CONNECT + " →") in buttons
     for href, text in buttons:
         if href == "/check":
@@ -43,32 +44,33 @@ def test_the_two_ways_in_have_one_label_each(client, path):
         if href == "/start":
             assert text.rstrip(" →") == CONNECT, (path, text)
     nav = re.search(r'<nav id="site-nav".*?</nav>', html, re.S).group(0)
-    assert f'<a href="/check"{" aria-current=page" if path == "/check" else ""}>{CHECK}</a>' in nav
+    assert f'href="{pages.DEMO_HREF}">{pages.NAV_CTA}</a>' in nav             # n190: /check moved to the footer
     foot = re.search(r'<nav class="footer-links".*?</nav>', html, re.S).group(0)
     assert f'<a href="/check">{CHECK}</a>' in foot and f'<a href="/start">{CONNECT}</a>' in foot and "#connect" not in foot
 
 
 def test_the_hero_says_the_problem_and_shows_the_small_before_and_after(client):
+    """n190: the hero has one outcome headline (tests/test_n190_site.py); the problem keeps the small before and after
+    under the buttons, and the session replay left the home page."""
     html = client.get("/").text
-    hero = re.search(r'<section class="hero">.*?</section>', html, re.S).group(0)
-    assert "<h1>Why is your total twice what finance says?</h1>" in hero
-    assert ('<p class="lede">Krusgraph checks keys and joins in your Fabric tables, and shows the rule and the row counts '
-            'behind every link.</p>') in hero
+    hero = re.search(r'<section class="hero home-hero".*?</section>', html, re.S).group(0)
     ctas = re.search(r'<div class="ctas hero-ctas" id="connect">(.*?)</div>', hero, re.S).group(1)
-    assert _buttons(ctas) == [("/check", CHECK), ("/start", CONNECT)] and "<details" not in ctas and "▾" not in hero
+    assert "<details" not in ctas and "▾" not in hero
     mini = re.search(r'<p class="ba-mini">(.*?)</p>', hero, re.S).group(1)
     assert hero.index("hero-ctas") < hero.index("ba-mini")
     assert ">2\u00a0000<" in mini and ">1\u00a0000<" in mini and 'href="#example"' in mini        # seed.AMOUNT_DEMO's order
-    # n154: the replay is in the hero again, under the buttons, and the small before and after under the replay
-    assert hero.index("hero-ctas") < hero.index('<figure class="session"') < hero.index("ba-mini")
-    assert html.count('<figure class="session"') == 1 and 'class="wrap replay"' not in html
+    assert '<figure class="session"' not in html
 
 
 def test_one_guided_demo_button_after_the_total_that_doubles(client):
+    """n190: the guided demo is the hero's primary button and the final call's ("Try the free demo"); the before and
+    after links the issues in the demo."""
     html = client.get("/").text
     main = html[html.index("<main"):html.index("</main>")]
-    demo = [m.start() for m in re.finditer(r'<a class="btn [^"]*" href="/check\?example=sample&amp;guide=1">Try the guided demo</a>', main)]
-    assert len(demo) == 1 and main.index('id="example"') < demo[0] < main.index('id="paths"')
+    demo = re.findall(r'<a class="btn [^"]*" href="/check\?example=sample&amp;guide=1" data-cta="demo">Try the free demo</a>', main)
+    assert len(demo) == 2
+    example = main[main.index('id="example"'):main.index('id="build"')]
+    assert 'href="/check?example=sample&amp;intent=issues"' in example
 
 
 @pytest.mark.parametrize("path", ["/", "/check", "/use-cases", "/docs", "/pricing", "/start"])
@@ -77,15 +79,15 @@ def test_the_floating_demo_button_is_on_the_home_page_check_and_deeper_pages(cli
 
 
 def test_the_status_is_said_once_by_the_tools_list(client):
-    """n183: the home page says the status once, in one line linking the test status per tool; the long status (the
-    live run, experimental tools) is in the docs."""
+    """n183: one status line linking the test status per tool. n190: the build grid adds one chip per output from
+    claims.py; nothing above it says a status."""
     html = client.get("/").text
     main = html[html.index("<main"):html.index("</main>")]
-    pitch = main[:main.index('id="offering"')]                 # the hub further down keeps its own sources' status
-    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):
+    pitch = main[:main.index('id="build"')]
+    for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag", "Tested live"):
         assert word not in pitch, word
     assert "Tested end to end on" not in main
-    status = re.findall(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', main, re.S)
+    status = re.findall(r'<p class="muted tiny home-status" id="status">(.*?)</p>', main, re.S)
     assert status == ['Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.']
 
 
@@ -124,8 +126,9 @@ def test_the_check_footer_has_a_text_link_to_run_locally_and_no_demo_button(clie
 
 @pytest.mark.parametrize("path", PUBLIC_PAGES)
 def test_blog_is_in_the_main_navigation(client, path):
-    nav = re.search(r'<nav id="site-nav".*?</nav>', client.get(path).text, re.S).group(0)
-    assert re.search(r'<a href="/blog"( aria-current=page)?>Blog</a>', nav), path
+    """n190: the main navigation has five entries and the demo; the blog is in the footer on every page."""
+    foot = re.search(r'<nav class="footer-links".*?</nav>', client.get(path).text, re.S).group(0)
+    assert '<a href="/blog">Blog</a>' in foot, path
 
 
 def test_the_article_is_linked_from_the_home_page_and_the_check_example(client):

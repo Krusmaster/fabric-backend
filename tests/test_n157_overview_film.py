@@ -29,20 +29,17 @@ def _film(html):
 
 
 def test_the_film_section_follows_the_hero(client):
-    html = client.get("/").text
-    hero = re.search(r'<section class="hero">.*?</section>', html, re.S)
-    film = html.index('<section class="wrap film" id="film"')
-    assert hero.end() <= film < html.index('id="example"')
-    assert html[hero.end():film].strip() == ""                       # nothing between the hero and the film
-    assert "<video" not in hero.group(0)                             # the replay in the hero is untouched
-    sec = _film(html)
+    """n190: the home page leads with one promise, the intent tiles and the map; the film stays at the top of /docs and
+    is no longer on the home page (docs/WEBSITE_IMPLEMENTATION_PLAN.md, P2: back as a link)."""
+    assert "<video" not in client.get("/").text and 'id="film"' not in client.get("/").text
+    sec = _film(pages.film_html())
     assert '<h2 id="film-h">See how it works</h2>' in sec
     assert "About 45 seconds" not in sec and "film-note" not in sec    # n160: the visible note is gone
     assert 'aria-label="Krusgraph overview film, synthetic demo data, AI-generated voice"' in sec
 
 
 def test_the_video_element(client):
-    sec = _film(client.get("/").text)
+    sec = _film(pages.film_html())
     video = re.search(r"<video([^>]*)>", sec).group(1)
     for attr in ("controls", 'preload="none"', "playsinline", 'poster="/static/media/krusgraph-overview-poster.webp"'):
         assert attr in video, attr
@@ -51,11 +48,11 @@ def test_the_video_element(client):
     track = re.search(r"<track([^>]*)>", sec).group(1)
     assert 'kind="captions"' in track and 'srclang="en"' in track and " default" in track
     assert 'src="/static/media/krusgraph-overview.en.vtt"' in track
-    assert sec.count("<video") == 1 and client.get("/").text.count("<video") == 1
+    assert sec.count("<video") == 1
 
 
 def test_no_external_url_in_the_film_section(client):
-    sec = _film(client.get("/").text)
+    sec = _film(pages.film_html())
     urls = re.findall(r'(?:src|href|poster)="([^"]+)"', sec)
     assert urls and all(u.startswith("/static/media/") for u in urls), urls
     assert "http://" not in sec and "https://" not in sec and "//" not in sec.replace("://", "")
@@ -112,7 +109,7 @@ def test_docs_landing_page_has_the_same_film_at_the_top(client):
     assert 'aria-label="Krusgraph overview film, synthetic demo data, AI-generated voice"' in video
     article = docs[docs.index('<article class="prose docs">'):]
     assert article.index("<h1") < article.index('id="film"') < article.index("<h2")      # at the top, before the first section
-    assert _video_urls(film) == _video_urls(_film(client.get("/").text))                  # the same files as the home page
+    assert _video_urls(film) == _video_urls(_film(pages.film_html()))                     # the same files as film_html
     assert "<!--" not in film and "&lt;video" not in docs                                  # rendered by the directive, not escaped HTML
 
 

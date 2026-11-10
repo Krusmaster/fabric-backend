@@ -1,129 +1,69 @@
 <div data-page="home" data-check-prefetch="{{CHECK_PREFETCH}}">
-<section class="hero">
+<section class="hero home-hero" aria-labelledby="hero-h">
   <div class="wrap hero-copy">
     <p class="eyebrow">For teams working in Microsoft Fabric</p>
-    <h1>Why is your total twice what finance says?</h1>
-    <p class="lede">{{PRODUCT}} checks keys and joins in your Fabric tables, and shows the rule and the row counts behind every link.</p>
+    <h1 id="hero-h">{{HOME_HEADLINE}}</h1>
+    <p class="lede">{{HOME_SUPPORT}}</p>
     <div class="ctas hero-ctas" id="connect">
-      <a class="btn primary" href="/check">{{LABEL_CHECK}}</a>
-      <a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a>
+      <a class="btn primary" href="/check?example=sample&amp;guide=1" data-cta="demo">Try the free demo</a>
+      <a class="btn secondary" href="/start" data-cta="connect">{{LABEL_CONNECT}}</a>
     </div>
-    <figure class="session" aria-labelledby="session-cap">
-      <button type="button" class="session-pause" aria-pressed="false">Pause</button>
-      <p class="session-head">A replay of Krusgraph's answers</p>
-      <ol class="session-turns">
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">How are the tables in my lakehouse connected?</p>
-          <div class="session-answer"><p class="session-tool">plan_backend</p><p>7 tables, 6 with keys, 7 relationships. <code>order_items</code> → <code>orders</code> on <code>order_id</code> <span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">How are the tables in my lakehouse connected?</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Check the plan against the data.</p>
-          <div class="session-answer"><p class="session-tool">validate_plan</p><p>6 of 6 keys unique, 7 of 7 relationships hold without orphans. <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Check the plan against the data.</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Create an ontology from my shop data.</p>
-          <div class="session-answer"><p class="session-tool">create_ontology</p><p>Succeeded: <code>shop_ontology</code> with 7 entity types (5 with a key) and 7 relationship types, 0 skipped, including the confirmed <code>orders.ship_to_id</code> → <code>addresses.address_id</code>.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Create an ontology from my shop data.</span><span class="session-send">↑</span></p>
-        </li>
-        <li class="session-turn">
-          <div class="session-thread"><p class="session-sent">Build a Power BI model from my lakehouse.</p>
-          <div class="session-answer"><p class="session-tool">create_semantic_model</p><p>Succeeded, created <code>shop_model_live</code>: 7 tables, Direct Lake, 6 active relationships and 1 inactive (<code>addresses.customer_id</code> → <code>customers</code> would close a cycle), 4 measures and a <code>Calendar</code> date table. Not refreshed yet.</p></div></div>
-          <p class="session-ask" aria-hidden="true"><span class="session-text">Build a Power BI model from my lakehouse.</span><span class="session-send">↑</span></p>
-        </li>
-      </ol>
-      <p class="session-dots" aria-hidden="true"><span></span><span></span><span></span><span></span></p>
-      <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
-      <figcaption id="session-cap">Answers shortened from Krusgraph's checks on synthetic shop data. Questions 1 and 2: plan_backend and validate_plan run read only on that data (8 November 2026). Questions 3 and 4: real runs in Claude against the same data in a Fabric lakehouse, which created an ontology (28 October 2026) and a semantic model (29 October 2026).</figcaption>
-    </figure>
+    <p class="hero-note muted tiny">The demo runs in your browser on synthetic data: no account, nothing uploaded.</p>
 {{HOME_BEFORE_AFTER_MINI}}
-    <p class="usp-lead">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
-    <ul class="usp">
-      <li><strong>Checked against your rows.</strong> Every link shows its basis and the checks you run show their counts.</li>
-      <li><strong>Errors before anyone sees them.</strong> The total that doubles, keys that are not unique, references with no matching row.</li>
-      <li><strong>One checked plan, every starting point.</strong> In Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On <a href="/check">/check</a>, in your browser, the same plan gives drafts.</li>
-    </ul>
-    <p class="usp-sap tiny"><a href="/sap">SAP tables: keys with MANDT and the order-to-cash links, each with its public source</a></p>
   </div>
+  <nav class="wrap intents" aria-labelledby="intents-h">
+    <h2 id="intents-h" class="intents-h">What would you like to do with your data?</h2>
+{{HOME_INTENTS}}
+  </nav>
 </section>
 
-{{HOME_FILM}}
+{{HOME_MAP}}
 
 {{HOME_BEFORE_AFTER}}
 
-<section class="wrap demo-entry" id="demo" aria-labelledby="guide">
-  <div class="card">
-    <div><h2 id="guide">See the engine run on a shop, in four steps.</h2><p>How the tables connect, where the order total doubles, a delivery address to decide on, and on to Power BI or an app. Synthetic data, no account.</p></div>
-    <a class="btn primary" href="/check?example=sample&amp;guide=1">Try the guided demo</a>
-  </div>
+<section class="wrap home-build" id="build" aria-labelledby="build-h">
+  <h2 id="build-h">What you can build</h2>
+  <p class="intro">From the plan you reviewed, in your own Fabric workspace. Each chip says how far that output has been proven today.</p>
+{{HOME_BUILD_GRID}}
+{{HOME_CHIP_LEGEND}}
+  <p class="muted tiny home-runs">{{HOME_RUNS}} {{HOME_CHECK_LINE}}</p>
 </section>
 
+<section class="home-ways" id="ways" aria-label="Ways to use it">
 {{HOME_OFFERING}}
-{{HOME_CHOOSE}}
-<p class="wrap muted tiny home-status" id="status">{{PRODUCT}} is a preview service. <a href="/docs#test-status">Test status per tool</a>.</p>
-
-<section class="wrap two-paths" id="paths" aria-labelledby="paths-h">
-  <h2 id="paths-h">Then: on your own, or with help on one number.</h2>
-  <div class="grid-2">
-    <div class="card soft"><h3>Try it yourself</h3><p class="muted">Drop your own exports on the check page, with no account, or connect {{PRODUCT}} to your AI client and read your own lakehouse.</p><p class="ctas"><a class="btn primary small" href="/check">{{LABEL_CHECK}}</a><a class="btn secondary small" href="/start">{{LABEL_CONNECT}}</a></p>{{TRY_IN_CLAUDE}}</div>
-    <div class="card soft"><h3>Get help with one number</h3><p class="muted">Bring a number your team cannot agree on: a first assessment says what it would take, and a pilot explains the number with the counts behind it.</p><p class="ctas"><a class="btn secondary small" href="/partners">Try a pilot</a></p></div>
-  </div>
+  <p class="wrap muted tiny home-ways-more">Not sure which way in? <a href="/choose">Compare the ways to use Krusgraph</a>.</p>
 </section>
 
-<section class="wrap" id="how">
-  <h2>Start with a schema. Review the relationships. Choose what to build.</h2>
+<section class="wrap" id="how" aria-labelledby="how-h">
+  <h2 id="how-h">Three steps: explore, review, build.</h2>
   <ol class="steps">
-    <li><span class="step-n coral">1</span><h3>Explore your tables</h3><p>Choose a lakehouse in Claude. {{PRODUCT}} reads the schema and suggests keys and relationships.</p><span class="ex">“Plan a backend over the shop lakehouse.”</span><p class="step-more tiny"><a href="/docs/concepts/how-it-works">How it works</a></p></li>
-    <li><span class="step-n sage">2</span><h3>Check the plan</h3><p>Check for duplicate keys, missing values and references with no matching row. Correct the suggestions that don’t match how your business works.</p><span class="ex">“Check the plan against the data.”</span><p class="step-more tiny"><a href="/docs/concepts/how-they-connect">Why everything comes from one plan</a></p></li>
-    <li><span class="step-n lav">3</span><h3>Use the result</h3><p>Document the schema, explore a join path or create a GraphQL API from the plan you reviewed.</p><span class="ex">“Create it as shop_api.”</span><p class="step-more tiny">Concepts: <a href="/docs/concepts/ontologies">ontologies</a> and <a href="/docs/concepts/data-products">data products</a></p></li>
+    <li><span class="step-n coral">1</span><h3>Explore</h3><p>Point {{PRODUCT}} at a lakehouse, or drop exports on the demo page. It reads the schema and proposes keys and links, each with the rule behind it.</p><p class="step-more tiny"><a href="/docs/concepts/how-it-works">How it works</a></p></li>
+    <li><span class="step-n sage">2</span><h3>Review</h3><p>The checks count your rows: duplicate keys, references with no match, totals that double. You decide what a person has to decide.</p><p class="step-more tiny"><a href="/docs/concepts/how-they-connect">Why everything comes from one plan</a></p></li>
+    <li><span class="step-n lav">3</span><h3>Build</h3><p>Choose the outputs. A dry run shows what would be created; nothing is created until you say so.</p><p class="step-more tiny"><a href="/use-cases/build">What each output looks like</a> · Concepts: <a href="/docs/concepts/ontologies">ontologies</a> and <a href="/docs/concepts/data-products">data products</a></p></li>
   </ol>
 </section>
 
-
-
-{{HOME_HUB}}
-
 <section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
-  <h2 id="data-h">What {{PRODUCT}} reads</h2>
-  <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
-  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers. <a href="/it#data-goes">Where your data goes</a>.</p>
-  <ul class="trust">
-    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
-    <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
-    <li><span class="t-i lav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M15 7l5 5-5 5"/></svg></span><div><h3>Open source</h3><p>Read the code, inspect the inference rules or host {{PRODUCT}} yourself. The source is available under the MIT licence on <a href="{{GITHUB}}" rel="noopener">GitHub</a>.</p></div></li>
+  <h2 id="data-h">Security and proof</h2>
+  <ul class="proof-list">
+    <li><h3>Sign in with Microsoft Entra ID</h3><p>Your work account; no {{PRODUCT}} password. <a href="/it">For your IT department</a>.</p></li>
+    <li><h3>Delegated permissions</h3><p>Every call runs as the signed-in person, with their own Fabric rights; your admin approves once and can revoke. <a href="/it#permissions">Each permission and why</a>.</p></li>
+    <li><h3>Where it runs</h3><p>The demo runs in your browser. The hosted service runs in the EU, or in your own Azure; an AI client you connect receives the answers. <a href="/it#data-goes">Where your data goes</a>.</p></li>
+    <li><h3>No table contents stored</h3><p>Names, counts and the sample rows you ask for pass through in memory and are not kept after the request. <a href="/privacy">Privacy</a>.</p></li>
+    <li><h3>Open source, MIT</h3><p>Read the rules behind every link. <a href="{{GITHUB}}" rel="noopener">Source on GitHub</a>.</p></li>
+    <li><h3>Host it yourself</h3><p>The same code in your own Azure or on your own machine, so nothing passes through us. <a href="/local">Run it locally</a>.</p></li>
   </ul>
+  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers. <a href="/it#data-goes">Where your data goes</a>.</p>
+  <p class="muted tiny home-status" id="status">{{PRODUCT}} is a preview service. <a href="/docs#test-status">Test status per tool</a>.</p>
 </section>
 
-<section class="wrap developer-note" id="developer" aria-labelledby="developer-h" style="padding-top:0">
-  <div class="card soft">
-    <h2 id="developer-h" class="h3">Work through one schema with Gustav</h2>
-    <p>I’m Gustav, the developer behind {{PRODUCT}} at Kruse Consulting AB. I help you take one schema and one question through it: read how the tables connect, check the relationships against your data, settle what needs a person’s judgement, and choose what to build from the plan you agreed on. The column names are enough to start.</p>
-    <p class="muted tiny developer-facts">Kruse Consulting AB · {{BEHIND}}. {{BUILT}}.</p>
-    <p class="ctas" style="margin:0"><a class="btn secondary small" href="/partners">Try a pilot</a><a class="btn ghost small" href="/support">Get help</a></p>
-    <p class="muted tiny" style="margin:12px 0 0">Found a relationship it got wrong, or one it got right? <a href="{{GITHUB}}/issues" rel="noopener">Open a GitHub issue</a> or <a href="mailto:{{CONTACT}}?subject={{PRODUCT_URL}}">email Gustav</a>.</p>
+<section class="wrap home-final" id="pricing" aria-labelledby="final-h">
+  <div class="card ready">
+    <div>
+      <h2 id="final-h">See what your data can become.</h2>
+      <p class="muted">The demo and the connector are free and open source. A pilot around one number your team cannot agree on is quoted after a short call. <a href="/pricing">Pricing</a>.</p>
+    </div>
+    <div class="ctas"><a class="btn primary" href="/check?example=sample&amp;guide=1" data-cta="demo">Try the free demo</a><a class="btn secondary" href="/start" data-cta="connect">{{LABEL_CONNECT}}</a><a class="btn ghost" href="/partners" data-cta="pilot">Talk about a pilot</a></div>
   </div>
-</section>
-
-<section class="wrap faq" id="faq" aria-labelledby="faq-h" style="padding-top:0">
-  <h2 id="faq-h">Questions</h2>
-  <details><summary>Do you touch my data?</summary>
-    <p>{{ACCESS_PLANNING}} The checks you ask for count in Fabric and return counts, not row values; <code>sample_rows</code> returns up to 20 rows of one table when you ask for them. Nothing passing through is kept after the request. On <a href="/check">/check</a> your files are read in your browser and are not uploaded. <a href="/privacy">Privacy policy</a>.</p></details>
-  <details><summary>What does {{PRODUCT}} create in my Fabric, and when?</summary>
-    <p>Nothing until you ask. Planning, checking and the drafts only read. The creating tools run as a dry run by default and show what they would create; only a call with <code>dry_run=false</code> creates the item. <code>create_backend</code> creates or updates only the GraphQL API you name. No item is ever deleted and no table dropped.</p></details>
-  <details><summary>What does my IT department need to approve?</summary>
-    <p>One admin consent for the {{PRODUCT}} app in Microsoft Entra ID. Its permissions are delegated, so every call runs as the signed-in person with their own Fabric rights. <a href="/it">The page for your IT department</a> lists each permission and why, what is stored, and how to revoke it.</p></details>
-  <details><summary>Can I try it without Fabric?</summary>
-    <p>Yes. <a href="/check">/check</a> runs the same engine in your browser on CSV or Excel exports, or on a list of columns, with no account. The <a href="/check?example=sample&amp;guide=1">guided demo</a> uses synthetic sample data.</p></details>
-  <details><summary>How is this different from asking a chat assistant directly?</summary>
-    <p>The proof. Every key and relationship comes with the named rule that produced it, or its source, such as the public source behind an SAP pack link, and the checks you run count against your rows: whether a key is unique, how many rows point at nothing, whether a total doubles in a join. What a check has not covered is listed in the <a href="/start#access">set-up guide</a>. The rules are in the <a href="{{GITHUB}}" rel="noopener">open source code</a>.</p></details>
-</section>
-
-<section class="wrap" style="padding-top:0">
-  <div class="card ready" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
-    <div><h2 style="font-size:28px">Try it on a schema you know.</h2><p class="muted" style="margin:0;max-width:52ch">Connect {{PRODUCT}} to your client, choose a lakehouse and review the first plan. The setup guide covers the account, workspace and admin approval you’ll need; <a href="/it">a page for your IT department</a> lists what the admin approves and why.</p></div>
-    <div class="ctas"><a class="btn primary" href="/check">{{LABEL_CHECK}}</a><a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a></div>
-  </div>
-  <p class="muted tiny" style="margin:18px 6px 0">Also: <a href="/docs">read the docs</a> · <a href="/support">get help</a> · <a href="/partners">try a pilot</a></p>
 </section>
 </div>

@@ -44,21 +44,9 @@ def test_turn_one_has_no_first_cycle_rule_and_starts_at_0s():
 
 
 def test_four_dots_follow_the_turns_and_are_hidden_from_screen_readers(client):
-    box = _box(client)
-    dots = re.search(r'<p class="session-dots" aria-hidden="true">(.*?)</p>', box).group(1)
-    assert dots == "<span></span>" * 4
-    assert box.index("</ol>") < box.index("session-dots") < box.index("<figcaption")
-    assert 'aria-labelledby="session-cap"' in box                    # the caption stays the description
-    # the turns' own timeline: 24 s, one dot per 6 s, no script
+    """n190: the replay left the home page; its styles stay until the clean-up in docs/WEBSITE_IMPLEMENTATION_PLAN.md."""
+    assert '<figure class="session"' not in client.get("/").text
     assert "animation:session-dot 24s step-end infinite" in CSS
-    assert [int(x) for x in re.findall(r"\.session-dots span:nth-child\(\d\)\{animation-delay:(\d+)s\}", CSS)] == [6, 12, 18]
-    assert _keyframes("session-dot").startswith("0%{background:var(--coral-ink)") and "25%{background:transparent" in _keyframes("session-dot")
-    assert ".session.is-paused .session-dots span{animation-play-state:paused}" in CSS
-    js = (ROOT / "fabric_backend" / "static" / "site.js").read_text(encoding="utf-8")
-    assert "session-dots" not in js
-    reduced = re.search(r"@media \(prefers-reduced-motion:reduce\)\{\.session-turns\{gap:18px\}.*?\}\}", CSS, re.S).group(0)
-    assert ".session-ask,.session-pause,.session-dots{display:none}" in reduced
-    assert ".session-turn{grid-area:auto;opacity:1;animation:none}" in reduced          # all four turns still, as before
 
 
 def test_turns_one_and_two_are_what_the_engine_answers_on_the_shop_data(client, fabric):
@@ -74,16 +62,4 @@ def test_turns_one_and_two_are_what_the_engine_answers_on_the_shop_data(client, 
     assert any("orders.ship_to_id -> addresses [R5]" in r and "15 of 15" in r for r in plan["relationships"])
     assert checks["summary"] == "6 of 6 keys unique, 7 of 7 relationships hold without orphans"
 
-    box = _box(client)
-    answers = re.findall(r'<div class="session-answer">(.*?)</div>', box, re.S)
-    assert answers[0].startswith('<p class="session-tool">plan_backend</p><p>' + head + ". <code>order_items</code> → <code>orders</code> on <code>order_id</code> "
-                                 '<span class="session-rule">R1</span>; key <code>order_id, line_no</code> <span class="session-rule">K5</span>. No key: <code>audit_log</code>.')
-    assert checks["summary"] + ". <code>order_items</code> → <code>orders</code>: holds for all 134 rows with a value." in answers[1]
-    head_text = re.search(r'<p class="session-head">(.*?)</p>', box).group(1)
-    assert head_text == "A replay of Krusgraph's answers" and "Claude" not in head_text
-    cap = re.search(r"<figcaption[^>]*>(.*?)</figcaption>", box, re.S).group(1)
-    assert cap.startswith("Answers shortened from Krusgraph's checks on synthetic shop data.")
-    assert "Questions 1 and 2: plan_backend and validate_plan run read only on that data (8 November 2026)." in cap
-    # turns 3 and 4 keep the runs in Claude that created the items, with their dates
-    assert "Questions 3 and 4: real runs in Claude" in cap and "ontology (28 October 2026)" in cap and "semantic model (29 October 2026)" in cap
-    assert cap.count("2026") == 3
+    assert '<figure class="session"' not in client.get("/").text          # n190: the replay left the home page

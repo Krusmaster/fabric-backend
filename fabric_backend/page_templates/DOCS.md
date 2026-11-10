@@ -731,6 +731,11 @@ The status words, then each tool: what it reads, returns or changes.
 
 ### Test status
 
+**What it builds, and how far each output is proven.** The same table, with the same chips, is on the home page,
+/start, /choose and /pricing (`fabric_backend/claims.py`, derived from the per-tool fields below).
+
+{{CLAIMS_TABLE}}
+
 **In short.** {{PRODUCT}} is a preview service; a tool that has not run against a live Fabric workspace is marked
 experimental. Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. {{CREATE_API_STATUS}}. The semantic model:
 {{SHORT_CREATE_SEMANTIC_MODEL}}; the ontology: {{SHORT_CREATE_ONTOLOGY}}. Krusgraph for Fabric, the Krusgraph Model item,

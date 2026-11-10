@@ -266,7 +266,9 @@ def test_the_ontology_and_products_cards_in_a_browser(fabric, tmp_path):
 # ------------------------------------------------------------------ Try in Claude ------------------------------------
 
 def test_try_in_claude_is_on_the_home_page_and_start_with_the_question():
-    for path, connect in (("/", "/start#step-3"), ("/start", "#step-3")):
+    # n190: the home page leads with the demo; Try it in Claude stays in step 3 of /start
+    assert "data-try-claude" not in pages.render("/")
+    for path, connect in (("/start", "#step-3"),):
         html = pages.render(path)
         assert 'data-try-claude' in html and 'href="https://claude.ai/new"' in html, path
         assert f'data-question="{pages.FIRST_QUESTION}"' in html
@@ -293,4 +295,4 @@ def test_try_in_claude_copies_the_question_and_opens_a_new_chat(site):  # noqa: 
         assert info["clipboard"] == pages.FIRST_QUESTION
         assert "Copied the question" in info["noteAfter"]
         assert info["desktop"].startswith("claude://claude.ai/new?q=") and unquote(info["desktop"].split("q=", 1)[1]) == pages.FIRST_QUESTION
-    assert out["/"]["connect"] == "/start#step-3" and out["/start#step-3"]["connect"] == "#step-3"
+    assert out["/start#step-3"]["connect"] == "#step-3"

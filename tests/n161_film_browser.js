@@ -7,7 +7,7 @@ const base = process.argv[2], exe = process.argv[3];
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const out = { errors: [] };
   for (const width of [375, 1280]) {
-    for (const path of ['/', '/docs']) {
+    for (const path of ['/docs']) {
       const page = await browser.newPage({ viewport: { width, height: 900 } });
       page.on('pageerror', (e) => out.errors.push(`${width} ${path}: ${e.message}`));
       const external = [];

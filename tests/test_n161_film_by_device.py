@@ -18,7 +18,7 @@ PHONE = '<source media="(max-width: 640px)" src="/static/media/krusgraph-overvie
 WIDE = '<source src="/static/media/krusgraph-overview-web.mp4" type="video/mp4">'
 
 
-@pytest.mark.parametrize("path", ["/", "/docs"])
+@pytest.mark.parametrize("path", ["/docs"])                  # n190: the film left the home page
 def test_both_sources_with_the_phone_query_first(client, path):
     html = client.get(path).text
     video = re.search(r"<video[^>]*>.*?</video>", html, re.S).group(0)
@@ -62,7 +62,7 @@ def test_in_a_browser_phones_pick_4x5_and_larger_screens_16x9(site):
     r = json.loads(out.stdout.strip().splitlines()[-1])
     assert r["errors"] == []
     four_five, sixteen_nine = "/static/media/krusgraph-overview-web-4x5.mp4", "/static/media/krusgraph-overview-web.mp4"
-    for path in ("/", "/docs"):
+    for path in ("/docs",):
         phone, wide = r[f"375 {path}"], r[f"1280 {path}"]
         assert phone["queryMatches"] and not wide["queryMatches"] and phone["ratio"] == 0.8 and wide["ratio"] == 1.78
         # n163: where the browser honours media on <source> (current Chromium, Firefox, Safari) a phone gets the 4:5

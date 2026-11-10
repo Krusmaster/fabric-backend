@@ -1587,3 +1587,68 @@ html[data-mascots=off] .off-way-a{grid-template-columns:minmax(0,1fr)}
 .shot img{display:block;width:100%;height:auto}
 .shot figcaption{font-size:14px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line)}
 .shot-tag{display:inline-block;font-weight:700;color:var(--mustard-ink);background:var(--mustard-soft);border-radius:999px;padding:0 8px}
+
+/* n190: the home page redesign: one promise, intent tiles, the map, before and after, what you can build with a status
+   chip per output (claims.py), security and proof, the final call. Colours are the site's tokens, so dark mode follows. */
+.home-hero{padding-bottom:12px}
+.home-hero .hero-note{margin:8px 0 0}
+.intents{margin-top:28px}
+.intents-h{font-size:20px;margin:0 0 12px}
+.intent-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+@media (max-width:1040px){.intent-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.intent-grid{grid-template-columns:1fr}}
+.intent-tile{display:flex;flex-direction:column;gap:6px;height:100%;box-sizing:border-box;padding:16px 18px;border-radius:var(--radius-s);
+  border:1px solid var(--line);border-left:6px solid var(--c,var(--coral));background:var(--card);color:var(--ink);text-decoration:none;
+  transition:transform .15s ease,box-shadow .15s ease}
+.intent-tile.coral{--c:var(--coral)}.intent-tile.sage{--c:var(--sage-d)}.intent-tile.lav{--c:var(--lav-d)}.intent-tile.mustard{--c:var(--mustard-d)}
+.intent-tile strong{font:600 18px/1.3 var(--font-head)}
+.intent-tile span{color:var(--muted);font-size:15px}
+.intent-tile em{font-style:normal;font-size:13px;color:var(--muted);margin-top:auto}
+.intent-tile:hover{transform:translateY(-2px);box-shadow:var(--shadow);color:var(--ink)}
+.intent-tile:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+@media (prefers-reduced-motion:reduce){.intent-tile,.intent-tile:hover{transition:none;transform:none}}
+.home-map .uc-map{max-width:none}
+.home-map .uc-ex-finds{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.ba-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:12px 0}
+@media (max-width:760px){.ba-cols{grid-template-columns:1fr}}
+.ba-col{border-radius:var(--radius);border:1px solid var(--line);padding:18px 20px;background:var(--card);min-width:0}
+.ba-col h3{margin:0 0 8px}
+.ba-before-col{background:var(--coral-soft)}
+.ba-after-col{background:var(--sage-soft)}
+.ba-points{margin:0;padding-left:20px}
+.ba-points li{margin:4px 0}
+.ba-wrong{color:var(--coral-ink);font:600 22px/1.2 var(--font-head)}
+.ba-right{color:var(--sage-ink);font:600 22px/1.2 var(--font-head)}
+.ba-issues-h{margin:14px 0 6px;font-weight:600}
+.ba-issues{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ba-issue{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:8px 12px}
+.ba-issue summary{cursor:pointer}
+.ba-issue .ba-tech{margin:8px 0 4px;overflow-wrap:anywhere}
+.ba-issue .ba-tech code{white-space:normal}
+.out-grid{list-style:none;margin:12px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.out-tile{display:flex;flex-direction:column;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:16px 18px}
+.out-tile-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.out-tile h3{margin:0;font-size:18px}
+.out-tile p{margin:0;color:var(--muted);font-size:15px}
+.out-tile-more{margin-top:auto;font-size:15px}
+.chip{display:inline-block;font-size:12px;font-weight:700;line-height:1.4;padding:2px 9px;border-radius:999px;border:1px solid transparent;
+  text-decoration:none;white-space:nowrap;vertical-align:baseline}
+a.chip:hover{text-decoration:underline}
+.chip-live{background:var(--sage-soft);color:var(--sage-ink);border-color:var(--sage)}
+.chip-preview{background:var(--lav-soft);color:var(--lav-ink);border-color:var(--lav)}
+.chip-exp{background:var(--mustard-soft);color:var(--mustard-ink);border-color:var(--mustard)}
+.chip-planned{background:transparent;color:var(--muted);border:1px dashed var(--line-strong)}
+.chip-legend .chip{margin-right:2px}
+.claims-line{font-size:15px}
+.claims-line .chip{margin:0 2px}
+.proof-list{list-style:none;margin:12px 0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.proof-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.proof-list{grid-template-columns:1fr}}
+.proof-list li{background:var(--card);border:1px solid var(--line);border-radius:var(--radius-s);padding:16px 18px}
+.proof-list h3{margin:0 0 4px;font-size:17px}
+.proof-list p{margin:0;color:var(--muted);font-size:15px}
+.home-final .card{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between}
+.home-final h2{font-size:28px;margin-top:0}
+.home-final p{margin:0;max-width:56ch}
+.nav-cta{margin-left:6px}
+.ba-cols{align-items:start}

@@ -221,7 +221,7 @@ def test_in_a_browser_no_request_carries_the_files(site):
     assert all(len(v) == 2 for v in r["domain_fill"].values()) and r["domain_fill"]["light"] != r["domain_fill"]["dark"], r["domain_fill"]
     prod = r["ask"]["product"]["text"]
     assert "A data product is a set of tables" in prod and "validate_plan counted" in prod and "unique in all" in prod and "[object" not in prod, prod
-    assert ["Connect to my Fabric", "/start", None] in r["ask"]["product"]["html_links"]
+    assert ["Connect Microsoft Fabric", "/start", None] in r["ask"]["product"]["html_links"]
     assert r["contract"]["name"] == "customers.odcs.yaml" and "apiVersion: v3.2.0" in r["contract"]["text"] and "kind: DataContract" in r["contract"]["text"]
     assert not r["ask_overflow_375"] and not r["ask_overflow_1280"]
     # n68: the domain buttons on Salesforce + ERP (two domains, no interface between them: the list once ended in "nullnullnull")
@@ -403,7 +403,7 @@ def test_the_check_page_offers_the_model_and_the_app_and_where_to_go_next(client
     engine = html[html.index('<details class="check-engine"'):html.index("</details>", html.index('<details class="check-engine"'))]
     assert "<summary>How the engine got here</summary>" in engine and " open" not in engine.split(">")[0]
     box = html[html.index('id="check-build"'):html.index("</section>", html.index('id="check-build"'))]
-    assert 'href="/start">Connect to my Fabric<' in box and box.count('href="/start"') == 1 and 'href="/support">Get help<' in box
+    assert 'href="/start">Connect Microsoft Fabric<' in box and box.count('href="/start"') == 1 and 'href="/support">Get help<' in box
     assert 'id="check-loading"' in html and 'data-mascot="onto"' in html.split('id="check-loading"')[1][:200]
     css = client.get("/static/site.css").text
     assert "@media (prefers-reduced-motion:reduce){.check-hop{animation:none}}" in css
@@ -436,7 +436,7 @@ def test_in_a_browser_the_mascot_hops_while_loading_and_the_drafts_download_with
         assert "This file is " + ts.label("semantic_model_draft")[0].lower() + ts.label("semantic_model_draft")[1:] + "." in o["model_text"]   # n95: said once, above
         assert "Download Power BI projectThe model (.pbip) with the plan's keys and relationships as checked in the rows, and an empty report page." in o["model_text"]
         assert "sales_order_no SO5001" in o["model_text"] and "counts it 3 times" in o["model_text"] and "The model's measure sums it the right way." in o["model_text"]   # n73: the row the finding names
-        assert o["next_links"] == ["Connect to my Fabric /start", "Get help /support"]
+        assert o["next_links"] == ["Connect Microsoft Fabric /start", "Get help /support"]
         assert not o["overflow_375"] and not o["overflow_1280"] and min(o["contrast"]) >= 4.5, o["contrast"]
     o = r["reduce"]
     assert o["shop_doubled"] is True                                   # n73: the example's order, the one the finding and Onto show

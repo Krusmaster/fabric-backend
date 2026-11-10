@@ -113,7 +113,7 @@ async function flowByMouse(page, f, v) {
   f.end = await lastText(page, '.kgc-msg.onto .kgc-bub');
   f.endLinks = await page.evaluate(() => [...document.querySelectorAll('.kgc-picks a')].map((a) => ({ href: a.getAttribute('href'), target: a.getAttribute('target') })));
   f.endPicks = await picks(page);
-  f.endWhy = await page.evaluate(() => { const a = document.querySelector('.kgc-pick[data-pick="Connect to my Fabric"] small'); return a ? a.textContent : ''; });
+  f.endWhy = await page.evaluate(() => { const a = document.querySelector('.kgc-pick[data-pick="Connect Microsoft Fabric"] small'); return a ? a.textContent : ''; });
   f.pics = await pictures(page);
   f.logOverflowX = await page.evaluate(() => { const l = document.querySelector('.kgc-log'); return l.scrollWidth - l.clientWidth; });
   f.pageOverflowX = await page.evaluate(() => document.scrollingElement.scrollWidth - innerWidth);
@@ -466,7 +466,7 @@ async function flowByKeyboard(page, f, v) {
     }
   }
 
-  // a link inside the chat closes it, and its steps are there at the next open: Connect to my Fabric goes to /start
+  // a link inside the chat closes it, and its steps are there at the next open: Connect Microsoft Fabric goes to /start
   for (const [w, h] of [[1280, 800], [375, 812]]) {
     const ctx = await browser.newContext({ viewport: { width: w, height: h } });
     const page = await ctx.newPage();
@@ -477,8 +477,8 @@ async function flowByKeyboard(page, f, v) {
       await waitPick(page, label);
       await page.click(`.kgc-pick[data-pick="${label}"]`);
     }
-    await waitPick(page, 'Connect to my Fabric');
-    await page.click('.kgc-pick[data-pick="Connect to my Fabric"]');
+    await waitPick(page, 'Connect Microsoft Fabric');
+    await page.click('.kgc-pick[data-pick="Connect Microsoft Fabric"]');
     await page.waitForURL('**/start');
     await page.waitForLoadState('load');
     await wait(1200);
