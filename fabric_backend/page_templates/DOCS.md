@@ -43,6 +43,10 @@ tested end to end; the other sources are Experimental until a live run). Plans c
 and the bounded counts of rule R5 (below), checks run as counting queries in Fabric, and the samples and query results you ask for pass through to your MCP
 client without being kept. What it creates is created in Fabric.
 
+**Why not just Microsoft's tools?** {{PRODUCT}} works beside them: [the comparison on /choose](/choose#why-not-microsoft)
+says, for the Fabric API for GraphQL by hand, the GraphQL and Fabric MCP servers, Power BI's automatic relationships and
+dbt tests, what each does and what {{PRODUCT}} adds. Security, data and what is in place: [Security and data](/trust).
+
 **Rules you can check, not guesses.** Keys and relationships come from documented rules ([K0–K5, R0–R4](#how-relationships-are-inferred))
 and, for SAP tables, a pack built from public SAP documentation (`sap_pack_draft`: Draft only, tested on a synthetic
 SAP schema, not on an SAP system). Every key and relationship shows the rule or source behind it. Columns that could

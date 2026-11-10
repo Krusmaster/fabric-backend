@@ -312,12 +312,44 @@ def short(name: str) -> str:
     dates and Fabric's answers) is on /docs#test-status. A tool whose item has been reviewed in Fabric says so instead."""
     if name in REVIEWED:
         return "created live; reviewed in Fabric"
-    if name in LATER_LIVE:
+    if name in LATER_LIVE or name in RAN_LIVE:      # n205: create_pipeline created pipeline_shop live and it ran (RAN_LIVE)
         return "created live"
     if STATUS[name].kind == CREATES and build_word(name) == "draft":
         return "draft; deployment not yet verified"
     w = word(name)
     return w[0].lower() + w[1:]
+
+
+# n205: the tool list in an AI client says what the site and the README say. A tool whose short status is neither "tested
+# end to end" (in any of its forms) nor "created live" gets EXPERIMENTAL at the end of its title (never its name);
+# server.py's _titled_tool applies it, and tests/test_n205_labels.py checks every hosted tool against this.
+EXPERIMENTAL = " (experimental)"
+
+
+def experimental(name: str) -> bool:
+    """True when the tool's short status is not "tested end to end ..." or "created live ..."; a tool without a status
+    record counts as experimental."""
+    if name not in STATUS:
+        return True
+    s = short(name)
+    return not (s.startswith("tested end to end") or s.startswith("created live"))
+
+
+def titled(name: str, title: str) -> str:
+    """The tool's title as an MCP client shows it: with EXPERIMENTAL at the end when experimental(name)."""
+    return title + EXPERIMENTAL if experimental(name) and not title.endswith(EXPERIMENTAL) else title
+
+
+README_BEGIN = "<!-- tool-status:begin (generated from fabric_backend/tool_status.py by readme_status_md(); do not edit by hand) -->"
+README_END = "<!-- tool-status:end -->"
+
+
+def readme_status_md() -> str:
+    """n205: the README's status line per hosted tool, the same short status the site uses and whether the tool's title in
+    an AI client ends in "(experimental)". tests/test_n205_labels.py checks that README.md carries exactly this block."""
+    rows = ["| Tool | Status | Title in the tool list |", "| --- | --- | --- |"]
+    rows += [f"| `{t}` | {short(t)} | {'ends in (experimental)' if experimental(t) else 'no label'} |" for t in STATUS]
+    return "\n".join([README_BEGIN, *rows, README_END])
 
 
 def _listed(names) -> str:

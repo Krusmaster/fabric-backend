@@ -163,7 +163,7 @@ def test_the_footer_has_the_preview_line_and_the_data_link(client):
         html = client.get(path).text
         foot = html[html.index('<footer class="site-footer">'):]
         line = re.search(r'<p class="muted tiny footer-status">(.*?)</p>', foot, re.S).group(1)
-        assert _plain(line) == "Krusgraph is a preview service. Test status per tool · How data and access are handled.", path
+        assert _plain(line) == "Krusgraph is a preview service. Test status per tool · How data and access are handled · Security and data.", path
         assert '<a href="/docs#test-status">Test status per tool</a>' in line and '<a href="/privacy">How data and access are handled</a>' in line
 
 

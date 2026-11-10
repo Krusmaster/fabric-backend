@@ -414,13 +414,15 @@ def _titled_tool(register):
     """The Claude directory reads a tool's name from annotations.title, not only from the tool's title: copy the
     title into the annotations of every tool, so each listing shows a human-readable name. Every tool is registered
     through _instrumented (limits, entitlements, usage). n123: a tool the server-wide switches remove (switches.py,
-    KRUSGRAPH_READ_ONLY and KRUSGRAPH_NO_ROW_VALUES) is not registered; with both off nothing changes."""
+    KRUSGRAPH_READ_ONLY and KRUSGRAPH_NO_ROW_VALUES) is not registered; with both off nothing changes. n205: the title
+    ends in "(experimental)" when tool_status.experimental() says so (tool_status.titled); the name never changes."""
     def tool(*args, title: str | None = None, annotations: ToolAnnotations | None = None, **kwargs):
-        if title:
-            annotations = (annotations or ToolAnnotations()).model_copy(update={"title": title})
-
         def wrap(fn):
+            nonlocal title, annotations
             name = kwargs.get("name") or fn.__name__
+            if title:                                       # n205: "(experimental)" from tool_status, at the end of the title
+                title = _tool_status.titled(name, title)
+                annotations = (annotations or ToolAnnotations()).model_copy(update={"title": title})
             guarded = _switches.guard(_instrumented(fn, name), name, annotations)
             if not _switches.register(name, annotations):
                 return guarded
@@ -1021,7 +1023,7 @@ MODEL_READ_SPEC = ("fabric-rest-api-specs a96c37a semanticModel/swagger.json, It
                    "docs/SCOPES.md has the comparison.")
 
 
-@mcp.tool(title="Compare an existing Power BI semantic model with the plan", annotations=RO)
+@mcp.tool(title="Compare a Power BI semantic model with the plan", annotations=RO)
 @safe
 def compare_semantic_model(workspace: _p.Workspace, source: _p.Source, model: _p.CompareModel = "", schema: _p.Schema = "dbo", keys: _p.Keys = None,
                            confirmed: _p.Confirmed = None, check_data: _p.CheckData = False, max_items: _p.MaxItems = 60,
@@ -1270,7 +1272,7 @@ def domain_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema =
     return _bounded(out, MAX_RESULT_CHARS)
 
 
-@mcp.tool(title="Show which SAP tables and relationships the SAP pack recognises (nothing created)", annotations=RO)
+@mcp.tool(title="SAP tables and links the SAP pack recognises (nothing created)", annotations=RO)
 @safe
 def sap_pack_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.SapSchema = "dbo", keys: _p.SapKeys = None,
                    confirmed: _p.SapConfirmed = None, variant: _p.SapVariant = None, export: _p.SapExport = "none",
@@ -1279,7 +1281,7 @@ def sap_pack_draft(workspace: _p.Workspace, source: _p.Source, schema: _p.SapSch
     prefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of
     each, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header
     vs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with
-    the chosen export when export is not "none". Read-only; changes nothing. Errors: {error, kind, hint}."""
+    the chosen export when export is not "none". Changes nothing. Errors: {error, kind, hint}."""
     p, _, _ = _plan(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     return _bounded(_sap_pack.draft(p, source_name=schema, export=export, variant=variant), MAX_RESULT_CHARS, _compact.NARROW_HINT)
@@ -2959,6 +2961,8 @@ def build_app(host: str = "0.0.0.0"):
     for path, to in REDIRECTS.items():
         app.router.routes.append(Route(path, (lambda t: lambda request: RedirectResponse(t, status_code=301))(to)))
     page_route("/privacy", privacy_html)
+    from .pages import trust_html, trust_md
+    page_route("/trust", trust_html)                     # n205: security and data
     from .pages import ATTESTATION_PATH, attestation_html, attestation_md
     page_route(ATTESTATION_PATH, attestation_html)       # n195: the workload's vendor attestation, unlinked
     page_route("/docs", docs_html)
@@ -2997,6 +3001,7 @@ def build_app(host: str = "0.0.0.0"):
                      ("/local.md", local_md), ("/use-cases.md", use_cases_md), ("/choose.md", choose_md)):
         md_route(path, fn)
     md_route(ATTESTATION_PATH + ".md", attestation_md)
+    md_route("/trust.md", trust_md)
     for _post in BLOG_POSTS:
         md_route("/blog/" + _post["slug"] + ".md", (lambda slug: lambda: blog_md(slug))(_post["slug"]))
 
@@ -3006,7 +3011,7 @@ def build_app(host: str = "0.0.0.0"):
 
     async def llms_full(request):
         parts = [("/docs.md", docs_md()), ("/choose.md", choose_md()), ("/start.md", start_md()), ("/lovable.md", lovable_md()), ("/local.md", local_md()),
-                 ("/use-cases.md", use_cases_md()), ("/privacy.md", privacy_md())]
+                 ("/use-cases.md", use_cases_md()), ("/privacy.md", privacy_md()), ("/trust.md", trust_md())]
         return compressed(request, discovery.llms_full_txt(parts).encode("utf-8"), "text/plain; charset=utf-8", {"Cache-Control": PAGE_CACHE})
     app.router.routes.append(Route("/llms-full.txt", llms_full))
 

@@ -322,7 +322,7 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Compare an existing Power BI semantic model with the plan"
+    "title": "Compare a Power BI semantic model with the plan (experimental)"
    },
    "description": "Compares an existing Power BI semantic model with the plan: missing, contradicted and extra relationships,\ncardinality, direction, active, stale columns, suggested measures. Requires workspace, source and model\n(SemanticModel.ReadWrite.All or Item.ReadWrite.All) or tmdl (no permission). Returns JSON with the differences and\nconfirmed entries for extra links. Changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
@@ -435,7 +435,7 @@
     "title": "compare_semantic_modelOutput",
     "type": "object"
    },
-   "title": "Compare an existing Power BI semantic model with the plan"
+   "title": "Compare a Power BI semantic model with the plan (experimental)"
   },
   {
    "annotations": {
@@ -570,7 +570,7 @@
     "idempotent_hint": true,
     "open_world_hint": true,
     "read_only_hint": false,
-    "title": "Create or update a Fabric data agent from the plan (dry run by default)"
+    "title": "Create or update a Fabric data agent from the plan (dry run by default) (experimental)"
    },
    "description": "Creates a Fabric data agent over the source, with the plan as its instructions (business names, the joins that\nare safe and those that are not, header amounts not to sum over lines), the plan's tables selected and 3–5 example\nquestion/T-SQL pairs over safe joins, or updates the agent of that name in place. Only joins validate=true counted\nare called safe. Requires workspace, source and name; Item.ReadWrite.All or DataAgent.ReadWrite.All. Returns JSON\nwith the instructions, examples, sizes against the documented limits and the REST calls; with dry_run=false also\nthe result, or kind consent. Changes Fabric only with dry_run=false: instructions, data source and examples are\nreplaced; nothing is deleted. Errors: {error, kind, hint}.",
    "input_schema": {
@@ -691,7 +691,7 @@
     "title": "create_data_agentOutput",
     "type": "object"
    },
-   "title": "Create or update a Fabric data agent from the plan (dry run by default)"
+   "title": "Create or update a Fabric data agent from the plan (dry run by default) (experimental)"
   },
   {
    "annotations": {
@@ -1541,7 +1541,7 @@
     "idempotent_hint": true,
     "open_world_hint": true,
     "read_only_hint": false,
-    "title": "Create or alter T-SQL views in a schema of their own (dry run by default)"
+    "title": "Create or alter T-SQL views in a schema of their own (dry run by default) (experimental)"
    },
    "description": "Creates or alters wide T-SQL views over the plan on the source's SQL analytics endpoint or warehouse: one per fact\ntable with its dimensions, one per header table. Requires workspace and source; rights to create objects\n(Contributor is enough). Returns JSON with the SQL; with dry_run=false also what ran. Changes Fabric only with\ndry_run=false and only in views_schema: CREATE OR ALTER replaces views of the same name; nothing is dropped.\nErrors: {error, kind, hint}.",
    "input_schema": {
@@ -1632,7 +1632,7 @@
     "title": "create_viewsOutput",
     "type": "object"
    },
-   "title": "Create or alter T-SQL views in a schema of their own (dry run by default)"
+   "title": "Create or alter T-SQL views in a schema of their own (dry run by default) (experimental)"
   },
   {
    "annotations": {
@@ -1963,7 +1963,7 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Draft domains and contracts"
+    "title": "Draft domains and contracts (experimental)"
    },
    "description": "Proposes domains from the plan. Returns JSON with interfaces and an ODCS contract per domain. Changes nothing.\nErrors: {error, kind, hint}.",
    "input_schema": {
@@ -2029,7 +2029,7 @@
     "title": "domain_draftOutput",
     "type": "object"
    },
-   "title": "Draft domains and contracts"
+   "title": "Draft domains and contracts (experimental)"
   },
   {
    "annotations": {
@@ -3515,9 +3515,9 @@
     "destructive_hint": false,
     "open_world_hint": true,
     "read_only_hint": true,
-    "title": "Show which SAP tables and relationships the SAP pack recognises (nothing created)"
+    "title": "SAP tables and links the SAP pack recognises (nothing created) (experimental)"
    },
-   "description": "Shows which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1…, with or without a\nprefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of\neach, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header\nvs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with\nthe chosen export when export is not \"none\". Read-only; changes nothing. Errors: {error, kind, hint}.",
+   "description": "Shows which tables of the source the SAP pack recognises (VBAK, VBAP, LIKP, VBRK, KNA1…, with or without a\nprefix such as sap_), their keys with MANDT, the order-to-cash relationships it applies with the public source of\neach, the ones it lists but does not apply (VBFA), missing pack tables and columns, and the traps (client, header\nvs item amounts, currency, leading zeros, partner functions). Requires workspace and source. Returns JSON, with\nthe chosen export when export is not \"none\". Changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {
@@ -3613,7 +3613,7 @@
     "title": "sap_pack_draftOutput",
     "type": "object"
    },
-   "title": "Show which SAP tables and relationships the SAP pack recognises (nothing created)"
+   "title": "SAP tables and links the SAP pack recognises (nothing created) (experimental)"
   },
   {
    "annotations": {

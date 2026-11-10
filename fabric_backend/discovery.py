@@ -34,7 +34,7 @@ USP_POINTS = (
 USP_SAP = ("SAP tables: keys with MANDT and the order-to-cash links, each with its public source", "/sap")
 
 # The public pages, in sitemap order. /mascots is a review page and stays out (noindex, disallowed).
-PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
+PUBLIC_PAGES = ["/", "/check", "/start", "/choose", "/sap", "/docs", "/lovable", "/local", "/use-cases", "/use-cases/build", "/privacy", "/trust", "/it", "/support", "/partners", "/partners/workspace", "/pricing", "/terms", "/blog"]
 PUBLIC_PAGES += ["/blog/" + x["slug"] for x in _BLOG_POSTS]                             # n145: the blog and its posts
 
 
@@ -199,6 +199,7 @@ It reads table and column names, infers keys and relationships from names (decla
 - [Preview terms]({o}/terms): the draft terms of the preview
 - [Blog]({o}/blog): articles by Gustav Kruse, Kruse Consulting AB: {blog_line}
 - [Privacy policy]({o}/privacy.md): sign-in, metadata, sample rows and query results, access tokens, usage records and technical logs
+- [Security and data]({o}/trust.md): what passes through and what is stored (no table contents), region, sub-processors, delegated permissions, how to revoke access, what is and is not in place (no certification held), and answers to a security questionnaire
 
 ## Connect
 

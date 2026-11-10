@@ -626,7 +626,7 @@ _THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle a
                  '</button>')
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases", "/choose", "/workload/attestation")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/trust", "/lovable", "/local", "/use-cases", "/choose", "/workload/attestation")       # pages that are also served as <path>.md
 
 
 # n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
@@ -750,11 +750,11 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
       <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
       <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
-      <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#test-status">Test status per tool</a> · <a href="/privacy">How data and access are handled</a>.</p>
+      <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#test-status">Test status per tool</a> · <a href="/privacy">How data and access are handled</a> · <a href="/trust">Security and data</a>.</p>
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
-      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">{CHECK_LABEL}</a><a href="/use-cases">Use cases</a><a href="/start">{CONNECT_LABEL}</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
+      <a href="/check?example=sample&amp;guide=1">Try the guided demo</a><a href="/check">{CHECK_LABEL}</a><a href="/use-cases">Use cases</a><a href="/start">{CONNECT_LABEL}</a><a href="/docs">Docs</a><a href="/blog">Blog</a><a href="/lovable">Use with Lovable</a><a href="/privacy">Privacy</a><a href="/trust">Security and data</a><a href="/support">Get help</a><a href="/partners">Try a pilot</a><a href="/pricing">Pricing</a><a href="/terms">Preview terms</a>
       <a href="{GITHUB}" rel="noopener">GitHub</a><a href="mailto:{html.escape(v['CONTACT'])}">{html.escape(v['CONTACT'])}</a>
     </nav>
     <div class="footer-controls">
@@ -1279,6 +1279,23 @@ def not_found_html(path: str) -> str:
 def privacy_html() -> str:
     body = f'<article class="wrap prose">{_md_to_html(privacy_md())}</article>'
     return _shell("Privacy policy — {{PRODUCT}}", PRIVACY_DESC, body, page="privacy", nav="", path="/privacy", chat=True)
+
+
+# n205: /trust, the security and data page for a buyer's security, privacy and procurement team, written from
+# docs/TRUST-PACK.md (n199) for the public: what passes through, what is stored, region, sub-processors, delegated
+# permissions, how to revoke, the status table and the questionnaire answers. Linked from the footer ("Security and
+# data"), /pricing and /choose; /trust.md is its Markdown twin. tests/test_n205_trust.py keeps claim words off it.
+TRUST_DESC = ("What passes through {{PRODUCT}} and what is stored (no table contents), where it runs, sub-processors, "
+              "delegated permissions, how to revoke access, what is and is not in place, and answers to a security questionnaire.")
+
+
+def trust_md() -> str:
+    return _fill(_read("TRUST.md"), escape=False)
+
+
+def trust_html() -> str:
+    body = f'<article class="wrap prose">{_md_to_html(trust_md())}</article>'
+    return _shell("Security and data — {{PRODUCT}}", TRUST_DESC, body, page="trust", nav="", path="/trust", chat=True)
 
 
 # n195: the vendor attestation of the Fabric workload Krusgraph.Modeler, Section III of Microsoft's template

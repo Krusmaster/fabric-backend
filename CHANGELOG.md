@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n205: **trust, honest labels, a comparison and findability** before the launch of 11 November 2026, after a
+  reviewer's report of 10 November ("the biggest obstacle is trust, not technology"). `/trust` ("Security and data",
+  Markdown twin `/trust.md`), written from `docs/TRUST-PACK.md`: what passes through, that no table contents are
+  stored, the region, sub-processors, delegated permissions, how to revoke, what is and is not in place (no
+  certification held, the attestation a draft, no penetration test) and the questionnaire answers; linked from the
+  footer, `/pricing` and `/choose`, in the sitemap and llms.txt. Every hosted tool whose status is neither "tested end
+  to end" nor "created live" has "(experimental)" at the end of its title (`tool_status.experimental`, applied in
+  `_titled_tool`; today `domain_draft`, `sap_pack_draft`, `create_views`, `create_data_agent`,
+  `compare_semantic_model`); `create_pipeline`'s short status is "created live" (it created and ran `pipeline_shop` on
+  7 November). The README's status block per tool is generated from `tool_status` and tested equal; the README's
+  first line says what Krusgraph does and that this is its source, and a Roadmap section lists what is planned.
+  `/choose` has "Why not just Microsoft's tools?" (five rows, linked from `/docs`); `/pricing` says what is free today
+  and that a Marketplace team plan is planned with no price. `docs/FOUNDER-TODO.md` lists the GitHub settings only the
+  founder can change. Two titles were shortened to keep the read-only listing under its 64 500-character cap.
 - Round n204: **the Marketplace landing page accepts personal Microsoft accounts as well as work accounts**, as
   Microsoft requires of a SaaS offer sold through Microsoft (Learn, "Plan a SaaS offer", Technical requirements;
   certification policy 1000.3). With `KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID` (deploy key

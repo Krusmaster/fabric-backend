@@ -404,7 +404,7 @@ def choose_vars() -> dict[str, str]:
     return {"CHOOSE_DIAGRAM": diagram_html("The products: one engine, four ways in", 2, "choose-offering-h"),
             "CHOOSE_NOT_PRODUCTS": _e(NOT_PRODUCTS),
             "CHOOSE_COMPARE": compare_html(), "CHOOSE_DECIDE": decide_html(), "CHOOSE_NO_AI": _e(NO_AI),
-            "CHOOSE_SHORT_START": short_html("start")}
+            "CHOOSE_SHORT_START": short_html("start"), "CHOOSE_ALTERNATIVES": alternatives_html()}
 
 
 def choose_md() -> str:
@@ -423,8 +423,60 @@ def choose_md() -> str:
             v = val(w, key)
             out.append(f"- **{label}:** " + ("; ".join(v) if isinstance(v, (list, tuple)) else v))
         out += [f"- **Docs:** {o}{val(w, 'docs')}", ""]
-    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, ""]
+    out += alternatives_md()
+    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, "",
+            f"Security, data and what is in place: {o}/trust.md", ""]
     return "\n".join(out)
+
+
+# n205: "Why not just Microsoft's tools?", the short comparison on /choose (linked from /docs). Plain text names, no logos;
+# each row says what the tool does in the words of its own pages as docs/COMPANION-MCP.md and docs/FAQ-COMPETITION.md
+# quote them, and what Krusgraph adds; nothing about what they cannot do, no measurement (none exists), nothing non-public.
+ALTERNATIVES_H = "Why not just Microsoft's tools?"
+ALTERNATIVES_ID = "why-not-microsoft"
+ALTERNATIVES_INTRO = ("Krusgraph works beside these tools, not instead of them. What it adds in each case is the same: keys and "
+                      "relationships with the rule behind each, checked against your rows before anything is built.")
+ALTERNATIVES = (
+    ("Fabric API for GraphQL, set up by hand",
+     "You create the API item in Fabric, pick the tables and define the relationships between them yourself.",
+     "Proposes the keys and relationships with the rule for each, checks them against the rows (duplicate keys, references "
+     "with no match), and creates or updates the API from the plan you reviewed, keeping its existing field names."),
+    ("GraphQL MCP and Lovable's Fabric connector",
+     "Let an AI agent or an app query an existing Fabric API for GraphQL.",
+     "Builds the API they read, with relationships that were checked against the rows first; Lovable's connector reads an "
+     "API Krusgraph made (a Lovable app read one live on 30 October 2026)."),
+    ("Fabric MCP, Fabric IQ MCP and the Power BI Modeling MCP",
+     "Give an AI agent access to Fabric's APIs, item definitions and OneLake, to questions in DAX on Power BI content, and to "
+     "editing semantic models.",
+     "Works out which tables relate and on what rule, with the counts, and builds the model, ontology or API from that plan; "
+     "it can sit beside them in the same AI client."),
+    ("Power BI's automatic relationships",
+     "Power BI Desktop can detect relationships when data is loaded.",
+     "Shows the rule behind each relationship and the counts from all rows: keys that are not unique, references with no "
+     "matching row and the total that doubles after a join; the same plan then builds more than a Power BI model."),
+    ("dbt tests",
+     "unique, not_null and relationships tests run in your dbt project on the columns you name.",
+     "Proposes which keys and relationships to test and writes the dbt sources file with those tests (dbt_schema); the "
+     "check also runs without a dbt project."),
+)
+
+
+def alternatives_html() -> str:
+    rows = "".join(f'<tr><th scope="row">{_e(n)}</th><td>{_e(d)}</td><td>{_e(a)}</td></tr>' for n, d, a in ALTERNATIVES)
+    return (f'<section class="wrap choose-alternatives" id="{ALTERNATIVES_ID}" aria-labelledby="{ALTERNATIVES_ID}-h">'
+            f'<h2 id="{ALTERNATIVES_ID}-h">{_e(ALTERNATIVES_H)}</h2><p class="intro">{_e(ALTERNATIVES_INTRO)}</p>'
+            f'<div class="table-wrap" tabindex="0" role="region" aria-labelledby="{ALTERNATIVES_ID}-h"><table>'
+            '<thead><tr><th scope="col">Tool</th><th scope="col">What it does</th><th scope="col">What Krusgraph adds</th></tr></thead>'
+            f'<tbody>{rows}</tbody></table></div>'
+            '<p class="muted tiny">Krusgraph is independent and not made by Microsoft; the names are used descriptively. '
+            'More: <a href="/docs/reference/with-microsoft-s-fabric-mcp-servers">With Microsoft\'s Fabric MCP servers</a> in the docs. '
+            'Security, data and what is in place: <a href="/trust">Security and data</a>.</p></section>')
+
+
+def alternatives_md() -> list[str]:
+    out = [f"## {ALTERNATIVES_H}", "", ALTERNATIVES_INTRO, "", "| Tool | What it does | What Krusgraph adds |", "| --- | --- | --- |"]
+    out += [f"| {n} | {d} | {a} |" for n, d, a in ALTERNATIVES]
+    return out + [""]
 
 
 # ------------------------------------------------------------------ the docs' figures ---------------------------------

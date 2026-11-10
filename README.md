@@ -1,4 +1,6 @@
-# fabric-backend — the engine behind Krusgraph
+# Krusgraph finds the keys and relationships of your Microsoft Fabric tables and checks them against the rows; this repository is the Krusgraph source
+
+The package is called `fabric-backend`: the engine, the MCP server, the website and the deployment of [Krusgraph](https://krusgraph.com), open source under the MIT licence.
 
 **See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.**
 
@@ -526,6 +528,53 @@ end to end as a dry run"; `create_backend` is tested end to end as an update in 
 new API with it has not run live. `docs/LIVE-TEST.md`
 is the checklist for the next run.
 
+**Status per tool, as the site and the tool list in Claude show it.** A tool whose status is neither "tested end to end"
+nor "created live" has "(experimental)" at the end of its title in the tool list (its name is unchanged):
+
+<!-- tool-status:begin (generated from fabric_backend/tool_status.py by readme_status_md(); do not edit by hand) -->
+| Tool | Status | Title in the tool list |
+| --- | --- | --- |
+| `list_workspaces` | tested end to end | no label |
+| `list_sources` | tested end to end | no label |
+| `list_tables` | tested end to end | no label |
+| `plan_backend` | tested end to end | no label |
+| `validate_plan` | tested end to end | no label |
+| `sample_rows` | tested end to end | no label |
+| `create_backend` | tested end to end as an update in place | no label |
+| `describe_backend` | tested end to end | no label |
+| `query_graphql` | tested end to end | no label |
+| `rayfin_connector` | tested end to end (a draft; creates nothing) | no label |
+| `ontology_draft` | tested end to end (a draft; creates nothing) | no label |
+| `semantic_model_draft` | tested end to end (a draft; creates nothing) | no label |
+| `join_path` | tested end to end | no label |
+| `data_dictionary` | tested end to end (a draft; creates nothing) | no label |
+| `dbt_schema` | tested end to end (a draft; creates nothing) | no label |
+| `domain_draft` | draft only | ends in (experimental) |
+| `sap_pack_draft` | draft only | ends in (experimental) |
+| `plan_drift` | tested end to end | no label |
+| `create_semantic_model` | created live; reviewed in Fabric | no label |
+| `create_report` | created live; reviewed in Fabric | no label |
+| `create_views` | draft; deployment not yet verified | ends in (experimental) |
+| `create_data_agent` | draft; deployment not yet verified | ends in (experimental) |
+| `create_ontology` | created live; reviewed in Fabric | no label |
+| `app_starter` | tested end to end (a draft; creates nothing) | no label |
+| `app_readiness` | tested end to end | no label |
+| `analyze_schema` | tested end to end | no label |
+| `lineage` | tested end to end | no label |
+| `silver_notebook_draft` | tested end to end (a draft; creates nothing) | no label |
+| `create_silver_notebook` | created live | no label |
+| `drift_monitor_draft` | tested end to end (a draft; creates nothing) | no label |
+| `create_drift_monitor` | created live | no label |
+| `answer_query_draft` | tested end to end (a draft; creates nothing) | no label |
+| `suggest_relationships` | tested end to end | no label |
+| `compare_semantic_model` | tried live | ends in (experimental) |
+| `gold_views_draft` | tested end to end (a draft; creates nothing) | no label |
+| `create_gold_views` | created live | no label |
+| `create_pipeline` | created live | no label |
+| `export_item_definitions` | tested end to end (a draft; creates nothing) | no label |
+| `review_plan` | tested end to end | no label |
+<!-- tool-status:end -->
+
 **25 October 2026, evening: the hosted connector's first connection.** Claude → Entra (a work account in the
 publisher's tenant) → Fabric (an F2 capacity, workspace `demo`, lakehouse `demo_lh`, schema `shop`, the synthetic
 data from `fabric_backend/seed.py`). What counts as tested end to end is the protocol of 27 October below.
@@ -599,6 +648,20 @@ deploy accepted, composite keys and `@date` columns work, the four-hop chain res
 item. Reading through the Rayfin browser client was not tested (app auth needs `Item.Execute.All`). Lovable-side: the
 endpoint is consumed by Lovable's standard Fabric connector (a Lovable app read `shop_api` live on 30 October 2026);
 nothing Lovable-specific is generated.
+
+## Roadmap
+
+What comes next. Each item is planned: none is built or promised for a date.
+
+- **Create in the background, in use** (planned): Krusgraph for Fabric's Create running in the background for pilot users.
+- **A data product page** (planned): one page per checked plan with its tables, keys, relationships and checks.
+- **Health over time** (planned): the checks run again on a schedule and shown as a history.
+- **Mirrored sources, including SAP via SAP Datasphere** (planned): mirrored databases read end to end, SAP tables
+  through SAP Datasphere among them.
+- **Microsoft Marketplace offer** (planned): a paid team plan through Microsoft Marketplace; no price yet
+  ([krusgraph.com/pricing](https://krusgraph.com/pricing)).
+
+Security, data and what is and is not in place: [krusgraph.com/trust](https://krusgraph.com/trust).
 
 ## Development
 
