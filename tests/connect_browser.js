@@ -78,17 +78,23 @@ const exe = process.argv[3];
     if (!r.afterEscape.open) { await page.keyboard.press('Enter'); await page.waitForTimeout(100); }
     await page.keyboard.press('Escape');
     r.afterEscape2 = await page.evaluate(() => ({ open: document.querySelector('details.connect-start').open, focus: document.activeElement === document.querySelector('.connect-start summary') }));
-    // n190: the hub left the home page; Tab on from the hero's Connect reaches the intent tiles, each with a focus ring
+    // n91: past the hero, the hub has no Connect button of its own: Tab from the hero's way to /start (n149: a plain
+    // link, "Connect to my Fabric") reaches the hub's node, a link named for the guide, and Enter on it opens /start
     await page.goto(base + '/', { waitUntil: 'networkidle' });
     await page.focus('.hero-ctas a[href="/start"]');
-    let tile = null;
-    for (let i = 0; i < 6 && !tile; i++) {
+    let hub = null;
+    for (let i = 0; i < 80 && !hub; i++) {
       await page.keyboard.press('Tab');
-      tile = await page.evaluate(() => { const a = document.activeElement; return a && a.matches('.intent-tile')
-        ? { intent: a.dataset.intent, href: a.getAttribute('href'), ring: getComputedStyle(a).outlineStyle, tabs: 0 } : null; });
-      if (tile) tile.tabs = i + 1;
+      hub = await page.evaluate(() => { const a = document.activeElement; return a && a.closest('.hub')
+        ? { tag: a.tagName, href: a.getAttribute('href'), name: a.getAttribute('aria-label'), node: a.matches('.hub-mid a.hub-go'),
+            ring: getComputedStyle(a).outlineStyle } : null; });
     }
-    r.tile = tile || {};
+    r.hub = hub || {};
+    r.hubChoosers = await page.evaluate(() => document.querySelectorAll('.hub details, .hub summary, .hub [data-connect]').length);
+    if (hub) {
+      await Promise.all([page.waitForURL('**/start', { timeout: 5000 }).catch(() => {}), page.keyboard.press('Enter')]);
+      r.hub.landed = new URL(page.url()).pathname;
+    }
     out[width] = r;
     // /consent/done after a granted consent: the next step, and its copy button
     await page.goto(base + '/consent/done?admin_consent=True', { waitUntil: 'networkidle' });

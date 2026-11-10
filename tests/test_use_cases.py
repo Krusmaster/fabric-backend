@@ -43,7 +43,7 @@ def test_page_renders_indexable_with_the_examples_the_industries_and_the_footnot
     for ind in use_cases.INDUSTRIES:
         assert f'id="{ind["slug"]}"' in html and f"<h3>{htmllib.escape(ind['name'], quote=False)}</h3>" in html, ind["slug"]
     assert use_cases.FOOTNOTE in html
-    assert "For Fabric consultancies" in html and 'href="/start">Connect Microsoft Fabric<' in html and 'href="/docs"' in html     # n73: the chooser
+    assert "For Fabric consultancies" in html and 'href="/start">Connect to my Fabric<' in html and 'href="/docs"' in html     # n73: the chooser
     assert "mailto:hello@krusgraph.test" in html
     assert 'id="problem-total-doubles"' in html                            # linked from /check
     assert html.count('data-mascot="') == 1                                 # one mascot moment
@@ -148,7 +148,7 @@ def test_nav_and_footer_link_the_page(client):
         html = client.get(path).text
         nav = html.split('id="site-nav"')[1].split("</nav>")[0]
         footer = html.split('class="footer-links"')[1].split("</nav>")[0]
-        assert '<a href="/use-cases"' in nav and ">Examples</a>" in nav, path            # n190: "Examples" in the nav
+        assert '<a href="/use-cases"' in nav and ">Use cases</a>" in nav, path
         assert '<a href="/use-cases">Use cases</a>' in footer, path
     assert '<a href="/use-cases" aria-current=page>' in client.get("/use-cases").text
 
@@ -158,7 +158,7 @@ def test_nav_and_footer_link_the_page(client):
         html = client.get(path).text
         nav = html.split('id="site-nav"')[1].split("</nav>")[0]
         footer = html.split('class="footer-links"')[1].split("</nav>")[0]
-        assert '<a href="/use-cases"' in nav and ">Examples</a>" in nav, path            # n190: "Examples" in the nav
+        assert '<a href="/use-cases"' in nav and ">Use cases</a>" in nav, path
         assert '<a href="/use-cases">Use cases</a>' in footer, path
     assert '<a href="/use-cases" aria-current=page>' in client.get("/use-cases").text
 

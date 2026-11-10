@@ -84,7 +84,7 @@ def test_the_theme_button_switches_and_the_choice_survives_a_reload(report):
 def test_the_home_buttons_and_a_visible_focus_ring(report):
     f = report["facts"]
     for v in ("1440-light", "1440-dark", "768-light", "375-light"):
-        assert f[f"homeCtas@{v}"] == ["/check?example=sample&guide=1", "/start"], v   # n190: "Try the free demo", then "Connect Microsoft Fabric"
+        assert f[f"homeCtas@{v}"] == ["/check", "/start"], v              # n149: "Check my tables", then "Connect to my Fabric"
         for where in ('.start-pane[data-pane="3"]',):                    # n149: the chooser is on /start, step 3
             c = f[f"connect@{v}"][where]
             assert c["open"] and c["inside"] and c["wide"] <= int(v.split("-")[0]), (v, where, c)
@@ -126,13 +126,42 @@ def test_sales_example_journey_at_phone_width(report):
 
 
 def test_home_entry_old_anchors_and_the_hub_under_the_hero(report):
-    """Round n17: the way in to the guided demo is on the first screen of a small phone (375 x 667) and a laptop
-    (1280 x 800): n190, the hero's "Try the free demo"; /#guide, /#demo and a step's anchor open the guided demo on
-    /check (n55). The hub left the home page in n190."""
+    """Round n17: the start page's way in to the guided demo takes at most half the screen of a small phone (375 x 667)
+    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the guided demo on /check (n55). The hub (brief of
+    27 October 2026) keeps its three cards and the product on the screen, none on top of another and no name cut off,
+    with its text version for screen readers: side by side with the lines at 1280 and 1440 px, stacked with the product
+    in the middle at 768 and 375 px. (This server runs without client registration: Claude and Lovable on the right.)"""
     f = report["facts"]
-    assert f["homeEntry@375x667"] <= 1 and f["homeEntry@1280x800"] <= 1
+    assert f["homeEntry@375x667"] <= 0.5 and f["homeEntry@1280x800"] <= 0.5
     for h in ("#guide", "#demo", "#guide-h3"):
         assert f[f"oldAnchor{h}"] == "/check?example=sample&guide=1", h          # n55: the guided demo is on /check
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        c = f[f"hub@{v}"]
+        assert c["cards"] == 4 and c["items"] == 11 and c["outside"] == 0 and c["overlaps"] == 0 and c["cut"] == 0, (v, c)
+        assert c["srText"] > 300, v
+        wide = v.startswith(("1440", "1280"))
+        assert c["sideBySide"] is wide and c["stacked"] is not wide and c["lines"] == (2 if wide else 0), (v, c)
+
+
+def test_the_hub_node_links_to_the_guide_and_nothing_moves(report):
+    """n91 (Gustav's decision of 2 November 2026): the hub has no Connect button, the hero's chooser stays; the node in the
+    middle links to /start under the name "Connect Krusgraph to Claude: the guide", the whole node is the link, and it is
+    reached by Tab from the hero's Connect. At 375 and 1280 px (and the other widths) nothing runs out of the screen, the
+    product stays centred between the cards on the left, and nothing in the hub moves at rest, on hover or on focus; the
+    node looks the same at rest, shows a ring on hover and the focus outline on Tab."""
+    f = report["facts"]
+    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
+        n, w = f[f"hubNode@{v}"], int(v.split("-")[0])
+        assert n["href"] == "/start" and n["name"] == "Connect Krusgraph to Claude: the guide" and n["hasMark"], (v, n)
+        assert n["connectInHub"] == 0 and n["choosers"] == 0 and n["links"] == 1, (v, n)          # n149: no chooser on the home page
+        assert n["hiddenAround"] == [] and n["tabIndex"] == 0 and n["tabbedTo"] == "c-hub c-hub-logo hub-go", (v, n)
+        assert n["inside"] and n["wide"] <= w and n["hitIsLink"], (v, n)
+        assert n["stillAfterWait"] and n["stillOnHover"] and n["stillOnFocus"], (v, n)
+        assert n["rest"]["shadow"] == "none" and n["rest"]["outline"] == "none" and n["rest"]["cursor"] == "pointer", (v, n)
+        assert n["hover"]["shadow"] != "none" and n["hover"]["bg"] == n["rest"]["bg"] and n["backToRest"], (v, n)
+        assert n["focus"]["outline"] not in ("none", ""), (v, n)
+        if v.startswith(("1440", "1280")):
+            assert n["centred"], (v, n)                                    # side by side: the product between data and what is built
 
 
 def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_motion(report):
@@ -143,6 +172,16 @@ def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_mot
         assert b["steps"] == len(pages.build_path()) and b["stepsOutside"] == 0, (v, b)     # the row of steps (n34)
     assert f["build@1280-light"]["stepsInRow"] == 1 and f["build@375-light"]["stepsInRow"] == len(pages.build_path())
     assert f["buildMotion"] == 0
+
+
+def test_a_tap_in_the_played_session_shows_two_links_and_keeps_it_playing(report):
+    """n48: touch at 375 and mouse at 1280; Tab reaches the links, Escape hides them."""
+    for w in (375, 1280):
+        s = report["facts"][f"session@{w}"]
+        # n154: the first turn has two animations (its first round, then the loop), each running
+        assert set(s["state"].split(", ")) == {"running"} and s["pause"] == "Pause", (w, s)
+        assert s["links"] == ["/check", "/start"] and s["wide"] <= w and s["hidden"], (w, s)      # n149: the two ways in
+        assert s["tabbed"] == "/check" and s["tabShown"] and s["escFocus"] == "session-pause", (w, s)
 
 
 # ------------------------------------------------------------------ round n52: first-time visitors' ways in ----------
@@ -161,16 +200,15 @@ def test_the_start_page_hero_buttons_are_above_the_fold(first_visit):
     second is the Connect chooser's button (one click per client; /start is the long guide, linked from the chooser)."""
     for v, ctas in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("hero@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert [(c["href"], c["text"]) for c in ctas] == [("/check?example=sample&guide=1", "Try the free demo"), ("/start", "Connect Microsoft Fabric")], v   # n190
+        assert [(c["href"], c["text"]) for c in ctas] == [("/check", "Check my tables"), ("/start", "Connect to my Fabric")], v   # n149
         assert all(c["bottom"] <= height for c in ctas), (v, ctas)
 
 
 def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
-    """n73: the hero's two ways in come early on the keyboard (n190: "Try the free demo", then "Connect Microsoft Fabric")."""
-    demo = "/check?example=sample&guide=1"
+    """n73: the hero's two ways in come early on the keyboard (n149: "Check my tables", then "Connect to my Fabric")."""
     for w in (1280, 375):
         seen = first_visit[f"tab@{w}"]
-        assert demo in seen and "/start" in seen and seen.index(demo) < seen.index("/start"), (w, seen)
+        assert "/check" in seen and "/start" in seen and seen.index("/check") < seen.index("/start"), (w, seen)
 
 
 def test_the_check_drop_area_comes_first_on_a_phone(first_visit):
@@ -275,7 +313,7 @@ def test_chat_the_whole_flow_by_mouse_says_the_engines_numbers(chat):
         # n177: after the three results Onto asks what next, the steps left first; "That is the demo" comes after the last
         assert "That is the demo" not in f["end"] and "What next?" in f["end"], v
         assert f["endLinks"] == [{"href": "/check", "target": None}, {"href": "/start", "target": None}], v
-        assert f["endPicks"] == ["Fix data issues", "Draft a dbt project", "Check my tables", "Connect Microsoft Fabric"], v
+        assert f["endPicks"] == ["Fix data issues", "Draft a dbt project", "Check my tables", "Connect to my Fabric"], v
         assert "That is the demo" in f["finalEnd"], v
         assert f["endWhy"] == "Opens the set-up guide.", v
         assert f["afterClose"] == {"hidden": True, "launchShown": True, "focus": "kgcLaunch", "expanded": "false"}, v
@@ -341,8 +379,8 @@ def test_chat_fix_and_dbt_run_as_steps_with_the_engines_output(chat):
             fix, dbt = f["further"]
             assert fix == {"tag": "BUTTON", "key": "fixes", "href": None, "planned": False, "why": "A proposed fix for each problem, with counts before and after."}, (v, fix)
             assert dbt["tag"] == "BUTTON" and dbt["key"] == "dbt" and dbt["href"] is None, (v, dbt)
-            assert f["afterFixPicks"] == ["Draft a dbt project", "Check my tables", "Connect Microsoft Fabric"], v
-            assert f["afterDbtPicks"] == ["Check my tables", "Connect Microsoft Fabric"], v
+            assert f["afterFixPicks"] == ["Draft a dbt project", "Check my tables", "Connect to my Fabric"], v
+            assert f["afterDbtPicks"] == ["Check my tables", "Connect to my Fabric"], v
             fixes, project = f["extra"]
             h_fix, h_dbt = f["extraHtml"]
             assert "No data to fix in the example" in fixes and f"{fx['keys_unique']} of {fx['keys']} keys unique" in fixes, (v, fixes)
@@ -462,7 +500,7 @@ def test_chat_a_link_inside_closes_it_and_connect_goes_to_the_set_up_guide(chat)
         assert f["url"] == "/start" and "set-up guide" in f["title"], f
         assert f["stored"] == {"open": False, "steps": ["scan", "yes", "model", "ontology", "domains"]}, f["stored"]
         assert not f["after"]["open"] and not f["after"]["loaded"], f["after"]
-        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][2:] == ["Check my tables", "Connect Microsoft Fabric"], f
+        assert f["reopened"]["open"] and f["reopened"]["pics"] == 5 and f["endPicks"][2:] == ["Check my tables", "Connect to my Fabric"], f
 
 
 def test_chat_start_over_empties_the_steps(chat):

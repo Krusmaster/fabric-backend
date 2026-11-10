@@ -116,13 +116,6 @@ OUTPUTS = [   # (what, for what, status in the docs' words, from tool_status; "p
 # ------------------------------------------------------------------ engine -----------------------------------------
 
 @lru_cache(maxsize=None)
-def sample_run() -> dict:
-    """n190: the engine's full run of /check's sample, for the home page's before and after."""
-    from .browser_check import analyze
-    return analyze("sample")
-
-
-@lru_cache(maxsize=None)
 def example_map(kind: str) -> dict:
     """The engine's run on one /check example, cut to what the map draws: its step events and up to three findings."""
     from .browser_check import analyze

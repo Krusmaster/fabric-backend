@@ -55,10 +55,20 @@ def test_check_carries_the_plan_and_keeps_fetching_nothing(client):
 
 
 def test_the_hero_has_the_replay_under_the_buttons_and_keeps_n149(client):
-    """n190: the session replay left the home page (a chat-like element; the founder's rule: no fake AI chat). What n149
-    kept stays: /check's card after a result and /start's line for people from /check."""
     html = client.get("/").text
-    assert '<figure class="session"' not in html
+    hero = re.search(r'<section class="hero">.*?</section>', html, re.S).group(0)
+    order = [hero.index(x) for x in ("<h1>Why is your total twice what finance says?</h1>", 'class="lede"', "hero-ctas",
+                                     '<figure class="session"', '<p class="ba-mini">', 'class="usp"')]
+    assert order == sorted(order)
+    assert ">Check my tables</a>" in hero and ">Connect to my Fabric</a>" in hero
+    fig = hero[hero.index('<figure class="session"'):hero.index("</figure>")]
+    # n165: questions 1 and 2 are the engine's checks run here, so the head and caption no longer claim a Claude session
+    assert "A replay of Krusgraph's answers" in fig and "Create an ontology from my shop data." in fig
+    assert "Answers shortened from Krusgraph's checks on synthetic shop data" in fig
+    assert re.findall(r'class="session-tool">(\w+)<', fig) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
+    assert html.count('<figure class="session"') == 1 and ".replay{" not in CSS
+    # what n149 kept: Blog in the navigation, /check's card after a result, /start's line for people from /check
+    assert re.search(r'<a href="/blog">Blog</a>', re.search(r'<nav id="site-nav".*?</nav>', html, re.S).group(0))
     assert 'id="check-live"' in client.get("/check").text and "Coming from /check?" in client.get("/start").text
 
 
@@ -78,6 +88,16 @@ def test_in_a_browser_the_hero_and_the_button_everywhere(site):
     r = json.loads(out.stdout.strip().splitlines()[-1])
     assert r["errors"] == []
     for w in (375, 1280):
+        h = r[f"hero{w}"]
+        assert h["inHero"] and h["ctas"]["bottom"] <= h["session"]["top"] <= h["ctas"]["bottom"] + 40, h
+        assert h["session"]["bottom"] <= h["mini"]["top"] <= h["usp"]["top"], h
+        # n165: turn 1 plays from 0 s: its question is typing at 0.5 s, its answer is in by 2.5 s, close under the heading
+        assert 500 <= h["at"] < 1300 and h["turnsShown"] == 1 and h["questionShown"], h
+        assert h["late"]["at"] >= 2500 and h["late"]["sentOpacity"] == 1 and h["late"]["answerOpacity"] == 1 and h["late"]["turnsShown"] == 1, h
+        assert h["late"]["sent"]["top"] - h["head"]["bottom"] < 40, h
+        assert h["dots"] == [True, False, False, False] and h["late"]["dots"] == [True, False, False, False], h
+        assert r[f"later{w}"]["turns"][1] == 1 and r[f"later{w}"]["turns"][0] == 0, r[f"later{w}"]
+        assert r[f"later{w}"]["dots"] == [False, True, False, False], r[f"later{w}"]
         for path in ("/", "/check", "/start", "/pricing", "/docs/reference/tools", "/blog/fabric-totals-double-after-join", "/lovable", "/it"):
             f = r[f"{path}@{w}"]
             # shown in its corner, except that it steps aside while it would cover /check's drop area (a phone's width)

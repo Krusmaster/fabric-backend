@@ -117,11 +117,6 @@
       // n86b: /docs/concepts/ontologies links to the downloads (#check-evidence) for the ontology's RDF/XML file
       const ev = $("check-evidence");
       if (location.hash === "#check-evidence" && !evidenceShown && !ev.hidden) { evidenceShown = true; ev.scrollIntoView({ behavior: "auto", block: "center" }); }
-      else if (intent && INTENTS[intent] && !intentDone) {
-        // after this run's finally (busy is still true here), so the Power BI draft can start; data-intent says it landed
-        intentDone = true;
-        setTimeout(() => Promise.resolve(INTENTS[intent]()).then(() => { document.documentElement.dataset.intent = intent; }), 0);
-      }
       else run.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "start" });
     } finally {
       onStep = null;
@@ -139,15 +134,6 @@
   $("check-files").addEventListener("change", async (e) => { if (e.target.files.length) start("files", await readFiles(e.target.files)); });
   document.querySelectorAll("[data-example]").forEach((b) => b.addEventListener("click", () => { guided = false; $("check-guide").hidden = true; start(b.dataset.example); }));
   let guided = false;                       // n55: set from the address at the end of this file
-  // n190: the home page's intent tiles open /check?example=sample&intent=<key>; once the run is done, each lands on the
-  // part of the result it names (pages.INTENTS): the findings, the map, the Power BI model, the ontology and evidence.
-  let intent = null, intentDone = false;
-  const INTENTS = {
-    issues: () => { const all = $("check-all"); all.hidden = false; all.open = true; all.scrollIntoView({ behavior: "auto", block: "start" }); },
-    map: () => { $("check-map").scrollIntoView({ behavior: "auto", block: "center" }); },
-    model: () => openBuild("model"),
-    agent: () => { const t = $("check-tile-ontology") || $("check-build-head"); t.scrollIntoView({ behavior: "auto", block: "center" }); },
-  };
   $("check-columns-run").addEventListener("click", () => {
     const text = $("check-columns").value.trim();
     if (!text) { say("Paste a list of columns first: one table.column per line."); $("check-columns").focus(); return; }
@@ -658,7 +644,7 @@
         el("p", { class: "muted tiny" }, "The contract (Open Data Contract Standard v3.2.0, YAML) is written in this browser from the plan: keys unique, no orphan rows, one foreign key per relationship. A draft to review; nothing is created."),
         ...statusLines([{ what: "the data contract", status: r.domains.status }]),
         el("div", { class: "ctas" }, saveText(product.slug + ".odcs.yaml", yaml, "data contract", "ODCS 3.2 YAML: schema, keys, relationships and " + (r.source && r.source.has_data ? "the checks that passed" : "the checks to run") + (doubledFinding(r) ? ", with the total that doubles" : "") + "."),
-          el("a", { class: "btn primary small", href: "/start" }, "Connect Microsoft Fabric"))];
+          el("a", { class: "btn primary small", href: "/start" }, "Connect to my Fabric"))];
     } });
     qs.push({ id: "powerbi", q: "How do I get this into Power BI?", a: () => {
       setTimeout(() => openBuild("model"), 0);
@@ -666,7 +652,7 @@
     } });
     qs.push({ id: "own", q: "Can I ask my own questions?", a: () => [
       el("p", null, el("strong", null, "Yes, in Claude."), " Connect " + $("check-ask").dataset.product + " to Claude and ask about your own lakehouse; the answers come with the same rules and are checked against the rows. Here on /check nothing leaves the browser, so there is no question box."),
-      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect Microsoft Fabric"))] });
+      el("p", { class: "ctas" }, el("a", { class: "btn primary small", href: "/start" }, "Connect to my Fabric"))] });
     listEl.replaceChildren(...qs.map((x) => {
       const b = el("button", { type: "button", class: "check-ask-q", "aria-expanded": "false", "aria-controls": "check-ask-answer", "data-ask": x.id }, x.q);
       b.addEventListener("click", () => {
@@ -687,7 +673,6 @@
   const query = new URLSearchParams(location.search);
   if (["sample", "sap", "crm", "billing"].includes(query.get("example"))) {
     guided = query.get("guide") === "1";
-    intent = query.get("intent");
     if (guided) $("check-guide").hidden = false;
     start(query.get("example"));
   }

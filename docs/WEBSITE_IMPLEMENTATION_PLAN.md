@@ -1,3 +1,5 @@
+Not applied: the founder kept the previous home page on 10 Nov 2026 (n194).
+
 # Website implementation plan (round n190)
 
 P0 is done in n190 (see `docs/WEBSITE_UX_AUDIT.md`, section 7). P1 starts only when P0 is deployed and green, and P2

@@ -41,8 +41,8 @@ STATIC_TYPES = {".css": "text/css; charset=utf-8", ".js": "text/javascript; char
 
 PAGES = {
     # path: (template, title, description, nav key)
-    "/": ("home.html", "{{PRODUCT}} | Find how your Microsoft Fabric data connects",
-          "{{PRODUCT}} finds how your Microsoft Fabric tables connect, checks the relationships against your rows, and gets the data ready for Power BI, apps and AI agents. Try the free demo in your browser, no account.", "product"),
+    "/": ("home.html", "{{PRODUCT}} | Understand your Microsoft Fabric tables",
+          "Explore keys and relationships in Microsoft Fabric, check them against your data, and review the plan in Claude before building on it.", "product"),
     "/check": ("check.html", "Check your files in the browser — {{PRODUCT}}",
                "Drop CSV or Excel exports, or paste a list of columns: see how the tables connect and what is wrong, with the rule behind each item. The files are read in your browser and never uploaded.", "check"),
     "/start": ("start.html", "Connect {{PRODUCT}} — the set-up guide",
@@ -347,6 +347,76 @@ def connect_menu_html(where: str) -> str:
             f'</div>\n</details>')
 
 
+HUB_LINK = "Connect {p} to Claude: the guide"     # n91: the name of the hub's node, a link to /start
+
+
+def hub_status_note(clients: list[str]) -> str:
+    """n95: the one line under the hub that keeps the statuses the hub no longer marks, all from tool_status: which
+    sources are tested end to end and which are experimental, any client named there that is not tested end to end, and
+    that some items need a permission the hosted service does not ask for today (tool_status.OPERATOR)."""
+    from . import tool_status as ts
+    tested = [n for n, t in ts.SOURCES if t]
+    other = [n for n, t in ts.SOURCES if not t]
+    parts = []
+    if tested:
+        parts.append(f"{_listed(tested)} {'is' if len(tested) == 1 else 'are'} tested end to end")
+    if other:
+        parts.append(f"{_listed(other)} {'is' if len(other) == 1 else 'are'} experimental")
+    named = list(clients) + ["Lovable"]
+    shown = {c.name: c.status for c in ts.CLIENTS if c.path}                 # an MCP client, at its address
+    shown.update({c.name: c.status for c in ts.CLIENTS if not c.path})      # Lovable's row: the app builder over the API
+    untested = [c for c in named if shown.get(c) and shown[c] != "Tested end to end"]
+    if untested:
+        parts.append(f"{_listed(untested)} {'is' if len(untested) == 1 else 'are'} experimental as {'a client' if len(untested) == 1 else 'clients'}")
+    out = "; ".join(parts)
+    out = out[:1].upper() + out[1:] + "." if out else ""
+    if any(ts.STATUS[tool].available == ts.OPERATOR for _, tool in ts.BUILDS):
+        out += " Some items need a permission the hosted service does not ask for today."
+    return out.strip()
+
+
+def hub_html() -> str:
+    """The start page's hub under the hero (Gustav's brief of 27 October 2026): your data in Fabric and what {{PRODUCT}}
+    builds there on the left, {{PRODUCT}} in the middle, where you build on the right, joined by lines as in the graph.
+    n95: the cards carry names only, no status tags; the statuses are said once, in a muted line under the hub built from
+    tool_status (hub_status_note), with a link to /docs#test-status; an MCP client is named only once it has signed
+    in to the hosted service (Cursor and VS Code through client registration). Text names only, no third-party logos;
+    the visual is hidden from screen readers, which get the same as one paragraph. n68: the middle node is the logo (the
+    mark and the wordmark; the mark alone under 720 px) in the same faint coral frame. n91 (Gustav's decision of 2 November
+    2026): no Connect chooser in the "Your data in Fabric" card (the hero's stays); the node in the middle is a link to
+    /start, the set-up guide, and the one part of the visual screen readers and the keyboard get, named for where it leads."""
+    from . import tool_status as ts
+    v = _vars()
+    p, low = html.escape(v["PRODUCT"]), html.escape(v["PRODUCT_LOWER"])
+    clients = ts.clients_working(_registration_on())
+
+    sources = "".join(f"<li><b>{n}</b></li>" for n, _ in ts.SOURCES)
+    builds = "".join(f"<li><b>{n}</b></li>" for n, _ in ts.BUILDS)
+    where = "".join(f'<li><b>{html.escape(c)}</b><span class="hub-via">via MCP</span></li>' for c in clients)
+    where += '<li><b>Lovable</b><span class="hub-via">via the GraphQL API</span></li>'
+    note = hub_status_note(clients)
+    said = (f"Your data in Fabric: " + _listed([n for n, _ in ts.SOURCES]) + ". " + note + " "
+            f"In the middle, {p}: one plan, with the rule behind every relationship. "
+            f"What {p} builds in Fabric from that plan: " + _listed([n for n, _ in ts.BUILDS]) + ". "
+            f"Where you build: {_listed(clients)} {'connects' if len(clients) == 1 else 'connect'} to {p} through MCP, and "
+            f"Lovable uses the GraphQL API {p} makes in Fabric rather than {p} itself.")
+    makers = ["Microsoft", "Anthropic"] + (["Anysphere"] if "Cursor" in clients else []) + ["Lovable"]
+    return f"""<section class="wrap connects" aria-label="What {p} connects">
+  <p class="visually-hidden">{said}</p>
+  <div class="hub">
+    <div class="hub-group hub-src c-coral"><p class="hub-h" aria-hidden="true">Your data in Fabric</p><ul aria-hidden="true">{sources}</ul></div>
+    <span class="hub-link hub-link-src" aria-hidden="true"></span>
+    <div class="hub-group hub-build c-sage" aria-hidden="true"><p class="hub-h">What {p} builds in Fabric</p><ul>{builds}</ul></div>
+    <span class="hub-link hub-link-build" aria-hidden="true"></span>
+    <div class="hub-mid"><span class="hub-node"><a class="c-hub c-hub-logo hub-go" href="/start" aria-label="{HUB_LINK.format(p=p)}">{_LOGO}<span class="c-hub-word" aria-hidden="true">{low}</span></a><i class="hub-end" aria-hidden="true"></i></span><span class="hub-sub" aria-hidden="true">one plan, the rule behind every relationship</span></div>
+    <div class="hub-group hub-where c-mustard" aria-hidden="true"><p class="hub-h">Where you build</p><ul>{where}</ul></div>
+  </div>
+
+  <p class="muted tiny connects-status"><span aria-hidden="true">{html.escape(note)}</span> <a href="/docs#test-status">Status per tool</a></p>
+  <p class="muted tiny connects-note">Independent product, not made by {_listed(makers).replace(" and ", " or ")}.</p>
+</section>"""
+
+
 def _days(value: str) -> str:
     value = value.strip()
     return value if value.isdigit() and int(value) > 0 else ""
@@ -548,113 +618,26 @@ def has_mascots(body: str, page: str) -> bool:
 
 
 def before_after_html() -> str:
-    """n190: before and after on the synthetic shop, from the engine's own run of /check's sample (browser_check.analyze):
-    before, seven tables with nothing written down about how they connect, a link nobody is sure of and an order total
-    that doubles; after, the links with their rules, the checks with their counts, and each issue in plain words with the
-    technical detail one click away. Every number is computed from the run, none is typed (n75's rule). The doubled total
-    keeps n149's figures from seed.AMOUNT_DEMO, the same order the run reads."""
-    from .use_cases import sample_run
-    r = sample_run()
-    e = html.escape
+    """The total that doubles, before and after, from the synthetic rows in seed.AMOUNT_DEMO (one order, two lines): the
+    order amount summed over the joined line rows, then once per order. The numbers are computed, not typed."""
+    from .seed import AMOUNT_DEMO
+    (order_id, _, amount), = AMOUNT_DEMO["orders"][1]
+    lines = [r[2] for r in AMOUNT_DEMO["order_lines"][1] if r[0] == order_id]
     n = lambda x: f"{x:,.0f}".replace(",", "\u00a0")
-    amount = next(f["amount"] for f in r["findings"] if f.get("amount") and not f["amount"].get("on_map"))
-    keyed = sum(1 for t in r["tables"] if t.get("key"))
-    sug = r["suggestions"]
-    issues = []
-    for f in r["findings"] + sug:
-        plain = plain_issue(f)
-        tech = f'{e(f["title"])}' + (f' ({", ".join(e(x) for x in f.get("rules") or [])})' if f.get("rules") else "")
-        saw = f'<p class="muted tiny">{e(f.get("saw") or "")}</p>' if f.get("saw") else ""
-        issues.append(f'<li><details class="ba-issue"><summary>{e(plain)}</summary><p class="ba-tech"><code>{tech}</code></p>{saw}</details></li>')
     return f"""<section class="wrap before-after" id="example" aria-labelledby="example-h">
-  <p class="eyebrow">Before and after, on sample data</p>
-  <h2 id="example-h">Why is the order total twice what finance says?</h2>
-  <p class="intro">One order of {n(amount["right"])} with {amount["example"]["lines"]} lines. Join the order to its lines and sum the order amount, and every line repeats it.</p>
-  <div class="ba-cols">
-    <div class="ba-col ba-before-col" data-ba="before">
-      <h3>Before</h3>
-      <ul class="ba-points">
-        <li>{len(r["tables"])} tables, and nothing written down about how they connect</li>
-        <li>{len(sug)} link nobody is sure of: <code>{e(sug[0]["link"]["source"])}.{e(sug[0]["link"]["source_cols"][0])}</code></li>
-        <li>Order total in the report: <strong class="ba-wrong">{n(amount["wrong"])}</strong></li>
-      </ul>
-    </div>
-    <div class="ba-col ba-after-col" data-ba="after">
-      <h3>After</h3>
-      <ul class="ba-points">
-        <li>{len(r["relationships"])} links explained, each with the rule behind it</li>
-        <li>Checks passed: {e(r["health"])}</li>
-        <li>Order total, once per order: <strong class="ba-right">{n(amount["right"])}</strong></li>
-      </ul>
-      <p class="ba-issues-h">What still needs a look, in plain words:</p>
-      <ul class="ba-issues">{"".join(issues)}</ul>
-    </div>
+  <div class="card">
+    <div class="ba-head"><div><p class="eyebrow">Before and after, on sample data</p>
+    <h2 id="example-h">Why is the order total twice what finance says?</h2>
+    <p>One order of {n(amount)} with {len(lines)} lines ({" and ".join(n(x) for x in lines)}). Join the order to its lines and sum the order amount, and every line repeats it.</p></div>
+    <span class="ba-figure" aria-hidden="true"><span data-mascot="thinker" data-pose="look" data-label=""></span></span></div>
+    <dl class="ba">
+      <div class="ba-before"><dt>Before: summed over the joined lines</dt><dd>{n(amount * len(lines))}</dd></div>
+      <div class="ba-after"><dt>After: once per order, as the plan says</dt><dd>{n(amount)}</dd></div>
+    </dl>
+    <p class="muted tiny"><code>validate_plan</code> points out the order amount as a header amount and counts the lines per order: order amount and line amount are different levels. <a href="/use-cases#problem-total-doubles">The total that doubles</a>.</p>
+    <p class="ba-more"><a href="{BLOG_TOTALS}">Read the full walkthrough →</a></p>
   </div>
-  <p class="muted tiny">The engine's own run of the synthetic shop on /check: {len(r["tables"])} tables, {keyed} with a key. Open an issue for its check and rule. <a href="/use-cases#problem-total-doubles">The total that doubles</a> · <a href="{BLOG_TOTALS}">Read the full walkthrough →</a></p>
-  <p class="ctas"><a class="btn secondary small" href="/check?example=sample&amp;intent=issues">See these issues in the demo</a></p>
 </section>"""
-
-
-def plain_issue(f: dict) -> str:
-    """n190: one finding of the engine in plain words; the engine's own title and rule stay as the technical detail."""
-    a, link = f.get("amount"), f.get("link")
-    check = f.get("check")
-    if a:
-        return (f"{a['header']}.{a['column']} is summed once per {a['line']} row when the two are joined"
-                if a.get("on_map") else "The order total counts twice when an order is joined to its lines")
-    if check == "keyless":
-        return f"We could not find what identifies a row in {f['table']}"
-    if check == "suggestion" and link:
-        return f"{link['source']} may point to {link['target']} through {link['source_cols'][0]}: your decision"
-    if check == "orphans" and link:
-        return f"Some {link['source']} rows reference {link['target']} we could not find"
-    return f["title"]
-
-
-# n190: the four intent tiles under the hero. Each opens /check with the synthetic sample and an intent that check.js
-# acts on once the run is done (CHECK_INTENTS there): the findings, the map, the Power BI model, the ontology and the
-# evidence. No free-text box: the choices are fixed and each lands on a working part of the demo.
-INTENTS = (("issues", "Find broken relationships", "References with no matching row, keys that are not unique, totals that double.", "coral"),
-           ("map", "Understand how my tables connect", "The map of keys and links, each with the rule behind it.", "sage"),
-           ("model", "Build a Power BI model", "A report preview and the model as a Power BI project, from the checked plan.", "lav"),
-           ("agent", "Prepare my data for an AI agent", "The ontology file and the evidence an agent can ground its answers on.", "mustard"))
-
-
-def intent_href(key: str) -> str:
-    return f"/check?example=sample&intent={key}"
-
-
-def intents_html() -> str:
-    e = html.escape
-    tiles = "".join(f'<li><a class="intent-tile {c}" href="{e(intent_href(k))}" data-intent="{k}"><strong>{e(t)}</strong>'
-                    f'<span>{e(d)}</span><em>Sample data, no account</em></a></li>' for k, t, d, c in INTENTS)
-    return f'    <ul class="intent-grid" role="list">{tiles}</ul>'
-
-
-def home_map_html() -> str:
-    """n190: the product view under the hero: the engine's run of the sample, drawn by map.js as on /check and /use-cases."""
-    from .use_cases import example_map, _json
-    from .discovery import USP, USP_SAP
-    m = example_map("sample")
-    e = html.escape
-    finds = "".join(f'<li><button type="button" class="check-finding-link" data-finding="{i}" aria-pressed="false">{e(f["title"])}</button></li>'
-                    for i, f in enumerate(m["findings"]))
-    return f"""<section class="wrap home-map" id="see" aria-labelledby="see-h">
-  <h2 id="see-h">See your data come together</h2>
-  <p class="usp-lead">{e(USP)}</p>
-  <p class="intro">The engine's own run on a synthetic shop: {m["tables"]} tables, {m["relationships"]} links. Each line carries its rule; a dashed line is a suggestion you decide on.</p>
-  <figure class="uc-map home-map-fig" data-map="sample">
-    <div class="check-map" id="map-home" tabindex="0" role="region" aria-label="Map of the synthetic shop example"><noscript><p class="muted tiny">The map needs JavaScript; /check lists every table and relationship.</p></noscript></div>
-    <figcaption class="muted tiny"><span class="pill demo">Synthetic data</span> {m["tables"]} tables, {m["relationships"]} relationships, drawn as on /check.</figcaption>
-    <script type="application/json" class="uc-map-data">{_json(m)}</script>
-  </figure>
-  <p class="tiny uc-ex-h">Mark a finding on the map:</p>
-  <ul class="uc-ex-finds">{finds}</ul>
-  <p class="ctas"><a class="btn secondary small" href="{e(intent_href("map"))}">Open the map in the demo</a></p>
-  <p class="usp-sap tiny"><a href="/sap">{e(USP_SAP[0])}</a></p>
-</section>
-<script src="/static/map.js?v={{{{ASSET_V}}}}" defer></script>
-<script src="/static/use-cases.js?v={{{{ASSET_V}}}}" defer></script>"""
 
 
 def _tips_json() -> str:
@@ -665,19 +648,11 @@ def _tips_json() -> str:
             + json.dumps(concepts.tips(_vars()["PRODUCT"]), ensure_ascii=False).replace("<", "\\u003c") + "</script>")
 
 
-# n190: the main navigation, five entries and one call to action (the UX review of 9 November 2026). /check, the blog,
-# Get help, the pilot, GitHub and the legal pages are in the footer.
-NAV = (("product", "/", "Product"), ("usecases", "/use-cases", "Examples"), ("how", "/docs/concepts/how-it-works", "How it works"),
-       ("pricing", "/pricing", "Pricing"), ("docs", "/docs", "Docs"))
-NAV_CTA = "Try free demo"
-DEMO_HREF = "/check?example=sample&amp;guide=1"
-
-
 def _shell(title: str, description: str, body: str, page: str, nav: str, noindex: bool = False, head: str = "",
            path: str = "", chat: bool = False, og_type: str = "website") -> str:
     v = _vars()
-    nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in NAV)
-    nav_html += f'<a class="btn primary small nav-cta" href="{DEMO_HREF}">{NAV_CTA}</a>'      # n190: one call to action
+    links = [("product", "/", "Product"), ("check", "/check", CHECK_LABEL), ("usecases", "/use-cases", "Use cases"), ("docs", "/docs", "Docs"), ("blog", "/blog", "Blog"), ("support", "/support", "Get help"), ("partners", "/partners", "Try a pilot"), ("pricing", "/pricing", "Pricing")]
+    nav_html = "".join(f'<a href="{href}"{" aria-current=page" if key == nav else ""}>{label}</a>' for key, href, label in links)
     robots = '<meta name="robots" content="noindex,nofollow">' if noindex else ""
     t, d = _fill(title), _fill(description)                       # _fill escapes
     canonical = html.escape(site_url() + (path or "/"), quote=True)
@@ -738,6 +713,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
     </a>
     <nav id="site-nav" class="site-nav" aria-label="Main">
       {nav_html}
+      <a class="icon-link" href="{GITHUB}" aria-label="Source on GitHub" rel="noopener">{_GITHUB_ICON}</a>
     </nav>
     <div class="header-tools">{_THEME_BUTTON}<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><span></span><span></span><span></span></button></div>
   </div>
@@ -934,7 +910,7 @@ BLOG_TOTALS = "/blog/fabric-totals-double-after-join"
 # n149: the two ways in, with the same labels wherever they are offered (the hero, the middle of the start page, after a
 # /check result, /pricing, the navigation and the footer): the primary to /check, the secondary to /start.
 CHECK_LABEL = "Check my tables"
-CONNECT_LABEL = "Connect Microsoft Fabric"
+CONNECT_LABEL = "Connect to my Fabric"
 
 
 def chat_status(tool: str, option: str = "") -> str:
@@ -1023,14 +999,9 @@ def chat_plan_html() -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
-    from . import claims
-    return {"HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html(),
-            # n190: one promise, the intent tiles, the map, and what you can build with one status per output (claims.py)
-            "HOME_HEADLINE": html.escape(claims.HEADLINE), "HOME_SUPPORT": html.escape(claims.SUPPORT),
-            "HOME_INTENTS": intents_html(), "HOME_MAP": home_map_html(), "HOME_BUILD_GRID": claims.grid_html(),
-            "HOME_CHIP_LEGEND": claims.legend_html(), "HOME_RUNS": html.escape(claims.RUNS),
-            "HOME_CHECK_LINE": html.escape(claims.CHECK_LINE),
-            "HOME_OFFERING": _offering().diagram_html("Ways to use it: one engine, built in Fabric")}   # n177, n183
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html(),
+            "HOME_FILM": film_html(),                                             # n157
+            "HOME_OFFERING": _offering().diagram_html(), "HOME_CHOOSE": _offering().short_html("home")}   # n177
 
 
 def _offering():
@@ -1127,9 +1098,6 @@ def render(path: str) -> str:
     if "{{SAP_" in body:                                                  # n188: /sap, from the SAP pack itself
         sv = sap_vars()
         body = re.sub(r"\{\{(SAP_\w+)\}\}", lambda m: sv[m.group(1)], body)
-    if "{{CLAIMS_LINE}}" in body:                                         # n190: one status per output (claims.py)
-        from . import claims
-        body = body.replace("{{CLAIMS_LINE}}", claims.line_html())
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude
@@ -1179,9 +1147,9 @@ def _tool_statuses(md: str) -> str:
 
 def docs_md() -> str:
     from . import concepts
-    from . import claims
     md = _read("DOCS.md").replace("{{WHICH_KRUSGRAPH}}", _offering().decide_md())   # n188: first on the docs start page
-    md = md.replace("{{CLAIMS_TABLE}}", claims.markdown())                  # n190: the outputs, one status each
+    from . import claims                                                     # n194: What you can build (n190's grid)
+    md = md.replace("{{CLAIMS_INTRO}}", claims.INTRO).replace("{{CLAIMS_TABLE}}", claims.markdown())
     md = _conditional(_access(md, markdown=True).replace("{{RULES_TABLE}}", _rules_table()), _vars())
     return _fill(concepts.fill(_tool_statuses(md)), escape=False)          # n86b: the Concepts pages' examples and statuses
 
@@ -1400,6 +1368,8 @@ def docs_page_html(path: str) -> str:
     from . import concepts
     figs = concepts.figures()
     figs["overview-film"] = lambda _rendered: film_html(heading=False)        # n157: the overview film at the top of /docs
+    from . import claims
+    figs["what-you-can-build"] = lambda _rendered: claims.section_html()     # n194: n190's grid, moved from the home page
     from . import offering
     figs.update(offering.figures())                                          # n177: the workload's permissions and screenshots
     body = _md_to_html(pg["md"], figs)
@@ -1571,17 +1541,11 @@ def blog_index_html() -> str:
     return _shell("Blog — {{PRODUCT}}", BLOG_DESC, main, page="blog", nav="blog", path="/blog", chat=True)
 
 
-def _claims_line() -> str:
-    from . import claims
-    return claims.line_html()
-
-
 def start_md() -> str:
     """The get-started page as Markdown, converted from the same template the HTML page uses."""
     v = _vars()
     body = (_read("start.html").replace("{{START_CONNECT}}", "")        # n149: the chooser's buttons need the page; the steps say the same
             .replace("{{CHOOSE_SHORT_START}}", _offering().short_html("start"))   # n177
-            .replace("{{CLAIMS_LINE}}", _claims_line())                        # n190
             .replace("{{TRY_IN_CLAUDE}}", f"<p>Try it in Claude: open <a href=\"{CLAUDE_NEW}\">a new chat</a> and ask: <em>“{TRY_QUESTION}”</em></p>"))
     return _html_to_md(_fill(_conditional(_access(body), v)), "https://" + v["DOMAIN"])
 

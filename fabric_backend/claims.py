@@ -1,10 +1,8 @@
-"""What the site claims Krusgraph builds, and how far each claim is proven: one source for every page (round n190).
+"""What Krusgraph builds, and how far each output is proven: one source for the docs' 'What you can build' (n190, n194).
 
-The outside UX review the founder pasted on 9 November 2026 found that the home page said Krusgraph creates semantic
-models and ontologies while the set-up guide said some things lack permissions on the hosted service, and asked that
-what is demonstrated, what is technically possible and what is available to customers be unambiguous. Every page that
-names an output (the home page's grid, /start, /choose, /pricing, the docs) renders it from OUTPUTS with the chip
-`status()` gives, and tests/test_n190_site.py checks each page's chips against this module.
+Round n190 put this grid on the home page; in n194 the founder kept the previous home page, and the grid moved, unchanged
+in look, to the top of /docs (after 'Which Krusgraph should I use?' and the film) and its Markdown twin. tests/test_n194_site.py
+checks the chips against this module.
 
 The chips (CHIPS) are derived, never typed per page:
   Tested live   the hosted service created the item in a live Fabric workspace with synthetic data, as tool_status and
@@ -28,14 +26,7 @@ CHIP_MEANING = {
 CHIP_CLASS = {"Tested live": "chip-live", "Preview": "chip-preview", "Experimental": "chip-exp", "Planned": "chip-planned"}
 STATUS_LINK = "/docs#test-status"
 
-# The one promise (docs/WEBSITE_COPY_REWRITE.md says why this headline): the hero, the page title and llms.txt.
-HEADLINE = "Your data already has connections. Krusgraph finds them."
-SUPPORT = ("Discover how your tables connect, catch data issues before anyone sees them, and build trusted Power BI models, "
-           "APIs and AI-ready data products in Microsoft Fabric.")
-STORY = ("Krusgraph understands how your business data connects, checks that the relationships hold against your rows, "
-         "and gets the data ready for reports, apps and AI agents.")
-
-# The outputs in the order the home page's grid shows them: (key, name, tool behind it, what it is, where to read more).
+# The outputs in the order the grid shows them: (key, name, tool behind it, what it is, where to read more).
 # `tool` None: not an MCP tool of the hosted service (only the Krusgraph Model item builds it).
 OUTPUTS = (
     ("semantic_model", "Power BI semantic model", "create_semantic_model",
@@ -51,7 +42,7 @@ OUTPUTS = (
     ("app", "App (Rayfin)", None, "Key figures, lists and charts over the data product; made by Krusgraph for Fabric only.",
      "/docs/krusgraph-for-fabric"),
 )
-# What is said about running, once: the hosted service creates, but neither runs nor schedules.
+# What is said about running, once: creating is after a dry run; running or scheduling is opt-in.
 RUNS = ("Krusgraph creates an item only when you ask, after a dry run, with your own Fabric permissions. Running or "
         "scheduling the pipeline is a separate, opt-in step that needs DataPipeline.Execute.All: Krusgraph for Fabric "
         "offers it (Run once, Schedule) when your admin grants it; the hosted connector does not request it, so in Claude "
@@ -100,7 +91,7 @@ def legend_html() -> str:
 
 
 def grid_html() -> str:
-    """The home page's 'What you can build' grid: each output, its chip and a link."""
+    """The docs' 'What you can build' grid: each output, its chip and a link."""
     e = html.escape
     cards = "".join(
         f'<li class="out-tile"><div class="out-tile-head"><h3>{e(r["name"])}</h3>{chip_html(r["key"])}</div>'
@@ -109,15 +100,20 @@ def grid_html() -> str:
     return f'<ul class="out-grid" role="list">{cards}</ul>'
 
 
-def line_html() -> str:
-    """The short form for /start, /choose and /pricing: every output with its chip, in one line."""
-    e = html.escape
-    return ('<p class="claims-line">What Krusgraph builds in Fabric: '
-            + ", ".join(f'{e(r["name"])} {chip_html(r["key"])}' for r in table()) + f'. <span class="muted">{e(RUNS)}</span></p>')
-
-
 def markdown() -> str:
-    """The docs' table: the same rows as Markdown."""
+    """The Markdown twin: the same rows as a table."""
     rows = "\n".join(f'| {r["name"]} | {r["status"]} | {r["what"]}{(" " + r["note"]) if r["note"] else ""} |' for r in table())
     meaning = "\n".join(f"- **{c}**: {CHIP_MEANING[c]}." for c in CHIPS)
     return (f"| Output | Status | What it is |\n| --- | --- | --- |\n{rows}\n\n{meaning}\n\n{RUNS}\n\n{CHECK_LINE}")
+
+
+INTRO = "From the plan you reviewed, in your own Fabric workspace. Each chip says how far that output has been proven today."
+
+
+def section_html() -> str:
+    """The docs' 'What you can build' section, as n190's home page showed it. Its h2 has no id: the docs keep 'Why
+    Krusgraph' as the first anchored heading and the film before the first h2 (tests/test_site.py, test_n157)."""
+    e = html.escape
+    return (f'<section class="home-build docs-build" id="what-you-can-build" aria-label="What you can build">'
+            f'<h2>What you can build</h2><p class="intro">{e(INTRO)}</p>'
+            f'{grid_html()}{legend_html()}<p class="muted tiny home-runs">{e(RUNS)} {e(CHECK_LINE)}</p></section>')

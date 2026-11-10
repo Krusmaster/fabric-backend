@@ -80,18 +80,15 @@ def test_the_app_is_said_to_come_from_krusgraph_for_fabric_only():
 # ------------------------------------------------------------------ 2. a calmer home page -----------------------------
 
 def test_home_keeps_hero_diagram_short_guide_and_demo_and_one_status_line(client):
-    """n190: hero, map, before and after, the build grid, the diagram, then the one status line; the decision guide is on
-    /choose and /start."""
     h = client.get("/").text
     main = h[h.index("<main"):h.index("</main>")]
     assert 'id="build-on"' not in main and "Build on the relationships you’ve reviewed" not in main
     assert 'class="muted tiny build-status"' not in main and "LIVE_RUN" not in main and "registry.modelcontextprotocol.io" not in main
-    status = re.findall(r'<p class="muted tiny home-status" id="status">(.*?)</p>', main, re.S)
+    status = re.findall(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', main, re.S)
     assert status == ['Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.']
-    order = [main.index(m) for m in ('class="hero home-hero"', 'id="see"', 'id="build"', 'id="offering"', 'id="status"')]
+    order = [main.index(m) for m in ('class="hero"', 'id="demo"', 'id="offering"', 'id="which"', 'id="status"')]
     assert order == sorted(order)
-    which = client.get("/start").text
-    which = which[which.index('id="which"'):which.index("</section>", which.index('id="which"'))]
+    which = main[main.index('id="which"'):main.index("</section>", main.index('id="which"'))]
     rows = [_plain(li) for li in re.findall(r"<li[^>]*>(.*?)</li>", which, re.S)]
     assert len(rows) == 5
     assert rows[3].startswith("“We code in VS Code or Cursor” → Krusgraph for Claude (any MCP client")
@@ -125,9 +122,9 @@ def test_the_moved_blocks_are_in_the_docs(client):
 
 def test_every_link_on_the_home_diagram_guide_and_status_answers(client):
     h = client.get("/").text
-    part = h[h.index('id="offering"'):h.index('id="how"')]                       # n190: the diagram and its link
+    part = h[h.index('id="offering"'):h.index('id="paths"')]
     hrefs = sorted({x.split("#")[0] for x in re.findall(r'href="(/[^"]*)"', part)})
-    assert "/docs/krusgraph-for-fabric" in hrefs and "/choose" in hrefs
+    assert "/docs" in hrefs and "/choose" in hrefs
     for href in hrefs:
         assert client.get(href).status_code == 200, href
 

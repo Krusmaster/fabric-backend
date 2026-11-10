@@ -166,8 +166,7 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
     the page loads only the button (after the footer, hidden without JavaScript), never the chat's script or styles."""
     v = pages.asset_version()
     home = client.get("/").text
-    # n190: the home page draws its map with map.js and use-cases.js, as /use-cases does
-    assert re.findall(r'<script src="([^"?]+)', home) == ["/static/map.js", "/static/use-cases.js", "/static/mascots.js", "/static/site.js"]
+    assert re.findall(r'<script src="([^"?]+)', home) == ["/static/mascots.js", "/static/site.js"]
     assert re.findall(r'<link rel="stylesheet" href="([^"?]+)', home) == ["/static/site.css"]
     with_button = []
     for path, r in _html_routes(client).items():
@@ -187,8 +186,8 @@ def test_every_ordinary_page_loads_only_the_button_and_not_the_chat(client):
     # /demo is a redirect to /check
     r = client.get("/demo", follow_redirects=False)
     assert r.status_code == 301 and r.headers["location"].startswith("/check") and "kgc" not in r.text
-    # n190: the replay left the home page; the chat's files are served
-    assert '<p class="session-head">' not in client.get("/").text
+    # the replay stays, and the chat's files are served
+    assert '<p class="session-head">A replay of Krusgraph' in client.get("/").text            # n165: the head says whose answers
     for name, kind in (("chat-demo.js", "text/javascript"), ("chat-demo.css", "text/css")):
         r = client.get(f"/static/{name}?v={v}")
         assert r.status_code == 200 and r.headers["content-type"].startswith(kind)
@@ -261,7 +260,7 @@ def test_the_chat_fetches_the_plan_and_nothing_else_and_keeps_only_its_steps_in_
     hrefs = set(re.findall(r"href: '([^']+)'", CHAT_JS))
     assert hrefs == {"/check", "/check?example=sample", "/start"}
     # n158 (review L20): the two exits take pages.CHECK_LABEL and CONNECT_LABEL from the launch button
-    assert "launch.getAttribute('data-label-connect') || 'Connect Microsoft Fabric', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
+    assert "launch.getAttribute('data-label-connect') || 'Connect to my Fabric', why: 'Opens the set-up guide.', href: '/start' }" in CHAT_JS
     assert "launch.getAttribute('data-label-check') || 'Check my tables', href: '/check' }" in CHAT_JS
 
 

@@ -5,6 +5,12 @@
 <!-- figure:overview-film -->
 <!-- /figure -->
 
+<!-- figure:what-you-can-build -->
+**What you can build.** {{CLAIMS_INTRO}}
+
+{{CLAIMS_TABLE}}
+<!-- /figure -->
+
 See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
 
 - Checked against your rows: every link shows its basis and the checks you run show their counts.
@@ -730,11 +736,6 @@ Both are hosted in Azure, Sweden Central. Fabric (`app.fabric.microsoft.com`) an
 The status words, then each tool: what it reads, returns or changes.
 
 ### Test status
-
-**What it builds, and how far each output is proven.** The same table, with the same chips, is on the home page,
-/start, /choose and /pricing (`fabric_backend/claims.py`, derived from the per-tool fields below).
-
-{{CLAIMS_TABLE}}
 
 **In short.** {{PRODUCT}} is a preview service; a tool that has not run against a live Fabric workspace is marked
 experimental. Tested end to end on {{LIVE_RUN_DATE}}, {{LIVE_RUN_SUMMARY}}. {{CREATE_API_STATUS}}. The semantic model:

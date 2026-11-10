@@ -24,7 +24,34 @@ async function wins(page, n) {
     page.on('pageerror', (e) => out.errors.push(`${width}: ${e.message}`));
     const requests = [];
     page.on('request', (r) => requests.push(new URL(r.url()).pathname));
-    // n190: the replay left the home page's hero (docs/WEBSITE_UX_AUDIT.md); what follows checks the chat's button
+    // n165: the hero, sampled 0.5 s and 2.5 s after the page's load event: turn 1 plays from 0 s, so its question is typing
+    // at 0.5 s and its answer is in by 2.5 s. `at` is the time since load (performance.now() counts from navigation start)
+    await page.goto(base + '/', { waitUntil: 'load' });
+    const loaded = await page.evaluate(() => performance.getEntriesByType('navigation')[0].loadEventEnd);
+    const until = async (ms) => { const now = await page.evaluate(() => performance.now()); if (now < loaded + ms) await page.waitForTimeout(loaded + ms - now); };
+    const sample = () => page.evaluate(() => {
+      const r = (s) => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().toJSON() : null; };
+      const op = (e) => +getComputedStyle(e).opacity;
+      const turn = document.querySelector('.session-turn:first-child');
+      const sent = turn.querySelector('.session-sent'), text = turn.querySelector('.session-text');
+      const clip = getComputedStyle(text).clipPath, right = /inset\(\S+ (\S+)/.exec(clip);
+      const shown = [...document.querySelectorAll('.session-turn')].filter((t) => op(t) > 0.5).length;
+      // the question is on screen: its turn and its text are opaque, and the typing clip (none on a phone) shows some of it
+      const questionShown = op(turn) > 0.5 && op(text) > 0.5 && (!right || parseFloat(right[1]) < 95);
+      const dots = [...document.querySelectorAll('.session-dots span')].map((d) => getComputedStyle(d).backgroundColor !== 'rgba(0, 0, 0, 0)');
+      return { at: Math.round(performance.now() - performance.getEntriesByType('navigation')[0].loadEventEnd), clip, questionShown, ctas: r('.hero-ctas'), session: r('figure.session'), head: r('.session-head'),
+               sent: sent.getBoundingClientRect().toJSON(), sentOpacity: op(sent), answerOpacity: op(turn.querySelector('.session-answer')),
+               turnsShown: shown, dots, mini: r('.ba-mini'), usp: r('.usp'), h1: r('h1'),
+               caption: document.querySelector('#session-cap').textContent.trim().slice(0, 40), inHero: !!document.querySelector('.hero figure.session') };
+    });
+    await until(500);
+    out['hero' + width] = await sample();
+    await until(2500);
+    out['hero' + width].late = await sample();
+    await until(7000);                                  // the second turn has taken over: the replay goes on as before
+    out['later' + width] = await page.evaluate(() => ({
+      turns: [...document.querySelectorAll('.session-turn')].map((t) => +(+getComputedStyle(t).opacity).toFixed(2)),
+      dots: [...document.querySelectorAll('.session-dots span')].map((d) => getComputedStyle(d).backgroundColor !== 'rgba(0, 0, 0, 0)') }));
     for (const path of PAGES) {
       await page.goto(base + path, { waitUntil: 'load' });
       await page.waitForSelector('#kgcLaunch:not([hidden])', { timeout: 5000 }).catch(() => {});

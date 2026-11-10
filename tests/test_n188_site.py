@@ -39,13 +39,17 @@ def _plain(html: str) -> str:
 # ------------------------------------------------------------------ 1. the home page's three points, and /sap ---------
 
 def test_home_has_three_points_and_no_sap_point(client):
-    """n190: the three points became the home page's build grid with one status per output (claims.py); the points stay
-    in the docs and llms.txt (below). The SAP line keeps its one link to /sap, under the map."""
     html = client.get("/").text
     assert "2 000" in html or "ba-mini" in html                                   # the before/after badge stays above
     assert ("See how your business tables really connect – with the proof behind every link – so your reports, apps and "
             "agents get the numbers right.") in html
-    assert '<ul class="usp">' not in html and 'class="out-grid"' in html
+    ul = re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1)
+    items = [_plain(x) for x in re.findall(r"<li>(.*?)</li>", ul, re.S)]
+    assert [x.split(".")[0] for x in items] == ["Checked against your rows", "Errors before anyone sees them", "One checked plan, every starting point"]
+    assert items[0] == "Checked against your rows. Every link shows its basis and the checks you run show their counts."
+    assert items[1] == "Errors before anyone sees them. The total that doubles, keys that are not unique, references with no matching row."
+    assert "MANDT" not in ul and "VBAK" not in ul and "SAP" not in ul
+    # the SAP point is one short line with a link to /sap
     line = re.search(r'<p class="usp-sap tiny"><a href="/sap">(.*?)</a></p>', html).group(1)
     assert "MANDT" in line and len(line.split()) <= 16
 

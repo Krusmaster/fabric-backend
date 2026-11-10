@@ -9,6 +9,17 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n194: **the home page from before n190 is back.** The founder looked at the live site after n190 and kept the
+  previous home page: the film, the session replay, the hub, the FAQ and the developer note are on it again, with
+  n188's navigation and the "Connect to my Fabric" label (n190's commits 868e063 and 3c3a9e2 reverted). Kept from
+  n190: n190's **What you can build** grid (seven outputs, each with its status chip from `fabric_backend/claims.py`,
+  the chip legend and the sentence on dry run, opt-in Run once or Schedule and /check's drafts), unchanged in look, now
+  at the top of /docs after *Which Krusgraph should I use?* and the film, and in /docs.md; /choose no longer says Krusgraph for Fabric
+  never runs the pipeline. Not kept: the chips on /start, /choose and /pricing and /check's `intent=` landing.
+  `docs/WEBSITE_UX_AUDIT.md`, `WEBSITE_COPY_REWRITE.md` and `WEBSITE_IMPLEMENTATION_PLAN.md` stay as reference, marked
+  not applied. The tests n190 retired or changed are back as they were; `tests/test_n194_site.py` replaces
+  `test_n190_site.py` and `n190_browser.js`. **To see the old home page live, redeploy:**
+  `bash deploy/krusgraph.sh --from-azure --update`.
 - Round n190: **the home page redesigned after the outside UX review of 9 November 2026.** One promise ("Your data
   already has connections. Krusgraph finds them.") with **Try the free demo** (the guided demo, no account) and
   **Connect Microsoft Fabric** (the label is now that everywhere); four intent tiles (Find broken relationships,

@@ -1,3 +1,5 @@
+Not applied: the founder kept the previous home page on 10 Nov 2026 (n194).
+
 # Website UX audit (round n190, 10 November 2026)
 
 Input: the outside UX review the founder pasted on 9 November 2026, which compared krusgraph.com with lovable.dev and

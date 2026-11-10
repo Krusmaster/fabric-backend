@@ -81,8 +81,10 @@ def test_the_menu_by_keyboard(report, note, width):
 
 @pytest.mark.parametrize("width", ["375", "1280"])
 def test_the_hub_node_by_keyboard(report, width):
-    """n190: the hub left the home page. Tab on from the hero's Connect reaches the first intent tile within a few
-    stops, with a visible focus ring."""
-    t = report[width]["tile"]
-    assert t.get("intent") == "issues" and t["href"] == "/check?example=sample&intent=issues" and t["tabs"] <= 3, t
-    assert t["ring"] not in ("none", "", None)
+    """n91: with all four clients, too, the hub has no Connect button; Tab on from the hero's Connect reaches the hub's
+    node, a link named for the guide with a visible focus ring, and Enter on it opens /start."""
+    r = report[width]
+    assert r["hubChoosers"] == 0
+    assert r["hub"] == {"tag": "A", "href": "/start", "name": "Connect Krusgraph to Claude: the guide", "node": True,
+                        "ring": r["hub"].get("ring"), "landed": "/start"}, r["hub"]
+    assert r["hub"]["ring"] not in ("none", "", None)

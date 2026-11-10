@@ -19,7 +19,7 @@ async function site(base) {
   {
     const ctx = await browser.newContext({ ...devices['Pixel 7'] });
     const page = await ctx.newPage(); watch(page, 'film');
-    await page.goto(base + '/docs', { waitUntil: 'networkidle' });   // n190: the film is on /docs, not the home page
+    await page.goto(base + '/', { waitUntil: 'networkidle' });
     await page.evaluate(() => {                        // a real tap starts full screen: the browser asks for a user gesture
       const b = document.createElement('button'); b.id = 'fs'; b.textContent = 'fs';
       b.style.cssText = 'position:fixed;top:0;left:0;z-index:99999';

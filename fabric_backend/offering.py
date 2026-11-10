@@ -410,8 +410,8 @@ def choose_vars() -> dict[str, str]:
 def choose_md() -> str:
     """/choose.md: the same facts as Markdown."""
     out = ["# Which Krusgraph should I use?", "",
-           "One Krusgraph engine, four products: " + ", ".join(w["name"] for w in WAYS) + ". Each builds in "
-           "Microsoft Fabric from the same engine; the App (Rayfin) only through Krusgraph for Fabric.", "",
+           "One Krusgraph engine, four products: " + ", ".join(w["name"] for w in WAYS) + ". Each builds the same items in "
+           "Microsoft Fabric.", "",
            "## Decision guide", ""]
     from .pages import site_url
     o = site_url()
@@ -423,9 +423,7 @@ def choose_md() -> str:
             v = val(w, key)
             out.append(f"- **{label}:** " + ("; ".join(v) if isinstance(v, (list, tuple)) else v))
         out += [f"- **Docs:** {o}{val(w, 'docs')}", ""]
-    from . import claims
-    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, "",
-            "## How far each output is proven", "", claims.markdown(), ""]                           # n190
+    out += ["## Built in Microsoft Fabric", "", ", ".join(BUILT) + ".", "", APP_NOTE, "", NOT_PRODUCTS, ""]
     return "\n".join(out)
 
 

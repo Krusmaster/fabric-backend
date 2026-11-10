@@ -135,9 +135,8 @@ def test_the_diagram_lists_the_four_ways_in_words_and_links_each_to_its_docs(cli
 
 
 def test_home_has_the_offering_and_the_short_guide(client):
-    """n190: the home page keeps the diagram (ways to use one engine) and links /choose for the guide."""
     h = client.get("/").text
-    assert 'id="offering"' in h and 'id="which"' not in h and 'href="/choose">Compare the ways to use Krusgraph</a>' in h
+    assert h.index('id="offering"') < h.index('id="which"') and 'href="/choose"' in h
 
 
 def test_start_has_use_it_in_fabric_next_to_claude_and_other_agents(client):

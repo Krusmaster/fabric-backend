@@ -7,7 +7,7 @@ const { chromium } = require('playwright');
   const [base, exe, shots] = process.argv.slice(2);
   const browser = await chromium.launch(exe ? { executablePath: exe } : {});
   const out = {};
-  for (const path of ['/start#step-3']) {
+  for (const path of ['/', '/start#step-3']) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: shots ? 2 : 1 });
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
     await ctx.route('https://claude.ai/**', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<p>claude</p>' }));

@@ -1,3 +1,5 @@
+Not applied: the founder kept the previous home page on 10 Nov 2026 (n194).
+
 # Website copy rewrite (round n190)
 
 The core story, from the UX review of 9 November 2026: *Krusgraph understands how your business data connects, checks
