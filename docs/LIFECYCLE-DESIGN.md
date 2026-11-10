@@ -3,6 +3,7 @@
 Round n191. A design text, docs only, nothing implemented here. Written 10 November 2026 from the founder's note of
 9 November 2026. It builds on `docs/FABRIC-IQ-AT-SCALE.md` section 8 (data products, health per product, the overview).
 `docs/DATA-PRODUCTS-DESIGN.md` does not exist; section 8 of that file holds the data-product design instead.
+The step before Create, getting a source system into a lakehouse with Fabric's own tools, is [CONNECT-DESIGN.md](CONNECT-DESIGN.md) (n193).
 
 The goal in one line: **a self-playing piano.** After Create, the data product watches itself, says when something is
 wrong, proposes the fix, and shows all of it in one place. A person stays in charge. Nothing changes without a reason
