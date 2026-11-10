@@ -41,6 +41,7 @@ function engine(states: (Partial<OperationState> | Error)[]) {
     if (route === "build") return json(202, { operation_id: "a".repeat(32), status: "running" });
     const s = states[Math.min(n++, states.length - 1)];
     if (s instanceof Error) throw s;
+    if ((s as any).notFound) return json(404, { error: "No such operation", kind: "not_found" });
     return json(200, { operation_id: "a".repeat(32), id: "a".repeat(32), route: "build", ...s });
   };
   return { fetchImpl, seen };
@@ -84,6 +85,16 @@ describe("the engine call in the background", () => {
     expect(e).toBeInstanceOf(EngineCallError);
     expect(e.status).toBe(409);
     expect(e.answer.kind).toBe("already_exists");
+  });
+
+  it("a 404 (the other replica of an engine without a shared store) is read again, and lost only after many", async () => {
+    process.env.KRUSGRAPH_ENGINE_SCOPE = "api://x/user_impersonation";
+    const flaky = engine([{ notFound: true } as never, { notFound: true } as never, { status: "done", http: 200, answer: { outputs: [card(ALL[0])] } }]);
+    const a = await buildOne(client, src, ALL[0], ALL, {} as never, [], flaky.fetchImpl, {}, { sleep: noSleep });
+    expect(a.outputs[0].output).toBe("silver_notebook");
+    const gone = engine([{ notFound: true } as never]);
+    const e = await buildOne(client, src, ALL[0], ALL, {} as never, [], gone.fetchImpl, {}, { sleep: noSleep }).catch((x) => x);
+    expect(e.answer.kind).toBe("no_answer");
   });
 
   it("a lost operation is no answer, to be tried again; resume reads without sending again", async () => {

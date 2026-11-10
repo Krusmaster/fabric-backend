@@ -9,6 +9,16 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n197: **Create runs in the background, follows the pipeline run and finishes on its own.** Every editor request
+  answers at once (202 and an operation id) and the editor reads the operation until it ends: no request is held open
+  longer than 30 s, so the 230 s "no answer" and the phone's "Failed to fetch" are gone. Operations live in the client
+  registration's store (Table Storage across replicas), so a reload, a closed tab or a phone asleep resumes the same run.
+  Throttling (429, PFE_FABRIC_THROTTLED) is "waiting for capacity" and retried; Fabric's long-running operations are
+  followed ("still running in Fabric", never failed) and adopted; items are recorded as pending before they are sent.
+  With Run once ticked the run is followed on the pipeline's card, then the model is refreshed, the report made, the
+  agent's examples checked and the agent published if ticked; a failed run stops them with the reason. Try again on
+  every red card, Create the rest on the result; truthful dry run and Next; the App with one Cloud Shell command.
+  `docs/WORKLOAD-DEV.md` section 15. Redeploy: `bash deploy/krusgraph.sh --from-azure --update`.
 - Round n196: **The film at the top of the home page, under the headline.** The overview film moves from its section
   below the hero to directly under the headline, the sentence and the two buttons, centred, up to 960 px wide on a
   desktop (narrower on a short screen, so the headline, the buttons and at least the top half of the film fit at

@@ -876,6 +876,63 @@ round ran against Fabric. It is checked by `tests/test_n185_pipeline_jobs.py`, `
    - The pipeline card should show the run per step and the next run. The agent should read `silver` only and be
      published once the run has succeeded.
 
+### 15. Round n197: Create in the background, the run followed, Try again
+
+The founder's live Create of 10 November 2026 (Demo5, desktop) built 7 of 9: the semantic model hit Fabric's
+long-running-operation wait, the report got "No answer from the Krusgraph engine after 230 s", on a phone five steps
+failed with "Failed to fetch", and an item Fabric finished after the wait (demo_lh_model4) was refused as "not built by
+this Krusgraph Model". The 230 s was the editor's own wait (`BUILD_WAIT_MS`), set just under the 240-second request
+timeout of Azure Container Apps' ingress, where `deploy/krusgraph.sh` (`deploy/azure_containerapp.py`) runs the engine;
+it is not an App Service timeout. Since n197:
+
+- **No request waits for Fabric.** The editor sends every engine request with `Prefer: respond-async`; the engine answers
+  `202 {operation_id}` within a second and does the work in a thread (`fabric_backend/operations.py`). The editor reads
+  `POST /workload/v1/operation {operation_id}` until the step ends, every 1 to 5 seconds, each read a short request of
+  its own (no request is held open longer than 30 s, `REQUEST_WAIT_MS`). Failed reads (a phone asleep, a network change)
+  are read again. An engine without the header's support answers as before.
+- **Where the state lives.** Operations are kept in the store of the client registration
+  (`KRUSGRAPH_REGISTRATION_STORE`): with Azure Table Storage both replicas see every operation, with `memory` (or unset)
+  only the replica that ran it; then a read that lands on the other replica answers 404, which the editor reads again
+  (20 times) before it says the step was lost. Records hold names, states, counts and Fabric's messages, never a row
+  value or a token; the owner is a keyed hash of tenant and user; they expire after two days. A running operation
+  writes a heartbeat every 15 s; without one for 120 s it is answered as lost.
+- **Fabric's waits.** A Create step waits out throttling (HTTP 429, `PFE_FABRIC_THROTTLED`): its card says "waiting for
+  capacity" with the Capacity Metrics app's link, and the step is sent again after 20, 40, 80, 160 and 300 s (about
+  twenty minutes). A long-running operation still going when the tool's own wait ended is followed for up to twenty
+  minutes ("still running in Fabric", never "failed"); when the items are there they are adopted, when Fabric says the
+  operation failed its reason is on the card. In the background a new model's refresh is waited for ten minutes.
+- **Pending items.** Before a step is sent its items are recorded in `outputs.json` as `pending` (output, type, name). An
+  item of that type and name in the workspace is then taken as built by this Model and adopted on the next Create or Try
+  again, never refused as someone else's.
+- **Reopening.** `outputs.json`'s `create_run` keeps the Create's id, its outputs and the operation id of each step. An
+  item with outputs opens on its result (summary, flow, cards), not on the step left: a Create still in progress reads the
+  item's operations (`POST /workload/v1/operation {item_id}`) and goes on (a running step is read again, never sent
+  twice; the pipeline's run is followed, never started a second time). If Fabric or the engine is too busy to answer, the
+  page says so in one line: "Fabric is busy, try again in a few minutes."
+- **The run, followed.** With Run once ticked, the pipeline's card shows the run Create started (queued, running per
+  activity, succeeded, failed with Fabric's message and the link) for up to 45 minutes, read with the Job Scheduler API
+  and the permission Run once already needs (listed on the card). On its success the model this Create made is refreshed
+  once (a `refresh_only` step), the report is made, the agent's example queries are checked (one more try for an example
+  Fabric could not connect for; "not checked yet" until then) and the agent is published if Publish is ticked. If the run
+  fails, those steps stop and their cards say why with Try again. A pipeline already built from this plan still runs once
+  when Run once is ticked.
+- **Try again and Create the rest.** Every red or unanswered card has Try again; the result has Create the rest (every
+  red, unanswered or stopped card, one after another). A name someone else holds or a choice (Update or a new name) is not
+  retried blindly.
+- **Truthful words.** The dry run asks Create's own question: an item built from the same plan is "already built,
+  skipped" in both. The dry run's line says what Create runs and schedules. Silver and gold say they run in the pipeline
+  when Run once is ticked. The data product marks items an earlier Create built ("earlier Create"). Choosing a new name
+  gives every output of the Create the same suffix.
+- **The App.** Microsoft Learn documents no definition for an App's pages or connector (`rayfin_app.py` cites the pages),
+  so the package carries `krusgraph-publish.sh` and the App card one command to copy into Azure Cloud Shell: create,
+  sign in, connector, unzip, publish; run again and what is done is kept; it stops at the first error with a plain
+  message; no secret.
+
+Tests: `tests/test_n197_background.py` (the operation store, 202 at once, a slow long-running operation, throttling,
+pending adoption, the dry run), `tests/test_n197_chain.py` (a run that succeeds and one that fails, the refresh step, the
+examples, Run once on a built pipeline), `tests/test_n197_resume_browser.py` (a reload mid-Create resumes, Chromium),
+`tests/test_n197_app_command.py`, and `createRun.test.ts` in the editor.
+
 ### What the editor does since n174
 
 - **Choose what to build**: every output the MCP tools build, each with its name, what it is, and the permission it

@@ -423,6 +423,8 @@ export const OPERATION_POLL_MS = [1_000, 2_000, 2_000, 3_000, 5_000];
 /** how long the editor reads one operation before it says "still working; reopen the item": a Create step may wait
  * for capacity (about twenty minutes) and for Fabric's long-running operations (twenty more) */
 export const OPERATION_MAX_MS = 50 * 60_000;
+/** reads in a row that may answer 404 before the operation counts as lost (another replica, see call) */
+export const NOT_FOUND_READS = 20;
 
 /** n197: a background operation as POST /workload/v1/operation answers it (fabric_backend/operations.py). */
 export interface OperationState {
@@ -526,17 +528,22 @@ async function call<T>(
   const until = Date.now() + (opts.maxWaitMs ?? OPERATION_MAX_MS);
   let n = 0;
   let misses = 0;
+  let notFound = 0;
   while (Date.now() < until) {
     await sleep(OPERATION_POLL_MS[Math.min(n++, OPERATION_POLL_MS.length - 1)]);
     let state: OperationState;
     try {
       state = await callOnce<OperationState>(workloadClient, "operation", { operation_id: id }, REQUEST_WAIT_MS, fetchImpl, false);
     } catch (e) {
-      // a phone asleep, a network change, a busy engine: reading again is always safe; a missing operation is not
-      if (e instanceof EngineCallError && e.status === 404) throw e;
+      // a phone asleep, a network change, a busy engine: reading again is always safe. A 404 can be the other replica
+      // of an engine that keeps operations in memory (one replica per read); after NOT_FOUND_READS in a row it is lost.
+      if (e instanceof EngineCallError && e.status === 404 && ++notFound >= NOT_FOUND_READS) {
+        throw new EngineCallError(lostOperation({ lost: "The Krusgraph engine no longer knows this step." } as OperationState), 0);
+      }
       misses++;
       continue;
     }
+    notFound = 0;
     misses = 0;
     if (state.status === "done") {
       const http = state.http ?? 200;
