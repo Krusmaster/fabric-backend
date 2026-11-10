@@ -368,3 +368,14 @@
   border-radius: 2px;
   vertical-align: -1px;
 }
+
+/* n197: the App's one command, wrapped on a phone, selectable as one block */
+.krusgraph-one-command {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--colorNeutralBackground3, #f5f5f5);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  user-select: all;
+}

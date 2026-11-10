@@ -636,15 +636,29 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
       </ul>
       <Caption1>{a.why_not_published}</Caption1>
       <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>
-      <ol className="krusgraph-steps" aria-label="Commands">
-        {(a.commands ?? []).map((x: { step: string; command: string }) => (
-          <li key={x.command}><Body1>{x.step}: </Body1><code>{x.command}</code></li>
-        ))}
-      </ol>
       {href && (
         <div className="krusgraph-actions">
           <a href={href} download={a.package.filename}>Download the package ({a.package.filename})</a>
         </div>
+      )}
+      {a.one_command ? (
+        <>
+          <OneCommand oc={a.one_command} />
+          <details>
+            <summary>The same, one command at a time</summary>
+            <ol className="krusgraph-steps" aria-label="Commands">
+              {(a.commands ?? []).map((x: { step: string; command: string }) => (
+                <li key={x.command}><Body1>{x.step}: </Body1><code>{x.command}</code></li>
+              ))}
+            </ol>
+          </details>
+        </>
+      ) : (
+        <ol className="krusgraph-steps" aria-label="Commands">
+          {(a.commands ?? []).map((x: { step: string; command: string }) => (
+            <li key={x.command}><Body1>{x.step}: </Body1><code>{x.command}</code></li>
+          ))}
+        </ol>
       )}
       {editHref(a.edit_yourself) && (
         <div className="krusgraph-actions" aria-label={EDIT_TITLE}>
@@ -653,6 +667,35 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
         </div>
       )}
     </div>
+  );
+}
+
+/** n197 (the founder's item 4): the App is published with one command in Azure Cloud Shell, copied with one button.
+ * Microsoft documents no API for an App's pages or connector, so Krusgraph runs none; the command runs the package's
+ * script (create, sign in, connector, unzip, publish), and holds no secret. */
+export function OneCommand(props: { oc: { command: string; steps: string[]; why?: string } }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async (): Promise<void> => {
+    try {
+      await navigator.clipboard.writeText(props.oc.command);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+  return (
+    <section aria-label="Publish the App with one command">
+      <ol className="krusgraph-steps">
+        {props.oc.steps.map((x) => (
+          <li key={x}><Body1>{x}</Body1></li>
+        ))}
+      </ol>
+      <code className="krusgraph-one-command">{props.oc.command}</code>
+      <div className="krusgraph-actions">
+        <Button appearance="primary" onClick={(): void => void copy()}>{copied ? "Copied" : "Copy the command"}</Button>
+      </div>
+      {props.oc.why && <Caption1>{props.oc.why}</Caption1>}
+    </section>
   );
 }
 

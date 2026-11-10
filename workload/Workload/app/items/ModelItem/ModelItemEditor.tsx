@@ -437,10 +437,10 @@ export function ModelItemEditor(props: PageProps) {
         preview
       );
       await finishCreate(done.cards, src, outputs, productReq);
-      await followRun(cardsRef.current, src, outputs);
     } finally {
       setCreating(false);
     }
+    await followRun(cardsRef.current, src, outputs);           // Try again stays open on the other cards meanwhile
   }
 
   /** n197: the pipeline run this Create started, as outputs.json recorded it (none: not started yet). */
