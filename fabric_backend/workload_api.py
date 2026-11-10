@@ -271,7 +271,7 @@ def build_request(body) -> dict:
     if not isinstance(body.get("review"), dict):
         raise BadRequest("'review' (the item's review.json) is required: the build uses its decisions")
     flags = {}
-    for f in ("skip_built", "finish"):                            # n179: Create one output per request, then the summary
+    for f in ("skip_built", "finish", "refresh_only"):                            # n179: Create one output per request, then the summary
         v = body.get(f, False)
         if not isinstance(v, bool):
             raise BadRequest(f"'{f}' must be true or false (default false)")
@@ -283,6 +283,8 @@ def build_request(body) -> dict:
         if not isinstance(only, list) or not only or any(k not in {c["kind"] for c in chosen} for k in only):
             raise BadRequest("'only' must be a non-empty list of kinds among the outputs (the ones this request builds)")
         flags["only"] = list(only)
+    if flags["refresh_only"] and (dry_run or flags.get("only") != ["semantic_model"]):
+        raise BadRequest("'refresh_only' refreshes the semantic model this Model built: only [semantic_model], dry_run false")
     update = body.get("update")                                   # n180: Update of an output built from another plan
     if update is not None:
         if not isinstance(update, list) or any(k not in {c["kind"] for c in chosen} for k in update):
@@ -637,6 +639,8 @@ def run_schemas(req: dict) -> dict:
 
 def run_build_background(req: dict) -> dict:
     """n197: a background build: one Create step with its waits (run_build_step), anything else as run_build."""
+    if req.get("refresh_only"):
+        return run_refresh_only(req)
     if req.get("form") == 2 and req.get("only") and not req["dry_run"] and not req.get("finish"):
         return run_build_step(req)
     return run_build(req)
@@ -649,6 +653,8 @@ def run_operation(req: dict) -> dict:
 
 def run_build(req: dict) -> dict:
     """Phase 1's form (a name and ["graphql"]) answers as before; n174's form ({kind, name} per output) builds several."""
+    if req.get("refresh_only"):
+        return run_refresh_only(req)
     return _run_graphql(req) if req.get("form", 1) == 1 else run_build_many(req)
 
 
@@ -1047,7 +1053,7 @@ POWERBI = "https://api.powerbi.com/v1.0/myorg"
 POWERBI_SCOPE = "https://analysis.windows.net/powerbi/api/.default"
 REFRESH_SCOPE = "Dataset.ReadWrite.All"
 REFRESH_POLL_SECONDS = 5
-REFRESH_MAX_POLLS = 24                                             # two minutes: the editor waits 230 s per output
+REFRESH_MAX_POLLS = 24                                             # two minutes; five times that in a background operation (n197)
 REFRESH_STEP = "Refresh the model once (framing)"
 REFRESH_PLANNED = "Create refreshes the model once; nothing else is run or scheduled."
 
@@ -1092,7 +1098,8 @@ def refresh_new_model(workspace: str, model_id: str, scopes: set[str] | None, ap
         if status >= 400:
             return done({"status": "failed", "reason": f"Power BI answered HTTP {status} to the refresh request"})
         request_id = (getattr(r, "headers", {}) or {}).get("x-ms-request-id")
-        for _ in range(REFRESH_MAX_POLLS):
+        from . import operations                                   # n197: in the background nobody waits: ten minutes
+        for _ in range(REFRESH_MAX_POLLS * (5 if operations.current() is not None else 1)):
             if REFRESH_POLL_SECONDS:
                 time.sleep(REFRESH_POLL_SECONDS)
             h = send("get", base + "?$top=1", headers, write=False, timeout=30)
@@ -1105,7 +1112,7 @@ def refresh_new_model(workspace: str, model_id: str, scopes: set[str] | None, ap
             if entry.get("status") == "Completed":
                 return done({"status": "refreshed"})
             return done({"status": "failed", "reason": _refresh_reason(entry)})
-        return done({"status": "refreshing", "reason": f"still running after {REFRESH_POLL_SECONDS * REFRESH_MAX_POLLS} s"})
+        return done({"status": "refreshing", "reason": "still running in Fabric when Krusgraph stopped waiting"})
     except Exception as exc:  # noqa: BLE001 — the model stands; the card says the refresh did not happen
         return done({"status": "failed", "reason": type(exc).__name__})
 
@@ -1182,6 +1189,13 @@ def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_ru
         out["selection"] = {k: sel.get(k) for k in ("layer", "schema", "selected", "deselected", "one_layer", "words")}
     if res.get("examples"):
         out["examples"] = res["examples"]
+    if not dry_run and res.get("examples") and jobs.get("run_once") and not after_run:
+        # n197: Fabric checks each example query against the tables the agent reads, and the pipeline's run is writing the
+        # silver tables now ("Failed to connect to server ...datawarehouse...", 10 November 2026): not checked yet
+        out["examples"] = {"status": "not_checked", "count": res["examples"].get("count"),
+                           "words": NOT_CHECKED_WORDS}
+    elif not dry_run and (after_run or {}).get("status") == "Succeeded" and res.get("id") and res.get("datasource_id"):
+        out["examples"] = recheck_examples(workspace, res["id"], res["datasource_id"], res.get("examples") or {}, headers)
 
     def http(method, url, **kw):
         return send(method, url, headers, write=method != "get", timeout=30, **kw)
@@ -1219,6 +1233,46 @@ def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_ru
 
 
 FABRIC_API = "https://api.fabric.microsoft.com"
+NOT_CHECKED_WORDS = ("Example queries: not checked yet. Fabric checks them against the tables the agent reads, which the "
+                     "pipeline's run is writing now; Krusgraph checks them when the run has succeeded.")
+_CONNECT = re.compile(r"connect|network|timeout|unavailable|transport", re.I)
+RECHECK_WAITS = (5, 5, 10, 10)                                     # seconds, at most thirty in all
+
+
+def recheck_examples(workspace: str, agent_id: str, ds_id: str, examples: dict, headers: dict, sleep=time.sleep) -> dict:
+    """n197: an example Fabric marked Invalid because it could not connect (the run was still writing the tables) is
+    sent once more (its query written again, which makes Fabric validate it again), then the status is read until none
+    is Validating, for at most RECHECK_WAITS. Any other reason stands: a query that is wrong is not retried."""
+    from . import data_agent
+    from .deploy import send
+    stage = f"{FABRIC_API}/v1/workspaces/{workspace}/dataAgents/{agent_id}/staging"
+    url = f"{stage}/datasources/{ds_id}/fewshots"
+    bad = [x for x in examples.get("invalid_examples") or [] if _CONNECT.search(str(x.get("reason") or ""))]
+    if not bad:
+        return examples
+
+    class _Http:                                                   # data_agent's helpers call requests.get(url, headers=..)
+        @staticmethod
+        def get(u, headers=None, timeout=60):
+            return send("get", u, headers, write=False, timeout=timeout)
+    try:
+        rows = send("get", url, headers, write=False, timeout=60).json().get("value", [])
+        for row in rows:
+            if any(row.get("question") == b.get("question") for b in bad):
+                send("patch", f"{url}/{row['id']}", headers, write=True, json={"query": row.get("query")}, timeout=60)
+    except Exception as exc:  # noqa: BLE001 — the first reading stands, with the reason Fabric gave
+        log("agent_examples", outcome="recheck_failed", error=type(exc).__name__)
+        return examples
+    questions = [r.get("question") for r in rows]
+    now = examples
+    for wait in RECHECK_WAITS:
+        sleep(wait)
+        now = data_agent.example_status(_Http, headers, url, questions)
+        if now.get("status") != "read" or not now.get("validating"):
+            break
+    now = {**now, "rechecked": len(bad)}
+    log("agent_examples", outcome="rechecked", invalid=now.get("invalid"), rechecked=len(bad))
+    return now
 
 
 def _jobs_card(o: dict, answer: dict, permission: dict, dry_run: bool) -> dict:
@@ -1242,6 +1296,28 @@ def _jobs_card(o: dict, answer: dict, permission: dict, dry_run: bool) -> dict:
         if "schedule" in res:
             out["schedule_result"] = res["schedule"]
     return out
+
+
+def _jobs_on_built(o: dict, done: list[dict], permission: dict, dry_run: bool, workspace: str, headers: dict,
+                   schedule_ids: list[str]) -> dict:
+    """n197: a pipeline already built from this plan is not written again, but Run once and Schedule, when ticked, still
+    run it once and set its schedule (the founder's Create of 10 November 2026 skipped the built pipeline, and Next said
+    it had not run). The dry run says the same words it says for a new pipeline."""
+    from . import pipeline_jobs
+    from .deploy import send
+    jobs = o.get("jobs") or {}
+    pipe = next((c for c in done if c["type"] == "DataPipeline"), None)
+    if dry_run or not pipe or not (jobs.get("run_once") or jobs.get("schedule")) or permission["granted"] is False:
+        return _jobs_card(o, {}, permission, dry_run)
+
+    def http(method, url, **kw):
+        return send(method, url, {**headers, "Content-Type": "application/json"}, write=method != "get", timeout=30, **kw)
+    try:
+        res = pipeline_jobs.apply(http, workspace, pipe["id"], o["name"], bool(jobs.get("run_once")), jobs.get("schedule"),
+                                  ours=schedule_ids, wait_seconds=0)
+    except Exception as exc:  # noqa: BLE001 — said on the card, the pipeline stands
+        res = {"run": {"status": "NotStarted", "why": f"Krusgraph could not start the run ({type(exc).__name__})"}}
+    return _jobs_card(o, {"result": res}, permission, False)
 
 
 def _created_ids(kind: str, a: dict, chosen: dict, workspace: str, o: dict, req: dict) -> list[dict]:
@@ -1390,6 +1466,37 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     return data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
 
 
+AFTER_RUN_REFRESH = "Create refreshes the model once, after the pipeline's run has succeeded."
+
+
+def _runs_first(req: dict, chosen: dict) -> bool:
+    """n197: Run once is ticked on a pipeline of this build: the model's refresh, the report and the agent's examples
+    wait for the run's success (the editor sends them then)."""
+    return "pipeline" in chosen and bool(chosen_jobs(req).get("run_once"))
+
+
+def run_refresh_only(req: dict) -> dict:
+    """n197: after the pipeline's run has succeeded, the semantic model this Model made is refreshed once (only:
+    [semantic_model], refresh_only: true). Its card as Create gives it, with the refresh; nothing else is written."""
+    from . import server as S
+    o = next(x for x in req["outputs"] if x["kind"] == "semantic_model")
+    scopes = token_scopes()
+    app_id = getattr(S._WORKLOAD_TOKENS.get(), "app_id", None)
+    made = [c for c in req["created"] if c.get("output") == "semantic_model" and c.get("name", "").lower() == o["name"].lower()]
+    card = {"output": "semantic_model", "label": KINDS["semantic_model"]["label"], "type": "SemanticModel", "name": o["name"],
+            "dry_run": False, "would": "create", "updates_in_place": True, "permissions": permissions("semantic_model", scopes),
+            "created": made, "answer": {"dry_run": False, "refresh_only": True}}
+    if not made:
+        card["refresh"] = {"status": "not_run", "reason": f"{o['name']} is not among the items this Model built."}
+    else:
+        headers = S._headers(None)
+        card["refresh"] = refresh_new_model(S._workspace_id(req["workspace"], headers), made[0]["id"], scopes, app_id)
+    log("build_output", output="semantic_model", dry_run=False, outcome="refresh:" + card["refresh"]["status"], seconds=0)
+    return _with_schema({"dry_run": False, "outputs": [card], "order": ["semantic_model"], "left_out_by_review": [],
+                         "refused": 0, "to_decide": 0, "note": "The model was refreshed once." if card["refresh"]["status"] == "refreshed"
+                         else "The model's refresh: " + card["refresh"]["status"] + ".", "created": made}, req)
+
+
 def run_build_many(req: dict) -> dict:
     """Every output chosen, in ORDER, each through its MCP tool on the plan the review left (rejections taken out),
     as the signed-in user. A dry run first; Create with dry_run=false. Each output gets one card: the tool's answer,
@@ -1462,6 +1569,9 @@ def run_build_many(req: dict) -> dict:
                         if adopted and not dry_run:
                             mark_items(workspace, headers, adopted, mark)
                         ours.update(c["id"] for c in done)
+                        if kind == "pipeline":                    # n197: Run once and Schedule still do what they say
+                            card["jobs"] = _jobs_on_built(o, done, jobs_permission(scopes, app_id), dry_run, workspace, headers,
+                                                          req.get("schedule_ids") or [])
                         outcome = "already_built"
                     else:                                         # n180: another plan, or none recorded: the person chooses
                         was = next((m for m in marks if m and not same_plan(m, mark)), None)
@@ -1524,7 +1634,7 @@ def run_build_many(req: dict) -> dict:
                 if kind == "pipeline":                             # n185: the two choices, what they will do or did
                     card["jobs"] = _jobs_card(o, answer, jobs_permission(scopes, app_id), dry_run)
                 if kind == "semantic_model" and not answer.get("error") and dry_run and would == "create":
-                    card["refresh"] = {"status": "planned", "note": REFRESH_PLANNED}
+                    card["refresh"] = {"status": "planned", "note": AFTER_RUN_REFRESH if _runs_first(req, chosen) else REFRESH_PLANNED}
                     if scopes is not None and REFRESH_SCOPE not in scopes:
                         card["refresh"].update(scope=REFRESH_SCOPE, entra_steps=entra_steps(REFRESH_SCOPE, app_id),
                                                hint=f"Without {REFRESH_SCOPE} Create cannot refresh it: refresh it once in the portal.")
@@ -1549,7 +1659,9 @@ def run_build_many(req: dict) -> dict:
                             from . import agent_publish
                             card["portal_steps"].append(agent_publish.COPILOT_STEP)
                     new_model = next((c["id"] for c in card["created"] if c["type"] == "SemanticModel"), None)
-                    if kind == "semantic_model" and would == "create" and new_model:   # only a model this request created
+                    if kind == "semantic_model" and would == "create" and new_model and _runs_first(req, chosen):
+                        card["refresh"] = {"status": "planned", "note": AFTER_RUN_REFRESH}   # n197: after the run succeeded
+                    elif kind == "semantic_model" and would == "create" and new_model:   # only a model this request created
                         card["refresh"] = refresh_new_model(workspace, new_model, scopes, app_id)
                         if card["refresh"]["status"] == "refreshed":
                             card["portal_steps"] = [x for x in card["portal_steps"] if not x.startswith(REFRESH_STEP)]
