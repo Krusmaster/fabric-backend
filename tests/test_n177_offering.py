@@ -134,9 +134,10 @@ def test_the_diagram_lists_the_four_ways_in_words_and_links_each_to_its_docs(cli
     assert not re.search(r"<img[^>]+(microsoft|fabric)", client.get("/choose").text, re.I)
 
 
-def test_home_has_the_offering_and_the_short_guide(client):
+def test_home_has_the_offering_and_a_link_to_choose(client):
     h = client.get("/").text
-    assert h.index('id="offering"') < h.index('id="which"') and 'href="/choose"' in h
+    # n196: the short guide left the home page (it is on /docs, /choose and /start); the offering still links /choose
+    assert 'id="offering"' in h and 'id="which"' not in h and 'href="/choose"' in h[h.index('id="offering"'):]
 
 
 def test_start_has_use_it_in_fabric_next_to_claude_and_other_agents(client):

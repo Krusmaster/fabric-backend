@@ -72,19 +72,20 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     assert h1 == "Why is your total twice what finance says?" and "MCP" not in h1 and "GraphQL" not in h1
     lede = re.search(r'<p class="lede">(.*?)</p>', html).group(1)
     assert lede == "Krusgraph checks keys and joins in your Fabric tables, and shows the rule and the row counts behind every link."
-    first = re.search(r'<p class="usp-lead">(.*?)</p>', html).group(1)
+    # n196: the USP sentence and its points moved to the top of /docs ("What Krusgraph does")
+    docs = client.get("/docs").text
+    first = re.search(r"<p>(See how your business tables really connect.*?)</p>", docs).group(1)
     assert first.startswith("See how your business tables really connect – with the proof behind every link")      # n39: the USP
-    usp = re.findall(r"<li><strong>(.*?)</strong>", re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1))
-    assert usp == ["Checked against your rows.", "Errors before anyone sees them.", "One checked plan, every starting point."]   # n188
     assert "connect" in first and "MCP" not in first and "GraphQL" not in first and len(first.split()) <= 30
+    assert "See how your business tables really connect" not in html
     assert 'href="/check?example=sample&amp;guide=1">Try the guided demo<' in html and 'href="/start">Connect to my Fabric<' in html
-    assert "through MCP" in html                                                         # MCP explained further down
     # n149: the status is said once, by the tools list, not in the steps
     step3 = re.search(r'<span class="step-n lav">3</span>(.*?)</li>', html, re.S).group(1)
     assert "API" in step3 and "xperimental" not in step3
     # n183: the home page keeps one status line; the long status is in the docs' test status
-    status = re.search(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', html, re.S).group(1)
-    assert status == 'Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.'
+    # n196: and that line is now in every page's footer
+    status = re.search(r'<p class="muted tiny footer-status">(.*?)</p>', html, re.S).group(1)
+    assert status.startswith('Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>')
     assert "a tool that has not run against a live Fabric workspace is marked experimental" in docs_all(client)
     assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
 
@@ -290,7 +291,9 @@ def test_home_hero_and_trust_row(client):
     html = client.get("/").text
     assert 'class="kicker"' not in html                                                  # no all-caps eyebrows
     assert 'class="hero-figure"' not in html and 'id="home-graph"' not in html           # the graph and its mascots are on /demo
-    assert 'class="trust"' in html and "What Krusgraph reads" in html and 'href="/privacy"' in html
+    # n196: "What Krusgraph reads" left the home page for /docs ("Data and access"); the footer links how data is handled
+    assert 'class="trust"' not in html and "What Krusgraph reads" not in html
+    assert '<a href="/privacy">How data and access are handled</a>' in html[html.index('<footer class="site-footer">'):]
     assert "Your data never leaves Fabric" not in html
 
 
@@ -973,8 +976,8 @@ def test_start_docs_and_llms_send_other_clients_to_mcp_connect_only_when_registr
     assert "(not tried yet)" in docs and "unsupported protocol" in docs
     assert "streamable HTTP at `https://krusgraph.test/mcp/connect`" in llms and "docs.md#other-mcp-clients" in llms
     assert "that is the client it has been tested with" not in start and "cannot sign in to" not in llms
-    home = client.get("/").text
-    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in home      # n82: no Experimental
+    docs_start = client.get("/docs").text                           # n196: the line moved with "What Krusgraph reads"
+    assert "Krusgraph connects Claude, VS Code and Cursor to Microsoft Fabric through MCP" in docs_start      # n82: no Experimental
 
 
 def test_why_section_is_one_text_on_docs_docs_md_and_llms_full(client):
@@ -1064,7 +1067,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     from fabric_backend.seed import AMOUNT_DEMO
     text = client.get("/").text
     amount = AMOUNT_DEMO["orders"][1][0][2]
-    assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="data"')
+    assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="faq"')   # n196: no #data
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
@@ -1078,16 +1081,18 @@ def test_the_same_promise_on_the_site_docs_llms_and_readme(client):
     from fabric_backend.discovery import DESCRIPTION, USP, USP_POINTS
     readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
     import html as _html
-    home = _html.unescape(client.get("/").text)
-    for text in (home, client.get("/docs.md").text, client.get("/llms.txt").text, readme):
+    docs = _html.unescape(client.get("/docs").text)                   # n196: the promise left the home page for /docs
+    assert USP not in _html.unescape(client.get("/").text)
+    for text in (docs, client.get("/docs.md").text, client.get("/llms.txt").text, readme):
         assert USP in text
     for text in (client.get("/docs.md").text, client.get("/llms.txt").text, readme):
         assert all(p in text for p in USP_POINTS)
     assert client.get("/mcp/server-card").json()["description"] == DESCRIPTION and USP.startswith(DESCRIPTION.split(",")[0])
     for tool in ("validate_plan", "sap_pack_draft", "create_backend", "semantic_model_draft", "ontology_draft", "create_data_agent"):
         assert tool in ts.STATUS, tool
-    first = home.index(USP)
-    assert home.find("MCP", first) > home.index('<ul class="usp">') and home.find("open source", 0, first) == -1
+    art = docs[docs.index('<article class="prose docs">'):]
+    first = art.index(USP)
+    assert art.find("MCP", first) > art.index("<ul>", first) and art.find("open source", 0, first) == -1
 
 
 def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
@@ -1097,7 +1102,8 @@ def test_the_hero_plays_a_session_of_real_runs_with_where_and_when(client):
     box = html[html.index('<figure class="session"'):html.index("</figure>", html.index('<figure class="session"'))]
     # n154: back in the hero, under the buttons (n149 had moved it after the steps); n165: turn 1 plays from 0 s like the
     # others (tests/test_n165_replay_progress.py)
-    assert html.index("<h1") < html.index("hero-ctas") < html.index('<figure class="session"') < html.index('class="usp"') < html.index('id="example"')
+    # n196: the film sits between the buttons and the replay; the points left for /docs
+    assert html.index("<h1") < html.index("hero-ctas") < html.index('id="film"') < html.index('<figure class="session"') < html.index('id="example"')
     assert 'class="session-pause" aria-pressed="false"' in box and "<input" not in box and "<textarea" not in box
     assert re.findall(r'class="session-tool">(\w+)<', box) == ["plan_backend", "validate_plan", "create_ontology", "create_semantic_model"]
     assert "synthetic" in box and "8 November 2026" in box and "29 October 2026" in box and "read only" in box and "created" in box
@@ -1273,7 +1279,7 @@ def test_pricing_has_three_columns_without_amounts(client):
     assert not re.search(r"(€|\$|\bSEK\s*\d|\d\s*(SEK|EUR|kr)\b|per month|/month|response time)", html, re.I)
 
 
-@pytest.mark.parametrize("path", ["/", "/pricing", "/it"])
+@pytest.mark.parametrize("path", ["/docs", "/pricing", "/it"])        # n196: the home page's data line moved to /docs
 def test_the_data_line_is_said_the_same_way(client, path):
     assert DATA_STAYS in client.get(path).text
 

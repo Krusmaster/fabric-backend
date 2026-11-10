@@ -749,5 +749,29 @@
   });
   window.KGFilm = { file: filmFile, fit: filmFit };
 
+  /* ------------------------------------------------------------------ n196: the film under the home page's headline */
+  // Muted and looping. It starts on its own unless the visitor prefers reduced motion: then the poster stays and nothing
+  // plays until the button or the film's controls ask. The button says what it will do and works by keyboard.
+  document.querySelectorAll('video[data-film-hero]').forEach(function (v) {
+    var b = v.parentNode.querySelector('.film-toggle'), text = b && b.querySelector('.film-toggle-text');
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    v.muted = true;
+    var show = function () {
+      if (!b) return;
+      b.classList.toggle('is-playing', !v.paused);
+      text.textContent = v.paused ? 'Play the film' : 'Pause the film';
+    };
+    v.addEventListener('play', show);
+    v.addEventListener('pause', show);
+    if (b) {
+      b.hidden = false;
+      b.addEventListener('click', function () {
+        if (v.paused) { var p = v.play(); if (p && p.catch) p.catch(show); } else v.pause();
+      });
+    }
+    if (!still) { var p = v.play(); if (p && p.catch) p.catch(show); }
+    show();
+  });
+
   window.KrusGraph = { Graph: Graph, loadPlan: loadPlan };
 })();

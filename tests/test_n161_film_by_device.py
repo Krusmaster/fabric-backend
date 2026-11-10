@@ -25,10 +25,13 @@ def test_both_sources_with_the_phone_query_first(client, path):
     assert video.count("<source") == 2 and PHONE in video and WIDE in video
     assert video.index(PHONE) < video.index(WIDE)                         # the browser takes the first source that matches
     head = re.search(r"<video([^>]*)>", video).group(1)
-    for attr in ('preload="none"', "controls", "playsinline", 'poster="/static/media/krusgraph-overview-poster.webp"',
-                 f'aria-label="{pages.FILM_LABEL}"'):
+    for attr in ("controls", "playsinline", 'poster="/static/media/krusgraph-overview-poster.webp"', f'aria-label="{pages.FILM_LABEL}"'):
         assert attr in head, attr
-    assert "autoplay" not in head and "muted" not in head
+    assert "autoplay" not in head
+    if path == "/":                                    # n196: the home page's film is muted and preloads its metadata
+        assert 'preload="metadata"' in head and " muted" in head
+    else:
+        assert 'preload="none"' in head and "muted" not in head
     assert video.count("<track") == 1 and 'src="/static/media/krusgraph-overview.en.vtt"' in video   # one shared track
     assert all(u.startswith("/static/media/") for u in re.findall(r'(?:src|poster|href)="([^"]+)"', video))
 

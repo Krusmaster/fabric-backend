@@ -56,11 +56,9 @@ def test_the_hero_says_the_problem_and_shows_the_small_before_and_after(client):
             'behind every link.</p>') in hero
     ctas = re.search(r'<div class="ctas hero-ctas" id="connect">(.*?)</div>', hero, re.S).group(1)
     assert _buttons(ctas) == [("/check", CHECK), ("/start", CONNECT)] and "<details" not in ctas and "▾" not in hero
-    mini = re.search(r'<p class="ba-mini">(.*?)</p>', hero, re.S).group(1)
-    assert hero.index("hero-ctas") < hero.index("ba-mini")
-    assert ">2\u00a0000<" in mini and ">1\u00a0000<" in mini and 'href="#example"' in mini        # seed.AMOUNT_DEMO's order
-    # n154: the replay is in the hero again, under the buttons, and the small before and after under the replay
-    assert hero.index("hero-ctas") < hero.index('<figure class="session"') < hero.index("ba-mini")
+    # n196: the small before and after left the home page; the film is directly under the buttons, then the replay
+    assert 'class="ba-mini"' not in html
+    assert hero.index("hero-ctas") < hero.index('id="film"') < hero.index('<figure class="session"')
     assert html.count('<figure class="session"') == 1 and 'class="wrap replay"' not in html
 
 
@@ -85,8 +83,10 @@ def test_the_status_is_said_once_by_the_tools_list(client):
     for word in ("xperimental", "Tested end to end on", "created live", "session-status", "status-tag"):
         assert word not in pitch, word
     assert "Tested end to end on" not in main
-    status = re.findall(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', main, re.S)
-    assert status == ['Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.']
+    # n196: the one status line moved from the home page to the footer of every page
+    assert "home-status" not in main
+    foot = html[html.index('<footer class="site-footer">'):]
+    assert re.findall(r'<a href="/docs#test-status">Test status per tool</a>', foot) and foot.count("is a preview service") == 1
 
 
 def test_the_client_chooser_is_on_start_in_the_step_that_adds_the_connector(client):
@@ -142,7 +142,7 @@ def test_the_article_is_linked_from_the_home_page_and_the_check_example(client):
     assert "/blog)" in llms and ARTICLE in llms
 
 
-@pytest.mark.parametrize("path", ["/", "/pricing"])
+@pytest.mark.parametrize("path", ["/docs", "/pricing"])               # n196: the home page's data line moved to /docs
 def test_the_self_hosting_wording_is_n146s(client, path):
     from tests.test_site import DATA_STAYS
     html = client.get(path).text
@@ -161,4 +161,4 @@ def test_in_a_browser_check_puts_the_drop_area_first_on_a_phone(site):
     desk = r["check1280"]
     assert desk["wide"] <= 1280, desk
     for w in ("375", "1280"):
-        assert r["home" + w]["pill"] is True and r["home" + w]["wide"] <= int(w) and r["home" + w]["mini"], r["home" + w]
+        assert r["home" + w]["pill"] is True and r["home" + w]["wide"] <= int(w) and r["home" + w]["film"], r["home" + w]

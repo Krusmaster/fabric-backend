@@ -1,5 +1,5 @@
 """Round n188: three shorter points on the home page and the SAP point on its own page (/sap); four tiles under "Go
-further with these tables" on /check; "Which Krusgraph should I use?" first on the docs start page and in the docs menu.
+further with these tables" on /check; "Which Krusgraph should I use?" first on the docs start page and in the docs menu (n196: after "What Krusgraph does").
 The browser half runs tests/n188_browser.js."""
 from __future__ import annotations
 
@@ -38,19 +38,15 @@ def _plain(html: str) -> str:
 
 # ------------------------------------------------------------------ 1. the home page's three points, and /sap ---------
 
-def test_home_has_three_points_and_no_sap_point(client):
+def test_the_three_points_and_the_sap_line_left_the_home_page_for_the_docs(client):
+    """n196: the sentence, the three points and the SAP line moved from the home page to the top of /docs
+    (tests/test_n196_home_film.py pins their place there)."""
     html = client.get("/").text
-    assert "2 000" in html or "ba-mini" in html                                   # the before/after badge stays above
+    assert "See how your business tables really connect" not in html and 'class="usp"' not in html and "usp-sap" not in html
+    docs = client.get("/docs").text
     assert ("See how your business tables really connect – with the proof behind every link – so your reports, apps and "
-            "agents get the numbers right.") in html
-    ul = re.search(r'<ul class="usp">(.*?)</ul>', html, re.S).group(1)
-    items = [_plain(x) for x in re.findall(r"<li>(.*?)</li>", ul, re.S)]
-    assert [x.split(".")[0] for x in items] == ["Checked against your rows", "Errors before anyone sees them", "One checked plan, every starting point"]
-    assert items[0] == "Checked against your rows. Every link shows its basis and the checks you run show their counts."
-    assert items[1] == "Errors before anyone sees them. The total that doubles, keys that are not unique, references with no matching row."
-    assert "MANDT" not in ul and "VBAK" not in ul and "SAP" not in ul
-    # the SAP point is one short line with a link to /sap
-    line = re.search(r'<p class="usp-sap tiny"><a href="/sap">(.*?)</a></p>', html).group(1)
+            "agents get the numbers right.") in docs
+    line = re.search(r'<a href="/sap">(SAP tables[^<]*)</a>', docs).group(1)
     assert "MANDT" in line and len(line.split()) <= 16
 
 
@@ -89,7 +85,7 @@ def test_sap_page_exists_with_sources_and_its_links_resolve(client):
     for href in set(re.findall(r'href="(/[^"#?]*)', body)):
         assert client.get(href).status_code == 200, href
     assert "/sap" in discovery.PUBLIC_PAGES and "/sap</loc>" in client.get("/sitemap.xml").text
-    assert client.get("/").text.count('href="/sap"') == 1
+    assert 'href="/sap"' not in client.get("/").text and 'href="/sap"' in client.get("/docs").text   # n196: the line moved to /docs
 
 
 def test_docs_and_llms_carry_the_three_points_and_the_sap_line(client):
@@ -181,21 +177,21 @@ def test_browser_each_tile_download_still_works(browser):
 
 # ------------------------------------------------------------------ 3. the docs: Which Krusgraph first ----------------
 
-def test_docs_start_page_begins_with_which_krusgraph(client):
+def test_docs_start_page_has_which_krusgraph_after_what_krusgraph_does(client):
+    """n196: "What Krusgraph does" (the home page's sentence and points) comes first, then "Which Krusgraph should I use?"."""
     html = client.get("/docs").text
     art = html[html.index('<article class="prose docs">'):]
     after_h1 = art[art.index("</h1>"):]
-    first = re.search(r"<p>(.*?)</p>", after_h1, re.S).group(1)
-    assert _plain(first) == "Which Krusgraph should I use?"
-    assert after_h1.index("Which Krusgraph should I use?") < after_h1.index("See how your business tables really connect")
-    rows = re.search(r"<ul>(.*?)</ul>", after_h1, re.S).group(1)
+    which = after_h1[after_h1.index("<p><strong>Which Krusgraph should I use?</strong></p>"):]
+    assert after_h1.index("See how your business tables really connect") < after_h1.index("Which Krusgraph should I use?")
+    rows = re.search(r"<ul>(.*?)</ul>", which, re.S).group(1)
     lis = re.findall(r"<li>(.*?)</li>", rows, re.S)
     assert len(lis) == 5 == len(offering.DECIDE)
     for (q, key), li in zip(offering.DECIDE, lis):
         assert q in _plain(li) and offering.way(key)["name"] in li, li
-    assert 'href="/choose"' in after_h1[:after_h1.index("See how your business tables")]
+    assert 'href="/choose"' in which[:which.index("</ul>") + 200]
     md = client.get("/docs.md").text
-    assert md.index("Which Krusgraph should I use?") < md.index("See how your business tables really connect")
+    assert md.index("See how your business tables really connect") < md.index("Which Krusgraph should I use?")
 
 
 def test_docs_menu_starts_with_which_krusgraph(client):

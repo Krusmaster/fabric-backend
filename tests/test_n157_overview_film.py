@@ -1,4 +1,5 @@
-"""n157: the overview film on the home page, directly after the hero.
+"""n157: the overview film on the home page, directly after the hero (n196: inside the hero, under the buttons;
+tests/test_n196_home_film.py).
 A native <video> (controls, preload="none", playsinline, a poster, an English captions track), served from /static/media/
 with the right types; nothing from another host; the masters stay out of the repository."""
 import re
@@ -25,18 +26,16 @@ def client(monkeypatch):
 
 
 def _film(html):
-    return re.search(r'<section class="wrap film" id="film".*?</section>', html, re.S).group(0)
+    # n196: the home page's film is in the hero, under the headline and the buttons
+    return re.search(r'<div class="film film-hero" id="film">.*?</figure>', html, re.S).group(0)
 
 
-def test_the_film_section_follows_the_hero(client):
+def test_the_film_is_in_the_hero_under_the_buttons(client):
     html = client.get("/").text
-    hero = re.search(r'<section class="hero">.*?</section>', html, re.S)
-    film = html.index('<section class="wrap film" id="film"')
-    assert hero.end() <= film < html.index('id="example"')
-    assert html[hero.end():film].strip() == ""                       # nothing between the hero and the film
-    assert "<video" not in hero.group(0)                             # the replay in the hero is untouched
+    hero = re.search(r'<section class="hero">.*?</section>', html, re.S).group(0)
+    assert hero.index("hero-ctas") < hero.index('<div class="film film-hero" id="film">') < hero.index('<figure class="session"')
+    assert '<section class="wrap film"' not in html and '<h2 id="film-h">See how it works</h2>' not in html   # n196: no heading
     sec = _film(html)
-    assert '<h2 id="film-h">See how it works</h2>' in sec
     assert "About 45 seconds" not in sec and "film-note" not in sec    # n160: the visible note is gone
     assert 'aria-label="Krusgraph overview film, synthetic demo data, AI-generated voice"' in sec
 
@@ -44,9 +43,9 @@ def test_the_film_section_follows_the_hero(client):
 def test_the_video_element(client):
     sec = _film(client.get("/").text)
     video = re.search(r"<video([^>]*)>", sec).group(1)
-    for attr in ("controls", 'preload="none"', "playsinline", 'poster="/static/media/krusgraph-overview-poster.webp"'):
+    for attr in ("controls", 'preload="metadata"', "playsinline", 'poster="/static/media/krusgraph-overview-poster.webp"'):
         assert attr in video, attr
-    assert "autoplay" not in video and "muted" not in video and "loop" not in video
+    assert "autoplay" not in video and " muted" in video and " loop" in video   # n196: muted and looping; site.js starts it
     assert '<source src="/static/media/krusgraph-overview-web.mp4" type="video/mp4">' in sec
     track = re.search(r"<track([^>]*)>", sec).group(1)
     assert 'kind="captions"' in track and 'srclang="en"' in track and " default" in track

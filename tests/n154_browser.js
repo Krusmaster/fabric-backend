@@ -41,7 +41,7 @@ async function wins(page, n) {
       const dots = [...document.querySelectorAll('.session-dots span')].map((d) => getComputedStyle(d).backgroundColor !== 'rgba(0, 0, 0, 0)');
       return { at: Math.round(performance.now() - performance.getEntriesByType('navigation')[0].loadEventEnd), clip, questionShown, ctas: r('.hero-ctas'), session: r('figure.session'), head: r('.session-head'),
                sent: sent.getBoundingClientRect().toJSON(), sentOpacity: op(sent), answerOpacity: op(turn.querySelector('.session-answer')),
-               turnsShown: shown, dots, mini: r('.ba-mini'), usp: r('.usp'), h1: r('h1'),
+               turnsShown: shown, dots, film: r('#film'), h1: r('h1'),   // n196: the film between the buttons and the replay
                caption: document.querySelector('#session-cap').textContent.trim().slice(0, 40), inHero: !!document.querySelector('.hero figure.session') };
     });
     await until(500);

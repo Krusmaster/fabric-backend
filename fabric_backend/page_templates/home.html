@@ -8,6 +8,7 @@
       <a class="btn primary" href="/check">{{LABEL_CHECK}}</a>
       <a class="btn secondary" href="/start">{{LABEL_CONNECT}}</a>
     </div>
+{{HOME_FILM}}
     <figure class="session" aria-labelledby="session-cap">
       <button type="button" class="session-pause" aria-pressed="false">Pause</button>
       <p class="session-head">A replay of Krusgraph's answers</p>
@@ -37,18 +38,8 @@
       <p class="session-links"><a href="/check">{{LABEL_CHECK}}</a><a href="/start">{{LABEL_CONNECT}}</a></p>
       <figcaption id="session-cap">Answers shortened from Krusgraph's checks on synthetic shop data. Questions 1 and 2: plan_backend and validate_plan run read only on that data (8 November 2026). Questions 3 and 4: real runs in Claude against the same data in a Fabric lakehouse, which created an ontology (28 October 2026) and a semantic model (29 October 2026).</figcaption>
     </figure>
-{{HOME_BEFORE_AFTER_MINI}}
-    <p class="usp-lead">See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.</p>
-    <ul class="usp">
-      <li><strong>Checked against your rows.</strong> Every link shows its basis and the checks you run show their counts.</li>
-      <li><strong>Errors before anyone sees them.</strong> The total that doubles, keys that are not unique, references with no matching row.</li>
-      <li><strong>One checked plan, every starting point.</strong> In Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On <a href="/check">/check</a>, in your browser, the same plan gives drafts.</li>
-    </ul>
-    <p class="usp-sap tiny"><a href="/sap">SAP tables: keys with MANDT and the order-to-cash links, each with its public source</a></p>
   </div>
 </section>
-
-{{HOME_FILM}}
 
 {{HOME_BEFORE_AFTER}}
 
@@ -60,8 +51,6 @@
 </section>
 
 {{HOME_OFFERING}}
-{{HOME_CHOOSE}}
-<p class="wrap muted tiny home-status" id="status">{{PRODUCT}} is a preview service. <a href="/docs#test-status">Test status per tool</a>.</p>
 
 <section class="wrap two-paths" id="paths" aria-labelledby="paths-h">
   <h2 id="paths-h">Then: on your own, or with help on one number.</h2>
@@ -83,17 +72,6 @@
 
 
 {{HOME_HUB}}
-
-<section class="wrap trust-wrap" id="data" aria-labelledby="data-h">
-  <h2 id="data-h">What {{PRODUCT}} reads</h2>
-  <p class="intro">Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. <a href="/privacy">Read how data and access are handled</a>.</p>
-  <p class="data-stays">{{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers. <a href="/it#data-goes">Where your data goes</a>.</p>
-  <ul class="trust">
-    <li><span class="t-i coral" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M5 20c.6-3.8 3.4-6 7-6s6.4 2.2 7 6"/></svg></span><div><h3>How it connects</h3><p>{{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.</p></div></li>
-    <li><span class="t-i sage" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="M8 12h8"/></svg></span><div><h3>Nothing is created until you ask</h3><p>Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.</p></div></li>
-    <li><span class="t-i lav" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M15 7l5 5-5 5"/></svg></span><div><h3>Open source</h3><p>Read the code, inspect the inference rules or host {{PRODUCT}} yourself. The source is available under the MIT licence on <a href="{{GITHUB}}" rel="noopener">GitHub</a>.</p></div></li>
-  </ul>
-</section>
 
 <section class="wrap developer-note" id="developer" aria-labelledby="developer-h" style="padding-top:0">
   <div class="card soft">

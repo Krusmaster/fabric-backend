@@ -84,14 +84,15 @@ def test_home_keeps_hero_diagram_short_guide_and_demo_and_one_status_line(client
     main = h[h.index("<main"):h.index("</main>")]
     assert 'id="build-on"' not in main and "Build on the relationships you’ve reviewed" not in main
     assert 'class="muted tiny build-status"' not in main and "LIVE_RUN" not in main and "registry.modelcontextprotocol.io" not in main
-    status = re.findall(r'<p class="wrap muted tiny home-status" id="status">(.*?)</p>', main, re.S)
-    assert status == ['Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>.']
-    order = [main.index(m) for m in ('class="hero"', 'id="demo"', 'id="offering"', 'id="which"', 'id="status"')]
+    # n196: the short guide and the status line left the home page; the status is in every page's footer, the guide on
+    # /docs and /choose (tests/test_n196_home_film.py)
+    assert 'id="which"' not in main and 'id="status"' not in main
+    order = [main.index(m) for m in ('class="hero"', 'id="demo"', 'id="offering"')]
     assert order == sorted(order)
-    which = main[main.index('id="which"'):main.index("</section>", main.index('id="which"'))]
-    rows = [_plain(li) for li in re.findall(r"<li[^>]*>(.*?)</li>", which, re.S)]
-    assert len(rows) == 5
-    assert rows[3].startswith("“We code in VS Code or Cursor” → Krusgraph for Claude (any MCP client")
+    foot = h[h.index('<footer class="site-footer">'):]
+    assert 'Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>' in foot
+    choose = _plain(client.get("/choose").text)
+    assert "“We code in VS Code or Cursor” → Krusgraph for Claude (any MCP client" in choose
 
 
 @pytest.mark.parametrize("registration", ["", "1"])
@@ -122,7 +123,7 @@ def test_the_moved_blocks_are_in_the_docs(client):
 
 def test_every_link_on_the_home_diagram_guide_and_status_answers(client):
     h = client.get("/").text
-    part = h[h.index('id="offering"'):h.index('id="paths"')]
+    part = h[h.index('id="offering"'):h.index('id="paths"')] + h[h.index('<footer class="site-footer">'):]   # n196: status in the footer
     hrefs = sorted({x.split("#")[0] for x in re.findall(r'href="(/[^"]*)"', part)})
     assert "/docs" in hrefs and "/choose" in hrefs
     for href in hrefs:

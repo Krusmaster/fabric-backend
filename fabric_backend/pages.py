@@ -459,16 +459,26 @@ FILM_VTT = "/static/media/krusgraph-overview.en.vtt"
 FILM_LABEL = "Krusgraph overview film, synthetic demo data, AI-generated voice"
 
 
-def film_html(heading: bool = True) -> str:
-    """The overview film: a native <video> with controls, preload="none", a poster and an English captions track."""
+def film_html(heading: bool = True, hero: bool = False) -> str:
+    """The overview film: a native <video> with controls, preload="none", a poster and an English captions track.
+    n196: hero=True is the home page's film, directly under the headline and the buttons: muted, looping, playsinline,
+    preload="metadata", and a visible Pause/Play button. site.js starts it unless the visitor prefers reduced motion,
+    when the poster stays and nothing plays until asked; the page has no autoplay attribute for that reason."""
+    attrs = ('controls muted loop playsinline preload="metadata" data-film-hero' if hero else 'controls preload="none" playsinline')
+    toggle = ('\n    <button type="button" class="film-toggle" aria-controls="film-video" hidden>'
+              '<span class="film-toggle-icon" aria-hidden="true"></span><span class="film-toggle-text">Play the film</span></button>'
+              if hero else "")
+    vid = ' id="film-video"' if hero else ""
     video = (f'<figure class="film-frame">\n'
-             f'    <video controls preload="none" playsinline width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}"'
+             f'    <video{vid} {attrs} width="1920" height="1080" poster="{FILM_POSTER}" aria-label="{FILM_LABEL}"'
              f' data-film-wide="{FILM_MP4}" data-film-tall="{FILM_MP4_4X5}">\n'
              f'      <source media="{FILM_PHONE}" src="{FILM_MP4_4X5}" type="video/mp4">\n'
              f'      <source src="{FILM_MP4}" type="video/mp4">\n'
              f'      <track kind="captions" srclang="en" label="English" src="{FILM_VTT}" default>\n'
              f'      <p>Your browser cannot play this film. <a href="{FILM_MP4}">Download it as MP4</a>.</p>\n'
-             f'    </video>\n  </figure>')
+             f'    </video>{toggle}\n  </figure>')
+    if hero:
+        return f'    <div class="film film-hero" id="film">\n  {video}\n    </div>'
     if heading:
         return (f'<section class="wrap film" id="film" aria-labelledby="film-h">\n  <h2 id="film-h">See how it works</h2>\n'
                 f'  {video}\n</section>')
@@ -531,6 +541,18 @@ def _md_to_html(md: str, figures: dict | None = None) -> str:
                 while i < len(lines) and lines[i].startswith("  ") and lines[i].strip():   # continuation line
                     items[-1] += " " + lines[i].strip(); i += 1
             out.append(f"<{tag}>" + "".join(f"<li>{inline(x)}</li>" for x in items) + f"</{tag}>"); continue
+        if ln.startswith(">"):                                             # n196: a quiet blockquote, paragraphs split by ">"
+            flush(); paras, cur = [], []
+            while i < len(lines) and lines[i].startswith(">"):
+                t = lines[i][1:].strip(); i += 1
+                if t:
+                    cur.append(t)
+                elif cur:
+                    paras.append(" ".join(cur)); cur = []
+            if cur:
+                paras.append(" ".join(cur))
+            out.append("<blockquote>" + "".join(f'<p class="quote-by">{inline(x)}</p>' if x.startswith("— ") else f"<p>{inline(x)}</p>"
+                                                for x in paras) + "</blockquote>"); continue
         if ln.startswith("```"):
             flush(); i += 1; code = []
             while i < len(lines) and not lines[i].startswith("```"):
@@ -728,6 +750,7 @@ def _shell(title: str, description: str, body: str, page: str, nav: str, noindex
       <div class="brand small">{_LOGO}<span class="wordmark">{html.escape(v['PRODUCT_LOWER'])}</span></div>
       <p class="muted">{html.escape(v['PRODUCT'])} by Kruse Consulting AB{html.escape(v['ORGNR_DOT'])} · Open source under the MIT licence.</p>
       <p class="muted tiny footer-facts">{html.escape(v['BEHIND'])}.<br>{html.escape(v['BUILT'])}. <a href="/it">For your IT department</a>.</p>
+      <p class="muted tiny footer-status">{html.escape(v['PRODUCT'])} is a preview service. <a href="/docs#test-status">Test status per tool</a> · <a href="/privacy">How data and access are handled</a>.</p>
       <p class="muted tiny">Microsoft Fabric and Fabric IQ are trademarks of Microsoft Corporation. {html.escape(v['PRODUCT'])} is an independent product, not made by Microsoft.</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
@@ -1000,9 +1023,10 @@ def chat_plan_html() -> str:
 
 def _home_vars() -> dict[str, str]:
     """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(), "HOME_BEFORE_AFTER_MINI": before_after_mini_html(),
-            "HOME_FILM": film_html(),                                             # n157
-            "HOME_OFFERING": _offering().diagram_html(), "HOME_CHOOSE": _offering().short_html("home")}   # n177
+    # n196: the before/after chip, "Which Krusgraph should I use?" and "What Krusgraph reads" left the home page
+    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(),
+            "HOME_FILM": film_html(hero=True),                                    # n157; n196: under the headline
+            "HOME_OFFERING": _offering().diagram_html()}                         # n177
 
 
 def _offering():

@@ -1,5 +1,5 @@
 // n149: /check at 375 px puts the drop area and the "read in this browser" line above the example cards; the home page
-// has no horizontal scroll at 375 px (n154: and has the floating "Try a demo" button again).
+// has no horizontal scroll at 375 px (n154: and has the floating "Try a demo" button again; n196: the film under the buttons).
 // Usage: node tests/n149_browser.js <base url> [chromium path]. Prints one JSON object the Python test asserts on.
 const { chromium } = require('playwright');
 const base = process.argv[2], exe = process.argv[3];
@@ -19,7 +19,7 @@ const base = process.argv[2], exe = process.argv[3];
     await page.goto(base + '/', { waitUntil: 'load' });
     out['home' + width] = await page.evaluate(() => ({
       pill: !!document.querySelector('.kgc-launch'), wide: document.documentElement.scrollWidth,
-      mini: (() => { const m = document.querySelector('.ba-mini'), c = document.querySelector('.hero-ctas');
+      film: (() => { const m = document.querySelector('#film'), c = document.querySelector('.hero-ctas');   // n196: the film, not the chip
                      return m && c ? m.getBoundingClientRect().top >= c.getBoundingClientRect().bottom : false; })() }));
     await page.close();
   }

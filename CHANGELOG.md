@@ -9,6 +9,22 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n196: **The film at the top of the home page, under the headline.** The overview film moves from its section
+  below the hero to directly under the headline, the sentence and the two buttons, centred, up to 960 px wide on a
+  desktop (narrower on a short screen, so the headline, the buttons and at least the top half of the film fit at
+  1280 x 720) and the full content width on a phone, where the 4:5 version still plays (n161). It is muted, loops, plays
+  inline, preloads only its metadata, and has a visible Pause/Play button with an accessible name; site.js starts it
+  unless the visitor prefers reduced motion, when the poster stays and nothing plays until asked. It is on the home page
+  once; /docs keeps its own. Three blocks leave the home page: the before/after chip with the three points and the SAP
+  line (the sentence and the points now open /docs as "What Krusgraph does", before "Which Krusgraph should I use?"; the
+  SAP line stays on /docs and /sap), "Which Krusgraph should I use?" with its rows and the no-AI paragraph (on /docs and
+  /choose already), and "What Krusgraph reads" (its two paragraphs and three points are now "Data and access" on the /docs start page).
+  The footer on every page says "Krusgraph is a preview service" with links to the test status per tool and to how data
+  and access are handled. A customer quote, Swedish with the English translation, anonymous by request and published
+  with the person's written permission, on /docs' Get started page only; the docs' Markdown renders "> " as a quiet
+  blockquote. No new copy otherwise. Tests: tests/test_n196_home_film.py and tests/n196_browser.js (375, 768, 1280 and
+  1440 px, light and dark; reduced motion; the button by keyboard); the tests that pinned the old places moved with the
+  blocks. Redeploy to see it live: `bash deploy/krusgraph.sh --from-azure --update`.
 - Round n195: **Krusgraph.Modeler ready for Microsoft's publishing review, as far as the repository can make it.**
   The vendor attestation (Section III of Microsoft's template, filled from what the code does: no row values, delegated
   permissions only, Azure Container Apps in Sweden Central, the one read-only admin call, and every open point marked

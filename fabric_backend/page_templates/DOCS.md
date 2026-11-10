@@ -1,5 +1,15 @@
 # {{PRODUCT}} docs
 
+**What {{PRODUCT}} does**
+
+See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
+
+- Checked against your rows: every link shows its basis and the checks you run show their counts.
+- Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
+- One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
+
+[SAP tables: keys with MANDT and the order-to-cash links, each with its public source](/sap).
+
 {{WHICH_KRUSGRAPH}}
 
 <!-- figure:overview-film -->
@@ -11,18 +21,20 @@
 {{CLAIMS_TABLE}}
 <!-- /figure -->
 
-See how your business tables really connect – with the proof behind every link – so your reports, apps and agents get the numbers right.
-
-- Checked against your rows: every link shows its basis and the checks you run show their counts.
-- Errors before anyone sees them: the total that doubles, keys that are not unique, references with no matching row.
-- One checked plan, every starting point: in Fabric, Krusgraph creates silver and gold notebooks, a pipeline, a semantic model, a report, an ontology, a data agent, an API for GraphQL and an App (preview) from the plan you reviewed; the silver and gold tables fill when the pipeline runs. On /check, in your browser, the same plan gives drafts.
-
-[SAP tables: keys with MANDT and the order-to-cash links, each with its public source](/sap).
-
 Connect {{PRODUCT}} to Claude to inspect a Fabric schema, review the suggested relationships, check them against your
 data and build from the plan. Start with the connection guide, or try the [guided demo](/check?example=sample&guide=1) and
 [the example's map](/check?example=sample#check-map) without an account. The tool reference explains what each tool reads, returns or changes, and
 how far it has been tested.
+
+**Data and access**
+
+Planning uses schema metadata. If you ask for data checks, samples or queries, the relevant counts or results pass through {{PRODUCT}} to Claude. Access depends on your Microsoft account and the permissions granted to the connector. [Read how data and access are handled](/privacy).
+
+> {{PRODUCT}} stores no table contents. Names, counts and the sample rows you ask for pass through the service in memory and reach your AI client; the hosted service runs in the EU, and you can run it in your own Azure, so that nothing passes through Kruse Consulting. Either way, your AI client and its AI provider receive the tools’ answers. [Where your data goes](/it#data-goes).
+
+- **How it connects.** {{PRODUCT}} connects {{MCP_CLIENTS}} to Microsoft Fabric through MCP. You sign in with your Microsoft work account, and every call runs with your own Fabric permissions.
+- **Nothing is created until you ask.** Planning and checking only read. Creating an API or views is a separate request, and the drafts create nothing.
+- **Open source.** Read the code, inspect the inference rules or host {{PRODUCT}} yourself. The source is available under the MIT licence on [GitHub]({{GITHUB}}).
 
 ## Why {{PRODUCT}}
 
@@ -76,6 +88,12 @@ no row-level security of its own; it applies what the source enforces for the id
 ## Get started
 
 New to a Fabric lakehouse? Start with how its tables fit together. Connect the hosted server to Claude, then ask a first question. The [guided demo](/check?example=sample&guide=1) runs the engine on a synthetic shop in your browser. It needs no account. Onto leads four steps over its map. The first three show how the tables connect, the total that doubles and a suggestion to decide on. The fourth leads on to Power BI or an app.
+
+> “Krusgraph har förändrat hur mitt team jobbar med data engineering. Det som tidigare tog lång tid kan vi nu bygga på en eftermiddag: hela flöden och ett ekosystem för vår data. Jag rekommenderar deras MCP-server till alla som jobbar med data engineering.”
+>
+> “Krusgraph has changed how my team works with data engineering. What used to take a long time we can now build in an afternoon: whole flows and an ecosystem for our data. I recommend their MCP server to anyone who works with data engineering.” (English translation)
+>
+> — Data engineer at a Swedish company (anonymous by request)
 
 ### Connect
 

@@ -58,10 +58,10 @@ def test_the_hero_has_the_replay_under_the_buttons_and_keeps_n149(client):
     html = client.get("/").text
     hero = re.search(r'<section class="hero">.*?</section>', html, re.S).group(0)
     order = [hero.index(x) for x in ("<h1>Why is your total twice what finance says?</h1>", 'class="lede"', "hero-ctas",
-                                     '<figure class="session"', '<p class="ba-mini">', 'class="usp"')]
+                                     'id="film"', '<figure class="session"')]   # n196: the film first, no chip or points
     assert order == sorted(order)
     assert ">Check my tables</a>" in hero and ">Connect to my Fabric</a>" in hero
-    fig = hero[hero.index('<figure class="session"'):hero.index("</figure>")]
+    fig = hero[hero.index('<figure class="session"'):hero.index("</figure>", hero.index('<figure class="session"'))]
     # n165: questions 1 and 2 are the engine's checks run here, so the head and caption no longer claim a Claude session
     assert "A replay of Krusgraph's answers" in fig and "Create an ontology from my shop data." in fig
     assert "Answers shortened from Krusgraph's checks on synthetic shop data" in fig
@@ -89,8 +89,9 @@ def test_in_a_browser_the_hero_and_the_button_everywhere(site):
     assert r["errors"] == []
     for w in (375, 1280):
         h = r[f"hero{w}"]
-        assert h["inHero"] and h["ctas"]["bottom"] <= h["session"]["top"] <= h["ctas"]["bottom"] + 40, h
-        assert h["session"]["bottom"] <= h["mini"]["top"] <= h["usp"]["top"], h
+        # n196: the film is directly under the buttons and the replay under the film; the chip and the points left
+        assert h["inHero"] and h["ctas"]["bottom"] <= h["film"]["top"] <= h["ctas"]["bottom"] + 40, h
+        assert h["film"]["bottom"] <= h["session"]["top"] <= h["film"]["bottom"] + 40, h
         # n165: turn 1 plays from 0 s: its question is typing at 0.5 s, its answer is in by 2.5 s, close under the heading
         assert 500 <= h["at"] < 1300 and h["turnsShown"] == 1 and h["questionShown"], h
         assert h["late"]["at"] >= 2500 and h["late"]["sentOpacity"] == 1 and h["late"]["answerOpacity"] == 1 and h["late"]["turnsShown"] == 1, h
