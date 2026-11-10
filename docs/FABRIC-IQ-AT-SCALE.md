@@ -1,6 +1,6 @@
 # Krusgraph and Fabric IQ at scale
 
-Round n182. A design note, docs only, nothing implemented here. Written 9 November 2026, ahead of a meeting with Microsoft on
+Round n182 (section 8: round n186). A design note, docs only, nothing implemented here. Written 9 November 2026, ahead of a meeting with Microsoft on
 11 or 13 November.
 
 This is Krusgraph's own view. Every statement about Microsoft products rests on public sources cited here; anything
@@ -363,3 +363,282 @@ into it instead of competing with it.
    source?
 7. How do you want partners to build data products so they fit with Purview and the OneLake catalog: which item
    metadata, domains and access flows should a partner workload write to?
+
+---
+
+## 8. Data products: packaging, overview and the guide in Fabric
+
+Round n186. A design text, docs only, nothing implemented here. Written 10 November 2026. It builds on section 3.2
+(the pieces) and section 6 (where Krusgraph fits). Every statement about Microsoft products rests on the public Learn
+pages already cited in section 6, or is marked Unverified.
+
+**Where we are.** From one checked plan the Krusgraph Model item creates silver and gold, a pipeline, a semantic model
+(refreshed once), a report, an API for GraphQL, an ontology, a data agent and an App (Rayfin, preview). For each output
+it keeps the plan id and the schema fingerprint in `outputs.json` (`workload_api.py`, `plan_mark()` and `created[].plan`).
+Its dry run already proposes domains: on the shop, `customers` (addresses, customers, order_items, orders) and
+`products` (categories, products). The engine already writes one ODCS v3.2.0 contract per domain (`domains.py`,
+`contract()` and `draft()`), and it already knows the links between domains (`interfaces`, with a consumer and a
+provider). What is missing is the step that turns a proposed domain into a data product the user owns.
+
+How to read the tables: **Today** names the file that does it now. **New** is work for a later round. Effort is S (a
+day or less), M (a few days), L (a week or more).
+
+### 8.1 Packaging
+
+#### What one data product is
+
+| Part | What it holds | Today | New |
+|---|---|---|---|
+| Name | The domain's name, editable | `domains.py` names it; `_product()` in `workload_api.py` keeps a product name | The name comes from the accepted domain, not typed separately |
+| Owner | A person or group in Entra | `_product()` writes `owner: null` and "Nobody has chosen an owner yet." | A people picker; written to `outputs.json` and to the contract's team block |
+| Source tables | The tables in the domain | `domains.py` `propose()` | Kept per product in `outputs.json` |
+| Checked links | Keys and links inside the product, with their row check | `review.json` in the item, `validate_plan` | Filtered to the product's tables |
+| Interfaces | Links to other products (consumer, provider) | `domains.py` `interfaces` | Kept per product; drawn in the overview |
+| Outputs with ids | What Create made, with plan id and schema fingerprint | `outputs.json` `created[]` (n180) | Nothing new |
+| Contract | ODCS v3.2.0 YAML | `domains.py` `contract()`, status `draft`, version `0.1.0` | Kept in the item definition (a `contract.yaml` part); status moves to `active` when the owner accepts it |
+| Version | One number for the product | The contract's `0.1.0`; the review's own version | Bumped on an accepted change (section 3.2 piece 5) |
+| Health | Row check and drift | `evidence.py` (row check), `monitor.py` and `create_drift_monitor` (drift, an MCP tool, not an item output yet) | One health line per product: green, amber, red (8.2) |
+
+Health rules, kept simple:
+
+- **Green**: every key and link passed on the rows, and no schema change since the last Create.
+- **Amber**: something is not checked, or the schema changed in a way that breaks nothing built.
+- **Red**: a key or link failed, or a schema change breaks a built output (a removed or retyped column a model,
+  view or API uses; `monitor.py` `affected()`).
+
+#### The flow
+
+```mermaid
+flowchart LR
+  P[Plan and check] --> D[Krusgraph proposes domains]
+  D --> U{The user}
+  U -->|accept| A[One data product per domain]
+  U -->|split| S[Move tables out to a new domain]
+  U -->|merge| M[Join two domains]
+  S --> A
+  M --> A
+  A --> C[Dry run per product, then Create]
+```
+
+Split and merge are moves of tables between domains, nothing else. Two rules stay fixed: a table that is part of
+another table's aggregate (order_items with orders) moves with it, as `propose()` already decides; and a table with no
+domain stays in the "unassigned" list until the user places it. Every move shows, before it is kept, which links become
+interfaces and which interfaces become inner links.
+
+#### The ontology
+
+- **One namespace per data product.** `ontology.py` already writes a namespace (`namespaces/{namespace}.tmdl`, today
+  `default`). The product's slug becomes the namespace: `customers`, `products`. Namespaces and `ns#name` references
+  inside one ontology item: Verified (preview), section 3.2 piece 1.
+- **A shared entity is defined once.** Example: `Customer` is used by `customers` and by a later `support` product.
+  The product that holds the table (the provider in `interfaces`) owns the entity. Others reference it.
+- **How a reference is written in Fabric.** A reference across ontology items: Unverified (no Learn page found; a
+  question for Microsoft, section 7). Until it is confirmed, Krusgraph writes the shared entity into the consumer's
+  ontology as a bound copy, with the description "Defined in customers. Edit it there." On each Create, Krusgraph
+  checks that the copy still equals the owner's definition and says so if not. In Krusgraph's own views it is shown
+  once, with a line to each product that uses it.
+
+#### The Fabric shape: one item per data product
+
+Recommendation: **one Krusgraph Model item per data product.** Reasons:
+
+1. `outputs.json` already means "the items this Model built and may update". One product per item keeps that promise
+   simple: Create and a later cleanup (section 3.2 piece 7) never touch another product's items.
+2. Access in Fabric is per workspace and per item. A product's owner can share its item without sharing others.
+3. Domains group workspaces (Verified: the domains page in section 6). A product can sit in the workspace of its
+   domain only if it is its own item. Assigning a single item to a domain: Unverified.
+4. The OneLake catalog lists items (Verified, section 6). One item per product shows each product as a findable thing,
+   with its owner and description.
+5. Version, health and a failed Create stay local. A red product does not make another one red.
+
+The cost: shared entities and the overview need to read more than one item. The overview (8.2) reads every Krusgraph
+Model item the user can open in the chosen workspaces, through their item definitions. No new item type is needed.
+
+How the split happens in the item: after the user accepts the domains, the item offers **Make one Krusgraph Model per
+data product**. The current item keeps the first product. For each other product a new item is created in a workspace
+the user picks, with the same source, its own tables and the same plan id. The dry run lists these items before
+anything is made.
+
+#### Fabric governance: align, do not duplicate
+
+| Fabric feature | What Krusgraph does | Status |
+|---|---|---|
+| Domains | Suggests a domain name per product. Creating domains and assigning workspaces is for Fabric administrators and domain admins; Krusgraph shows the steps, it does not do them | Domains page Verified (section 6) |
+| OneLake catalog | Writes the product's description and tags onto the items it built (`catalog.py`, draft only today) | Catalog Verified; tag calls Verified (section 3.2 piece 10) |
+| Endorsement | Shows the product's health next to its endorsement, never sets it. Endorsement is a human decision | Endorsement Verified; a set API: none found, Unverified |
+| Purview data products | Not written. The contract and owner are ready for it if a customer wants one | Purview page Verified (section 6); an API path from Fabric: Unverified |
+
+#### Effort and order (packaging)
+
+| # | Work | Today | Effort |
+|---|---|---|---|
+| P1 | Owner, version, contract and interfaces in `outputs.json` | `_product()`, `domains.contract()` | S |
+| P2 | Accept, split and merge domains in the item | `domains.propose()` | M |
+| P3 | One namespace per product in the ontology | `ontology.py` (namespace parameter exists) | S |
+| P4 | Health line per product | `evidence.py`, `monitor.py` | M |
+| P5 | One item per product (Make one Krusgraph Model per data product) | none | M |
+| P6 | Shared entities as bound copies, checked equal | none | M |
+
+### 8.2 Visualisation in layers
+
+Four layers. Three exist; the overview is new.
+
+| Layer | What it shows | Today |
+|---|---|---|
+| (a) Overview | Domains and data products as boxes, lines where they share entities, health colour | New |
+| (b) One data product | The plan map: tables, keys, links, check state | `ModelItemViews.tsx` `PlanMap`, drawn by `cardMap.ts` (n173) |
+| (c) How it is built | Bronze to silver to gold to outputs, and the pipeline's steps | `FlowView.tsx`, `data_flow.py` (n174) |
+| (d) Code | The code of one box: notebook cell, materialized lake view, pipeline activity, model relationships and measures | `FlowView.tsx` (click a box) |
+
+#### Sketch of the overview (a)
+
+```
+ Domain: Sales                                   Domain: Catalogue
++-----------------------------+                 +---------------------------+
+| customers          [green]  |                 | products          [amber] |
+| owner: Sales team           |  order_items -> | owner: (none yet)         |
+| 4 tables, 5 links checked   |-----------------| 2 tables, 1 not checked   |
+| v0.2.0  9 outputs           |    Product      | v0.1.0  6 outputs         |
++-----------------------------+                 +---------------------------+
+              |
+              | Customer
+              |
++-----------------------------+
+| support            [red]    |
+| owner: Service desk         |
+| 3 tables, 1 link failed     |
++-----------------------------+
+
+ Unassigned tables: audit_log
+```
+
+- A box is one data product: name, owner, health, counts, version, number of outputs.
+- Boxes sit inside their domain. A product with no Fabric domain sits under "No domain".
+- A line is an interface. Its label names the shared entity. A line is red when the link behind it failed on the rows.
+- The colour is never the only signal: each box also says "green", "amber" or "red" in words, for screen readers and
+  for colour blindness.
+
+#### Moving between layers
+
+```mermaid
+flowchart LR
+  A[a. Overview] -->|click a product| B[b. Its map]
+  B -->|How it is built| C[c. Data flow]
+  C -->|click a box| D[d. Its code]
+  B -->|click a shared entity| A2[a. Overview, with the line lit]
+  D -->|Back| C
+  C -->|Back| B
+  B -->|All data products| A
+```
+
+A breadcrumb at the top always shows where the user is: `All data products > customers > How it is built > gold.orders`.
+Back goes one layer up. Every layer works with the keyboard, as the map and the flow do today.
+
+#### Effort and order (views)
+
+| # | Work | Today | Effort |
+|---|---|---|---|
+| V1 | Breadcrumb over (b), (c), (d) | The three views exist | S |
+| V2 | The overview (a), read from the products' `outputs.json` | `cardMap.ts` drawing style to reuse | M |
+| V3 | Health colours and lit interface lines in (a) | Needs P4 | S |
+
+### 8.3 A chat-like guide in the Fabric item, without AI
+
+#### What it is
+
+The item talks the user through the work, one step at a time, like the chat demo on krusgraph.com
+(`pages.py`, the chat demo of n92; `static/chat-demo.js`). Onto, Thinker and Builder speak in bubbles. The user answers
+with buttons. There is no text box.
+
+What exists today and is reused:
+
+- The mascots with bubbles: `ModelItemViews.tsx` (`MascotSays`, `Mascots`, a toggle to turn them off), colours and
+  roles in `docs/MASCOTS-RENAME-LOVABLE.md`.
+- Thinker's questions with the choices inline: `modelWords.ts` `questions()`, for example "Does audit_log have a key?"
+  with the choices as buttons (`modelWords.test.ts`).
+- The finish banner after Create (n184): `ModelItemViews.tsx` `FinishView`, `createWords.ts` `banner()`.
+- The next steps after Create, including asking the data agent: `createWords.ts` `nextSteps()`.
+
+What is new: one guided lane that strings these together, with a progress line.
+
+```
+ Step 4 of 8: Domains                                   [####----]
+
+ (Onto)    I found two groups of tables that belong together:
+           customers and products.
+ (Thinker) order_items points to products. Keep them apart, or put
+           them together?
+           [ Keep apart ]  [ Put together ]  [ Show me the map ]
+ (Builder) When you are happy, I make one data product per group.
+           [ Next: outputs ]
+```
+
+The steps: 1 Source, 2 Plan, 3 Thinker's questions, 4 Row check, 5 Domains, 6 Outputs, 7 Dry run, 8 Create and the
+finish banner. Each step's text comes from the engine's answer and the words files (`modelWords.ts`, `createWords.ts`,
+`buildWords.ts`), as today. The lane is a view over the same state; the full editor stays one click away for users who
+do not want the guide.
+
+#### Free-text questions
+
+Below the lane, two buttons, always visible:
+
+- **Ask your data agent**: opens the data agent this item made (its id in `outputs.json`). If none was made, the button
+  says "Make a data agent first" and goes to step 6.
+- **Ask in Claude**: opens the page for Krusgraph for Claude. Nothing from the item is put in the link.
+
+#### Why no AI chat in the item
+
+1. **The promise.** Krusgraph for Fabric says "no AI" in the item. Customers and their administrators chose it on that
+   word. A chat box would break it.
+2. **Cost.** No model calls means no per-question cost for us, and no capacity use the customer did not plan for.
+3. **Predictability.** The same plan gives the same words and the same buttons. Every sentence is in a words file and
+   under a unit test. A guess cannot turn into a key or a link; only the row check can.
+
+Free questions already have two good homes: the Fabric data agent, which runs in the customer's tenant under their
+rules, and Krusgraph for Claude.
+
+#### What would have to be true to add one later
+
+- The customer turns it on: an administrator opts in per tenant; off by default.
+- It runs in the customer's own Fabric or Azure, on their capacity and under their data rules. Krusgraph pays for no
+  model and sees no answers.
+- It only proposes. Every proposal still goes through the row check and the dry run, and the user clicks Create.
+- Every place that says "no AI" says what changed, on the same day.
+- The guide without AI stays the default and keeps working on its own.
+
+#### Effort and order (guide)
+
+| # | Work | Today | Effort |
+|---|---|---|---|
+| G1 | The guided lane with steps, bubbles and buttons | Mascots, questions and finish exist | M |
+| G2 | Progress line and the step to resume on reopen | `outputs.json` keeps the state | S |
+| G3 | Ask your data agent and Ask in Claude | `nextSteps()` already names the agent | S |
+
+### 8.4 The rounds this implies, in order
+
+1. **Manifest fields.** Write owner (empty until chosen), version, the ODCS contract and the interfaces into
+   `outputs.json` next to the created ids, and show them on the product card. Engine and Workload, effort S. This is
+   section 3.2 piece 2, and every later round reads these fields.
+
+2. **Domains in the item: accept, split, merge.** Turn the dry run's domain proposal into a step with buttons: accept
+   all, move a table, join two domains. Aggregates move together; each move shows which links become interfaces. The
+   result is the list of data products. Workload and Engine, effort M.
+
+3. **One namespace per data product.** Pass the product's slug as the ontology namespace in `ontology.py`, and write
+   shared entities as bound copies with "Defined in X" and an equality check on Create. Engine, effort M. Ask Microsoft
+   about references across ontology items first (section 7).
+
+4. **Health per data product.** One line from the row check and the drift monitor: green, amber, red, in words and
+   colour. Add the drift monitor as an optional output of the item. Engine and Workload, effort M.
+
+5. **One item per data product.** Add "Make one Krusgraph Model per data product": a dry run lists the new items and
+   their workspaces; Create makes them with the same source and plan id. Workload, effort M.
+
+6. **The overview and the breadcrumb.** Draw layer (a) from the products' `outputs.json`, with interface lines and
+   health, and add the breadcrumb over the map, the flow and the code. Workload, effort M.
+
+7. **The guide.** The step-by-step lane with Onto, Thinker and Builder, buttons for every answer, the progress line,
+   the finish banner, and the two Ask buttons. No AI. Workload and Tests, effort M.
+
+8. **Catalog and domains in Fabric.** Send `catalog.py`'s descriptions and tags for each product's items after the
+   user approves, and show the domain steps an administrator takes. Engine and Docs, effort S. Never sets endorsement.
