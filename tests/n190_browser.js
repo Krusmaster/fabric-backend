@@ -9,6 +9,13 @@ const path = require("path");
 let axeSrc = null;
 try { axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8"); } catch (e) { axeSrc = null; }
 
+// page.evaluate in a loop, not waitForFunction: the Playwright CI pins (1.49.1) evaluates waitForFunction's predicate as a
+// string, which the pages' policy (no 'unsafe-eval') refuses
+const until = async (page, fn, arg, ms) => {
+  for (let i = 0; i < ms / 100; i++) { if (await page.evaluate(fn, arg)) return; await page.waitForTimeout(100); }
+  throw new Error("timeout");
+};
+
 (async () => {
   const [base, shots] = process.argv.slice(2);
   const b = await chromium.launch();
@@ -19,7 +26,7 @@ try { axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8"); 
     const page = await ctx.newPage();
     page.on("pageerror", (e) => out.errors.push(`${scheme}-${w}: ${e.message}`));
     await page.goto(base + "/");
-    await page.waitForFunction(() => document.querySelector("#map-home svg"), null, { timeout: 30000 }).catch(() => {});
+    await until(page, () => !!document.querySelector("#map-home svg"), null, 30000).catch(() => {});
     const r = await page.evaluate(() => {
       const rgb = (s) => (s.match(/[\d.]+/g) || []).slice(0, 4).map(Number);
       const lum = ([r, g, bb]) => { const f = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(bb); };
@@ -62,8 +69,8 @@ try { axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8"); 
     page.on("pageerror", (e) => out.errors.push(`${intent}: ${e.message}`));
     await page.goto(base + "/check?example=sample&intent=" + intent);
     try {
-      await page.waitForFunction(() => document.documentElement.dataset.check === "done", null, { timeout: 120000 });
-      await page.waitForFunction((i) => document.documentElement.dataset.intent === i, intent, { timeout: 10000 });
+      await until(page, () => document.documentElement.dataset.check === "done", null, 120000);
+      await until(page, (i) => document.documentElement.dataset.intent === i, intent, 10000);
     } catch (e) { out.intents[intent] = { error: String(e) }; await ctx.close(); continue; }
     await page.waitForTimeout(300);
     out.intents[intent] = await page.evaluate(() => {
