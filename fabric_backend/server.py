@@ -2959,6 +2959,8 @@ def build_app(host: str = "0.0.0.0"):
     for path, to in REDIRECTS.items():
         app.router.routes.append(Route(path, (lambda t: lambda request: RedirectResponse(t, status_code=301))(to)))
     page_route("/privacy", privacy_html)
+    from .pages import ATTESTATION_PATH, attestation_html, attestation_md
+    page_route(ATTESTATION_PATH, attestation_html)       # n195: the workload's vendor attestation, unlinked
     page_route("/docs", docs_html)
     # n86a: the docs' sub-pages, cut out of DOCS.md when they are rendered (which pages exist follows the same settings
     # as the text, so they are looked up per request); the same headers and policy as /docs
@@ -2994,6 +2996,7 @@ def build_app(host: str = "0.0.0.0"):
     for path, fn in (("/docs.md", docs_md), ("/privacy.md", privacy_md), ("/start.md", start_md), ("/lovable.md", lovable_md),
                      ("/local.md", local_md), ("/use-cases.md", use_cases_md), ("/choose.md", choose_md)):
         md_route(path, fn)
+    md_route(ATTESTATION_PATH + ".md", attestation_md)
     for _post in BLOG_POSTS:
         md_route("/blog/" + _post["slug"] + ".md", (lambda slug: lambda: blog_md(slug))(_post["slug"]))
 

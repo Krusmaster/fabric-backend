@@ -76,6 +76,18 @@ jobs:
     defaults: { run: { working-directory: workload/Workload } }
     steps:
       - uses: actions/checkout@v7
+      # n195: both packages build, and Krusgraph.Modeler's passes the publishing checks (attestation link, publisher,
+      # en-US texts, https support links, icon and banner sizes; workload/scripts/build_package.py check_publishing).
+      # The app id is the workload app's public client id (docs/WORKLOAD-PUBLISH.md); nothing is uploaded.
+      - name: Build the workload packages (Org.Krusgraph and Krusgraph.Modeler)
+        working-directory: .
+        run: |
+          for name in Org.Krusgraph Krusgraph.Modeler; do
+            python3 workload/scripts/build_package.py --name "$name" --frontend-app-id 853a0cf0-7d35-42b7-b384-26178755a72a \
+              --version 1.0.0 --out "$RUNNER_TEMP/package" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+          test -f "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg"
+          unzip -p "$RUNNER_TEMP/package/Krusgraph.Modeler.1.0.0.nupkg" FE/Product.json | grep -q '"https://krusgraph.com/workload/attestation"'
       - uses: actions/setup-node@v7
         with: { node-version: "22", cache: npm, cache-dependency-path: workload/Workload/package-lock.json }
       # npm ci of the kit's 712 packages runs out of the default 4 GB heap (runs 738 and 739; reproduced locally), and

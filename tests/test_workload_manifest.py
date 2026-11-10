@@ -172,6 +172,9 @@ def test_links_publisher_and_no_marketplace_link():
     assert links["help"] == "https://krusgraph.com/support"
     assert links["privacy"] == "https://krusgraph.com/privacy"
     assert links["terms"] == "https://krusgraph.com/terms"
+    # n195: the attestation link is filled per name by build_package.py (Org.Krusgraph /it, Krusgraph.Modeler the
+    # attestation page; tests/test_n195_attestation.py)
+    assert links.pop("certification") == "{{ATTESTATION_URL}}"
     assert all(u.startswith(("https://krusgraph.com/", "https://github.com/Krusmaster/")) for u in links.values())
     assert "marketplace" not in json.dumps(PRODUCT).lower() and "appsource" not in json.dumps(PRODUCT).lower()
     assert PRODUCT["productDetail"]["publisher"] == "Kruse Consulting AB"

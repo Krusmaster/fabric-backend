@@ -266,8 +266,10 @@ def test_the_pilot_page_and_docs_make_no_speed_or_compliance_claims(site):
 
 def test_the_publish_doc_has_the_founders_steps_in_order():
     doc = (ROOT / "docs/WORKLOAD-PUBLISH.md").read_text(encoding="utf-8")
-    order = ["## Step 1. Entra", "## Step 2. The server", "## Step 3. Upload Krusgraph.Modeler", "## Step 4. Publish",
-             "## Adding the next pilot", "## Withdrawing", "## Decision"]
+    # n195: the runbook's steps 0-8 first (tests/test_n195_attestation.py), n176's detail after them as A1-A4
+    order = ["## Step 1. The name-registration blocker", "## Step 2. Publisher verification", "## Step 3. Upload Krusgraph.Modeler",
+             "## Step 4. Microsoft's test tenant", "## Step 8. The submission form", "## A1. Entra", "## A2. The server",
+             "## A3. Upload Krusgraph.Modeler", "## A4. Publish", "## Adding the next pilot", "## Withdrawing", "## Decision"]
     at = [doc.index(h) for h in order]
     assert at == sorted(at)
     for words in ("Confirm workload Name", "cannot be undone", "Selected tenants", "--name Krusgraph.Modeler",

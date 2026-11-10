@@ -74,7 +74,7 @@
                 "url": "https://krusgraph.com/docs"
             },
             "certification": {
-                "url": "https://krusgraph.com/it"
+                "url": "{{ATTESTATION_URL}}"
             },
             "help": {
                 "url": "https://krusgraph.com/support"

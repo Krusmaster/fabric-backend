@@ -12,6 +12,7 @@
     /consent/done      where Microsoft sends the admin after the consent link on /start (noindex; consent_done_html)
     /choose            which Krusgraph to use when: the four ways, the diagram, the comparison (offering.py, n177)
     /docs.md, /privacy.md, /start.md, /lovable.md, /local.md, /use-cases.md, /choose.md   the same content as Markdown (for /llms.txt and agents)
+    /workload/attestation(.md)   the vendor attestation of the Fabric workload Krusgraph.Modeler (n195; unlinked, noindex while a draft)
     /static/...        css, js, fonts, icons (self-hosted; no external resources at runtime)
     /demo/plan.json    the real `plan()` on the synthetic shop schema
 
@@ -603,7 +604,7 @@ _THEME_BUTTON = ('<button type="button" class="theme-toggle" data-theme-toggle a
                  '</button>')
 
 
-MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases", "/choose")       # pages that are also served as <path>.md
+MARKDOWN_TWINS = ("/docs", "/start", "/privacy", "/lovable", "/local", "/use-cases", "/choose", "/workload/attestation")       # pages that are also served as <path>.md
 
 
 # n55: one demo, on /check. The old addresses answer with a redirect so docs, the sitemap's old entries and shared
@@ -1254,6 +1255,33 @@ def not_found_html(path: str) -> str:
 def privacy_html() -> str:
     body = f'<article class="wrap prose">{_md_to_html(privacy_md())}</article>'
     return _shell("Privacy policy — {{PRODUCT}}", PRIVACY_DESC, body, page="privacy", nav="", path="/privacy", chat=True)
+
+
+# n195: the vendor attestation of the Fabric workload Krusgraph.Modeler, Section III of Microsoft's template
+# (learn.microsoft.com/fabric/extensibility-toolkit/publishing-vendor-attestation-template), which Microsoft asks to be
+# hosted on the publisher's site; Product.json's productDetail.supportLink.certification.url points here in the
+# Krusgraph.Modeler package (workload/scripts/build_package.py). Not linked from the home page or the navigation, and
+# out of the sitemap. While the paragraph that starts with DRAFT_MARKER is in the text the page is noindex; the founder
+# removes it when the document is final (docs/WORKLOAD-PUBLISH.md).
+ATTESTATION_PATH = "/workload/attestation"
+ATTESTATION_DRAFT_MARKER = "**Draft.**"
+
+
+def attestation_md() -> str:
+    return _read("WORKLOAD-ATTESTATION.md")
+
+
+def attestation_is_draft() -> bool:
+    return ATTESTATION_DRAFT_MARKER in attestation_md()
+
+
+def attestation_html() -> str:
+    draft = attestation_is_draft()
+    body = f'<article class="wrap prose">{_md_to_html(attestation_md())}</article>'
+    return _shell("Vendor attestation: Krusgraph.Modeler — {{PRODUCT}}",
+                  ("Draft. " if draft else "") + "Kruse Consulting AB's vendor attestation for the Microsoft Fabric workload "
+                  "Krusgraph.Modeler: data handling, permissions, hosting, support, and what is not done yet.",
+                  body, page="attestation", nav="", noindex=draft, path=ATTESTATION_PATH)
 
 
 def _rules_table() -> str:

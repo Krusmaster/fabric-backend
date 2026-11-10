@@ -42,6 +42,23 @@ WORKLOAD_NAME = "Org.Krusgraph"                 # the default: the founder's dev
 PUBLISHED_NAME = "Krusgraph.Modeler"            # the permanent name (founder's decision, 9 November 2026)
 NAMES = (WORKLOAD_NAME, PUBLISHED_NAME)
 FRONTEND_URL = "https://workload.krusgraph.com"
+# n195: the attestation link, Product.json productDetail.supportLink.certification.url. Microsoft's requirement 1.4.1
+# ("Attestation Link in workload page is correct", publishing-requirements-workload on Learn, ms.date 24 February 2026)
+# and its validator (microsoft/fabric-extensibility-toolkit-validator 78e17c3, Testcases_Workload.json) read the
+# attestation URL from that field; WorkloadManifest.xml has no attestation element in the kit's WorkloadDefinition.xsd
+# (dacab1b), so "AttestationUrl in the manifest" is this field. Only the published name points at the attestation page;
+# Org.Krusgraph keeps the /it page it always had.
+ATTESTATION_URL = "https://krusgraph.com/workload/attestation"
+CERTIFICATION_URL = {WORKLOAD_NAME: "https://krusgraph.com/it", PUBLISHED_NAME: ATTESTATION_URL}
+PUBLISHER = "Kruse Consulting AB"
+# The Product.json links Microsoft's validator fetches (publishing-requirements-workload 1.2.1, 1.2.2, 1.3.1, 1.4.1,
+# 1.4.5, 5.2.1): each must be an https URL. The license link must also be a Marketplace offer (1.3.1, 1.3.2); there is
+# none yet, so that one is reported by publishing_gaps(), not refused.
+SUPPORT_LINKS = ("terms", "privacy", "license", "certification", "documentation", "help")
+MARKETPLACE_HOSTS = ("azuremarketplace.microsoft.com", "appsource.microsoft.com", "marketplace.microsoft.com")
+# The validator's ImageValidator default sizes for icons and its banner size (78e17c3; tests/test_workload_manifest.py)
+ICON_SIZES = {(n, n) for n in (16, 20, 24, 32, 40, 48, 64)}
+BANNER_SIZE = (1920, 240)
 ITEM_NAMES = ("Model",)
 VERIFIED_DOMAIN = "krusgraph.com"
 _GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
@@ -100,6 +117,7 @@ def values(frontend_app_id: str, version: str, frontend_url: str, name: str = WO
         raise PackageError(f"--version must look like 1.0.12, not {version!r}")
     url = check_frontend_url(frontend_url)
     return {"WORKLOAD_NAME": name, "WORKLOAD_ID": name, "WORKLOAD_VERSION": version,
+            "ATTESTATION_URL": CERTIFICATION_URL[name],
             "FRONTEND_APPID": frontend_app_id.lower(), "FRONTEND_URL": url, "FRONTEND_REDIRECT_URI": url + "/close",
             "ITEM_NAMES": ",".join(ITEM_NAMES), "WORKLOAD_HOSTING_TYPE": "FERemote", "ENVIRONMENT_DISPLAY_NAME_SUFFIX": ""}
 
@@ -172,6 +190,75 @@ def check(files: dict[str, bytes], vals: dict) -> None:
     json.loads(product)
     if len(product) > 50 * 1024:
         raise PackageError("Product.json is over 50 KB")
+    if name == PUBLISHED_NAME:
+        check_publishing(files)
+
+
+def _png_size(data: bytes) -> tuple[int, int] | None:
+    if data[:8] != b"\x89PNG\r\n\x1a\n" or len(data) < 24:
+        return None
+    return int.from_bytes(data[16:20], "big"), int.from_bytes(data[20:24], "big")
+
+
+def _words(files: dict[str, bytes]) -> dict:
+    return json.loads(files.get("FE/assets/locales/en-US/translations.json", b"{}"))
+
+
+def check_publishing(files: dict[str, bytes]) -> None:
+    """n195: what Microsoft's publishing review reads from Product.json and that we can fill truthfully, for
+    Krusgraph.Modeler only (publishing-requirements-workload 1.2-1.4, 3.1, 5.2.1; manifest-product on Learn). Refused
+    when missing: the publisher, the names and descriptions in en-US, the attestation link, https support links, the
+    icons and banner at the validator's sizes, getting-started material. The Marketplace link is reported by
+    publishing_gaps(), because no offer exists yet."""
+    product = json.loads(files["FE/Product.json"])
+    words = _words(files)
+    detail = product.get("productDetail") or {}
+    problems = []
+    if detail.get("publisher") != PUBLISHER:
+        problems.append(f"productDetail.publisher is {detail.get('publisher')!r}, not {PUBLISHER!r}")
+    texts = {"displayName": product.get("displayName"), "description": product.get("description"),
+             "productDetail.slogan": detail.get("slogan"), "productDetail.description": detail.get("description"),
+             "createExperience.description": (product.get("createExperience") or {}).get("description")}
+    for field, key in texts.items():
+        if not key or not str(words.get(key, "")).strip():
+            problems.append(f"{field} has no en-US text (key {key!r} in assets/locales/en-US/translations.json)")
+    links = detail.get("supportLink") or {}
+    for kind in SUPPORT_LINKS:
+        url = (links.get(kind) or {}).get("url") or ""
+        if not url.startswith("https://"):
+            problems.append(f"productDetail.supportLink.{kind}.url is not an https URL: {url!r}")
+    if (links.get("certification") or {}).get("url") != ATTESTATION_URL:
+        problems.append(f"productDetail.supportLink.certification.url (the attestation link) must be {ATTESTATION_URL}")
+    images = {"icon.name": ((product.get("icon") or {}).get("name"), ICON_SIZES),
+              "favicon": (product.get("favicon"), ICON_SIZES),
+              "productDetail.image.source": ((detail.get("image") or {}).get("source"), {BANNER_SIZE})}
+    for i, card in enumerate((product.get("createExperience") or {}).get("cards") or []):
+        images[f"createExperience.cards[{i}].icon.name"] = ((card.get("icon") or {}).get("name"), ICON_SIZES)
+        images[f"createExperience.cards[{i}].icon_small.name"] = ((card.get("icon_small") or {}).get("name"), ICON_SIZES)
+    for field, (ref, sizes) in images.items():
+        size = _png_size(files.get("FE/" + (ref or ""), b""))
+        if size is None:
+            problems.append(f"{field} names no PNG in the package: {ref!r}")
+        elif size not in sizes:
+            problems.append(f"{field} ({ref}) is {size[0]}x{size[1]}, not one of " + ", ".join(f"{w}x{h}" for w, h in sorted(sizes)))
+    if not (product.get("homePage") or {}).get("learningMaterials"):
+        problems.append("homePage.learningMaterials is empty (1.4.2 getting started material)")
+    if not detail.get("slideMedia"):
+        problems.append("productDetail.slideMedia is empty (1.4.3 at a glance)")
+    if problems:
+        raise PackageError(f"{PUBLISHED_NAME} is not ready for Microsoft's publishing review: " + "; ".join(problems))
+
+
+def publishing_gaps(files: dict[str, bytes]) -> list[str]:
+    """What the package cannot fill truthfully yet; printed by the build, never refused (docs/WORKLOAD-PUBLISH.md)."""
+    product = json.loads(files["FE/Product.json"])
+    license_url = (((product.get("productDetail") or {}).get("supportLink") or {}).get("license") or {}).get("url", "")
+    host = re.sub(r"^https://([^/]+).*$", r"\1", license_url)
+    gaps = []
+    if host not in MARKETPLACE_HOSTS:
+        gaps.append(f"license link {license_url} is not a Microsoft Marketplace offer (requirements 1.3.1 and 1.3.2, "
+                    "required at Preview): no offer exists yet")
+    return gaps
 
 
 def content_types(names) -> str:
@@ -247,6 +334,11 @@ def main(argv=None) -> int:
     if a.name == PUBLISHED_NAME:
         print(f"{PUBLISHED_NAME}: the first upload asks you to confirm the name, and that cannot be undone. "
               "Read docs/WORKLOAD-PUBLISH.md first.")
+        print(f"Attestation link in Product.json: {ATTESTATION_URL} (it must answer before Microsoft's review).")
+        with zipfile.ZipFile(path) as z:
+            files = {n: z.read(n) for n in z.namelist() if n.startswith("FE/")}
+        for gap in publishing_gaps(files):
+            print(f"Not ready for Microsoft's publishing review yet: {gap}.")
     return 0
 
 

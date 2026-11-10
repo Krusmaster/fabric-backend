@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n195: **Krusgraph.Modeler ready for Microsoft's publishing review, as far as the repository can make it.**
+  The vendor attestation (Section III of Microsoft's template, filled from what the code does: no row values, delegated
+  permissions only, Azure Container Apps in Sweden Central, the one read-only admin call, and every open point marked
+  "Not yet") is a page at `/workload/attestation` with a Markdown twin, marked **Draft** and `noindex` until the
+  founder removes the marker, not linked from the home page or the navigation. The Krusgraph.Modeler package's
+  `Product.json` points `productDetail.supportLink.certification.url` (the attestation link Microsoft's review and
+  validator read) at it; `Org.Krusgraph`'s package is byte for byte as before. `build_package.py` refuses a
+  Krusgraph.Modeler package without what the review reads and we can fill (publisher, en-US texts, https links, icon
+  and banner sizes, learning material) and prints the one gap it cannot fill (no Marketplace offer); the CI `workload`
+  job builds both packages. `docs/WORKLOAD-PUBLISH.md` is now the founder's runbook: the name-registration blocker and
+  a support ticket text, publisher verification, the upload with the name letter by letter, Microsoft's test tenant
+  and pilots on the Publish tab, the target tenant's setting and consent, the form's page 2 answers and a TODO list.
+  `tests/test_n195_attestation.py`. **To put the page live, redeploy** (`bash deploy/krusgraph.sh --from-azure
+  --update`), **then build Krusgraph.Modeler again.**
 - Round n192: **a synthetic manufacturing sample, 'mill', beside the shop.** `fabric_backend/mill.py` generates a
   fictional Swedish workshop (Ystervik Mekaniska) from a seed: sixteen tables with names of our own (customers,
   suppliers, items, bill_of_materials, work_centers, sales, purchase and production orders with their lines and
