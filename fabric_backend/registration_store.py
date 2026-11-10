@@ -13,6 +13,9 @@ Five kinds of record, all small, all with an expiry except consent:
   consent   that a user (a keyed hash of tenant and object id, never the ids) approved a client for one redirect
             address; 180 days, or until the operator deletes it or the server's key changes
 Nothing else: no names, no e-mail, no IP addresses, no tokens in clear.
+n197, a sixth kind for the Fabric workload's engine API: op, a background operation (operations.py): its state and, once
+done, its answer (item names, states, counts and Fabric's messages, never a row value or a token), owned by a keyed hash
+of tenant and user; two days.
 
 MemoryStore is for tests and a single replica (the records are lost at a restart, which only means signing in again).
 TableStore is for the hosted service, which runs up to two replicas: every replica sees the same records, and "taken
@@ -34,7 +37,7 @@ import threading
 import time
 from urllib.parse import quote, urlsplit
 
-KINDS = ("txn", "code", "used", "family", "consent")
+KINDS = ("txn", "code", "used", "family", "consent", "op")      # n197: "op", the workload's background operations (operations.py)
 STORAGE_RESOURCE = "https://storage.azure.com"
 PURGE_EVERY = 600                     # seconds between two sweeps for expired records, per replica
 PURGE_BATCH = 200                     # at most this many deletions per sweep and kind

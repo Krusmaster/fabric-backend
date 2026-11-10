@@ -40,7 +40,8 @@ HINTS = {
     "sql_sign_in": "The SQL analytics endpoint refused the sign-in. Sign in again in your MCP client; if it persists, the account lacks access to the item.",
     "timeout": "Fabric or the SQL endpoint did not answer in time. Try again; a paused capacity or a cold SQL endpoint can cause this.",
     "unreachable": "The server could not reach Fabric. Try again in a moment.",
-    "throttled": "Fabric is rate-limiting requests. Wait a little and try again.",
+    "throttled": ("Fabric is rate-limiting requests: the capacity is busy. Wait a little and try again; the Capacity Metrics app "
+                  "shows what uses it (https://learn.microsoft.com/fabric/enterprise/metrics-app)."),
     "fabric_unavailable": "Fabric answered with a server error. Try again in a few minutes.",
     "unsupported": "Choose a lakehouse, warehouse, SQL database or mirrored database as the source.",
     "bad_input": "Check the keys and confirmed you passed: table and column names must match list_tables (case does not matter).",
@@ -109,6 +110,8 @@ def classify_http(status: int, body_text: str = "", where: str = "the request") 
         return _answer("sign_in", f"Fabric did not accept the sign-in for {where} (HTTP 401).")
     if re.search(r"capacity", blob) and re.search(r"paus|not active|inactive|suspend|not assigned|no capacity|not on|unavailable|notoncapacity|notactive", blob):
         return _answer("capacity", f"The workspace has no active Fabric capacity: {msg or code}.")
+    if status == 429 or "throttl" in blob:              # n197: PFE_FABRIC_THROTTLED (seen live 10 November 2026) is throttling too
+        return _answer("throttled", f"Fabric is throttling {where} (HTTP {status}{(': ' + (code or msg)) if (code or msg) else ''}).")
     if status == 403:
         return _answer("no_access", f"The signed-in account has no access to {where} (HTTP 403{(': ' + msg) if msg else ''}).")
     if status == 404:
