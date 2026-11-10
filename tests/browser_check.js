@@ -16,10 +16,7 @@ const pages = ['/', '/start', '/support', '/partners', '/partners/workspace', '/
     page.on('requestfailed', r => {
       const aborted = ((r.failure() || {}).errorText || '') === 'net::ERR_ABORTED';
       if (aborted && r.url().startsWith(base + '/static/media/')) return;
-      // n205: the old anchors (/#guide, /#demo, /#guide-h3) leave for /check at once, which can cancel the page's own
-      // font preload the same way (CI run 843); only there, only same-origin /static/, only when cancelled
-      if (aborted && /^\/#/.test(label) && r.url().startsWith(base + '/static/')) return;
-      errors.push(`${label}: request failed ${r.url()} ${(r.failure() || {}).errorText || ''}`.trim());
+      errors.push(`${label}: request failed ${r.url()}`);
     });
     page.on('request', r => { if (!r.url().startsWith(base)) errors.push(`${label}: external request ${r.url()}`); });
   };
