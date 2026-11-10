@@ -213,12 +213,12 @@ def test_the_hero_buttons_come_early_on_the_keyboard(first_visit):
 
 def test_the_check_drop_area_comes_first_on_a_phone(first_visit):
     """n52: at 375 x 812 the examples sat at y 1078, below the drop box and the privacy note. Now the heading and all
-    three examples are on the first screen (four since n78), and the privacy sentence is still next to the drop box."""
+    three examples are on the first screen (four since n78, five since n192), and the privacy sentence is still next to the drop box."""
     # n149 (the UX review of 7 November 2026): on a phone the drop area and the privacy line come first, the examples
     # under them; on a wide screen the examples stay on the first screen above the drop area
     for v, e in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("examples@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert len(e["buttons"]) == 4, v
+        assert len(e["buttons"]) == 5, v                     # n192: the manufacturing sample, on a row of its own
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
         if v.startswith("375"):
             assert e["drop"]["top"] <= height and e["privacy"]["bottom"] < e["heading"]["top"], v
