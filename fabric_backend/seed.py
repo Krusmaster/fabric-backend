@@ -3,6 +3,7 @@
     %pip install git+https://github.com/Krusmaster/fabric-backend
     from fabric_backend.seed import seed
     seed(spark, schema="shop")
+    seed(spark, schema="shop", mill=True)      # also the synthetic manufacturing company in its own schema 'mill'
 
 Seven tables shaped like examples/columns.csv (plus a list price on the products), deterministic (same rows every run), no real names or companies
 beyond obviously invented ones. This is what reviewers of the Claude directory listing connect to — never a
@@ -99,11 +100,15 @@ def schemas_enabled(spark) -> bool:
     return "dbo" in names
 
 
-def seed(spark, schema: str = "shop", seed_value: int = 42) -> dict[str, int]:
+def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, mill_schema: str = "mill") -> dict[str, int]:
     """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts.
 
+    mill=True (default off) also writes the sixteen tables of the synthetic manufacturing company in fabric_backend/mill.py
+    to `mill_schema`; their counts come back as "mill.<table>". The shop is written either way and stays the default.
+
     On a lakehouse without schemas the tables go to the default schema (`dbo` as seen by the SQL endpoint) instead,
-    with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then."""
+    with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then. The mill's tables are
+    then not written (they would overwrite nothing of the shop's, but two companies in one schema read as one)."""
     target = schema
     if schema.lower() != "dbo" and not schemas_enabled(spark):
         print(f"This lakehouse was created without 'Lakehouse schemas', so a '{schema}' schema would be invisible "
@@ -116,4 +121,10 @@ def seed(spark, schema: str = "shop", seed_value: int = 42) -> dict[str, int]:
         df = spark.createDataFrame(data, SCHEMAS[name])
         df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{target}.{name}" if target else name)
         counts[name] = len(data)
+    if mill:
+        if target is None:
+            print("The 'mill' sample needs a lakehouse with 'Lakehouse schemas'; it was not written.")
+        else:
+            from . import mill as _mill
+            counts.update({f"{mill_schema}.{k}": n for k, n in _mill.seed(spark, mill_schema).items()})
     return counts

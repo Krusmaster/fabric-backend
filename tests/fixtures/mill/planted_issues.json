@@ -1,0 +1,33 @@
+{
+  "about": "Every problem planted on purpose in the synthetic manufacturing sample (fabric_backend/mill.py, seed 7). tests/test_mill.py asserts that the rows hold exactly these and that the check finds exactly these. docs/SAMPLE-MILL.md explains them.",
+  "seed": 7,
+  "orphans": [
+    {"source": "sales_order_lines", "columns": ["item_id"], "target": "items", "orphans": 2,
+     "rows": [{"sales_order_id": 30005, "line_no": 2, "item_id": 9001}, {"sales_order_id": 30088, "line_no": 1, "item_id": 9002}],
+     "why": "two order lines for items that were deleted from the item register"},
+    {"source": "inventory_transactions", "columns": ["item_id"], "target": "items", "orphans": 1,
+     "rows": [{"inventory_transaction_id": 70900, "item_id": 9001}],
+     "why": "a stock movement booked on the same deleted item"},
+    {"source": "production_operations", "columns": ["work_center_code"], "target": "work_centers", "orphans": 1,
+     "rows": [{"production_operation_id": 60040, "work_center_code": "LASER"}],
+     "why": "an operation reported on a work center that was never set up"}
+  ],
+  "non_unique_keys": [
+    {"table": "stg_supplier_prices", "columns": ["supplier_price_id"], "rule": "K2", "rows": 49, "distinct": 48,
+     "duplicated_values": [95012],
+     "why": "a staging table that loaded one row of a supplier's price file twice, a day apart"}
+  ],
+  "keyless": [
+    {"table": "machine_events", "why": "an event log: work center, event, time and minutes, with no id; two work centers log at the same hour, so no column is unique"}
+  ],
+  "late_deliveries": {
+    "rule": "a delivery whose delivery_date is after the promised_date of its sales order line",
+    "lines": [[30018, 1], [30034, 1], [30049, 1], [30065, 2], [30077, 2], [30092, 1], [30110, 1], [30123, 3], [30139, 1], [30151, 1], [30163, 4], [30176, 3]],
+    "delivered_lines": 474,
+    "on_time_percent": 97.5
+  },
+  "not_linked_by_the_engine": [
+    {"source": "customers", "columns": ["parent_customer_id"], "target": "customers",
+     "why": "a self-reference (a group and its sites); the name rules never link a table to itself, so the plan leaves it out. Not a data problem: every value is a customer_id."}
+  ]
+}

@@ -1,7 +1,8 @@
 """What /check runs in the visitor's browser (Pyodide): the same engine as the 20-minute demo, on files that never leave it.
 
 The page hands the files it was given (name and bytes), a pasted columns list, or the name of one of four synthetic
-examples to `analyze` (the shop, SAP, Salesforce + ERP, and since n78 Younium + Salesforce subscription billing). Files
+examples to `analyze` (the shop, SAP, Salesforce + ERP, since n78 Younium + Salesforce subscription billing, and since
+n192 the manufacturing sample of fabric_backend/mill.py). Files
 are written to Pyodide's in-memory file system and read with the local adapter's own `folder_source` (CSV and .xlsx,
 the same code as `fabric-backend demo`); a columns list goes through `pasted_source`. Then the engine's steps run one after the other, and each one is reported to `emit` as it finishes, with what it found
 and how long it took: the plan (keys K0–K5, relationships R0–R4), validate_plan's counts, suggest_relationships, and
@@ -28,7 +29,7 @@ import time
 import zipfile
 from pathlib import Path
 
-KINDS = ("sample", "sap", "crm", "billing", "files", "columns")
+KINDS = ("sample", "sap", "crm", "billing", "mill", "files", "columns")
 _RULE = re.compile(r"\brule ([KR]\d|confirmed|[A-Z][A-Za-z0-9 +]*? pack)\b")     # a pack by its own name (n79)
 _SHOWN = {"problem", "warning", "question", "info"}            # suggestions are listed apart: they are not something wrong
 
@@ -91,6 +92,9 @@ def _source(kind: str, files: list | None, text: str):
         from . import younium_demo
         return _sqlite_source("folder", "Synthetic Younium + Salesforce tables (fabric_backend.younium_demo)", "billing", younium_demo.rows_for_check(),
                               "Synthetic Younium- and Salesforce-shaped rows from fabric_backend.younium_demo: invented accounts and invoices, no tenant or org."), None
+    if kind == "mill":                                            # n192: the synthetic manufacturing company
+        from . import mill
+        return mill.source(), None
     if kind == "columns":
         return pasted_source(text or ""), None
     folder = Path(tempfile.mkdtemp(prefix="check-"))                # in the browser: Pyodide's memory, nothing on a disk
@@ -400,7 +404,7 @@ def decide(kind: str = "sample", files: list | None = None, text: str = "", acce
             src.close()
 
 
-NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing"}   # the downloads' file names
+NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing", "mill": "mill"}   # the downloads' file names
 
 
 def _evidence_report(p, src, validation: dict | None, kind: str, candidates: list[dict] | None = None) -> dict:

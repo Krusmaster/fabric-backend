@@ -9,6 +9,18 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n192: **a synthetic manufacturing sample, 'mill', beside the shop.** `fabric_backend/mill.py` generates a
+  fictional Swedish workshop (Ystervik Mekaniska) from a seed: sixteen tables with names of our own (customers,
+  suppliers, items, bill_of_materials, work_centers, sales, purchase and production orders with their lines and
+  operations, inventory_transactions, deliveries, item_prices, a staging table and an event log), 5 012 rows, two
+  years of dates. It has single keys, two composite keys (order + line), role columns (bill-to and ship-to customer,
+  parent and component item), a code key (`work_center_code`), a self-reference the engine does not link, and planted
+  problems: four orphan rows, a duplicate id in `stg_supplier_prices`, 12 late deliveries and a keyless event log
+  (`tests/fixtures/mill/planted_issues.json`). /check offers it as **Manufacturing sample** (`/check?example=mill`);
+  `seed(spark, mill=True)` writes it to a schema `mill` (off by default; the shop stays the default).
+  `tests/test_mill.py` pins the plan's 15 keys and 24 relationships with their rules, the exact findings, and runs the
+  KPI queries of `docs/SAMPLE-MILL.md` (on-time delivery, order backlog, inventory value, work center load, BOM cost
+  roll-up). **To see the button live, redeploy:** `bash deploy/krusgraph.sh --from-azure --update`.
 - Round n194: **the home page from before n190 is back.** The founder looked at the live site after n190 and kept the
   previous home page: the film, the session replay, the hub, the FAQ and the developer note are on it again, with
   n188's navigation and the "Connect to my Fabric" label (n190's commits 868e063 and 3c3a9e2 reverted). Kept from

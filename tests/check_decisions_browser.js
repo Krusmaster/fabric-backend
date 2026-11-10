@@ -59,11 +59,12 @@ const fs = require("fs");
     out["guide@" + w] = r;
     await ctx.close();
   }
-  // the four example buttons: lines per description, from its height and its line height
+  // the four example buttons: lines per description, from its height and its line height (n192: the fifth, the
+  // manufacturing sample, has a row of its own and is measured in check_browser.js)
   const lines = async (w) => {
     const page = await b.newPage({ viewport: { width: w, height: 800 } });
     await page.goto(base + "/check");
-    const r = await page.$$eval(".check-examples .check-ex", (bs) => bs.map((bt) => {
+    const r = await page.$$eval(".check-examples .check-ex:not(.check-ex-wide)", (bs) => bs.map((bt) => {
       const s = bt.querySelector("span"), cs = getComputedStyle(s), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
       return { id: bt.id, title: bt.querySelector("strong").textContent, text: s.textContent, lines: Math.round(s.getBoundingClientRect().height / lh), top: Math.round(bt.getBoundingClientRect().top) };
     }));

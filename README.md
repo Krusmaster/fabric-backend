@@ -18,8 +18,17 @@ with Microsoft; "Microsoft Fabric" is used descriptively.
 
 **Try it without an account: [krusgraph.com/check](https://krusgraph.com/check).** No account, no Fabric and no
 administrator needed. Drop CSV or Excel files, or paste a list of columns, and see how the tables connect and what is
-wrong with them. The files are read in your browser and are not uploaded. No files at hand? Four synthetic examples
-are one click away.
+wrong with them. The files are read in your browser and are not uploaded. No files at hand? Five synthetic examples
+are one click away:
+
+- **A total that doubles**: the shop (`fabric_backend/seed.py`, seven tables), the default sample everywhere.
+- **SAP sales tables**: SAP-shaped sales, delivery and billing tables of two clients (`fabric_backend/sap_demo.py`).
+- **Salesforce + ERP**: accounts on one side, an ERP's customers and orders on the other (`fabric_backend/browser_check.py`).
+- **Subscription billing**: Younium- and Salesforce-shaped invoices (`fabric_backend/younium_demo.py`).
+- **Manufacturing sample**: a fictional workshop with sixteen tables of its own design (customers, items, bills of
+  materials, work centers, sales, purchase and production orders, stock movements, deliveries), two years of dates and
+  a few planted problems to find ([docs/SAMPLE-MILL.md](docs/SAMPLE-MILL.md), `fabric_backend/mill.py`). To try it in
+  Fabric: `seed(spark, mill=True)` writes it to a schema `mill` next to `shop`.
 
 ![The Krusgraph start page: the headline, the row of what Krusgraph connects and the way in to the guided demo](docs/screenshots/home-1280-light.png)
 
