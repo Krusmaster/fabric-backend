@@ -266,12 +266,16 @@ def test_the_ontology_and_products_cards_in_a_browser(fabric, tmp_path):
 # ------------------------------------------------------------------ Try in Claude ------------------------------------
 
 def test_try_in_claude_is_on_the_home_page_and_start_with_the_question():
-    for path, connect in (("/", "/start#step-3"), ("/start", "#step-3")):
+    for path in ("/", "/start"):
         html = pages.render(path)
         assert 'data-try-claude' in html and 'href="https://claude.ai/new"' in html, path
         assert f'data-question="{pages.FIRST_QUESTION}"' in html
-        assert f'<a href="{connect}">step 3 of the set-up guide</a>' in html
-        assert "copies the first question" in html and "no documented way" in html
+        assert "copies the first question" in html
+    # n206: /start keeps the long note with the link to step 3; the home page has one short line
+    start = pages.render("/start")
+    assert '<a href="#step-3">step 3 of the set-up guide</a>' in start and "no documented way" in start
+    home = pages.render("/")
+    assert pages.TRY_SHORT_NOTE in home and "step 3 of the set-up guide" not in home and "no documented way" not in home
     q = pages.FIRST_QUESTION
     assert q == ("List my Fabric workspaces, then map how the tables in the lakehouse I choose connect, and check the links "
                  "against the rows.")
@@ -293,4 +297,5 @@ def test_try_in_claude_copies_the_question_and_opens_a_new_chat(site):  # noqa: 
         assert info["clipboard"] == pages.FIRST_QUESTION
         assert "Copied the question" in info["noteAfter"]
         assert info["desktop"].startswith("claude://claude.ai/new?q=") and unquote(info["desktop"].split("q=", 1)[1]) == pages.FIRST_QUESTION
-    assert out["/"]["connect"] == "/start#step-3" and out["/start#step-3"]["connect"] == "#step-3"
+    assert out["/"]["connect"] is None and out["/start#step-3"]["connect"] == "#step-3"     # n206: the home page's note is one line
+    assert out["/"]["noteBefore"] == pages.TRY_SHORT_NOTE

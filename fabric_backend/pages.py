@@ -283,16 +283,23 @@ CLAUDE_NEW = "https://claude.ai/new"
 CLAUDE_DESKTOP_NEW = "claude://claude.ai/new?q="
 
 
-def try_in_claude_html(connect_href: str) -> str:
+TRY_SHORT_NOTE = "The button copies the first question and opens Claude."    # n206: the home page's one line
+
+
+def try_in_claude_html(connect_href: str, short: bool = False) -> str:
     """The Try in Claude button: copies TRY_QUESTION (site.js, [data-try-claude]) and opens claude.ai/new in a new tab
     (a plain link, so it opens without JavaScript too); next to it the Claude Desktop link that fills the question in,
-    and "connect Krusgraph first" pointing at step 3 of /start."""
+    and "connect Krusgraph first" pointing at step 3 of /start. n206: short=True (the home page) keeps the two buttons
+    and one line, TRY_SHORT_NOTE; /start keeps the long note."""
     from urllib.parse import quote
     e = lambda x: html.escape(x, quote=True)
     p = e(_vars()["PRODUCT"])
-    return (f'<div class="try-claude"><p class="ctas try-claude-row">'
+    head = (f'<div class="try-claude"><p class="ctas try-claude-row">'
             f'<a class="btn primary" href="{CLAUDE_NEW}" target="_blank" rel="noopener" data-try-claude data-question="{e(TRY_QUESTION)}">Try in Claude</a>'
-            f'<a class="btn ghost small" href="{e(CLAUDE_DESKTOP_NEW + quote(TRY_QUESTION, safe=""))}" data-desktop-link>Open in Claude Desktop</a></p>'
+            f'<a class="btn ghost small" href="{e(CLAUDE_DESKTOP_NEW + quote(TRY_QUESTION, safe=""))}" data-desktop-link>Open in Claude Desktop</a></p>')
+    if short:
+        return head + f'<p class="muted tiny try-claude-note" role="status" aria-live="polite">{e(TRY_SHORT_NOTE)}</p></div>'
+    return (head +
             f'<p class="muted tiny try-claude-note" role="status" aria-live="polite">Connect {p} first (<a href="{e(connect_href)}">step 3 of the set-up guide</a>). '
             f'The button copies the first question, <q>{e(TRY_QUESTION)}</q>, and opens a new chat on claude.ai: paste it there. '
             f'claude.ai has no documented way to fill in a chat from a link; Claude Desktop does, and its link fills the question in for you to send.</p></div>')
@@ -1022,9 +1029,11 @@ def chat_plan_html() -> str:
 
 
 def _home_vars() -> dict[str, str]:
-    """The start page's server-rendered parts: the hub, the before/after example and the Connect menu."""
+    """The start page's server-rendered parts: the film, the before/after example and the four-products diagram."""
     # n196: the before/after chip, "Which Krusgraph should I use?" and "What Krusgraph reads" left the home page
-    return {"HOME_HUB": hub_html(), "HOME_BEFORE_AFTER": before_after_html(),
+    # n206: the hub ("Your data in Fabric / What Krusgraph builds / Where you build") left the home page: it said what the
+    # four-products diagram (HOME_OFFERING) says. hub_html stays for anyone who needs it.
+    return {"HOME_BEFORE_AFTER": before_after_html(),
             "HOME_FILM": film_html(hero=True),                                    # n157; n196: under the headline
             "HOME_OFFERING": _offering().diagram_html()}                         # n177
 
@@ -1126,7 +1135,7 @@ def render(path: str) -> str:
     if "{{START_CONNECT}}" in body:                                       # n149: the client chooser, on /start (it was the home page's)
         body = body.replace("{{START_CONNECT}}", connect_menu_html("start"))
     if "{{TRY_IN_CLAUDE}}" in body:                                       # n170: one click from the site into Claude
-        body = body.replace("{{TRY_IN_CLAUDE}}", try_in_claude_html("#step-3" if path == "/start" else "/start#step-3"))
+        body = body.replace("{{TRY_IN_CLAUDE}}", try_in_claude_html("#step-3" if path == "/start" else "/start#step-3", short=path == "/"))
     if "{{CHECK_" in body:
         cv = check_vars()
         body = re.sub(r"\{\{(CHECK_\w+)\}\}", lambda m: cv.get(m.group(1), ""), body)

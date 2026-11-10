@@ -1588,6 +1588,8 @@ html[data-mascots=off] .off-way-a{grid-template-columns:minmax(0,1fr)}
 .off-src ul,.off-built ul{margin:0;padding:0;list-style:none;display:grid;gap:4px}
 .off-src li,.off-built li{font-size:14.5px;padding-left:18px;position:relative}
 .off-src li::before{content:"";position:absolute;left:2px;top:.5em;width:10px;height:8px;border-radius:2px;border:1.5px solid var(--ink);opacity:.6}
+/* n206: each source's status word from tool_status, muted, on the line under the name */
+.off-src-st{display:block;font-size:12.5px;color:var(--muted)}
 .off-built li::before{content:"";position:absolute;left:2px;top:.55em;width:9px;height:9px;border-radius:3px;background:var(--sage)}
 .off-engine-box{background:var(--card);border:2px solid var(--ink);border-radius:var(--radius);padding:18px 14px;text-align:center;box-shadow:var(--shadow)}
 .off-engine-box .logo-mark{width:64px;height:64px;display:block;margin:0 auto 6px}   /* the one Krusgraph logo (n177) */

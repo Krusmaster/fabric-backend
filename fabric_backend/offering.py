@@ -311,7 +311,14 @@ def picture_html(key: str) -> str:
             f'<span class="off-pic-for" aria-hidden="true">{_e(label)}</span></span>')
 
 
-SOURCES = ("Lakehouse", "Warehouse", "Mirrored databases")
+def sources() -> list[tuple[str, str]]:
+    """n206: the diagram's "Your tables in Fabric", each with its status word, straight from tool_status.SOURCES (the
+    status record the site uses): Lakehouse tested end to end, Warehouse and SQL database experimental. Mirrored
+    databases are not listed until the record has them (planned, n201)."""
+    from . import tool_status as ts
+    return [(n, ts.source_word(t)) for n, t in ts.SOURCES]
+
+
 ENGINE_SUB = "Keys and links, checked against your rows"
 
 
@@ -327,7 +334,9 @@ def diagram_html(heading: str = "One engine, four products", level: int = 2, hid
         f'<span class="off-way-data"><span class="off-k">Data passes:</span> {_e(w["data_short"])}</span></a></li>'
         for w in WAYS)
     built = "".join(f"<li>{_e(b)}</li>" for b in BUILT)
-    sources = "".join(f"<li>{_e(s)}</li>" for s in SOURCES)
+    src = sources()
+    source_items = "".join(f'<li>{_e(n)} <span class="off-src-st">{_e(w)}</span></li>' for n, w in src)
+    source_words = ", ".join(f"{n[0].lower() + n[1:] if n != 'SQL database' else n} ({w})" for n, w in src)
     words = "".join(
         f'<li><a href="{val(w, "docs")}">{_e(w["name"])}</a>: for {_e(val(w, "who")[0].lower() + val(w, "who")[1:])} '
         f'Data passes: {_e(w["data_short"])}.</li>' for w in WAYS)
@@ -340,7 +349,7 @@ def diagram_html(heading: str = "One engine, four products", level: int = 2, hid
       <div class="off-in"><p class="off-in-h">Choose how you work</p>
         <ul class="off-ways" aria-label="The four products: the ways to drive the engine">{ways}</ul></div>
       {_arrow("off-a0", down_only=True)}
-      <div class="off-src"><p class="off-col-h">Your tables in Fabric</p><ul>{sources}</ul></div>
+      <div class="off-src"><p class="off-col-h">Your tables in Fabric</p><ul>{source_items}</ul></div>
       {_arrow("off-a1")}
       <div class="off-engine"><div class="off-engine-box">{_logo()}<p class="off-engine-n">One Krusgraph engine</p><p class="off-engine-s">{_e(ENGINE_SUB)}</p></div></div>
       {_arrow("off-a2")}
@@ -350,7 +359,7 @@ def diagram_html(heading: str = "One engine, four products", level: int = 2, hid
   <details class="off-words">
     <summary id="offering-words-h" class="off-words-h">The diagram in words</summary>
     <div id="offering-words">
-    <p>Your tables in Fabric ({_e(", ".join(s.lower() for s in SOURCES))}) go into one Krusgraph engine, which proposes keys and links and checks them against your rows. What it builds lands in Fabric: {_e(built_words)}. The four products are the ways to drive the engine:</p>
+    <p>Your tables in Fabric ({_e(source_words)}) go into one Krusgraph engine, which proposes keys and links and checks them against your rows. What it builds lands in Fabric: {_e(built_words)}. The four products are the ways to drive the engine:</p>
     <ul class="off-words-l">{words}</ul>
     <p class="muted tiny">{_e(APP_NOTE)} Krusgraph for Fabric uses no AI model. <a href="{CHOOSE}">Which Krusgraph should I use?</a></p>
     </div>

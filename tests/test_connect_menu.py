@@ -80,11 +80,8 @@ def test_the_menu_by_keyboard(report, note, width):
 
 
 @pytest.mark.parametrize("width", ["375", "1280"])
-def test_the_hub_node_by_keyboard(report, width):
-    """n91: with all four clients, too, the hub has no Connect button; Tab on from the hero's Connect reaches the hub's
-    node, a link named for the guide with a visible focus ring, and Enter on it opens /start."""
+def test_the_home_page_has_no_hub_and_no_chooser(report, width):
+    """n91's hub node by keyboard went with the hub (n206: one diagram on the home page, the four products); the home
+    page still has no Connect chooser of its own (n149)."""
     r = report[width]
-    assert r["hubChoosers"] == 0
-    assert r["hub"] == {"tag": "A", "href": "/start", "name": "Connect Krusgraph to Claude: the guide", "node": True,
-                        "ring": r["hub"].get("ring"), "landed": "/start"}, r["hub"]
-    assert r["hub"]["ring"] not in ("none", "", None)
+    assert r["homeHubs"] == 0 and r["homeChoosers"] == 0

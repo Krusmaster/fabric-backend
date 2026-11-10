@@ -87,7 +87,8 @@ def test_home_says_what_it_helps_with_before_how_it_connects(client):
     status = re.search(r'<p class="muted tiny footer-status">(.*?)</p>', html, re.S).group(1)
     assert status.startswith('Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>')
     assert "a tool that has not run against a live Fabric workspace is marked experimental" in docs_all(client)
-    assert "“Plan a backend over the shop lakehouse.”" in html and "“Create it as shop_api.”" in html
+    # n206: the three steps no longer quote the replay's questions (the replay above them asks them)
+    assert "“Plan a backend over the shop lakehouse.”" not in html and "“Create it as shop_api.”" not in html
 
 
 def test_home_introduces_the_developer_without_a_story(client):
@@ -831,10 +832,12 @@ def test_the_notes_in_the_tools_answers_follow_tool_status(monkeypatch):
 # ------------------------------------------------------------------ round n17: the guided demo on a page of its own ----
 
 def _hub(client):
-    html = client.get("/").text
-    after_hero = html.split('<section class="wrap connects"', 1)[1]                 # after the example and the steps since n36
+    # n206: the hub left the home page (one diagram there, the four products); pages.hub_html still renders it
+    from fabric_backend import pages
+    assert '<section class="wrap connects"' not in client.get("/").text
+    html = pages._fill(pages.hub_html())
+    after_hero = html.split('<section class="wrap connects"', 1)[1]
     after_hero = '<section class="wrap connects"' + after_hero
-    assert html.index('id="example"') < html.index('id="how"') < html.index('<section class="wrap connects"')
     row = after_hero.split("</section>", 1)[0]
     visual = re.search(r'<div class="hub">(.*)</div>\s*<p class="muted tiny connects-status"', row, re.S).group(1)   # n91: the node links to /start, so the visual as a whole is not aria-hidden
     groups = {h: re.findall(r"<li><b>(.*?)</b>(.*?)</li>", g)
@@ -898,7 +901,7 @@ def test_the_hub_has_no_connect_button_and_its_node_links_to_the_guide(client, m
     aria-hidden around it, no tabindex taking it out. The inline mode's CSS is gone; the node looks the same at rest."""
     monkeypatch.setenv("KRUSGRAPH_CLIENT_REGISTRATION", registration)
     html = client.get("/").text
-    row, visual, _, _ = _hub(client)
+    row, visual, _, _ = _hub(client)                                               # n206: rendered on its own, off the home page
     assert "<details" not in row and "data-connect" not in row and "<summary" not in row and ">Connect<" not in row
     assert "connect-inline" not in html and 'connect_menu_html("inline")' not in (Path(__file__).resolve().parents[1] / "fabric_backend/pages.py").read_text()
     hero = html.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
@@ -1067,7 +1070,7 @@ def test_the_home_page_shows_the_total_that_doubles_first_and_the_map_later(clie
     from fabric_backend.seed import AMOUNT_DEMO
     text = client.get("/").text
     amount = AMOUNT_DEMO["orders"][1][0][2]
-    assert text.index('id="example"') < text.index('aria-label="What Krusgraph connects"') < text.index('id="faq"')   # n196: no #data
+    assert text.index('id="example"') < text.index('id="offering"') < text.index('id="faq"')   # n196: no #data; n206: the hub left, the diagram stays
     example = text[text.index('id="example"'):text.index("</section>", text.index('id="example"'))]
     assert f"{amount * 2:,.0f}".replace(",", " ") in example and f"{amount:,.0f}".replace(",", " ") in example
     docs = docs_all(client)                                   # n183: the status sentence moved to the docs' test status
@@ -1341,12 +1344,14 @@ def test_the_pilot_page_shows_the_example_and_the_scope(client):
 
 def test_the_home_page_offers_two_paths_after_the_demo(client):
     """n75: after the demo card, "Try it yourself" (/check and the Connect chooser) and "Get help with one number"
-    (/partners), one sentence each, with the site's one name per target."""
+    (/partners), one sentence each, with the site's one name per target. n206: "Try it yourself" links the two in its
+    sentence; the button pair stays in the hero and the final call to action."""
     html = client.get("/").text
     assert html.index('id="demo"') < html.index('id="paths"') < html.index('id="how"')
     paths = html[html.index('id="paths"'):html.index("</section>", html.index('id="paths"'))]
     assert "<h3>Try it yourself</h3>" in paths and "<h3>Get help with one number</h3>" in paths
-    assert 'href="/check">Check my tables</a>' in paths and 'href="/start">Connect to my Fabric</a>' in paths and 'href="/partners">Try a pilot</a>' in paths
+    assert '<a href="/check">the check page</a>' in paths and '<a href="/start">connect Krusgraph to your AI client</a>' in paths and 'href="/partners">Try a pilot</a>' in paths
+    assert "Check my tables" not in paths and "Connect to my Fabric" not in paths
     for card in re.findall(r'<div class="card soft">(.*?)</div>', paths, re.S):
         sentences = [x for x in re.split(r"(?<=[.!?])\s+", re.sub(r"<[^>]+>", "", re.search(r'<p class="muted">(.*?)</p>', card).group(1))) if x]
         assert len(sentences) == 1, sentences
@@ -1471,8 +1476,7 @@ def test_the_connect_chooser_offers_one_click_per_client_only_where_the_address_
     assert "data-connect" not in home and "connect-inline" not in home
     hero = home.split('class="ctas hero-ctas" id="connect"', 1)[1].split("</div>", 1)[0]
     assert '<a class="btn primary" href="/check">Check my tables</a>' in hero and "<summary" not in hero and 'href="/start">Connect to my Fabric</a>' in hero
-    hub = home.split('class="hub-group hub-src', 1)[1].split("hub-link-src", 1)[0]
-    assert "<details" not in hub and "Connect" not in hub and '<div class="hub" aria-hidden' not in home and '<ul aria-hidden="true">' in hub
+    assert 'class="hub' not in home                                                     # n206: the hub left the home page
     html = client.get("/start").text
     assert html.count('<details class="connect connect-start" data-connect id="connect">') == 1 and html.count("data-connect") == 1
     step3 = html.split('data-pane="3" id="step-3"', 1)[1].split('data-pane=', 1)[0]

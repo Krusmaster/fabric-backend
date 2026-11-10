@@ -125,43 +125,17 @@ def test_sales_example_journey_at_phone_width(report):
 
 
 
-def test_home_entry_old_anchors_and_the_hub_under_the_hero(report):
+def test_home_entry_and_old_anchors(report):
     """Round n17: the start page's way in to the guided demo takes at most half the screen of a small phone (375 x 667)
-    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the guided demo on /check (n55). The hub (brief of
-    27 October 2026) keeps its three cards and the product on the screen, none on top of another and no name cut off,
-    with its text version for screen readers: side by side with the lines at 1280 and 1440 px, stacked with the product
-    in the middle at 768 and 375 px. (This server runs without client registration: Claude and Lovable on the right.)"""
+    and of a laptop (1280 x 800); /#guide, /#demo and a step's anchor open the guided demo on /check (n55). n206: the hub
+    left the home page (one diagram, the four products), and its checks with it; tests/test_n206_home_tidy.py checks
+    the page at four widths in both themes."""
     f = report["facts"]
     assert f["homeEntry@375x667"] <= 0.5 and f["homeEntry@1280x800"] <= 0.5
     for h in ("#guide", "#demo", "#guide-h3"):
         assert f[f"oldAnchor{h}"] == "/check?example=sample&guide=1", h          # n55: the guided demo is on /check
     for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
-        c = f[f"hub@{v}"]
-        assert c["cards"] == 4 and c["items"] == 11 and c["outside"] == 0 and c["overlaps"] == 0 and c["cut"] == 0, (v, c)
-        assert c["srText"] > 300, v
-        wide = v.startswith(("1440", "1280"))
-        assert c["sideBySide"] is wide and c["stacked"] is not wide and c["lines"] == (2 if wide else 0), (v, c)
-
-
-def test_the_hub_node_links_to_the_guide_and_nothing_moves(report):
-    """n91 (Gustav's decision of 2 November 2026): the hub has no Connect button, the hero's chooser stays; the node in the
-    middle links to /start under the name "Connect Krusgraph to Claude: the guide", the whole node is the link, and it is
-    reached by Tab from the hero's Connect. At 375 and 1280 px (and the other widths) nothing runs out of the screen, the
-    product stays centred between the cards on the left, and nothing in the hub moves at rest, on hover or on focus; the
-    node looks the same at rest, shows a ring on hover and the focus outline on Tab."""
-    f = report["facts"]
-    for v in ("1440-light", "1440-dark", "1280-light", "768-light", "375-light"):
-        n, w = f[f"hubNode@{v}"], int(v.split("-")[0])
-        assert n["href"] == "/start" and n["name"] == "Connect Krusgraph to Claude: the guide" and n["hasMark"], (v, n)
-        assert n["connectInHub"] == 0 and n["choosers"] == 0 and n["links"] == 1, (v, n)          # n149: no chooser on the home page
-        assert n["hiddenAround"] == [] and n["tabIndex"] == 0 and n["tabbedTo"] == "c-hub c-hub-logo hub-go", (v, n)
-        assert n["inside"] and n["wide"] <= w and n["hitIsLink"], (v, n)
-        assert n["stillAfterWait"] and n["stillOnHover"] and n["stillOnFocus"], (v, n)
-        assert n["rest"]["shadow"] == "none" and n["rest"]["outline"] == "none" and n["rest"]["cursor"] == "pointer", (v, n)
-        assert n["hover"]["shadow"] != "none" and n["hover"]["bg"] == n["rest"]["bg"] and n["backToRest"], (v, n)
-        assert n["focus"]["outline"] not in ("none", ""), (v, n)
-        if v.startswith(("1440", "1280")):
-            assert n["centred"], (v, n)                                    # side by side: the product between data and what is built
+        assert f"hub@{v}" not in f and f"hubNode@{v}" not in f
 
 
 def test_explore_build_cards_fit_at_375_and_1280_and_hold_still_with_reduced_motion(report):

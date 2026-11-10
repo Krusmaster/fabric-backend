@@ -47,8 +47,8 @@ def test_the_diagram_is_a_data_flow_in_the_founders_order(client, path):
     assert order == sorted(order)
     assert "Choose how you work" in box and "Your tables in Fabric" in box and "One Krusgraph engine" in box
     assert "Keys and links, checked against your rows" in box and ">Built in Fabric<" in box
-    src = re.findall(r"<li>([^<]+)</li>", box[box.index('class="off-src"'):box.index('class="off-engine"')])
-    assert src == ["Lakehouse", "Warehouse", "Mirrored databases"]
+    src = re.findall(r"<li>([^<]+?) <span", box[box.index('class="off-src"'):box.index('class="off-engine"')])
+    assert src == ["Lakehouse", "Warehouse", "SQL database"]        # n206: from tool_status.SOURCES (test_n206_home_tidy.py)
     built = re.findall(r"<li>([^<]+)</li>", box[box.index('class="off-built"'):box.index("</figure>")])
     assert built == ["Semantic model", "Report", "Ontology", "API for GraphQL", "Pipeline and notebooks", "Data agent",
                      "App (Rayfin, preview)", "Data product"]
@@ -60,7 +60,7 @@ def test_the_diagram_is_a_data_flow_in_the_founders_order(client, path):
                     r'(.*?)</details>', box, re.S)
     assert det and box.index("</figure>") < box.index("<details") and "<details open" not in box
     assert 'aria-describedby="offering-words"' in box and 'id="offering-words"' in det.group(1)
-    assert "Mirrored databases".lower() in det.group(1) and "app (rayfin, preview)" not in det.group(1)
+    assert "lakehouse (tested end to end)" in det.group(1) and "irrored" not in det.group(1) and "app (rayfin, preview)" not in det.group(1)
 
 
 def test_the_css_stacks_in_html_order_on_phones_and_flows_left_to_right_on_wide_screens():

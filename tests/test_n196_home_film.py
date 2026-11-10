@@ -125,9 +125,10 @@ def test_the_home_page_still_leads_to_check_choose_and_docs(client):
 def test_the_home_page_keeps_its_other_sections_in_order(client):
     main = _main(client.get("/").text)
     order = ['<section class="hero">', 'id="example"', 'id="demo"', 'class="wrap offering"', 'id="paths"', 'id="how"',
-             'class="hub', 'id="developer"', 'id="faq"', 'class="card ready"']
+             'id="developer"', 'id="faq"', 'class="card ready"']        # n206: the hub left the home page
     at = [main.index(x) for x in order]
     assert at == sorted(at), dict(zip(order, at))
+    assert 'class="hub' not in main
 
 
 def test_docs_starts_with_what_krusgraph_does_then_which_krusgraph(client):

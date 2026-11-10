@@ -20,7 +20,8 @@ const { chromium } = require('playwright');
       visible: await a.isVisible(), href: await a.getAttribute('href'), target: await a.getAttribute('target'),
       question: await a.getAttribute('data-question'),
       desktop: await page.locator('[data-desktop-link]').first().getAttribute('href'),
-      connect: await page.locator('.try-claude-note a').first().getAttribute('href'),
+      // n206: the home page's note is one line with no link; /start's links to step 3
+      connect: await page.evaluate(() => { const l = document.querySelector('.try-claude-note a'); return l ? l.getAttribute('href') : null; }),
       noteBefore: await page.locator('.try-claude-note').first().innerText(),
     };
     if (shots) await page.locator('.try-claude').first().screenshot({ path: `${shots}/try${path === '/' ? '_home' : '_start'}.png` });
