@@ -1530,6 +1530,23 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .film-toggle-icon{width:0;height:0;border-style:solid;border-width:6px 0 6px 10px;border-color:transparent transparent transparent currentColor}
 .film-toggle.is-playing .film-toggle-icon{width:10px;height:12px;border:0;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .hero .film-hero + .session{margin-top:0}
+/* n203: a bigger film. The film's frame and the replay card under it share one width and the same left and right edges:
+   the content width on a desktop (1084 px from 1140 px up, instead of n196's 960 px film and 760 px card), still bounded
+   by the window's height so the headline, the buttons and the film's top half fit on 1280 x 720 (n196's rule), and the
+   full content width on a phone (the 4:5 film, n161). The replay's thread had a 150 px floor: with the wider card the
+   longest answer is shorter than that, so the floor only added an empty band above the field while a question is typed.
+   The panel keeps the longest turn's height (the turns share one grid cell), so it does not jump between answers.
+   The thread used to be empty while the next question was typed (the first 1.26 s of each 6 s turn), which left that
+   height blank above the field (the founder's screenshot; about 300 px on a phone). Now, as in a chat, the previous
+   question and answer stay above the field while the next question is typed, and give way when it is sent (5.25 % of
+   the turn's 24 s cycle): a turn stays shown until 30.25 % and the current turn is drawn on top (its field covers the
+   previous one's, which is empty by then). Under reduced motion all four turns show at once, as before. */
+@media (prefers-reduced-motion:no-preference){.hero .session-turn{animation-name:session-turn-held}}
+@keyframes session-turn-held{0%{opacity:0;z-index:2}1.5%,24.9%{opacity:1;z-index:2}25%,30.25%{opacity:1;z-index:1}30.5%,100%{opacity:0;z-index:1}}
+.hero{--hero-media-w:max(560px,calc((100vh - 500px) * 32 / 9))}
+.film-hero,.hero .session{width:100%;max-width:var(--hero-media-w)}
+@media (max-width:640px){.film-hero,.hero .session{max-width:none}}
+.hero .session-thread{min-height:0}
 /* n170: Try in Claude (the home page's "Try it yourself" card, step 3 of /start) */
 .try-claude{display:grid;gap:6px;justify-items:start;margin:12px 0 0}
 .try-claude .try-claude-row{margin:0;justify-content:flex-start}

@@ -48,7 +48,7 @@ async function wins(page, n) {
     out['hero' + width] = await sample();
     await until(2500);
     out['hero' + width].late = await sample();
-    await until(7000);                                  // the second turn has taken over: the replay goes on as before
+    await until(7600);                                  // the second turn has taken over: the replay goes on as before (n203: turn 1 stays until turn 2's question is sent at 7.26 s)
     out['later' + width] = await page.evaluate(() => ({
       turns: [...document.querySelectorAll('.session-turn')].map((t) => +(+getComputedStyle(t).opacity).toFixed(2)),
       dots: [...document.querySelectorAll('.session-dots span')].map((d) => getComputedStyle(d).backgroundColor !== 'rgba(0, 0, 0, 0)') }));

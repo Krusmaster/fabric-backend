@@ -249,9 +249,44 @@ def test_browser_film_in_the_first_viewport_under_the_buttons(browser):
     for scheme in ("light", "dark"):
         for w in ("1280", "1440"):                                                       # at least the top half without scrolling
             assert browser["sizes"][f"{scheme} {w}"]["visibleFraction"] >= 0.5, (scheme, w)
-        assert browser["sizes"][f"{scheme} 1440"]["filmWidth"] <= 961                    # about 960 px on a desktop
+        assert browser["sizes"][f"{scheme} 1440"]["filmWidth"] > 1000                    # n203: wider than n196's 960 px
         assert browser["sizes"][f"{scheme} 375"]["filmWidth"] >= 330                     # the content width on a phone
     assert browser["sizes"]["light 1440"]["theme"] != browser["sizes"]["dark 1440"]["theme"]
+
+
+def test_browser_the_film_is_as_wide_as_the_replay_card(browser):
+    # n203: the film's frame and the replay card under it share one width and the same left and right edges, at every size
+    for key, s in browser["sizes"].items():
+        assert abs(s["frameWidth"] - s["cardWidth"]) <= 2, (key, s["frameWidth"], s["cardWidth"])
+        assert abs(s["frameLeft"] - s["cardLeft"]) <= 2 and abs(s["frameRight"] - s["cardRight"]) <= 2, key
+        assert s["cardAfterFilm"], key                                                    # the order: film, then the replay
+    for scheme in ("light", "dark"):
+        assert browser["sizes"][f"{scheme} 1440"]["cardWidth"] > 1000, scheme             # the card grows with the film
+        assert browser["sizes"][f"{scheme} 375"]["cardWidth"] >= 330, scheme
+
+
+def test_browser_the_replay_card_has_no_blank_band_and_does_not_jump(browser):
+    # n203: no fixed floor under the thread; the card keeps the longest turn's height through all four turns; and while a
+    # question is typed the previous question and answer stay above the field, so the room the card reserves is not an
+    # empty band (before n203 it was empty for the whole typing: 317 px on a phone, 187 px on a desktop)
+    for key, s in browser["sizes"].items():
+        r = s["replay"]
+        assert r["minHeight"] == "0px", key
+        assert max(r["heights"]) - min(r["heights"]) <= 1, (key, r["heights"])
+        for gap, room in zip(r["typingGaps"], r["typingRoom"]):
+            assert room <= r["longest"] + 16 + 12 + 2, (key, room, r["longest"])        # the turn's 16 px gap, the heading's 12 px
+            assert gap < 100 and gap <= 0.35 * room, (key, gap, room)
+
+
+def test_the_previous_answer_stays_while_the_next_question_is_typed():
+    css = (ROOT / "fabric_backend/static/site.css").read_text()
+    assert "@media (prefers-reduced-motion:no-preference){.hero .session-turn{animation-name:session-turn-held}}" in css
+    held = re.search(r"@keyframes session-turn-held\{(.*?\})\}", css).group(1)
+    # shown from 1.5 %, on top during its own turn, kept under the next turn until that question is sent (5.25 % of the
+    # next turn = 30.25 %), then gone; the 24 s cycle and the 6 s delays are n165's
+    assert held == "0%{opacity:0;z-index:2}1.5%,24.9%{opacity:1;z-index:2}25%,30.25%{opacity:1;z-index:1}30.5%,100%{opacity:0;z-index:1}"
+    sent = re.search(r"@keyframes session-sent\{0%,([\d.]+)%\{opacity:0", css).group(1)
+    assert 25 + float(sent) == 30.25
 
 
 def test_browser_reduced_motion_keeps_the_poster_and_the_button_works_by_keyboard(browser):
