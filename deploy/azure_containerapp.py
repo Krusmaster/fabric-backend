@@ -274,8 +274,13 @@ MARKETPLACE_FLAGS = {"marketplace": "KRUSGRAPH_MARKETPLACE", "entitlements": "KR
 MARKETPLACE_ENV = {"marketplace_tenant_id": "KRUSGRAPH_MARKETPLACE_TENANT_ID", "marketplace_client_id": "KRUSGRAPH_MARKETPLACE_CLIENT_ID",
                    "marketplace_offer_url": "KRUSGRAPH_MARKETPLACE_OFFER_URL",
                    "marketplace_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI",
-                   "entitlements_source": "KRUSGRAPH_ENTITLEMENTS_SOURCE", "entitlements_table": "KRUSGRAPH_ENTITLEMENTS_TABLE"}
+                   "entitlements_source": "KRUSGRAPH_ENTITLEMENTS_SOURCE", "entitlements_table": "KRUSGRAPH_ENTITLEMENTS_TABLE",
+                   # n204: the landing page's own sign-in app (work and personal Microsoft accounts, through /common).
+                   # Empty keeps the site's app on the landing page. The main app (client_id) keeps AzureADMultipleOrgs.
+                   "marketplace_signin_client_id": "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID",
+                   "marketplace_signin_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI"}
 MARKETPLACE_SECRET_ENV, MARKETPLACE_SECRET = "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET", "marketplace-secret"
+SIGNIN_SECRET_ENV, SIGNIN_SECRET = "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET", "marketplace-signin-secret"   # n204
 
 
 def marketplace_env(config) -> dict:
@@ -301,9 +306,15 @@ def carried_marketplace(config, old_env: dict) -> dict:
     return carried
 
 
-def has_marketplace_secret(app: dict) -> bool:
+def has_marketplace_secret(app: dict, name: str = MARKETPLACE_SECRET) -> bool:
     secrets = ((app.get("properties") or {}).get("configuration") or {}).get("secrets") or []
-    return any(x.get("name") == MARKETPLACE_SECRET for x in secrets)
+    return any(x.get("name") == name for x in secrets)
+
+
+def signin_secret_commands(config) -> str:
+    """n204: the commands that store the landing page's sign-in app secret in the container app, typed hidden."""
+    return (f'  read -rsp "Inloggningsappens klienthemlighet (VÄRDE, döljs): " SS; echo\n'
+            f'  az containerapp secret set -n {config["app"]} -g {config["resource_group"]} --secrets {SIGNIN_SECRET}="$SS" --output none; unset SS\n')
 
 
 def marketplace_secret_commands(config) -> str:
@@ -312,7 +323,7 @@ def marketplace_secret_commands(config) -> str:
             f'  az containerapp secret set -n {config["app"]} -g {config["resource_group"]} --secrets {MARKETPLACE_SECRET}="$MS" --output none; unset MS\n')
 
 
-def marketplace_checklist(config, env: dict, has_secret: bool) -> list[str]:
+def marketplace_checklist(config, env: dict, has_secret: bool, has_signin_secret: bool = False) -> list[str]:
     """What the founder must set for Marketplace, by name only (never a value): each line "ok" or "saknas"."""
     def state(ok: bool) -> str:
         return "ok     " if ok else "saknas "
@@ -327,13 +338,28 @@ def marketplace_checklist(config, env: dict, has_secret: bool) -> list[str]:
         state(env.get("KRUSGRAPH_ENTITLEMENTS_SOURCE") == "table" and bool(env.get("KRUSGRAPH_ENTITLEMENTS_TABLE")))
         + "KRUSGRAPH_ENTITLEMENTS_SOURCE=table och KRUSGRAPH_ENTITLEMENTS_TABLE (\"entitlements_source\", \"entitlements_table\")",
         "manuellt Rollen \"Storage Table Data Contributor\" på tabellen för appens identitet (webhooken skriver)",
-        f"manuellt Omdirigerings-URI https://{config['domain']}/marketplace/callback (Web) på Entra-appen {config['client_id']}",
-    ]
+    ] + signin_checklist(config, env, has_signin_secret)
 
 
-def print_marketplace_checklist(config, env: dict, has_secret: bool) -> None:
+def signin_checklist(config, env: dict, has_secret: bool) -> list[str]:
+    """n204: the landing page's sign-in. With the separate app: its id, its secret, its redirect URI. Without it: the
+    site's app's redirect URI, and a line saying personal Microsoft accounts cannot sign in yet."""
+    callback = f"https://{config['domain']}/marketplace/callback"
+    if not env.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID"):
+        return ["saknas KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID (\"marketplace_signin_client_id\"): appen \"Krusgraph Marketplace "
+                "sign-in\"; utan den kan köpare med personligt Microsoft-konto inte logga in (docs/MARKETPLACE-SETUP.md 2a)",
+                f"manuellt Omdirigerings-URI {callback} (Web) på Entra-appen {config['client_id']}"]
+    vault = bool(env.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI"))
+    return ["ok     KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID (\"marketplace_signin_client_id\"): inloggningsappen, via /common",
+            ("ok     " if vault or has_secret else "saknas ") + "Inloggningsappens hemlighet: \"marketplace_signin_secret_keyvault_uri\" "
+            f"(Key Vault) eller container-apphemligheten {SIGNIN_SECRET}",
+            f"manuellt Omdirigerings-URI {callback} (Web) på inloggningsappen; kontotyper: alla organisationer och personliga "
+            "Microsoft-konton"]
+
+
+def print_marketplace_checklist(config, env: dict, has_secret: bool, has_signin_secret: bool = False) -> None:
     print("\nMarketplace (KRUSGRAPH_MARKETPLACE=1) – det här ska vara satt (inga värden visas; docs/MARKETPLACE-SETUP.md):", flush=True)
-    for line in marketplace_checklist(config, env, has_secret):
+    for line in marketplace_checklist(config, env, has_secret, has_signin_secret):
         print("  " + line, flush=True)
 
 
@@ -483,6 +509,13 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         print("En full körning tar bort container-appens hemlighet marketplace-secret, så KRUSGRAPH_MARKETPLACE sätts till 0 nu. "
               "Kör därefter dessa och sedan --update (eller använd marketplace_secret_keyvault_uri):\n"
               + marketplace_secret_commands(config), flush=True)
+    if values.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID") and not values.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI"):
+        # n204: the same for the sign-in app's container-app secret: without it the server would not start, so the
+        # landing page keeps the site's app for this revision (work accounts only) until --update.
+        env = [e for e in env if e["name"] != "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID"]
+        print(f"En full körning tar bort container-appens hemlighet {SIGNIN_SECRET}, så landningssidan loggar in med webbplatsens "
+              "app (bara arbetskonton) tills du kör dessa och sedan --update (eller använder marketplace_signin_secret_keyvault_uri):\n"
+              + signin_secret_commands(config), flush=True)
     if names & {"KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI"}:
         # The manifest replaces the secret list with entra-secret alone, so workload-secret is gone after a full run; the
         # server refuses to start with a workload id but no secret. Keep only the host (the editor's files) and say so.
@@ -768,7 +801,19 @@ def update(az, config, keep_settings=False, workload_host=None, dry_run=False):
                 print("OBS: " + message, flush=True)
             else:
                 env[MARKETPLACE_SECRET_ENV] = f"secretref:{MARKETPLACE_SECRET}"
-        print_marketplace_checklist(config, {**after, **env}, secret)
+        signin_secret = has_marketplace_secret(existing, SIGNIN_SECRET)
+        if after.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID") and not after.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI"):
+            if not signin_secret:                 # n204: the server refuses to start with the id and no secret
+                message = ("marketplace_signin_client_id är satt men varken marketplace_signin_secret_keyvault_uri eller "
+                           f"container-apphemligheten {SIGNIN_SECRET} finns, och servern startar inte utan den. Kör först "
+                           "(värdet skrivs dolt):\n" + signin_secret_commands(config))
+                if not dry_run:
+                    print_marketplace_checklist(config, after, secret, signin_secret)
+                    raise DeploymentError(message)
+                print("OBS: " + message, flush=True)
+            else:
+                env[SIGNIN_SECRET_ENV] = f"secretref:{SIGNIN_SECRET}"
+        print_marketplace_checklist(config, {**after, **env}, secret, signin_secret)
     engine = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
     if any(env.get(v) or old_env.get(v) for v in engine):
         if not all(env.get(v) or old_env.get(v) for v in engine):

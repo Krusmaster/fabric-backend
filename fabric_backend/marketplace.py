@@ -4,8 +4,11 @@ the flag off no route below exists and nothing else changes (server.build_app ad
 Three parts, each built only from what Microsoft documents (docs/MARKETPLACE-SETUP.md has the sources [M1]-[M9] with the
 date read):
 
-  /marketplace/landing?token=...   the landing page [M3]. The buyer signs in with Microsoft Entra (the site's existing
-                                   multitenant app, scopes openid and profile only, authorization code flow with PKCE),
+  /marketplace/landing?token=...   the landing page [M3]. The buyer signs in with Microsoft Entra, authorization code
+                                   flow with PKCE. n204: with KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID set, through /common
+                                   with that separate app (work or school accounts in any organisation and personal
+                                   Microsoft accounts, scopes openid profile email), as Marketplace requires [M11][M12];
+                                   unset, through /organizations with the site's own app (openid profile), as before,
                                    the server resolves the purchase token with the SaaS fulfilment API [M1], shows offer,
                                    plan, quantity, status and the beneficiary tenant, and activates on the buyer's click
                                    [M1] (nothing to activate when the plan uses auto activation: the resolve already
@@ -34,6 +37,13 @@ with the client credentials flow and the scope 20e940b3-4c77-4b0b-9a53-9e16a1b01
   KRUSGRAPH_MARKETPLACE_TABLE                 the table, default KRUSGRAPH_ENTITLEMENTS_TABLE; the identity needs
                                               "Storage Table Data Contributor" on it (it writes)
   KRUSGRAPH_MARKETPLACE_STORE                 "memory" keeps the rows in memory only (a local test, never production)
+  KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID      n204: the landing page's own sign-in app ("Krusgraph Marketplace sign-in",
+                                              AzureADandPersonalMicrosoftAccount); unset keeps the site's app
+  KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET  its client secret, as a container-app secret reference, or
+  KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI  a Key Vault reference read with the managed identity
+
+The site's main Entra app (ENTRA_CLIENT_ID) keeps its audience, AzureADMultipleOrgs: the Fabric flows depend on it and
+deploy/azure_containerapp.py checks it. Personal accounts reach only the landing page, through the separate app.
 
 Tokens, the purchase token and the client secret are never logged and never shown. The log lines name the action, the
 subscription id and the outcome only.
@@ -59,7 +69,9 @@ SAAS_RESOURCE = "20e940b3-4c77-4b0b-9a53-9e16a1b010a7"          # the Marketplac
 SAAS_SCOPE = f"{SAAS_RESOURCE}/.default"
 API = "https://marketplaceapi.microsoft.com/api/saas"
 API_VERSION = "2018-08-31"
-MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"             # personal Microsoft accounts [M3]
+MSA_TENANT = "9188040d-6c67-4c5b-b112-36a304b66dad"             # personal Microsoft accounts [M3][M14]
+SIGNIN_SCOPE_COMMON = "openid profile email"                     # n204: the separate sign-in app; no Graph call, so not
+SIGNIN_SCOPE_SITE = "openid profile"                             # even User.Read (policy 1000.3 allows User.Read at most)
 
 LANDING_PATH, CALLBACK_PATH, ACTIVATE_PATH, WEBHOOK_PATH = (
     "/marketplace/landing", "/marketplace/callback", "/marketplace/activate", "/marketplace/webhook")
@@ -145,6 +157,50 @@ class Config:
                 raise ValueError("KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI must look like "
                                  "https://<vault>.vault.azure.net/secrets/<name>") from None
         return cls(tid, cid, "" if reader else sec, reader)
+
+
+class SignInConfig:
+    """n204: the landing page's own sign-in app (KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID): work or school accounts in any
+    organisation and personal Microsoft accounts (signInAudience AzureADandPersonalMicrosoftAccount [M13]), used through
+    /common [M12] and only for this sign-in. Its secret is a container-app secret reference or a Key Vault reference,
+    never in code; it never appears in a repr."""
+
+    def __init__(self, client_id: str, secret: str = "", secret_reader=None) -> None:
+        self.client_id = client_id.lower()
+        self._secret, self._reader = secret, secret_reader
+
+    def __repr__(self) -> str:
+        return f"marketplace.SignInConfig(client_id={self.client_id!r})"
+
+    def secret(self, refresh: bool = False) -> str:
+        return self._reader.get(refresh) if self._reader is not None else self._secret
+
+    @classmethod
+    def from_env(cls) -> "SignInConfig | None":
+        """None when KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID is unset (the landing page keeps the site's app). Set, a
+        missing secret, an id that is not a GUID, or the site's own app id stop startup."""
+        cid = os.environ.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID", "").strip()
+        uri = os.environ.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI", "").strip()
+        sec = os.environ.get("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET", "").strip()
+        if not cid:
+            return None
+        if not GUID.match(cid):
+            raise ValueError("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID must be a GUID")
+        if cid.lower() == os.environ.get("ENTRA_CLIENT_ID", "").strip().lower():
+            raise ValueError("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID must be the separate sign-in app, not ENTRA_CLIENT_ID "
+                             "(the site's app stays work and school accounts only)")
+        if not (uri or sec):
+            raise ValueError("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID needs KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET or "
+                             "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI")
+        reader = None
+        if uri:
+            from . import keyvault
+            try:
+                reader = keyvault.SecretReader(uri)
+            except ValueError:
+                raise ValueError("KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI must look like "
+                                 "https://<vault>.vault.azure.net/secrets/<name>") from None
+        return cls(cid, "" if reader else sec, reader)
 
 
 # ------------------------------------------------------------------ the fulfilment API -----------------------------
@@ -534,33 +590,76 @@ def _unb64(text: str) -> dict:
         return {}
 
 
+def _seal(data: dict, key: bytes) -> str:
+    """n204: the landing page's cookies carry an HMAC, so a hand-made cookie (another subscription id, another tenant)
+    is refused. The key is derived from the fulfilment app's secret, which both replicas share."""
+    body = _b64(data)
+    mac = base64.urlsafe_b64encode(hmac.new(key, body.encode(), hashlib.sha256).digest()).decode().rstrip("=")
+    return f"{body}.{mac}"
+
+
+def _unseal(text: str, key: bytes) -> dict:
+    body, _, mac = (text or "").rpartition(".")
+    want = base64.urlsafe_b64encode(hmac.new(key, body.encode(), hashlib.sha256).digest()).decode().rstrip("=")
+    return _unb64(body) if body and hmac.compare_digest(mac, want) else {}
+
+
+def _may_activate(signed_in_tid: str, sub: dict) -> bool:
+    """Who may activate on the landing page, besides holding the purchase token (resolve [M1]): an account of the
+    beneficiary's or the purchaser's organisation, or (n204) a personal Microsoft account, as Marketplace requires both
+    account types [M11][M15]. A personal account's tid is always the consumer tenant [M3][M14], so it cannot be compared
+    with the beneficiary's; the purchase token, which Microsoft sends only to the buyer, is what ties it to the purchase.
+    A work account of a third organisation sees the details but cannot activate."""
+    return signed_in_tid == MSA_TENANT or signed_in_tid in {_tenant_of(sub), _tenant_of(sub, "purchaser")} - {""}
+
+
 def _s256(verifier: str) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
 
 
 class SignIn:
-    """The buyer's sign-in on the landing page: OpenID Connect authorization code flow with PKCE and a nonce, against
-    /organizations with the site's existing multitenant Entra app (ENTRA_CLIENT_ID), scopes `openid profile` only.
-    The ID token is validated as Microsoft documents [M6][M7]: signature, audience = the app, issuer of the token's
-    own tenant, the nonce of this sign-in. Only `tid` is used."""
+    """The buyer's sign-in on the landing page: OpenID Connect authorization code flow with PKCE and a nonce.
 
-    def __init__(self, entra_cfg, http=None, jwks_client=None) -> None:
+    n204, with the separate sign-in app (SignInConfig, `tenant="common"`): /common, scopes `openid profile email`, so a
+    work or school account of any organisation and a personal Microsoft account can both sign in [M11][M12][M13].
+    Without it (`tenant="organizations"`): the site's multitenant app (ENTRA_CLIENT_ID), /organizations, `openid
+    profile`, as before n204. No Microsoft Graph call either way.
+
+    The ID token is validated as Microsoft documents [M6][M7][M14]: signature (the /common key set, which holds the
+    consumer tenant's keys too), audience = this app, issuer `https://login.microsoftonline.com/<tid>/v2.0` of the
+    token's own tenant (an organisation's, or 9188040d-6c67-4c5b-b112-36a304b66dad for a personal account), the nonce of
+    this sign-in. Only `tid` is used, and only to tell a personal account from a work account and to show the warning
+    for a third organisation; the beneficiary tenant always comes from resolve [M1], never from the sign-in."""
+
+    def __init__(self, entra_cfg, http=None, jwks_client=None, tenant: str = "organizations", scope: str = SIGNIN_SCOPE_SITE) -> None:
         self.cfg, self.http = entra_cfg, http or _http
         self._jwks = jwks_client
+        self.tenant, self.scope = tenant, scope
+
+    @classmethod
+    def for_landing(cls, entra_cfg, signin_cfg: "SignInConfig | None" = None, **kw) -> "SignIn | None":
+        """The separate app through /common when it is configured, else the site's app through /organizations."""
+        if signin_cfg is not None:
+            return cls(signin_cfg, tenant="common", scope=SIGNIN_SCOPE_COMMON, **kw)
+        return cls(entra_cfg, **kw) if entra_cfg is not None else None
+
+    @property
+    def personal_accounts(self) -> bool:
+        return self.tenant == "common"
 
     def redirect_uri(self, origin: str) -> str:
         return f"{origin}{CALLBACK_PATH}"
 
     def authorize_url(self, origin: str, state: str, verifier: str, nonce: str) -> str:
-        return f"{AUTHORITY}/organizations/oauth2/v2.0/authorize?" + urlencode({
+        return f"{AUTHORITY}/{self.tenant}/oauth2/v2.0/authorize?" + urlencode({
             "client_id": self.cfg.client_id, "response_type": "code", "redirect_uri": self.redirect_uri(origin),
-            "response_mode": "query", "scope": "openid profile", "state": state, "nonce": nonce,
+            "response_mode": "query", "scope": self.scope, "state": state, "nonce": nonce,
             "code_challenge": _s256(verifier), "code_challenge_method": "S256", "prompt": "select_account"})
 
     def redeem(self, origin: str, code: str, verifier: str, nonce: str) -> dict:
-        r = self.http("POST", f"{AUTHORITY}/organizations/oauth2/v2.0/token", timeout=10, data={
+        r = self.http("POST", f"{AUTHORITY}/{self.tenant}/oauth2/v2.0/token", timeout=10, data={
             "grant_type": "authorization_code", "client_id": self.cfg.client_id, "client_secret": self.cfg.secret(),
-            "code": code, "redirect_uri": self.redirect_uri(origin), "code_verifier": verifier, "scope": "openid profile"})
+            "code": code, "redirect_uri": self.redirect_uri(origin), "code_verifier": verifier, "scope": self.scope})
         body = _json(r)
         if r.status_code != 200 or not body.get("id_token"):
             raise MarketplaceError(f"Microsoft Entra did not complete the sign-in ({str(body.get('error') or r.status_code)[:60]})")
@@ -578,6 +677,8 @@ class SignIn:
         tid = str(claims.get("tid", "")).lower()
         if not GUID.match(tid) or str(claims.get("iss", "")).lower() != f"{AUTHORITY}/{tid}/v2.0":
             raise MarketplaceError("the ID token's issuer does not match its tenant")
+        if tid == MSA_TENANT and not self.personal_accounts:     # the site's app is work and school accounts only
+            raise MarketplaceError("a personal Microsoft account is not accepted by this sign-in")
         if not hmac.compare_digest(str(claims.get("nonce", "")), nonce):
             raise MarketplaceError("the ID token belongs to another sign-in")
         return claims
@@ -632,7 +733,23 @@ def _problem_page(text: str, status: int = 502):
 if it keeps happening, <a href="/support">get help</a>. Nothing was charged on this page.</p>""", status)
 
 
-def _subscription_page(sub: dict, signed_in_tid: str, csrf: str, activated: bool = False):
+def _personal_note(beneficiary: str, consent_client_id: str) -> str:
+    """n204: what a buyer signed in with a personal Microsoft account must know: Fabric needs a work account."""
+    e = html.escape
+    org = f"the organisation this subscription is for (tenant id <code>{e(beneficiary)}</code>)" if beneficiary else \
+        "the organisation this subscription is for"
+    consent = ""
+    if beneficiary and consent_client_id:
+        url = f"{AUTHORITY}/{beneficiary}/adminconsent?" + urlencode({"client_id": consent_client_id})
+        consent = (f' An administrator of that organisation opens <a href="{e(url)}">admin consent for Krusgraph in '
+                   'Microsoft Entra</a> once.')
+    return (f'<p id="personal-account"><strong>You signed in with a personal Microsoft account.</strong> '
+            f'That is enough to see and activate this subscription. Using Krusgraph with Microsoft Fabric needs a work '
+            f'account in {org}, and an administrator\'s one-time admin consent for the Krusgraph app.{consent} '
+            f'<a href="/it">The page for your IT department</a> lists each permission.</p>')
+
+
+def _subscription_page(sub: dict, signed_in_tid: str, csrf: str, activated: bool = False, consent_client_id: str = ""):
     e = html.escape
     f = subscription_fields(sub)
     beneficiary = _tenant_of(sub)
@@ -658,10 +775,12 @@ def _subscription_page(sub: dict, signed_in_tid: str, csrf: str, activated: bool
     else:
         lede = f"This subscription is {e(status)}; it cannot be activated from here."
         action = """<p>Manage it in the Azure portal or Microsoft 365 Admin Center. <a href="/support">Get help</a>.</p>"""
-    other = ("" if signed_in_tid in {beneficiary, _tenant_of(sub, "purchaser")} else
+    other = ("" if _may_activate(signed_in_tid, sub) else
              '<p class="warn">You signed in with an account from another organisation than the one this subscription '
              'is for. Sign in with an account of that organisation to activate it.</p>')
-    if other and status == "PendingFulfillmentStart" and not activated:
+    if signed_in_tid == MSA_TENANT:
+        other = _personal_note(beneficiary, consent_client_id)
+    if not _may_activate(signed_in_tid, sub) and status == "PendingFulfillmentStart" and not activated:
         action = ""
     return _page("Your subscription", f"""<span class="kicker">Microsoft Marketplace</span>
 <h1>Your Krusgraph subscription</h1><p class="lede">{lede}</p>
@@ -671,17 +790,40 @@ def _subscription_page(sub: dict, signed_in_tid: str, csrf: str, activated: bool
 payment details. Krusgraph keeps the tenant id and the subscription's state only.</p>""")
 
 
+class _HideQuery(logging.Filter):
+    """n204: uvicorn's access line carries the path with its query: on /marketplace/ that is the purchase token
+    (landing) or the authorization code (callback). The line keeps the path and drops the query."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        args = record.args
+        if isinstance(args, tuple) and len(args) >= 3 and isinstance(args[2], str) and args[2].startswith("/marketplace/") \
+                and "?" in args[2]:
+            record.args = (*args[:2], args[2].split("?", 1)[0] + "?…", *args[3:])
+        return True
+
+
+def hide_query_in_access_log() -> None:
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, _HideQuery) for f in access.filters):
+        access.addFilter(_HideQuery())
+
+
 def routes(entra_cfg, fulfilment: Fulfilment | None = None, validator: WebhookValidator | None = None,
            subs: Subscriptions | None = None, signin: SignIn | None = None, run_later=None) -> list:
     """The four routes. Built only when KRUSGRAPH_MARKETPLACE=1 (server.build_app); every dependency can be a double."""
     from starlette.concurrency import run_in_threadpool
     from starlette.responses import JSONResponse, RedirectResponse
     from starlette.routing import Route
+    hide_query_in_access_log()
     cfg = Config.from_env() if fulfilment is None or validator is None else None
     fulfilment = fulfilment or Fulfilment(cfg)
     validator = validator or WebhookValidator(cfg)
-    signin = signin or (SignIn(entra_cfg) if entra_cfg is not None else None)
+    signin = signin or SignIn.for_landing(entra_cfg, SignInConfig.from_env())   # n204: /common when configured
     get_subs = (lambda: subs) if subs is not None else store
+    consent_client_id = getattr(entra_cfg, "client_id", "") or ""    # the site's app: admin consent, after activation
+
+    def cookie_key() -> bytes:
+        return hmac.new(fulfilment.cfg.secret().encode(), b"krusgraph marketplace landing cookies", hashlib.sha256).digest()
 
     def origin_of(request) -> str:
         from .errors import site_origin
@@ -696,7 +838,7 @@ Opened directly, there is no purchase to show.</p><div class="ctas"><a class="bt
         if signin is None:
             return _problem_page("Sign-in with Microsoft is not configured on this server.", 503)
         state, verifier, nonce = secrets.token_urlsafe(32), secrets.token_urlsafe(64), secrets.token_urlsafe(32)
-        flow = _b64({"s": state, "v": verifier, "n": nonce, "t": token, "at": int(time.time())})
+        flow = _seal({"s": state, "v": verifier, "n": nonce, "t": token, "at": int(time.time())}, cookie_key())
         url = signin.authorize_url(origin_of(request), state, verifier, nonce)
         resp = RedirectResponse(url, status_code=302, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
         resp.set_cookie(FLOW_COOKIE, flow, max_age=FLOW_TTL, path="/", secure=True, httponly=True, samesite="lax")
@@ -704,7 +846,7 @@ Opened directly, there is no purchase to show.</p><div class="ctas"><a class="bt
 
     async def callback(request):
         q = request.query_params
-        flow = _unb64(request.cookies.get(FLOW_COOKIE, ""))
+        flow = _unseal(request.cookies.get(FLOW_COOKIE, ""), cookie_key())
         if not flow or time.time() - int(flow.get("at") or 0) > FLOW_TTL or not hmac.compare_digest(
                 str(flow.get("s", "")), q.get("state", "")):
             return _page("Sign-in", """<span class="kicker">Microsoft Marketplace</span><h1>This sign-in has expired.</h1>
@@ -735,15 +877,16 @@ Opened directly, there is no purchase to show.</p><div class="ctas"><a class="bt
             log.warning("marketplace landing: recording %s failed: %s", sid, e)
         csrf = secrets.token_urlsafe(24)
         signed = str(claims.get("tid", "")).lower()
-        resp = _subscription_page(detail, signed, csrf)
-        resp.set_cookie(SESSION_COOKIE, _b64({"sub": sid, "csrf": csrf, "tid": signed, "at": int(time.time())}),
+        resp = _subscription_page(detail, signed, csrf, consent_client_id=consent_client_id)
+        resp.set_cookie(SESSION_COOKIE, _seal({"sub": sid, "csrf": csrf, "tid": signed, "at": int(time.time())}, cookie_key()),
                         max_age=FLOW_TTL, path="/", secure=True, httponly=True, samesite="lax")
         resp.delete_cookie(FLOW_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
-        log.info("marketplace landing: subscription %s shown (%s)", sid, str(detail.get("saasSubscriptionStatus") or "").strip())
+        log.info("marketplace landing: subscription %s shown (%s, %s account)", sid,
+                 str(detail.get("saasSubscriptionStatus") or "").strip(), "personal" if signed == MSA_TENANT else "work")
         return resp
 
     async def activate(request):
-        sess = _unb64(request.cookies.get(SESSION_COOKIE, ""))
+        sess = _unseal(request.cookies.get(SESSION_COOKIE, ""), cookie_key())
         form = await request.form()
         own = origin_of(request)
         if request.headers.get("origin") not in (None, own) or not sess or time.time() - int(sess.get("at") or 0) > FLOW_TTL \
@@ -753,21 +896,21 @@ Opened directly, there is no purchase to show.</p><div class="ctas"><a class="bt
         try:
             sub = await run_in_threadpool(fulfilment.subscription, sid)
             tid = _tenant_of(sub)
-            if str(sess.get("tid", "")) not in {tid, _tenant_of(sub, "purchaser")}:
-                return _subscription_page(sub, str(sess.get("tid", "")), "")
+            if not _may_activate(str(sess.get("tid", "")), sub):
+                return _subscription_page(sub, str(sess.get("tid", "")), "", consent_client_id=consent_client_id)
             status = str(sub.get("saasSubscriptionStatus") or "").strip()
             if status == "PendingFulfillmentStart":
                 await run_in_threadpool(fulfilment.activate, sid)
                 sub = {**sub, "saasSubscriptionStatus": "Subscribed"}
             elif status != "Subscribed":
-                return _subscription_page(sub, str(sess.get("tid", "")), "")
+                return _subscription_page(sub, str(sess.get("tid", "")), "", consent_client_id=consent_client_id)
             if tid:
                 await run_in_threadpool(get_subs().record, tid, sid, subscription_fields(sub))
         except MarketplaceError as e:
             log.warning("marketplace activate %s: %s", sid, e)
             return _problem_page(f"Microsoft did not activate the subscription: {e}.")
         log.info("marketplace activate: %s activated", sid)
-        resp = _subscription_page(sub, str(sess.get("tid", "")), "", activated=True)
+        resp = _subscription_page(sub, str(sess.get("tid", "")), "", activated=True, consent_client_id=consent_client_id)
         resp.delete_cookie(SESSION_COOKIE, path="/", secure=True, httponly=True, samesite="lax")
         return resp
 

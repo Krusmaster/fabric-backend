@@ -9,6 +9,22 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n204: **the Marketplace landing page accepts personal Microsoft accounts as well as work accounts**, as
+  Microsoft requires of a SaaS offer sold through Microsoft (Learn, "Plan a SaaS offer", Technical requirements;
+  certification policy 1000.3). With `KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID` (deploy key
+  `marketplace_signin_client_id`) and its secret (`marketplace_signin_secret_keyvault_uri` or the container-app secret
+  `marketplace-signin-secret`) the buyer signs in through `/common` with a new, separate Entra app, *Krusgraph
+  Marketplace sign-in* (work or school accounts of any organisation and personal Microsoft accounts), scopes `openid
+  profile email`; unset, the page works as before (`/organizations`, the site's app, `openid profile`). The site's main
+  app keeps its audience (`AzureADMultipleOrgs`). The ID token's issuer is checked for the consumer tenant
+  (`9188040d-6c67-4c5b-b112-36a304b66dad`) and for organisational tenants; a token for another app is refused. A
+  personal account resolves, sees and activates the subscription exactly like a work account (the beneficiary tenant
+  comes from resolve), and the page says that Fabric needs a work account in the tenant shown, with that tenant's
+  admin-consent link. The landing page's cookies are now signed (a hand-made cookie naming another subscription is
+  refused), and the access log line of `/marketplace/` drops the query (the purchase token). `docs/MARKETPLACE-SETUP.md`
+  section 2a: the founder's Entra steps; `docs/MARKETPLACE-CERTIFICATION-NOTES.md`: the *Notes for certification*
+  draft and the listing checklist (policies 100.1–100.7, 1000.x). `tests/test_n204_marketplace_personal_accounts.py`.
+  Redeploy to use it: create the app, set the two keys, `bash deploy/krusgraph.sh --update`.
 - Round n197: **Create runs in the background, follows the pipeline run and finishes on its own.** Every editor request
   answers at once (202 and an operation id) and the editor reads the operation until it ends: no request is held open
   longer than 30 s, so the 230 s "no answer" and the phone's "Failed to fetch" are gone. Operations live in the client

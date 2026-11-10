@@ -33,6 +33,8 @@
   "marketplace_client_id": "",
   "marketplace_offer_url": "",
   "marketplace_secret_keyvault_uri": "",
+  "marketplace_signin_client_id": "",
+  "marketplace_signin_secret_keyvault_uri": "",
   "entitlements_source": "",
   "entitlements_table": ""
 }
