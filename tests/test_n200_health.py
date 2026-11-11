@@ -619,3 +619,32 @@ def test_the_data_product_page_s_own_request_reads_the_model_s_definition(api, m
     seen.pop("sql", None)
     out = post_health(client, token, body).json()
     assert out["word"] == "not checked yet" and "sql" not in seen
+
+
+def test_a_read_only_source_is_compared_and_dated_by_its_onelake_path():
+    """n201's mirrored databases are read by their OneLake path (silver.MIRROR_SOURCE): Tables/<schema>/<table> when it
+    holds a Delta log, else Tables/<table>. The drift step and freshness try the same two names, in that order."""
+    lh = hc.shop()
+    base = "abfss://ws@onelake.dfs.fabric.microsoft.com/mirror-1/Tables"
+    src = dict(lh.silver_spec["source"], read_from={"item_id": "mirror-1", "item_kind": "MirroredDatabase", "item_name": "m",
+                                                     "tables_path": base})
+    s = dict(lh.silver_spec, source=src)
+    d = health.drift_spec(lh.plan, s, lh.gold_spec, hc.MARK)
+    assert d["read_paths"]["orders"] == [f"delta.`{base}/shop/orders`", f"delta.`{base}/orders`"]
+    h = health.health_spec(s, hc.MARK)
+    assert next(x for x in h["sources"] if x["object"] == "shop.orders")["names"] == d["read_paths"]["orders"]
+    # the layout without the schema folder: the second name reads; one table is gone
+    for t in d["tables"]:
+        if t != "audit_log":
+            lh.types[("main", f"{base}/{t}".lower())] = dict(lh.types[("shop", t)])
+    cells = silver.cells(dict(s, drift=d))
+    code = next(c for k, c in cells if "n200: drift" in c)
+    ns = {"spark": lh.spark(), "TABLE_FORMAT": "delta", "RUN_ID": "r1", "ALERT_KEY_VAULT": "", "ALERT_SECRET_NAME": "", "ALERT_ON": "fail"}
+    with pytest.raises(Exception, match="the source table audit_log is gone"):
+        exec(compile(code, "<drift>", "exec"), ns)
+    assert [f["kind"] for f in ns["findings"]] == ["table_removed"]
+    # freshness: the first name has no history, the second has
+    lh.commits[f"{base}/orders".lower()] = [{"timestamp": (hc.NOW - dt.timedelta(minutes=30)).replace(tzinfo=None), "operation": "WRITE"}]
+    rows = NS["freshness"](ctx(), [x for x in h["sources"] if x["object"] == "shop.orders"], dict(SETTINGS),
+                           lambda name: NS["last_write"](lambda sql: [r.asDict() for r in lh.spark().sql(sql).collect()], name), {})
+    assert [(r["status"], r["count"]) for r in rows] == [("pass", 30)]

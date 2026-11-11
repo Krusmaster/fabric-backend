@@ -75,6 +75,10 @@ bool, date, timestamp, binary), because the plan reads them from the SQL endpoin
 | `column_added` | No |
 | `table_added` (a table in the source schema the plan did not have) | No |
 
+A read-only source (n201: a mirrored database, read by its OneLake path) is compared by the same path the silver
+notebook reads, `Tables/<schema>/<table>` and else `Tables/<table>`; its freshness is read from the same paths' history,
+and new tables are not listed.
+
 A breaking drift writes its rows, sends the alert when one is set, and stops the run with the reason (`DriftBreaks`:
 "... so the run stops before anything is written: orders.order_id is gone ..."). No silver table is written. A
 non-breaking drift is recorded and the run goes on. Keys and relationships are not re-inferred in the notebook (that

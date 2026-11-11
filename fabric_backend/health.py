@@ -250,10 +250,14 @@ def freshness(ctx, sources, settings, history, previous):
     rows = []
     every = settings["interval_minutes"]
     for s in sources:
-        try:
-            last = _utc(history(s["name"]))
-        except Exception:  # noqa: BLE001 - a table without Delta history (a shortcut to files, say)
-            last = None
+        last = None
+        for name in s.get("names") or [s["name"]]:        # a mirrored source: its OneLake path candidates, in order
+            try:
+                last = _utc(history(name))
+            except Exception:  # noqa: BLE001 - a table without Delta history (a shortcut to files, say)
+                continue
+            if last is not None:
+                break
         if last is None:
             rows.append(health_row(ctx, "freshness", s["object"], "no history", "warn", None))
             continue
@@ -346,11 +350,27 @@ def health_spec(silver_spec: dict, plan_mark: dict, schedule: dict | None = None
     src = silver_spec["source"]
     enabled = bool(src.get("schemas_enabled", True))
     read = sorted({t["table"] for t in silver_spec["tables"]}, key=str.lower)
+    paths = _read_paths(src, read)
     return {"table": table_parts(enabled), "plan_id": plan_mark.get("plan_id") or "",
             "schema_fingerprint": plan_mark.get("schema_fingerprint") or "",
             "silver_tables": [t["table"] for t in silver_spec["tables"]],
-            "sources": [{"name": _hq([src["schema"] if enabled else None, t]), "object": f"{src['schema']}.{t}"} for t in read],
+            "sources": [{"name": paths[t][0], "names": paths[t], "object": f"{src['schema']}.{t}"} if paths else
+                        {"name": _hq([src["schema"] if enabled else None, t]), "object": f"{src['schema']}.{t}"} for t in read],
             "quarantine": list(silver_spec["quarantine"]), "interval_minutes": interval_minutes(schedule)}
+
+
+def _read_paths(src: dict, tables) -> dict:
+    """n201's read-only sources (a mirrored database) are read by their OneLake path, Tables/<schema>/<table> when it
+    holds a Delta log, else Tables/<table> (silver.MIRROR_SOURCE): per table those two names, as delta.`<path>`."""
+    rf = src.get("read_from") or {}
+    if not rf.get("tables_path"):
+        return {}
+    base = str(rf["tables_path"]).rstrip("/")
+    schema = src["schema"] if src.get("schemas_enabled", True) else None
+
+    def name(path):
+        return "delta.`" + path.replace("`", "``") + "`"
+    return {t: ([name(f"{base}/{schema}/{t}")] if schema else []) + [name(f"{base}/{t}")] for t in tables}
 
 
 def _hq(parts) -> str:
@@ -375,7 +395,7 @@ def drift_spec(plan, silver_spec: dict, gold_spec: dict, plan_mark: dict) -> dic
     built = {t: {"columns": {c.name: (c.data_type or "").lower() for c in plan.schema[t].columns},
                  "uses": sorted(uses[t], key=str.lower)} for t in sorted(tables, key=str.lower)}
     others = [t for t in src.get("tables", []) if t not in tables]
-    return {"schema": src["schema"], "schemas_enabled": bool(src.get("schemas_enabled", True)), "tables": built,
+    return {"read_paths": _read_paths(src, sorted(tables)), "schema": src["schema"], "schemas_enabled": bool(src.get("schemas_enabled", True)), "tables": built,
             "other_tables": others, "table": table_parts(bool(src.get("schemas_enabled", True))),
             "plan_id": plan_mark.get("plan_id") or "", "schema_fingerprint": plan_mark.get("schema_fingerprint") or ""}
 
@@ -420,13 +440,14 @@ def drift_cell(d: dict, label: str) -> str:
             f"LABEL_D = {_py_literal(label)}\n"
             + RUN_CONTEXT + "\n\n"
             "def q(*parts):\n    return '.'.join('`' + str(p).replace('`', '``') + '`' for p in parts if p)\n\n"
-            "live = {}\n"
-            "for t in BUILT['tables']:\n"
-            f"    name = {src}\n"
-            "    live[t] = ({f.name: f.dataType.simpleString() for f in spark.table(name).schema.fields}\n"
-            "               if spark.catalog.tableExists(name) else None)\n"
-            + ("live_tables = [x.name for x in spark.catalog.listTables(SOURCE_SCHEMA_D)]\n" if d["schemas_enabled"] else
-               "live_tables = []      # a lakehouse without schemas: new tables are not listed\n")
+            + (_live_by_path(d) if d.get("read_paths") else
+               "live = {}\n"
+               "for t in BUILT['tables']:\n"
+               f"    name = {src}\n"
+               "    live[t] = ({f.name: f.dataType.simpleString() for f in spark.table(name).schema.fields}\n"
+               "               if spark.catalog.tableExists(name) else None)\n"
+               + ("live_tables = [x.name for x in spark.catalog.listTables(SOURCE_SCHEMA_D)]\n" if d["schemas_enabled"] else
+                  "live_tables = []      # a lakehouse without schemas: new tables are not listed\n"))
             + "findings = drift(BUILT, live, live_tables)\n"
             "drift_found = drift_rows(HEALTH_CTX, SOURCE_SCHEMA_D, findings)\n"
             "for f in findings:\n    print(('STOPS: ' if f['breaking'] else 'recorded: ') + f['why'])\n"
@@ -439,6 +460,21 @@ def drift_cell(d: dict, label: str) -> str:
             "    raise DriftBreaks('The source no longer matches the plan this pipeline was built from, so the run stops before '\n"
             "                      'anything is written: ' + '; '.join(f['why'] for f in breaks) + '. Review the plan again in the '\n"
             "                      'Krusgraph Model item and Update the pipeline.')")
+
+
+def _live_by_path(d: dict) -> str:
+    """The drift cell's reading of a read-only source (n201): each table by its OneLake path, the first that reads."""
+    return (f"READ_PATHS = {_py(d['read_paths'])}   # a read-only source: its tables by their OneLake path\n"
+            "live = {}\n"
+            "for t in BUILT['tables']:\n"
+            "    live[t] = None\n"
+            "    for name in READ_PATHS.get(t, []):\n"
+            "        try:\n"
+            "            live[t] = {f.name: f.dataType.simpleString() for f in spark.table(name).schema.fields}\n"
+            "            break\n"
+            "        except Exception:  # noqa: BLE001 - not this layout, or the table is gone\n"
+            "            continue\n"
+            "live_tables = []      # a read-only source: new tables are not listed here\n")
 
 
 def check_health_cells(spec: dict, label: str) -> list[tuple[str, str]]:
