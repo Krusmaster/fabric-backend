@@ -78,7 +78,7 @@ def test_the_result_carries_domain_drafts_proposal_and_contracts():
     assert [x["name"] for x in sap["domains"]] == ["order-to-cash", "customer master"] and "public SAP" in sap["domains"][0]["name_reason"]
 
 
-@pytest.mark.parametrize("kind", ["sample", "sap", "crm", "billing", "mill"])
+@pytest.mark.parametrize("kind", ["sample", "sap", "crm", "billing", "mill", "sap_sd", "sap_mm"])
 def test_the_examples_report_each_engine_step_with_its_time(kind):
     events = []
     r = bc.analyze(kind, emit=events.append)
@@ -159,6 +159,8 @@ def test_check_page_policy_worker_and_files(client):
     assert r.text.count("Synthetic Data") == 5 and "Synthetic data<" not in r.text and "A total that doubles" in r.text and "SAP sales tables" in r.text and "Salesforce + ERP" in r.text
     assert "Subscription billing" in r.text and 'data-example="billing"' in r.text                                 # n78
     assert "Manufacturing sample" in r.text and 'data-example="mill"' in r.text                                     # n192
+    assert r.text.count("SAP-shaped sample (synthetic)") == 2 and r.text.count("Synthetic, not SAP data") == 2         # n202
+    assert 'data-example="sap_sd"' in r.text and 'data-example="sap_mm"' in r.text
     assert "<input type=\"text\"" not in r.text and "chat" not in r.text.lower().split("<main")[1].split("</main>")[0]   # n154: the chat's button and plan come after the footer
     assert "are not uploaded" in r.text and 'href="/check?example=sample&amp;guide=1"' in r.text and 'href="/local"' in r.text and "Get help" in r.text
     assert "http://" not in r.text.split("<main")[1].split("</main>")[0].replace("http://www.w3.org", "")
@@ -274,16 +276,24 @@ def test_in_a_browser_no_request_carries_the_files(site):
     # n78: four example buttons at 375 and 1280 px, none outside the viewport, and Subscription billing runs to the end
     for w in ("375", "1280"):
         bl = r["billing"][w]
-        assert bl["ids"] == ["check-sample", "check-sap", "check-crm", "check-billing", "check-mill"] and bl["inside"] and not bl["overflow"], (w, bl)
+        assert bl["ids"] == ["check-sample", "check-sap", "check-crm", "check-billing", "check-mill", "check-sap_sd", "check-sap_mm"] and bl["inside"] and not bl["overflow"], (w, bl)
         assert "Subscription billing" in bl["label"] and "Younium + Salesforce" in bl["label"] and "Synthetic Data" in bl["label"]
         assert "Done: the example “Subscription billing”" in bl["status"] and not bl["overflowAfter"], (w, bl["status"])
         assert "Younium + Salesforce pack" in bl["text"] and "SAP pack" not in bl["text"] and "external_crm_id" in bl["text"] and bl["ms"] > 0, w   # n79
     # n192: the manufacturing sample has a row of its own, loads and runs to the end with the planted problems
     for w in ("375", "1280"):
         m = r["mill"][w]
-        assert "Manufacturing sample" in m["label"] and "Synthetic Data" in m["label"] and m["full"] and m["inside"] and not m["overflow"], (w, m)
+        assert "Manufacturing sample" in m["label"] and "Synthetic Data" in m["label"] and m["inside"] and not m["overflow"], (w, m)
+        # n202: a row of its own on a phone; on a wide screen it shares the row with the two SAP-shaped samples
+        assert (m["full"] and not m["withSap"]) if w == "375" else (m["half"] and m["withSap"]), (w, m)
     assert "Done: the example “Manufacturing sample”" in r["mill"]["status"] and r["mill"]["ms"] > 0, r["mill"]["status"]
     assert "stg_supplier_prices" in r["mill"]["text"] and "machine_events" in r["mill"]["text"] and "orphan" in r["mill"]["text"]
+    # n202: the SAP-shaped sample (synthetic) beside the shop and the mill, inside the viewport, and it loads and runs
+    for w in ("375", "1280"):
+        sp = r["sap_sd"][w]
+        assert "SAP-shaped sample (synthetic)" in sp["label"] and "not SAP data" in sp["label"] and sp["inside"] and not sp["overflow"], (w, sp)
+    assert "Done: the example “SAP-shaped sample (synthetic): order to invoice”" in r["sap_sd"]["status"] and r["sap_sd"]["ms"] > 0, r["sap_sd"]["status"]
+    assert "VBAK.NETWR" in r["sap_sd"]["text"] and "ZSD_ORDER_EXT" in r["sap_sd"]["text"] and "SAP pack" in r["sap_sd"]["text"]
     assert len(r["finding_marks"]) == 1 and "audit_log" in r["finding_marks"][0]
     # n73: one order through "A total that doubles": order_id 1, 1 000 on the order, 2 000 over its two lines, in the
     # finding, in Onto's answer, in the Power BI preview and in the contract; every download button says what the file

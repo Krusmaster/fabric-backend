@@ -511,6 +511,17 @@ from the pack, so this shows what the pack adds over the name rules, not that th
 an SAP system or a real installation. Contents, sources and how to contribute:
 [docs/SAP.md](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAP.md).
 
+**Does Krusgraph work on customised SAP tables (Z tables)?**
+Yes, for keys and links that use SAP's standard field names, and the rows decide which of those links hold. A Z table
+that carries `MANDT` and `VBELN` is linked by the general name rule R3 to every table keyed by those fields, and
+`validate_plan` counts the rows: on our synthetic sample the link to the sales order header held, and the links to the
+delivery and billing headers matched no row, so you reject them in the review. A Z table gets no key from its name: you
+give it in the review, for example `MANDT` + `VBELN`. A link through a custom-named column (`ZZ_KUNDE_NR` holding
+customer numbers) is shown only if the row check finds it, and on SAP tables it does not, because every SAP key starts
+with `MANDT` and the row checks look at single-column keys: you add it in the review. The SAP pack covers standard tables
+only. Tested on synthetic, SAP-shaped data, not on a real SAP system
+([the sample and what was measured](https://github.com/Krusmaster/fabric-backend/blob/main/docs/SAMPLE-SAP.md)).
+
 ## Build from a plan
 
 What you can build once the plan is reviewed. Each tool's status is in the [tool reference](#test-status).

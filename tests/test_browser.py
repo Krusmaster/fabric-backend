@@ -192,7 +192,7 @@ def test_the_check_drop_area_comes_first_on_a_phone(first_visit):
     # under them; on a wide screen the examples stay on the first screen above the drop area
     for v, e in ((k.split("@")[1], c) for k, c in first_visit.items() if k.startswith("examples@")):
         height = int(v.split("-")[0].split("x")[1])
-        assert len(e["buttons"]) == 5, v                     # n192: the manufacturing sample, on a row of its own
+        assert len(e["buttons"]) == 7, v                     # n192: the manufacturing sample; n202: the two SAP-shaped samples
         assert 0 <= e["privacy"]["top"] - e["drop"]["bottom"] <= 40, v
         if v.startswith("375"):
             assert e["drop"]["top"] <= height and e["privacy"]["bottom"] < e["heading"]["top"], v

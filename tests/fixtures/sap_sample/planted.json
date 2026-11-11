@@ -1,0 +1,784 @@
+{
+ "_about": "n202: the SAP-shaped samples of fabric_backend/sap_sample.py (synthetic, SAP-shaped, not SAP data). 'planted' is what the generator puts in the rows on purpose; 'engine' is what Krusgraph's engine found on them when this file was written (python -m fabric_backend.sap_sample). tests/test_sap_sample.py asserts both exactly; docs/SAMPLE-SAP.md and the Q&A answer quote 'engine'.",
+ "sap_sd": {
+  "planted": {
+   "orphan_items": {
+    "table": "VBAP",
+    "missing_orders": [
+     "0000019901",
+     "0000019902",
+     "0000019903"
+    ]
+   },
+   "z_orphan": {
+    "table": "ZSD_ORDER_EXT",
+    "missing_order": "0000019950"
+   },
+   "doubled_total": {
+    "header": "VBAK",
+    "line": "VBAP",
+    "column": "NETWR",
+    "wrong_view": "gold_revenue_by_customer_wrong",
+    "right_view": "gold_revenue_by_customer"
+   },
+   "custom_reference": {
+    "source": "ZSD_KAM_ASSIGN",
+    "column": "ZZ_KUNDE_NR",
+    "points_at": "KNA1.KUNNR"
+   }
+  },
+  "engine": {
+   "keys": {
+    "T001": {
+     "columns": [
+      "MANDT",
+      "BUKRS"
+     ],
+     "rule": "SAP pack"
+    },
+    "KNA1": {
+     "columns": [
+      "MANDT",
+      "KUNNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "MARA": {
+     "columns": [
+      "MANDT",
+      "MATNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "MAKT": {
+     "columns": [
+      "MANDT",
+      "MATNR",
+      "SPRAS"
+     ],
+     "rule": "SAP pack"
+    },
+    "VBAK": {
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "rule": "SAP pack"
+    },
+    "VBAP": {
+     "columns": [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "LIKP": {
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "rule": "SAP pack"
+    },
+    "LIPS": {
+     "columns": [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "VBRK": {
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "rule": "SAP pack"
+    },
+    "VBRP": {
+     "columns": [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "rule": "SAP pack"
+    }
+   },
+   "keyless": [
+    "ZSD_ORDER_EXT",
+    "ZSD_KAM_ASSIGN"
+   ],
+   "summary": "10 of 10 keys unique, 15 of 19 relationships hold without orphans",
+   "orphans": [
+    {
+     "source": "VBAP",
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "target": "VBAK",
+     "orphans": 3
+    },
+    {
+     "source": "ZSD_ORDER_EXT",
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "target": "VBAK",
+     "orphans": 1
+    },
+    {
+     "source": "ZSD_ORDER_EXT",
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "target": "LIKP",
+     "orphans": 301
+    },
+    {
+     "source": "ZSD_ORDER_EXT",
+     "columns": [
+      "MANDT",
+      "VBELN"
+     ],
+     "target": "VBRK",
+     "orphans": 301
+    }
+   ],
+   "amount_levels": [
+    [
+     "VBAK",
+     "VBAP"
+    ],
+    [
+     "VBAK",
+     "ZSD_ORDER_EXT"
+    ],
+    [
+     "VBAP",
+     "LIPS"
+    ],
+    [
+     "VBAP",
+     "VBRP"
+    ],
+    [
+     "VBRK",
+     "VBRP"
+    ],
+    [
+     "VBRK",
+     "ZSD_ORDER_EXT"
+    ]
+   ],
+   "r5": [],
+   "r5_proposed": [],
+   "not_found": [
+    {
+     "source": "ZSD_KAM_ASSIGN",
+     "column": "ZZ_KUNDE_NR",
+     "points_at": "KNA1.KUNNR",
+     "by_name": false,
+     "by_rows": false
+    }
+   ],
+   "pack_tables": [
+    "KNA1",
+    "LIKP",
+    "LIPS",
+    "MAKT",
+    "MARA",
+    "T001",
+    "VBAK",
+    "VBAP",
+    "VBRK",
+    "VBRP"
+   ],
+   "doubled": {
+    "header": "VBAK",
+    "line": "VBAP",
+    "column": "NETWR",
+    "wrong": 20286871.77,
+    "right": 6125324.89,
+    "example": {
+     "key": "MANDT+VBELN",
+     "id": "100 + 0000010011",
+     "amount": 22147.34,
+     "lines": 5,
+     "repeated": 110736.7
+    }
+   },
+   "gold_views": {
+    "flagged": [
+     "sap_sd.gold_revenue_by_customer_wrong"
+    ],
+    "not_flagged": [
+     "sap_sd.gold_revenue_by_customer"
+    ]
+   },
+   "check": {
+    "headline": "Enough to start",
+    "findings": [
+     [
+      "warning",
+      "amount_level",
+      "VBAK.NETWR would be summed once per VBAP row"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "VBAK.NETWR would be summed once per ZSD_ORDER_EXT row"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "VBAP.NETWR would be summed once per LIPS row"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "VBAP.NETWR would be summed once per VBRP row"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "VBRK.NETWR would be summed once per VBRP row"
+     ],
+     [
+      "warning",
+      "relationship",
+      "VBAP.MANDT+VBELN → VBAK: 3 orphan(s)"
+     ],
+     [
+      "warning",
+      "relationship",
+      "ZSD_ORDER_EXT.MANDT+VBELN → LIKP: 301 orphan(s)"
+     ],
+     [
+      "warning",
+      "relationship",
+      "ZSD_ORDER_EXT.MANDT+VBELN → VBAK: 1 orphan(s)"
+     ],
+     [
+      "warning",
+      "relationship",
+      "ZSD_ORDER_EXT.MANDT+VBELN → VBRK: 301 orphan(s)"
+     ]
+    ],
+    "suggestions": [
+     "ZSD_KAM_ASSIGN has no key; ZZ_KUNDE_NR is unique in the data",
+     "ZSD_ORDER_EXT has no key; VBELN is unique in the data"
+    ]
+   },
+   "links": [
+    [
+     "VBAP",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "VBAK",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBAK",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "KNA1",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBAP",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "MAKT",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "LIPS",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "LIKP",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "SAP pack"
+    ],
+    [
+     "LIPS",
+     [
+      "MANDT",
+      "VGBEL",
+      "VGPOS"
+     ],
+     "VBAP",
+     [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "LIPS",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "LIKP",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "KNA1",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "LIKP",
+     [
+      "MANDT",
+      "KUNAG"
+     ],
+     "KNA1",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRP",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "VBRK",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRP",
+     [
+      "MANDT",
+      "AUBEL",
+      "AUPOS"
+     ],
+     "VBAP",
+     [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRP",
+     [
+      "MANDT",
+      "VGBEL",
+      "VGPOS"
+     ],
+     "LIPS",
+     [
+      "MANDT",
+      "VBELN",
+      "POSNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRP",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRK",
+     [
+      "MANDT",
+      "KUNAG"
+     ],
+     "KNA1",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRK",
+     [
+      "MANDT",
+      "KUNRG"
+     ],
+     "KNA1",
+     [
+      "MANDT",
+      "KUNNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "VBRK",
+     [
+      "MANDT",
+      "BUKRS"
+     ],
+     "T001",
+     [
+      "MANDT",
+      "BUKRS"
+     ],
+     "SAP pack"
+    ],
+    [
+     "ZSD_ORDER_EXT",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "VBAK",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "R3"
+    ],
+    [
+     "ZSD_ORDER_EXT",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "LIKP",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "R3"
+    ],
+    [
+     "ZSD_ORDER_EXT",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "VBRK",
+     [
+      "MANDT",
+      "VBELN"
+     ],
+     "R3"
+    ]
+   ]
+  }
+ },
+ "sap_mm": {
+  "planted": {
+   "orphan_items": {
+    "table": "EKPO",
+    "missing_orders": [
+     "4500099901"
+    ]
+   },
+   "late_goods_receipts": {
+    "every": 11,
+    "compare": "EKBE.CPUDT (VGABE '1') after ZMM_PO_CONF.ZZ_CONF_DATE"
+   }
+  },
+  "engine": {
+   "keys": {
+    "T001": {
+     "columns": [
+      "MANDT",
+      "BUKRS"
+     ],
+     "rule": "SAP pack"
+    },
+    "LFA1": {
+     "columns": [
+      "MANDT",
+      "LIFNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "MARA": {
+     "columns": [
+      "MANDT",
+      "MATNR"
+     ],
+     "rule": "SAP pack"
+    },
+    "MAKT": {
+     "columns": [
+      "MANDT",
+      "MATNR",
+      "SPRAS"
+     ],
+     "rule": "SAP pack"
+    },
+    "EKKO": {
+     "columns": [
+      "MANDT",
+      "EBELN"
+     ],
+     "rule": "SAP pack"
+    },
+    "EKPO": {
+     "columns": [
+      "MANDT",
+      "EBELN",
+      "EBELP"
+     ],
+     "rule": "SAP pack"
+    },
+    "EKBE": {
+     "columns": [
+      "MANDT",
+      "EBELN",
+      "EBELP",
+      "ZEKKN",
+      "VGABE",
+      "GJAHR",
+      "BELNR",
+      "BUZEI"
+     ],
+     "rule": "SAP pack"
+    }
+   },
+   "keyless": [
+    "ZMM_PO_CONF"
+   ],
+   "summary": "7 of 7 keys unique, 7 of 8 relationships hold without orphans",
+   "orphans": [
+    {
+     "source": "EKPO",
+     "columns": [
+      "MANDT",
+      "EBELN"
+     ],
+     "target": "EKKO",
+     "orphans": 1
+    }
+   ],
+   "amount_levels": [
+    [
+     "EKPO",
+     "EKBE"
+    ],
+    [
+     "EKPO",
+     "ZMM_PO_CONF"
+    ]
+   ],
+   "r5": [],
+   "r5_proposed": [],
+   "pack_tables": [
+    "EKBE",
+    "EKKO",
+    "EKPO",
+    "LFA1",
+    "MAKT",
+    "MARA",
+    "T001"
+   ],
+   "late": {
+    "received_items": 600,
+    "late_items": 54,
+    "on_time_percent": 91.0
+   },
+   "check": {
+    "headline": "Enough to start",
+    "findings": [
+     [
+      "info",
+      "keyless",
+      "ZMM_PO_CONF has no key"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "EKPO.NETWR would be summed once per EKBE row"
+     ],
+     [
+      "warning",
+      "amount_level",
+      "EKPO.NETWR would be summed once per ZMM_PO_CONF row"
+     ],
+     [
+      "warning",
+      "relationship",
+      "EKPO.MANDT+EBELN → EKKO: 1 orphan(s)"
+     ]
+    ],
+    "suggestions": []
+   },
+   "links": [
+    [
+     "MAKT",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "EKKO",
+     [
+      "MANDT",
+      "LIFNR"
+     ],
+     "LFA1",
+     [
+      "MANDT",
+      "LIFNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "EKKO",
+     [
+      "MANDT",
+      "BUKRS"
+     ],
+     "T001",
+     [
+      "MANDT",
+      "BUKRS"
+     ],
+     "SAP pack"
+    ],
+    [
+     "EKPO",
+     [
+      "MANDT",
+      "EBELN"
+     ],
+     "EKKO",
+     [
+      "MANDT",
+      "EBELN"
+     ],
+     "SAP pack"
+    ],
+    [
+     "EKPO",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "MARA",
+     [
+      "MANDT",
+      "MATNR"
+     ],
+     "SAP pack"
+    ],
+    [
+     "EKBE",
+     [
+      "MANDT",
+      "EBELN",
+      "EBELP"
+     ],
+     "EKPO",
+     [
+      "MANDT",
+      "EBELN",
+      "EBELP"
+     ],
+     "SAP pack"
+    ],
+    [
+     "ZMM_PO_CONF",
+     [
+      "MANDT",
+      "EBELN"
+     ],
+     "EKKO",
+     [
+      "MANDT",
+      "EBELN"
+     ],
+     "R3"
+    ],
+    [
+     "ZMM_PO_CONF",
+     [
+      "MANDT",
+      "EBELN",
+      "EBELP"
+     ],
+     "EKPO",
+     [
+      "MANDT",
+      "EBELN",
+      "EBELP"
+     ],
+     "R3"
+    ]
+   ]
+  }
+ }
+}

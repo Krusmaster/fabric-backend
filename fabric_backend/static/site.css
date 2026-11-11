@@ -991,6 +991,7 @@ a.hub-go:focus-visible{border-radius:999px;outline-offset:4px}
 @media (min-width:1000px){.check-examples{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .check-ex-h{grid-column:1/-1;margin:0;font-weight:700}
 .check-ex-wide{grid-column:1/-1}                /* n192: the fifth example, the manufacturing sample, on a row of its own */
+@media (min-width:1000px){.check-ex-wide{grid-column:span 2}}   /* n202: on a wide screen the mill shares its row with the two SAP-shaped samples */
 .check-ex{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;font:inherit;color:var(--ink);border:1px solid transparent;border-radius:var(--radius-s);padding:14px 16px;cursor:pointer;transition:transform .15s ease}
 .check-ex strong{font:600 18px/1.25 var(--font-head)}
 .check-ex span{font-size:14.5px}

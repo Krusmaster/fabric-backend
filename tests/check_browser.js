@@ -202,7 +202,7 @@ const { chromium } = require("playwright");
     out.billing[w].ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
     out.billing[w].overflowAfter = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth);
   }
-  // n192: the fifth example, the manufacturing sample (fabric_backend/mill.py), on a row of its own at 375 and 1280 px;
+  // n192: the fifth example, the manufacturing sample (fabric_backend/mill.py), on a row of its own at 375 px and beside the two SAP-shaped samples at 1280 (n202);
   // it loads and runs to the end at 1280
   out.mill = {};
   for (const w of [375, 1280]) {
@@ -211,7 +211,8 @@ const { chromium } = require("playwright");
     out.mill[w] = await page.evaluate(() => {
       const box = document.querySelector(".check-examples").getBoundingClientRect(), m = document.getElementById("check-mill");
       const r = m ? m.getBoundingClientRect() : { width: 0, left: -1, right: 1e9 };
-      return { label: m ? m.textContent : "", full: Math.abs(r.width - box.width) < 2, inside: r.width > 0 && r.left >= 0 && r.right <= innerWidth,
+      const sd = document.getElementById("check-sap_sd"), sr = sd ? sd.getBoundingClientRect() : { top: -1 };
+      return { label: m ? m.textContent : "", full: Math.abs(r.width - box.width) < 2, half: Math.abs(r.width - (box.width - 8) / 2) < 2, withSap: Math.abs(sr.top - r.top) < 2, inside: r.width > 0 && r.left >= 0 && r.right <= innerWidth,
                overflow: document.documentElement.scrollWidth > innerWidth };
     });
   }
@@ -220,6 +221,21 @@ const { chromium } = require("playwright");
   out.mill.status = await page.textContent("#check-status");
   out.mill.text = await page.textContent("#check-run");
   out.mill.ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
+  // n202: the SAP-shaped sample (synthetic), order to invoice, beside the shop and the mill; it loads and runs to the end
+  out.sap_sd = {};
+  for (const w of [375, 1280]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.goto(base + "/check");
+    out.sap_sd[w] = await page.evaluate(() => {
+      const m = document.getElementById("check-sap_sd"), r = m ? m.getBoundingClientRect() : { width: 0, left: -1, right: 1e9 };
+      return { label: m ? m.textContent : "", inside: r.width > 0 && r.left >= 0 && r.right <= innerWidth, overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+  }
+  await page.click("#check-sap_sd");
+  await until(() => document.documentElement.dataset.check === "done" && !!document.documentElement.dataset.checkMs);
+  out.sap_sd.status = await page.textContent("#check-status");
+  out.sap_sd.text = await page.textContent("#check-run");
+  out.sap_sd.ms = Number(await page.evaluate(() => document.documentElement.dataset.checkMs));
   await page.setViewportSize({ width: 1280, height: 720 });
   // plain /check starts nothing by itself
   await page.goto(base + "/check");

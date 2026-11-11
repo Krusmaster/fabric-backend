@@ -1260,7 +1260,7 @@ def test_the_old_demo_addresses_redirect_to_check(client):
     buttons = re.findall(r'<a class="btn [^"]*" href="/check\?example=sample&amp;guide=1">Try the guided demo</a>', home)
     assert len(buttons) == 1 and home.index('id="example"') < home.index(buttons[0])
     js = client.get("/static/check.js").text
-    assert 'guided = query.get("guide") === "1"' in js and '["sample", "sap", "crm", "billing", "mill"].includes(query.get("example"))' in js   # n192: mill
+    assert 'guided = query.get("guide") === "1"' in js and '["sample", "sap", "crm", "billing", "mill", "sap_sd", "sap_mm"].includes(query.get("example"))' in js   # n192: mill, n202: SAP-shaped
     for step in ("How the tables connect", "Here the total doubles", "A suggestion to decide on", "On to Power BI or an app"):
         assert step in js, step
     check = client.get("/check").text

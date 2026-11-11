@@ -9,6 +9,20 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n202: **a synthetic, SAP-shaped sample for demos, /check and films, with customer-specific Z tables**. New
+  `fabric_backend/sap_sample.py`: `sap_sd` (order to invoice: `T001`, `KNA1`, `MARA`, `MAKT`, `VBAK`, `VBAP`, `LIKP`,
+  `LIPS`, `VBRK`, `VBRP`) and `sap_mm` (purchase to pay: `T001`, `LFA1`, `MARA`, `MAKT`, `EKKO`, `EKPO`, `EKBE`), from a
+  seed, a few hundred rows per table, two years of dates, every standard table and column a name the SAP pack already has
+  (no `MATDOC`: the pack does not describe it; `MAKT` has its key only). Invented Z tables: `ZSD_ORDER_EXT` (MANDT +
+  VBELN, one planted orphan), `ZSD_KAM_ASSIGN` (custom names only, `ZZ_KUNDE_NR`), `ZMM_PO_CONF` (confirmed dates for the
+  late-delivery KPI). Planted: `VBAK.NETWR` over `VBAP` (the doubled total, with a wrong and a right gold view that
+  `sql_sums` tells apart), orphan items, late goods receipts. Measured on Z tables: no key by name (K3); links through the
+  standard key fields by R3, the rows confirming `ZSD_ORDER_EXT` -> `VBAK` and `ZMM_PO_CONF` -> `EKKO`/`EKPO` and
+  rejecting `ZSD_ORDER_EXT` -> `LIKP`/`VBRK`; nothing found by the row checks alone (R5 and suggest_relationships look
+  at single-column keys, SAP keys start with `MANDT`); `ZZ_KUNDE_NR` -> `KNA1` not found. `seed(spark, sap=True)` writes
+  both (default off); /check offers "SAP-shaped sample (synthetic)"; `docs/SAMPLE-SAP.md` (tables and pack sources,
+  findings, film scripts with the engine's numbers); `/docs` answers "Does Krusgraph work on customised SAP tables (Z
+  tables)?"; `tests/test_sap_sample.py`. Synthetic, SAP-shaped, not SAP data. Redeploy for /check and /docs.
 - Round n213: **a 30-day trial per organisation, then a Microsoft Marketplace subscription**, off until
   `KRUSGRAPH_TRIAL=1` (`docs/BILLING-MODEL.md`). The first authenticated call from an Entra tenant on the hosted MCP
   server or the Fabric workload starts its trial (one row in the subscriptions' table, no names or e-mail); after 30 days
