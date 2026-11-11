@@ -80,9 +80,64 @@ def _failed(answer: dict) -> int:
     return sum(int((v or {}).get("failed") or 0) for v in t.values() if isinstance(v, dict))
 
 
+# n220 (d): an error or a refusal ends with 1 to 3 next steps too. A step may also be a dry run of a creating tool (it
+# writes nothing; Create stays behind its own card), a link (ui/open-link), or a sentence sent to the chat.
+DRY_RUN_TOOLS = ("create_report", "create_pipeline", "create_semantic_model", "create_ontology", "create_backend")
+ERROR_MAX = 3
+
+
+def _say_step(label: str, say: str) -> dict:
+    return {"label": label, "say": str(say)[:600]}
+
+
+def _from_answer(s: dict, call: dict) -> dict | None:
+    """One of the answer's own next_steps ({label, tool, args, ask, url}) in the card's form, or None."""
+    if not isinstance(s, dict) or not isinstance(s.get("label"), str) or not s["label"].strip():
+        return None
+    label = s["label"].strip()
+    url = s.get("url")
+    if isinstance(url, str) and url.startswith("https://"):
+        return {"label": label, "url": url, "say": f"{label}: {url}"}
+    t = s.get("tool")
+    if t in STEP_TOOLS or t in DRY_RUN_TOOLS:
+        arguments = dict(s.get("args") or {k: v for k, v in call.items() if k not in ("confirm_jobs",)})
+        if t in DRY_RUN_TOOLS:
+            arguments["dry_run"] = True                              # a step never writes
+        return {"label": label, "tool": t, "arguments": arguments,
+                "say": str(s.get("ask") or f"{label}: run {t} as a dry run.")}
+    if isinstance(s.get("ask"), str) and s["ask"].strip():
+        return _say_step(label, s["ask"])
+    return None
+
+
+def error_steps(tool: str, args: dict, answer: dict) -> list[dict]:
+    """1 to 3 next steps for an error or a refusal: the answer's own next_steps first, then what fits its kind."""
+    call = {k: v for k, v in (args or {}).items() if k != "ctx"}
+    out = [x for x in (_from_answer(s, call) for s in answer.get("next_steps") or []) if x]
+    err = str(answer.get("error") or "")[:200]
+    kind = answer.get("kind")
+    if not out and kind == "consent":
+        scope = answer.get("scope") or "the permission"
+        out.append(_say_step("What the admin must add", f"Which Entra steps give Krusgraph {scope}? The error was: {err}"))
+    if not out and (tool in STEP_TOOLS or tool in DRY_RUN_TOOLS) and kind in ("timeout", "source_not_ready", "rate_limited",
+                                                                                "fabric_error", None):
+        again = dict(call)
+        if tool in DRY_RUN_TOOLS:
+            again["dry_run"] = True
+        out.append({"label": "Try again", "tool": tool, "arguments": again,
+                    "say": f"Try again: run {tool}" + (" as a dry run." if tool in DRY_RUN_TOOLS else ".")})
+    if len(out) < ERROR_MAX:
+        out.append(_say_step("Explain this and what to do", f"Explain Krusgraph's answer from {tool} and what I can do "
+                                                            f"next: {err}"))
+    return out[:ERROR_MAX]
+
+
 def steps(tool: str, args: dict, answer: dict) -> list[dict]:
-    """The card's next steps for one answer (2 to 4, or none for an error or a question back to the user)."""
-    if not isinstance(answer, dict) or answer.get("error") or answer.get("choose_schema") or answer.get("ask"):
+    """The card's next steps for one answer (2 to 4; 1 to 3 for an error or a refusal, n220; none for a question back
+    to the user)."""
+    if isinstance(answer, dict) and answer.get("error"):
+        return error_steps(tool, args, answer)
+    if not isinstance(answer, dict) or answer.get("choose_schema") or answer.get("ask"):
         return []
     args = {k: v for k, v in (args or {}).items() if k != "ctx"}
     if "workspace" not in args or "source" not in args:
@@ -138,7 +193,9 @@ def lead(tool: str, answer: dict, next_steps: list[dict], actions: list | None =
     """The result first, in a few short lines, then the next steps as a list naming the tool each runs."""
     lines = _first_lines(tool, answer) if isinstance(answer, dict) else []
     out = [" ".join(lines)[:600]] if lines else []
-    todo = [f"- {s['label']} ({s['tool']})" for s in next_steps]
+    todo = [f"- {s['label']} ({s['tool']}{', dry run' if s['tool'] in DRY_RUN_TOOLS else ''})" if s.get("tool") else
+            f"- {s['label']}: {s['url']}" if s.get("url") else f"- {s['label']}: ask \u201c{s['say']}\u201d"
+            for s in next_steps]
     for a in actions or []:
         if isinstance(a, dict) and a.get("kind") in ("dry_run", "create", "call") and a.get("tool"):
             text = f"- {a['label']}{(' ' + a['name']) if a.get('name') and a['kind'] != 'call' else ''} ({a['tool']}"
@@ -268,11 +325,17 @@ NEXT_JS = r"""
       if (button) button.disabled = false;
     });
   }
-  var NEXT_TOOLS = __NEXT_TOOLS__;
+  var NEXT_TOOLS = __NEXT_TOOLS__, DRY_TOOLS = __DRY_TOOLS__, LINKS = __LINKS__;
   function okStep(s) {
-    return isObj(s) && typeof s.label === "string" && typeof s.say === "string" && isObj(s.arguments) &&
-           NEXT_TOOLS.indexOf(s.tool) >= 0 && s.arguments.dry_run !== false;
+    if (!isObj(s) || typeof s.label !== "string" || typeof s.say !== "string") return false;
+    if (s.tool === undefined && s.arguments === undefined) {                 // n220: a link, or a sentence for the chat
+      return s.url === undefined || (LINKS && typeof s.url === "string" && /^https:[/][/]/.test(s.url));
+    }
+    if (!isObj(s.arguments)) return false;
+    if (DRY_TOOLS.indexOf(s.tool) >= 0) return s.arguments.dry_run === true;  // a creating tool only as a dry run
+    return NEXT_TOOLS.indexOf(s.tool) >= 0 && s.arguments.dry_run !== false;
   }
+__OPEN_JS__
   function renderNext(data, box) {
     var list = (Array.isArray(data.next) ? data.next : []).filter(okStep).slice(0, 4);
     if (!list.length) return false;
@@ -281,10 +344,19 @@ NEXT_JS = r"""
     var row = el("div", null, "nx-row"), out = el("div", null, "nx-out");
     list.forEach(function (s) {
       var b = el("button", null, "nx-b"); b.type = "button";
-      b.appendChild(el("span", s.label)); b.appendChild(el("span", s.tool, "nx-tool"));
-      b.setAttribute("aria-label", s.label + " (runs " + s.tool + ")");
-      b.setAttribute("data-tool", s.tool);
-      b.addEventListener("click", function () { runOrSay(s.tool, JSON.parse(JSON.stringify(s.arguments)), s.say, out, b); });
+      b.appendChild(el("span", s.label));
+      if (typeof s.url === "string") {                                         // n220: a link
+        b.setAttribute("aria-label", s.label + " (opens a link)");
+        b.addEventListener("click", function () { openOrShow(s.url, out, b); });
+      } else if (!s.tool) {                                                    // n220: a sentence for the chat
+        b.setAttribute("aria-label", s.label + " (asks in the chat)");
+        b.addEventListener("click", function () { out.hidden = false; sayInChat(s.say, out, null); });
+      } else {
+        b.appendChild(el("span", s.tool, "nx-tool"));
+        b.setAttribute("aria-label", s.label + " (runs " + s.tool + (s.arguments.dry_run === true ? ", dry run)" : ")"));
+        b.setAttribute("data-tool", s.tool);
+        b.addEventListener("click", function () { runOrSay(s.tool, JSON.parse(JSON.stringify(s.arguments)), s.say, out, b); });
+      }
       row.appendChild(b);
     });
     wrap.appendChild(row); wrap.appendChild(out); box.appendChild(wrap);
@@ -342,6 +414,20 @@ NEXT_JS = r"""
 """
 
 
-def js() -> str:
+# n220: a link step opens with ui/open-link where the host offers it, else the address is shown. Left out of review_plan's
+# card (js(links=False)), which loads nothing, opens nothing and names no creating tool (tests/test_n124_review_card.py).
+OPEN_JS = r"""
+  function openOrShow(url, out, button) {
+    out.hidden = false;
+    var show = function () { out.textContent = "Open this address: " + url; };
+    if (!(isObj(hostCaps) && isObj(hostCaps.openLinks))) { show(); return; }
+    request("ui/open-link", { url: url }).then(function () { out.textContent = "Opened in your browser."; }, show);
+  }
+"""
+
+
+def js(links: bool = True) -> str:
     import json
-    return NEXT_JS.replace("__NEXT_TOOLS__", json.dumps(list(STEP_TOOLS)))
+    return (NEXT_JS.replace("__NEXT_TOOLS__", json.dumps(list(STEP_TOOLS)))
+            .replace("__DRY_TOOLS__", json.dumps(list(DRY_RUN_TOOLS) if links else []))
+            .replace("__LINKS__", "true" if links else "false").replace("__OPEN_JS__", OPEN_JS if links else ""))

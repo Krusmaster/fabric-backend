@@ -237,3 +237,56 @@ def test_a_name_taken_between_the_check_and_the_post_is_a_conflict_too(fabric, m
     fabric["post"] = post
     out = json.loads(server.create_report("Sales", "shop_model", "fresh", empty_page=True, dry_run=False))
     assert out["kind"] == "already_exists" and out["free_name"] == "fresh_2"
+
+
+# ------------------------------------------------------------------ d. every error or refusal ends with next steps ---
+from fabric_backend import mcp_apps, mcp_apps_build, mcp_apps_next as nxt, mcp_apps_review  # noqa: E402
+
+
+def test_a_refusal_for_want_of_the_permission_gets_the_portal_link_and_what_to_ask():
+    answer = {"error": "The run did not start", "kind": "consent", "scope": "DataPipeline.Execute.All",
+              **{k: v for k, v in J.consent("why", APP_ID, None, "https://app.fabric.microsoft.com/groups/w/pipelines/p").items()
+                 if k == "next_steps"}}
+    steps = nxt.steps("create_pipeline", {"workspace": "Sales", "source": "lh", "name": "pipeline_sap"}, answer)
+    assert 1 <= len(steps) <= 3
+    assert steps[0] == {"label": "Run it in the Fabric portal", "url": "https://app.fabric.microsoft.com/groups/w/pipelines/p",
+                        "say": "Run it in the Fabric portal: https://app.fabric.microsoft.com/groups/w/pipelines/p"}
+    assert all(isinstance(s["say"], str) and s["say"] for s in steps)
+
+
+def test_a_taken_report_name_becomes_a_dry_run_button_and_a_link(fabric, monkeypatch):  # noqa: F811
+    _with_items(monkeypatch, [{"id": "rp-2", "displayName": "demo_lh_report_2", "type": "Report"}])
+    args = {"workspace": "Sales", "model": "shop_model", "name": "demo_lh_report_2", "dry_run": False}
+    answer = json.loads(server.create_report(**args))
+    steps = nxt.steps("create_report", args, answer)
+    use = steps[0]
+    assert use["tool"] == "create_report" and use["arguments"]["name"] == "demo_lh_report_3"
+    assert use["arguments"]["dry_run"] is True                                    # a step never writes
+    assert steps[1]["label"] == "Open the existing report" and steps[1]["url"].startswith("https://")
+    lead = nxt.lead("create_report", answer, steps)
+    assert "Use demo_lh_report_3 (create_report, dry run)" in lead and "Open the existing report: https://" in lead
+
+
+def test_any_other_error_gets_one_to_three_steps():
+    for answer in ({"error": "Fabric timed out", "kind": "timeout"}, {"error": "odd", "kind": "bad_request"},
+                   {"error": "no", "kind": "consent", "scope": "Item.ReadWrite.All"}):
+        steps = nxt.steps("create_semantic_model", {"workspace": "Sales", "source": "lh", "name": "m", "dry_run": False}, answer)
+        assert 1 <= len(steps) <= 3, answer
+        assert all(s.get("arguments", {}).get("dry_run", True) is True for s in steps)   # never a write
+    retry = nxt.steps("create_semantic_model", {"workspace": "Sales", "name": "m", "dry_run": False},
+                      {"error": "Fabric timed out", "kind": "timeout"})
+    assert retry[0]["label"] == "Try again" and retry[-1]["label"] == "Explain this and what to do"
+
+
+def test_the_cards_draw_the_steps_of_an_error_too():
+    js = nxt.js()
+    assert "__DRY_TOOLS__" not in js and '"create_report"' in js and "ui/open-link" in js
+    for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), mcp_apps_build.card_html()):
+        assert "n220" in html and "renderNext" in html
+
+
+def test_a_taken_name_on_the_build_card_offers_the_next_free_name():
+    acts, note = mcp_apps_build.actions_for("create_semantic_model", {"workspace": "Sales", "source": "lh", "name": "shop_model"},
+                                            {"dry_run": True}, taken=["shop_model", "shop_model_2"])
+    assert acts and acts[0]["kind"] == "dry_run" and acts[0]["arguments"]["name"] == "shop_model_3"
+    assert acts[0]["arguments"]["dry_run"] is True and "nothing is overwritten" in note

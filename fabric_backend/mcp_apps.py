@@ -488,7 +488,8 @@ __READ_JS__
     mascotsQuiet();
     ["counts", "result", "attention", "next", "build", "nextsteps", "checks"].forEach(function (id) { document.getElementById(id).hidden = true; });
     if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
-    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
+    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : "");
+      var errBox = document.getElementById("nextsteps"); errBox.textContent = ""; errBox.hidden = !renderNext(data, errBox); return; }   // n220
     // n172: the card's words (mcp_apps_words.py): the summary as short sentences that Onto says once
     var words = isObj(data.kg_card) ? data.kg_card : {}, ontoSaid = readable(words.onto);
     var lines = Array.isArray(words.lines) ? words.lines.filter(readable) : [];

@@ -229,8 +229,17 @@ def actions_for(tool: str, args: dict, answer: dict, taken=None, workspace_id: s
             return [], unreadable
         name = args.get("name")
         if name and str(name).lower() in {str(t).lower() for t in taken}:
-            return [], (f"An item named {name!r} already exists in the workspace. Create is not offered on the card, so "
-                        "nothing is overwritten from here; choose another name, or ask in the chat to update it.")
+            from .report import next_free_name                       # n220: the next free name, checked, as a dry run
+            try:
+                alt = next_free_name(str(name), taken)
+            except ValueError:
+                alt = None
+            note = (f"An item named {name!r} already exists in the workspace. Create is not offered on the card, so "
+                    "nothing is overwritten from here; " + (f"use {alt} (free when checked just now), " if alt else "")
+                    + "choose another name, or ask in the chat to update it.")
+            if not alt:
+                return [], note
+            return [action("dry_run", f"Use {alt}", "builder", tool, {**args, "name": alt, "dry_run": True}, name=alt)], note
         return [action("create", "Create", "builder", tool, {**args, "dry_run": False}, name=name)], None
     if tool in BUILD_TOOLS and answer.get("dry_run") is False:
         result = answer.get("result") if isinstance(answer.get("result"), dict) else {}
@@ -559,7 +568,8 @@ __READ_JS__
     var answer = document.getElementById("answer"), next = document.getElementById("next");
     answer.textContent = ""; next.textContent = ""; mascotsQuiet();
     if (!d) { verdict.textContent = "The card could not read the answer; it is in the text of the tool result."; return; }
-    if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); mascots({ thinker: [d.error, "think"] }, false); return; }
+    if (readable(d.error)) { verdict.textContent = d.error + (readable(d.hint) ? " " + d.hint : ""); mascots({ thinker: [d.error, "think"] }, false);
+      renderNext(d, next); return; }                                // n220: an error ends with 1 to 3 next steps
     var t = tool || guessTool(d);
     // n172: the card's words (mcp_apps_words.py): a short title, the summary as sentences Onto says once, and bubbles
     // in plain English; the buttons carry the arguments.

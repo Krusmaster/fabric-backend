@@ -112,7 +112,9 @@ def test_only_the_dry_run_has_create_with_the_identical_arguments(fabric, tool):
 
 def test_a_dry_run_whose_name_is_taken_gets_no_create(fabric):
     dry = _call("create_semantic_model", **SRC, name="shop_model")
-    assert dry["dry_run"] is True and "actions" not in dry
+    assert dry["dry_run"] is True and not [a for a in dry.get("actions") or [] if a["kind"] == "create"]
+    [use] = dry["actions"]                                       # n220: the next free name, as a dry run only
+    assert use["kind"] == "dry_run" and use["arguments"]["dry_run"] is True and use["arguments"]["name"] != "shop_model"
     assert "already exists" in dry["actions_note"] and "nothing is overwritten" in dry["actions_note"]
 
 

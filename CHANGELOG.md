@@ -34,8 +34,11 @@ next deploy.
   run them, and the answer names the app, the permission, admin consent and reconnecting, with "Run it in the Fabric
   portal". `create_report` with a taken name offers the next free name (checked), the existing report, says whether
   Krusgraph made it on this model and whether the name was free at the dry run, and checks the name again right before
-  the create. Each of these answers ends with 1 to 3 next steps. `tests/test_n220_run_from_chat.py`. Redeploy; the
-  founder adds the permission in Entra (`docs/SCOPES.md`).
+  the create. Every error or refusal now ends with 1 to 3 next steps, on n218's cards too (`mcp_apps_next.error_steps`):
+  the answer's own steps first (a dry run under the free name, a link opened with `ui/open-link`, or a sentence sent to
+  the chat), else Try again and "Explain this and what to do"; a step never writes, and review_plan's card still opens no
+  link. The build card offers "Use <name>_N" as a dry run where the name is taken. `tests/test_n220_run_from_chat.py`.
+  Redeploy; the founder adds the permission in Entra (`docs/SCOPES.md`).
 - Round n202: **a synthetic, SAP-shaped sample for demos, /check and films, with customer-specific Z tables**. New
   `fabric_backend/sap_sample.py`: `sap_sd` (order to invoice: `T001`, `KNA1`, `MARA`, `MAKT`, `VBAK`, `VBAP`, `LIKP`,
   `LIPS`, `VBRK`, `VBRP`) and `sap_mm` (purchase to pay: `T001`, `LFA1`, `MARA`, `MAKT`, `EKKO`, `EKPO`, `EKBE`), from a
