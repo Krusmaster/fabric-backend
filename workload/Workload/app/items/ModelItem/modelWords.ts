@@ -88,6 +88,51 @@ export function checkText(item: ReviewItem): string {
   }
 }
 
+// ------------------------------------------------------------------ n209: links that hold in the rows ----------------
+// The founder's live test of 10 November 2026: two links the rows held (0 orphans) were rejected, and the semantic model,
+// the API and the ontology had 5 relationships instead of 7. A link that holds now says so next to Reject, and rejecting
+// it says plainly what the outputs lose. Only a counted check is shown: a link not checked yet says nothing here.
+
+/** The rows a passed link was counted on, when the check counted it with 0 orphans; undefined otherwise. */
+export function holdingRows(item: ReviewItem): number | undefined {
+  if (item.type !== "relationship" || checkState(item) !== "passed") return undefined;
+  const r = ((item.check ?? {}) as { result?: Record<string, number> }).result ?? {};
+  if (r.orphans !== 0 || typeof r.rows_with_value !== "number") return undefined;
+  return r.rows_with_value;
+}
+
+/** "This link holds in the rows: 0 of 9 rows point at nothing." for a link the check counted with 0 orphans. */
+export function holdsText(item: ReviewItem): string | undefined {
+  const n = holdingRows(item);
+  return n === undefined ? undefined : `This link holds in the rows: 0 of ${n} ${n === 1 ? "row points" : "rows point"} at nothing.`;
+}
+
+/** The links the outputs will have: every relationship that is not rejected (the build leaves rejected ones out). */
+export function keptLinks(review: ReviewFile | undefined): number {
+  return (review?.items ?? []).filter((it) => it.type === "relationship" && it.review !== "rejected").length;
+}
+
+/** Rejected links that hold in the rows. */
+export function rejectedHolding(review: ReviewFile | undefined): ReviewItem[] {
+  return (review?.items ?? []).filter((it) => it.review === "rejected" && holdingRows(it) !== undefined);
+}
+
+/** What rejecting a holding link costs, in plain words; undefined when no rejected link holds. */
+export function rejectedHoldingText(review: ReviewFile | undefined): string | undefined {
+  const lost = rejectedHolding(review).length;
+  if (!lost) return undefined;
+  const kept = keptLinks(review);
+  return `You rejected ${lost === 1 ? "a link that holds" : `${lost} links that hold`} in the rows. The semantic model, the API ` +
+    `and the ontology will have ${lost === 1 ? "one relationship" : `${lost} relationships`} fewer: ${plural(kept, "relationship")} ` +
+    `instead of ${kept + lost}. Accept ${lost === 1 ? "it" : "them"} to keep ${lost === 1 ? "it" : "them"}.`;
+}
+
+/** The same for one rejected row. */
+export function rejectedRowText(item: ReviewItem): string | undefined {
+  if (item.review !== "rejected" || holdingRows(item) === undefined) return undefined;
+  return "Rejected, though it holds in the rows: the semantic model, the API and the ontology will have one relationship fewer.";
+}
+
 // ------------------------------------------------------------------ Accept all ---------------------------------------
 
 /** Which items Accept all changes: every one still proposed or open; with onlyPassed, only those that passed the check.

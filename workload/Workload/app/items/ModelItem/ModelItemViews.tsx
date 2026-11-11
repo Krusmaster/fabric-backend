@@ -89,6 +89,9 @@ import {
   sayings,
   summaryLines,
   totalsOf,
+  holdsText,
+  rejectedHoldingText,
+  rejectedRowText,
 } from "./modelWords";
 
 export type MascotKind = "onto" | "thinker" | "builder";
@@ -269,6 +272,8 @@ function ReviewRow(props: { item: ReviewItem; onDecide: (id: string, status: Rev
   const { item } = props;
   const st = checkState(item);
   const pack = sapMark(props.sap, item.id);                      // n201: "from the SAP pack", with the pack's sources
+  const holds = holdsText(item);                                 // n209: a link the rows hold says so next to Reject
+  const lost = rejectedRowText(item);
   return (
     <li className={`krusgraph-row krusgraph-row-${item.review} krusgraph-check-${st}`} data-id={item.id} data-check={st}>
       <RulePill rule={item.rule} />
@@ -299,6 +304,10 @@ function ReviewRow(props: { item: ReviewItem; onDecide: (id: string, status: Rev
         aria-pressed={item.review === "rejected"} onClick={() => props.onDecide(item.id, "rejected")}>
         Reject
       </Button>
+      {holds && <Caption1 className="krusgraph-row-holds" data-holds="true">{holds}</Caption1>}
+      {lost && (
+        <MessageBar intent="warning" className="krusgraph-row-lost"><MessageBarBody>{lost}</MessageBarBody></MessageBar>
+      )}
     </li>
   );
 }
@@ -414,6 +423,11 @@ export function ReviewView(props: {
         <Tab value="map">Map</Tab>
         <Tab value="list">List</Tab>
       </TabList>
+      {rejectedHoldingText(props.review) && (
+        <MessageBar intent="warning" data-lost="relationships">
+          <MessageBarBody>{rejectedHoldingText(props.review)}</MessageBarBody>
+        </MessageBar>
+      )}
       {tab === "map" ? (
         <PlanMap map={props.map} review={props.review} />
       ) : (

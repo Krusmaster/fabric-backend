@@ -35,6 +35,18 @@
   border-bottom: 1px solid var(--colorNeutralStroke2);
 }
 
+/* n209: a link the rows hold says so under its Accept and Reject; rejecting it says what the outputs lose */
+.krusgraph-row-holds,
+.krusgraph-row-lost {
+  grid-column: 2 / -1;
+}
+
+.krusgraph-row-holds {
+  color: var(--colorPaletteGreenForeground1);
+  justify-self: end;
+  text-align: end;
+}
+
 .krusgraph-row-open {
   background: var(--colorPaletteYellowBackground1);
 }
