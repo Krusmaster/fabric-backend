@@ -34,9 +34,9 @@ import { CheckmarkCircle20Filled, CheckmarkStarburst24Regular, ErrorCircle20Fill
 import { ItemEditorEmptyView } from "../../components/ItemEditor";
 import { AppChoices, BuildCard, DataProduct, EngineError, JobsCard, ManyAnswer, SchemasAnswer } from "./engineClient";
 import {
-  AppApi, AppDesign, AppPreflight, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, chartTypes, designLines,
-  editHref, featureOff, isApp, movePage, nothingTicked, optionsOf, packageHref, pagesInOrder, preflightWords, setAccent, setChartType,
-  ticked, toggle,
+  AppApi, AppDesign, AppPackageRecord, AppPreflight, BUILT_APP_NOTE, BUILT_APP_UNKNOWN, CHART_TYPE_WORDS, EDIT_NOTE, EDIT_TITLE, GROUPS, PREVIEW_NOTE, apiLines, builtChoices,
+  builtWithoutPackage, chartTypes, choiceLines, designLines, editHref, featureOff, isApp, movePage, optionsOf, packageHref,
+  pagesInOrder, preflightWords, readAppRecord, setAccent, setChartType, tickWarning, ticked, toggle,
 } from "./appWords";
 import {
   CreatedItem,
@@ -576,11 +576,14 @@ export interface CardActions {
   /** n181: the App's ticks as stored in outputs.json, and how to change them */
   appChoices?: AppChoices;
   onAppChoices?: (choices: AppChoices) => void;
+  /** n209: the App's last package as outputs.json keeps it (appWords.readAppRecord), for an App already built */
+  appRecord?: AppPackageRecord;
 }
 
 /** n181: the App (Rayfin, preview): the preflight, the ticks, the pages, the read-only connector, the package. */
-export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoices?: (c: AppChoices) => void }) {
+export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoices?: (c: AppChoices) => void; record?: AppPackageRecord }) {
   const c = props.card;
+  if (builtWithoutPackage(c)) return <BuiltAppPanel saved={props.saved} record={props.record} />;   // n209
   const off = featureOff(c);
   if (off) {
     return (
@@ -656,7 +659,7 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
           </RadioGroup>
         </fieldset>
       )}
-      {nothingTicked(now) && <MessageBar intent="warning"><MessageBarBody>Tick at least one key figure, list page or chart.</MessageBarBody></MessageBar>}
+      {tickWarning(c, props.saved) && <MessageBar intent="warning"><MessageBarBody>{tickWarning(c, props.saved)}</MessageBarBody></MessageBar>}
       {changed && <Caption1>Your choices are saved in this item; choose Preview again to see the pages with them.</Caption1>}
       <Subtitle2>Pages</Subtitle2>
       <ul className="krusgraph-list">
@@ -712,6 +715,47 @@ export function AppPanel(props: { card: BuildCard; saved?: AppChoices; onAppChoi
           <Caption1> {EDIT_NOTE}</Caption1>
         </div>
       )}
+    </div>
+  );
+}
+
+/** n209 (the founder's test of 10 November 2026): an App already built, reopened. The engine skips it (nothing written,
+ * no package made again), so its card has no options: the choices it was built with, its pages, the package and the one
+ * command come from outputs.json, read-only. Never "Tick at least one ..." for it. */
+export function BuiltAppPanel(props: { saved?: AppChoices; record?: AppPackageRecord }) {
+  const r = props.record;
+  const chosen = builtChoices(props.saved, r);
+  const href = packageHref(r?.package);
+  if (!chosen) {
+    return <Caption1>{BUILT_APP_UNKNOWN}</Caption1>;
+  }
+  return (
+    <div aria-label="App (Rayfin, preview), built">
+      <Badge appearance="tint" color="warning">Preview</Badge> <Caption1>{PREVIEW_NOTE}</Caption1>
+      <Subtitle2>Built with these choices</Subtitle2>
+      <ul className="krusgraph-list" aria-label="Choices">
+        {choiceLines(chosen, r?.labels).map((l) => (
+          <li key={l}><Body1>{l}</Body1></li>
+        ))}
+      </ul>
+      {(r?.pages ?? []).length > 0 && (
+        <>
+          <Subtitle2>Pages</Subtitle2>
+          <ul className="krusgraph-list">
+            {(r?.pages ?? []).map((p) => (
+              <li key={p.id}><Body1>{p.title}: {p.shows.join(", ")}</Body1></li>
+            ))}
+          </ul>
+        </>
+      )}
+      {(href || r?.one_command) && <Subtitle2>{APP_STEPS_TITLE}</Subtitle2>}
+      {href && r?.package && (
+        <div className="krusgraph-actions">
+          <a href={href} download={r.package.filename}>Download the package ({r.package.filename})</a>
+        </div>
+      )}
+      {r?.one_command && <OneCommand oc={r.one_command} />}
+      <Caption1>{BUILT_APP_NOTE}</Caption1>
     </div>
   );
 }
@@ -850,7 +894,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
         </ul>
       )}
       <Problem card={c} />
-      {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} />}
+      {isApp(c) && <AppPanel card={c} saved={props.appChoices} onAppChoices={props.onAppChoices} record={props.appRecord} />}
       {c.output === "pipeline" && <JobsPanel card={c} />}
       {c.output === "data_agent" && <AgentPanel card={c} />}
       {refresh && (
@@ -1019,6 +1063,8 @@ export function PreviewView(props: {
   createLabel: string;
   appChoices?: AppChoices;
   onAppChoices?: (choices: AppChoices) => void;
+  /** n209: the App's last package (outputs.json) */
+  appRecord?: AppPackageRecord;
 }) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
@@ -1045,7 +1091,7 @@ export function PreviewView(props: {
       {a.product && <ProductView product={a.product} title="Data product (dry run)" />}
       {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
       {a.outputs.map((c) => (
-        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} />
+        <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord} />
       ))}
       {a.left_out_by_review.length > 0 && (
         <section>
@@ -1071,6 +1117,13 @@ export function PreviewView(props: {
 }
 
 // ------------------------------------------------------------------ 5. result ----------------------------------------
+
+/** n209: the saved ticks and the package record of the App this card is for (outputs.json), for the result view. */
+function appOf(outputs: OutputsDefinition, c: BuildCard): { appChoices?: AppChoices; appRecord?: AppPackageRecord } {
+  if (!isApp(c)) return {};
+  const ch = outputs.outputs.find((x) => x.type === "rayfin_app" && x.name === c.name);
+  return { appChoices: ch?.app, appRecord: readAppRecord(ch?.app_package, c.name) };
+}
 
 export function ResultView(props: {
   answer?: ManyAnswer;
@@ -1121,7 +1174,7 @@ export function ResultView(props: {
       {a ? (
         a.outputs.map((c) => (
           <OutputCard key={c.output} card={c} onOpen={props.onOpen} onUpdate={props.onUpdate} onNewName={props.onNewName} busy={props.busy}
-            onRetry={props.onRetry} />
+            onRetry={props.onRetry} {...appOf(props.outputs, c)} />
         ))
       ) : (
         <section>

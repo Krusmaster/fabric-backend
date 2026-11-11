@@ -116,10 +116,40 @@ export interface OutputChoice {
     kpis: string[]; tables: string[]; charts: string[]; filters?: string[];
     chart_types?: Record<string, "bar" | "line" | "table">; page_order?: string[]; accent?: string;
   };
+  /** n209: the App's last package (dry run or Create): the choices it was made with, its pages, the package and the
+   * one command (appWords.AppPackageRecord), so an App built earlier shows them on reopen; absent before n209 */
+  app_package?: AppPackageStored;
   /** n185: the pipeline's Run once and Schedule (both off unless ticked) */
   jobs?: { run_once: boolean; schedule: { every: "day" | "hours"; at: string; hours?: number; time_zone: string; start?: string } | null };
   /** n185: the data agent's layer and its Publish / Microsoft 365 Copilot ticks (both off unless ticked) */
   agent?: { layer: "silver" | "gold" | "source"; publish: boolean; copilot: boolean };
+}
+
+/** n209: as appWords.AppPackageRecord; read through appWords.readAppRecord, which checks its shape. */
+export interface AppPackageStored {
+  name: string;
+  at?: string;
+  dry_run?: boolean;
+  chosen: { kpis: string[]; tables: string[]; charts: string[]; filters?: string[]; chart_types?: Record<string, "bar" | "line" | "table">;
+    page_order?: string[]; accent?: string };
+  labels?: Record<string, string>;
+  pages?: { id: string; title: string; shows: string[] }[];
+  package?: { filename: string; zip_base64: string };
+  one_command?: { command: string; steps: string[]; why?: string };
+  commands?: { step: string; command: string }[];
+}
+
+/** n209: an App choice's ticks and package record, kept only when they have the shape the editor writes (an older or
+ * hand-edited outputs.json with something else reads as no choices: the defaults, as before). */
+export function cleanChoice(c: OutputChoice): OutputChoice {
+  const lists = (x: unknown): boolean => !!x && typeof x === "object"
+    && ["kpis", "tables", "charts"].every((k) => Array.isArray((x as Record<string, unknown>)[k]));
+  const { app, app_package, ...rest } = c;
+  return {
+    ...rest,
+    ...(app !== undefined && lists(app) ? { app } : {}),
+    ...(app_package && typeof app_package === "object" && typeof app_package.name === "string" && lists(app_package.chosen) ? { app_package } : {}),
+  };
 }
 
 /** n185: the runs Create started and the schedules it made, so a later cleanup can remove the schedule. */
@@ -267,7 +297,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
     source: def.source ? { ...def.source, version: DEFINITION_VERSION, schema: def.source.schema || "dbo" } : undefined,
     outputs: {
       version: DEFINITION_VERSION,
-      outputs: def.outputs?.outputs ?? [],
+      outputs: (def.outputs?.outputs ?? []).filter((c) => c && typeof c === "object").map(cleanChoice),   // n209
       created: def.outputs?.created ?? [],
       ...(def.outputs?.product && typeof def.outputs.product === "object" ? { product: def.outputs.product } : {}),
       ...(def.outputs?.last_create && typeof def.outputs.last_create === "object" ? { last_create: def.outputs.last_create } : {}),

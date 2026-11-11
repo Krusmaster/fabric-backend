@@ -60,7 +60,7 @@ import {
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
-import { withAppChoices } from "./appWords";
+import { readAppRecord, rememberApp, withAppChoices } from "./appWords";
 import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
@@ -358,6 +358,14 @@ export function ModelItemEditor(props: PageProps) {
     );
     if (!a) return;
     setPreview(a);
+    // n209: the App's choices, pages, package and one command, kept in outputs.json so an App built later shows them
+    const kept = rememberApp(choices, a.outputs, new Date().toISOString());
+    if (kept !== choices) {
+      setChoices(kept);
+      const d2 = { ...d, outputs: { ...d.outputs, outputs: kept } };
+      setDef(d2);
+      await save(d2);
+    }
     go("preview");
   }
 
@@ -429,8 +437,10 @@ export function ModelItemEditor(props: PageProps) {
     }
     const card = a.outputs[0];
     const made2 = a.created ?? card?.created ?? [];
+    const at = new Date().toISOString();
+    if (card) setChoices((cs) => rememberApp(cs, [card], at));   // n209: the App's package, kept with its choices
     await update((d) => {
-      const x = { ...d, outputs: { ...d.outputs, outputs: d.outputs.outputs.length ? d.outputs.outputs : choices,
+      const x = { ...d, outputs: { ...d.outputs, outputs: rememberApp(d.outputs.outputs.length ? d.outputs.outputs : choices, card ? [card] : [], at),
         created: mergeCreated(d.outputs.created, made2), ...(card ? { pending: settlePending(d.outputs.pending, card, made2) } : {}) } };
       return card?.output === "pipeline" && card.jobs?.run?.run_id ? withJobRecords(x, [card]) : x;   // the run, kept at once
     });
@@ -921,7 +931,8 @@ export function ModelItemEditor(props: PageProps) {
     {
       name: "preview",
       component: wrap(preview ? <PreviewView answer={preview} onCreate={() => { if (!creating) void create(); }} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
-        appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp} /> : null),
+        appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
+        appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },
     {
       name: "result",

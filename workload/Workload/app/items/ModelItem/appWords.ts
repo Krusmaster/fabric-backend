@@ -7,7 +7,7 @@
  * GraphQL API with every link, the package (zip) and the commands. The ticks are stored in outputs.json
  * (OutputChoice.app) and sent with the next dry run and Create.
  */
-import { OutputChoice } from "./ModelItemDefinition";
+import { AppPackageStored, OutputChoice } from "./ModelItemDefinition";
 import { AppChartType, AppChoices, BuildCard } from "./engineClient";
 
 export interface AppOption {
@@ -214,4 +214,82 @@ export function apiLines(api: AppApi | undefined): string[] {
 /** A data: URL for the package's zip (the engine sends it base64), to download from the card. */
 export function packageHref(pkg: { zip_base64: string } | undefined): string | undefined {
   return pkg?.zip_base64 ? `data:application/zip;base64,${pkg.zip_base64}` : undefined;
+}
+
+// ------------------------------------------------------------------ n209: the App's choices and package on reopen ----
+// The founder's test of 10 November 2026: an App built earlier, reopened, showed "Tick at least one key figure, list
+// page or chart." and no pages. A card for an App already built carries no options, no choices, no pages and no package
+// (the engine skips it: nothing is written, nothing is generated), and the ticks were taken from that card whenever
+// outputs.json had none (the person kept the defaults, so nothing was ever saved). Now the dry run and Create keep the
+// choices the package was made with, its pages, the package and the one command in outputs.json (OutputChoice.
+// app_package), and a card for an App already built shows those, read-only, never the warning.
+
+export type AppPackageRecord = AppPackageStored;
+
+export const BUILT_APP_NOTE = "To change the choices, choose a new name for the App and Preview again; an App is never updated in place.";
+export const BUILT_APP_UNKNOWN = "Built earlier; this item kept no record of the App's choices or package. Choose a new name and Preview "
+  + "to make a package again.";
+
+/** The record of a card that carries a package (a dry run or a Create of the App), else undefined. */
+export function appRecordOf(c: BuildCard, at: string): AppPackageRecord | undefined {
+  const a = c.answer as Record<string, any> | undefined;
+  if (!isApp(c) || !a || a.error || c.refusal || a.already_built || !a.chosen) return undefined;
+  const opts = a.options as AppOptions | undefined;
+  const labels: Record<string, string> = {};
+  for (const g of GROUPS) for (const o of opts?.[g.key] ?? []) labels[o.id] = o.label;
+  for (const p of opts?.pages ?? []) labels[p.id] = labels[p.id] ?? p.label;
+  return {
+    name: c.name, at, dry_run: !!c.dry_run, chosen: a.chosen as AppChoices, labels,
+    ...(Array.isArray(a.pages) ? { pages: a.pages.map((p: { id: string; title: string; shows?: string[] }) => ({ id: p.id, title: p.title, shows: p.shows ?? [] })) } : {}),
+    ...(a.package?.zip_base64 ? { package: { filename: String(a.package.filename), zip_base64: String(a.package.zip_base64) } } : {}),
+    ...(a.one_command?.command
+      ? { one_command: { command: String(a.one_command.command), steps: a.one_command.steps ?? [], ...(a.one_command.why ? { why: String(a.one_command.why) } : {}) } }
+      : {}),
+    ...(Array.isArray(a.commands) ? { commands: a.commands } : {}),
+  };
+}
+
+/** The output choices with the App's record from these cards. A Create that built the App also keeps the choices it was
+ * built with as the saved ticks (outputs[].app) when none were saved; a dry run leaves the ticks as they are. */
+export function rememberApp(choices: OutputChoice[], cards: BuildCard[], at: string): OutputChoice[] {
+  const card = cards.find(isApp);
+  const rec = card && appRecordOf(card, at);
+  if (!card || !rec) return choices;
+  const built = !card.dry_run && (card.created ?? []).length > 0;
+  return choices.map((c) => (c.type === "rayfin_app" && c.name === card.name
+    ? { ...c, app_package: rec, ...(built && !c.app ? { app: rec.chosen } : {}) } : c));
+}
+
+/** The record outputs.json keeps for an App of this name, when it has the shape the editor writes. */
+export function readAppRecord(x: unknown, name?: string): AppPackageRecord | undefined {
+  const r = x as AppPackageRecord | undefined;
+  const ok = !!r && typeof r === "object" && typeof r.name === "string" && !!r.chosen
+    && ["kpis", "tables", "charts"].every((k) => Array.isArray((r.chosen as unknown as Record<string, unknown>)[k]));
+  return ok && (name === undefined || r!.name === name) ? r : undefined;
+}
+
+/** A card for an App that is already in Fabric and was not generated again: the engine sent no options with it. */
+export function builtWithoutPackage(c: BuildCard): boolean {
+  const a = c.answer as Record<string, any> | undefined;
+  return isApp(c) && !a?.options && (!!c.already_built || !!a?.already_built || (!a && (c.created ?? []).length > 0));
+}
+
+export const NOTHING_TICKED = "Tick at least one key figure, list page or chart.";
+
+/** The warning under the ticks: only on a card with options to tick (a dry run), never on an App already built. */
+export function tickWarning(c: BuildCard, saved?: AppChoices): string | undefined {
+  if (builtWithoutPackage(c) || !optionsOf(c)) return undefined;
+  return nothingTicked(ticked(c, saved)) ? NOTHING_TICKED : undefined;
+}
+
+/** The ticks a card for an App already built shows: the saved ones, else those its package was made with. */
+export function builtChoices(saved: AppChoices | undefined, rec: AppPackageRecord | undefined): AppChoices | undefined {
+  return saved ?? rec?.chosen;
+}
+
+/** The App's choices in plain lines (the labels the dry run gave, else the ids). */
+export function choiceLines(chosen: AppChoices, labels: Record<string, string> = {}): string[] {
+  const name = (id: string): string => labels[id] ?? id;
+  return GROUPS.filter((g) => g.key !== "filters" || chosen.filters)
+    .map((g) => `${g.title}: ${(chosen[g.key] ?? []).map(name).join(", ") || "none"}`);
 }

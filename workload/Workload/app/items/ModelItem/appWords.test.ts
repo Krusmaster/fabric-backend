@@ -4,6 +4,7 @@ import { OutputChoice } from "./ModelItemDefinition";
 import {
   AppOptions, EDIT_TITLE, apiLines, chartTypes, designLines, editHref, featureOff, movePage, nothingTicked, packageHref, pagesInOrder,
   preflightWords, setAccent, setChartType, ticked, toggle, withAppChoices,
+  NOTHING_TICKED, builtChoices, builtWithoutPackage, choiceLines, readAppRecord, rememberApp, tickWarning,
 } from "./appWords";
 import { toRequests } from "./buildWords";
 
@@ -107,5 +108,63 @@ describe("n189: more choices without AI, and Change the app yourself", () => {
     expect(href?.startsWith("data:text/markdown;charset=utf-8,")).toBe(true);
     expect(decodeURIComponent(href!.split(",")[1])).toContain("npx rayfin up");
     expect(editHref(undefined)).toBeUndefined();
+  });
+});
+
+describe("n209: an App built earlier, reopened, keeps its choices and its package link", () => {
+  const options = {
+    kpis: [{ id: "rows:orders", label: "Rows in orders", default: true, why: "" }],
+    tables: [{ id: "table:orders", label: "orders", default: true, why: "" }],
+    charts: [{ id: "chart:cat", label: "Total quantity by category", default: true, why: "" }],
+    pages: [{ id: "overview", label: "Overview (key figures and charts)" }],
+  };
+  const chosen = { kpis: ["rows:orders"], tables: ["table:orders"], charts: ["chart:cat"] };
+  const created = [{ type: "AppBackend", id: "app-1", name: "shop_app", workspace: "ws-1", output: "rayfin_app" }];
+  const full = {
+    dry_run: false, options, chosen, pages: [{ id: "overview", title: "Overview", shows: ["Rows in orders"] }],
+    package: { filename: "shop_app_rayfin_app.zip", zip_base64: "UEs=" },
+    one_command: { command: "bash publish.sh shop_app_rayfin_app.zip", steps: ["Download the package below."], why: "no API" },
+    commands: [{ step: "Publish", command: "npx rayfin up" }],
+  };
+  // what the engine sends for an App already in the workspace: no options, no choices, no pages, no package
+  const skipped = card({ dry_run: true, already_built: true, note: "Already built from this plan by an earlier Create; Create skips it." },
+    { already_built: true, created });
+
+  it("Create keeps the choices it built with and the package in outputs.json (the person kept the defaults)", () => {
+    const choices: OutputChoice[] = [{ type: "rayfin_app", name: "shop_app", enabled: true }];
+    const kept = rememberApp(choices, [card(full, { dry_run: false, created })], "2026-11-10T09:00:00Z");
+    expect(kept[0].app).toEqual(chosen);
+    expect(kept[0].app_package).toMatchObject({ name: "shop_app", chosen, package: full.package, one_command: full.one_command });
+    expect(kept[0].app_package?.labels?.["rows:orders"]).toBe("Rows in orders");
+    expect(toRequests(kept)).toEqual([{ kind: "rayfin_app", name: "shop_app", app: chosen }]);   // outputs[].app in the request
+    // a dry run keeps the record but leaves the ticks to the person; an already-built card changes nothing
+    const dry = rememberApp(choices, [card(full)], "2026-11-10T08:00:00Z");
+    expect(dry[0].app).toBeUndefined();
+    expect(dry[0].app_package?.package?.filename).toBe("shop_app_rayfin_app.zip");
+    expect(rememberApp(kept, [skipped], "2026-11-11T08:00:00Z")).toBe(kept);
+  });
+
+  it("the reopened card shows the saved choices and the package, never the warning", () => {
+    const rec = rememberApp([{ type: "rayfin_app", name: "shop_app", enabled: true }], [card(full, { dry_run: false, created })], "t")[0];
+    const reopened = readAppRecord(JSON.parse(JSON.stringify(rec.app_package)), "shop_app");
+    expect(builtWithoutPackage(skipped)).toBe(true);
+    expect(tickWarning(skipped)).toBeUndefined();
+    expect(tickWarning(skipped, rec.app)).toBeUndefined();
+    expect(builtChoices(undefined, reopened)).toEqual(chosen);
+    expect(choiceLines(builtChoices(rec.app, reopened)!, reopened?.labels)).toEqual([
+      "Key figures: Rows in orders", "List pages: orders", "Charts: Total quantity by category",
+    ]);
+    expect(packageHref(reopened?.package)).toBe("data:application/zip;base64,UEs=");
+    expect(reopened?.one_command?.command).toBe("bash publish.sh shop_app_rayfin_app.zip");
+    expect(reopened?.pages?.[0].title).toBe("Overview");
+    // the result view's card of the reopened item (no answer, only its ids) is a built App too
+    expect(builtWithoutPackage(card(undefined as unknown as Record<string, any>, { answer: undefined, created }))).toBe(true);
+    expect(readAppRecord(rec.app_package, "another_app")).toBeUndefined();         // a new name: its own dry run
+  });
+
+  it("a dry run with options still warns when nothing is ticked", () => {
+    expect(tickWarning(card({ options, chosen }), { kpis: [], tables: [], charts: [] })).toBe(NOTHING_TICKED);
+    expect(tickWarning(card({ options, chosen }))).toBeUndefined();
+    expect(builtWithoutPackage(card({ options, chosen }))).toBe(false);
   });
 });

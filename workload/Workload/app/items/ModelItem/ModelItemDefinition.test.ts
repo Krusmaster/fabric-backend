@@ -154,3 +154,34 @@ group("review list", () => {
     expect(defaultApiName("")).toBe("model_api");
   });
 });
+
+group("n209: an App built earlier keeps its choices and its package", () => {
+  const chosen = { kpis: ["rows:orders"], tables: ["table:orders"], charts: ["chart:cat"], accent: "teal" };
+  const record = {
+    name: "shop_lh_app", at: "2026-11-10T09:00:00Z", dry_run: false, chosen, labels: { "rows:orders": "Rows in orders" },
+    pages: [{ id: "overview", title: "Overview", shows: ["Rows in orders"] }],
+    package: { filename: "shop_lh_app_rayfin_app.zip", zip_base64: "UEs=" },
+    one_command: { command: "bash publish.sh shop_lh_app_rayfin_app.zip", steps: ["Download the package below."] },
+  };
+  const built: ModelDefinition = {
+    ...FULL,
+    outputs: { version: 1, created: [{ type: "AppBackend", id: "app-1", name: "shop_lh_app", workspace: "ws-1", output: "rayfin_app" }],
+      outputs: [{ type: "rayfin_app", name: "shop_lh_app", enabled: true, app: chosen, app_package: record }] },
+  };
+
+  it("reopens with the ticks and the package record as they were saved", () => {
+    const back = fromParts(toParts(built));
+    expect(back.outputs.outputs[0].app).toEqual(chosen);
+    expect(back.outputs.outputs[0].app_package).toEqual(record);
+    expect(back).toEqual(built);
+  });
+
+  it("reads an outputs.json from before n209 (no record) as before, and drops a record or ticks of another shape", () => {
+    const old = { ...built, outputs: { ...built.outputs, outputs: [{ type: "rayfin_app", name: "shop_lh_app", enabled: true }] } };
+    expect(fromParts(toParts(old)).outputs.outputs[0]).toEqual({ type: "rayfin_app", name: "shop_lh_app", enabled: true });
+    const odd = toParts(built).map((p) => (p.path === PARTS.outputs
+      ? part(PARTS.outputs, { ...built.outputs, outputs: [{ type: "rayfin_app", name: "shop_lh_app", enabled: true, app: "x", app_package: { name: 3 } }] })
+      : p));
+    expect(fromParts(odd).outputs.outputs[0]).toEqual({ type: "rayfin_app", name: "shop_lh_app", enabled: true });
+  });
+});
