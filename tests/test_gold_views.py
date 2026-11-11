@@ -13,7 +13,7 @@ import requests
 from fabric_backend import gold, privacy, seed, server, silver
 from fabric_backend.infer import PlanInputError, plan
 from fabric_backend.schema import Schema
-from silver_cases import seed_rows
+from silver_cases import GIVEN_KEYS, seed_rows
 from test_inference_quality import load, names_only
 
 INFO = dict(workspace_id="ws", item_id="lh-1", item_name="shop_lh", item_kind="Lakehouse", schema="shop", schemas_enabled=True)
@@ -66,7 +66,8 @@ def test_create_statement_follows_the_documented_syntax():
 def _silver_db(s, extra_orphan=False):
     """SQLite with the silver tables the silver notebook makes of the seed (silver.simulate), in an attached `silver` schema."""
     data = seed_rows()
-    sim = silver.simulate(silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"}), data)["silver"]
+    # n208: the seed's duplicate customers and orders leave silver only on a given key (silver_cases.GIVEN_KEYS)
+    sim = silver.simulate(silver.spec(plan(seed.schema("shop"), GIVEN_KEYS), INFO, order_by={"orders": "order_date"}), data)["silver"]
     if extra_orphan:
         sim["order_items"] = sim["order_items"] + [{"order_id": 100, "line_no": 9, "product_id": 999, "quantity": 1.0}]
     con = sqlite3.connect(":memory:")

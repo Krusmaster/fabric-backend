@@ -965,8 +965,8 @@
   "sha256": "749e72c411e6d02db294b91ae6b4ad79d32edfb0e8ff6055c5515ff1c9a54460"
  },
  "silver": {
-  "bytes": 20230,
-  "sha256": "b66b02529da8cd3210b4767a067fa164437af44dcbc8404449fb47f05b1a394b"
+  "bytes": 20613,
+  "sha256": "cbb217bcf514dbe92ba38a3140fc19b40348fc135eecf91181d5bca1ff3a98ec"
  },
  "views": {
   "personal_left_out": [

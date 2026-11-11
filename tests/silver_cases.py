@@ -21,9 +21,15 @@ def seed_rows() -> dict[str, list[dict]]:
     return data
 
 
-EXPECTED_QUARANTINE = {("customers", "K2", "the key (customer_id) is NULL"): 1,
-                       ("customers", "K2", "another row has the same key (customer_id); one row per key was kept (no ordering column: pass order_by)"): 1,
-                       ("orders", "K2", "another row has the same key (order_id); the row with the latest order_date was kept"): 1,
+# n208: the silver notebook removes rows only on a key that was declared (K0), given by a person (K1) or counted in the rows
+# (R5). The seed's keys are guessed from names (K2), so the tests that exercise de-duplication give the two keys whose
+# rows have real duplicates here, as a person does after the review; EXPECTED_QUARANTINE is what silver makes of the
+# seed then. Without them (EXPECTED_QUARANTINE_GUESSED) every row of customers and orders stays, and only references fail.
+GIVEN_KEYS = {"customers": ["customer_id"], "orders": ["order_id"]}
+
+EXPECTED_QUARANTINE = {("customers", "K1", "the key (customer_id) is NULL"): 1,
+                       ("customers", "K1", "another row has the same key (customer_id); one row per key was kept (no ordering column: pass order_by)"): 1,
+                       ("orders", "K1", "another row has the same key (order_id); the row with the latest order_date was kept"): 1,
                        ("orders", "R1", "customer_id has no row in customers (orders.customer_id = customers.customer_id)"): 1,
                        ("order_items", "R1", "order_id has no row in orders (order_items.order_id = orders.order_id)"): 2,
                        ("audit_log", "R1", "customer_id has no row in customers (audit_log.customer_id = customers.customer_id)"): 1}
@@ -54,3 +60,38 @@ def sqlite_execute(data: dict[str, list[dict]]):
         cur = con.execute(sqlite_sql(sql))
         return [dict(zip([d[0] for d in cur.description], r)) for r in cur.fetchall()]
     return execute
+
+
+# n208: the same seed with the keys only guessed from names: no row leaves for its key (the NULL customer, the copy of
+# customer 3 and the older version of order 100 stay in silver); the references fail exactly as before.
+EXPECTED_QUARANTINE_GUESSED = {k: v for k, v in EXPECTED_QUARANTINE.items() if k[1] != "K1"}
+
+
+# n208: the audit's two cases (tests/test_n208_guessed_keys.py, and on a local Spark in tests/test_spark_notebooks.py). A
+# fact table `sales` that starts with three references gets the K4 key of the three; a line table with a column `no` gets
+# `no` alone (K2). Both keys are guessed from names.
+N208_TABLES = {
+    "customers": [("customer_id", "int"), ("name", "varchar")],
+    "products": [("product_id", "int"), ("name", "varchar")],
+    "stores": [("store_id", "int"), ("city", "varchar")],
+    "sales": [("customer_id", "int"), ("product_id", "int"), ("store_id", "int"), ("quantity", "int"), ("amount", "decimal(18,2)")],
+    "invoices": [("invoice_id", "int"), ("customer_id", "int")],
+    "invoice_lines": [("no", "int"), ("invoice_id", "int"), ("product_id", "int"), ("amount", "decimal(18,2)")],
+}
+
+
+def n208_rows() -> dict[str, list[dict]]:
+    """Genuine repeated rows: customer 1 buys product 1 in store 1 twice (two sales of 5.00), and invoice 1 and invoice 2
+    both have a line `no` 1."""
+    return {
+        "customers": [{"customer_id": 1, "name": "Ada"}, {"customer_id": 2, "name": "Bo"}],
+        "products": [{"product_id": 1, "name": "Tea"}, {"product_id": 2, "name": "Cup"}],
+        "stores": [{"store_id": 1, "city": "Umeå"}],
+        "sales": [{"customer_id": 1, "product_id": 1, "store_id": 1, "quantity": 1, "amount": 5.0},
+                  {"customer_id": 1, "product_id": 1, "store_id": 1, "quantity": 1, "amount": 5.0},
+                  {"customer_id": 2, "product_id": 2, "store_id": 1, "quantity": 2, "amount": 8.0}],
+        "invoices": [{"invoice_id": 1, "customer_id": 1}, {"invoice_id": 2, "customer_id": 2}],
+        "invoice_lines": [{"no": 1, "invoice_id": 1, "product_id": 1, "amount": 5.0},
+                          {"no": 2, "invoice_id": 1, "product_id": 2, "amount": 3.0},
+                          {"no": 1, "invoice_id": 2, "product_id": 2, "amount": 8.0}],
+    }

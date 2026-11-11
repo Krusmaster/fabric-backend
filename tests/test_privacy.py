@@ -187,15 +187,15 @@ def test_validate_plan_names_the_personal_columns_it_counts_and_returns_no_value
 
 def test_the_silver_quarantine_keeps_personal_columns_masked_and_the_gold_views_leave_them_out():
     from fabric_backend import silver
-    from silver_cases import seed_rows
+    from silver_cases import GIVEN_KEYS, seed_rows
     info = dict(workspace_id="ws", item_id="lh-1", item_name="shop_lh", item_kind="Lakehouse", schema="shop", schemas_enabled=True)
-    s = silver.spec(plan(seed.schema("shop")), info)
+    s = silver.spec(plan(seed.schema("shop"), GIVEN_KEYS), info)          # n208: the customers' duplicates leave on a given key
     assert s["personal"] == {"addresses": ["city"], "customers": ["name"]} and s["mask_personal_data"] is True
     q = silver.simulate(s, seed_rows())["quarantine"]
     customers = [x["row"] for x in q if x["source_table"] == "customers"]
     assert customers and all(r["name"] == "***" for r in customers)
     assert 'MASK_PERSONAL_DATA = True' in dict(silver.cells(s))["parameters"]
-    shown = silver.spec(plan(seed.schema("shop")), info, show_personal_data=True)
+    shown = silver.spec(plan(seed.schema("shop"), GIVEN_KEYS), info, show_personal_data=True)
     assert "MASK_PERSONAL_DATA = False" in dict(silver.cells(shown))["parameters"]
     assert "Nameless" in {x["row"]["name"] for x in silver.simulate(shown, seed_rows())["quarantine"] if x["source_table"] == "customers"}
     g = gold.spec(plan(seed.schema("shop")), info)

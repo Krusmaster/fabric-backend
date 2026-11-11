@@ -1823,14 +1823,18 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
     text = _silver_mod.notebook_source(spec)
     target = f"schema {spec['silver_schema']}" if spec["source"]["schemas_enabled"] else f"tables prefixed {spec['silver_schema']}_"
     out = {"summary": p.summary().splitlines()[0] + f"; the notebook writes {len(spec['tables'])} silver table(s) to {target} "
-                      f"in {info['item_name']}, and {_silver_mod.QUARANTINE}; the source tables are only read",
+                      f"in {info['item_name']}, and {_silver_mod.QUARANTINE}; the source tables are only read"
+                      + (f"\n{_silver_mod.dedupe_note(spec)}" if _silver_mod.dedupe_note(spec) else ""),   # n208
            "steps": _silver_mod.steps(spec), "not_checked": spec["not_checked"],
+           **({"not_deduplicated": _silver_mod.not_deduplicated(spec)} if _silver_mod.not_deduplicated(spec) else {}),
            **({"personal_data": {"columns": spec["personal"], "quarantine_masked": spec["mask_personal_data"],
                                  "note": "The silver tables keep every column; rows put in quarantine keep these columns as *** while the "
                                          "notebook's MASK_PERSONAL_DATA is True (show_personal_data=true sets it to False)."}} if spec["personal"] else {}),
            "notebook": {"name": name, "path": "notebook-content.py", "format": "fabricGitSource", "content": text},
            "run": ["Open the notebook in Fabric (it is attached to the lakehouse) and Run all, or add it to a pipeline or a schedule.",
-                   f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason.",
+                   f"Afterwards: {_silver_mod.QUARANTINE} lists every row left out with its table, rule and reason."
+                   + (" The summary at the end says, per table whose key was guessed, that no duplicates were removed because the key "
+                      "was not checked." if _silver_mod.not_deduplicated(spec) else ""),
                    "Run it again whenever the source changes: every silver table is rewritten from the source."],
            "note": ("Unit-tested: the steps run in Python on the shop seed with duplicates and broken references added, and the generated "
                     "notebook ran on a local PySpark 4.0.1 session against the same rows with the same result (26 October 2026). The notebook "
@@ -1855,8 +1859,8 @@ def silver_notebook_draft(workspace: _p.Workspace, source: _p.Source, schema: _p
                           order_by: _p.OrderBy = None, keys: _p.Keys = None,
                           confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
                           fixes: _p.AcceptedFixes = None, ctx: Context = None) -> str:
-    """Drafts a PySpark notebook writing de-duplicated silver Delta tables: one row per key, references checked, broken
-    rows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the
+    """Drafts a PySpark notebook writing silver Delta tables: one row per key unless the key is only guessed, references
+    checked, broken rows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the
     notebook source. Changes nothing. Errors: {error, kind, hint}."""
     p, info, spec, refusal = _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed, tables, ctx, show_personal_data, fixes)
     if refusal:
@@ -2183,7 +2187,13 @@ def _pipeline_build(p, info: dict, schema: str, silver_schema: str, gold_schema:
         {"step": _pipeline.STEPS[2], "name": check,
          "content": _pipeline.check_source(check_spec, label, info["workspace_id"], info["item_id"], info["item_name"]),
          "description": f"Krusgraph check after the gold views for {label}"}]
-    return {"label": label, "notebooks": notebooks, "names": (silver_name, gold_name, check)}
+    return {"label": label, "notebooks": notebooks, "names": (silver_name, gold_name, check), "silver_spec": silver_spec}
+
+
+def _silver_mod_note(build: dict) -> str:
+    """n208: the silver notebook's plain sentence on the tables it keeps every row of ("" when none)."""
+    from . import silver as _silver_mod
+    return _silver_mod.dedupe_note(build["silver_spec"])
 
 
 def _pipeline_content(build: dict, ids: dict, workspace_id: str) -> dict:
@@ -2220,15 +2230,18 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
         return refusal
     check_tables(p.schema, tables)
     build = _pipeline_build(p, info, schema, silver_schema, gold_schema, tables, show_personal_data, name, silver_name, gold_name)
+    kept = _silver_mod_note(build)                             # n208: said in the dry run, a line of its own
     ws = info["workspace_id"]
     content = _pipeline_content(build, {n["name"]: _pipeline.placeholder(n["name"]) for n in build["notebooks"]}, ws)
     hosted = _tool_status.STATUS["create_pipeline"].available == _tool_status.HOSTED
     out = {"summary": p.summary().splitlines()[0] + f"; the pipeline {name} runs " + ", then ".join(build["names"])
                       + "; a step runs only after the one before it succeeded",
            "dry_run": dry_run,
-           "steps": [f"{n['step']}: {n['name']}" for n in build["notebooks"]],
-           "stops": "When the check finds a key that is not unique or has NULLs, a reference without its row, or a gold view whose "
-                    "rows or sums differ from its silver fact table, the check notebook raises an error and the pipeline run fails.",
+           "steps": [f"{n['step']}: {n['name']}" for n in build["notebooks"]] + ([kept] if kept else []),
+           "stops": "When the check finds a key the silver notebook de-duplicates on that is not unique or has NULLs, a reference "
+                    "without its row, or a gold view whose rows or sums differ from its silver fact table, the check notebook raises "
+                    "an error and the pipeline run fails. A key guessed from names is counted and reported, never a failure: silver "
+                    "kept every row of its table.",
            "runs": " ".join(w + "." for w in _jobs.describe(name, run_once, spec)) or _pipeline.NOT_RUN,
            "notebooks": [{"step": n["step"], "name": n["name"], "path": "notebook-content.py", "format": "fabricGitSource",
                           "description": n["description"], "content": n["content"]} for n in build["notebooks"]],

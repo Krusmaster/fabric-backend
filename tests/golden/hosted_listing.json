@@ -3736,7 +3736,7 @@
     "read_only_hint": true,
     "title": "Draft a PySpark notebook that builds silver tables (nothing created)"
    },
-   "description": "Drafts a PySpark notebook writing de-duplicated silver Delta tables: one row per key, references checked, broken\nrows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the\nnotebook source. Changes nothing. Errors: {error, kind, hint}.",
+   "description": "Drafts a PySpark notebook writing silver Delta tables: one row per key unless the key is only guessed, references\nchecked, broken rows to krusgraph_quarantine. Requires workspace and a lakehouse source. Returns JSON with the steps and the\nnotebook source. Changes nothing. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "confirmed": {

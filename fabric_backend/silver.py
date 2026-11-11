@@ -16,6 +16,16 @@ Per table, in the order of the relationships (a parent before the tables that po
 At the end the quarantine table (krusgraph_quarantine: source_table, rule, reason, row_json, checked_at) is rewritten
 with this run's rows, and a summary is printed. Keyless tables (K3) are copied without de-duplication.
 
+Round n208: steps 2 and 3 remove rows only on a key the notebook can stand on: a key declared in the source (K0), given by
+a person (K1: `keys=`, which is also how a key set in the review reaches every tool), or counted unique and never NULL in
+the rows when the plan was made (R5). This is decided from the plan's evidence, the key's rule, which is what the plan
+records; the review's accepted state reaches the plan only as such a K1 key. A key guessed from names (K2, K4, K5, a
+synonym) or taken from a pack's documentation keeps every row of its table: a fact table `sales` with customer_id,
+product_id and store_id gets the K4 key of the three, and the same customer buying the same product in the same store
+twice is two real rows. The key is still proposed as before; the notebook, its summary and the answers say that no
+duplicates were removed because the key was not checked, and the check notebook reports such a key without failing.
+A fix accepted from validate_plan (keep_one_per_key, n115) is a person's decision and still de-duplicates.
+
 `spec()` is the plan of the notebook as data; `cells()` renders it as PySpark; `simulate()` runs the same steps on
 Python rows (the tests run both on the shop seed and compare). Nothing here talks to Fabric.
 
@@ -41,6 +51,35 @@ ORDER_NAMES = ("updatedat", "lastupdated", "lastupdate", "updateddate", "modifie
                "changedat", "changedate", "ingestedat", "ingestiontime", "loadedat", "loadts", "loaddate", "loadtimestamp",
                "etlloadedat", "timestamp", "ts", "insertedat", "createdat", "createddate")
 _IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,99}$")
+# n208: the key rules silver removes rows on, and why each can be stood on. Every other rule is a guess.
+CHECKED_KEY_RULES = {"K0": "declared in the source", "K1": "given by a person (keys=, or set in the review)",
+                     "R5": "counted unique and never NULL in the rows when the plan was made"}
+NOT_CHECKED = "no duplicates were removed because the key was not checked"
+
+
+def _key_basis(rule: str | None) -> str:
+    if rule in CHECKED_KEY_RULES:
+        return CHECKED_KEY_RULES[rule]
+    from .infer import PACK_RULE
+    return ("taken from the pack's documentation, not checked against the rows" if rule == PACK_RULE
+            else "guessed from names, not checked against the rows")
+
+
+def not_deduplicated(s: dict) -> list[dict]:
+    """n208: the tables of the spec that have a key silver does not remove rows on (a guess), with that key."""
+    return [{"table": t["table"], "key": list(t["key"]), "rule": t["key_rule"]} for t in s["tables"]
+            if t["key"] and not t.get("dedupe") and not t.get("fix_key")]
+
+
+def dedupe_note(s: dict) -> str:
+    """n208: one plain sentence for the answers (dry run and finish) when a table keeps every row; "" when none does."""
+    left = not_deduplicated(s)
+    if not left:
+        return ""
+    names = ", ".join(f"{x['table']} ({' + '.join(x['key'])})" for x in left)
+    return (f"No duplicates were removed in {len(left)} table(s) because the key was not checked: {names}. Every row is kept; "
+            "these keys were not declared, given or counted in the rows. Give a key (keys=, or set it in the review) where rows that share it are true "
+            "duplicates.")
 
 
 def _rule_text(rule: str | None) -> str:
@@ -133,8 +172,10 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            "parent_from": "silver" if (r.target in chosen and (order.index(r.target) < order.index(t) or r.target == t)) else
                                           ("source_cycle" if r.target in chosen else "source"),
                            "note": r.note})
+        dedupe = bool(key) and key_rule in CHECKED_KEY_RULES                 # n208: only a key the rows or a person stand behind
         out_tables.append({"table": t, "target": target(t), "key": list(key), "key_rule": label(key_rule) if key else "K3",
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
+                           "dedupe": dedupe, **({"key_basis": _key_basis(key_rule)} if key else {}),
                            "order_by": col, "order_why": why, "checks": checks})
     owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
     from . import privacy
@@ -215,6 +256,7 @@ if SCHEMAS_ENABLED:
 quarantined = []      # (rows, source table, rule, reason), written together at the end
 silver = {{}}           # table -> its silver DataFrame, read back after writing
 read_counts = {{}}
+not_checked_keys = {{}}  # n208: table -> its key, where the key was guessed and every row was kept
 
 
 def to_quarantine(rows, table, rule, reason):
@@ -450,7 +492,13 @@ def _fix_lines(t: dict, f: dict) -> str:
 def _key_comment(t: dict) -> list[str]:
     if t["key_rule"] == "K3" or not t["key"]:
         return [f"# No key (rule K3: {_rule_text('K3')}): every row is kept as it is; nothing to de-duplicate on."]
-    lines = [_comment(f"Key {' + '.join(t['key'])} (rule {t['key_rule']}: {t.get('key_rule_text') or _rule_text(t['key_rule'])})."),
+    if not t.get("dedupe") and not t.get("fix_key"):                      # n208: a guessed key removes no rows
+        return [_comment(f"Key {' + '.join(t['key'])} (rule {t['key_rule']}: {t.get('key_rule_text') or _rule_text(t['key_rule'])})."),
+                _comment(f"The key was {t.get('key_basis') or _key_basis(None)}. Every row is kept: {NOT_CHECKED}, and no row goes "
+                         "to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product "
+                         "twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.")]
+    lines = [_comment(f"Key {' + '.join(t['key'])} (rule {t['key_rule']}: {t.get('key_rule_text') or _rule_text(t['key_rule'])}"
+                      + (f"; {t['key_basis']}" if t.get("key_basis") else "") + ")."),
              "# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept."]
     if t["order_by"]:
         lines.append(_comment(f"Latest row wins by {t['order_by']} ({t['order_why']})."))
@@ -475,9 +523,11 @@ def _table_cell(t: dict) -> str:
                 "# differ: the latest by DUPLICATE_WINNER stays, and the decisions cell stopped the run if there are such rows and none is named.",
                 f"df = drop_null_keys(df, {_py(t['key'])}, {_py(name)}, {_py(t['key_rule'])})",
                 f"df = keep_one_per_key(df, {_py(t['key'])}, DUPLICATE_WINNER[{_py(name)}], {_py(name)}, {_py(t['key_rule'])})"]
-    elif t["key"]:
+    elif t["key"] and t.get("dedupe"):
         out += [f"df = drop_null_keys(df, {_py(t['key'])}, {_py(name)}, {_py(t['key_rule'])})",
                 f"df = keep_latest(df, {_py(t['key'])}, {_py(t['order_by'])}, {_py(name)}, {_py(t['key_rule'])})"]
+    elif t["key"]:
+        out.append(f"not_checked_keys[{_py(name)}] = {_py(t['key'])}")
     for c in t["checks"]:
         on = " and ".join(f"{name}.{a} = {c['parent']}.{b}" for a, b in zip(c["columns"], c["parent_columns"]))
         reason = f"{', '.join(c['columns'])} has no row in {c['parent']} ({on})"
@@ -520,6 +570,8 @@ write_silver(q_rows, {quarantine})
 summary = {{t: {{"read": read_counts[t], "silver": silver[t].count()}} for t in silver}}
 for r in spark.read.table(target({quarantine})).groupBy("source_table", "rule", "reason").count().collect():
     summary[r["source_table"]].setdefault("quarantined", []).append({{"rule": r["rule"], "reason": r["reason"], "rows": r["count"]}})
+for t, key in not_checked_keys.items():
+    summary[t]["duplicates"] = f"none removed: the key ({{', '.join(key)}}) was not checked, so every row was kept"
 for t, s in summary.items():
     print(t, s)
 '''
@@ -589,7 +641,8 @@ def cells(s: dict) -> list[tuple[str, str]]:
     intro = (f"# Silver tables for {src['item'] or 'the lakehouse'}.{src['schema']}\n\n"
              f"Generated by Krusgraph from the plan: clean copies of {len(s['tables'])} table(s) in "
              + (f"the schema `{s['silver_schema']}`" if src["schemas_enabled"] else f"tables prefixed `{s['silver_schema']}_`")
-             + ", de-duplicated on each table's key and with every reference checked; rows that fail a check are kept in "
+             + ", de-duplicated on each key that was declared, given by a person or counted in the rows (a key guessed from "
+             "names removes no rows) and with every reference checked; rows that fail a check are kept in "
              f"`{QUARANTINE}` with the reason. The source tables are only read. Run it again at any time: every silver table "
              "is rewritten from the source. Each step below names the rule (K0–K5, R0–R5) that motivates it.")
     params = (f"SILVER_SCHEMA = {_py(s['silver_schema'])}   # where the silver tables go; never the source schema\n"
@@ -648,8 +701,11 @@ def steps(s: dict) -> list[dict]:
     out = []
     for t in s["tables"]:
         entry = {"table": t["table"], "writes": ".".join(x for x in t["target"] if x)}
-        if t["key"]:
-            entry["deduplicate_on"] = {"key": t["key"], "rule": t["key_rule"],
+        if t["key"] and not t.get("dedupe") and not t.get("fix_key"):   # n208
+            entry["deduplicate_on"] = {"key": t["key"], "rule": t["key_rule"], "rows_removed": False,
+                                       "why": f"every row is kept: {NOT_CHECKED} ({t.get('key_basis') or _key_basis(None)})"}
+        elif t["key"]:
+            entry["deduplicate_on"] = {"key": t["key"], "rule": t["key_rule"], "rows_removed": True, "basis": t.get("key_basis", ""),
                                        "latest_by": t["order_by"] or "none (a stable row per key; pass order_by)"}
         else:
             entry["deduplicate_on"] = "no key (K3): rows kept as they are"
@@ -766,7 +822,7 @@ def simulate(s: dict, data: dict[str, list[dict]], given: dict | None = None) ->
             quarantine += [{"source_table": name, "rule": t["key_rule"], "reason": f"the key ({', '.join(t['key'])}) is NULL", "row": r} for r in null_key]
             rows = _keep_one_per_key([r for r in rows if r not in null_key], t["key"], chosen["DUPLICATE_WINNER"].get(name),
                                      columns, name, t["key_rule"], quarantine)
-        elif t["key"]:
+        elif t["key"] and t.get("dedupe"):
             null_key = [r for r in rows if any(r.get(c) is None for c in t["key"])]
             quarantine += [{"source_table": name, "rule": t["key_rule"], "reason": f"the key ({', '.join(t['key'])}) is NULL", "row": r} for r in null_key]
             rows = [r for r in rows if r not in null_key]

@@ -17,11 +17,11 @@ INFO = dict(workspace_id="11111111-1111-1111-1111-111111111111", item_id="lh-1",
 SHIP_TO = [{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}]
 
 
-def shop_plan(confirmed=None):
-    return plan(seed.schema("shop"), None, confirmed)
+def shop_plan(confirmed=None, keys=None):
+    return plan(seed.schema("shop"), keys, confirmed)
 
 
-from silver_cases import EXPECTED_QUARANTINE, counts, seed_rows  # noqa: E402
+from silver_cases import EXPECTED_QUARANTINE, EXPECTED_QUARANTINE_GUESSED, GIVEN_KEYS, counts, seed_rows  # noqa: E402
 
 
 # ------------------------------------------------------------------ the plan of the notebook --------------------
@@ -118,8 +118,14 @@ def test_notebook_is_fabric_source_with_the_lakehouse_attached_and_valid_python(
     assert cells == silver.cells(s)                                                       # the text round-trips
     tables_cells = {c.split("\n", 1)[0]: c for k, c in cells if c.startswith("# ---- ")}
     orders = tables_cells["# ---- orders -> silver.orders ----"]
-    assert "rule K2" in orders and "Latest row wins by order_date (given in order_by)" in orders and "rule R1" in orders
-    assert "keep_latest(df, [\"order_id\"], \"order_date\"" in orders
+    # n208: order_id is guessed from names (K2): every row is kept, and the cell says why
+    assert "rule K2" in orders and "rule R1" in orders and "keep_latest(" not in orders and "drop_null_keys(" not in orders
+    assert "Every row is kept: no duplicates were removed because the key was not checked" in orders
+    assert 'not_checked_keys["orders"] = ["order_id"]' in orders
+    given = {c.split("\n", 1)[0]: c for k, c in silver.cells(silver.spec(shop_plan(keys=GIVEN_KEYS), INFO, order_by={"orders": "order_date"}))
+             if c.startswith("# ---- ")}["# ---- orders -> silver.orders ----"]
+    assert "rule K1" in given and "Latest row wins by order_date (given in order_by)" in given
+    assert "keep_latest(df, [\"order_id\"], \"order_date\"" in given
     items = tables_cells["# ---- order_items -> silver.order_items ----"]
     assert "rule K5" in items and "rows whose orders was quarantined follow it there" in items
     assert "No key (rule K3" in tables_cells["# ---- audit_log -> silver.audit_log ----"]
@@ -145,7 +151,7 @@ def test_envelope_is_the_specification_layout():
 # ------------------------------------------------------------------ the steps on the seed ------------------------
 
 def test_python_steps_deduplicate_and_quarantine_on_the_seed():
-    s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+    s = silver.spec(shop_plan(keys=GIVEN_KEYS), INFO, order_by={"orders": "order_date"})
     data = seed_rows()
     out = silver.simulate(s, data)
     assert counts(out["quarantine"]) == EXPECTED_QUARANTINE
@@ -158,6 +164,22 @@ def test_python_steps_deduplicate_and_quarantine_on_the_seed():
     for t, rows in data.items():
         assert len(rows) == len(sil[t]) + sum(1 for q in out["quarantine"] if q["source_table"] == t), t
     assert silver.simulate(s, data) == out                                                   # idempotent: a re-run gives the same
+
+
+def test_n208_keys_guessed_from_names_keep_every_row_of_the_seed():
+    """The seed's keys are K2 (names): the NULL customer, the copy of customer 3 and both versions of order 100 stay in
+    silver; nothing goes to quarantine for a key, and the references are checked as before."""
+    s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+    data = seed_rows()
+    out = silver.simulate(s, data)
+    assert counts(out["quarantine"]) == EXPECTED_QUARANTINE_GUESSED
+    sil = out["silver"]
+    assert len(sil["customers"]) == len(data["customers"]) == 12 and len(sil["orders"]) == 61
+    assert sorted(o["order_date"] for o in sil["orders"] if o["order_id"] == 100)[-1] == datetime.date(2026, 12, 1)
+    assert len(sil["order_items"]) == len(seed.rows()["order_items"])          # order 200's and order 999's lines still leave
+    assert {"table": "orders", "key": ["order_id"], "rule": "K2"} in silver.not_deduplicated(s)
+    assert "because the key was not checked" in silver.dedupe_note(s)
+    assert next(x for x in silver.steps(s) if x["table"] == "orders")["deduplicate_on"]["rows_removed"] is False
 
 
 def test_a_confirmed_relationship_is_checked_too():
@@ -216,7 +238,13 @@ def test_draft_returns_the_steps_and_the_notebook_and_creates_nothing(shop, monk
     out = json.loads(server.silver_notebook_draft("Sales", "shop_lh", schema="shop", order_by={"orders": "order_date"}))
     assert "error" not in out and out["notebook"]["content"].startswith("# Fabric notebook source")
     assert [s["table"] for s in out["steps"]][-1] == "order_items" and "krusgraph_quarantine" in out["summary"]
-    assert next(s for s in out["steps"] if s["table"] == "orders")["deduplicate_on"]["latest_by"] == "order_date"
+    # n208: the dry run says plainly that the guessed keys removed nothing
+    assert "No duplicates were removed in" in out["summary"] and "because the key was not checked" in out["summary"]
+    assert {"table": "orders", "key": ["order_id"], "rule": "K2"} in out["not_deduplicated"]
+    assert next(s for s in out["steps"] if s["table"] == "orders")["deduplicate_on"]["rows_removed"] is False
+    given = json.loads(server.silver_notebook_draft("Sales", "shop_lh", schema="shop", order_by={"orders": "order_date"},
+                                                    keys={"orders": ["order_id"]}))
+    assert next(s for s in given["steps"] if s["table"] == "orders")["deduplicate_on"]["latest_by"] == "order_date"
     from fabric_backend import tool_status
     assert "has not yet been run in Fabric" in out["note"] and tool_status.answer_note("silver_notebook_draft") in out["note"]
     bad = json.loads(server.silver_notebook_draft("Sales", "shop_lh", schema="shop", silver_schema="shop"))

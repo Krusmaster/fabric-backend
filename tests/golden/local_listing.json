@@ -1101,7 +1101,7 @@
    "open_world_hint": true,
    "read_only_hint": true
   },
-  "description": "The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key (the\nlatest row by `order_by` {table: column} wins), every relationship checked with the rows whose reference is\nmissing in krusgraph_quarantine, Delta tables written only in `silver_schema`, each step commented with its rule.\nReturns the steps and the notebook source (notebook-content.py); creates nothing. FABRIC_SOURCE_KIND must be\nLakehouse.",
+  "description": "The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key that was\ndeclared, given in `keys` or counted in the rows (the latest row by `order_by` {table: column} wins; a key guessed\nfrom names keeps every row), every relationship checked with the rows whose reference is\nmissing in krusgraph_quarantine, Delta tables written only in `silver_schema`, each step commented with its rule.\nReturns the steps and the notebook source (notebook-content.py); creates nothing. FABRIC_SOURCE_KIND must be\nLakehouse.",
   "input_schema": {
    "properties": {
     "confirmed": {

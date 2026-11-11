@@ -43,7 +43,10 @@ def silver_nodes(spec: dict, built: bool) -> tuple[list[dict], list[dict]]:
     nodes, edges = [], []
     for t in spec["tables"]:
         lines, pills = [], []
-        if t["key"]:
+        if t["key"] and not t.get("dedupe") and not t.get("fix_key"):     # n208: a guessed key removes no rows
+            lines.append(f"every row kept: key {' + '.join(t['key'])} not checked")
+            pills.append(t["key_rule"])
+        elif t["key"]:
             lines.append(f"one row per {' + '.join(t['key'])}")
             if t["order_by"]:
                 lines.append(f"the latest by {t['order_by']}")

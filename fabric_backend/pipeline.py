@@ -104,11 +104,19 @@ def _sum_columns(plan, view: dict) -> list[dict]:
     return out
 
 
+NOT_ENFORCED = ("the key was guessed from names and not checked, so the silver notebook removed no rows: reported, not a "
+                "failure")
+
+
 def check_spec(plan, silver_spec: dict, gold_spec: dict) -> dict:
     """The check as data: keys and relationships between the tables the silver notebook writes (the ones it enforces),
     and per gold view the fact table and the amount and quantity columns to sum before and after the join."""
     tables = [t["table"] for t in silver_spec["tables"]]
-    keys = [{"table": t["table"], "columns": list(t["key"]), "rule": t["key_rule"]} for t in silver_spec["tables"] if t["key"]]
+    # n208: a key silver removed no rows on (guessed from names) is counted and reported, but never fails the run: the
+    # rows that share it may be real rows (a fact table), and silver kept them on purpose.
+    keys = [{"table": t["table"], "columns": list(t["key"]), "rule": t["key_rule"],
+             **({} if t.get("dedupe", True) or t.get("fix_key") else {"not_enforced": NOT_ENFORCED})}
+            for t in silver_spec["tables"] if t["key"]]
     rels = [{"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule}
             for r in plan.relationships if r.source in tables and r.target in tables]
     views = [{"view": v["name"].split(".", 1)[1], "fact": v["fact"], "sums": _sum_columns(plan, v)} for v in gold_spec["views"]]
@@ -170,7 +178,11 @@ def check_key(execute, schema, key):
     if dups:
         problems.append(f"not unique: {dups} values occur more than once")
     verdict = "; ".join(problems) or ("empty table" if n == 0 else "unique, never NULL")
-    return {"table": t, "columns": list(cols), "rows": n, "nulls": nulls, "duplicates": dups, "holds": not problems, "verdict": verdict}
+    enforced = not key.get("not_enforced")
+    if problems and not enforced:                     # n208: a guessed key; silver kept every row, so this is reported only
+        verdict += "; " + key["not_enforced"]
+    return {"table": t, "columns": list(cols), "rows": n, "nulls": nulls, "duplicates": dups, "holds": not problems,
+            "enforced": enforced, "verdict": verdict}
 
 
 def check_reference(execute, schema, rel):
@@ -226,7 +238,7 @@ def check(spec, execute, exists):
         raise CheckFailed(f"gold views missing in {gold}: {', '.join(missing)}; the gold notebook did not create them")
     keys = [check_key(execute, silver, k) for k in spec["keys"]]
     rels = [check_reference(execute, silver, r) for r in spec["relationships"]]
-    failures = [f"key {k['table']}({', '.join(k['columns'])}): {k['verdict']}" for k in keys if not k["holds"]]
+    failures = [f"key {k['table']}({', '.join(k['columns'])}): {k['verdict']}" for k in keys if not k["holds"] and k["enforced"]]
     failures += [f"{r['source']}.{'+'.join(r['columns'])} -> {r['target']}: {r['verdict']}" for r in rels if not r["holds"]]
     joins = []
     for view in spec["views"]:

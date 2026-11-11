@@ -537,8 +537,9 @@ def answer_query_draft(question: str, tables: list[str], schema: str = "dbo", ke
 def silver_notebook_draft(schema: str = "dbo", silver_schema: str = "silver", order_by: dict[str, str] | None = None,
                           keys: dict[str, list[str]] | None = None, confirmed: list[dict] | None = None,
                           tables: list[str] | None = None) -> str:
-    """The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key (the
-    latest row by `order_by` {table: column} wins), every relationship checked with the rows whose reference is
+    """The Fabric notebook (PySpark) that builds silver tables from a lakehouse's tables: de-duplicated on each key that was
+    declared, given in `keys` or counted in the rows (the latest row by `order_by` {table: column} wins; a key guessed
+    from names keeps every row), every relationship checked with the rows whose reference is
     missing in krusgraph_quarantine, Delta tables written only in `silver_schema`, each step commented with its rule.
     Returns the steps and the notebook source (notebook-content.py); creates nothing. FABRIC_SOURCE_KIND must be
     Lakehouse."""

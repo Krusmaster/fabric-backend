@@ -16,7 +16,7 @@ from fabric_backend.dialects import DATABRICKS
 from fabric_backend.infer import plan
 from fabric_backend.platforms.base import connection
 from fabric_backend.schema import Schema
-from silver_cases import seed_rows
+from silver_cases import GIVEN_KEYS, seed_rows
 
 WS = "11111111-1111-1111-1111-111111111111"
 INFO = dict(workspace_id=WS, item_id="lh-1", item_name="shop_lh", item_kind="Lakehouse", schema="shop", schemas_enabled=True)
@@ -135,7 +135,9 @@ def test_the_default_export_is_unchanged(shop):
 # ------------------------------------------------------------------ the check ---------------------------------------
 
 def shop_plan():
-    return plan(seed.schema("shop"))
+    # n208: the seed's customers and orders have real duplicates; the check below stands on keys silver de-duplicates on,
+    # so these two are given (K1), as a person does after the review (silver_cases.GIVEN_KEYS)
+    return plan(seed.schema("shop"), GIVEN_KEYS)
 
 
 def spec():

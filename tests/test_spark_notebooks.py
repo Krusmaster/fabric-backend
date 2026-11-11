@@ -15,7 +15,7 @@ import pytest
 from fabric_backend import monitor, seed, silver
 from fabric_backend.graphql import decode, definition
 from fabric_backend.infer import plan
-from silver_cases import EXPECTED_QUARANTINE, seed_rows
+from silver_cases import EXPECTED_QUARANTINE, GIVEN_KEYS, seed_rows
 
 pytest.importorskip("pyspark")
 requests = pytest.importorskip("requests")
@@ -35,8 +35,8 @@ class Resp:
         return self._body
 
 
-def shop_plan(confirmed=None):
-    return plan(seed.schema("shop"), None, confirmed)
+def shop_plan(confirmed=None, keys=None):
+    return plan(seed.schema("shop"), keys, confirmed)
 
 
 def test_generated_notebook_runs_in_pyspark_and_matches_the_python_steps(tmp_path):
@@ -50,7 +50,8 @@ def test_generated_notebook_runs_in_pyspark_and_matches_the_python_steps(tmp_pat
         data = seed_rows()
         for t, rows in data.items():
             spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
-        s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+        # n208: the seed's duplicate customers and orders leave silver on a given key (K1); a guessed one keeps them
+        s = silver.spec(shop_plan(keys=GIVEN_KEYS), INFO, order_by={"orders": "order_date"})
         cells = silver.cells(s)
 
         def run(overrides: str):
@@ -88,7 +89,7 @@ def test_generated_notebook_runs_in_pyspark_and_matches_the_python_steps(tmp_pat
         assert spark.read.table("other.customers").count() == 1 and not spark.catalog.tableExists("other.orders")
         assert {t: spark.read.table(f"shop.{t}").count() for t in data} == before
         # a notebook for another source never overwrites this one's silver tables or quarantine
-        other_cells = silver.cells(silver.spec(shop_plan(), dict(INFO, item_id="lh-2"), order_by={"orders": "order_date"}))
+        other_cells = silver.cells(silver.spec(shop_plan(keys=GIVEN_KEYS), dict(INFO, item_id="lh-2"), order_by={"orders": "order_date"}))
         ns = {"spark": spark}
         with pytest.raises(ValueError, match="was not written by this notebook"):
             for kind, code in other_cells:
@@ -288,7 +289,7 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
         data = seed_rows()
         for t, rows in data.items():
             spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
-        s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+        s = silver.spec(shop_plan(keys=GIVEN_KEYS), INFO, order_by={"orders": "order_date"})
         ns = {"spark": spark}
         for kind, code in silver.cells(s):
             if kind != "markdown":
@@ -296,7 +297,7 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
                 if kind == "parameters":
                     exec('TABLE_FORMAT = "parquet"', ns)
         expected = silver.simulate(s, data)["silver"]
-        g = gold.spec(shop_plan(), INFO)
+        g = gold.spec(shop_plan(keys=GIVEN_KEYS), INFO)
 
         def execute(sql):
             return [r.asDict() for r in spark.sql(sql).collect()]
@@ -311,7 +312,7 @@ def test_gold_views_run_on_the_silver_tables_in_pyspark(tmp_path):
             if t == "order_items":
                 df = df.unionByName(spark.createDataFrame([(100, 9, 999, 1.0)], seed.SCHEMAS[t]))
             df.write.format("parquet").mode("overwrite").saveAsTable(f"silver_x.{t}")
-        gx = gold.spec(shop_plan(), INFO, silver_schema="silver_x")
+        gx = gold.spec(shop_plan(keys=GIVEN_KEYS), INFO, silver_schema="silver_x")
         items = next(v for v in gx["views"] if v["fact"] == "order_items")
         rows = gold.run_select(items, gx, execute)
         assert len(rows) == len(expected["order_items"]) and not any(r["product_id"] == 999 for r in rows)
@@ -362,19 +363,19 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
         spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
         for t, rows in seed_rows().items():
             spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
-        s = silver.spec(shop_plan(), INFO, order_by={"orders": "order_date"})
+        s = silver.spec(shop_plan(keys=GIVEN_KEYS), INFO, order_by={"orders": "order_date"})
         ns = {"spark": spark}
         for kind, code in silver.cells(s):
             if kind != "markdown":
                 exec(compile(code, "<notebook>", "exec"), ns)
                 if kind == "parameters":
                     exec('TABLE_FORMAT = "parquet"', ns)
-        g = gold.spec(shop_plan(), INFO)
+        g = gold.spec(shop_plan(keys=GIVEN_KEYS), INFO)
         spark.sql("CREATE SCHEMA IF NOT EXISTS gold")
         for v in g["views"]:
             spark.sql(f"SELECT * FROM ({gold.select_sql(v, g['silver_schema'])}) AS v WHERE "
                       + (" AND ".join(f"({c['check']})" for c in v["constraints"]) or "1 = 1")).write.format("parquet").saveAsTable(v["name"])
-        text = pipeline.check_source(pipeline.check_spec(shop_plan(), s, g), "shop_lh.shop")
+        text = pipeline.check_source(pipeline.check_spec(shop_plan(keys=GIVEN_KEYS), s, g), "shop_lh.shop")
         assert "%pip" not in text and "fabric_backend" not in text
 
         def guarded(name, *a, **k):
@@ -430,5 +431,46 @@ def test_sap_demo_one_cell_notebook_writes_every_table(tmp_path):
         vbak = spark.table("sap_vbak")
         assert dict(vbak.dtypes)["NETWR"] == "decimal(15,2)" and dict(vbak.dtypes)["VBELN"] == "string"
         assert sorted(r.VBELN for r in vbak.collect()) == ["0000000001", "0000000001", "0000000002"]
+    finally:
+        spark.stop()
+
+
+def test_n208_guessed_keys_keep_every_row_in_pyspark(tmp_path):
+    """Round n208: the audit's two cases on a local Spark. `sales` (K4: customer_id + product_id + store_id) with the same
+    customer buying the same product in the same store twice, and `invoice_lines` keyed by a bare `no` (K2) with line 1
+    on two invoices: the generated notebook keeps every row, puts nothing in quarantine for a key, says so in its summary,
+    and agrees with silver.simulate. The same customers loaded twice leave silver once the key is given (K1)."""
+    from fabric_backend.schema import Column, Schema, Table
+    from silver_cases import N208_TABLES as TABLES, n208_rows as rows
+    spark = _spark(tmp_path, "krusgraph-n208-test")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS dbo")
+        ddl = {"int": "int", "varchar": "string", "decimal(18,2)": "double"}
+        data = rows()
+        data["customers"].append({"customer_id": 1, "name": "Ada"})                        # a real duplicate, for the K1 run
+        for t, rs in data.items():
+            spark.createDataFrame([tuple(r[c] for c, _ in TABLES[t]) for r in rs],
+                                  ", ".join(f"{c} {ddl[ty]}" for c, ty in TABLES[t])).write.format("parquet").mode("overwrite").saveAsTable(f"dbo.{t}")
+        sch = Schema(schema="dbo")
+        for t, cols in TABLES.items():
+            sch.tables[t] = Table(t, [Column(c, ty) for c, ty in cols], schema="dbo")
+        info = dict(INFO, schema="dbo")
+        for keys, silver_schema in ((None, "silver"), ({"customers": ["customer_id"]}, "silver_k1")):
+            s = silver.spec(plan(sch, keys), info, silver_schema=silver_schema)
+            ns = _run_cells(spark, silver.cells(s), 'TABLE_FORMAT = "parquet"')
+            expected = silver.simulate(s, data)
+            for t in data:
+                assert spark.read.table(f"{silver_schema}.{t}").count() == len(expected["silver"][t]), (keys, t)
+            assert spark.read.table(f"{silver_schema}.sales").count() == 3 and spark.read.table(f"{silver_schema}.invoice_lines").count() == 3
+            assert ns["summary"]["sales"]["duplicates"] == ("none removed: the key (customer_id, product_id, store_id) was not checked, "
+                                                            "so every row was kept")
+            q = spark.read.table(f"{silver_schema}.krusgraph_quarantine")
+            got = sorted((r["source_table"], r["rule"]) for r in q.collect())
+            assert got == sorted((x["source_table"], x["rule"]) for x in expected["quarantine"])
+            if keys:
+                assert got == [("customers", "K1")] and spark.read.table(f"{silver_schema}.customers").count() == 2
+                assert "duplicates" not in ns["summary"]["customers"]
+            else:
+                assert got == [] and spark.read.table(f"{silver_schema}.customers").count() == 3
     finally:
         spark.stop()

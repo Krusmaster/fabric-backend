@@ -101,13 +101,13 @@
    "label": "silver.categories",
    "table": "categories",
    "lines": [
-    "one row per id"
+    "every row kept: key id not checked"
    ],
    "pills": [
     "K2"
    ],
    "built": true,
-   "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\ndf = drop_null_keys(df, [\"id\"], \"categories\", \"K2\")\ndf = keep_latest(df, [\"id\"], None, \"categories\", \"K2\")\nsilver[\"categories\"] = write_silver(df, \"categories\")",
+   "code": "# ---- categories -> silver.categories ----\n# Key id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"categories\"))\nread_counts[\"categories\"] = df.count()\nnot_checked_keys[\"categories\"] = [\"id\"]\nsilver[\"categories\"] = write_silver(df, \"categories\")",
    "language": "python",
    "code_title": "Notebook cell for categories"
   },
@@ -117,13 +117,13 @@
    "label": "silver.customers",
    "table": "customers",
    "lines": [
-    "one row per customer_id"
+    "every row kept: key customer_id not checked"
    ],
    "pills": [
     "K2"
    ],
    "built": true,
-   "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\ndf = drop_null_keys(df, [\"customer_id\"], \"customers\", \"K2\")\ndf = keep_latest(df, [\"customer_id\"], None, \"customers\", \"K2\")\nsilver[\"customers\"] = write_silver(df, \"customers\")",
+   "code": "# ---- customers -> silver.customers ----\n# Key customer_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"customers\"))\nread_counts[\"customers\"] = df.count()\nnot_checked_keys[\"customers\"] = [\"customer_id\"]\nsilver[\"customers\"] = write_silver(df, \"customers\")",
    "language": "python",
    "code_title": "Notebook cell for customers"
   },
@@ -133,7 +133,7 @@
    "label": "silver.addresses",
    "table": "addresses",
    "lines": [
-    "one row per address_id",
+    "every row kept: key address_id not checked",
     "customer_id → customers"
    ],
    "pills": [
@@ -141,7 +141,7 @@
     "R1"
    ],
    "built": true,
-   "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\ndf = drop_null_keys(df, [\"address_id\"], \"addresses\", \"K2\")\ndf = keep_latest(df, [\"address_id\"], None, \"addresses\", \"K2\")\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
+   "code": "# ---- addresses -> silver.addresses ----\n# Key address_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"addresses\"))\nread_counts[\"addresses\"] = df.count()\nnot_checked_keys[\"addresses\"] = [\"address_id\"]\n# Reference addresses.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"addresses\", \"R1\", \"customer_id has no row in customers (addresses.customer_id = customers.customer_id)\")\nsilver[\"addresses\"] = write_silver(df, \"addresses\")",
    "language": "python",
    "code_title": "Notebook cell for addresses"
   },
@@ -168,7 +168,7 @@
    "label": "silver.orders",
    "table": "orders",
    "lines": [
-    "one row per order_id",
+    "every row kept: key order_id not checked",
     "customer_id → customers"
    ],
    "pills": [
@@ -176,7 +176,7 @@
     "R1"
    ],
    "built": true,
-   "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\"], \"orders\", \"K2\")\ndf = keep_latest(df, [\"order_id\"], None, \"orders\", \"K2\")\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
+   "code": "# ---- orders -> silver.orders ----\n# Key order_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"orders\"))\nread_counts[\"orders\"] = df.count()\nnot_checked_keys[\"orders\"] = [\"order_id\"]\n# Reference orders.customer_id = customers.customer_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver customers, so rows whose customers was quarantined follow it there.\ndf = check_reference(df, [\"customer_id\"], silver[\"customers\"], [\"customer_id\"], \"orders\", \"R1\", \"customer_id has no row in customers (orders.customer_id = customers.customer_id)\")\nsilver[\"orders\"] = write_silver(df, \"orders\")",
    "language": "python",
    "code_title": "Notebook cell for orders"
   },
@@ -186,7 +186,7 @@
    "label": "silver.products",
    "table": "products",
    "lines": [
-    "one row per product_id",
+    "every row kept: key product_id not checked",
     "category_id → categories"
    ],
    "pills": [
@@ -194,7 +194,7 @@
     "R1"
    ],
    "built": true,
-   "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\ndf = drop_null_keys(df, [\"product_id\"], \"products\", \"K2\")\ndf = keep_latest(df, [\"product_id\"], None, \"products\", \"K2\")\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
+   "code": "# ---- products -> silver.products ----\n# Key product_id (rule K2: a column named `id`, `no`, `nr`, `<table>_id`, `<table>id`, `<singular>_id`, `<singular>id`, `<table>_key`, `<table>_code`, `<table>_nr`, `<table>_no`, `<table>_sk`, `<table>_bk`, or an abbreviation of the table name (four letters or more) with one of those suffixes (`<table>snr` too: the Swedish genitive, `Leverantorsnr` in `Leverantor`)).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"products\"))\nread_counts[\"products\"] = df.count()\nnot_checked_keys[\"products\"] = [\"product_id\"]\n# Reference products.category_id = categories.id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver categories, so rows whose categories was quarantined follow it there.\ndf = check_reference(df, [\"category_id\"], silver[\"categories\"], [\"id\"], \"products\", \"R1\", \"category_id has no row in categories (products.category_id = categories.id)\")\nsilver[\"products\"] = write_silver(df, \"products\")",
    "language": "python",
    "code_title": "Notebook cell for products"
   },
@@ -204,7 +204,7 @@
    "label": "silver.order_items",
    "table": "order_items",
    "lines": [
-    "one row per order_id + line_no",
+    "every row kept: key order_id + line_no not checked",
     "order_id → orders",
     "product_id → products"
    ],
@@ -214,7 +214,7 @@
     "R1"
    ],
    "built": true,
-   "code": "# ---- order_items -> silver.order_items ----\n# Key order_id + line_no (rule K5: line: no column names a key).\n# A key identifies one row: rows without a key go to quarantine, and of rows that share a key only one is kept.\n# No ordering column (none given in order_by, none named like updated_at): the kept row is chosen by a content hash, so a re-run keeps the same one.\ndf = spark.read.table(source(\"order_items\"))\nread_counts[\"order_items\"] = df.count()\ndf = drop_null_keys(df, [\"order_id\", \"line_no\"], \"order_items\", \"K5\")\ndf = keep_latest(df, [\"order_id\", \"line_no\"], None, \"order_items\", \"K5\")\n# Reference order_items.order_id = orders.order_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver orders, so rows whose orders was quarantined follow it there.\ndf = check_reference(df, [\"order_id\"], silver[\"orders\"], [\"order_id\"], \"order_items\", \"R1\", \"order_id has no row in orders (order_items.order_id = orders.order_id)\")\n# Reference order_items.product_id = products.product_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver products, so rows whose products was quarantined follow it there.\ndf = check_reference(df, [\"product_id\"], silver[\"products\"], [\"product_id\"], \"order_items\", \"R1\", \"product_id has no row in products (order_items.product_id = products.product_id)\")\nsilver[\"order_items\"] = write_silver(df, \"order_items\")",
+   "code": "# ---- order_items -> silver.order_items ----\n# Key order_id + line_no (rule K5: line: no column names a key).\n# The key was guessed from names, not checked against the rows. Every row is kept: no duplicates were removed because the key was not checked, and no row goes to quarantine for its key. Rows that share it may be real rows (the same customer buying the same product twice). Give it as a key (keys=, or set it in the review) if they are true duplicates.\ndf = spark.read.table(source(\"order_items\"))\nread_counts[\"order_items\"] = df.count()\nnot_checked_keys[\"order_items\"] = [\"order_id\", \"line_no\"]\n# Reference order_items.order_id = orders.order_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver orders, so rows whose orders was quarantined follow it there.\ndf = check_reference(df, [\"order_id\"], silver[\"orders\"], [\"order_id\"], \"order_items\", \"R1\", \"order_id has no row in orders (order_items.order_id = orders.order_id)\")\n# Reference order_items.product_id = products.product_id (rule R1: column named `<B>_id` / `<B>id` / `<singular B>_id` / `<singular B>id` (also _key, _code, _nr, _no, _sk, _bk) where B has a single key).\n# Checked against the silver products, so rows whose products was quarantined follow it there.\ndf = check_reference(df, [\"product_id\"], silver[\"products\"], [\"product_id\"], \"order_items\", \"R1\", \"product_id has no row in products (order_items.product_id = products.product_id)\")\nsilver[\"order_items\"] = write_silver(df, \"order_items\")",
    "language": "python",
    "code_title": "Notebook cell for order_items"
   },

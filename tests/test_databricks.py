@@ -295,7 +295,11 @@ def test_generated_sql_parses_as_databricks_sql(workspace):
 
 
 def test_pipeline_draft_mirrors_the_silver_and_gold_rules_and_never_writes_a_source(workspace):
-    out = call("databricks_pipeline_draft", schema="shop", order_by={"orders": "order_date"})
+    # n208: the shop's keys are guessed from names (K2): no row is dropped for its key, and the source says why
+    guessed = call("databricks_pipeline_draft", schema="shop", order_by={"orders": "order_date"})["files"]["silver.sql"]
+    assert "orders_key_present" not in guessed and "no duplicates were removed because the key was not checked" in guessed
+    assert "AS SELECT *, 1 AS _krusgraph_rank\nFROM `workspace`.`shop`.`orders`" in guessed
+    out = call("databricks_pipeline_draft", schema="shop", order_by={"orders": "order_date"}, keys={"orders": ["order_id"]})
     silver, gold = out["files"]["silver.sql"], out["files"]["gold.sql"]
     assert silver.startswith("-- Databricks notebook source") and "-- COMMAND ----------" in silver
     assert "CONSTRAINT orders_key_present EXPECT (`order_id` IS NOT NULL) ON VIOLATION DROP ROW" in silver
@@ -333,13 +337,13 @@ def _run_pipeline_on_sqlite(fake, sql: str) -> None:
 def test_the_pipeline_logic_runs_on_sqlite_with_the_fabric_notebooks_outcome(monkeypatch):
     """The dirty shop seed of tests/silver_cases.py through the pipeline's SQL: the same rows reach silver and the same
     rows land in quarantine, per table and rule, as in the Fabric silver notebook; gold has one row per silver line."""
-    from silver_cases import EXPECTED_QUARANTINE, seed_rows
+    from silver_cases import EXPECTED_QUARANTINE, GIVEN_KEYS, seed_rows
     import requests
     fake = dx.FakeDatabricks(rows=seed_rows())
     monkeypatch.setattr(requests, "get", fake.get)
     monkeypatch.setattr(requests, "post", fake.post)
     execute = adapter.connect(dx.HOST, dx.WAREHOUSE, AUTH[1], dx.CATALOG)
-    p = plan(adapter.read_schema(execute, "shop", dx.CATALOG))
+    p = plan(adapter.read_schema(execute, "shop", dx.CATALOG), GIVEN_KEYS)            # n208: keys given, so they de-duplicate
     out = dd.pipeline(p, dx.CATALOG, order_by={"orders": "order_date"})
     _run_pipeline_on_sqlite(fake, out["files"]["silver.sql"])
     got: dict = {}

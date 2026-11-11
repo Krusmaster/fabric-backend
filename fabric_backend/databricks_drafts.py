@@ -181,7 +181,11 @@ def _silver_cells(plan: Plan, s: dict, catalog: str) -> tuple[list[str], list[st
         ranked, checked = _name(t, "_ranked"), _name(t, "_checked")
         ranked, checked = f"{t.lower()}__ranked" if _IDENT.match(f"{t}__ranked") else ranked, f"{t.lower()}__checked" if _IDENT.match(f"{t}__checked") else checked
         notes = [f"-- {t}: from {catalog}.{schema}.{t} into {catalog}.{silver_schema}.{t}."]
-        if key:
+        if key and not spec_t.get("dedupe") and not spec_t.get("fix_key"):     # n208: a guessed key removes no rows
+            notes.append(f"-- Key {' + '.join(key)} by rule {rule} ({_rule_text(rule)}), {spec_t.get('key_basis', 'not checked')}: every row "
+                         f"is kept, {_silver.NOT_CHECKED}.")
+            rank = "1"
+        elif key:
             notes.append(f"-- Key {' + '.join(key)} by rule {rule} ({_rule_text(rule)}); a row without it identifies nothing and is dropped.")
             if spec_t["order_by"]:
                 order = f"{Q(spec_t['order_by'])} DESC NULLS LAST"
@@ -194,6 +198,8 @@ def _silver_cells(plan: Plan, s: dict, catalog: str) -> tuple[list[str], list[st
         else:
             notes.append("-- No key (rule K3): copied without de-duplication.")
             rank = "1"
+        if not (spec_t.get("dedupe") or spec_t.get("fix_key")):
+            key = []                                                  # n208: from here on, no row is dropped for its key
         expectations, lookups, helpers = [], [], []
         if key:
             expectations.append((f"-- {rule}: the key {' + '.join(key)} must be present",

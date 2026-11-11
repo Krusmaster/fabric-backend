@@ -25,7 +25,9 @@ What the syntax and the rules rest on (MicrosoftDocs/fabric-docs a2de7f9, read 2
 
 Every rule is DROP: a row that breaks one is left out of the view and counted in the lineage view, which is what the
 silver notebook's quarantine does one layer down; FAIL would stop the whole refresh on one row. A CHECK sees one row
-at a time, so a key's uniqueness cannot be a constraint: the silver tables are already de-duplicated on the key.
+at a time, so a key's uniqueness cannot be a constraint: the silver tables are de-duplicated on a key that was declared,
+given or counted in the rows; a key guessed from names keeps every row (n208), and the check notebook counts it and the
+rows and sums of each view, so a join that repeats rows is seen there.
 
 `spec()` is the plan of the views as data; `statements()` the SQL; `notebook_source()` the notebook; `run_select()`
 executes a view's SELECT on any DB-API connection (the tests use SQLite and a local Spark).
