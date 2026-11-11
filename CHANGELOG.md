@@ -9,6 +9,19 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n201: **the Krusgraph Model reads mirrored databases**, SAP mirrored through SAP Datasphere among them, and
+  warehouses and SQL databases (the founder, 10 November 2026: the detail page said "Compatible with: Lakehouse"
+  only). The source picker offers the four item types; review and check read the SQL analytics endpoint, read-only.
+  A read-only source's silver notebook, gold views and pipeline (with its check) write to a lakehouse the person picks
+  (Target lakehouse; default the first lakehouse of the workspace, said in the dry run), and the silver notebook reads
+  the mirrored tables at `oneLakeTablesPath` (Get Mirrored Database on Learn) in OneLake, with no copy outside Fabric
+  and no shortcut. For SAP tables the review marks the SAP pack's keys (with MANDT) and links "from the SAP pack" with
+  the pack's public sources, and says what mirroring delivers (Initial and Delta, Parquet) and that SAP Datasphere
+  Premium Outbound Integration is the customer's licence matter. Both workload packages list MirroredDatabase,
+  Warehouse and SQLDatabase as compatible item types, show the founder's overview film first on the detail page, and
+  point the "Certification" link at the attestation page, which says "Draft." at the top. New: `fabric_backend/mirroring.py`,
+  `docs/SAP-MIRRORING.md`, `tests/test_n201_mirrored.py`, `tests/test_n201_manifest.py`, `sourceWords.ts`. Not run
+  against a mirrored database in Fabric, and no SAP Datasphere was available. A new workload package is needed.
 - Round n205: **trust, honest labels, a comparison and findability** before the launch of 11 November 2026, after a
   reviewer's report of 10 November ("the biggest obstacle is trust, not technology"). `/trust` ("Security and data",
   Markdown twin `/trust.md`), written from `docs/TRUST-PACK.md`: what passes through, that no table contents are
