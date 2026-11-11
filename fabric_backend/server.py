@@ -2367,9 +2367,11 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                                   if spec else []),
                        "delegated_scope": f"{_jobs.EXECUTE_SCOPE} (or {_jobs.EXECUTE_ALT})", "spec": _jobs.SPEC}
     if dry_run:
-        if len(json.dumps(out, indent=2)) > MAX_RESULT_CHARS:
-            for n in out["notebooks"]:
-                n["omitted"] = f"the notebook ({len(n.pop('content'))} characters) did not fit in one answer; export_item_definitions gives it as a file"
+        # n200: the largest notebook first (the check, with its health step), so the others still show when they fit
+        for n in sorted(out["notebooks"], key=lambda n: -len(n.get("content", ""))):
+            if len(json.dumps(out, indent=2)) <= MAX_RESULT_CHARS:
+                break
+            n["omitted"] = f"the notebook ({len(n.pop('content'))} characters) did not fit in one answer; export_item_definitions gives it as a file"
         return json.dumps(out, indent=2)
     token = lambda: auth.fabric(ctx)  # noqa: E731
     for n in out["notebooks"]:

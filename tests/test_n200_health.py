@@ -522,7 +522,14 @@ def test_the_health_endpoint_refuses_a_bad_request(api, body, why):
 
 # ------------------------------------------------------------------ the item's Create hands over its plan ---------------
 
-from test_workload_build import make, keys, _build, _review  # noqa: E402,F401  (the workload build harness)
+from test_workload_build import _build, _review, make  # noqa: E402,F401  (the workload build harness)
+
+
+@pytest.fixture(scope="module")
+def keys():
+    from cryptography.hazmat.primitives.asymmetric import rsa
+    priv = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    return priv, priv.public_key()
 
 
 def test_the_item_s_create_gives_the_pipeline_its_review_s_plan_and_the_health_steps(make, monkeypatch):
@@ -545,3 +552,23 @@ def test_the_item_s_create_gives_the_pipeline_its_review_s_plan_and_the_health_s
     notebooks = {n["name"]: n.get("content", "") for n in answer["notebooks"]}
     assert "n200: drift" in notebooks["shop_silver"] and rv["plan_id"] in notebooks["shop_silver"]
     assert rv["plan_id"] in notebooks["shop_flow_check"]
+
+
+
+from test_drift_monitor import lakehouse  # noqa: E402,F401  (create_pipeline's lakehouse double)
+
+
+def test_an_answer_over_the_limit_leaves_out_the_largest_notebook_first(lakehouse, monkeypatch):  # noqa: F811
+    """create_pipeline's dry run on the shop: over the answer limit, the largest notebooks are left out first (the silver
+    notebook with its drift step, the check with its health step) and the rest still show."""
+    from fabric_backend import server
+
+    def create():
+        return json.loads(server.create_pipeline("Sales", "shop_lh", name="pipeline_shop", schema="shop"))
+    monkeypatch.setattr(server, "MAX_RESULT_CHARS", 10 ** 6)
+    sizes = {n["name"]: len(n["content"]) for n in create()["notebooks"]}
+    monkeypatch.setattr(server, "MAX_RESULT_CHARS", 60000)
+    small = create()
+    left = [n["name"] for n in small["notebooks"] if "omitted" in n]
+    assert left == sorted(sizes, key=lambda n: -sizes[n])[:len(left)]                     # the largest first
+    assert 0 < len(left) < len(sizes) and all(n.get("content") for n in small["notebooks"] if n["name"] not in left)

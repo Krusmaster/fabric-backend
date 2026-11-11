@@ -23,6 +23,13 @@ def decoded(body: dict) -> dict:
     return {p["path"]: base64.b64decode(p["payload"]).decode("utf-8") for p in body["definition"]["parts"]}
 
 
+@pytest.fixture(autouse=True)
+def _whole_answer(monkeypatch):
+    """n200: the check notebook carries the health step, and the shop's dry run is over the 60 000-character answer limit
+    (the largest notebook is then left out of the answer, tested below); these tests read every notebook."""
+    monkeypatch.setattr(server, "MAX_RESULT_CHARS", 10 ** 6)
+
+
 @pytest.fixture
 def fabric(lakehouse, monkeypatch):  # noqa: F811
     """Fabric with an empty workspace: every create answers 201 with an id; every call is recorded."""
@@ -139,10 +146,20 @@ def test_the_notebooks_are_the_ones_the_existing_tools_and_the_export_produce(la
     nbs = {n["name"]: n["content"] for n in create()["notebooks"]}
     silver = json.loads(server.create_silver_notebook("Sales", "shop_lh", name="silver_shop", schema="shop"))
     gold = json.loads(server.create_gold_views("Sales", "shop_lh", name="gold_shop", schema="shop"))
-    assert nbs["silver_shop"] == silver["notebook"]["content"] and nbs["gold_shop"] == gold["notebook"]["content"]
+    assert nbs["gold_shop"] == gold["notebook"]["content"]
+    # n200: the pipeline's silver notebook is the draft with the drift step first (and the run id and alert parameters);
+    # every other cell is the draft's own
+    from fabric_backend import health, notebook
+    from fabric_backend import silver as _silver
+    piped, draft = notebook.parse(nbs["silver_shop"]), notebook.parse(silver["notebook"]["content"])
+    assert "n200: drift" in piped[2][1] and health.DRIFT_CODE in piped[2][1]
+    assert piped[1][1] == draft[1][1] + "\n" + health.ALERT_PARAMS_TEXT
+    assert piped[:1] + piped[3:] == draft[:1] + draft[2:]
+    assert _silver.QUARANTINE in nbs["silver_shop"]
     files = json.loads(server.export_item_definitions("Sales", "shop_lh", schema="shop", items=["pipeline"]))["files"]
     for name, text in nbs.items():
-        assert files[f"{name}.Notebook/notebook-content.py"] == text
+        if name != "silver_shop":                                  # the export keeps the stand-alone silver draft
+            assert files[f"{name}.Notebook/notebook-content.py"] == text
 
 
 def test_it_needs_a_lakehouse_with_schemas(lakehouse, monkeypatch):  # noqa: F811
