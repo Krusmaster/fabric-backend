@@ -24,7 +24,10 @@ What the syntax and the rules rest on (MicrosoftDocs/fabric-docs a2de7f9, read 2
   one active refresh schedule per lineage).
 
 Every rule is DROP: a row that breaks one is left out of the view and counted in the lineage view, which is what the
-silver notebook's quarantine does one layer down; FAIL would stop the whole refresh on one row. A CHECK sees one row
+silver notebook's quarantine does one layer down; FAIL would stop the whole refresh on one row. n209: a relationship's
+rule (`(ref IS NULL) OR (found IS NOT NULL)`) needs the joined table's key column, which the view no longer outputs (it
+equals the referencing column), and a CHECK sees only the view's own columns; so it is the WHERE of the SELECT, with the
+same rows left out, and the check notebook's rows before and after the join count them instead of the lineage view. A CHECK sees one row
 at a time, so a key's uniqueness cannot be a constraint: the silver tables are de-duplicated on a key that was declared,
 given or counted in the rows; a key guessed from names keeps every row (n208), and the check notebook counts it and the
 rows and sums of each view, so a join that repeats rows is seen there.
@@ -155,9 +158,20 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
         needed = {(fact, c.lower()) for c in plan.keys.get(fact, ([], ""))[0]}
         for s in steps:
             needed |= {(s["from"], c.lower()) for c in s["rel"].source_cols} | {(s["to"], c.lower()) for c in s["rel"].target_cols}
+        # n209 (founder, shop sample): a joined table's column that is a target column of the join step that brought it in
+        # equals the referencing column (the join condition), so it is not output again: no orders_order_id next to
+        # order_id. `keys_once` says, per left-out key column, which output column holds its value (followed back through
+        # a chain: a later step may reference a key column that is itself left out).
+        same: dict[tuple[str, str], tuple[str, str]] = {}
+        for s in steps:
+            for a, b in zip(s["rel"].source_cols, s["rel"].target_cols):
+                ref = (s["from"], a.lower())
+                same[(s["to"], b.lower())] = same.get(ref, ref)
         columns, out_names = [], []
         for t in [fact] + [s["to"] for s in steps]:
             for c in plan.schema[t].column_names:
+                if t != fact and (t, c.lower()) in same:
+                    continue
                 if t != fact and (t, c) in header_amounts and (t, c.lower()) not in needed:
                     # the total that doubles (amounts.py): one row per fact row repeats this amount once per fact row
                     levels.append({"view": target, "table": t, "column": c,
@@ -176,6 +190,8 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
         for col, name in zip(columns, _unique(out_names)):
             col["as"] = name
         out_of = {(c["table"], c["column"].lower()): c["as"] for c in columns}
+        keys_once = [{"table": t, "column": next(x for x in plan.schema[t].column_names if x.lower() == c), "same_as": out_of[ref]}
+                     for (t, c), ref in same.items() if ref in out_of]
         constraints = []
         key, key_rule = plan.keys.get(fact, ([], None))
         if key:
@@ -183,22 +199,27 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                                 "check": " AND ".join(f"{q(out_of[(fact, c.lower())])} IS NOT NULL" for c in key),
                                 "why": f"the key of {fact} is {' + '.join(key)} (rule {key_rule}: {_rule_text(key_rule)}); a row without it "
                                        "identifies nothing"})
+        filters = []
         for s in steps:
             r = s["rel"]
-            ref = [out_of[(s["from"], c.lower())] for c in r.source_cols]
-            found = [out_of[(s["to"], c.lower())] for c in r.target_cols]
-            constraints.append({"name": _constraint_name(fact, *([] if s["from"] == fact else [s["from"]]), *r.source_cols, "in", s["to"]),
-                                "check": "(" + " OR ".join(f"{q(x)} IS NULL" for x in ref) + ") OR ("
-                                         + " AND ".join(f"{q(x)} IS NOT NULL" for x in found) + ")",
-                                "why": f"{s['from']}.{'+'.join(r.source_cols)} points at {s['to']}.{'+'.join(r.target_cols)} (rule {r.rule}: "
-                                       f"{_rule_text(r.rule)}" + (f"; {r.note}" if r.note else "") + "); a row whose reference finds no "
-                                       f"{s['to']} is dropped, a NULL reference is kept (it says unknown, not wrong)"})
+            # n209: the rule of each join (a row whose reference finds no row is dropped, a NULL reference is kept) is the
+            # same predicate as before, `(ref IS NULL) OR (found IS NOT NULL)`, now on the joined tables' columns in the
+            # SELECT's WHERE: a CHECK constraint sees only the view's output columns, and the found key column is no longer
+            # one of them. The check notebook still compares the rows before and after the join.
+            fl = {"name": _constraint_name(fact, *([] if s["from"] == fact else [s["from"]]), *r.source_cols, "in", s["to"]),
+                  "ref": [[alias[s["from"]], c] for c in r.source_cols], "found": [[alias[s["to"]], c] for c in r.target_cols],
+                  "why": f"{s['from']}.{'+'.join(r.source_cols)} points at {s['to']}.{'+'.join(r.target_cols)} (rule {r.rule}: "
+                         f"{_rule_text(r.rule)}" + (f"; {r.note}" if r.note else "") + "); a row whose reference finds no "
+                         f"{s['to']} is dropped, a NULL reference is kept (it says unknown, not wrong)"}
+            fl["check"] = filter_sql(fl)
+            filters.append(fl)
         views.append({"fact": fact, "name": target, "why": f"{fact} is a fact table ({roles[fact]['why'].split(';')[0]}); one row per {fact} "
                       f"row with {len(steps)} table(s) joined in over the safest many-to-one paths",
                       "joins": [{"from": s["from"], "to": s["to"], "on": [f"{a} = {b}" for a, b in zip(s["rel"].source_cols, s["rel"].target_cols)],
                                  "rule": s["rel"].rule, "certainty": certainty(s["rel"]), "alias": alias[s["to"]], "from_alias": alias[s["from"]],
                                  "source_cols": list(s["rel"].source_cols), "target_cols": list(s["rel"].target_cols)} for s in steps],
-                      "columns": columns, "constraints": constraints, "tables": [fact] + [s["to"] for s in steps]})
+                      "columns": columns, "constraints": constraints, "filters": filters, "keys_once": keys_once,
+                      "tables": [fact] + [s["to"] for s in steps]})
     owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
                        "schema": schema, "tables": sorted(t.name for t in plan.schema)},
@@ -208,12 +229,30 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", gold_schema: str
                               "flagged": _privacy.findings({k: v for k, v in flagged.items() if k[0] in {t for v in views for t in v["tables"]}})}}
 
 
-def select_sql(view: dict, silver_schema: str, quote=q) -> str:
+def filter_sql(fl: dict, quote=q) -> str:
+    """n209: one join's rule as a predicate on the aliases of the SELECT: `(f.ref IS NULL) OR (d1.key IS NOT NULL)`."""
+    return ("(" + " OR ".join(f"{a}.{quote(c)} IS NULL" for a, c in fl["ref"]) + ") OR ("
+            + " AND ".join(f"{a}.{quote(c)} IS NOT NULL" for a, c in fl["found"]) + ")")
+
+
+def where_sql(view: dict, quote=q, comments: bool = False) -> str:
+    """n209: the WHERE of a view's SELECT, one join rule per line, each after its reason when `comments` (empty when the
+    view joins nothing). The first reason stands before the WHERE: a comment right after the keyword is not read by
+    every SQL parser (sqlglot's Databricks dialect)."""
+    out = []
+    for i, fl in enumerate(view.get("filters", [])):
+        if comments:
+            out.append(_sql_comment(fl["why"], "    -- "))
+        out.append(f"{'WHERE' if i == 0 else '    AND'} ({filter_sql(fl, quote)})")
+    return ("\n" + "\n".join(out)) if out else ""
+
+
+def select_sql(view: dict, silver_schema: str, quote=q, comments: bool = False) -> str:
     cols = ",\n    ".join(f"{c['alias']}.{quote(c['column'])} AS {quote(c['as'])}" for c in view["columns"])
     joins = "".join(f"\n    LEFT JOIN {quote(silver_schema)}.{quote(j['to'])} AS {j['alias']} ON "
                     + " AND ".join(f"{j['from_alias']}.{quote(a)} = {j['alias']}.{quote(b)}" for a, b in zip(j["source_cols"], j["target_cols"]))
                     for j in view["joins"])
-    return f"SELECT\n    {cols}\nFROM {quote(silver_schema)}.{quote(view['fact'])} AS f{joins}"
+    return f"SELECT\n    {cols}\nFROM {quote(silver_schema)}.{quote(view['fact'])} AS f{joins}{where_sql(view, quote, comments)}"
 
 
 def create_sql(view: dict, s: dict) -> str:
@@ -229,17 +268,19 @@ def create_sql(view: dict, s: dict) -> str:
             lines.append(_sql_comment(c["why"], "    -- "))
             lines.append(f"    CONSTRAINT {c['name']} CHECK ({c['check']}) ON MISMATCH DROP" + ("," if i < len(view["constraints"]) - 1 else ""))
         lines.append(")")
-    comment = f"Krusgraph gold view of {view['fact']} from {s['silver_schema']}, generated from the plan; rules in the constraint comments"
+    comment = f"Krusgraph gold view of {view['fact']} from {s['silver_schema']}, generated from the plan; rules in the constraint and WHERE comments"
     # a backslash would escape the closing quote in Spark SQL; a line break is written as its escape (codegen.one_line)
     lines.append('COMMENT "' + _one_line(comment).replace("\\", "\\\\").replace('"', "'") + '"')
     lines.append(f'TBLPROPERTIES ("{PROPERTY}"="' + s["owner"].replace("\\", "\\\\").replace('"', "'") + '")')
     lines.append("AS")
-    lines.append(select_sql(view, s["silver_schema"]))
+    lines.append(select_sql(view, s["silver_schema"], comments=True))
     return "\n".join(lines)
 
 
 def statements(s: dict) -> list[dict]:
-    return [{"name": v["name"], "sql": create_sql(v, s), "why": v["why"], "rules": [{"constraint": c["name"], "why": c["why"]} for c in v["constraints"]]}
+    return [{"name": v["name"], "sql": create_sql(v, s), "why": v["why"],
+             "rules": [{"constraint": c["name"], "why": c["why"]} for c in v["constraints"]]
+                      + [{"filter": f["name"], "why": f["why"]} for f in v.get("filters", [])]}           # n209: the join rules
             for v in s["views"]]
 
 
@@ -288,8 +329,10 @@ def cells(s: dict) -> list[tuple[str, str]]:
     intro = (f"# Gold views for {src['item'] or 'the lakehouse'}.{src['schema']}\n\n"
              f"Generated by Krusgraph from the plan: {len(s['views'])} materialized lake view(s) in the schema `{s['gold_schema']}`, one "
              f"wide view per fact table over the silver tables in `{s['silver_schema']}`, joined over the safest many-to-one paths. "
-             "Each view's constraints mirror the plan's keys and relationships (ON MISMATCH DROP: the lineage view counts the dropped "
-             "rows). Source and silver tables are only read; the notebook stops before touching a table it did not create. "
+             "Each view's constraint holds the fact table's key (ON MISMATCH DROP: the lineage view counts the dropped rows), and the "
+             "WHERE of its SELECT holds the plan's relationships: a row whose reference finds nothing is left out, a NULL reference is "
+             "kept; the pipeline's check compares the rows before and after. Each join key appears once, under the referencing "
+             "column's name. Source and silver tables are only read; the notebook stops before touching a table it did not create. "
              "Schedule the refresh in the lakehouse: Manage materialized lake views -> Manage schedules.")
     if s["personal_data"]["omitted"]:
         intro += ("\n\nLeft out because the column name looks like personal data: "
@@ -309,7 +352,7 @@ def cells(s: dict) -> list[tuple[str, str]]:
         body = sql.replace(f"{q(s['gold_schema'])}.", f"`{GOLD_TOKEN}`.").replace(f"{q(s['silver_schema'])}.", f"`{SILVER_TOKEN}`.")
         body = body.replace("\\", "\\\\").replace('"""', '\\"\\"\\"')
         name = v["name"].split(".", 1)[1]
-        out.append(("code", "\n".join([_comment(f"---- {v['name']} ----"), *[_comment(f"{c['name']}: {c['why']}") for c in v["constraints"]],
+        out.append(("code", "\n".join([_comment(f"---- {v['name']} ----"), *[_comment(f"{c['name']}: {c['why']}") for c in v["constraints"] + v.get("filters", [])],
                                        f'spark.sql("""\n{body}\n""".replace("{GOLD_TOKEN}", GOLD_SCHEMA.replace("`", "``"))'
                                        f'.replace("{SILVER_TOKEN}", SILVER_SCHEMA.replace("`", "``")))',
                                        f"created.append({_py_literal(name)})"])))

@@ -144,7 +144,10 @@ def draft(plan: Plan, info: dict, name: str, schema: str, show_personal_data: bo
         if lay["layer"] == "gold":
             variants.append({"layer": "gold", "schema": lay["schema"], "tables": list(lay["tables"]), "kinds": ("MaterializedView", "Table"),
                              "instructions": ctx["instructions"] + "\n\n## Layer\nAnswer from the gold views in schema "
-                             f"{lay['schema']} ({', '.join(lay['tables'])}): one wide view per fact table, joined by the plan's keys.",
+                             f"{lay['schema']} ({', '.join(lay['tables'])}): one wide view per fact table, joined by the plan's keys. "
+                             # n209: the views carry each join key once, so the agent must not ask for orders_order_id
+                             "Each join key appears once, under the referencing column's name (order_id, not orders_order_id); "
+                             "the joined tables' other columns are named table_column.",
                              "datasource_instructions": ctx["datasource_instructions"], "datasource_description": ctx["datasource_description"],
                              "fewshots": []})
         elif lay["layer"] == "silver":

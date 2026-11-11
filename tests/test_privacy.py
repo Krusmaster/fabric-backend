@@ -160,7 +160,10 @@ def test_gold_views_name_a_personal_key_they_keep_for_a_join():
     p = plan(sch, {"members": ["member_email"]}, [{"source": "visits", "source_cols": ["member_email"], "target": "members", "target_cols": ["member_email"]}])
     s = gold.spec(p, info)
     kept = {(k["table"], k["column"]) for k in s["personal_data"]["kept_for_joins"]}
-    assert ("members", "member_email") in kept and ("visits", "member_email") in kept
+    assert ("visits", "member_email") in kept
+    # n209: members.member_email equals visits.member_email (the join), so the view does not output it a second time
+    assert ("members", "member_email") not in kept
+    assert all((c["table"], c["column"]) != ("members", "member_email") for v in s["views"] for c in v["columns"])
 
 
 def test_the_local_server_masks_too(monkeypatch):

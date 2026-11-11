@@ -32,9 +32,11 @@ def test_one_view_per_fact_table_over_the_safest_paths():
     items = next(v for v in s["views"] if v["fact"] == "order_items")
     assert [(j["from"], j["to"], j["rule"]) for j in items["joins"]] == [
         ("order_items", "orders", "R1"), ("order_items", "products", "R1"), ("products", "categories", "R1"), ("orders", "customers", "R1")]
-    assert [c["name"] for c in items["constraints"]] == ["order_items_key_present", "order_items_order_id_in_orders", "order_items_product_id_in_products",
-                                                         "order_items_products_category_id_in_categories", "order_items_orders_customer_id_in_customers"]
-    assert all("rule" in c["why"] for c in items["constraints"])
+    # n209: the key rule is a CONSTRAINT; each join's rule is in the SELECT's WHERE (the joined key column is not output)
+    assert [c["name"] for c in items["constraints"]] == ["order_items_key_present"]
+    assert [c["name"] for c in items["filters"]] == ["order_items_order_id_in_orders", "order_items_product_id_in_products",
+                                                     "order_items_products_category_id_in_categories", "order_items_orders_customer_id_in_customers"]
+    assert all("rule" in c["why"] for c in items["constraints"] + items["filters"])
     # the safest path wins over the shortest: a declared or confirmed link (1.0) beats an R4 guess (0.5)
     confirmed = shop_plan([{"source": "orders", "source_cols": ["ship_to_id"], "target": "addresses", "target_cols": ["address_id"]}])
     orders = next(v for v in gold.spec(confirmed, INFO)["views"] if v["fact"] == "orders")
@@ -93,7 +95,9 @@ def test_every_view_runs_with_its_rules_on_sqlite_over_the_silver_tables():
         assert list(rows[0]) == [c["as"] for c in v["columns"]]
     items = next(v for v in s["views"] if v["fact"] == "order_items")
     row = next(r for r in gold.run_select(items, s, execute) if r["order_id"] == 100 and r["line_no"] == 1)
-    assert row["orders_customer_id"] == row["customers_customer_id"] and row["categories_name"] in ("Bikes", "Tea", "Accessories")
+    # n209: customers.customer_id is not output again: it equals orders_customer_id, the column that joined it
+    assert "customers_customer_id" not in row and row["orders_customer_id"] is not None and row["customers_country"]
+    assert row["categories_name"] in ("Bikes", "Tea", "Accessories")
     # a reference that finds nothing is dropped by its rule (what ON MISMATCH DROP does), a NULL reference is kept
     sim, execute = _silver_db(s, extra_orphan=True)
     rows = gold.run_select(items, s, execute)

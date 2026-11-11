@@ -1995,7 +1995,7 @@ def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> di
                    "Open this notebook in Fabric (it is attached to the lakehouse, Fabric Runtime 1.3) and Run all; each cell creates or replaces "
                    "one view, after a guard that stops before any table it did not create.",
                    "Schedule the refresh in the lakehouse (Manage materialized lake views -> Manage schedules); the lineage view shows the "
-                   "rows each rule dropped."],
+                   "rows the key rule dropped, and the pipeline's check the rows the join rules (the WHERE) left out."],
            "refresh": MLV_REFRESH,
            "status": ("Materialized lake views are generally available (September 2026, fabric-docs whats-new.md); the data quality "
                       "constraints, optimal refresh and time-based schedules used here carry no preview label. REFRESH_HINT, event-triggered "

@@ -267,12 +267,14 @@ def _gold_cells(s: dict, catalog: str) -> list[str]:
                 lines.append(f"  CONSTRAINT {c['name']} EXPECT ({c['check']}) ON VIOLATION DROP ROW" + ("," if i < len(v["constraints"]) - 1 else ""))
             lines.append(")")
         lines.append("COMMENT " + DATABRICKS.literal(f"Krusgraph gold view of {v['fact']} from {s['silver_schema']}, generated from the plan; "
-                                                      "rules in the expectation comments"))
+                                                      "rules in the expectation and WHERE comments"))
         cols = ",\n    ".join(f"{c['alias']}.{Q(c['column'])} AS {Q(c['as'])}" for c in v["columns"])
         joins = "".join(f"\n    LEFT JOIN {_full(catalog, s['silver_schema'], j['to'])} AS {j['alias']} ON "
                         + " AND ".join(f"{j['from_alias']}.{Q(a)} = {j['alias']}.{Q(b)}" for a, b in zip(j["source_cols"], j["target_cols"]))
                         for j in v["joins"])
-        lines.append(f"AS SELECT\n    {cols}\nFROM {_full(catalog, s['silver_schema'], v['fact'])} AS f{joins}")
+        # n209: the join rules are the WHERE of the SELECT (an expectation sees only the view's columns, and the joined key
+        # column is no longer one of them: it equals the referencing column)
+        lines.append(f"AS SELECT\n    {cols}\nFROM {_full(catalog, s['silver_schema'], v['fact'])} AS f{joins}{_gold.where_sql(v, Q, comments=True)}")
         cells.append("\n".join(lines) + ";")
     return cells
 

@@ -189,8 +189,10 @@ the notebooks the creating tools below made on 28 October have not been run in F
 - `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
   step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
 - `gold_views_draft` / `create_gold_views` — materialized lake views in Spark SQL over the silver tables: one wide view
-  per fact table in a schema of its own (`gold`), joined over the safest many-to-one paths, with `CONSTRAINT … CHECK …
-  ON MISMATCH DROP` rules for the plan's keys and relationships, each commented with its rule; the notebook stops before
+  per fact table in a schema of its own (`gold`), joined over the safest many-to-one paths, with a `CONSTRAINT … CHECK …
+  ON MISMATCH DROP` rule for the fact's key and the relationships' rules in the SELECT's WHERE (a reference that finds
+  nothing is left out, a NULL one kept), each commented with its rule; each join key appears once, under the
+  referencing column's name (no `orders_order_id` next to `order_id`); the notebook stops before
   a source, silver or foreign table (`fabric_backend/gold.py` cites the syntax and status from Microsoft Learn). The
   SQL ran on SQLite and a local PySpark 4.0.1 (open-source Spark has no materialized lake views, so the CREATE itself is
   checked against the documented syntax); in Fabric, inside `create_pipeline`'s run of 7 November 2026 (run 9de8bc49).

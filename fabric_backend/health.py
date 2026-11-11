@@ -392,6 +392,10 @@ def drift_spec(plan, silver_spec: dict, gold_spec: dict, plan_mark: dict) -> dic
         for c in v["columns"]:
             if c["table"] in uses:
                 uses[c["table"]].add(c["column"])
+        for j in v["joins"]:                     # n209: a joined key column is no longer an output column, but the join uses it
+            for t, cols in ((j["from"], j["source_cols"]), (j["to"], j["target_cols"])):
+                if t in uses:
+                    uses[t] |= set(cols)
     built = {t: {"columns": {c.name: (c.data_type or "").lower() for c in plan.schema[t].columns},
                  "uses": sorted(uses[t], key=str.lower)} for t in sorted(tables, key=str.lower)}
     others = [t for t in src.get("tables", []) if t not in tables]
