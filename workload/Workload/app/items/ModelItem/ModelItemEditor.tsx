@@ -66,12 +66,14 @@ import {
 } from "./jobsWords";
 import { AppChoices } from "./engineClient";
 import { PICKER_TYPES, ReadOnlySource, SapOffer, isReadOnly, restType, targetProblem } from "./sourceWords";
-import { DataProductView } from "./DataProductView";
+import { DataProductPage, preloadParts } from "./lazyParts";   // n223: the Data product page loads when first shown
+import { OntoWait } from "./OntoWait";
+import { Wait, WaitSignal, checkLabel, newWait, reviewLabel, withSignal } from "./waitWords";
 import { accessLine } from "./accessWords";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, healthWords, outOfDate, withAdopted, withOwner, withRemoved,
 } from "./productWords";
-import { CreatedItem, RemovedItem } from "./ModelItemDefinition";
+import { CreatedItem, ItemCache, RemovedItem, ReviewFile } from "./ModelItemDefinition";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
 const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
@@ -86,12 +88,35 @@ export function isBusy(e: unknown): boolean {
   return ["throttled", "rate_limited", "no_answer", "fabric_unavailable", "timeout"].includes(kind) || /429|throttl|busy|capacity|fetch|timeout|503/i.test(text);
 }
 
+/** n223: run fn when the browser is idle (or soon), after the first paint. */
+function idle(fn: () => void): void {
+  const w = typeof window === "undefined" ? undefined : (window as unknown as { requestIdleCallback?: (f: () => void, o?: object) => void });
+  if (w?.requestIdleCallback) w.requestIdleCallback(fn, { timeout: 3000 });
+  else setTimeout(fn, 1500);
+}
+
+/** n223: the schema list kept in the item for this source, if any (shown at once, then read again). */
+export function cachedSchemas(d: ModelDefinition, itemId = d.source?.itemId): engine.SchemasAnswer | undefined {
+  const c = d.item.cache?.schemas;
+  return c && itemId && c.source === itemId && Array.isArray(c.list?.schemas) ? c.list : undefined;
+}
+
 export function ModelItemEditor(props: PageProps) {
   const { workloadClient } = props;
   const { itemObjectId } = useParams<ContextProps>();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [busy, setBusy] = useState<string>();
+  /** n223: the step the editor waits for (OntoWait: Onto, the step, the slow line after 10 s, the offer after 30 s) */
+  const [wait, setWait] = useState<Wait>();
+  const busy = wait?.label;
+  const stopRef = useRef<AbortController>();
+  /** n223: a review read again while the saved one is shown (reopening an item): one line above the review */
+  const [quiet, setQuiet] = useState<Wait>();
+  /** n223: decisions made while that review is read again, applied again to its answer */
+  const whileQuiet = useRef<((r: ReviewFile) => ReviewFile)[] | undefined>(undefined);
+  /** n223: the item and its definition being read (the first load) */
+  const [opening, setOpening] = useState<Wait>(() => newWait("Opening the model…", Date.now(),
+    { kind: "item", doing: "opening", steps: [{ at: 0, text: "Asked Fabric for the item and its saved definition." }] }));
   const [error, setError] = useState<engine.EngineError>();
   const [trialLine, setTrialLine] = useState<string>("");   // n213: the trial's days left, one quiet line
   const [itemMeta, setItemMeta] = useState<{ id: string; workspaceId: string; displayName: string }>();
@@ -99,7 +124,7 @@ export function ModelItemEditor(props: PageProps) {
   const [dirty, setDirty] = useState(false);
   const [schema, setSchema] = useState("dbo");
   /** n179: the lakehouse's schemas, listed after Choose lakehouse; the schema is picked, never typed */
-  const [schemaList, setSchemaList] = useState<{ loading: boolean; list?: engine.SchemasAnswer; error?: engine.EngineError }>({ loading: false });
+  const [schemaList, setSchemaList] = useState<{ loading: boolean; list?: engine.SchemasAnswer; error?: engine.EngineError; wait?: Wait }>({ loading: false });
   const [choices, setChoices] = useState<OutputChoice[]>([]);
   const [product, setProduct] = useState<{ on: boolean; name: string }>({ on: false, name: "" });
   const [map, setMap] = useState<MapData>();
@@ -116,13 +141,18 @@ export function ModelItemEditor(props: PageProps) {
   const [setView, setSetView] = useState<(v: string) => void>();
   /** n198: the Data product page's state (productWords.ts, DataProductView.tsx) */
   const [dp, setDp] = useState<{ status?: StatusAnswer; health?: string; updates?: OutOfDate[]; retire?: RetireAnswer;
-    leftovers?: LeftoversAnswer; busy?: string; problem?: string }>({});
+    leftovers?: LeftoversAnswer; busy?: string; problem?: string; wait?: Wait }>({});
   const view = def.item.view;
 
   const go = (v: ModelView) => {
     setDef((d) => ({ ...d, item: { ...d.item, view: v } }));
     setView?.(v);
+    // n223: the schemas are listed when Choose source is shown, once per opening (not on every reopen)
+    const s = defRef.current.source;
+    if (v === "empty" && s && listedFor.current !== s.itemId) void listSchemas(s.workspaceId, s.itemId, s.displayName, s.schema, cachedSchemas(defRef.current));
   };
+  /** n223: the source whose schemas were listed in this opening of the item */
+  const listedFor = useRef<string>();
 
   const sourceRequest = (d: ModelDefinition): engine.SourceRequest => ({
     workspace: d.source.workspaceId,
@@ -139,17 +169,36 @@ export function ModelItemEditor(props: PageProps) {
     return a.source_kind && d.source && d.source.itemType !== a.source_kind ? { ...d, source: { ...d.source, itemType: a.source_kind } } : d;
   };
 
-  async function runEngine<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
-    setBusy(label);
+  /** n223: a wait's handle: the options the engine call reports to (what it waits on) and the Cancel it may offer. */
+  function waitHandle(started: number, set: (fn: (w: Wait | undefined) => Wait | undefined) => void): { opts: engine.CallOptions; stop: AbortController } {
+    const stop = new AbortController();
+    const onWait = (sig: WaitSignal) => set((w) => (w && w.startedAt === started ? withSignal(w, sig, Date.now()) : w));
+    return { opts: { signal: stop.signal, onWait }, stop };
+  }
+
+  const wasCancelled = (e: unknown) => e instanceof engine.EngineCallError && e.answer.kind === "cancelled";
+
+  async function runEngine<T>(label: string, fn: (o: engine.CallOptions) => Promise<T>, how: Partial<Wait> = {}): Promise<T | undefined> {
+    const started = Date.now();
+    const { opts, stop } = waitHandle(started, setWait);
+    stopRef.current = stop;
+    setWait(newWait(label, started, how));
     setError(undefined);
     try {
-      return await fn();
+      return await fn(opts);
     } catch (e) {
-      setError(e instanceof engine.EngineCallError ? e.answer : { error: String(e?.message ?? e), kind: "unexpected" });
+      if (!wasCancelled(e)) setError(e instanceof engine.EngineCallError ? e.answer : { error: String(e?.message ?? e), kind: "unexpected" });
       return undefined;
     } finally {
-      setBusy(undefined);
+      if (stopRef.current === stop) stopRef.current = undefined;
+      setWait((w) => (w?.startedAt === started ? undefined : w));
     }
+  }
+
+  /** n223: Cancel on a read-only step: the editor stops reading its answer; nothing in Fabric changes. */
+  function cancelWait() {
+    stopRef.current?.abort();
+    callNotificationOpen(workloadClient, "Cancelled", "Stopped waiting. Nothing in Fabric changed.");
   }
 
   /** n175: the source with the schema as the lakehouse spells it, and a notification that says which name was used. */
@@ -163,14 +212,14 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   async function plan(d: ModelDefinition, corrections: engine.Corrections = {}) {
-    const a = await runEngine("Reading the lakehouse and finding keys and links…", () =>
-      engine.review(workloadClient, sourceRequest(d), d.review, corrections)
+    const a = await runEngine(reviewLabel(d.source?.schema), (o) =>
+      engine.review(workloadClient, sourceRequest(d), d.review, corrections, o), { doing: "reading", cancellable: true }
     );
     if (!a) return;
     setMap(a.map);
     d = withKind(exactSchema(d, a.schema_used), a);
     announceSchema(a.schema_used);
-    setDef({ ...d, review: a.review, item: { ...d.item, view: "review" } });
+    setDef({ ...d, review: a.review, item: withCache({ ...d.item, view: "review" }, { map: a.map }) });
     setDirty(true);
     setView?.("review");
   }
@@ -181,21 +230,59 @@ export function ModelItemEditor(props: PageProps) {
     try {
       const a = await engine.review(workloadClient, sourceRequest(d), d.review, {});
       setMap(a.map);
-      setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: a.review }));
+      setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: a.review, item: withCache(x.item, { map: a.map }) }));
     } catch (e) {
       if (isBusy(e)) setNotice(BUSY_LINE);
     }
   }
+
+  /** n223: reopening an item with a review: the saved review (and the map kept with it) shows at once, and the review is
+   * read again behind it, as before n223 but without a page that only spins. A decision made meanwhile is applied
+   * again to the new answer, so nothing chosen during the wait is lost. */
+  async function replanOnOpen(d: ModelDefinition) {
+    const started = Date.now();
+    const { opts } = waitHandle(started, setQuiet);
+    setQuiet(newWait(`${reviewLabel(d.source?.schema).replace(/…$/, "")} again; the saved review is shown meanwhile…`, started, { doing: "reading" }));
+    whileQuiet.current = [];
+    try {
+      const a = await engine.review(workloadClient, sourceRequest(d), d.review, {}, opts);
+      const again = whileQuiet.current ?? [];
+      setMap(a.map);
+      announceSchema(a.schema_used);
+      setDef((x) => {
+        let review = a.review;
+        for (const fn of again) {
+          try { review = fn(review); } catch { /* an item the new review no longer has */ }
+        }
+        return { ...withKind(exactSchema(x, a.schema_used), a), review, item: withCache(x.item, { map: a.map }) };
+      });
+      if (!again.length) setDirty(false);
+    } catch (e) {
+      if (isBusy(e)) setNotice(BUSY_LINE);
+      else setError(e instanceof engine.EngineCallError ? e.answer : { error: String((e as Error)?.message ?? e), kind: "unexpected" });
+    } finally {
+      whileQuiet.current = undefined;
+      setQuiet(undefined);
+    }
+  }
+
+  /** n223: what the item keeps for an instant first paint (item.json cache): the last map and the schema list. */
+  const withCache = (item: ModelDefinition["item"], patch: Partial<ItemCache>): ModelDefinition["item"] =>
+    ({ ...item, cache: { ...(item.cache ?? {}), ...patch } });
 
   // ---------------------------------------------------------------- load
   useEffect(() => {
     (async () => {
       setIsLoading(true);
       void engine.access(workloadClient).then((a) => setTrialLine(accessLine(a)));   // n213: also starts the trial
+      // n223: Fabric is slow to hand over the item: Onto says so after 10 s (OntoWait, kind "item")
+      const opened = Date.now();
+      setOpening(newWait("Opening the model…", opened, { kind: "item", doing: "opening",
+        steps: [{ at: 0, text: "Asked Fabric for the item and its saved definition." }] }));
       try {
-        const got = await callGetItem(workloadClient, itemObjectId);
+        // n223: the item and its definition are read at the same time (one waited for the other before)
+        const [got, parts] = await Promise.all([callGetItem(workloadClient, itemObjectId), callGetItemDefinition(workloadClient, itemObjectId)]);
         rememberWorkloadOf(got.item.type);   // n176: Org.Krusgraph or Krusgraph.Modeler, for the engine scope
-        const parts = await callGetItemDefinition(workloadClient, itemObjectId);
         const loaded = fromParts(parts?.definition?.parts);
         setItemMeta({ id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName });
         setDef(loaded);
@@ -213,16 +300,22 @@ export function ModelItemEditor(props: PageProps) {
           metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
           setDef(defRef.current);
         }
+        if (loaded.item.cache?.map) setMap(loaded.item.cache.map);   // n223: the last map, until the review is read again
+        const reviewFirst = !hasResult && !!loaded.source && !!loaded.review;
+        if (reviewFirst) setDef({ ...loaded, item: { ...loaded.item, view: "review" } });
         setIsLoading(false);
-        if (loaded.source) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName, loaded.source.schema);
+        idle(preloadParts);   // n223: the map, the data flow and the Data product page, fetched while nothing else is
+        // n223: the schema list only where it shows (Choose source); elsewhere the list kept in the item waits for it
+        if (loaded.source && !reviewFirst && !hasResult) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName,
+          loaded.source.schema, cachedSchemas(loaded));
+        else if (loaded.source && cachedSchemas(loaded)) setSchemaList({ loading: false, list: cachedSchemas(loaded) });
         if (hasResult && loaded.source) {
           if (loaded.review) void replanQuietly(loaded);
           if (landing === "product") void loadProduct();
           await reopen(defRef.current, got.item.id);
           setDirty(false);
-        } else if (loaded.source && loaded.review) {
-          await plan({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
-          setDirty(false);
+        } else if (reviewFirst) {
+          await replanOnOpen({ ...loaded, item: { ...loaded.item, view: "review" } }); // re-plan with the saved decisions
         }
       } catch (e) {
         // n197: Fabric throttled or failed the read of the item's saved state: one line, not a page without its flow
@@ -268,7 +361,7 @@ export function ModelItemEditor(props: PageProps) {
     setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName,
       { displayName: def.source?.displayName ?? itemMeta?.displayName, created: def.outputs.created }));
     setDirty(true);
-    await listSchemas(picked.workspaceId, picked.id, picked.displayName);
+    await listSchemas(picked.workspaceId, picked.id, picked.displayName, undefined, cachedSchemas(def, picked.id));
   }
 
   /** n201: the lakehouse a read-only source's build writes to: one of the source's workspace. */
@@ -287,15 +380,21 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   /** n179: the schemas of the chosen lakehouse with their table counts; the only one with tables is preselected. */
-  async function listSchemas(workspaceId: string, itemId: string, displayName: string, saved?: string) {
-    setSchemaList({ loading: true });
+  async function listSchemas(workspaceId: string, itemId: string, displayName: string, saved?: string, cached?: engine.SchemasAnswer) {
+    listedFor.current = itemId;
+    // n223: a list kept in the item shows at once; the source is read again behind it
+    const started = Date.now();
+    const { opts } = waitHandle(started, (fn) => setSchemaList((x) => ({ ...x, wait: fn(x.wait) })));
+    setSchemaList({ loading: true, list: cached, wait: newWait(`Reading the schemas of ${displayName}…`, started, { doing: "reading" }) });
     try {
-      const list = await engine.schemas(workloadClient, { workspace: workspaceId, source: itemId, source_name: displayName });
+      const list = await engine.schemas(workloadClient, { workspace: workspaceId, source: itemId, source_name: displayName }, opts);
       setSchemaList({ loading: false, list });
+      setDef((d) => (d.source?.itemId === itemId ? { ...d, item: withCache(d.item, { schemas: { source: itemId, list } }) } : d));
       const chosen = schemaToUse(list, saved);
       if (chosen && chosen !== saved) pickSchema(chosen);
     } catch (e) {
-      setSchemaList({ loading: false, error: e instanceof engine.EngineCallError ? e.answer : { error: String(e?.message ?? e), kind: "unexpected" } });
+      const answer = e instanceof engine.EngineCallError ? e.answer : { error: String(e?.message ?? e), kind: "unexpected" };
+      setSchemaList(cached ? { loading: false, list: cached } : { loading: false, error: answer });
     }
   }
 
@@ -307,21 +406,23 @@ export function ModelItemEditor(props: PageProps) {
 
   function onDecide(id: string, status: ReviewStatus) {
     setDef((d) => ({ ...d, review: decide(d.review, id, status) }));
+    whileQuiet.current?.push((r) => decide(r, id, status));   // n223: kept for the review being read again
     setDirty(true);
   }
 
   function onAcceptAll(onlyPassed: boolean) {
     setDef((d) => (d.review ? { ...d, review: acceptAll(d.review, onlyPassed) } : d));
+    whileQuiet.current?.push((r) => acceptAll(r, onlyPassed));
     setDirty(true);
   }
 
   async function checkRows() {
-    const a = await runEngine("Counting the rows: is each key unique, does each link find its table…", () =>
-      engine.check(workloadClient, sourceRequest(def), def.review)
+    const a = await runEngine(checkLabel(def.source?.schema), (o) =>
+      engine.check(workloadClient, sourceRequest(def), def.review, o), { doing: "counting", cancellable: true }
     );
     if (!a) return;
     setMap(a.map);
-    setDef((d) => ({ ...exactSchema(d, a.schema_used), review: a.review }));
+    setDef((d) => ({ ...exactSchema(d, a.schema_used), review: a.review, item: withCache(d.item, { map: a.map }) }));
     announceSchema(a.schema_used);
     setDirty(true);
   }
@@ -356,8 +457,10 @@ export function ModelItemEditor(props: PageProps) {
   async function previewBuild() {
     const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
     setDef(d);
-    const a = await runEngine("Preparing the dry run of each output…", () =>
-      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [])
+    // n223: a dry run writes nothing in Fabric, so it can be cancelled
+    const a = await runEngine("Preparing the dry run of each output…", (o) =>
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [], o),
+      { doing: "building", cancellable: true }
     );
     if (!a) return;
     setPreview(a);
@@ -455,7 +558,7 @@ export function ModelItemEditor(props: PageProps) {
    * product and the flow, from the created ids, and the pipeline's run followed with what waits for it. */
   async function create(resumeFrom?: { run: CreateRunRecord; known: Known }) {
     setError(undefined);
-    setBusy(undefined);
+    setWait(undefined);
     const d0 = defRef.current;
     const src = sourceRequest(d0);
     const outputs = resumeFrom ? resumeFrom.run.outputs : toRequests(choices);
@@ -755,15 +858,22 @@ export function ModelItemEditor(props: PageProps) {
 
   const engineWords = (e: unknown) => (e instanceof engine.EngineCallError ? [e.answer.error, e.answer.hint].filter(Boolean).join(" ") : String((e as Error)?.message ?? e));
 
-  async function productStep<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
-    setDp((x) => ({ ...x, busy: label, problem: undefined }));
+  /** n223: a step of the Data product page: its wait is Onto's line above the page (the page stays); `readOnly` steps
+   * offer Cancel after 30 s. */
+  const dpStop = useRef<AbortController>();
+  async function productStep<T>(label: string, fn: (o: engine.CallOptions) => Promise<T>, how: Partial<Wait> = {}): Promise<T | undefined> {
+    const started = Date.now();
+    const { opts, stop } = waitHandle(started, (f) => setDp((x) => ({ ...x, wait: f(x.wait) })));
+    dpStop.current = stop;
+    setDp((x) => ({ ...x, busy: label, problem: undefined, wait: newWait(label, started, how) }));
     try {
-      return await fn();
+      return await fn(opts);
     } catch (e) {
-      setDp((x) => ({ ...x, problem: isBusy(e) ? BUSY_LINE : engineWords(e) }));
+      if (!wasCancelled(e)) setDp((x) => ({ ...x, problem: isBusy(e) ? BUSY_LINE : engineWords(e) }));
       return undefined;
     } finally {
-      setDp((x) => ({ ...x, busy: undefined }));
+      if (dpStop.current === stop) dpStop.current = undefined;
+      setDp((x) => (x.wait?.startedAt === started ? { ...x, busy: undefined, wait: undefined } : x));
     }
   }
 
@@ -771,7 +881,8 @@ export function ModelItemEditor(props: PageProps) {
     // n210: the Model item's own workspace, where its definition is read (the source's workspace can be another one)
     const h = engine.health(workloadClient, { workspace: metaRef.current?.workspaceId ?? defRef.current.source?.workspaceId,
       item_id: metaRef.current?.id, product: productName() });
-    const s = await productStep("Reading the items in Fabric…", () => engine.product<StatusAnswer>(workloadClient, productBody("status")));
+    const s = await productStep("Reading the items in Fabric…", (o) => engine.product<StatusAnswer>(workloadClient, productBody("status"), undefined, o),
+      { cancellable: true });
     const health = await h;
     setDp((x) => ({ ...x, ...(s ? { status: s } : {}), health: healthWords(health as never) }));
   }
@@ -787,12 +898,15 @@ export function ModelItemEditor(props: PageProps) {
     const d = defRef.current;
     if (!d.source || !d.review) return;
     const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
-    const a = await productStep("Counting the rows and making a dry run of every output…", async () => {
-      const c = await engine.check(workloadClient, sourceRequest(d), d.review!);
+    const step2 = "Step 2 of 2: a dry run of every output…";
+    const a = await productStep("Step 1 of 2: counting the rows…", async (o) => {
+      const c = await engine.check(workloadClient, sourceRequest(d), d.review!, o);
       setMap(c.map);
+      setDp((x) => (x.wait ? { ...x, busy: step2, wait: { ...x.wait, label: step2, kind: "starting", progress: undefined, words: undefined,
+        doing: "building", steps: [...x.wait.steps, { at: Math.round((Date.now() - x.wait.startedAt) / 1000), text: "The rows were counted." }] } } : x));
       await update((x) => ({ ...x, review: c.review }));
-      return engine.buildMany(workloadClient, sourceRequest(defRef.current), outputs, defRef.current.review!, true, null, defRef.current.outputs.created, defRef.current.outputs.pending ?? []);
-    });
+      return engine.buildMany(workloadClient, sourceRequest(defRef.current), outputs, defRef.current.review!, true, null, defRef.current.outputs.created, defRef.current.outputs.pending ?? [], o);
+    }, { doing: "counting", cancellable: true });
     if (a) setDp((x) => ({ ...x, updates: outOfDate(a.outputs) }));
   }
 
@@ -833,7 +947,8 @@ export function ModelItemEditor(props: PageProps) {
   }
 
   async function findLeftovers() {
-    const a = await productStep("Looking for leftovers in the workspace…", () => engine.product<LeftoversAnswer>(workloadClient, productBody("leftovers")));
+    const a = await productStep("Looking for leftovers in the workspace…", (o) => engine.product<LeftoversAnswer>(workloadClient, productBody("leftovers"), undefined, o),
+      { cancellable: true });
     if (a) setDp((x) => ({ ...x, leftovers: a }));
   }
 
@@ -877,7 +992,8 @@ export function ModelItemEditor(props: PageProps) {
     <>
       <ErrorBar error={error} />
       {trialLine ? <div style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }} role="status">{trialLine}</div> : null}
-      {busy ? <Busy label={busy} /> : node}
+      {quiet && !wait ? <Busy wait={quiet} mascotsOn={mascotsOn} skeleton={false} /> : null}
+      {wait ? <Busy wait={wait} mascotsOn={mascotsOn} onCancel={cancelWait} /> : node}
     </>
   );
 
@@ -893,6 +1009,7 @@ export function ModelItemEditor(props: PageProps) {
           onChooseLakehouse={chooseLakehouse}
           onChooseTarget={chooseTarget}
           onReview={() => plan(def)}
+          mascotsOn={mascotsOn}
         />
       ),
     },
@@ -962,12 +1079,13 @@ export function ModelItemEditor(props: PageProps) {
   views.push({
     name: "product",
     component: wrap(
-      <DataProductView
+      <DataProductPage
         productName={productName(def)}
         outputs={def.outputs}
         status={dp.status}
         health={dp.health}
         busy={dp.busy}
+        waiting={dp.wait ? <OntoWait wait={dp.wait} mascotsOn={mascotsOn} skeleton={false} onCancel={() => dpStop.current?.abort()} /> : undefined}
         problem={dp.problem}
         updates={dp.updates}
         retire={dp.retire}
@@ -989,6 +1107,7 @@ export function ModelItemEditor(props: PageProps) {
     <ItemEditor
       isLoading={isLoading}
       loadingMessage="Opening the model…"
+      loadingContent={<div className="krusgraph-view"><OntoWait wait={opening} mascotsOn={mascotsOn} /></div>}
       ribbon={(context) => <Ribbon homeToolbarActions={homeActions()} viewContext={context}
         logo={<img src="/assets/krusgraph-item-icon.png" alt="Krusgraph Model" width={24} height={24} />} />}
       views={views}

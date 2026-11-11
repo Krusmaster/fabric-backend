@@ -701,6 +701,22 @@ def _with_source(out: dict, p, execute) -> dict:
     return out
 
 
+def check_progress(clock=time.monotonic, every: float = 1.0):
+    """n223: the check's progress for the editor ("3 of 7 keys and links counted"), written to the running operation at
+    most once a second and always at the end; outside an operation (the MCP tools, a synchronous request) it does
+    nothing (operations.progress)."""
+    from . import operations
+    last = [None]
+
+    def step(done: int, total: int) -> None:
+        now = clock()
+        if done < total and last[0] is not None and now - last[0] < every:
+            return
+        last[0] = now
+        operations.progress("running", done=done, total=total, unit="keys and links counted")
+    return step
+
+
 def run_check(req: dict) -> dict:
     """validate_plan's counting queries on the reviewed plan (review_plan with validate=true): the review file comes back
     with each item's check status, the decisions unchanged. Read-only; nothing in Fabric changes."""
@@ -714,7 +730,7 @@ def run_check(req: dict) -> dict:
     try:
         counted = S._within_call(execute)
         p, base = S._hosted_plan(s, k, c, counted), S._hosted_plan(s, None, None, counted)
-        checks = E.validate(p, execute, max_items=req["max_items"])
+        checks = E.validate(p, execute, max_items=req["max_items"], on_step=check_progress())
     finally:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]}, previous=prev,

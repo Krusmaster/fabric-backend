@@ -13,6 +13,9 @@
  * Pure functions, no React and no Fabric client, so they run in unit tests (ModelItemDefinition.test.ts).
  */
 
+import type { MapData } from "./cardMap";
+import type { SchemasAnswer } from "./engineClient";
+
 export const DEFINITION_VERSION = 1;
 export const ITEM_FORMAT = "krusgraph-model";
 export const PARTS = {
@@ -204,6 +207,24 @@ export interface ItemSettings {
   /** n173: Thinker's questions the person answered by keeping things as they are ({about: "keep"}). Optional, so a
    * version 1 definition without it reads as before. */
   answers?: Record<string, string>;
+  /** n223: what the editor shows at once on reopening, before the engine has answered again: the last review's map and
+   * the source's schema list. Names and counts only, as the review file; optional, so older definitions read as before. */
+  cache?: ItemCache;
+}
+
+export interface ItemCache {
+  map?: MapData;
+  schemas?: { source: string; list: SchemasAnswer };
+}
+
+/** n223: the cache kept only when it has the shape the editor writes. */
+export function cleanCache(x: unknown): ItemCache | undefined {
+  if (!x || typeof x !== "object") return undefined;
+  const c = x as ItemCache;
+  const out: ItemCache = {};
+  if (c.map && typeof c.map === "object" && Array.isArray((c.map as { tables?: unknown }).tables)) out.map = c.map;
+  if (c.schemas && typeof c.schemas.source === "string" && Array.isArray(c.schemas.list?.schemas)) out.schemas = c.schemas;
+  return out.map || out.schemas ? out : undefined;
 }
 
 export interface ModelDefinition {
@@ -293,6 +314,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       format: ITEM_FORMAT,
       view: def.item?.view ?? (def.review ? "review" : "empty"),
       ...(def.item?.answers && typeof def.item.answers === "object" ? { answers: def.item.answers } : {}),
+      ...(cleanCache(def.item?.cache) ? { cache: cleanCache(def.item?.cache) } : {}),   // n223
     },
     source: def.source ? { ...def.source, version: DEFINITION_VERSION, schema: def.source.schema || "dbo" } : undefined,
     outputs: {

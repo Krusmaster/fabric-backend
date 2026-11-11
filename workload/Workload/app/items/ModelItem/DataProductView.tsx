@@ -60,6 +60,9 @@ export interface DataProductProps {
   health?: string;
   /** what is running now, in words (the buttons wait) */
   busy?: string;
+  /** n223: the editor's wait for the current step (OntoWait: Onto, the step, the slow line, the offer); the busy words
+   * stand alone when it is absent (the static renders of the browser tests) */
+  waiting?: React.ReactNode;
   /** a problem to say in one line (the engine's error and hint) */
   problem?: string;
   updates?: OutOfDate[];
@@ -102,7 +105,8 @@ export function DataProductView(props: DataProductProps) {
         <p>{lastRunWords(props.outputs)}</p>
         <p>Plan id: {plan ?? "not recorded"}</p>
       </div>
-      <p className="kg-dp-muted" aria-live="polite">{props.busy ? `${props.busy}` : summary(rows)}</p>
+      {props.busy && props.waiting ? props.waiting
+        : <p className="kg-dp-muted" aria-live="polite">{props.busy ? `${props.busy}` : summary(rows)}</p>}
       {props.problem && <p className="kg-dp-note" role="alert">{props.problem}</p>}
       <div className="kg-dp-actions">
         <button type="button" onClick={() => props.onRefresh?.()} disabled={busy}>Read Fabric again</button>

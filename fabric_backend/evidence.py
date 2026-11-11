@@ -227,7 +227,7 @@ def _rel_id(r) -> str:
     return f"rel:{r.source}.{'+'.join(r.source_cols)}>{r.target}"
 
 
-def validate(plan: Plan, execute, max_items: int = 60) -> dict:
+def validate(plan: Plan, execute, max_items: int = 60, on_step=None) -> dict:
     """Run the checks for every key and every relationship in the plan (up to max_items checks: a key, a relationship
     and an extended relationship count one each, however many statements count them). Since round n108 the
     relationships of one source table are counted in one statement when there are two or more of them and their join
@@ -237,6 +237,17 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
     dialect = dialect_of(execute)
     keys, rels, budget = [], [], max_items
     unique: dict[str, bool] = {}
+    # n223: on_step(done, total) after each key and relationship counted (the editor shows "3 of 7 ... counted"); the
+    # total is what max_items allows, so the last call says total of total. Nothing else changes.
+    n_keys = min(len(plan.keys), max(max_items, 0))
+    n_rels = min(len(plan.relationships), max(max_items - n_keys, 0))
+    n_ext = min(len(getattr(plan, "extended", [])), max(max_items - n_keys - n_rels, 0))
+    step_total, step_done = n_keys + n_rels + n_ext, [0]
+
+    def stepped(n: int = 1) -> None:
+        step_done[0] += n
+        if on_step is not None:
+            on_step(min(step_done[0], step_total), step_total)
     for table, (cols, rule) in plan.keys.items():
         if budget <= 0:
             break
@@ -246,6 +257,7 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
         unique[table] = n > 0 and nulls == 0 and distinct == n
         keys.append({"table": table, "columns": cols, "rule": rule, "rows": n, "nulls": nulls,
                      "distinct": distinct, "verdict": key_verdict(n, nulls, distinct)})
+        stepped()
     # Round n108: the relationships max_items allows (it still counts relationships, not statements), grouped by source
     # table; a source table with two or more of them is read once (combined_relationship_sql), the rest one by one.
     todo = list(plan.relationships)[:max(budget, 0)]
@@ -275,6 +287,7 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
                     raise LookupError(f"no with_value_{n} or orphans_{n} in the answer")
                 got[i] = (_int(row.get(f"with_value_{n}")), _int(row.get(f"orphans_{n}")))
             counts.update(got)
+            stepped(len(got))
         except Exception as e:                                       # the separate statements below count them instead
             entry["fell_back"] = (f"the combined statement failed ({type(e).__name__}); each relationship of {source} "
                                   "was counted with its own statement instead")
@@ -286,6 +299,7 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
             row = execute(relationship_sql(schema, r.source, r.source_cols, r.target, r.target_cols, dialect,
                                            blank_is_none=args[i]["blank_is_none"], target_unique=args[i]["target_unique"]))[0]
             with_value, orphans = _int(row.get("with_value")), _int(row.get("orphans"))
+            stepped()
         verdict = relationship_verdict(with_value, orphans)
         if r.target in unique and not unique[r.target]:
             verdict += f"; but the target key of {r.target} is not unique, so a row can match more than one"
@@ -304,6 +318,7 @@ def validate(plan: Plan, execute, max_items: int = 60) -> dict:
             verdict += (f"; but {several} row(s) fall in more than one validity period of {r.target}, so a join repeats them"
                         if r.kind == "valid_on" else f"; but {several} row(s) match more than one row of {r.target}, so a join repeats them")
         entry.update({"rows_with_value": with_value, "orphans": orphans, "several": several})
+        stepped()
         if r.valid_on:
             entry["valid_on"] = r.valid_on
         if r.where:

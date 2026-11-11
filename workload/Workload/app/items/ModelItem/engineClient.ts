@@ -19,6 +19,7 @@ import { PlanMark, ReviewFile } from "./ModelItemDefinition";
 import { MapData } from "./cardMap";
 import { CheckTotals } from "./modelWords";
 import { getWorkloadName } from "../../controller/ConfigurationController";
+import type { WaitKind, WaitSignal } from "./waitWords";
 
 export interface EngineError {
   error: string;
@@ -434,8 +435,10 @@ export function lostAnswer(route: string, seconds: number, aborted: boolean): En
 export const REQUEST_WAIT_MS = 30_000;
 /** kept for the callers that name it: every request now waits at most REQUEST_WAIT_MS */
 export const BUILD_WAIT_MS = REQUEST_WAIT_MS;
-/** between two reads of an operation: quick at first, then every few seconds */
-export const OPERATION_POLL_MS = [1_000, 2_000, 2_000, 3_000, 5_000];
+/** between two reads of an operation: quick at first, then every few seconds. n223: the first read comes after 300 ms,
+ * not a full second: a review or a schema list that the engine answers in half a second no longer waits a second
+ * before the editor sees it (the reads at 0.3, 1.0, 2.0 and 3.5 s, then as before). */
+export const OPERATION_POLL_MS = [300, 700, 1_000, 1_500, 2_000, 3_000, 5_000];
 /** how long the editor reads one operation before it says "still working; reopen the item": a Create step may wait
  * for capacity (about twenty minutes) and for Fabric's long-running operations (twenty more) */
 export const OPERATION_MAX_MS = 50 * 60_000;
@@ -454,7 +457,9 @@ export interface OperationState {
   item?: string;
   create?: string;
   http?: number;
-  progress?: { words?: string; capacity_app?: string; attempt?: number; wait?: number };
+  progress?: { words?: string; capacity_app?: string; attempt?: number; wait?: number;
+    /** n223: a step with a known number of parts (the check: keys and links counted) */
+    done?: number; total?: number; unit?: string };
   lost?: string;
   answer?: any;
 }
@@ -468,6 +473,31 @@ export interface CallOptions {
   resume?: string;
   maxWaitMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** n223: what the step is waiting on, for the editor's loading words (waitWords.ts): the engine has it running (and
+   * what it is doing), Fabric's capacity is busy (429), a Fabric operation is still running, a read did not get through */
+  onWait?: (w: WaitSignal) => void;
+  /** n223: stop waiting for a read-only step (Cancel): the reads stop and the call rejects with kind "cancelled" */
+  signal?: AbortSignal;
+}
+
+/** n223: the wait a read-only route is in once the engine has it running: review, check and schemas only read the
+ * source's SQL analytics endpoint; the others do more than one thing, so only "the engine is working on it". */
+export function routeWait(route: string): WaitKind {
+  return route === "review" || route === "check" || route === "schemas" ? "sql" : "engine";
+}
+
+/** n223: what an operation's state says the step is waiting on. */
+export function waitOf(route: string, state: Pick<OperationState, "status" | "progress">): WaitSignal {
+  const p = state.progress ?? {};
+  const progress = typeof p.done === "number" && typeof p.total === "number" && p.total > 0
+    ? { done: p.done, total: p.total, unit: p.unit || "done" } : undefined;
+  const kind: WaitKind = state.status === "waiting_capacity" ? "capacity" : state.status === "pending_fabric" ? "fabric" : routeWait(route);
+  return { kind, ...(p.words ? { words: p.words } : {}), ...(progress ? { progress } : {}) };
+}
+
+/** n223: the answer of a step the person cancelled (only read-only steps offer it): nothing in Fabric changed. */
+export function cancelled(): EngineCallError {
+  return new EngineCallError({ error: "Cancelled: nothing in Fabric changed.", kind: "cancelled" }, 0);
 }
 
 /** n197: the answer of an operation the engine lost (its replica stopped): like a lost request, the step is tried again. */
@@ -528,12 +558,15 @@ async function call<T>(
   opts: CallOptions = {}
 ): Promise<T> {
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const stop = () => { if (opts.signal?.aborted) throw cancelled(); };
+  stop();
   let first: any;
   if (opts.resume) {
     first = { operation_id: opts.resume, status: "running" };
   } else {
     first = await callOnce<any>(workloadClient, route, body, Math.min(waitMs || REQUEST_WAIT_MS, REQUEST_WAIT_MS), fetchImpl,
-      route !== "operation" && route !== "pipeline-run");
+      route !== "operation" && route !== "pipeline-run", opts.signal);
+    stop();
     if (!first || first.__status !== 202) {
       if (first) delete first.__status;
       return first as T;
@@ -541,22 +574,26 @@ async function call<T>(
   }
   const id: string = first.operation_id;
   opts.onStarted?.(id);
+  opts.onWait?.(waitOf(route, first));
   const until = Date.now() + (opts.maxWaitMs ?? OPERATION_MAX_MS);
   let n = 0;
   let misses = 0;
   let notFound = 0;
   while (Date.now() < until) {
     await sleep(OPERATION_POLL_MS[Math.min(n++, OPERATION_POLL_MS.length - 1)]);
+    stop();
     let state: OperationState;
     try {
-      state = await callOnce<OperationState>(workloadClient, "operation", { operation_id: id }, REQUEST_WAIT_MS, fetchImpl, false);
+      state = await callOnce<OperationState>(workloadClient, "operation", { operation_id: id }, REQUEST_WAIT_MS, fetchImpl, false, opts.signal);
     } catch (e) {
+      stop();
       // a phone asleep, a network change, a busy engine: reading again is always safe. A 404 can be the other replica
       // of an engine that keeps operations in memory (one replica per read); after NOT_FOUND_READS in a row it is lost.
       if (e instanceof EngineCallError && e.status === 404 && ++notFound >= NOT_FOUND_READS) {
         throw new EngineCallError(lostOperation({ lost: "The Krusgraph engine no longer knows this step." } as OperationState), 0);
       }
       misses++;
+      if (misses >= 2) opts.onWait?.({ kind: "network" });
       continue;
     }
     notFound = 0;
@@ -568,6 +605,7 @@ async function call<T>(
     }
     if (state.status === "lost") throw new EngineCallError(lostOperation(state), 0);
     opts.onProgress?.(state);
+    opts.onWait?.(waitOf(route, state));
   }
   throw new EngineCallError({
     error: `The Krusgraph engine is still working on this ${route === "build" ? "step" : "request"}` + (misses ? " (the last reads did not get through)" : "") + ".",
@@ -576,24 +614,66 @@ async function call<T>(
   }, 0);
 }
 
+/** n223: the engine's token, asked of the Fabric host once and kept until five minutes before it expires. Every request
+ * asked again before, the operation's reads too (a review with five reads asked six times); each ask is a round trip
+ * through the Fabric host's frame. A token whose expiry cannot be read is not kept. */
+const TOKEN_MARGIN_MS = 5 * 60_000;
+const tokens = new WeakMap<object, Map<string, { token: string; exp: number }>>();
+
+export function tokenExpiry(token: string): number | undefined {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return undefined;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(part.length / 4) * 4, "=");
+    const text = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("binary");
+    const exp = JSON.parse(text).exp;
+    return typeof exp === "number" ? exp * 1000 : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function engineToken(workloadClient: WorkloadClientAPI, scope: string, now: () => number = Date.now): Promise<string> {
+  const byScope = tokens.get(workloadClient as object) ?? new Map<string, { token: string; exp: number }>();
+  const kept = byScope.get(scope);
+  if (kept && kept.exp - TOKEN_MARGIN_MS > now()) return kept.token;
+  const { token } = await workloadClient.auth.acquireFrontendAccessToken({ scopes: [scope] });
+  const exp = tokenExpiry(token);
+  if (exp && exp - TOKEN_MARGIN_MS > now()) {
+    byScope.set(scope, { token, exp });
+    tokens.set(workloadClient as object, byScope);
+  } else {
+    byScope.delete(scope);
+  }
+  return token;
+}
+
+/** n223: forget the kept token (the engine answered 401: the token was revoked or the session changed). */
+export function forgetToken(workloadClient: WorkloadClientAPI): void {
+  tokens.delete(workloadClient as object);
+}
+
 async function callOnce<T>(
   workloadClient: WorkloadClientAPI,
   route: Route,
   body: object,
   waitMs: number,
   fetchImpl: Fetch,
-  background: boolean
+  background: boolean,
+  cancel?: AbortSignal
 ): Promise<T> {
   const scope = engineScope(process.env.KRUSGRAPH_ENGINE_SCOPE, typeof document === "undefined" ? undefined : document,
     getWorkloadName());
   if (!scope) {
     throw new EngineCallError({ error: "No engine scope: set KRUSGRAPH_ENGINE_SCOPE in the workload's .env file, or KRUSGRAPH_WORKLOAD_APP_ID_URI on the hosting server", kind: "server_config" }, 0);
   }
-  const { token } = await workloadClient.auth.acquireFrontendAccessToken({ scopes: [scope] });
+  const token = await engineToken(workloadClient, scope);
   const base = (process.env.KRUSGRAPH_ENGINE_URL || "").replace(/\/$/, "");
   const started = Date.now();
   const abort = typeof AbortController === "undefined" ? undefined : new AbortController();
   const timer = waitMs && abort ? setTimeout(() => abort.abort(), waitMs) : undefined;
+  const onCancel = () => abort?.abort();
+  cancel?.addEventListener?.("abort", onCancel);
   let response: Response;
   try {
     response = await fetchImpl(`${base}/workload/v1/${route}`, {
@@ -603,10 +683,12 @@ async function callOnce<T>(
       ...(abort ? { signal: abort.signal } : {}),
     });
   } catch (e) {
+    if (cancel?.aborted) throw cancelled();
     // n179: "Failed to fetch" carries no reason; say what it means for this request instead
     throw new EngineCallError(lostAnswer(route, Math.round((Date.now() - started) / 1000), !!abort?.signal.aborted), 0);
   } finally {
     if (timer) clearTimeout(timer);
+    cancel?.removeEventListener?.("abort", onCancel);
   }
   let answer: unknown;
   try {
@@ -615,6 +697,7 @@ async function callOnce<T>(
     answer = { error: `The engine answered ${response.status} without JSON`, kind: "unexpected" };
   }
   if (!response.ok || (answer as EngineError).error) {
+    if (response.status === 401) forgetToken(workloadClient);
     throw new EngineCallError(answer as EngineError, response.status);
   }
   if (background) (answer as any).__status = response.status;
@@ -635,14 +718,15 @@ export function review(
   workloadClient: WorkloadClientAPI,
   source: SourceRequest,
   previous?: ReviewFile,
-  corrections: Corrections = {}
+  corrections: Corrections = {},
+  opts: CallOptions = {}
 ): Promise<ReviewAnswer> {
-  return call<ReviewAnswer>(workloadClient, "review", { ...source, previous: previous ?? null, ...corrections });
+  return call<ReviewAnswer>(workloadClient, "review", { ...source, previous: previous ?? null, ...corrections }, REQUEST_WAIT_MS, undefined, opts);
 }
 
 /** Counts the review's keys and relationships in the rows (validate_plan's queries). Read-only; changes nothing. */
-export function check(workloadClient: WorkloadClientAPI, source: SourceRequest, reviewFile: ReviewFile): Promise<CheckAnswer> {
-  return call<CheckAnswer>(workloadClient, "check", { ...source, review: reviewFile });
+export function check(workloadClient: WorkloadClientAPI, source: SourceRequest, reviewFile: ReviewFile, opts: CallOptions = {}): Promise<CheckAnswer> {
+  return call<CheckAnswer>(workloadClient, "check", { ...source, review: reviewFile }, REQUEST_WAIT_MS, undefined, opts);
 }
 
 export function build(
@@ -670,9 +754,10 @@ export interface SchemasAnswer {
 
 export function schemas(
   workloadClient: WorkloadClientAPI,
-  source: { workspace: string; source: string; source_name: string }
+  source: { workspace: string; source: string; source_name: string },
+  opts: CallOptions = {}
 ): Promise<SchemasAnswer> {
-  return call<SchemasAnswer>(workloadClient, "schemas", source);
+  return call<SchemasAnswer>(workloadClient, "schemas", source, REQUEST_WAIT_MS, undefined, opts);
 }
 
 /** n179: Create of one output (only: [its kind]; skip_built: already built is shown as built, not written again). */
@@ -783,7 +868,8 @@ export function buildMany(
   dryRun: boolean,
   product: { name: string } | null,
   created: CreatedRef[],
-  pending: PendingItem[] = []
+  pending: PendingItem[] = [],
+  opts: CallOptions = {}
 ): Promise<ManyAnswer> {
   // n209: the dry run sends outputs.json's pending list too, so it adopts exactly what Create would adopt (n207's rule)
   return call<ManyAnswer>(workloadClient, "build", {
@@ -794,13 +880,13 @@ export function buildMany(
     product,
     created,
     ...(pending.length ? { pending } : {}),
-  });
+  }, REQUEST_WAIT_MS, undefined, opts);
 }
 
 /** n198: the Data product page (POST /workload/v1/product, fabric_backend/product_life.py): status, retire (a dry run
  * first; the real call sends its confirm and, for Delete from Fabric, the data product's name typed), leftovers, adopt. */
-export function product<T>(workloadClient: WorkloadClientAPI, body: Record<string, unknown>, fetchImpl?: Fetch): Promise<T> {
-  return call<T>(workloadClient, "product", body, REQUEST_WAIT_MS, fetchImpl);
+export function product<T>(workloadClient: WorkloadClientAPI, body: Record<string, unknown>, fetchImpl?: Fetch, opts: CallOptions = {}): Promise<T> {
+  return call<T>(workloadClient, "product", body, REQUEST_WAIT_MS, fetchImpl, opts);
 }
 
 /** n198: n200's read-only health route, when the engine has it (docs/HEALTH.md); any refusal means "not checked yet". */
