@@ -36,13 +36,13 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Area | Files | Owner now |
 | --- | --- | --- |
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n217 |
-| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | n221 |
+| MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | n221; n220 holds `server.py`'s `create_pipeline` and `create_report`, `tool_params.py`'s pipeline jobs, `mcp_apps_next.py`'s next steps for errors |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | n221 |
 | Deployment | `deploy/`, `Dockerfile`, `.github/` | n220 |
 | Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | n220 |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
-| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n221 |
-| Tests | `tests/` | n221 |
+| Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n221; n220 holds `docs/SCOPES.md`, `docs/TRUST-PACK.md` section 5, `docs/CLIENT-REGISTRATION.md` and README's permission sentences |
+| Tests | `tests/` | n221; n220 holds `tests/test_n220_*`, the n185, create_report, n146, n159, deploy_from_azure and n218 card tests it changes, the goldens |
 | Workload | `workload/` (the Fabric workload, a fork of Microsoft's starter kit), `fabric_backend/workload_api.py`, the workload routes in `server.py`, `docs/WORKLOAD-DEV.md` | n221 |
 | Marketplace | `fabric_backend/marketplace.py`, `fabric_backend/entitlements.py`, the marketplace routes in `server.py`, `docs/MARKETPLACE-SETUP.md`, `tests/test_marketplace.py` | open |
 | Hub readiness | `docs/HUB-ATTESTATION.md`, `docs/HUB-READINESS.md`, `tools/hub_readiness.py`, `.github/workflows/hub-readiness.yml` (new files only; no `workload/` code, no site, no engine) | open |
