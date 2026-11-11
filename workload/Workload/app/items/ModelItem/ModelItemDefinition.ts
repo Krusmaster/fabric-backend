@@ -60,6 +60,8 @@ export interface SourceDefinition {
   itemType: string;
   displayName: string;
   schema: string;
+  /** n201: for a read-only source, the lakehouse the build writes to; absent means the workspace's first (the default) */
+  target?: { itemId: string; displayName: string };
 }
 
 export interface CreatedItem {

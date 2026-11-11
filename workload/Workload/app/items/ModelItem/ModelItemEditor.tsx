@@ -64,6 +64,7 @@ import {
   MAX_WAIT_MS, POLL_MS, agentAfterRun, jobsBlocked, pipelineItem, recordRun, recordSchedule, runFinished, scheduleIds, stillRunning,
 } from "./jobsWords";
 import { AppChoices } from "./engineClient";
+import { PICKER_TYPES, ReadOnlySource, SapOffer, isReadOnly, restType, targetProblem } from "./sourceWords";
 
 const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
 const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
@@ -102,6 +103,8 @@ export function ModelItemEditor(props: PageProps) {
   const [creating, setCreating] = useState(false);
   /** n197: one line on the result when the saved state or the engine could not be read */
   const [notice, setNotice] = useState<string>();
+  /** n201: what the last review said about the source: read-only (where the build writes) and the SAP pack's items */
+  const [sourceInfo, setSourceInfo] = useState<{ readOnly?: ReadOnlySource; sap?: SapOffer }>({});
   const [setView, setSetView] = useState<(v: string) => void>();
   const view = def.item.view;
 
@@ -115,7 +118,15 @@ export function ModelItemEditor(props: PageProps) {
     source: d.source.itemId,
     source_name: d.source.displayName,
     schema: d.source.schema,
+    // n201: a read-only source's build writes to the chosen lakehouse, or the workspace's first (null)
+    ...(isReadOnly(d.source.itemType) ? { target: { lakehouse: d.source.target?.itemId ?? null } } : {}),
   });
+
+  /** n201: the source's real item type (the picker may name it otherwise) and what the review says about it. */
+  const withKind = (d: ModelDefinition, a: engine.ReviewAnswer): ModelDefinition => {
+    setSourceInfo({ readOnly: a.read_only, sap: a.sap });
+    return a.source_kind && d.source && d.source.itemType !== a.source_kind ? { ...d, source: { ...d.source, itemType: a.source_kind } } : d;
+  };
 
   async function runEngine<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
     setBusy(label);
@@ -146,7 +157,7 @@ export function ModelItemEditor(props: PageProps) {
     );
     if (!a) return;
     setMap(a.map);
-    d = exactSchema(d, a.schema_used);
+    d = withKind(exactSchema(d, a.schema_used), a);
     announceSchema(a.schema_used);
     setDef({ ...d, review: a.review, item: { ...d.item, view: "review" } });
     setDirty(true);
@@ -159,7 +170,7 @@ export function ModelItemEditor(props: PageProps) {
     try {
       const a = await engine.review(workloadClient, sourceRequest(d), d.review, {});
       setMap(a.map);
-      setDef((x) => ({ ...exactSchema(x, a.schema_used), review: a.review }));
+      setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: a.review }));
     } catch (e) {
       if (isBusy(e)) setNotice(BUSY_LINE);
     }
@@ -222,23 +233,41 @@ export function ModelItemEditor(props: PageProps) {
     }
   }
 
+  /** n201: a lakehouse, a warehouse, a SQL database or a mirrored database (SAP via SAP Datasphere among them). */
   async function chooseLakehouse() {
-    const picked = await callDatahubOpen(workloadClient, ["Lakehouse"], "Choose the lakehouse Krusgraph should read", false);
+    const picked = await callDatahubOpen(workloadClient, PICKER_TYPES,
+      "Choose what Krusgraph should read: a lakehouse, a warehouse, a SQL database or a mirrored database", false);
     if (!picked) return;
     const source = {
       version: 1,
       platform: "fabric" as const,
       workspaceId: picked.workspaceId,
       itemId: picked.id,
-      itemType: picked.type,
+      itemType: restType(picked.type) ?? "Lakehouse",
       displayName: picked.displayName,
       schema,
     };
+    setSourceInfo({});
     setDef((d) => ({ ...d, source, review: d.source?.itemId === picked.id ? d.review : undefined }));
     setChoices((c) => choicesFor(c.filter((x) => x.enabled), picked.displayName,
       { displayName: def.source?.displayName ?? itemMeta?.displayName, created: def.outputs.created }));
     setDirty(true);
     await listSchemas(picked.workspaceId, picked.id, picked.displayName);
+  }
+
+  /** n201: the lakehouse a read-only source's build writes to: one of the source's workspace. */
+  async function chooseTarget() {
+    if (!def.source) return;
+    const picked = await callDatahubOpen(workloadClient, ["Lakehouse"],
+      "Choose the lakehouse the silver tables, gold views and the pipeline's check are written to", false);
+    if (!picked) return;
+    const problem = targetProblem(def.source.workspaceId, { workspaceId: picked.workspaceId, type: restType(picked.type) });
+    if (problem) {
+      callNotificationOpen(workloadClient, "Target lakehouse", problem, NotificationType.Error);
+      return;
+    }
+    setDef((d) => (d.source ? { ...d, source: { ...d.source, target: { itemId: picked.id, displayName: picked.displayName } } } : d));
+    setDirty(true);
   }
 
   /** n179: the schemas of the chosen lakehouse with their table counts; the only one with tables is preselected. */
@@ -719,6 +748,7 @@ export function ModelItemEditor(props: PageProps) {
           schemas={schemaList}
           onSchemaChange={pickSchema}
           onChooseLakehouse={chooseLakehouse}
+          onChooseTarget={chooseTarget}
           onReview={() => plan(def)}
         />
       ),
@@ -739,6 +769,8 @@ export function ModelItemEditor(props: PageProps) {
             onAcceptAll={onAcceptAll}
             onCheck={checkRows}
             onChoice={onChoice}
+            readOnly={sourceInfo.readOnly}
+            sap={sourceInfo.sap}
           />
         ) : null
       ),

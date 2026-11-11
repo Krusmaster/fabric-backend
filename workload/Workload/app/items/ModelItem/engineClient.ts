@@ -13,6 +13,7 @@
  * into index.html from its own KRUSGRAPH_WORKLOAD_APP_ID_URI (fabric_backend/workload_host.py), so a new Entra app needs
  * no new image.
  */
+import type { ReadOnlySource, SapOffer } from "./sourceWords";
 import { WorkloadClientAPI } from "@ms-fabric/workload-client";
 import { PlanMark, ReviewFile } from "./ModelItemDefinition";
 import { MapData } from "./cardMap";
@@ -35,6 +36,12 @@ export interface ReviewAnswer {
   note: string;
   /** n175: the schema typed differed from the lakehouse's only by case ("Shop" typed, "shop" read); every query used `used`. */
   schema_used?: SchemaUsed;
+  /** n201: the item type the engine read (Lakehouse, Warehouse, SQLDatabase, MirroredDatabase) */
+  source_kind?: string;
+  /** n201: a read-only source: where the build writes, and what mirroring delivers */
+  read_only?: ReadOnlySource;
+  /** n201: the SAP pack's keys and links in this review, each "from the SAP pack" with its public sources */
+  sap?: SapOffer;
 }
 
 export interface SchemaUsed {
@@ -370,6 +377,8 @@ export interface DataProduct {
 
 export interface ManyAnswer {
   dry_run: boolean;
+  /** n201: the lakehouse a read-only source's silver, gold and check are written to, and how it was chosen */
+  target?: { lakehouse: string; id: string; how: "chosen" | "default"; words: string };
   outputs: BuildCard[];
   order: OutputKind[];
   left_out_by_review: LeftOut[];
@@ -388,6 +397,9 @@ export interface SourceRequest {
   source: string;
   source_name: string;
   schema: string;
+  /** n201: a read-only source (a mirrored database, a warehouse, a SQL database): the lakehouse the build writes to,
+   * null for the default (the first lakehouse of the workspace); review and check ignore it */
+  target?: { lakehouse: string | null };
 }
 
 export class EngineCallError extends Error {

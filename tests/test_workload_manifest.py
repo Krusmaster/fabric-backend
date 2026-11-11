@@ -102,7 +102,9 @@ def test_the_workload_and_the_item_use_the_krusgraph_icons():
     assert ITEM["activeIcon"]["name"] == "assets/images/ModelItem_Icon_Active.png"           # distinct (validator 1.2.1)
     assert card["icon_small"]["name"] == "assets/images/ModelItem_Icon_Small.png"
     assert PRODUCT["productDetail"]["image"]["source"] == "assets/images/Workload_Hub_Banner.png"
-    assert [s["source"] for s in PRODUCT["productDetail"]["slideMedia"]] == ["assets/images/Workload_Hub_SlideMedia_1.png"]
+    # n201: the founder's overview film first (a video slide, mediaType 1), then the quick look image as before
+    assert [s["source"] for s in PRODUCT["productDetail"]["slideMedia"]] == ["https://www.youtube.com/embed/69oikujqZDI",
+                                                                            "assets/images/Workload_Hub_SlideMedia_1.png"]
 
 
 def test_the_editor_loads_with_the_krusgraph_mark_not_the_fabric_logo():

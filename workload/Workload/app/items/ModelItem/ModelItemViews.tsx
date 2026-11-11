@@ -7,6 +7,7 @@
  * (green passed, red failed with its orphans or duplicates, grey not checked), Onto, Thinker and Builder in their own
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
+import { ReadOnlySource, SapOffer, isReadOnly, sapMark, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Badge,
@@ -165,24 +166,34 @@ export function EmptyView(props: {
   schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError };
   onSchemaChange: (schema: string) => void;
   onChooseLakehouse: () => void;
+  /** n201: a read-only source's target lakehouse */
+  onChooseTarget?: () => void;
   onReview: () => void;
 }) {
   const { source } = props;
+  const readOnly = !!source && isReadOnly(source.itemType);
   return (
     <ItemEditorEmptyView
-      title="Choose a lakehouse"
+      title="Choose a source"
       description={
-        "Krusgraph reads the table and column names of a lakehouse in this workspace and proposes keys and " +
-        "relationships, each with the rule that found it. Nothing is created until you choose Create."
+        "Krusgraph reads the table and column names of a lakehouse, a warehouse, a SQL database or a mirrored database " +
+        "(data mirrored into Fabric, SAP via SAP Datasphere among it) and proposes keys and relationships, each with the " +
+        "rule that found it. Nothing is created until you choose Create."
       }
       imageSrc="/assets/items/ModelItem/EditorEmpty.svg"
       imageAlt=""
       customContent={
         <div className="krusgraph-empty-form">
           <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
-            {source ? `Lakehouse: ${source.displayName}` : "Choose lakehouse"}
+            {sourceButton(source)}
           </Button>
           {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} />}
+          {readOnly && (
+            <>
+              <Body1>{targetLine(source, source.target)}</Body1>
+              <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
+            </>
+          )}
           <Button appearance="primary" disabled={!source || !props.schema.trim() || props.schemas.loading} onClick={props.onReview}>
             Find keys and relationships
           </Button>
@@ -254,15 +265,27 @@ export function RulePill({ rule }: { rule: string }) {
   );
 }
 
-function ReviewRow(props: { item: ReviewItem; onDecide: (id: string, status: ReviewStatus) => void }) {
+function ReviewRow(props: { item: ReviewItem; onDecide: (id: string, status: ReviewStatus) => void; sap?: SapOffer }) {
   const { item } = props;
   const st = checkState(item);
+  const pack = sapMark(props.sap, item.id);                      // n201: "from the SAP pack", with the pack's sources
   return (
     <li className={`krusgraph-row krusgraph-row-${item.review} krusgraph-check-${st}`} data-id={item.id} data-check={st}>
       <RulePill rule={item.rule} />
       <div className="krusgraph-row-what">
         <Body1>{itemText(item)}</Body1>
         <Caption1 className="krusgraph-row-check">{checkText(item)}</Caption1>
+        {pack && (
+          <Caption1 className="krusgraph-row-pack" data-from="sap-pack">
+            {pack.text}{" "}
+            {pack.sources.map((src, i) => (
+              <React.Fragment key={src.url + i}>
+                {i > 0 && "; "}
+                <a href={src.url} target="_blank" rel="noreferrer">{src.title}</a>
+              </React.Fragment>
+            ))}
+          </Caption1>
+        )}
       </div>
       <Badge appearance="filled" color={CHECK_BADGE[st].color} className="krusgraph-check-badge">
         {CHECK_BADGE[st].label}
@@ -313,8 +336,12 @@ export function ReviewView(props: {
   onAcceptAll: (onlyPassed: boolean) => void;
   onCheck: () => void;
   onChoice: (choice: Choice) => void;
+  /** n201: a read-only source, and the SAP pack's items with their sources */
+  readOnly?: ReadOnlySource;
+  sap?: SapOffer;
 }) {
   const [tab, setTab] = useState<"map" | "list">("map");
+  const notes = sourceNotes(props.readOnly, props.sap);
   const items = sortForReview(props.review.items);
   const say = sayings(props.review, props.answered);
   const qs = questions(props.review, props.answered);
@@ -333,6 +360,11 @@ export function ReviewView(props: {
         <MascotSays kind="thinker" text={say.thinker} pose={failedCount ? "notice" : totals.checked ? "calm" : "think"} />
         <MascotSays kind="builder" text={say.builder} pose="point" />
       </Mascots>
+      {notes.length > 0 && (
+        <section className="krusgraph-source-notes" aria-label="About this source">
+          {notes.map((line) => <Body1 key={line}>{line}</Body1>)}
+        </section>
+      )}
 
       <div className="krusgraph-actions">
         <Button appearance={totals.checked ? "secondary" : "primary"} icon={<CheckmarkStarburst24Regular />}
@@ -388,7 +420,7 @@ export function ReviewView(props: {
         <section aria-label="Keys and links">
           <ul className="krusgraph-list">
             {items.map((it) => (
-              <ReviewRow key={it.id} item={it} onDecide={props.onDecide} />
+              <ReviewRow key={it.id} item={it} onDecide={props.onDecide} sap={props.sap} />
             ))}
           </ul>
         </section>

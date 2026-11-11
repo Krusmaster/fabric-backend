@@ -63,9 +63,11 @@ def test_modeler_package_carries_the_attestation_link_and_what_the_review_reads(
     assert b"{{" not in files["FE/Product.json"]
 
 
-def test_org_package_keeps_the_it_page_and_the_workload_xml_has_no_attestation_element(tmp_path):
+def test_org_package_points_at_the_attestation_page_too_and_the_workload_xml_has_no_attestation_element(tmp_path):
+    # n201 (the founder, 10 November 2026): Fabric labels this link "Certification" and Learn documents no label for it,
+    # so both packages point at the attestation page, which says "Draft." at the top. Until n201 Org.Krusgraph kept /it.
     org = json.loads(_package("Org.Krusgraph", tmp_path)["FE/Product.json"])
-    assert org["productDetail"]["supportLink"]["certification"]["url"] == "https://krusgraph.com/it"
+    assert org["productDetail"]["supportLink"]["certification"]["url"] == B.ATTESTATION_URL
     for name in ("Org.Krusgraph", "Krusgraph.Modeler"):
         xml = _package(name, tmp_path / "x")["BE/WorkloadManifest.xml"].decode()
         assert "attestation" not in xml.lower(), name             # WorkloadDefinition.xsd has no such element

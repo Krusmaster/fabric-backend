@@ -65,6 +65,10 @@
         },
         "slideMedia": [
             {
+                "mediaType": 1,
+                "source": "https://www.youtube.com/embed/69oikujqZDI"
+            },
+            {
                 "mediaType": 0,
                 "source": "assets/images/Workload_Hub_SlideMedia_1.png"
             }
@@ -95,6 +99,9 @@
         "others"
     ],
     "compatibleItemTypes": [
-        "Lakehouse"
+        "Lakehouse",
+        "MirroredDatabase",
+        "Warehouse",
+        "SQLDatabase"
     ]
 }

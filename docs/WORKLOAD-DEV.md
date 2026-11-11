@@ -986,6 +986,37 @@ follows the permanent `Krusgraph.<Workload>` name (step 3). That name is yours t
 use one. With it chosen, the same image and host serve the pilot: build the package with that name in a later round,
 and add the pilot's tenant id to `workload_allowed_tenants` (comma-separated) before `--update`.
 
+### 16. Round n201: mirrored databases, the target lakehouse, the SAP pack in the review, the detail page
+
+The founder, 10 November 2026: the detail page said "Compatible with: Lakehouse" only, and pilot customers are
+manufacturers whose SAP data reaches Fabric through mirroring via SAP Datasphere. `docs/SAP-MIRRORING.md` has what Learn
+says, what works, what was tested and the customer's steps.
+
+- **Source.** The picker (`chooseLakehouse` in `ModelItemEditor.tsx`) asks for lakehouses, warehouses, SQL databases and
+  mirrored databases (`sourceWords.PICKER_TYPES`: the REST names plus the workload client's `SQLDbNative`, and two
+  candidates for a mirrored database, since the dialog's name for it is not documented). The engine answers the real
+  type in the review (`source_kind`), which replaces the picker's. Review and check read the SQL analytics endpoint,
+  read-only, as for a lakehouse (`platforms/fabric.resolve_source` already resolved mirrored databases by id).
+- **Target lakehouse.** A read-only source shows **Target lakehouse** under the schema; the choice is kept in
+  `source.json` (`target`) and sent with every build as `target: {lakehouse}` (null: the first lakehouse of the
+  workspace by name). The engine sets `server.WRITE_TARGET` for the build only (`workload_api.run_build_many`), and
+  `server._write_info` gives the silver notebook, the gold views, the pipeline and its check that lakehouse to write to
+  and attach to, with `read_from` naming the mirror. The MCP tools leave it unset and refuse a read-only source as
+  before. The dry run's answer and the flow carry `target` with its words ("the default", "your choice").
+- **The read.** The silver notebook reads the mirrored tables at `oneLakeTablesPath` (Get Mirrored Database) in its ABFS
+  form, by path (`silver.MIRROR_SOURCE`): `Tables/<schema>/<table>` when it holds a Delta log, else `Tables/<table>`.
+  No shortcut, no copy outside Fabric. The lakehouse notebook's text is unchanged.
+- **SAP pack.** `mirroring.sap_offer(plan)` marks the plan's SAP pack keys and links by review item id, "from the SAP
+  pack", with the pack's public sources and the client column; the review list shows the mark and the links under the
+  row (`sourceWords.sapMark`), and the notes above the review say what mirroring delivers and whose licence SAP
+  Datasphere is. Accept and reject are unchanged.
+- **Manifest.** `Product.json`: `compatibleItemTypes` Lakehouse, MirroredDatabase, Warehouse, SQLDatabase; the
+  founder's film (`https://www.youtube.com/embed/69oikujqZDI`, mediaType 1, Learn's frontend-manifests page) as the
+  first slide and the quick-look image after it; the detail page's texts. `build_package.check_slides` refuses a slide
+  Fabric would not show. Both names point "Certification" at the attestation page, which says "Draft." at the top
+  (Learn documents no label for a support link). **A new package is needed**: build it and upload it as in "Hosted
+  (no laptop)"; the version is `1.0.<commits>` as always.
+
 ## When something does not work
 
 | You see | Likely cause |

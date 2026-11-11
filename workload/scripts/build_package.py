@@ -46,10 +46,22 @@ FRONTEND_URL = "https://workload.krusgraph.com"
 # ("Attestation Link in workload page is correct", publishing-requirements-workload on Learn, ms.date 24 February 2026)
 # and its validator (microsoft/fabric-extensibility-toolkit-validator 78e17c3, Testcases_Workload.json) read the
 # attestation URL from that field; WorkloadManifest.xml has no attestation element in the kit's WorkloadDefinition.xsd
-# (dacab1b), so "AttestationUrl in the manifest" is this field. Only the published name points at the attestation page;
-# Org.Krusgraph keeps the /it page it always had.
+# (dacab1b), so "AttestationUrl in the manifest" is this field. n201: both names point at the attestation page. Fabric's
+# detail page shows this link as "Certification"; Learn documents no label for supportLink entries (frontend-manifests,
+# ms.date 29 April 2026, and manifest-product, 15 December 2025, list only the link), so it cannot be relabelled, and the
+# page it opens says "Draft." at the top (fabric_backend/page_templates/WORKLOAD-ATTESTATION.md): a draft attestation,
+# not a certification. Org.Krusgraph pointed at /it until n201.
 ATTESTATION_URL = "https://krusgraph.com/workload/attestation"
-CERTIFICATION_URL = {WORKLOAD_NAME: "https://krusgraph.com/it", PUBLISHED_NAME: ATTESTATION_URL}
+CERTIFICATION_URL = {WORKLOAD_NAME: ATTESTATION_URL, PUBLISHED_NAME: ATTESTATION_URL}
+# n201: the detail page's slides. Learn's frontend-manifests page (ms.date 29 April 2026): mediaType 0 for images and 1 for
+# videos, at most 10 slides; a video is a URL, https://youtube.com/embed/<id> or https://www.youtube.com/embed/<id>, or
+# https://player.vimeo.com/video/<number>. The founder's overview film (YouTube, unlisted) comes first, the image after it.
+SLIDE_VIDEO = re.compile(r"^https://(www\.)?youtube\.com/embed/[A-Za-z0-9_-]{6,}(\?[^\s]*)?$|^https://player\.vimeo\.com/video/\d+$")
+MAX_SLIDES = 10
+# The item types Fabric shows as "Compatible with" on the detail page (Product.json compatibleItemTypes). Learn shows the
+# field with Fabric item type names ("Lakehouse", "Dataset", "Dataflow"; how-to-add-jobs-to-be-done, ms.date 15 December
+# 2025) and documents no list of accepted values; these are the REST API's ItemType names of what the Model reads.
+COMPATIBLE = ("Lakehouse", "MirroredDatabase", "Warehouse", "SQLDatabase")
 PUBLISHER = "Kruse Consulting AB"
 # The Product.json links Microsoft's validator fetches (publishing-requirements-workload 1.2.1, 1.2.2, 1.3.1, 1.4.1,
 # 1.4.5, 5.2.1): each must be an https URL. The license link must also be a Marketplace offer (1.3.1, 1.3.2); there is
@@ -187,11 +199,27 @@ def check(files: dict[str, bytes], vals: dict) -> None:
         if b"localhost" in data:
             raise PackageError(f"{path} still points at localhost")
     product = files["FE/Product.json"]
-    json.loads(product)
+    parsed = json.loads(product)
     if len(product) > 50 * 1024:
         raise PackageError("Product.json is over 50 KB")
+    check_slides(parsed, files)
     if name == PUBLISHED_NAME:
         check_publishing(files)
+
+
+def check_slides(product: dict, files: dict[str, bytes]) -> None:
+    """n201: each slide an image in the package (mediaType 0) or a documented video URL (mediaType 1), at most ten."""
+    slides = (product.get("productDetail") or {}).get("slideMedia") or []
+    if len(slides) > MAX_SLIDES:
+        raise PackageError(f"productDetail.slideMedia has {len(slides)} slides; Fabric takes at most {MAX_SLIDES}")
+    for i, slide in enumerate(slides):
+        kind, src = slide.get("mediaType"), str(slide.get("source") or "")
+        if kind == 1 and not SLIDE_VIDEO.match(src):
+            raise PackageError(f"productDetail.slideMedia[{i}] is a video whose URL is not a YouTube embed or Vimeo player URL: {src!r}")
+        if kind == 0 and "FE/" + src not in files:
+            raise PackageError(f"productDetail.slideMedia[{i}] names no image in the package: {src!r}")
+        if kind not in (0, 1):
+            raise PackageError(f"productDetail.slideMedia[{i}].mediaType must be 0 (image) or 1 (video), not {kind!r}")
 
 
 def _png_size(data: bytes) -> tuple[int, int] | None:
