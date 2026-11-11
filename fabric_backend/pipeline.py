@@ -23,6 +23,11 @@ the code Fabric runs, on SQLite and on a local Spark.
                                              the activities name the notebooks by their item ids (create_pipeline), without
                                              them by their logical IDs (the Git export)
 
+n200 (docs/HEALTH.md): the check notebook also keeps one row per check in `krusgraph`.`health` (health.HEALTH_CODE, written
+into its own cell verbatim, after the check and before the stop), and sends the owner's alert when a check fails; the
+pipeline hands the run id and the alert's parameters to the silver and check notebooks, and the silver notebook it runs
+starts with the drift step (health.DRIFT_CODE).
+
 What the format rests on, read 6 November 2026:
 - microsoft/fabric-rest-api-specs 6f817cb (3 November 2026), dataPipeline/definitions.json and
   examples/CreateDataPipeline.json: the definition is one part, pipeline-content.json, with
@@ -108,9 +113,20 @@ NOT_ENFORCED = ("the key was guessed from names and not checked, so the silver n
                 "failure")
 
 
-def check_spec(plan, silver_spec: dict, gold_spec: dict) -> dict:
+def plan_mark_of(plan) -> dict:
+    """n200: the plan id and schema fingerprint of a plan, as the review file computes them (review.plan_id and
+    schema_fingerprint over drift.plan_snapshot); the item's Create hands its own review's mark instead."""
+    from . import review as _review
+    from .drift import plan_snapshot
+    snap = plan_snapshot(plan)
+    return {"plan_id": _review.plan_id(snap), "schema_fingerprint": _review.schema_fingerprint(snap)}
+
+
+def check_spec(plan, silver_spec: dict, gold_spec: dict, plan_mark: dict | None = None, schedule: dict | None = None) -> dict:
     """The check as data: keys and relationships between the tables the silver notebook writes (the ones it enforces),
-    and per gold view the fact table and the amount and quantity columns to sum before and after the join."""
+    and per gold view the fact table and the amount and quantity columns to sum before and after the join. n200: and
+    `health`, what the health step needs (health.health_spec): the plan it was built from (`plan_mark`, else the plan's
+    own id) and the schedule's interval for freshness."""
     tables = [t["table"] for t in silver_spec["tables"]]
     # n208: a key silver removed no rows on (guessed from names) is counted and reported, but never fails the run: the
     # rows that share it may be real rows (a fact table), and silver kept them on purpose.
@@ -120,8 +136,10 @@ def check_spec(plan, silver_spec: dict, gold_spec: dict) -> dict:
     rels = [{"source": r.source, "columns": list(r.source_cols), "target": r.target, "target_columns": list(r.target_cols), "rule": r.rule}
             for r in plan.relationships if r.source in tables and r.target in tables]
     views = [{"view": v["name"].split(".", 1)[1], "fact": v["fact"], "sums": _sum_columns(plan, v)} for v in gold_spec["views"]]
+    from .health import health_spec
     return {"silver_schema": silver_spec["silver_schema"], "gold_schema": gold_spec["gold_schema"], "keys": keys,
-            "relationships": rels, "views": views}
+            "relationships": rels, "views": views,
+            "health": health_spec(silver_spec, plan_mark or plan_mark_of(plan), schedule)}
 
 
 # ------------------------------------------------------------------ the check itself --------------------------------
@@ -300,25 +318,31 @@ def check_cells(spec: dict, label: str) -> list[tuple[str, str]]:
              "reference finds its row (no orphans), the same counts as validate_plan; and, per gold view in "
              f"`{spec['gold_schema']}`, that the join kept the rows and the sums: the same row count and the same SUM of each amount "
              "before the join (the silver fact table) and after it (the view). When any of them does not hold, the notebook raises "
-             "an error, so the pipeline run fails. It only reads.\n\n"
-             "Self-contained: plain PySpark and Python, nothing is installed and no library is imported, so it runs the same "
-             "with or without internet access.")
+             "an error, so the pipeline run fails. It reads the silver and gold tables and writes only the health table: one row "
+             "per check (names, rules, statuses and counts, never a row value) in `krusgraph`.`health`, with row counts, the "
+             "freshness of each source table from Delta's table history, and the quarantine counts per rule. When a check fails "
+             "and the owner set ALERT_KEY_VAULT and ALERT_SECRET_NAME on the pipeline, it posts an Adaptive Card to the Teams "
+             "or Power Automate webhook whose address is that Key Vault secret.\n\n"
+             "Self-contained: plain PySpark and Python, nothing is installed and no library is imported; only the alert, when "
+             "one is set, reaches the internet.")
+    from . import health as _health
     params = (f"SILVER_SCHEMA = {_py_literal(spec['silver_schema'])}   # where the silver notebook wrote the silver tables\n"
-              f"GOLD_SCHEMA = {_py_literal(spec['gold_schema'])}       # where the gold notebook created the views")
-    data = {k: spec[k] for k in ("keys", "relationships", "views")}
+              f"GOLD_SCHEMA = {_py_literal(spec['gold_schema'])}       # where the gold notebook created the views\n"
+              + _health.HEALTH_PARAMS_TEXT
+              + f"SCHEDULE_MINUTES = {int(spec['health']['interval_minutes'])}         # minutes between scheduled runs (one day without a schedule)\n"
+              + _health.ALERT_PARAMS_TEXT)
+    data = {k: spec[k] for k in ("keys", "relationships", "views", "health")}
     setup = ("import json\n\n"
              f"CHECK = {_py(data)}\n"
-             "CHECK.update(silver_schema=SILVER_SCHEMA, gold_schema=GOLD_SCHEMA)")
+             "CHECK.update(silver_schema=SILVER_SCHEMA, gold_schema=GOLD_SCHEMA)\n"
+             "HEALTH = CHECK['health']")
     code = "# The check: keys, orphans, and rows and sums before and after each gold view's join, as plain Spark SQL.\n" + CHECK_CODE
-    count = ("# 1. Count in the silver tables and the gold views.\n"
-             "def execute(sql):\n    return [r.asDict() for r in spark.sql(sql).collect()]\n\n"
-             "result = check(CHECK, execute, spark.catalog.tableExists)\n"
-             "for line in result['lines']:\n    print(line)")
     stop = ("# 2. Stop here when anything does not hold: the error fails this notebook, its Notebook activity and the pipeline run.\n"
             "raise_if_failed(result)\n"
             "try:\n    notebookutils.notebook.exit(json.dumps({'passed': True, 'lines': result['lines']}))\n"
             "except NameError:\n    print('passed')")
-    return [("markdown", intro), ("parameters", params), ("code", setup), ("code", code), ("code", count), ("code", stop)]
+    return [("markdown", intro), ("parameters", params), ("code", setup), ("code", code), *_health.check_health_cells(spec, label),
+            ("code", stop)]
 
 
 def check_source(spec: dict, label: str, workspace_id: str = "", lakehouse_id: str = "", lakehouse_name: str = "") -> str:
@@ -343,9 +367,25 @@ def pipeline_content(silver: str, gold: str, check: str, label: str, ids: dict |
     notebooks are named by their logical IDs (the .platform files the export writes), so the Git update binds them;
     with `ids` ({notebook name: item id or placeholder}) by those, in `workspace_id`, as create_pipeline sends it."""
     nid = (lambda n: ids[n]) if ids is not None else (lambda n: logical_id("Notebook", n))
+    run = _run_parameters()
     return {"properties": {
         "description": (f"Krusgraph pipeline for {label}: the silver tables ({silver}), the gold views ({gold}), then the check "
                         f"({check}); a step runs only when the one before it succeeded, and a failed check fails the run. "
                         "No schedule."),
-        "activities": [_activity(STEPS[0], nid(silver), workspace_id, None), _activity(STEPS[1], nid(gold), workspace_id, STEPS[0]),
-                       _activity(STEPS[2], nid(check), workspace_id, STEPS[1])]}}
+        "activities": [_activity(STEPS[0], nid(silver), workspace_id, None, run), _activity(STEPS[1], nid(gold), workspace_id, STEPS[0]),
+                       _activity(STEPS[2], nid(check), workspace_id, STEPS[1], run)],
+        # n200: the owner's alert, set under Parameters in Fabric; empty means no alert. Not a secret: the webhook address
+        # itself stays in the owner's Key Vault.
+        "parameters": {"alert_key_vault": {"type": "string", "defaultValue": ""},
+                       "alert_secret_name": {"type": "string", "defaultValue": ""},
+                       "alert_on": {"type": "string", "defaultValue": "fail"}}}}
+
+
+def _run_parameters() -> dict:
+    """n200: what the silver and check notebooks get from the pipeline: the run id (so their health rows share it) and
+    the alert's Key Vault, secret name and when to send."""
+    def expr(value):
+        return {"value": {"value": value, "type": "Expression"}, "type": "string"}
+    return {"RUN_ID": expr("@pipeline().RunId"), "ALERT_KEY_VAULT": expr("@pipeline().parameters.alert_key_vault"),
+            "ALERT_SECRET_NAME": expr("@pipeline().parameters.alert_secret_name"),
+            "ALERT_ON": expr("@pipeline().parameters.alert_on")}

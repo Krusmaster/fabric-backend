@@ -74,7 +74,10 @@ def test_the_activities_name_the_notebooks_the_existing_drafts_produce(shop):
     named = export(names={"create_silver_notebook": "s1", "create_gold_views": "g1", "pipeline": "nightly_build"})
     acts = content(named, "nightly_build")["properties"]["activities"]
     assert [a["typeProperties"]["notebookId"] for a in acts] == [git_export.logical_id("Notebook", n) for n in ("s1", "g1", "nightly_build_check")]
-    assert "nightly_build_check.Notebook/notebook-content.py" in named["files"]
+    # n200: the check notebook carries the health step and is the biggest file now; over the answer's limit it is listed
+    # under `omitted` (pass items=["pipeline"] alone, or tables, for it), as every export does with a file that does not fit
+    assert "nightly_build_check.Notebook/notebook-content.py" in {**named["files"], **dict.fromkeys(named.get("omitted", []))}
+    assert "nightly_build_check.Notebook/.platform" in named["files"]
 
 
 def test_the_definition_parses_against_the_documented_shape(shop):
@@ -95,7 +98,8 @@ def test_the_definition_parses_against_the_documented_shape(shop):
         jsonschema.validate({"properties": {"activities": [dict(doc["properties"]["activities"][0], type="Notebook")]}}, pipeline.SHAPE)
 
 
-def test_output_is_deterministic(shop):
+def test_output_is_deterministic(shop, monkeypatch):
+    monkeypatch.setattr(server, "MAX_RESULT_CHARS", 10 ** 6)      # n200: the whole answer, the check notebook included
     a, b = export(), export()
     assert a == b
     assert server.export_item_definitions("Sales", "shop_lh", schema="shop", items=["pipeline"]) == \
@@ -217,16 +221,16 @@ def test_a_missing_silver_table_fails_the_check():
 def test_the_check_notebook_stops_before_it_reports_success():
     cells = pipeline.check_cells(spec(), "shop_lh.shop")
     kinds = [k for k, _ in cells]
-    assert kinds == ["markdown", "parameters", "code", "code", "code", "code"]
+    assert kinds == ["markdown", "parameters", "code", "code", "code", "code", "code"]     # n200: the health code and its run
     assert "_inlineInstallationEnabled" not in json.dumps(pipeline.pipeline_content("s", "g", "c", "x"))   # nothing to install
     last = cells[-1][1]
     assert last.index("raise_if_failed(result)") < last.index("notebookutils.notebook.exit")
-    assert "only reads" in cells[0][1] and "nothing is installed" in cells[0][1]
+    assert "writes only the health table" in cells[0][1] and "nothing is installed" in cells[0][1]   # n200: was "only reads"
     assert cells[3][1].endswith(pipeline.CHECK_CODE)                              # the code the tests below run, verbatim
     # the setup cell is valid Python that holds the spec as data
     ns = {"SILVER_SCHEMA": "silver", "GOLD_SCHEMA": "gold"}
     exec(cells[2][1], ns)
-    assert ns["CHECK"] == dict({k: spec()[k] for k in ("keys", "relationships", "views")}, silver_schema="silver", gold_schema="gold")
+    assert ns["CHECK"] == dict({k: spec()[k] for k in ("keys", "relationships", "views", "health")}, silver_schema="silver", gold_schema="gold")
 
 
 # ------------------------------------------------------------------ n140: the check notebook is self-contained --------
@@ -242,14 +246,16 @@ def check_source():
 def test_the_check_notebook_installs_nothing_and_imports_nothing_of_the_library():
     text = check_source()
     assert "%pip" not in text and "pip install" not in text.lower() and "fabric_backend" not in text and "fabric-backend" not in text
-    assert "github" not in text.lower() and "http" not in text.lower()         # nothing is fetched at run time
+    # nothing is fetched at run time; n200: the one way out is the owner's alert (urllib, to the address in their Key Vault)
+    assert "github" not in text.lower()
+    assert text.count("urlopen(") == 1 and "requests" not in text                 # one call, in _post, reached only by alert()
     for kind, code in notebook.parse(text):
         if kind == "markdown":
             continue
         assert not code.lstrip().startswith(("%", "!")), code[:40]
         imported = {n.split(".")[0] for line in code.splitlines() for n in
                     (line.split()[1:2] if line.lstrip().startswith(("import ", "from ")) else [])}
-        assert imported <= {"json", "math"}, imported                              # the standard library only
+        assert imported <= {"json", "math", "urllib", "datetime", "uuid"}, imported   # the standard library only (n200: the health step)
 
 
 class FakeSpark:
@@ -271,8 +277,26 @@ class FakeSpark:
         self.catalog = Catalog()
 
     def sql(self, text):
+        if text.startswith("CREATE SCHEMA"):                                       # n200: the health table's schema
+            return type("DF", (), {"collect": lambda _self: []})()
+        if text.startswith("DESCRIBE HISTORY"):                                    # n200: no Delta history in SQLite
+            raise RuntimeError("DESCRIBE HISTORY is only supported for Delta tables")
         rows = self._execute(text)
         return type("DF", (), {"collect": lambda _self: [type("Row", (), {"asDict": lambda _r, d=d: dict(d)})() for d in rows]})()
+
+    def createDataFrame(self, data, ddl):                                          # n200: the health rows, kept here
+        health = self.health = getattr(self, "health", [])
+
+        class Writer:
+            def format(self, fmt):
+                return self
+
+            def mode(self, mode):
+                return self
+
+            def saveAsTable(self, name):
+                health.extend(data)
+        return type("DF", (), {"write": Writer()})()
 
 
 def guarded_builtins():

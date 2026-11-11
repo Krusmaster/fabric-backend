@@ -383,14 +383,26 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
                 raise ImportError(f"the check notebook imported {name}")
             return builtins.__import__(name, *a, **k)
 
-        def run():
+        def run(run_id="run-1"):
             nb = {"spark": spark, "__builtins__": dict(vars(builtins), __import__=guarded)}
             for kind, code in notebook.parse(text):
                 if kind != "markdown":
                     exec(compile(code, "<pipeline_shop_check>", "exec"), nb)
+                    if kind == "parameters":                     # n200: what the pipeline sets; no Delta in a local Spark
+                        exec(f'TABLE_FORMAT = "parquet"; RUN_ID = "{run_id}"', nb)
             return nb
         nb = run()
         assert nb["result"]["passed"] and nb["result"]["lines"][-1] == "The check holds."
+        # n200: one row per check in krusgraph.health; parquet has no table history, so freshness says so (warn)
+        health = [r.asDict() for r in spark.table("krusgraph.health").collect()]
+        assert {r["run_id"] for r in health} == {"run-1"} and len(health) == len(nb["health"])
+        assert {r["check"] for r in health} == {"key", "orphans", "join_rows", "join_sums", "row_count", "freshness", "quarantine"}
+        assert {r["status"] for r in health if r["check"] == "freshness"} == {"warn"}
+        assert {(r["check"], r["status"]) for r in health if r["check"] in ("key", "orphans", "join_rows", "join_sums")} == \
+            {("key", "pass"), ("orphans", "pass"), ("join_rows", "pass"), ("join_sums", "pass")}
+        assert run("run-2")["result"]["passed"]
+        second = [r.asDict() for r in spark.table("krusgraph.health").filter("run_id = 'run-2'").collect()]
+        assert all(r["baseline"] == r["count"] for r in second if r["check"] == "row_count")      # the same rows as run-1
         assert len(nb["result"]["keys"]) == 6 and len(nb["result"]["relationships"]) == 6
         assert all(k["holds"] for k in nb["result"]["keys"]) and all(r["holds"] for r in nb["result"]["relationships"])
         spark.sql("INSERT INTO gold.order_items SELECT * FROM gold.order_items LIMIT 1")      # the join repeated a row
@@ -410,6 +422,45 @@ def test_pipeline_check_notebook_runs_after_silver_and_gold_in_pyspark(tmp_path)
         assert type(e.value).__name__ == "CheckFailed" and msg.startswith("The check failed, so the pipeline stops: ")
         assert "order_items.order_id -> orders: 1 of " in msg and "(orphans)" in msg
         assert "gold.order_items: SUM(quantity) is " in msg
+        failed = [r.asDict() for r in spark.table("krusgraph.health").filter("status = 'fail'").collect()]
+        assert {r["check"] for r in failed} >= {"orphans", "join_sums"}                     # written before the run stopped
+    finally:
+        spark.stop()
+
+
+def test_n200_the_pipeline_silver_notebook_stops_on_a_breaking_drift_in_pyspark(tmp_path):
+    """n200: the pipeline's silver notebook starts with the drift step. On the shop as planned it records one pass row
+    and goes on to write silver; with a new column it records a warning and goes on; with the key column of orders gone
+    it stops before anything is written (no silver table, only the health rows)."""
+    pytest.importorskip("pyspark")
+    from fabric_backend import gold, health
+    spark = _spark(tmp_path, "krusgraph-drift-test")
+    try:
+        spark.sql("CREATE SCHEMA IF NOT EXISTS shop")
+        for t, rows in seed_rows().items():
+            spark.createDataFrame([tuple(r.values()) for r in rows], seed.SCHEMAS[t]).write.format("parquet").mode("overwrite").saveAsTable(f"shop.{t}")
+        p = shop_plan(keys=GIVEN_KEYS)
+        s = silver.spec(p, INFO, order_by={"orders": "order_date"})
+        mark = {"plan_id": "plan-0123456789ab", "schema_fingerprint": "sha256:00"}
+        cells = silver.cells(dict(s, drift=health.drift_spec(p, s, gold.spec(p, INFO), mark)))
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; RUN_ID = "run-1"')
+        drift = [r.asDict() for r in spark.table("krusgraph.health").collect()]
+        assert [(r["check"], r["object"], r["status"]) for r in drift] == [("drift", "shop", "pass")]
+        assert spark.catalog.tableExists("silver.orders")
+        spark.sql("ALTER TABLE shop.orders ADD COLUMNS (coupon_code string)")
+        _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; RUN_ID = "run-2"')
+        assert [(r["object"], r["rule"], r["status"]) for r in spark.table("krusgraph.health").filter("run_id = 'run-2'").collect()] == \
+            [("shop.orders.coupon_code", "column_added", "warn")]
+        spark.sql("DROP TABLE silver.orders")
+        kept = spark.table("shop.orders").drop("order_id").collect()                        # the key column is gone
+        schema = spark.table("shop.orders").drop("order_id").schema
+        spark.sql("DROP TABLE shop.orders")
+        spark.createDataFrame(kept, schema).write.format("parquet").saveAsTable("shop.orders")
+        with pytest.raises(Exception) as e:
+            _run_cells(spark, cells, 'TABLE_FORMAT = "parquet"; RUN_ID = "run-3"')
+        assert type(e.value).__name__ == "DriftBreaks" and "orders.order_id is gone" in str(e.value)
+        assert not spark.catalog.tableExists("silver.orders")                              # nothing was written
+        assert {r["status"] for r in spark.table("krusgraph.health").filter("run_id = 'run-3'").collect()} == {"fail", "warn"}
     finally:
         spark.stop()
 

@@ -34,6 +34,21 @@ next deploy.
   and offers Adopt or Delete. `fabric_backend/product_life.py`, `POST /workload/v1/product`, `DataProductView.tsx`,
   `productWords.ts`; `docs/PROMOTE-DESIGN.md` (dev → test → prod with Fabric's Git integration and deployment pipelines,
   design only). Not run against a live workspace yet. Redeploy and build a new workload package to see it.
+- Round n200: **health over time and alerts** (Lifecycle round 1, `docs/LIFECYCLE-DESIGN.md` section 8;
+  `docs/HEALTH.md`). The pipeline's check notebook appends one row per check to `krusgraph.health`
+  (`krusgraph_health` without schemas): run id, time, plan id and fingerprint, check, object, rule, status, count and
+  the previous run's count of the same plan. Checks: keys, orphans, rows and sums through each gold view's join (pass or
+  fail only, never the sums), row counts of every silver table and gold view (warn when one falls by 50 % or more),
+  freshness of each source table from Delta's table history (a commit time; warn after 2 schedule intervals, fail after
+  3) and quarantine counts per rule. Never a row value. The pipeline's silver notebook starts with a drift step against
+  the plan the outputs were built from: a source table or a used column gone stops the run before anything is written,
+  with the reason; anything else is recorded. Optional alert: an Adaptive Card to a Teams workflow or Power Automate
+  HTTP trigger whose address is an Azure Key Vault secret the owner names on the pipeline (`alert_key_vault`,
+  `alert_secret_name`, `alert_on`), never in code; the pipeline card gives the steps for Fabric's free e-mail on a failed
+  scheduled run. `POST /workload/v1/health` returns one health word per data product (green, amber, red, not checked
+  yet) and the open findings, read as the signed-in user. All notebook code is written into the cells verbatim (no
+  `%pip`, no import of this library), tested on SQLite and a local PySpark; not yet run in Fabric.
+  Redeploy, then Create again to give an existing pipeline the health step.
 - Round n205: **trust, honest labels, a comparison and findability** before the launch of 11 November 2026, after a
   reviewer's report of 10 November ("the biggest obstacle is trust, not technology"). `/trust` ("Security and data",
   Markdown twin `/trust.md`), written from `docs/TRUST-PACK.md`: what passes through, that no table contents are

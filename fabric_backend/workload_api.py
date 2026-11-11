@@ -1548,7 +1548,8 @@ def _call(kind: str, o: dict, chosen: dict, req: dict, keys, confirmed, dry_run:
     elif kind == "pipeline":
         jobs = o.get("jobs") or {}
         allowed = jobs_permission(token_scopes(), None)["granted"] is not False     # n185: without the scope, neither runs
-        token = S.PIPELINE_JOBS.set({"wait": 0, "schedule_ids": list(req.get("schedule_ids") or [])})
+        token = S.PIPELINE_JOBS.set({"wait": 0, "schedule_ids": list(req.get("schedule_ids") or []),
+                                     "plan": req.get("plan_mark")})       # n200: the health rows name this review's plan
         try:
             text = S.create_pipeline(name=o["name"], silver_name=chosen.get("silver_notebook", ""), gold_name=chosen.get("gold_views", ""),
                                      run_once=bool(jobs.get("run_once")) and allowed,
@@ -1716,6 +1717,7 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
         p, _item, _ = S._plan(workspace, req["source"], req["schema"], keys, confirmed, None)
         req = _exact(req, p.schema.schema)                         # n175: every output reads and writes the exact name
         mark = plan_mark(rv, p, req["schema"])                     # n180: what every item of this build is built from
+        req = {**req, "plan_mark": mark}                           # n200: handed to the pipeline's health step
         listing: list[dict] = []
 
         def listed() -> dict:
@@ -2182,4 +2184,51 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/pipeline-run", endpoint(pipeline_run_request, run_pipeline_status, "pipeline-run"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"]),
-            Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"])]
+            Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"])]
+
+
+# ------------------------------------------------------------------ n200: health per data product -------------------
+
+def health_request(body) -> dict:
+    """n200: POST /workload/v1/health {workspace, source, products: [{name, plan_id}]} (docs/HEALTH.md). Read-only."""
+    from . import health as H
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    req = {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
+           "source_name": _text(body, "source_name", body.get("source"))}
+    products = body.get("products")
+    if not isinstance(products, list) or not 1 <= len(products) <= 50:
+        raise BadRequest("'products' must be a list of 1 to 50 {name, plan_id}")
+    out = []
+    for x in products:
+        if not isinstance(x, dict) or not isinstance(x.get("plan_id"), str) or not H.PLAN_ID.match(x["plan_id"]):
+            raise BadRequest("each product needs plan_id as outputs.json records it (plan-<hex>)")
+        name = x.get("name", x["plan_id"])
+        if not isinstance(name, str) or not name.strip() or len(name) > 200:
+            raise BadRequest("a product's name is a non-empty text of at most 200 characters")
+        out.append({"name": name.strip(), "plan_id": x["plan_id"]})
+    return {**req, "products": out}
+
+
+def run_health(req: dict) -> dict:
+    """n200: one health word per data product (green, amber, red, not checked yet) and the open findings of its latest
+    run, read from the lakehouse's health table through its SQL analytics endpoint as the signed-in user. Nothing in
+    Fabric changes; the answer holds names, rules, statuses and counts, never a row value."""
+    from . import health as H, server as S
+    headers = S._headers(None)
+    workspace = S._workspace_id(req["workspace"], headers)
+    item = S._resolve_source(workspace, req["source"], headers)
+    enabled = bool(item.get("schemas_enabled", True))
+    execute = S._execute_factory(item, S.auth.sql(None))
+    try:
+        found = execute(H.exists_sql(enabled))                    # rows as dicts (platforms.fabric.connect)
+        there = bool(found) and int(next(iter(found[0].values()), 0) or 0) > 0
+        rows = list(execute(H.read_sql(enabled, sorted({p["plan_id"] for p in req["products"]})))) if there else []
+    finally:
+        getattr(execute, "close", lambda: None)()
+    table = "krusgraph.health" if enabled else "dbo.krusgraph_health"
+    return {"products": H.summarize(rows, req["products"]), "table": table, "read_as": "the signed-in user",
+            "note": (("" if there else f"The table {table} does not exist yet: the pipeline has not run since it got its health "
+                                       "step. ") + NOTHING_CHANGED + " The health table holds names, rules, statuses and counts, "
+                     "never a row value.")}

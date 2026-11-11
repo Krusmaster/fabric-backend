@@ -688,6 +688,10 @@ def cells(s: dict) -> list[tuple[str, str]]:
     fixed = bool(s.get("fixes"))
     if fixed:                                                            # n115: the decisions the fix suggestions need
         params += "\n" + _fix_parameters(s)
+    drift = s.get("drift")                                               # n200: only the pipeline's silver notebook
+    if drift:
+        from . import health as _health
+        params += "\n" + _health.ALERT_PARAMS_TEXT
     writes = [t["table"] for t in s["tables"]] + [m["target_table"] for t in s["tables"] for m in t.get("moves", [])] + [QUARANTINE]
     rf = src.get("read_from")
     source_def = (MIRROR_SOURCE.format(kind=_kind_words(rf.get("item_kind")), name=rf.get("item_name") or "", path=_py(rf["tables_path"]))
@@ -698,7 +702,10 @@ def cells(s: dict) -> list[tuple[str, str]]:
                          source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]),
                          personal=_py_literal(s.get("personal", {})))
     out = [("markdown", intro)] + ([("markdown", _fixes_markdown(s))] if fixed else [])
-    out += [("parameters", params), ("code", setup.strip("\n"))] + ([("code", _decisions_cell(s))] if fixed else [])
+    out.append(("parameters", params))
+    if drift:                                                            # n200: before anything is written
+        out.append(("code", _health.drift_cell(drift, f"{src['item'] or 'the lakehouse'}.{src['schema']}")))
+    out += [("code", setup.strip("\n"))] + ([("code", _decisions_cell(s))] if fixed else [])
     out += [("code", _table_cell(t)) for t in s["tables"]]
     out.append(("code", FINISH.format(quarantine=_py(QUARANTINE)).strip("\n")))
     if fixed:                                                            # n155: the counts per fix, after the run
