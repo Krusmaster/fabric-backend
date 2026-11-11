@@ -59,9 +59,16 @@ CERTIFICATION_URL = {WORKLOAD_NAME: ATTESTATION_URL, PUBLISHED_NAME: ATTESTATION
 SLIDE_VIDEO = re.compile(r"^https://(www\.)?youtube\.com/embed/[A-Za-z0-9_-]{6,}(\?[^\s]*)?$|^https://player\.vimeo\.com/video/\d+$")
 MAX_SLIDES = 10
 # The item types Fabric shows as "Compatible with" on the detail page (Product.json compatibleItemTypes). Learn shows the
-# field with Fabric item type names ("Lakehouse", "Dataset", "Dataflow"; how-to-add-jobs-to-be-done, ms.date 15 December
-# 2025) and documents no list of accepted values; these are the REST API's ItemType names of what the Model reads.
-COMPATIBLE = ("Lakehouse", "MirroredDatabase", "Warehouse", "SQLDatabase")
+# field only by example, "Lakehouse" (manifest examples) and "Lakehouse", "Dataset", "Dataflow" (extensibility-toolkit
+# how-to-add-jobs-to-be-done, ms.date 15 December 2025, read 11 November 2026), and documents no list of accepted values
+# (manifest-product and manifest-item, ms.date 15 December 2025; workload-development-kit frontend-manifests, ms.date 29
+# April 2026; all read 11 November 2026). n214: n201 used the REST API's ItemType names (Items - List Items, read 11
+# November 2026), but Fabric showed "MirroredDatabase" and "SQLDatabase" as "Unknown" on the detail page of 1.0.1023
+# (founder, 11 November 2026), so the field does not take those names, and Learn documents no identifier it accepts for
+# a mirrored database or a SQL database: both are left out. "Warehouse" is the ItemType name and showed as Warehouse.
+# check() refuses any compatible type outside DOCUMENTED_COMPATIBLE.
+DOCUMENTED_COMPATIBLE = ("Lakehouse", "Warehouse", "Dataset", "Dataflow")
+COMPATIBLE = ("Lakehouse", "Warehouse")
 PUBLISHER = "Kruse Consulting AB"
 # The Product.json links Microsoft's validator fetches (publishing-requirements-workload 1.2.1, 1.2.2, 1.3.1, 1.4.1,
 # 1.4.5, 5.2.1): each must be an https URL. The license link must also be a Marketplace offer (1.3.1, 1.3.2); there is
@@ -208,8 +215,20 @@ def check(files: dict[str, bytes], vals: dict) -> None:
     if len(product) > 50 * 1024:
         raise PackageError("Product.json is over 50 KB")
     check_slides(parsed, files)
+    check_compatible(parsed)
     if name == PUBLISHED_NAME:
         check_publishing(files)
+
+
+def check_compatible(product: dict) -> None:
+    """n214: every compatibleItemTypes entry is a name Learn shows for the field; others show as "Unknown" in Fabric."""
+    types = product.get("compatibleItemTypes", [])
+    unknown = [t for t in types if t not in DOCUMENTED_COMPATIBLE]
+    if unknown:
+        raise PackageError(f"compatibleItemTypes {unknown} are not names Learn documents for the field "
+                           f"({', '.join(DOCUMENTED_COMPATIBLE)}); Fabric shows such a type as 'Unknown'")
+    if len(set(types)) != len(types):
+        raise PackageError("compatibleItemTypes lists a type twice")
 
 
 def check_slides(product: dict, files: dict[str, bytes]) -> None:

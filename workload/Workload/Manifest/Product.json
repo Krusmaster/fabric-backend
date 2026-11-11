@@ -100,8 +100,6 @@
     ],
     "compatibleItemTypes": [
         "Lakehouse",
-        "MirroredDatabase",
-        "Warehouse",
-        "SQLDatabase"
+        "Warehouse"
     ]
 }

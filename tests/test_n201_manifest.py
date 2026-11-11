@@ -42,7 +42,7 @@ def _package(name: str, tmp_path: Path, manifest: Path = MANIFEST) -> dict[str, 
 def test_both_packages_list_mirrored_databases_warehouses_and_sql_databases_as_compatible(tmp_path, name):
     files = _package(name, tmp_path)
     product = json.loads(files["FE/Product.json"])
-    assert product["compatibleItemTypes"] == ["Lakehouse", "MirroredDatabase", "Warehouse", "SQLDatabase"]
+    assert product["compatibleItemTypes"] == ["Lakehouse", "Warehouse"]          # n214: the two Fabric showed as Unknown are out
     assert tuple(product["compatibleItemTypes"]) == B.COMPATIBLE
     words = json.loads(files["FE/assets/locales/en-US/translations.json"])
     detail = words[product["productDetail"]["description"]]
