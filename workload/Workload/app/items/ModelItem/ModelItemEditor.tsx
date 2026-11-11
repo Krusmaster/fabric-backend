@@ -67,6 +67,7 @@ import {
 import { AppChoices } from "./engineClient";
 import { PICKER_TYPES, ReadOnlySource, SapOffer, isReadOnly, restType, targetProblem } from "./sourceWords";
 import { DataProductView } from "./DataProductView";
+import { accessLine } from "./accessWords";
 import {
   LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, healthWords, outOfDate, withAdopted, withOwner, withRemoved,
 } from "./productWords";
@@ -92,6 +93,7 @@ export function ModelItemEditor(props: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [busy, setBusy] = useState<string>();
   const [error, setError] = useState<engine.EngineError>();
+  const [trialLine, setTrialLine] = useState<string>("");   // n213: the trial's days left, one quiet line
   const [itemMeta, setItemMeta] = useState<{ id: string; workspaceId: string; displayName: string }>();
   const [def, setDef] = useState<ModelDefinition>(emptyDefinition());
   const [dirty, setDirty] = useState(false);
@@ -189,6 +191,7 @@ export function ModelItemEditor(props: PageProps) {
   useEffect(() => {
     (async () => {
       setIsLoading(true);
+      void engine.access(workloadClient).then((a) => setTrialLine(accessLine(a)));   // n213: also starts the trial
       try {
         const got = await callGetItem(workloadClient, itemObjectId);
         rememberWorkloadOf(got.item.type);   // n176: Org.Krusgraph or Krusgraph.Modeler, for the engine scope
@@ -873,6 +876,7 @@ export function ModelItemEditor(props: PageProps) {
   const wrap = (node: React.ReactNode) => (
     <>
       <ErrorBar error={error} />
+      {trialLine ? <div style={{ fontSize: 12, opacity: 0.75, margin: "4px 0" }} role="status">{trialLine}</div> : null}
       {busy ? <Busy label={busy} /> : node}
     </>
   );

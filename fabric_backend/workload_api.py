@@ -25,6 +25,11 @@ n171: with KRUSGRAPH_ENTITLEMENTS=1, /build with dry_run=false runs the same lic
 active Marketplace subscription gets `kind: upgrade` (HTTP 402) with the offer's link, which the editor shows as it shows
 every error (error and hint). /review and every dry run stay free. With the flags off nothing here changes.
 
+n213: with KRUSGRAPH_TRIAL=1 (billing.py) every route records the organisation's call (the first one starts its 30-day
+trial) and billing.decide replaces the licence check: after the trial, without an active subscription, /build and
+/product retire with dry_run=false answer `kind: upgrade` (HTTP 402) with the days and the offer's link; every read,
+check and dry run still runs. POST /workload/v1/access gives the editor its one quiet line. Off, nothing changes.
+
 n173: /review takes the person's own `keys` and `confirmed` (the editor's inline answers to Thinker's questions: a key
 for a table the rules found none for, the table an ambiguous column points at); every answer carries `map`, the MCP
 Apps cards' map data (mcp_apps_pictures.map_from_review) with each key's check state added, which the editor draws
@@ -2238,7 +2243,18 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply({"error": str(e) if isinstance(e, BadRequest) else "the body is not valid JSON",
                               "kind": "bad_request"}, 400, origin)
 
-            refusal = await run_in_threadpool(gate, req, str(claims.get("tid") or "")) if gate is not None else None
+            from . import billing
+            if billing.enabled():                      # n213: one decision for every route (billing.decide)
+                got = await run_in_threadpool(lambda: billing.decide(
+                    str(claims.get("tid") or ""), claims.get("oid") or claims.get("sub"),
+                    write=billing.route_writes(where, req), product="workload"))
+                if where == "access":
+                    return reply(access_answer(got), 200, origin)
+                refusal = got.get("refusal")
+            elif where == "access":
+                return reply(access_answer({"state": "off"}), 200, origin)
+            else:
+                refusal = await run_in_threadpool(gate, req, str(claims.get("tid") or "")) if gate is not None else None
             if refusal is not None:
                 return reply(refusal, STATUS["upgrade"], origin)
 
@@ -2291,7 +2307,23 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/pipeline-run", endpoint(pipeline_run_request, run_pipeline_status, "pipeline-run"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"]),
-            Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"])]
+            Route(f"{PREFIX}/health", endpoint(health_request, run_health, "health"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/access", endpoint(access_request, None, "access"), methods=["POST", "OPTIONS"])]
+
+
+def access_request(body) -> dict:
+    """n213: POST /workload/v1/access {} - the organisation's trial or subscription in one line, for the editor. The
+    editor calls it when the item opens, which is also what starts the trial (billing.decide). Takes no fields."""
+    if body is not None and not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object (or empty)")
+    return {"workspace": "", "source_name": ""}
+
+
+def access_answer(got: dict) -> dict:
+    """n213: what the editor shows: one quiet line (`words`, empty when there is nothing to say), the state, the days
+    left and the offer link. Never a user id or another tenant's anything."""
+    return {k: got[k] for k in ("state", "words", "days_left", "trial_ends", "offer_url", "notice") if k in got} | {
+        "words": got.get("words") or ""}
 
 
 # ------------------------------------------------------------------ n200: health per data product -------------------

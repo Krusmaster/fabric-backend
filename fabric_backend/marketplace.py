@@ -366,6 +366,11 @@ class MemoryStore:
             self.rows[key] = {**row, "_etag": secrets.token_hex(4)}
             return True
 
+    def query(self, pk: str, limit: int = 5000) -> list[dict]:
+        """n213: every row of one partition (the trial sweep), at most `limit`."""
+        with self._lock:
+            return [dict(r) for (p, _), r in sorted(self.rows.items()) if p == pk][:limit]
+
 
 class TableStore:
     """Azure Table Storage with the managed identity (Entra authorization, x-ms-version 2019-02-02), the same
@@ -406,6 +411,22 @@ class TableStore:
         if r.status_code not in (200, 201, 204):
             raise MarketplaceError(f"the table answered HTTP {r.status_code}", r.status_code)
         return True
+
+    def query(self, pk: str, limit: int = 5000) -> list[dict]:
+        """n213: every row of one partition (the trial sweep), following the table's continuation headers, at most
+        `limit` rows. Query Entities with $filter on PartitionKey (Entra authorization, as get and put)."""
+        out: list[dict] = []
+        params = {"$filter": f"PartitionKey eq '{pk.replace(chr(39), chr(39) * 2)}'"}
+        while len(out) < limit:
+            r = self.http("GET", f"{self.base}()", headers=self._headers(), params=params, timeout=8)
+            if r.status_code != 200:
+                raise MarketplaceError(f"the table answered HTTP {r.status_code}", r.status_code)
+            out.extend((_json(r).get("value") or [])[: limit - len(out)])
+            npk, nrk = r.headers.get("x-ms-continuation-NextPartitionKey"), r.headers.get("x-ms-continuation-NextRowKey")
+            if not npk:
+                break
+            params = {**params, "NextPartitionKey": npk, "NextRowKey": nrk or ""}
+        return out
 
 
 class Subscriptions:

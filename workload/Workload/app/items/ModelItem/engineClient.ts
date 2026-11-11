@@ -515,7 +515,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health" | "access";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -809,5 +809,24 @@ export async function health(workloadClient: WorkloadClientAPI, body: Record<str
     return await callOnce<Record<string, any>>(workloadClient, "health", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
   } catch {
     return null;
+  }
+}
+
+/** n213: the organisation's trial or subscription (POST /workload/v1/access, fabric_backend/billing.py). Opening the item
+ * calls it, which is also what starts the 30-day trial. `words` is the one quiet line ("" when there is nothing to say). */
+export interface AccessAnswer {
+  state: string;
+  words: string;
+  days_left?: number;
+  trial_ends?: string;
+  offer_url?: string;
+  notice?: string;
+}
+
+export async function access(workloadClient: WorkloadClientAPI, fetchImpl?: Fetch): Promise<AccessAnswer | null> {
+  try {
+    return await callOnce<AccessAnswer>(workloadClient, "access", {}, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+  } catch {
+    return null;   // an older engine without the route, or any refusal: no line, nothing else changes
   }
 }

@@ -45,6 +45,7 @@ from . import views as _views, data_agent as _data_agent, app_starter as _app_st
 from . import lineage as _lineage, compact as _compact, sap_pack as _sap_pack
 from . import domains as _domains
 from . import limits as _limits, usage as _usage, entitlements as _entitlements
+from . import billing as _billing
 from .deploy import create_semantic_model as _create_semantic_model
 from .deploy import find_item as _find_item
 from . import report as _report
@@ -377,7 +378,8 @@ def _identity(ctx) -> dict | None:
 
 def _instrumented(fn, name: str):
     """Around every tool: the fair-use limit per user and organisation (limits.py), the paid-feature check when
-    KRUSGRAPH_ENTITLEMENTS=1 (entitlements.py), and one anonymous usage record (usage.py: tool, outcome kind,
+    KRUSGRAPH_ENTITLEMENTS=1 (entitlements.py), or with KRUSGRAPH_TRIAL=1 instead the trial and subscription decision
+    (billing.py, n213: writing refused after the trial, reading never), and one anonymous usage record (usage.py: tool, outcome kind,
     duration, dry run). A refused call answers in the tool's own error format and runs nothing. The signature is
     the tool's own (functools.wraps), so the MCP schema and the ctx injection are unchanged."""
     import functools
@@ -399,9 +401,14 @@ def _instrumented(fn, name: str):
         if who and limiter is not None:
             hit = limiter.check(who.get("oid"), who.get("tid"))
             refusal = _limits.answer(hit) if hit else None
-        if refusal is None and _entitlements.enabled():
+        notice = None
+        if refusal is None and _billing.enabled():         # n213: the trial and the subscription (billing.decide)
+            got = _billing.decide((who or {}).get("tid"), (who or {}).get("oid"), write=_billing.tool_writes(name, dry_run),
+                                  product="mcp")
+            refusal, notice = got.get("refusal"), got.get("notice")
+        elif refusal is None and _entitlements.enabled():
             refusal = _entitlements.check(name, dry_run, (who or {}).get("tid"))
-        text = json.dumps(refusal, indent=2) if refusal is not None else fn(*args, **kwargs)
+        text = json.dumps(refusal, indent=2) if refusal is not None else _billing.with_notice(fn(*args, **kwargs), notice)
         try:
             _usage.usage.record(name, _usage.outcome_of(text), time.monotonic() - start, dry_run, (who or {}).get("tid"))
         except Exception:  # noqa: BLE001 — counting must never break a call
@@ -3260,6 +3267,10 @@ def build_app(host: str = "0.0.0.0"):
     from . import marketplace as _marketplace
     if _marketplace.enabled():
         app.router.routes.extend(_marketplace.routes(cfg))
+    # n213: the 30-day trial per organisation (billing.py). Off unless KRUSGRAPH_TRIAL=1; on, the sweep that sends the
+    # founder's "trial ends in 7 days" notice runs every 6 hours.
+    from . import billing as _billing_mod
+    _billing_mod.start_sweeper()
 
     # n168: on KRUSGRAPH_WORKLOAD_HOST (workload.krusgraph.com) only the hosted editor, /close and /workload/v1;
     # every other host name reaches the app below unchanged (workload_host.py). Unset, nothing is wrapped.
