@@ -9,6 +9,21 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n223: **the Krusgraph Model editor says what it waits for, and opens with less to wait for**. One loading component
+  (`OntoWait.tsx`, words in `waitWords.ts`) for the first load, the review, the check, the dry run, the schema list and
+  the Data product page: Onto at the top with a gentle motion (still under reduced motion; a spinner with the mascots
+  off), the step's name ("Reading the tables in shop…"), progress where the parts are known (the check: "3 of 7 keys and
+  links counted", from `evidence.validate`'s new `on_step` and `workload_api.check_progress`), skeleton rows instead of a
+  blank page. After 10 s one line from what the code waits on (the SQL endpoint, a busy capacity (429), a Fabric
+  operation, reads that did not get through, else "Still working on it."); after 30 s Keep waiting, See the steps so far
+  and, for steps that only read, Cancel (nothing in Fabric changes). Light and dark, keyboard, aria-live polite. Loading:
+  the item and its definition are read together; reopening an item with a review shows the saved review and the map kept
+  in item.json at once and reads it again behind it (decisions made meanwhile are kept); the schema list is kept in the
+  item and listed only where Choose source shows it; the engine's token is asked of the Fabric host once (it was asked
+  on every request and every read of an operation); a background step is first read after 300 ms (was 1 s). The map,
+  the data flow and the Data product page are their own chunks, prefetched after the editor opens, and the empty view no
+  longer pulls in Fluent UI 8: what the editor downloads before it draws went from 1,099,659 to 1,051,956 bytes (313.8
+  to 300.1 KB gzip). The manifest did not change: a redeploy, no new package.
 - Round n221: **the Krusgraph Model builds in its own workspace, and a key that passed the row check de-duplicates
   silver**. From the founder's live test of 11 November 2026: a Model in a new workspace read a lakehouse of another
   workspace and every output went to that other workspace, "already built from this plan". Now Choose what to build has

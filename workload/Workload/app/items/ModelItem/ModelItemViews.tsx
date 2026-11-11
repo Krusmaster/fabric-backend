@@ -8,7 +8,7 @@
  * colours with the site's figures, Thinker's questions with their choices inline, and Accept all. Words: modelWords.ts.
  */
 import { ReadOnlySource, SapOffer, isReadOnly, sapMark, sourceButton, sourceNotes, targetButton, targetLine } from "./sourceWords";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   Badge,
   Body1,
@@ -64,7 +64,7 @@ import {
   resultLine,
   validName,
 } from "./buildWords";
-import { FlowView } from "./FlowView";
+import { FlowView, PlanMap } from "./lazyParts";   // n223: loaded when first shown
 import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, lakehouseLine, validLakehouseName } from "./buildPlace";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
@@ -74,9 +74,11 @@ import {
   APP_STEPS_TITLE, CardState, FINISH_CSS, LastCreate, STATE_MARK, banner, cardState, itemTypeLabel, keepUpToDate, nextSteps,
   readLastCreate, running, stepsTitle,
 } from "./createWords";
-import { MapData, drawPlanMap, overlay } from "./cardMap";
-import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
+import { MapData } from "./cardMap";
+import { MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
 import { MascotFigure } from "./mascotFigure";
+import { OntoWait } from "./OntoWait";
+import { Wait, newWait } from "./waitWords";
 import {
   CheckState,
   Choice,
@@ -99,10 +101,14 @@ import {
 export type MascotKind = "onto" | "thinker" | "builder";
 import "./ModelItem.scss";
 
-export function Busy({ label }: { label: string }) {
+/** n223: a wait in a view, drawn by the one loading component (OntoWait.tsx): Onto, the step, the slow line after 10 s
+ * and the offer after 30 s. A plain label still works (a wait that started now, nothing known yet). */
+export function Busy(props: { label?: string; wait?: Wait; mascotsOn?: boolean; onCancel?: () => void; skeleton?: number | false }) {
+  const [since] = useState(() => Date.now());   // a label alone: its wait started when it was first shown
+  const wait = props.wait ?? newWait(props.label ?? "Working…", since, { steps: [] });
   return (
     <div className="krusgraph-view">
-      <Spinner label={label} />
+      <OntoWait wait={wait} mascotsOn={props.mascotsOn} onCancel={props.onCancel} skeleton={props.skeleton} />
     </div>
   );
 }
@@ -125,11 +131,13 @@ export function ErrorBar({ error }: { error?: EngineError }) {
  * list could not be read, with the reason. */
 export function SchemaChoice(props: {
   schema: string;
-  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError };
+  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError; wait?: Wait };
   onSchemaChange: (schema: string) => void;
+  mascotsOn?: boolean;
 }) {
   const { loading, list, error } = props.schemas;
-  if (loading) return <Spinner size="tiny" label="Reading the lakehouse's schemas…" />;
+  // n223: a list kept in the item shows at once while it is read again; without one, the wait is Onto's line
+  if (loading && !list) return <Busy wait={props.schemas.wait} label="Reading the lakehouse's schemas…" skeleton={2} mascotsOn={props.mascotsOn} />;
   if (error || !list) {
     return (
       <Field label="Schema" hint={error ? `The schemas could not be listed: ${error.error} Type the schema as the lakehouse spells it.` : "Choose a lakehouse first"}>
@@ -168,9 +176,10 @@ export function PermissionsNote({ needs, extra }: { needs: string[]; extra?: str
 export function EmptyView(props: {
   source?: SourceDefinition;
   schema: string;
-  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError };
+  schemas: { loading: boolean; list?: SchemasAnswer; error?: EngineError; wait?: Wait };
   onSchemaChange: (schema: string) => void;
   onChooseLakehouse: () => void;
+  mascotsOn?: boolean;
   /** n201: a read-only source's target lakehouse */
   onChooseTarget?: () => void;
   onReview: () => void;
@@ -192,14 +201,17 @@ export function EmptyView(props: {
           <Button appearance={source ? "secondary" : "primary"} onClick={props.onChooseLakehouse}>
             {sourceButton(source)}
           </Button>
-          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} />}
+          {source && <SchemaChoice schema={props.schema} schemas={props.schemas} onSchemaChange={props.onSchemaChange} mascotsOn={props.mascotsOn} />}
+          {source && props.schemas.loading && props.schemas.list && (
+            <Caption1 role="status">The schemas kept in this item are shown; reading them again…</Caption1>
+          )}
           {readOnly && (
             <>
               <Body1>{targetLine(source, source.target)}</Body1>
               <Button appearance="secondary" onClick={props.onChooseTarget}>{targetButton(source.target)}</Button>
             </>
           )}
-          <Button appearance="primary" disabled={!source || !props.schema.trim() || props.schemas.loading} onClick={props.onReview}>
+          <Button appearance="primary" disabled={!source || !props.schema.trim() || (props.schemas.loading && !props.schemas.list)} onClick={props.onReview}>
             Find keys and relationships
           </Button>
         </div>
@@ -313,26 +325,7 @@ function ReviewRow(props: { item: ReviewItem; onDecide: (id: string, status: Rev
   );
 }
 
-/** The map, drawn by the MCP Apps cards' own code (cardMap.ts); redrawn when the map or a decision changes. */
-export function PlanMap(props: { map?: MapData; review?: ReviewFile }) {
-  const box = useRef<HTMLDivElement>(null);
-  const shown = useMemo(() => (props.map ? overlay(props.map, props.review) : undefined), [props.map, props.review]);
-  useEffect(() => {
-    if (!box.current) return;
-    try {
-      drawPlanMap(box.current, shown);
-    } catch {
-      box.current.textContent = "The map could not be drawn here; the list shows the same keys and links.";
-    }
-  }, [shown]);
-  if (!shown) return <Body1>The map appears after the next review. The list has every key and link.</Body1>;
-  return (
-    <div className="krusgraph-map">
-      <style>{MAP_CSS}</style>
-      <div ref={box} />
-    </div>
-  );
-}
+// n223: the map (planMapView.tsx) loads when a review first shows it: lazyParts.PlanMap
 
 export function ReviewView(props: {
   source: SourceDefinition;

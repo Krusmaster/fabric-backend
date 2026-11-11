@@ -133,6 +133,8 @@ export interface ItemEditorPropsWithViews {
   isLoading?: boolean;
   /** Loading message to display */
   loadingMessage?: string;
+  /** Krusgraph n223: what to show while loading instead of the default view (the Model editor's OntoWait) */
+  loadingContent?: React.ReactNode;
 }
 
 /**
@@ -451,7 +453,7 @@ export function ItemEditor(props: ItemEditorProps) {
   const content = React.useMemo(() => {
     // Show loading indicator if isLoading is true
     if (isLoading) {
-      return <ItemEditorLoadingView message={loadingMessage || "Loading..."} />;
+      return props.loadingContent ?? <ItemEditorLoadingView message={loadingMessage || "Loading..."} />;
     }
     
     // Don't render any view if currentView is null/undefined (prevents flash of wrong view)
@@ -462,7 +464,7 @@ export function ItemEditor(props: ItemEditorProps) {
     // View Registration Mode
     const activeView = resolvedViews.find((v: RegisteredView) => v.name === currentView);
     return activeView?.component || null;
-  }, [resolvedViews, currentView, isLoading, loadingMessage]);
+  }, [resolvedViews, currentView, isLoading, loadingMessage, props.loadingContent]);
 
   return (
     <div className={`item-editor-container ${className}`.trim()} data-testid="item-editor">

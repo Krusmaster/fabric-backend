@@ -113,7 +113,7 @@ describe("n215: picking a lakehouse in the OneLake catalog", () => {
     // a lakehouse is not read-only: no Target lakehouse step
     expect(text).not.toMatch(/Target lakehouse/);
     expect(button(/Find keys and relationships/).disabled).toBe(false);
-    expect(engine.schemas).toHaveBeenLastCalledWith(expect.anything(), { workspace: WS, source: LH, source_name: ui ? "demo_lh" : "" });
+    expect(engine.schemas).toHaveBeenLastCalledWith(expect.anything(), { workspace: WS, source: LH, source_name: ui ? "demo_lh" : "" }, expect.anything());   // n223: and the wait's options
   });
 
   it("a warehouse named by fabricItemType is read-only and offers the target", async () => {
