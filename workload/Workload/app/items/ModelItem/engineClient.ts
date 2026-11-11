@@ -205,7 +205,9 @@ export interface AgentCard {
   selection?: { layer: string; schema: string; selected: number | null; deselected: number; one_layer: boolean; words: string };
   examples?: { status: string; count?: number; valid?: number; invalid?: number; validating?: number; invalid_examples?: { question: string; reason?: string }[];
     /** n197: not_checked: why (the run writes the tables) */
-    words?: string; rechecked?: number };
+    words?: string; rechecked?: number;
+    /** n209: examples Fabric could not connect for, sent once more and still not checked: never invalid */
+    not_checked?: number; not_checked_examples?: { question: string; reason?: string }[]; not_checked_words?: string };
   words?: string[];
   decision?: { publish: boolean; state: "draft" | "waiting" | "publish"; why: string };
   published?: boolean;

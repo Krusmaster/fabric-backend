@@ -7,7 +7,7 @@ import React from "react";
 import { Body1, Caption1, Checkbox, Dropdown, Field, Input, Link, MessageBar, MessageBarBody, Option, Radio, RadioGroup, Subtitle2 } from "@fluentui/react-components";
 import { AgentOptions, BuildCard, JobsCard, PipelineJobs } from "./engineClient";
 import {
-  LAYER_LABEL, TIME_ZONES, activityLines, defaultSchedule, runHeadline, scheduleProblems, scheduleWords, withPublish,
+  LAYER_LABEL, TIME_ZONES, activityLines, defaultSchedule, exampleWords, runHeadline, scheduleProblems, scheduleWords, withPublish,
   runPermissionLine,
 } from "./jobsWords";
 
@@ -159,21 +159,24 @@ export function AgentPanel(props: { card: BuildCard }) {
   const a = props.card.agent;
   if (!a) return null;
   const pf = a.copilot_preflight;
-  const ex = a.examples;
+  const ew = exampleWords(a.examples);   // n209: a failure to connect reads "not checked yet", never invalid
   return (
     <div aria-label="Data agent: layer and publishing">
       <Body1>{a.selection?.words ?? a.layer_words}</Body1>
-      {ex && ex.status === "read" && (
-        <Caption1>
-          {`Examples in Fabric: ${ex.valid ?? 0} valid, ${ex.invalid ?? 0} invalid, ${ex.validating ?? 0} still being checked.`}
-        </Caption1>
+      {ew.lines.map((l) => (
+        <Caption1 key={l}>{l} </Caption1>
+      ))}
+      {ew.notChecked.length > 0 && (
+        <ul className="krusgraph-list" aria-label="Examples not checked yet">
+          {ew.notChecked.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+        </ul>
       )}
-      {ex && ex.status === "not_checked" && <Caption1>{ex.words ?? "Example queries: not checked yet."}</Caption1>}
-      {ex && ex.status === "read" && !!ex.rechecked && <Caption1>{`${ex.rechecked} example(s) Fabric could not check at first were checked again after the run.`}</Caption1>}
-      {ex?.status !== "not_checked" && (ex?.invalid_examples ?? []).length > 0 && (
+      {ew.invalid.length > 0 && (
         <ul className="krusgraph-list" aria-label="Invalid examples">
-          {(ex?.invalid_examples ?? []).map((x) => (
-            <li key={x.question}>{`${x.question}: ${x.reason ?? "invalid"}`}</li>
+          {ew.invalid.map((x) => (
+            <li key={x}>{x}</li>
           ))}
         </ul>
       )}

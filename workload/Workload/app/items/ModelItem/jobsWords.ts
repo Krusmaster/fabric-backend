@@ -9,7 +9,7 @@
  * can remove the schedule.
  */
 import { OutputChoice, PipelineJobsRecord } from "./ModelItemDefinition";
-import { AgentOptions, BuildCard, CreatedRef, JobsCard, PipelineJobs, PipelineRun, ScheduleChoice } from "./engineClient";
+import { AgentCard, AgentOptions, BuildCard, CreatedRef, JobsCard, PipelineJobs, PipelineRun, ScheduleChoice } from "./engineClient";
 
 export const POLL_MS = 10_000;
 /** n197: a demo pipeline (silver, gold, check) can take a quarter of an hour on a small capacity; the run is followed
@@ -136,4 +136,36 @@ export function runPermissionLine(j: JobsCard): string {
   const p = j.permission;
   return `Permissions: starting and reading the run use ${p.scope}${p.or ? ` (or ${p.or})` : ""} on the workload app, the one Run once ` +
     "already needs (Fabric's Job Scheduler API: Run On Demand Item Job, Get Item Job Instance, and the pipeline's activity runs); nothing else.";
+}
+
+/** n209: a reason that says Fabric could not connect (workload_api._CONNECT): such an example is not checked yet. */
+const CONNECT = /connect|network|timeout|unavailable|transport/i;
+
+export const NOT_CHECKED_LINE = "Example queries: not checked yet.";
+
+/** n209: what the agent card says about its example queries. An example Fabric could not connect for reads "not
+ * checked yet" with the reason, never "invalid", also from an engine before n209 that listed it as invalid; only a real
+ * query error is invalid. Nothing about validity while the pipeline's run has not succeeded (status not_checked). */
+export function exampleWords(ex: AgentCard["examples"]): { lines: string[]; invalid: string[]; notChecked: string[] } {
+  if (!ex) return { lines: [], invalid: [], notChecked: [] };
+  if (ex.status === "not_checked") return { lines: [ex.words ?? NOT_CHECKED_LINE], invalid: [], notChecked: [] };
+  if (ex.status !== "read") return { lines: [], invalid: [], notChecked: [] };
+  const listed = ex.invalid_examples ?? [];
+  const connect = listed.filter((x) => CONNECT.test(x.reason ?? ""));
+  const real = listed.filter((x) => !CONNECT.test(x.reason ?? ""));
+  const notChecked = [...(ex.not_checked_examples ?? []), ...connect];
+  const invalid = Math.max(0, (ex.invalid ?? listed.length) - connect.length);
+  const parts = [`${ex.valid ?? 0} valid`, `${invalid} invalid`, `${ex.validating ?? 0} still being checked`,
+    notChecked.length ? `${notChecked.length} not checked yet` : ""].filter(Boolean);
+  const lines = [`Examples in Fabric: ${parts.join(", ")}.`];
+  if (notChecked.length) {
+    lines.push(ex.not_checked_words ?? `Example queries: ${notChecked.length} not checked yet. Fabric could not connect to the tables the `
+      + `agent reads (${notChecked[0].reason ?? "could not connect"}); this says nothing about the queries themselves.`);
+  }
+  if (ex.rechecked) lines.push(`${ex.rechecked} example(s) Fabric could not connect for at first were sent once more.`);
+  return {
+    lines,
+    invalid: real.map((x) => `${x.question}: ${x.reason ?? "invalid"}`),
+    notChecked: notChecked.map((x) => `${x.question}: not checked yet${x.reason ? ` (${x.reason})` : ""}`),
+  };
 }

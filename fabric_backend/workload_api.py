@@ -70,6 +70,9 @@ that run succeeded: Create starts the run without waiting, so the editor sends t
 after_run {status} when it has read the run's end (agent_publish.decide). Microsoft 365 Copilot has no documented API:
 its card is the preflight (agent_publish.copilot_preflight: capacity SKU, tenant settings, licences, each with Learn's
 link, Unverified where it cannot be read) and the portal step. Nothing is ever retried in a loop.
+n209: with Run once ticked, the examples are "not checked yet" until the after_run call of a run that succeeded checks
+them (a run that did not succeed leaves them not checked and publishes nothing); an example Fabric could not connect
+for is sent once more, exactly once, and then reads "not checked yet" with the reason, never invalid (recheck_examples).
 """
 from __future__ import annotations
 
@@ -1437,13 +1440,21 @@ def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_ru
         out["selection"] = {k: sel.get(k) for k in ("layer", "schema", "selected", "deselected", "one_layer", "words")}
     if res.get("examples"):
         out["examples"] = res["examples"]
-    if not dry_run and res.get("examples") and jobs.get("run_once") and not after_run:
+    # n209: with Run once ticked (or the editor's after_run call), the examples are reported only after the run succeeded
+    run_once = bool(jobs.get("run_once")) or after_run is not None
+    run_status = (after_run or {}).get("status")
+    if not dry_run and res.get("examples") and run_once and run_status != "Succeeded":
         # n197: Fabric checks each example query against the tables the agent reads, and the pipeline's run is writing the
-        # silver tables now ("Failed to connect to server ...datawarehouse...", 10 November 2026): not checked yet
+        # silver tables now ("Failed to connect to server ...datawarehouse...", 10 November 2026): not checked yet.
+        # n209: a run that ended without success leaves them not checked too (and nothing is published: decide)
+        ended = run_status not in (None, "Running", "NotStarted", "Unknown")
         out["examples"] = {"status": "not_checked", "count": res["examples"].get("count"),
-                           "words": NOT_CHECKED_WORDS}
-    elif not dry_run and (after_run or {}).get("status") == "Succeeded" and res.get("id") and res.get("datasource_id"):
+                           "words": RUN_NOT_OK_WORDS.format(status=str(run_status).lower()) if ended else NOT_CHECKED_WORDS}
+    elif not dry_run and res.get("examples") and res.get("id") and res.get("datasource_id"):
+        # n209: after the run succeeded, or without Run once: a failure to connect is sent once more, never "invalid"
         out["examples"] = recheck_examples(workspace, res["id"], res["datasource_id"], res.get("examples") or {}, headers)
+    if not dry_run and out.get("examples") is not res.get("examples") and isinstance(answer.get("result"), dict):
+        answer["result"]["examples"] = out["examples"]             # n209: the tool's answer says the same as the card
 
     def http(method, url, **kw):
         return send(method, url, headers, write=method != "get", timeout=30, **kw)
@@ -1456,8 +1467,7 @@ def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_ru
             out["words"].append(agent_publish.copilot_words(o["name"]))
             out["copilot_preflight"] = agent_publish.copilot_preflight(http, workspace, scopes)
         return out
-    run_status = (after_run or {}).get("status")
-    d = agent_publish.decide(opts["publish"], sel.get("one_layer") if sel else None, bool(jobs.get("run_once")), run_status)
+    d = agent_publish.decide(opts["publish"], sel.get("one_layer") if sel else None, run_once, run_status)
     out["decision"] = d
     out["published"] = False
     agent_id = res.get("id")
@@ -1483,19 +1493,42 @@ def agent_card(o: dict, answer: dict, jobs: dict, after_run: dict | None, dry_ru
 FABRIC_API = "https://api.fabric.microsoft.com"
 NOT_CHECKED_WORDS = ("Example queries: not checked yet. Fabric checks them against the tables the agent reads, which the "
                      "pipeline's run is writing now; Krusgraph checks them when the run has succeeded.")
+RUN_NOT_OK_WORDS = ("Example queries: not checked yet. The pipeline's run {status}, so the tables the agent reads may not be "
+                    "written; Krusgraph checks the examples only after a run that succeeded, and published nothing.")
+CONNECT_WORDS = ("Example queries: {n} not checked yet. Fabric could not connect to the tables the agent reads ({reason}); "
+                 "Krusgraph sent them once more and Fabric still could not connect. This says nothing about the queries "
+                 "themselves: Fabric checks them again when they are opened in the agent's Example queries pane.")
 _CONNECT = re.compile(r"connect|network|timeout|unavailable|transport", re.I)
 RECHECK_WAITS = (5, 5, 10, 10)                                     # seconds, at most thirty in all
+
+
+def _connect_failures(examples: dict) -> list[dict]:
+    """The examples Fabric marked Invalid only because it could not connect (the _CONNECT reasons)."""
+    return [x for x in examples.get("invalid_examples") or [] if _CONNECT.search(str(x.get("reason") or ""))]
+
+
+def _not_checked(examples: dict, failed: list[dict]) -> dict:
+    """n209: the examples with those Fabric could not connect for moved out of Invalid into "not checked yet", with
+    Fabric's reason in words. Only a real query error stays invalid."""
+    qs = {x.get("question") for x in failed}
+    real = [x for x in examples.get("invalid_examples") or [] if x.get("question") not in qs]
+    reason = next((str(x["reason"]) for x in failed if x.get("reason")), "could not connect")
+    return {**examples, "invalid": len(real), "invalid_examples": real, "not_checked": len(failed),
+            "not_checked_examples": [{"question": x.get("question"), "reason": str(x.get("reason") or reason)} for x in failed],
+            "not_checked_words": CONNECT_WORDS.format(n=len(failed), reason=reason)}
 
 
 def recheck_examples(workspace: str, agent_id: str, ds_id: str, examples: dict, headers: dict, sleep=time.sleep) -> dict:
     """n197: an example Fabric marked Invalid because it could not connect (the run was still writing the tables) is
     sent once more (its query written again, which makes Fabric validate it again), then the status is read until none
-    is Validating, for at most RECHECK_WAITS. Any other reason stands: a query that is wrong is not retried."""
+    is Validating, for at most RECHECK_WAITS. Any other reason stands: a query that is wrong is not retried.
+    n209: sent once more exactly once; an example that still could not connect, or whose second sending (or the reading
+    after it) failed, reads "not checked yet" with Fabric's reason, never invalid."""
     from . import data_agent
     from .deploy import send
     stage = f"{FABRIC_API}/v1/workspaces/{workspace}/dataAgents/{agent_id}/staging"
     url = f"{stage}/datasources/{ds_id}/fewshots"
-    bad = [x for x in examples.get("invalid_examples") or [] if _CONNECT.search(str(x.get("reason") or ""))]
+    bad = _connect_failures(examples)
     if not bad:
         return examples
 
@@ -1508,9 +1541,9 @@ def recheck_examples(workspace: str, agent_id: str, ds_id: str, examples: dict, 
         for row in rows:
             if any(row.get("question") == b.get("question") for b in bad):
                 send("patch", f"{url}/{row['id']}", headers, write=True, json={"query": row.get("query")}, timeout=60)
-    except Exception as exc:  # noqa: BLE001 — the first reading stands, with the reason Fabric gave
+    except Exception as exc:  # noqa: BLE001 — n209: the first reading stands, those that could not connect not checked yet
         log("agent_examples", outcome="recheck_failed", error=type(exc).__name__)
-        return examples
+        return _not_checked(examples, bad)
     questions = [r.get("question") for r in rows]
     now = examples
     for wait in RECHECK_WAITS:
@@ -1518,8 +1551,12 @@ def recheck_examples(workspace: str, agent_id: str, ds_id: str, examples: dict, 
         now = data_agent.example_status(_Http, headers, url, questions)
         if now.get("status") != "read" or not now.get("validating"):
             break
+    if now.get("status") != "read":                                # n209: not read after the second try: as first read
+        now = _not_checked(examples, bad)
+    elif _connect_failures(now):                                   # n209: still could not connect: not checked yet
+        now = _not_checked(now, _connect_failures(now))
     now = {**now, "rechecked": len(bad)}
-    log("agent_examples", outcome="rechecked", invalid=now.get("invalid"), rechecked=len(bad))
+    log("agent_examples", outcome="rechecked", invalid=now.get("invalid"), not_checked=now.get("not_checked", 0), rechecked=len(bad))
     return now
 
 

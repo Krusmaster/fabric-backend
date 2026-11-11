@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BuildCard, CreatedRef, JobsCard, OutputKind, PipelineRun } from "./engineClient";
 import {
-  NO_AGENT, NO_JOBS, activityLines, agentAfterRun, agentOf, defaultSchedule, jobsBlocked, jobsOf, recordRun, recordSchedule,
+  NOT_CHECKED_LINE, exampleWords, NO_AGENT, NO_JOBS, activityLines, agentAfterRun, agentOf, defaultSchedule, jobsBlocked, jobsOf, recordRun, recordSchedule,
   runFinished, runHeadline, scheduleIds, scheduleProblems, scheduleWords, stillRunning, withPublish,
 } from "./jobsWords";
 import { toRequests } from "./buildWords";
@@ -196,5 +196,47 @@ describe("the data agent", () => {
     expect(html).toContain("Missing: Paid capacity, F2 or higher");
     expect(html).toContain("https://learn.microsoft.com/fabric/data-science/data-agent-microsoft-365-copilot");
     expect(html).toContain("tick Publish to Agent Store");
+  });
+});
+
+describe("n209: the data agent's examples and the pipeline's run", () => {
+  const CONNECT = "Failed to connect to server x1.datawarehouse.fabric.microsoft.com";
+  const agentCard = (examples: NonNullable<BuildCard["agent"]>["examples"]) => card("data_agent", { agent: {
+    layer: "silver", publish: true, copilot: false, where_examples: "", examples, words: [] } });
+  const html = (examples: NonNullable<BuildCard["agent"]>["examples"]) => renderToStaticMarkup(React.createElement(OutputCard, { card: agentCard(examples) }));
+
+  it("before the run succeeded: not checked yet, and nothing about validity", () => {
+    const words = "Example queries: not checked yet. Fabric checks them against the tables the agent reads, which the pipeline's run is writing now; Krusgraph checks them when the run has succeeded.";
+    const w = exampleWords({ status: "not_checked", count: 4, words });
+    expect(w).toEqual({ lines: [words], invalid: [], notChecked: [] });
+    const out = html({ status: "not_checked", count: 4, words });
+    expect(out).toContain("not checked yet");
+    expect(out).not.toMatch(/invalid|valid,/i);
+    expect(exampleWords({ status: "not_checked" }).lines).toEqual([NOT_CHECKED_LINE]);
+  });
+
+  it("a failure to connect, sent once more and still failing, reads not checked yet with the reason, never invalid", () => {
+    const ex = { status: "read", count: 2, valid: 0, invalid: 1, validating: 0, rechecked: 1,
+      invalid_examples: [{ question: "Orders per customer?", reason: "Invalid column name 'x'" }],
+      not_checked: 1, not_checked_examples: [{ question: "Sales by month?", reason: CONNECT }],
+      not_checked_words: `Example queries: 1 not checked yet. Fabric could not connect to the tables the agent reads (${CONNECT}); ...` };
+    const w = exampleWords(ex);
+    expect(w.lines[0]).toBe("Examples in Fabric: 0 valid, 1 invalid, 0 still being checked, 1 not checked yet.");
+    expect(w.notChecked).toEqual([`Sales by month?: not checked yet (${CONNECT})`]);
+    expect(w.invalid).toEqual(["Orders per customer?: Invalid column name 'x'"]);    // only a real query error is invalid
+    expect(w.lines).toContain("1 example(s) Fabric could not connect for at first were sent once more.");
+    const out = html(ex);
+    expect(out).toContain(`Sales by month?: not checked yet (${CONNECT})`);
+    expect(out).not.toContain("Sales by month?: Failed");
+  });
+
+  it("an engine before n209 that listed a failure to connect as invalid: the editor still says not checked yet", () => {
+    const w = exampleWords({ status: "read", count: 1, valid: 0, invalid: 1, validating: 0,
+      invalid_examples: [{ question: "Sales by month?", reason: CONNECT }] });
+    expect(w.invalid).toEqual([]);
+    expect(w.lines[0]).toBe("Examples in Fabric: 0 valid, 0 invalid, 0 still being checked, 1 not checked yet.");
+    expect(w.notChecked[0]).toContain("not checked yet");
+    expect(html({ status: "read", count: 1, valid: 0, invalid: 1, validating: 0, invalid_examples: [{ question: "Sales by month?", reason: CONNECT }] }))
+      .not.toContain('aria-label="Invalid examples"');
   });
 });
