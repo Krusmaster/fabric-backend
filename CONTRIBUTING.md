@@ -38,7 +38,8 @@ owner of an area is listed here. Change an area you do not own only when the mai
 | Website | `fabric_backend/page_templates/`, `fabric_backend/static/`, `fabric_backend/pages.py`, `fabric_backend/concepts.py`, `fabric_backend/use_cases.py`, `discovery.py`, site routes in `server.py` | n216 |
 | MCP tools and errors | `fabric_backend/server.py` (tools), `errors.py`, `entra.py` | n218 |
 | Engine | `infer.py`, `graphql.py`, `schema.py`, `rayfin.py`, `deploy.py`, `dialects.py`, `platforms/`, `databricks_drafts.py` | open |
-| Deployment | `deploy/`, `Dockerfile`, `.github/` | open |
+| Deployment | `deploy/`, `Dockerfile`, `.github/` | n220 |
+| Pipeline jobs and permissions | `fabric_backend/pipeline_jobs.py`, `fabric_backend/access.py`, `fabric_backend/report.py` | n220 |
 | SAP pack | `fabric_backend/packs/`, `fabric_backend/sap_pack.py`, `fabric_backend/sap_demo.py`, `fabric_backend/exports.py` | | open |
 | Docs and submission | `README.md`, `docs/`, `deploy/SUBMISSION.md` | n216 |
 | Tests | `tests/` | n216 |
