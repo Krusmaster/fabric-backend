@@ -870,7 +870,8 @@ def _source_inputs(workspace, source, schema, keys, confirmed, ctx):
     return p, dict(workspace_id=workspace_id, item_id=item.get("id", ""), item_name=item.get("displayName") or source,
                    item_kind=item.get("type", "Lakehouse"), schema=p.schema.schema, sql_endpoint=item.get("sql_host") or "",
                    sql_db=item.get("sql_db") or item.get("displayName") or source,
-                   schemas_enabled=item.get("schemas_enabled", item.get("type", "Lakehouse") != "Lakehouse"))
+                   schemas_enabled=item.get("schemas_enabled", item.get("type", "Lakehouse") != "Lakehouse"),
+                   onelake_tables_path=item.get("onelake_tables_path") or "")
 
 
 def _ontology_inputs(workspace, source, schema, keys, confirmed, ctx):
@@ -1786,6 +1787,54 @@ NOTEBOOK_SPEC = ("microsoft/fabric-rest-api-specs notebook/swagger.json: Items_C
                  "definition format fabricGitSource (notebook/definitions.json); read 26 October 2026 (commit a96c37a)")
 
 
+# n201: the lakehouse a build writes to when its source is read-only (a mirrored database, a warehouse, a SQL database).
+# The Krusgraph Model sets it for its build (workload_api.run_build_many): {"lakehouse": id or name, or None for the
+# default, the first lakehouse of the workspace}. The MCP tools leave it unset and refuse a read-only source as before.
+WRITE_TARGET = contextvars.ContextVar("krusgraph_write_target", default=None)
+
+
+def _write_info(info: dict, tool: str, ctx=None) -> tuple[dict | None, str | None]:
+    """(the info to write with, a refusal). A lakehouse source writes into itself; a read-only source writes to the
+    target lakehouse (WRITE_TARGET) and is read through OneLake (mirroring.abfss), with `read_from` naming it."""
+    if info.get("item_kind") == "Lakehouse":
+        return info, None
+    want = WRITE_TARGET.get()
+    if want is None:
+        return None, _lakehouse_only(info, tool)
+    from . import mirroring as _mirroring
+    headers = _headers(ctx)
+    lakehouses = [it for it in _list_items(info["workspace_id"], headers) if it.get("type") == "Lakehouse"]
+    target, how = _mirroring.choose_target(lakehouses, want.get("lakehouse"))
+    if target is None:
+        return None, json.dumps({"error": _mirroring.no_target_words(info["item_name"], info["item_kind"], how, want.get("lakehouse")),
+                                 "kind": "not_found",
+                                 "hint": "Silver, gold and the pipeline write Delta tables with Spark, which needs a lakehouse."}, indent=2)
+    lh = _resolve_source(info["workspace_id"], target["id"], headers)
+    path = _mirroring.abfss(info.get("onelake_tables_path"), info["workspace_id"], info["item_id"])
+    if not path:
+        return None, json.dumps({"error": f"The OneLake path of {info['item_name']!r} could not be read; nothing was written.",
+                                 "kind": "source_not_ready", "hint": "Open the item once in Fabric so its tables are in OneLake, then try again."}, indent=2)
+    out = {**info, "item_id": lh.get("id") or target["id"], "item_name": lh.get("displayName") or target.get("displayName"),
+           "item_kind": "Lakehouse", "schemas_enabled": lh.get("schemas_enabled", False),
+           "read_from": {"item_id": info["item_id"], "item_name": info["item_name"], "item_kind": info["item_kind"],
+                         "schema": info["schema"], "tables_path": path},
+           "target": {"lakehouse": lh.get("displayName") or target.get("displayName"), "id": lh.get("id") or target["id"], "how": how,
+                      "words": _mirroring.target_words(target, how, info["item_name"], info["item_kind"])}}
+    return out, None
+
+
+def _list_items(workspace_id: str, headers: dict) -> list[dict]:
+    import requests
+    out, url = [], f"{FABRIC}/v1/workspaces/{workspace_id}/items"
+    while url:
+        r = requests.get(url, headers=headers, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += body.get("value", [])
+        url = body.get("continuationUri")
+    return out
+
+
 def _lakehouse_only(info: dict, tool: str) -> str | None:
     if info.get("item_kind") == "Lakehouse":
         return None
@@ -1799,7 +1848,7 @@ def _silver(workspace, source, schema, silver_schema, order_by, keys, confirmed,
     from . import silver as _silver_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
-    refusal = _lakehouse_only(info, "The silver notebook")
+    info, refusal = _write_info(info, "The silver notebook", ctx)   # n201: a read-only source writes to the target lakehouse
     if refusal:
         return None, None, None, refusal
     spec = _silver_mod.spec(p, info, silver_schema, order_by, tables, show_personal_data)
@@ -1850,6 +1899,9 @@ def _silver_answer(p, info, spec, name: str, tool: str = "silver_notebook_draft"
         out["notebook"].pop("content")
         out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; pass tables=[...] for a few at a "
                                       "time, or create it with create_silver_notebook, which sends the whole notebook to Fabric")
+    if info.get("target"):                                              # n201: where it writes, and how the source is read
+        out["target"] = info["target"]
+        out["summary"] = out["summary"].replace("; the source tables are only read", f"; the {info['read_from']['item_name']} tables are only read")
     return out
 
 
@@ -1893,7 +1945,7 @@ def create_silver_notebook(workspace: _p.Workspace, source: _p.Source, name: _p.
     if dry_run:
         return json.dumps(out, indent=2)
     from . import silver as _silver_mod
-    body = _notebook.envelope(name, _silver_mod.notebook_source(spec), f"Silver tables for {info['item_name']}.{schema}, generated by Krusgraph from the plan")
+    body = _notebook.envelope(name, _silver_mod.notebook_source(spec), f"Silver tables for {(info.get('read_from') or {}).get('item_name') or info['item_name']}.{schema}, generated by Krusgraph from the plan")
     out.get("notebook", {}).pop("content", None)                                  # sent to Fabric; the answer keeps the steps
     result = create_item_with_definition("notebooks", "Notebook", body, info["workspace_id"], token_provider=lambda: auth.fabric(ctx))
     return _finish_create(out, result, NOTEBOOK_SCOPE, f"creating the notebook {name!r}")
@@ -1922,7 +1974,7 @@ def _gold(workspace, source, schema, silver_schema, gold_schema, keys, confirmed
     from . import gold as _gold_mod
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
-    refusal = _lakehouse_only(info, "The gold views")
+    info, refusal = _write_info(info, "The gold views", ctx)   # n201
     if refusal:
         return None, None, None, refusal
     refusal = _schemas_only(info)
@@ -1964,6 +2016,8 @@ def _gold_answer(p, info, spec, name: str, tool: str = "gold_views_draft") -> di
         out["notebook"].pop("content")
         out["notebook"]["omitted"] = (f"the notebook ({len(text)} characters) did not fit in one answer; the views' SQL is above, and "
                                       "create_gold_views sends the whole notebook to Fabric")
+    if info.get("target"):                                              # n201
+        out["target"] = info["target"]
     return out
 
 
@@ -2172,7 +2226,7 @@ def _pipeline_build(p, info: dict, schema: str, silver_schema: str, gold_schema:
     gold notebooks of the drafts, the check notebook, and the pipeline's label; nothing is sent."""
     from . import silver as _silver_mod, gold as _gold_mod, pipeline as _pipeline
     from .infer import PlanInputError
-    label = f"{info['item_name']}.{schema}"
+    label = f"{(info.get('read_from') or {}).get('item_name') or info['item_name']}.{schema}"   # n201: the source, not the target
     silver_name, gold_name, check = silver_name or f"silver_{schema}", gold_name or f"gold_{schema}", f"{name}_check"
     if len({silver_name, gold_name, check}) < 3:
         raise PlanInputError("silver_name, gold_name and <name>_check must be three different notebook names")
@@ -2225,7 +2279,8 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
     from .deploy import create_item_with_definition
     p, info = _source_inputs(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
-    refusal = _lakehouse_only(info, "The pipeline's silver notebook") or _schemas_only(info)
+    info, refusal = _write_info(info, "The pipeline's silver notebook", ctx)   # n201
+    refusal = refusal or _schemas_only(info)
     if refusal:
         return refusal
     check_tables(p.schema, tables)
@@ -2262,6 +2317,7 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                       **({} if run_once or spec else {"not_needed": "DataPipeline.Execute.All or Item.Execute.All: nothing is run or scheduled"}),
                       "hosted_app": ("The hosted app has these today (since 28 October 2026, docs/SCOPES.md)." if hosted else
                                      "The hosted app does not ask for these today; without them Fabric answers kind consent.")},
+           **({"target": info["target"]} if info.get("target") else {}),                 # n201
            "spec": PIPELINE_SPEC,
            "note": ("Unit-tested: the definitions and the order of the calls with Fabric's REST API replaced by a test double, and "
                     "the check on SQLite and a local PySpark (n110). " + _tool_status.answer_note("create_pipeline"))}

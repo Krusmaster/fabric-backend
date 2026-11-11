@@ -124,13 +124,14 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
     their rules, and the target. Raises PlanInputError for a schema or order_by that cannot work."""
     schema = info.get("schema") or plan.schema.schema
     schemas_enabled = bool(info.get("schemas_enabled", True))
+    read_from = info.get("read_from")           # n201: a read-only source (a mirrored database), read through OneLake
     silver_schema = (silver_schema or "").strip()
     if not _IDENT.match(silver_schema):
         raise PlanInputError("silver_schema: letters, digits and underscores, starting with a letter (for example 'silver')")
-    if schemas_enabled and silver_schema.lower() == schema.lower():
+    if schemas_enabled and not read_from and silver_schema.lower() == schema.lower():
         raise PlanInputError(f"silver_schema {silver_schema!r} is the source schema; the silver tables need a schema of their own")
     names = {t.name.lower(): t.name for t in plan.schema}
-    if not schemas_enabled:
+    if not schemas_enabled and not read_from:
         # Without schemas the silver tables sit beside the sources as <silver_schema>_*, so a re-plan after the first run
         # lists them: they are this notebook's outputs, not sources (the run-time mark keeps it off any other table).
         names = {k: v for k, v in names.items() if not k.startswith(silver_schema.lower() + "_") and k != QUARANTINE}
@@ -148,7 +149,7 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
     def target(t: str) -> list:
         return [silver_schema, t] if schemas_enabled else [None, f"{silver_schema}_{t}"]
     sources = {(t.lower() if not schemas_enabled else f"{schema}.{t}".lower()) for t in names.values()}
-    for t in chosen + [QUARANTINE]:
+    for t in ([] if read_from else chosen + [QUARANTINE]):               # n201: the source is another item; nothing to overlap
         tgt = target(t)
         full = (tgt[1] if not schemas_enabled else f"{tgt[0]}.{tgt[1]}").lower()
         if full in sources:
@@ -177,13 +178,14 @@ def spec(plan: Plan, info: dict, silver_schema: str = "silver", order_by: dict |
                            **({"key_rule_text": _rule_text(key_rule)} if key and label(key_rule) != key_rule else {}),
                            "dedupe": dedupe, **({"key_basis": _key_basis(key_rule)} if key else {}),
                            "order_by": col, "order_why": why, "checks": checks})
-    owner = f"{info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
+    owner = f"{(read_from or {}).get('item_id') or info.get('item_id') or info.get('item_name') or 'lakehouse'}/{schema}"
     from . import privacy
     personal: dict[str, list[str]] = {}
     for (t, c), _f in sorted(privacy.personal_columns(plan.schema, chosen).items()):
         personal.setdefault(t, []).append(c)
     return {"source": {"item": info.get("item_name") or "", "item_id": info.get("item_id") or "", "workspace_id": info.get("workspace_id") or "",
-                       "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower), "owner": owner},
+                       "schema": schema, "schemas_enabled": schemas_enabled, "tables": sorted(names.values(), key=str.lower), "owner": owner,
+                       **({"read_from": dict(read_from)} if read_from else {})},
             "silver_schema": silver_schema, "quarantine": target(QUARANTINE), "tables": out_tables,
             "personal": personal, "mask_personal_data": not show_personal_data,
             "not_checked": [{"table": a["table"], "column": a["column"], "why": "ambiguous: it could point at " + " or ".join(a["candidates"])}
@@ -221,9 +223,7 @@ def q(*parts):
     return ".".join("`" + str(p).replace("`", "``") + "`" for p in parts if p)
 
 
-def source(table):
-    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)
-
+{source_def}
 
 def target(table):
     # The silver tables live in a schema of their own (on a lakehouse without schemas: a prefix), never on a source table.
@@ -305,6 +305,35 @@ def write_silver(df, table):
     df.write.format(TABLE_FORMAT).mode("overwrite").option("overwriteSchema", "true").saveAsTable(name)
     spark.sql(f"ALTER TABLE {{name}} SET TBLPROPERTIES ('krusgraph.silver' = '{{OWNER.replace(chr(39), chr(39) * 2)}}')")
     return spark.read.table(name)
+'''
+
+
+LAKEHOUSE_SOURCE = '''def source(table):
+    return q(SOURCE_SCHEMA, table) if SCHEMAS_ENABLED else q(table)
+'''
+
+# n201: a mirrored database (or another read-only source) is read where Fabric keeps its tables in OneLake: Get Mirrored
+# Database's properties.oneLakeTablesPath (learn.microsoft.com/rest/api/fabric/mirroreddatabase/items/get-mirrored-database)
+# in the abfss form of the OneLake URI page (learn.microsoft.com/fabric/onelake/onelake-access-api). Spark reads each Delta
+# table by its path; nothing is copied outside Fabric and no shortcut is made. The folder layout under Tables per schema is
+# not documented, so Tables/<schema>/<table> is read when it holds a Delta log, Tables/<table> otherwise.
+MIRROR_SOURCE = '''# The source is the {kind} {name}: read-only, so its tables are read where Fabric keeps them in OneLake
+# (oneLakeTablesPath of Get Mirrored Database on Microsoft Learn) and the silver tables are written to this notebook's
+# lakehouse. Nothing is copied outside Fabric.
+MIRROR_TABLES_PATH = {path}
+_mirror_folders = {{}}
+
+
+def _mirror_folder(table):
+    if table not in _mirror_folders:
+        tried = ([f"{{MIRROR_TABLES_PATH}}/{{SOURCE_SCHEMA}}/{{table}}"] if SOURCE_SCHEMA else []) + [f"{{MIRROR_TABLES_PATH}}/{{table}}"]
+        _mirror_folders[table] = next((p for p in tried if notebookutils.fs.exists(p + "/_delta_log")), tried[0])
+    return _mirror_folders[table]
+
+
+def source(table):
+    # Spark reads a Delta table by its path as delta.`<path>`
+    return "delta.`" + _mirror_folder(table).replace("`", "``") + "`"
 '''
 
 
@@ -636,10 +665,18 @@ def _decisions_cell(s: dict) -> str:
     return DECISIONS.replace("__DEDUP__", _py_literal(dedup)).replace("__MOVES__", _py_literal(moves))
 
 
+def _kind_words(item_type) -> str:
+    from .mirroring import kind_words
+    return kind_words(item_type)
+
+
 def cells(s: dict) -> list[tuple[str, str]]:
     src = s["source"]
-    intro = (f"# Silver tables for {src['item'] or 'the lakehouse'}.{src['schema']}\n\n"
-             f"Generated by Krusgraph from the plan: clean copies of {len(s['tables'])} table(s) in "
+    rf = src.get("read_from")
+    intro = (f"# Silver tables for {(rf or {}).get('item_name') or src['item'] or 'the lakehouse'}.{src['schema']}\n\n"
+             + (f"The source is the {_kind_words(rf.get('item_kind'))} {rf.get('item_name')}, read-only: its tables are read "
+                f"through OneLake and the silver tables are written to the lakehouse {src['item']}.\n\n" if rf else "")
+             + f"Generated by Krusgraph from the plan: clean copies of {len(s['tables'])} table(s) in "
              + (f"the schema `{s['silver_schema']}`" if src["schemas_enabled"] else f"tables prefixed `{s['silver_schema']}_`")
              + ", de-duplicated on each key that was declared, given by a person or counted in the rows (a key guessed from "
              "names removes no rows) and with every reference checked; rows that fail a check are kept in "
@@ -652,7 +689,11 @@ def cells(s: dict) -> list[tuple[str, str]]:
     if fixed:                                                            # n115: the decisions the fix suggestions need
         params += "\n" + _fix_parameters(s)
     writes = [t["table"] for t in s["tables"]] + [m["target_table"] for t in s["tables"] for m in t.get("moves", [])] + [QUARANTINE]
-    setup = (SETUP + (FIX_HELPERS if fixed else "")).format(source_schema=_py(src["schema"] if src["schemas_enabled"] else None),
+    rf = src.get("read_from")
+    source_def = (MIRROR_SOURCE.format(kind=_kind_words(rf.get("item_kind")), name=rf.get("item_name") or "", path=_py(rf["tables_path"]))
+                  if rf else LAKEHOUSE_SOURCE)
+    setup = (SETUP + (FIX_HELPERS if fixed else "")).format(source_schema=_py(src["schema"] if src["schemas_enabled"] or rf else None),
+                         source_def=source_def,
                          schemas_enabled="True" if src["schemas_enabled"] else "False",
                          source_tables=_py(src["tables"]), writes=_py(writes), owner=_py(src["owner"]),
                          personal=_py_literal(s.get("personal", {})))

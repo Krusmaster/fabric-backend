@@ -80,6 +80,8 @@ def resolve_source(workspace: str, source: str, headers: dict, find=find_item_by
         item["sensitivityLabel"] = body.get("sensitivityLabel") or item.get("sensitivityLabel")
     ep = props.get("sqlEndpointProperties") or {}
     item["sql_host"] = ep.get("connectionString") or props.get("connectionString") or props.get("connectionInfo")
+    if props.get("oneLakeTablesPath"):                 # n201: where a mirrored database keeps its tables (Get Mirrored Database)
+        item["onelake_tables_path"] = props["oneLakeTablesPath"]
     if ep.get("id"):                                   # what a GraphQL API over this source names as its sourceItemId (lineage)
         item["sql_endpoint_id"] = ep["id"]
     # a Fabric SQL database's actual database name carries a suffix (properties.databaseName); the others use the display name

@@ -312,6 +312,13 @@ def build_request(body) -> dict:
         raise BadRequest("'pending' must be outputs.json's pending list ({output, type, name}) or empty")
     flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
                          "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
+    target = body.get("target")                                   # n201: the lakehouse a read-only source's build writes to
+    if target is not None:
+        if not isinstance(target, dict) or not (target.get("lakehouse") is None or isinstance(target.get("lakehouse"), str)
+                                                and 0 < len(target["lakehouse"].strip()) <= 128):
+            raise BadRequest("'target' is {lakehouse: the id or name of a lakehouse of this workspace} or null for the default")
+        target = {"lakehouse": (target.get("lakehouse") or "").strip() or None}
+    flags["target"] = target
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
@@ -562,7 +569,25 @@ def run_review(req: dict) -> dict:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]},
                  decisions=req["decisions"], previous=prev)
-    return _with_schema(_answer(rv), req)
+    return _with_schema(_with_source(_answer(rv), p, execute), req)
+
+
+def _with_source(out: dict, p, execute) -> dict:
+    """n201: what kind of item was read (a mirrored database is read-only: what Krusgraph builds with Spark goes to a
+    lakehouse), and the SAP pack's keys and links marked "from the SAP pack" with its sources when the tables are SAP's."""
+    from . import mirroring as M
+    kind = (getattr(execute, "source_item", None) or {}).get("type") or "Lakehouse"
+    if M.is_read_only(kind):                                       # a lakehouse's answer is as it was before n201
+        out["source_kind"] = kind
+        out["read_only"] = {"kind": kind, "words": f"A {M.kind_words(kind)} is read-only: the review and the check read its SQL "
+                                                  "analytics endpoint, and the silver tables, gold views and the pipeline's check "
+                                                  "are written to a lakehouse you choose (Target lakehouse)."}
+        if kind == "MirroredDatabase":
+            out["read_only"]["mirroring"] = M.MIRRORING_NOTE
+    sap = M.sap_offer(p)
+    if sap:
+        out["sap"] = sap
+    return out
 
 
 def run_check(req: dict) -> dict:
@@ -583,7 +608,7 @@ def run_check(req: dict) -> dict:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]}, previous=prev,
                  checks=checks, checked_at=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"))
-    out = _answer(rv, NOTHING_CHANGED + " The check counted rows; it returns counts, never a value.")
+    out = _with_source(_answer(rv, NOTHING_CHANGED + " The check counted rows; it returns counts, never a value."), p, execute)
     out["check"] = check_totals(rv)
     out["questions"] = rv.get("open_questions", [])
     return _with_schema(out, req)
@@ -1494,7 +1519,8 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     if not set(chosen) & set(data_flow.FLOW_KINDS):
         return None
     _, info = S._source_inputs(req["workspace"], req["source"], req["schema"], keys, confirmed, None)   # the build's own read
-    if info.get("item_kind") != "Lakehouse":
+    info, refusal = S._write_info(info, "The data flow")           # n201: a read-only source flows into the target lakehouse
+    if refusal:
         return None
     items = []
     for c in cards:
@@ -1517,7 +1543,12 @@ def _flow(req: dict, p, chosen: dict, cards: list[dict], keys, confirmed) -> dic
     if "pipeline" in chosen:
         names = (chosen.get("silver_notebook") or f"silver_{req['schema']}", chosen.get("gold_views") or f"gold_{req['schema']}",
                  f"{chosen['pipeline']}_check")
-    return data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
+    out = data_flow.flow(p, info, chosen, pipeline_names=names, items=items)
+    if info.get("target") and isinstance(out, dict):              # n201: said on the flow, where the dry run shows it
+        out["target"] = info["target"]
+        if isinstance(out.get("notes"), list):
+            out["notes"].insert(0, info["target"]["words"])
+    return out
 
 
 AFTER_RUN_REFRESH = "Create refreshes the model once, after the pipeline's run has succeeded."
@@ -1571,6 +1602,14 @@ def run_build_many(req: dict) -> dict:
         if not left:
             left.append(left_out)
         return kept
+    write_target = S.WRITE_TARGET.set(req.get("target") or {"lakehouse": None})   # n201: used only for a read-only source
+    try:
+        return _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust)
+    finally:
+        S.WRITE_TARGET.reset(write_target)
+
+
+def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust) -> dict:
     with S.plan_scope(adjust):
         headers = S._headers(None)
         workspace = S._workspace_id(req["workspace"], headers)
@@ -1724,6 +1763,9 @@ def run_build_many(req: dict) -> dict:
         out = {"dry_run": dry_run, "outputs": cards, "order": [c["output"] for c in cards],
                "left_out_by_review": left[0] if left else [],
                "row_check": check_totals(rv)}
+        where = next(((c.get("answer") or {}).get("target") for c in cards if (c.get("answer") or {}).get("target")), None)
+        if where:                                                  # n201: the lakehouse silver, gold and the check write to
+            out["target"] = where
         if req.get("product"):
             out["product"] = _product(req, rv, p, cards, dry_run)
         out["flow"] = None if req.get("only") else _flow(req, p, chosen, cards, keys, confirmed)   # n179: finish draws it
