@@ -249,3 +249,33 @@ ENTRA_CLIENT_ID=x ENTRA_CLIENT_SECRET=x fabric-backend-server --port 8765`):
 - The screenshots in `docs/screenshots/` were taken with Playwright at 1280×900 (light and dark) and 390×900
   (light), full page, then quantised to 8-bit PNGs. Re-take them after visual changes and look at every one.
 - An axe-core audit (WCAG 2.1 AA + best practices) ran clean on every page in all three variants.
+
+## robots.txt and AI crawlers (n212)
+
+The founder's decision, 11 November 2026: the site stays readable by search engines and by the fetchers an AI assistant
+uses when a person asks it a question, and opts out of the crawlers that collect AI training data. The repository stays
+public under the MIT licence; robots.txt covers the website only, and it is a request that well-behaved crawlers follow,
+not a technical block. `/trust` says so in one sentence ("Search engines and AI crawlers"). `/llms.txt`,
+`/llms-full.txt` and the `.md` twins stay as they are.
+
+`fabric_backend/discovery.py` holds the two lists. `AI_ANSWER_FETCHERS` get their own group with the same rules as `*`,
+so the policy is explicit; `AI_TRAINING_CRAWLERS` share one group with `Disallow: /` (several `User-agent` lines in one
+group, RFC 9309 section 2.2.1). Any crawler not named follows `*`, which includes ordinary search engines such as
+Googlebot, Bingbot and Applebot.
+
+Only names from each vendor's own documentation are used. Read 11 November 2026. **Unverified**: the vendor's host
+could not be opened from the session that wrote this (it is outside that session's allowed network); the name and its
+purpose rest on search results that quote the page, marked [snippet]. Re-read each Unverified page before relying on it.
+
+| Vendor | Page | Read | Asked out (training) | Left in (answers, search) |
+| --- | --- | --- | --- | --- |
+| Anthropic | https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler | Opened, 11 Nov 2026 | `ClaudeBot`: content that may contribute to training | `Claude-User` (a person's question), `Claude-SearchBot` (search quality) |
+| OpenAI | https://developers.openai.com/api/docs/bots | **Unverified** [snippet] (developers.openai.com not reachable) | `GPTBot`: training | `OAI-SearchBot` (ChatGPT search), `ChatGPT-User` (a person's request; OpenAI says robots.txt may not apply to it) |
+| Google | https://developers.google.com/search/docs/crawling-indexing/google-common-crawlers | **Unverified** [snippet] (developers.google.com not reachable) | `Google-Extended`: a robots.txt token, no own crawler; covers Gemini training and grounding; no effect on Search | Googlebot, via `*` |
+| Apple | https://support.apple.com/en-us/119829 | **Unverified** [snippet] (support.apple.com not reachable) | `Applebot-Extended`: a token for training Apple's foundation models | Applebot, via `*` |
+| Common Crawl | https://commoncrawl.org/ccbot | **Unverified** [snippet] (commoncrawl.org not reachable) | `CCBot`: builds the open web crawl, widely used to train models | none |
+| Meta | https://developers.facebook.com/docs/sharing/webmasters/web-crawlers/ | **Unverified** [snippet] (developers.facebook.com not reachable) | `Meta-ExternalAgent`: training and indexing for AI | `facebookexternalhit` (link previews), via `*` |
+
+Not named: PerplexityBot, Bingbot and DuckAssistBot had their own Allow groups before n212; they were dropped because
+their vendors' pages were not read in n212, and they follow `*`, which allows the same paths. To change the lists, edit
+the two tuples and `tests/test_n212_standards_robots.py`.

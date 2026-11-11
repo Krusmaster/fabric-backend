@@ -8,6 +8,9 @@ standard, or a partnership with or endorsement by Microsoft, Anthropic or anyone
 Krusgraph is published by Kruse Consulting AB, Sweden. It is open source under the MIT licence (`LICENSE`). It is run
 by one person (`SECURITY.md`).
 
+Updated in round n212 (11 November 2026): a Standards table at the end of section 9, the same as on `/trust`, and the
+lines that still said no tool deletes anything (the data product page's Delete from Fabric came in round n198).
+
 Related files, read for this pack: `docs/TRUST.md` (every statement with its source), `docs/SECURITY.md` (sign-in
 review), `docs/SCOPES.md` (permissions per tool), `docs/DPA-DRAFT.md`, `docs/ISO27001-SELF-ASSESSMENT.md`,
 `docs/WORKLOAD-PUBLISH.md`, the draft attestation `fabric_backend/page_templates/WORKLOAD-ATTESTATION.md`,
@@ -91,8 +94,11 @@ TODO 8).
   (`fabric_backend/entra.py`). Any other tenant sees "Krusgraph is not turned on for your organisation yet." and nothing
   is read (`docs/WORKLOAD-PUBLISH.md`, A2).
 - Creating is never automatic. Every creating action is a dry run first. Nothing is created until the person chooses
-  Create (Fabric) or calls a tool with `dry_run=false` (MCP). No tool deletes anything in Fabric (`docs/TRUST.md`, "What
-  the tools may change").
+  Create (Fabric) or calls a tool with `dry_run=false` (MCP). The MCP tools never delete (`docs/TRUST.md`, "What
+  the tools may change"). In Fabric, only the data product page's Delete from Fabric removes items: only items listed in
+  that Model's `outputs.json` and of the types Krusgraph makes, never a lakehouse, warehouse or table, only in the data
+  product's own workspace, after a dry run and the data product's name typed by the person (`fabric_backend/product_life.py`,
+  `tests/test_n198_product_page.py`, `tests/test_n210_retire_ids.py`).
 
 ## 5. Delegated permissions, and why
 
@@ -162,7 +168,7 @@ list Anthropic at all for the Claude paths is a question for the lawyers (sectio
 | --- | --- | --- | --- |
 | Remove admin consent, or delete the app | The customer's Entra admin | Entra admin centre → **Enterprise applications** → the Krusgraph app (or Krusgraph workload app) → **Permissions** or **Properties → Delete** | No new tokens. A token already issued stays valid until it expires (60 to 90 minutes; `docs/SECURITY.md`, open question 1) |
 | Delete the Krusgraph Model items | A user or workspace admin | The Fabric workspace | Removes `review.json`, `outputs.json` and the rest |
-| Delete the items Krusgraph built, if not wanted | A user or workspace admin | The Fabric workspace | Krusgraph never deletes them itself |
+| Delete the items Krusgraph built, if not wanted | A user or workspace admin | The Fabric workspace, or Delete from Fabric on the data product page (a dry run, then the data product's name typed) | Krusgraph deletes nothing on its own (`fabric_backend/product_life.py`) |
 | Turn off the tenant setting | The customer's Fabric admin | Admin portal → Tenant settings → Additional workloads | The workload is hidden |
 | Remove the tenant from Krusgraph's lists | Krusgraph | `workload_allowed_tenants`, Fabric's Publish tab (`docs/WORKLOAD-PUBLISH.md`, "Withdrawing a pilot") | The engine stops answering at once |
 | Disconnect the connector | The person | Their MCP client | Their client stops calling |
@@ -184,6 +190,23 @@ list Anthropic at all for the Claude paths is a question for the lawyers (sectio
 | Data processing agreement | **Template to be drafted with a lawyer.** `docs/DPA-DRAFT.md` is a project draft, not legal text and not reviewed | `docs/DPA-DRAFT.md` |
 | Business continuity and disaster recovery plan | **Not written.** No RTO or RPO | `WORKLOAD-ATTESTATION.md` |
 | Service level agreement | **None.** Support by email, best effort, one person | `SECURITY.md`, `WORKLOAD-ATTESTATION.md` |
+
+### Standards, one row each (round n212)
+
+The founder, 11 November 2026: buyers ask first about certifications, ISO and standards, so this is public on `/trust`
+(`fabric_backend/page_templates/TRUST.md`, "Standards") with the same rows. A self-assessment is the maintainer's own
+reading of the repository; none of these rows says Krusgraph meets a standard.
+
+| Standard or requirement | What Krusgraph has | What it does not have | What would come next |
+| --- | --- | --- | --- |
+| ISO/IEC 27001:2022 | A self-assessment against the 93 Annex A controls (`docs/ISO27001-SELF-ASSESSMENT.md`, updated in n212 for the incident process and the supplier pack) | No certification, no certification body, no external audit; controls marked missing remain (access review, the maintainer's devices, independent review) | Close the missing rows; an independent review (5.35); the certification decision stays **To confirm by the founder** (below) |
+| NIS2 (Directive (EU) 2022/2555) and the cybersäkerhetslag (SFS 2025:1506) | `docs/SECURITY-SUPPLIER.md` (roles, subcontractors, Article 21 measures), `docs/INCIDENT-RESPONSE.md`, the disclosure policy at `/security` | No assessment by an authority or a lawyer; the notification time is a proposal; no penetration test; no SLA | Re-read the legal sources against the primary texts; the founder confirms the notification time; an external penetration test |
+| GDPR | `/privacy` (`fabric_backend/page_templates/PRIVACY.md`), no table contents stored (section 2), the sub-processor list (section 7), data in Sweden Central, `docs/DPA-DRAFT.md` | The DPA is a project draft, not legal text and not signed; no privacy review | The DPA written with a lawyer (clauses below); a privacy review |
+| Microsoft's publisher requirements for Fabric workloads and Marketplace | Entra publisher verification of the Krusgraph app (MCP), stated on `/it` (screenshot **To confirm by the founder**); the vendor attestation at `/workload/attestation` (`fabric_backend/page_templates/WORKLOAD-ATTESTATION.md`, Microsoft's template, `docs/HUB-ATTESTATION.md`); the Marketplace policy notes (`docs/MARKETPLACE-CERTIFICATION-NOTES.md`) | The attestation is a draft, not signed, not accepted by Microsoft; no publisher verification for the workload app; `Krusgraph.Modeler` not registered; no Marketplace listing | Publisher verification of the workload app (`docs/WORKLOAD-PUBLISH.md`, step 2), the name registered (step 1), the attestation signed (step 6) |
+
+`/trust` also says in one sentence what `/robots.txt` asks (round n212): search engines and the fetchers an AI assistant
+uses for a person's question may read the site; the crawlers their vendors document as collecting AI training data are
+asked not to; it is a request, not a technical block (`fabric_backend/discovery.py`, `docs/SITE.md`).
 
 **When ISO 27001 or SOC 2 would make sense.** A certification is a cost in money and time for a one-person company.
 It makes sense when buyers make it a hard gate in procurement, more than once; when there is revenue to pay for the

@@ -6,6 +6,11 @@ There is no score and no percentage: the point is to know which rows are empty. 
 reading the repository, not by an auditor and not against the live Azure subscription, whose configuration
 (`deploy/krusgraph.json`) is not in the repository.
 
+Updated 11 November 2026 (round n212) for what rounds n198 to n211 added: the written incident process
+(`docs/INCIDENT-RESPONSE.md`), the supplier pack for NIS2 customers (`docs/SECURITY-SUPPLIER.md`), the disclosure
+policy at `/security`, and the data product page's Delete from Fabric. Rows 5.19, 5.20, 5.24 to 5.26, 5.28, 6.8 and
+8.27 changed; 5.25 and 5.28 moved from missing to partly. Still a self-assessment, not an audit.
+
 The context: one maintainer (Kruse Consulting AB), no employees, a hosted service in Azure that stores no table
 contents, and an open-source repository changed by the maintainer and by coding agents under `CONTRIBUTING.md`.
 
@@ -43,16 +48,16 @@ Microsoft's (Microsoft Trust Center) and are not claimed here.
 | 5.16 | Identity management | partly | Users are identities in their own Entra tenant; the server adds none. For the maintainer's own identities nothing is written down. |
 | 5.17 | Authentication information | partly | Secrets live as container-app secrets or in Key Vault, are never logged, and rotation is described (`docs/OPERATIONS.md` §2, §9; `fabric_backend/keyvault.py`; `test_tokens_and_secrets_never_reach_logs_or_stdout`). The reviewer account's set-up is documented (`deploy/SUBMISSION.md`). No password or MFA policy for the maintainer's accounts in the repository (Azure and Entra admin sign-in keep Microsoft's mandatory MFA, as `deploy/SUBMISSION.md` notes). |
 | 5.18 | Access rights | partly | Revocation for customers is documented and needs nothing from Krusgraph (`fabric_backend/page_templates/it.html`); the roles a successor needs are listed (`docs/OPERATIONS.md` §9). No periodic review of the maintainer's own access rights. |
-| 5.19 | Information security in supplier relationships | partly | Subprocessors are listed with what each holds (`docs/TRUST.md`). No supplier assessment beyond pointing at Microsoft's own material. |
-| 5.20 | Addressing information security within supplier agreements | partly | Azure is used under Microsoft's standard terms; nothing negotiated. The AI client is the customer's own supplier (`docs/TRUST.md`). |
+| 5.19 | Information security in supplier relationships | partly | Subprocessors are listed with what each holds (`docs/TRUST.md`); the subcontractors and what each is used for, for customers under NIS2, in `docs/SECURITY-SUPPLIER.md` §5. No supplier assessment beyond pointing at Microsoft's own material. |
+| 5.20 | Addressing information security within supplier agreements | partly | Azure is used under Microsoft's standard terms; nothing negotiated. The AI client is the customer's own supplier (`docs/TRUST.md`). Toward customers: `docs/DPA-DRAFT.md` is a draft, not signed. |
 | 5.21 | Managing information security in the ICT supply chain | partly | Exact pins for the image (`deploy/constraints.txt`), weekly `pip-audit`, the SBOM, Dependabot for packages and Actions, licence notices generated from the pins (`THIRD_PARTY_NOTICES.md`), rules for copying code (`CONTRIBUTING.md`, "Reusing external code"). GitHub Actions are pinned by major version, not by commit; the vendored Pyodide bundle has recorded SHA-256 sums (`fabric_backend/static/pyodide/README.txt`) but no automated check of them. |
 | 5.22 | Monitoring, review and change management of supplier services | partly | Dependency changes arrive as Dependabot pull requests merged after green CI (`CONTRIBUTING.md` table, Deployment area). No review of Azure's or Fabric's service changes beyond the preview notes (`docs/RISK-REGISTER.md` R7, `docs/ECOSYSTEM-WATCHLIST.md`). |
 | 5.23 | Information security for use of cloud services | partly | One region, deployment as code, the resources and settings in `deploy/azure_containerapp.py`; a customer can run the code in their own subscription (`deploy/KRUSGRAPH-START.md`). No exit plan beyond that, no written cloud-use requirements. |
-| 5.24 | Information security incident management planning and preparation | partly | How to report (`SECURITY.md`, `/.well-known/security.txt`); the one address that gets alerts (`docs/OPERATIONS.md` §4). No incident response plan with roles, steps and notification duties. |
-| 5.25 | Assessment and decision on information security events | missing | No written criteria for what counts as an incident. |
-| 5.26 | Response to information security incidents | partly | "Handled as soon as possible", fixes only in the latest version (`SECURITY.md`); the alert commands exist but have not been run (`docs/OPERATIONS.md` §4, `docs/SECURITY.md` open question 11). No runbook. |
+| 5.24 | Information security incident management planning and preparation | partly | How to report (`SECURITY.md`, the disclosure policy at `/security`, `/.well-known/security.txt`); a written process with steps and notification (`docs/INCIDENT-RESPONSE.md`, round n211). One person holds every role; the time to notify customers is a proposal not yet confirmed by the founder; the process has not been exercised. |
+| 5.25 | Assessment and decision on information security events | partly | Severity levels (high, medium, low) with what each means and that the higher level wins when unsure (`docs/INCIDENT-RESPONSE.md` §2). Not yet used on a real event. |
+| 5.26 | Response to information security incidents | partly | Contain and notify steps (`docs/INCIDENT-RESPONSE.md` §3–4); fixes only in the latest version (`SECURITY.md`); the alert commands exist but have not been run (`docs/OPERATIONS.md` §4, `docs/SECURITY.md` open question 11). Not exercised. |
 | 5.27 | Learning from information security incidents | partly | `docs/SECURITY.md` records what the review found and fixed; `CHANGELOG.md` credits reporters. No incidents have occurred to learn from. |
-| 5.28 | Collection of evidence | missing | Nothing on preserving logs or records after an incident; the usage lines carry no content by design, and console logs persist only when Log Analytics is on. |
+| 5.28 | Collection of evidence | partly | `docs/INCIDENT-RESPONSE.md` §3 says to keep evidence (export the log lines and the container's state) before changing things. The usage lines carry no content by design, and console logs persist only when Log Analytics is on. |
 | 5.29 | Information security during disruption | partly | `docs/OPERATIONS.md` §9 (continuity: access, configuration, where the secrets are, what cannot wait). Not rehearsed. |
 | 5.30 | ICT readiness for business continuity | partly | The service can be rebuilt from the repository and `--from-azure` (`docs/OPERATIONS.md` §0, §9); `--backup` for the one table with state (§8.3); `min_replicas` in the configuration. None of §8 has been run against Azure; no recovery time stated. |
 | 5.31 | Legal, statutory, regulatory and contractual requirements | partly | A privacy policy (`PRIVACY.md`), preview terms (`fabric_backend/page_templates/terms.html`), a DPA draft (`docs/DPA-DRAFT.md`), the MIT licence and third-party notices. None reviewed by a lawyer; the terms call themselves a short draft. |
@@ -74,7 +79,7 @@ Microsoft's (Microsoft Trust Center) and are not claimed here.
 | 6.5 | Responsibilities after termination or change of employment | not applicable | No employees. |
 | 6.6 | Confidentiality or non-disclosure agreements | missing | No NDA template in the repository; `docs/PILOT.md` says no customer data leaves the customer's tenant, which is a rule, not an agreement. |
 | 6.7 | Remote working | partly | Operations are designed to run from Azure Cloud Shell without local copies of secrets (`docs/OPERATIONS.md` §0, §9). Nothing about the maintainer's own devices. |
-| 6.8 | Information security event reporting | in place | `SECURITY.md`, `/.well-known/security.txt` (RFC 9116, `fabric_backend/discovery.py`), the same address on `/it`; the issue forms say a security problem does not go into a public issue (`.github/ISSUE_TEMPLATE/`). |
+| 6.8 | Information security event reporting | in place | `SECURITY.md`, the disclosure policy at `/security` (`fabric_backend/page_templates/SECURITY-POLICY.md`), `/.well-known/security.txt` (RFC 9116, Policy pointing at `/security`, `fabric_backend/discovery.py`), the same address on `/it`; the issue forms say a security problem does not go into a public issue (`.github/ISSUE_TEMPLATE/`). |
 
 ## A.7 Physical controls
 
@@ -128,7 +133,7 @@ Microsoft's, and Microsoft's attestations are not claimed here.
 | 8.24 | Use of cryptography | in place | TLS by Container Apps; RS256 verification against Microsoft's JWKS (`fabric_backend/entra.py`); encrypted records in the registration store under a key of Krusgraph's own (`fabric_backend/registration_store.py`, `docs/CLIENT-REGISTRATION.md`); SHA-256 for every hashed id (`fabric_backend/usage.py`, `fabric_backend/limits.py`). No key management document beyond the rotation steps in `docs/OPERATIONS.md`. |
 | 8.25 | Secure development life cycle | partly | `CONTRIBUTING.md`, the pull request checklist, CI on every push, the security review of the sign-in layer (`docs/SECURITY.md`). No security requirement step for every change. |
 | 8.26 | Application security requirements | partly | The requirements the sign-in layer meets are listed with the test for each (`docs/SECURITY.md`); the client-registration layer is written against the MCP specification's MUSTs (`docs/CLIENT-REGISTRATION.md`). Nothing equivalent for the tools' own behaviour beyond "dry run, never delete". |
-| 8.27 | Secure system architecture and engineering principles | in place | The engine never talks to a platform and a test enforces it (`docs/ARCHITECTURE.md`, `tests/test_architecture.py`); creating tools are dry run by default and never delete (`fabric_backend/server.py`); the server stores nothing by design (`SECURITY.md`). |
+| 8.27 | Secure system architecture and engineering principles | in place | The engine never talks to a platform and a test enforces it (`docs/ARCHITECTURE.md`, `tests/test_architecture.py`); creating tools are dry run by default and the MCP tools never delete (`fabric_backend/server.py`); the workload's Delete from Fabric removes only items its Model built, in that workspace, after a dry run and the typed name (`fabric_backend/product_life.py`); the server stores nothing by design (`SECURITY.md`). |
 | 8.28 | Secure coding | partly | Token scrubbing, bounded caches, body limits, no logging on the auth path (`docs/SECURITY.md`, "What holds by design"). No written coding standard. |
 | 8.29 | Security testing in development and acceptance | in place | `tests/test_security.py`, `tests/test_entra.py`, `tests/test_client_registration.py`, `tests/test_operations.py`, run by CI on every push (`.github/workflows/ci.yml`). |
 | 8.30 | Outsourced development | partly | Coding agents change the repository under `CONTRIBUTING.md`, with the same identity, the same tests and the same prohibitions (no deployment, no publishing). No agreement with a supplier of development. |
@@ -140,7 +145,7 @@ Microsoft's, and Microsoft's attestations are not claimed here.
 ## What to do with the empty rows
 
 The rows marked missing are the list for the next pass, in the order a customer's IT department asks about them:
-an incident response plan with roles and notification duties (5.24–5.26, 5.28), who has access and a review of it
+exercising the incident process and confirming its notification time (5.24–5.26, 5.28; the process itself is written since n211), who has access and a review of it
 (5.15–5.18, 8.2, 8.4), the maintainer's own devices (6.7, 7.7, 7.9, 8.1), and an independent review (5.35). None of
 them is answered by writing a document alone; each needs the thing itself and then the file that shows it, and the
 row moves only then.

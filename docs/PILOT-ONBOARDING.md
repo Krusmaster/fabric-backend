@@ -155,7 +155,7 @@ Write down what was unclear. Krusgraph keeps the notes without table contents.
 | Remove the tenant id from the Publish tab (and publish again) and from `workload_allowed_tenants` | Krusgraph |
 | Remove admin consent: Entra admin centre → Enterprise applications → the Krusgraph app or the Krusgraph workload app → Permissions, or Properties → Delete | Entra admin |
 | Turn off "Users can see and work with additional workloads not validated by Microsoft", if nothing else needs it | Fabric admin |
-| Delete the Krusgraph Model items, and the items they built if not wanted (Krusgraph never deletes them) | User or workspace admin |
+| Delete the Krusgraph Model items, and the items they built if not wanted (Krusgraph deletes nothing on its own; the data product page's Delete from Fabric needs a dry run and the data product's name typed) | User or workspace admin |
 | Delete what Krusgraph holds: any schema export and session notes; the tenant id from the deploy file. Logs age out at the retention on `/it` | Krusgraph |
 | Confirm in writing what was deleted, with the date | Krusgraph |
 

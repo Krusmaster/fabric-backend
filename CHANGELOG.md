@@ -9,6 +9,19 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n212: **standards on `/trust`, an opt-out for AI training crawlers, and a trust page comparison**. `/trust`
+  and `docs/TRUST-PACK.md` get a Standards table: one row each for ISO/IEC 27001, NIS2 and the Swedish cybersecurity
+  act, GDPR and Microsoft's publisher requirements (publisher verification, the workload attestation), each with what
+  Krusgraph has (linked), what it does not have and what would come next. `/robots.txt` keeps search engines and the
+  fetchers AI assistants use for a person's question, and asks GPTBot, ClaudeBot, Google-Extended, Applebot-Extended,
+  CCBot and Meta-ExternalAgent out of everything (sources and dates in `docs/SITE.md`; only Anthropic's page could be
+  opened, the others are marked Unverified); `/trust` says in one sentence that it is a request, not a block. Stale
+  lines fixed: "no tool deletes anything" (`/trust`, `/docs`, the trust pack, `docs/TRUST.md`,
+  `docs/PILOT-ONBOARDING.md`) now names the data product page's Delete from Fabric (n198); the ISO 27001
+  self-assessment knows the incident process and the supplier pack of n211 (5.25 and 5.28 from missing to partly).
+  New `docs/TRUST-PAGE-COMPARISON.md` (Modern Requirements' public trust and pricing material, from search snippets
+  since the host was blocked, and five improvements for `/trust` and `/pricing`). No claim of certification or
+  compliance. Site and docs only; redeploy for `/trust`, `/docs` and `/robots.txt`.
 - Round n211: **a supplier security pack for customers under NIS2 and the Swedish cybersecurity act**. New
   `docs/SECURITY-SUPPLIER.md` (what the texts say with sources, Krusgraph's place in a customer's supply chain, roles,
   what is and is not in place, subcontractors, the Article 21 measures against what Krusgraph has) and
