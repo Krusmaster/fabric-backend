@@ -78,14 +78,23 @@ link, Unverified where it cannot be read) and the portal step. Nothing is ever r
 n209: with Run once ticked, the examples are "not checked yet" until the after_run call of a run that succeeded checks
 them (a run that did not succeed leaves them not checked and publishes nothing); an example Fabric could not connect
 for is sent once more, exactly once, and then reads "not checked yet" with the reason, never invalid (recheck_examples).
+n222 (the founder's live test of 11 November 2026, "it must go faster, and I want suggestions on which data products to
+create"): a dry run prepares its outputs side by side (the report after its model) and says how many are prepared; every
+build lists the workspace's items once (deploy.one_listing); /review and /check answer suggested_products, domain_draft's
+proposal in the editor's words (suggest_products), and the ticked ones come back on the dry run as data products.
 """
 from __future__ import annotations
 
+import contextvars
 import json
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 import sys
 import time
+
+from .deploy import list_items as _list_items, one_listing as _one_listing, outside_listing as _outside_listing
 
 PREFIX = "/workload/v1"
 FABRIC_ORIGIN = re.compile(r"^https://([a-z0-9-]+\.)*(fabric\.microsoft\.com|powerbi\.com)$")
@@ -321,6 +330,7 @@ def build_request(body) -> dict:
     flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
                          "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
     flags["target"] = target_request(body.get("target"))         # n201, n221
+    flags["products"] = _ticked_products(body.get("products"))     # n222: the suggested data products the person ticked
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
@@ -363,6 +373,19 @@ def target_request(target) -> dict | None:
 
 
 _CREATE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
+_SLUG = re.compile(r"^[a-z0-9_]{1,80}$")
+
+
+def _ticked_products(v) -> list[dict]:
+    """n222: [{id, name}] of the suggestions the person ticked (outputs.json's products); the tables come from the engine."""
+    if v is None:
+        return []
+    if (not isinstance(v, list) or len(v) > 30
+            or not all(isinstance(x, dict) and isinstance(x.get("id"), str) and _SLUG.match(x["id"]) for x in v)):
+        raise BadRequest("'products' must be the ticked suggestions [{id, name}] (outputs.json's products) or empty")
+    return [{"id": x["id"], "name": str(x.get("name") or x["id"])[:80]} for x in v]
 
 
 def _ids(body: dict) -> dict:
@@ -689,6 +712,81 @@ def _answer(rv: dict, note: str = NOTHING_CHANGED) -> dict:
             "map": map_of(rv), "note": note}
 
 
+# ------------------------------------------------------------------ n222: suggested data products ----------------------
+# The founder's live test of 11 November 2026: "I want suggestions on which data products to create". The suggestions are
+# domain_draft's own proposal (domains.propose_plan: the same function the MCP tool and /check's domain step call), on the
+# plan the review left, weighted by the check's counts when the rows were checked. Deterministic, no AI. Each suggestion
+# names its tables, the rule that grouped them, its interface (the links that cross to another suggestion: it provides
+# the key, or it consumes another's key) and its evidence (the keys and the links inside it, each with its rule and the
+# check's verdict). The weekend's suggestion engine (W2) can extend this function; the editor only draws what it returns.
+SUGGEST_RULE = ("Tables joined by their keys and links, cut where the links are weakest (Leiden-style communities on the key "
+                "graph, domain_draft's method); a table whose key holds its parent's key stays with that parent.")
+
+
+def suggest_products(p, validation: dict | None = None) -> dict:
+    """The suggested data products of a plan (domains.propose_plan), in the words the editor shows."""
+    from . import domains as D
+    label = getattr(p, "label", None) or (lambda r: r)
+    prop = D.propose_plan(p, validation)
+    names = {d["slug"]: d["name"] for d in prop["domains"]}
+    verdicts = {(r["source"], tuple(c.lower() for c in r["columns"]), r["target"]): r.get("verdict", "")
+                for r in (validation or {}).get("relationships", [])}
+    key_checks = {k["table"]: k.get("verdict", "") for k in (validation or {}).get("keys", [])}
+    link = lambda src, cols, tgt: f"{src}.{'+'.join(cols)} → {tgt}"   # noqa: E731
+    out = []
+    for d in prop["domains"]:
+        inside = set(d["tables"])
+        evidence = []
+        for t in d["tables"]:
+            cols, rule = p.keys.get(t, ([], ""))
+            if cols:
+                v = key_checks.get(t)
+                evidence.append(f"key {t}.{'+'.join(cols)} ({label(rule)}; " + (f"the rows: {v}" if v else "not checked against the rows") + ")")
+        for r in list(p.relationships) + list(getattr(p, "extended", [])):
+            if r.source in inside and r.target in inside and r.source != r.target:
+                v = verdicts.get((r.source, tuple(c.lower() for c in r.source_cols), r.target))
+                evidence.append(f"link {link(r.source, r.source_cols, r.target)} ({label(r.rule)}; "
+                                + (f"the rows: {v}" if v else "not checked against the rows") + ")")
+        face = {"provides": [], "consumes": []}
+        for i in prop["interfaces"]:
+            if d["slug"] not in (i["provider"], i["consumer"]):
+                continue
+            mine = i["provider"] == d["slug"]
+            other = i["consumer"] if mine else i["provider"]
+            face["provides" if mine else "consumes"].append(
+                {"product": names.get(other, other), "id": other, "link": link(i["source"], i["source_cols"], i["target"]),
+                 "rule": label(i["rule"]) if i.get("rule") else ""})
+        out.append({"id": d["slug"], "name": d["name"], "tables": list(d["tables"]), "rule": SUGGEST_RULE,
+                    "name_reason": d.get("name_reason", ""), "why": dict(d.get("reasons", {})), "interface": face,
+                    "evidence": evidence})
+    return {"products": out, "unassigned": [{"table": u["table"], "reason": u["reason"]} for u in prop["unassigned"]],
+            "checked": validation is not None, "from": "domain_draft's proposal (domains.propose_plan)",
+            "note": ("Suggestions, not decisions: tick the ones to build. Each becomes a data product over this Model's outputs; "
+                     "a Fabric domain itself needs a Fabric administrator.")}
+
+
+def _chosen_products(req: dict, p, cards: list[dict], dry_run: bool) -> list[dict]:
+    """The ticked suggestions as data products of this build: the engine's suggestion of the same id on this plan (its
+    tables and interface), with the build's items; a ticked one this plan no longer suggests says so."""
+    now = {x["id"]: x for x in suggest_products(p)["products"]}
+    items = []
+    for c in cards:
+        if c.get("refusal") or (c.get("answer") or {}).get("error"):
+            continue
+        items += ([{"output": c["output"], "type": c["type"], "name": c["name"], "would": c.get("would")}] if dry_run
+                  else [{**x, "label": c["label"]} for x in c.get("created", [])])
+    out = []
+    for t in req.get("products") or []:
+        s = now.get(t["id"])
+        if s is None:
+            out.append({"id": t["id"], "name": t["name"], "gone": True,
+                        "words": "This plan no longer suggests it (the review or the data changed); untick it or choose another."})
+            continue
+        out.append({"id": s["id"], "name": s["name"], "tables": s["tables"], "interface": s["interface"], "items": items,
+                    "words": f"{len(s['tables'])} table(s); the outputs of this build cover them."})
+    return out
+
+
 # ------------------------------------------------------------------ the three calls ----------------------------------
 
 def run_review(req: dict) -> dict:
@@ -707,7 +805,18 @@ def run_review(req: dict) -> dict:
         getattr(execute, "close", lambda: None)()
     rv = R.build(p, base, {"platform": "fabric", "source": req["source_name"], "schema": req["schema"]},
                  decisions=req["decisions"], previous=prev)
-    return _with_schema(_with_source(_answer(rv), p, execute), req)
+    out = _with_source(_answer(rv), p, execute)
+    out["suggested_products"] = _suggested(p, rv)                  # n222
+    return _with_schema(out, req)
+
+
+def _suggested(p, rv: dict, validation: dict | None = None) -> dict | None:
+    """n222: the suggestions on the plan the review left; None (and a logged cause) if they could not be made."""
+    try:
+        return suggest_products(apply_review(p, rv)[0], validation)
+    except Exception as exc:  # noqa: BLE001 — the review and the check stand without them
+        log("suggest_failed", error=type(exc).__name__)
+        return None
 
 
 def _with_source(out: dict, p, execute) -> dict:
@@ -765,6 +874,7 @@ def run_check(req: dict) -> dict:
     out = _with_source(_answer(rv, NOTHING_CHANGED + " The check counted rows; it returns counts, never a value."), p, execute)
     out["check"] = check_totals(rv)
     out["questions"] = rv.get("open_questions", [])
+    out["suggested_products"] = _suggested(p, rv, checks)        # n222: weighted by what the rows hold
     return _with_schema(out, req)
 
 
@@ -1206,17 +1316,8 @@ def built_from(was: dict | None, now: dict) -> dict:
 
 
 def _items_of(workspace: str, headers: dict) -> dict[str, dict]:
-    """{id: item} of the workspace's items (one listing), for the descriptions."""
-    from .deploy import FABRIC, send
-    out, url = {}, f"{FABRIC}/v1/workspaces/{workspace}/items"
-    while url:
-        r = send("get", url, headers, write=False, timeout=30)
-        r.raise_for_status()
-        body = r.json()
-        for it in body.get("value", []):
-            out[it.get("id")] = it
-        url = body.get("continuationUri")
-    return out
+    """{id: item} of the workspace's items (one listing, the request's own when it has one: n222), for the descriptions."""
+    return {it.get("id"): it for it in _list_items(workspace, headers)}
 
 
 def recorded_mark(item_id: str, req: dict, listed: dict[str, dict]) -> dict | None:
@@ -1882,8 +1983,9 @@ def run_build_many(req: dict) -> dict:
                 return _with_schema({"dry_run": False, "outputs": [], "order": [], "left_out_by_review": [], "refused": 1,
                                      "to_decide": 0, "build_in": place, "error": made["error"], "kind": made.get("kind", "bad_input"),
                                      "hint": made.get("hint", ""), "note": made["error"]}, req)
-        out = _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust_checked,
-                          place)
+        with _one_listing():                                # n222: the workspace's items listed once, not per name
+            out = _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ours, cards, built, left, adjust_checked,
+                              place)
         out["build_in"] = place
         if made and made.get("made"):
             out["lakehouse_made"] = made
@@ -1994,10 +2096,11 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
             if not listing:
                 listing.append(_items_of(workspace, headers))
             return listing[0]
-        for o in req["outputs"]:
+        def one(o: dict) -> dict | None:
+            """The card of one output (None: not part of this request)."""
             kind = o["kind"]
             if req.get("only") and kind not in req["only"]:
-                continue                                           # n179: chosen with this Create, built by its own request
+                return None                                        # n179: chosen with this Create, built by its own request
             card = {"output": kind, "label": KINDS[kind]["label"], "type": KINDS[kind]["type"], "name": o["name"], "dry_run": dry_run,
                     "updates_in_place": KINDS[kind]["updates"], "permissions": permissions(kind, scopes)}
             if o.get("model"):
@@ -2009,9 +2112,7 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                     card["refusal"] = {"error": f"{KINDS[kind]['label']} {o['name']!r} was not created in this Create.", "kind": "not_built",
                                        "hint": "Its own card said why; choose Create again to retry it."}
                 card["decision"] = decision_of(card)
-                built[kind] = card
-                cards.append(card)
-                continue
+                return card
             started = time.monotonic()
             updating = kind in req.get("update", [])
             # n197/n209: the dry run asks the same question Create asks (skip_built), through one function, so it predicts what
@@ -2027,9 +2128,7 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                                                       req.get("schedule_ids") or [])
                     card["decision"] = decision_of(card)
                     log("build_output", output=kind, dry_run=dry_run, outcome=said["outcome"], seconds=round(time.monotonic() - started, 1))
-                    built[kind] = card
-                    cards.append(card)
-                    continue
+                    return card
             update_ids: list[str] = []
             if updating:                                           # n180: the person chose Update for this output
                 for typ, name in _names(o, chosen, req["schema"]):
@@ -2056,9 +2155,10 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
             else:
                 if missing:                                        # the dry run says it now, Create would refuse
                     card["consent"] = _consent(kind, missing, app_id)
-                try:
-                    answer = (_run_graphql({**req, "name": o["name"], "dry_run": dry_run}) if kind == "graphql"
-                              else _call(kind, o, chosen, req, keys, confirmed, dry_run, built))
+                try:                                               # n222: a dry run writes nothing, so its tools read the
+                    tool = (lambda: _run_graphql({**req, "name": o["name"], "dry_run": dry_run}) if kind == "graphql"   # request's
+                            else _call(kind, o, chosen, req, keys, confirmed, dry_run, built))          # listing; Create's do not
+                    answer = tool() if dry_run else _outside_listing(tool)
                 except BadRequest:
                     raise
                 except Exception as exc:                           # noqa: BLE001 — explained per card, never leaked
@@ -2106,8 +2206,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         if card["refresh"]["status"] == "refreshed":
                             card["portal_steps"] = [x for x in card["portal_steps"] if not x.startswith(REFRESH_STEP)]
             card["decision"] = decision_of(card)                  # n209: one action per card, the same in the dry run and Create
-            built[kind] = card
-            cards.append(card)
+            return card
+        _all_cards(req, dry_run, one, cards, built)
         out = {"dry_run": dry_run, "outputs": cards, "order": [c["output"] for c in cards],
                "left_out_by_review": left[0] if left else [],
                "row_check": check_totals(rv)}
@@ -2116,6 +2216,8 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
             out["target"] = where
         if req.get("product"):
             out["product"] = _product(req, rv, p, cards, dry_run)
+        if req.get("products"):                                    # n222: the ticked suggestions
+            out["products"] = _chosen_products(req, p, cards, dry_run)
         out["flow"] = None if req.get("only") else _flow(req, p, chosen, cards, keys, confirmed)   # n179: finish draws it
     refused = [c for c in cards if c.get("refusal") or (c.get("answer") or {}).get("error")]
     out["refused"] = len(refused)
@@ -2130,6 +2232,48 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
     if req.get("finish"):
         out["note"] = f"{len(cards) - len(refused)} of {len(cards)} output(s) are in Fabric." + (_runs_note(cards) if cards else "")
     return _with_schema(out, req)
+
+
+# ------------------------------------------------------------------ n222: the dry run's outputs side by side --------
+# The founder's live test of 11 November 2026: "Preparing the dry run of each output..." took long, one output after
+# another. A dry run writes nothing, so its outputs are prepared at once, DRY_RUN_THREADS at a time, each in a copy of
+# the request's context (the review's plan, read once; the token; the request's item listing); the report waits for its
+# semantic model's card, whose definition it is drawn on. The cards keep the request's order. A Create keeps one output
+# after the other (the editor sends one output per request and runs those that do not depend on each other at once).
+DRY_RUN_THREADS = 4
+PREPARED_WORDS = "Dry run: {done} of {total} outputs prepared ({names})."
+
+
+def _all_cards(req: dict, dry_run: bool, one, cards: list[dict], built: dict) -> None:
+    """Every output's card into `cards` (request order) and `built` (by kind); see above."""
+    from . import operations
+    outputs = list(req["outputs"])
+    got: dict[int, dict | None] = {}
+    if not dry_run:
+        for i, o in enumerate(outputs):
+            got[i] = one(o)
+            if got[i] is not None:
+                built[o["kind"]] = got[i]
+    else:
+        later = [i for i, o in enumerate(outputs) if o["kind"] == "report" and not o.get("model")]
+        first = [i for i in range(len(outputs)) if i not in later]
+        total = sum(1 for o in outputs if not (req.get("only") and o["kind"] not in req["only"]))
+        lock, ready = threading.Lock(), []
+
+        def run(i: int) -> None:
+            card = one(outputs[i])
+            with lock:
+                got[i] = card
+                if card is not None:
+                    built[outputs[i]["kind"]] = card
+                    ready.append(card["label"])
+                    operations.progress(None, words=PREPARED_WORDS.format(done=len(ready), total=total, names=", ".join(ready)))
+        with ThreadPoolExecutor(max_workers=max(1, min(DRY_RUN_THREADS, len(first)))) as pool:
+            for f in [pool.submit(contextvars.copy_context().run, run, i) for i in first]:
+                f.result()                                         # an exception is raised here, as the loop raised it
+        for i in later:
+            run(i)
+    cards.extend(got[i] for i in sorted(got) if got[i] is not None)
 
 
 # ------------------------------------------------------------------ n197: one Create step in the background ---------

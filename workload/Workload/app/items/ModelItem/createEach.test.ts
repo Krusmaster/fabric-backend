@@ -1,7 +1,7 @@
 // n179: Create one output per request (the founder's live Create of 9 November 2026 showed only "Failed to fetch" while
 // the server built six of eight items), the semantic model's words, and the schema picked from the lakehouse's list.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createEach, createOrder, modelFacts, requestFor, resultLine, schemaToUse } from "./buildWords";
+import { CREATE_AT_ONCE, createEach, createOrder, waitsFor, modelFacts, requestFor, resultLine, schemaToUse } from "./buildWords";
 import { BUILD_WAIT_MS, BuildCard, CreatedRef, EngineCallError, ManyAnswer, OutputRequest, buildOne, lostAnswer } from "./engineClient";
 
 const ALL: OutputRequest[] = [
@@ -28,7 +28,8 @@ describe("createEach", () => {
       sent.push(o);
       return answer(o, o.kind === "semantic_model" ? [ref(o, "model-id")] : o.kind === "report" ? [ref(o, "report-id")] : []);
     }, () => undefined);
-    expect(sent.map((o) => o.kind)).toEqual(["silver_notebook", "semantic_model", "report", "graphql"]);
+    // n222: what does not wait for another output is sent at once; the report still waits for its model
+    expect(sent.map((o) => o.kind)).toEqual(["silver_notebook", "semantic_model", "graphql", "report"]);
     expect(sent.find((o) => o.kind === "report")?.model).toBe("model-id");
     expect(run.created.map((c) => c.id)).toEqual(["model-id", "report-id"]);
     expect(run.cards.every((c) => c.status === "done")).toBe(true);
@@ -173,7 +174,7 @@ describe("createEach after a dry run that refused an output", () => {
   it("does not send the refused step and shows the dry run's refusal; the others are sent", async () => {
     const sent: OutputRequest[] = [];
     const run = await createEach(ALL, [], async (o) => { sent.push(o); return answer(o); }, () => undefined, preview(ALL, ["semantic_model"]));
-    expect(sent.map((o) => o.kind)).toEqual(["silver_notebook", "report", "graphql"]);
+    expect(sent.map((o) => o.kind)).toEqual(["silver_notebook", "graphql", "report"]);   // n222: the API does not wait
     const card = run.cards.find((c) => c.output === "semantic_model")!;
     expect(card.status).toBe("done");
     expect(card.refusal?.kind).toBe("already_exists");
@@ -193,5 +194,98 @@ describe("createEach after a dry run that refused an output", () => {
     const renamed = ALL.map((o) => (o.kind === "semantic_model" ? { ...o, name: "demo_lh_model_2" } : o));
     await createEach(renamed, [], async (o) => { sent.push(o); return answer(o); }, () => undefined, preview(ALL, ["semantic_model"]));
     expect(sent.map((o) => o.name)).toContain("demo_lh_model_2");
+  });
+});
+
+// n222: the founder's live test of 11 November 2026, "it must go faster": Create built the six outputs strictly one after
+// another, each waiting for Fabric. Now the steps that do not depend on each other are sent at once.
+describe("n222: createEach sends independent outputs at once", () => {
+  const SIX: OutputRequest[] = [
+    { kind: "silver_notebook", name: "s" }, { kind: "gold_views", name: "g" }, { kind: "pipeline", name: "p" },
+    { kind: "semantic_model", name: "m" }, { kind: "report", name: "r" }, { kind: "graphql", name: "a" },
+  ];
+
+  /** send() that answers after `ms[kind]` fake milliseconds; records when each step started and ended. */
+  function timed(ms: Partial<Record<OutputRequest["kind"], number>>) {
+    let now = 0;
+    const log: { kind: string; start: number; end: number }[] = [];
+    const waiting: { at: number; go: () => void }[] = [];
+    const send = (o: OutputRequest) => new Promise<ManyAnswer>((resolve) => {
+      const start = now;
+      waiting.push({ at: now + (ms[o.kind] ?? 10), go: () => { log.push({ kind: o.kind, start, end: now }); resolve(answer(o, o.kind === "semantic_model" ? [ref(o, "model-id")] : [])); } });
+    });
+    /** advances the fake clock to the next answer until nothing waits */
+    async function drive(p: Promise<unknown>) {
+      let finished = false;
+      void p.then(() => { finished = true; });
+      while (!finished) {
+        await new Promise((r) => setTimeout(r, 0));
+        if (!waiting.length) continue;
+        waiting.sort((a, b) => a.at - b.at);
+        const next = waiting.shift()!;
+        now = next.at;
+        next.go();
+      }
+      return p;
+    }
+    return { send, log, drive, clock: () => now };
+  }
+
+  it("what waits for what: the report for its model, the pipeline for its notebooks, nothing else for the six", () => {
+    const by = (k: OutputRequest["kind"]) => waitsFor(SIX.find((o) => o.kind === k)!, SIX);
+    expect(by("report")).toEqual(["semantic_model"]);
+    expect(by("pipeline")).toEqual(["silver_notebook", "gold_views"]);
+    for (const k of ["silver_notebook", "gold_views", "semantic_model", "graphql"] as const) expect(by(k)).toEqual([]);
+    expect(waitsFor({ kind: "report", name: "r", model: "existing" }, SIX)).toEqual([]);   // a report on an existing model
+    expect(waitsFor({ kind: "pipeline", name: "p" }, [{ kind: "pipeline", name: "p" }])).toEqual([]);   // not chosen: no wait
+  });
+
+  it("the six outputs: four at once, then the pipeline and the report as soon as what they need has answered", async () => {
+    const t = timed({ silver_notebook: 20, gold_views: 20, semantic_model: 30, graphql: 20, pipeline: 40, report: 20 });
+    const run = await t.drive(createEach(SIX, [], (o) => t.send(o), () => undefined)) as Awaited<ReturnType<typeof createEach>>;
+    const at = Object.fromEntries(t.log.map((x) => [x.kind, x]));
+    expect(CREATE_AT_ONCE).toBe(4);
+    for (const k of ["silver_notebook", "gold_views", "semantic_model", "graphql"]) expect(at[k].start).toBe(0);
+    expect(at.pipeline.start).toBe(20);                         // after both notebooks
+    expect(at.report.start).toBe(30);                           // after its model, on the model's new id
+    expect(t.clock()).toBe(60);                                 // one after another: 150
+    expect(run.cards.map((c) => c.output)).toEqual(SIX.map((o) => o.kind));   // the cards keep the engine's order
+    expect(run.cards.every((c) => c.status === "done")).toBe(true);
+  });
+
+  it("the report is built on the model's new id even when the model answers last", async () => {
+    const sent: OutputRequest[] = [];
+    const t = timed({ semantic_model: 50 });
+    await t.drive(createEach(SIX, [], (o) => { sent.push(o); return t.send(o); }, () => undefined));
+    expect(sent.find((o) => o.kind === "report")?.model).toBe("model-id");
+  });
+
+  it("never more than CREATE_AT_ONCE steps at a time, and one at a time when asked", async () => {
+    let open = 0, most = 0;
+    const send = async (o: OutputRequest) => { open++; most = Math.max(most, open); await new Promise((r) => setTimeout(r, 1)); open--; return answer(o); };
+    const many: OutputRequest[] = [...SIX, { kind: "ontology", name: "o" }, { kind: "data_agent", name: "d" }];
+    await createEach(many, [], send, () => undefined);
+    expect(most).toBe(4);
+    open = 0; most = 0;
+    await createEach(many, [], send, () => undefined, undefined, 1);
+    expect(most).toBe(1);
+  });
+
+  it("each card shows its own state while several run: the progress line counts them", async () => {
+    const seen: string[][] = [];
+    const t = timed({});
+    await t.drive(createEach(SIX, [], (o) => t.send(o), (cards) => seen.push(cards.map((c) => c.status ?? ""))));
+    expect(seen.some((s) => s.filter((x) => x === "running").length === 4)).toBe(true);
+    expect(seen[seen.length - 1].every((x) => x === "done")).toBe(true);
+  });
+
+  it("a failed model still lets its report be sent, as before (the engine says why on the report's card)", async () => {
+    const sent: string[] = [];
+    await createEach(SIX, [], async (o) => {
+      sent.push(o.kind);
+      if (o.kind === "semantic_model") throw new EngineCallError({ error: "failed", kind: "unexpected" }, 502);
+      return answer(o);
+    }, () => undefined);
+    expect(sent).toContain("report");
   });
 });

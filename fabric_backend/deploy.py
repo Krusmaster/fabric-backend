@@ -10,10 +10,13 @@ What it cannot do (portal only, as of Oct 2026 — see README "Two clicks remain
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import email.utils
 import math
 import re
 import subprocess
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -41,6 +44,11 @@ READ_ATTEMPTS = 4                      # a read, at most, counting the first
 READ_FAILURES = 3                      # status reads in a row that may fail (network) before the wait stops
 FALLBACK_RETRY_SECONDS = 5.0           # a 429/503 without Retry-After: 5, 10, 20 s (throttling.md's backoff)
 MIN_POLL_SECONDS = 1.0
+# n222 (the founder's live Create of 11 November 2026 waited about 20 s per item): an item create's 202 usually carries
+# Retry-After 20 while Fabric often finishes in a few seconds. The first status reads come after these waits, never
+# longer than what Fabric asked; after them, Retry-After (or poll_seconds) as it is. A 429 or 503 while polling is
+# always waited out in full. Reading an operation's state is a read, so reading it early is always safe.
+FIRST_POLLS = (1.0, 1.0, 1.0, 1.0, 1.0, 2.0, 3.0, 5.0)
 
 NO_OPERATION_ID = ("Fabric accepted the request (HTTP 202) but sent no operation id, so whether it was carried out is "
                    "unknown. It was not sent again; do not send it again before checking the item in Fabric.")
@@ -125,6 +133,8 @@ def send(method: str, url: str, headers: dict, *, write: bool, budget: Budget | 
     429/503 itself is the answer."""
     import requests
     budget = budget or Budget(60)
+    if write:
+        forget_listing()                       # n222: what is listed may change now
     attempts = WRITE_ATTEMPTS if write else READ_ATTEMPTS
     for attempt in range(attempts):
         r = getattr(requests, method)(url, headers=headers, **kw)
@@ -164,7 +174,66 @@ def _headers(token_provider=None) -> dict:
     return {"Authorization": f"Bearer {(token_provider or default_token_provider())()}", "Content-Type": "application/json"}
 
 
+# ------------------------------------------------------------------ n222: one item listing per request ---------------
+# A dry run of six outputs listed the workspace's items 19 times (every name check of every output). Inside
+# one_listing() the items are listed once per workspace and every lookup reads that list; any write sent through send()
+# empties it, so a lookup after a write lists again. Outside the block nothing changes.
+_LISTING: contextvars.ContextVar = contextvars.ContextVar("krusgraph_item_listing", default=None)
+
+
+@contextlib.contextmanager
+def one_listing():
+    mark = _LISTING.set({"lock": threading.Lock(), "items": {}})
+    try:
+        yield
+    finally:
+        _LISTING.reset(mark)
+
+
+def outside_listing(fn):
+    """fn() with no listing open: a tool's writes do not all go through send(), so a tool call never reads the
+    request's listing (its own lookups list again, as they did before n222)."""
+    mark = _LISTING.set(None)
+    try:
+        return fn()
+    finally:
+        _LISTING.reset(mark)
+        forget_listing()
+
+
+def forget_listing() -> None:
+    scope = _LISTING.get()
+    if scope is not None:
+        with scope["lock"]:
+            scope["items"].clear()
+
+
+def list_items(workspace: str, headers: dict) -> list[dict]:
+    """Every item of the workspace (all pages), from the request's listing when one_listing() is open."""
+    scope = _LISTING.get()
+    if scope is None:
+        return _list_all(workspace, headers)
+    with scope["lock"]:                        # the dry run's outputs run in threads: one listing, not one each
+        if workspace not in scope["items"]:
+            scope["items"][workspace] = _list_all(workspace, headers)
+        return scope["items"][workspace]
+
+
+def _list_all(workspace: str, headers: dict) -> list[dict]:
+    out, url = [], f"{FABRIC}/v1/workspaces/{workspace}/items"
+    while url:
+        r = send("get", url, headers, write=False, timeout=30)
+        r.raise_for_status()
+        body = r.json()
+        out += body.get("value", [])
+        url = body.get("continuationUri")
+    return out
+
+
 def find_item(workspace: str, display_name: str, headers: dict, item_type: str = "GraphQLApi") -> str | None:
+    if _LISTING.get() is not None:
+        return next((it["id"] for it in list_items(workspace, headers)
+                     if it.get("type") == item_type and it.get("displayName") == display_name), None)
     url = f"{FABRIC}/v1/workspaces/{workspace}/items?type={item_type}"
     while url:
         r = send("get", url, headers, write=False, timeout=30)
@@ -191,6 +260,8 @@ def find_item_by_name(workspace: str, display_name: str, headers: dict,
 
     A lakehouse's SQL analytics endpoint carries the SAME display name and is listed before the
     lakehouse, so the lookup is restricted to source item types (issue #1, bug A)."""
+    if _LISTING.get() is not None:
+        return next((it for it in list_items(workspace, headers) if it.get("displayName") == display_name and it.get("type") in types), None)
     url = f"{FABRIC}/v1/workspaces/{workspace}/items"
     while url:
         r = send("get", url, headers, write=False, timeout=30)
@@ -302,16 +373,23 @@ def wait_operation(op: str, headers: dict, poll_seconds: int = 3, max_polls: int
     operation may go on in Fabric, when the polls or the time budget are spent or the status could not be read; a lost
     sign-in or access (401/403/404) ends the wait at once as Failed with the HTTP status and body (and the same note).
     Waits Retry-After between polls when Fabric sends it (`retry_after`: the first wait, from the 202), else
-    poll_seconds; 429 and 503 while polling are waited out the same way."""
+    poll_seconds, the first waits at most FIRST_POLLS (n222); 429 and 503 while polling are waited out in full."""
     return _wait(op, headers, poll_seconds, max_polls, Budget(_budget_seconds(poll_seconds, max_polls, max_wait_seconds)), retry_after)
+
+
+def _short(delay: float | None, n: int) -> float | None:
+    """n222: the n-th wait between two status reads: at most FIRST_POLLS[n] for the first ones, never longer than asked."""
+    if delay is None or n >= len(FIRST_POLLS):
+        return delay
+    return min(delay, FIRST_POLLS[n])
 
 
 def _wait(op: str, headers: dict, poll_seconds: float, max_polls: int, budget: Budget, first_delay: float | None) -> dict:
     import requests
     stopped = {"status": "Timeout", "operation": op, "note": WAIT_STOPPED.format(op=op)}
-    delay, failures = first_delay, 0
+    delay, failures = _short(first_delay, 0), 0
     try:
-        for _ in range(max_polls):
+        for n in range(1, max_polls + 1):
             if delay is not None and not budget.pause(max(delay, MIN_POLL_SECONDS)):   # at least 1 s between polls
                 return stopped
             if budget.remaining() <= 0:
@@ -338,6 +416,8 @@ def _wait(op: str, headers: dict, poll_seconds: float, max_polls: int, budget: B
                 return s
             ra = _retry_after(poll)                        # NotStarted, Running, Undefined, or a status not known yet
             delay = poll_seconds if ra is None else ra
+            if http not in RETRY_STATUSES:                 # n222: throttling is waited out in full, a running state is read early
+                delay = _short(delay, n)
     except KeyboardInterrupt:
         raise WaitInterrupted(WAIT_STOPPED.format(op=op)) from None
     return stopped

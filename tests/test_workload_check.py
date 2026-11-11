@@ -37,7 +37,7 @@ def test_check_answers_with_the_review_checked_the_totals_the_map_and_the_questi
     r = _post(client, "/check", {**SRC, "review": rv}, tok(priv))
     assert r.status_code == 200, r.text
     out = r.json()
-    assert set(out) == {"review", "summary", "attention", "counts", "map", "note", "check", "questions"}
+    assert set(out) == {"review", "summary", "attention", "counts", "map", "note", "check", "questions", "suggested_products"}   # n222
     c = out["check"]
     assert c["keys"] == {"passed": 6, "failed": 0, "stale": 0, "not_checked": 0}
     assert c["relationships"] == {"passed": 7, "failed": 0, "stale": 0, "not_checked": 0}

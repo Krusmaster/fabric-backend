@@ -196,7 +196,7 @@ def test_review_on_the_shop_schema(api):
     r = _post(client, "/review", SRC, tok(priv))
     assert r.status_code == 200, r.text
     out = r.json()
-    assert set(out) == {"review", "summary", "attention", "counts", "map", "note"}                 # n173: the map
+    assert set(out) == {"review", "summary", "attention", "counts", "map", "note", "suggested_products"}   # n173: the map; n222
     rv = out["review"]
     assert rv["format"] == "krusgraph-review" and rv["version"] == 1
     assert rv["source"] == {"platform": "fabric", "source": "demo_lh", "schema": "shop"}      # names, no ids

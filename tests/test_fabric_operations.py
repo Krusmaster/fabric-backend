@@ -166,7 +166,9 @@ def test_retry_after_from_the_202_and_from_each_poll_sets_the_pace(monkeypatch):
                   polls=[Resp(202, {"status": "Running"}, {"Retry-After": "4"}), Resp(200, {"status": "NotStarted"}), SUCCEEDED],
                   results=[Resp(200, {"id": "sm-1"})])
     assert create(poll_seconds=3)["status"] == "Succeeded"
-    assert fake.sleeps == [20, 4, 3]                                   # the 202's Retry-After, a poll's, then poll_seconds
+    # n222: the first reads come after deploy.FIRST_POLLS (1 s), never longer than the 202's Retry-After, a poll's or
+    # poll_seconds; after FIRST_POLLS each one's own (tests/test_n222_speed_and_products.py)
+    assert fake.sleeps == [1.0, 1.0, 1.0]
 
 
 def test_throttled_and_unavailable_polls_are_waited_out(monkeypatch):

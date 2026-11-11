@@ -66,6 +66,7 @@ import {
 } from "./buildWords";
 import { FlowView, PlanMap } from "./lazyParts";   // n223: loaded when first shown
 import { BUILD_IN_WORDS, BuildIn, buildIn, buildInLine, crossWorkspace, defaultLakehouseName, lakehouseLine, validLakehouseName } from "./buildPlace";
+import { ChosenProductsView } from "./SuggestedProductsView";
 import { canRetry, progressLabel, toRetry } from "./createRun";
 import { AgentChoices, AgentPanel, JobsPanel, PipelineChoices } from "./JobsViews";
 import { agentOf, jobsOf, scheduleProblems } from "./jobsWords";
@@ -499,6 +500,8 @@ export function OutputsView(props: {
   itemWorkspaceId?: string;
   onBuildIn?: (patch: { buildIn?: BuildIn; createLakehouse?: string | null }) => void;
   onChooseTarget?: () => void;
+  /** n222: the suggested data products panel, shown before Preview */
+  extra?: React.ReactNode;
 }) {
   const pipe = props.choices.find((c) => c.type === "pipeline" && c.enabled);
   const problems = [...choiceProblems(props.choices), ...(pipe ? scheduleProblems(jobsOf(pipe).schedule) : [])];
@@ -573,6 +576,7 @@ export function OutputsView(props: {
           </Field>
         )}
       </section>
+      {props.extra}
       {problems.map((p) => (
         <MessageBar key={p} intent="warning">
           <MessageBarBody>{p}</MessageBarBody>
@@ -1112,6 +1116,8 @@ export function PreviewView(props: {
   onAppChoices?: (choices: AppChoices) => void;
   /** n209: the App's last package (outputs.json) */
   appRecord?: AppPackageRecord;
+  /** n222: a Create is starting or running (or the editor is busy): the button says so instead of doing nothing */
+  creating?: boolean;
 }) {
   const a = props.answer;
   const checkLine = dryRunCheckLine(a.row_check);
@@ -1136,6 +1142,7 @@ export function PreviewView(props: {
       )}
       <Body1>{a.note}</Body1>
       {a.product && <ProductView product={a.product} title="Data product (dry run)" />}
+      <ChosenProductsView products={a.products} />
       {a.flow && <FlowView flow={a.flow} mascotsOn={props.mascotsOn} idPrefix="kg-flow-preview" />}
       {a.outputs.map((c) => (
         <OutputCard key={c.output} card={c} appChoices={props.appChoices} onAppChoices={props.onAppChoices} appRecord={props.appRecord} />
@@ -1155,8 +1162,8 @@ export function PreviewView(props: {
         </section>
       )}
       <div>
-        <Button appearance="primary" disabled={!canCreate} onClick={props.onCreate}>
-          {props.createLabel}
+        <Button appearance="primary" disabled={!canCreate || !!props.creating} onClick={props.onCreate}>
+          {props.creating ? "Creating…" : props.createLabel}
         </Button>
       </div>
     </div>

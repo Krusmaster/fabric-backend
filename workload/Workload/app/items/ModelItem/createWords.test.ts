@@ -56,8 +56,9 @@ describe("(a) while Create runs", () => {
     const seen: string[] = [];
     await createEach(outputs, [], async (o) => ({ outputs: [card(o.kind)], created: [] } as unknown as ManyAnswer),
       (cs) => seen.push(progressLine(cs)));
+    // n222: the silver and the gold notebook are made at once; the pipeline waits for both
     expect(seen).toEqual([
-      "0 of 3 created, 3 waiting.", "0 of 3 created, 1 creating, 2 waiting.", "1 of 3 created, 2 waiting.",
+      "0 of 3 created, 3 waiting.", "0 of 3 created, 1 creating, 2 waiting.", "0 of 3 created, 2 creating, 1 waiting.",
       "1 of 3 created, 1 creating, 1 waiting.", "2 of 3 created, 1 waiting.", "2 of 3 created, 1 creating.", "3 of 3 created.",
     ]);
   });

@@ -426,32 +426,55 @@ export function dryRunRefused(said: BuildCard | undefined, o: OutputRequest): Bu
 /** Create, one output after another (n179): each its own request, so a slow output or a closed connection costs only
  * that output, never the answers of the others. `send` is the engine call; `onCard` shows each card as it changes.
  * `created` starts with outputs.json's list, so a re-run skips what is built and retries the rest. */
+/** n222: what each output waits for before its step is sent (the founder's live test of 11 November 2026: Create built
+ * six outputs strictly one after another). The report is drawn on its semantic model, the pipeline runs its notebooks,
+ * the data agent kept its place after the pipeline and the App after the API; everything else is sent at once, at most
+ * CREATE_AT_ONCE steps at a time. A step waits for its outputs' answers, whatever they are, as it did in the old order. */
+export const CREATE_AT_ONCE = 4;
+
+export function waitsFor(o: OutputRequest, all: OutputRequest[]): OutputKind[] {
+  const has = (k: OutputKind) => all.some((x) => x.kind === k);
+  const need: OutputKind[] =
+    o.kind === "report" ? (o.model ? [] : ["semantic_model"])
+    : o.kind === "pipeline" ? ["silver_notebook", "gold_views"]
+    : o.kind === "data_agent" ? ["pipeline"]
+    : o.kind === "rayfin_app" ? ["graphql"]
+    : [];
+  return need.filter(has);
+}
+
 export async function createEach(
   outputs: OutputRequest[],
   created: CreatedRef[],
   send: (o: OutputRequest, created: CreatedRef[]) => Promise<ManyAnswer>,
   onCard: (cards: BuildCard[]) => void,
-  preview?: ManyAnswer
+  preview?: ManyAnswer,
+  atOnce: number = CREATE_AT_ONCE
 ): Promise<CreateRun> {
   const order = createOrder(outputs);
   const before = (k: OutputKind) => preview?.outputs.find((c) => c.output === k);
   let cards = order.map((o) => pendingCard(o, "waiting", before(o.kind)));
   let made = [...created];
   onCard(cards);
-  for (let i = 0; i < order.length; i++) {
+  const set = (i: number, card: BuildCard) => {
+    cards = cards.map((c, j) => (j === i ? card : c));
+    onCard(cards);
+  };
+  const done = new Set<OutputKind>();
+  const started = new Set<number>();
+  const inFlight = new Map<number, Promise<void>>();
+
+  async function step(i: number): Promise<void> {
     const o = requestFor(order[i], order, made);
-    let card: BuildCard;
     const refused = dryRunRefused(before(o.kind), o);
     if (refused) {
       // n207: the dry run refused this output (an item of its name that this Model did not build): it is never sent, so
       // its names are never recorded as pending and nothing of someone else's is adopted or overwritten
-      card = refused;
-      cards = cards.map((c, j) => (j === i ? card : c));
-      onCard(cards);
-      continue;
+      set(i, refused);
+      return;
     }
-    cards = cards.map((c, j) => (j === i ? pendingCard(o, "running", before(o.kind)) : c));
-    onCard(cards);
+    set(i, pendingCard(o, "running", before(o.kind)));
+    let card: BuildCard;
     try {
       const a = await send(o, made);
       const got = a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind));
@@ -462,8 +485,20 @@ export async function createEach(
     } catch (e) {
       card = failedCard(o, e, before(o.kind));
     }
-    cards = cards.map((c, j) => (j === i ? card : c));
-    onCard(cards);
+    set(i, card);
+  }
+
+  while (started.size < order.length || inFlight.size) {
+    const ready = order
+      .map((o, i) => ({ o, i }))
+      .filter(({ o, i }) => !started.has(i) && waitsFor(o, order).every((k) => done.has(k)));
+    for (const { o, i } of ready) {
+      if (inFlight.size >= Math.max(1, atOnce)) break;
+      started.add(i);
+      inFlight.set(i, step(i).then(() => { inFlight.delete(i); done.add(o.kind); }));
+    }
+    if (!inFlight.size) break;                                   // nothing can start: never wait forever
+    await Promise.race(inFlight.values());
   }
   return { cards, created: made };
 }
