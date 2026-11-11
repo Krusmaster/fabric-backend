@@ -9,6 +9,15 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n210: **verification of the integrated main before the first guest users** (n197 to n209). Security: Turn off
+  (the Data product page's soft retire) used a schedule id from outputs.json unchecked in a DELETE path, so a crafted id
+  could become a hard delete of another item while the dry run said "Remove the schedule"; only GUID ids are used now,
+  and Delete from Fabric leaves an item recorded in another workspace alone. Guests: "by whom" and **Me** fall back to
+  the token's email (and a guest `#EXT#` sign-in name read back), tests with guest-shaped tokens, and
+  `docs/GUEST-TRIAL.md` says which tenant id the allowed list needs. The page asks for health with the Model's own
+  workspace (it sent the source's, which failed when they differ). `build-package` stops in a shallow clone instead of
+  giving a version below the one in Fabric. An end-to-end test of the mill sample read from a mirrored database. Unit
+  tests and test doubles only; redeploy for the engine and the editor, the workload manifest did not change.
 - Round n209: **the Krusgraph Model ready for the first outside users** (the founder's live tests of 10 November 2026).
   The dry run and Create take one decision (`workload_api.existing_decision`, each card's `decision`): items built from
   this plan, also by another Krusgraph Model item, are "already built from this plan, will be skipped" in both; red only

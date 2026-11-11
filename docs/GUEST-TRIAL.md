@@ -188,6 +188,14 @@ Krusgraph Model creates its items through Fabric's REST API, not from Desktop.
 - Guests work only in the trial workspace, on the `shop` schema of `shop_lh`.
 - If something does not work, they write to hello@krusgraph.com with the text the screen showed. No table contents.
 - The publisher's admin keeps the list of who was invited in Entra, not in this repository.
+- What the server sees of a guest (round n210, unit tests with guest-shaped tokens only, `tests/test_n210_guest.py`): the
+  token the Fabric host gives the editor is issued by the publisher's tenant, so its `tid` is the publisher's tenant
+  id. `KRUSGRAPH_WORKLOAD_ALLOWED_TENANTS`, when set, must hold the **publisher's** tenant id; a guest's home tenant on
+  that list lets nobody in. The licence check (`KRUSGRAPH_ENTITLEMENTS`) is the publisher's tenant's as well. "By whom"
+  in outputs.json and the page's **Me** button use the token's name, else its sign-in name, else its email (a guest's
+  `#EXT#` sign-in name is read back to the home address); never a tenant or object id.
+- The Krusgraph connector in Claude (`/mcp`) is not part of the trial: it signs a guest in to their own home tenant, so
+  it cannot reach the trial workspace.
 
 ## 9. After the trial: what to remove
 
