@@ -121,16 +121,36 @@
   align-items: start;
 }
 
+// n216: the 3D figure (mascotFigure.tsx), a 112 px render at 48 px; a pose is a small motion of the whole figure
 .krusgraph-fig {
   width: 48px;
   height: 48px;
 
-  svg {
+  img {
     display: block;
     width: 100%;
     height: 100%;
-    overflow: visible;
+    transform-origin: 50% 92%;
+    transition: transform 0.25s ease;
   }
+
+  &[data-pose="point"] img,
+  &[data-pose="explain"] img { transform: rotate(-6deg); }
+  &[data-pose="think"] img { transform: rotate(7deg); }
+  &[data-pose="notice"] img { transform: translateY(-2px) scale(1.04); }
+  &[data-pose="calm"] img { transform: none; }
+  &[data-pose="celebrate"] img,
+  &[data-pose="heart"] img { animation: krusgraph-hop 0.9s ease-in-out 2; }
+}
+
+@keyframes krusgraph-hop {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-6px) rotate(-4deg); }
+  70% { transform: translateY(0) rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .krusgraph-fig img { transition: none; animation: none !important; }
 }
 
 .krusgraph-bubble {

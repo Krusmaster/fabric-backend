@@ -10,7 +10,8 @@
 import React, { useMemo, useState } from "react";
 import { DataFlow } from "./engineClient";
 import { boxLabel, layoutFlow, toggleOpen, togglesOn } from "./dataFlow";
-import { MAP_CSS, MASCOT_COLOURS, MASCOT_NAMES, MASCOT_SVG } from "./cardMap.generated";
+import { MAP_CSS, MASCOT_COLOURS, MASCOT_NAMES } from "./cardMap.generated";
+import { MascotFigure } from "./mascotFigure";
 
 export function FlowView(props: { flow: DataFlow; mascotsOn?: boolean; initialOpen?: string; idPrefix?: string }) {
   const { flow } = props;
@@ -32,14 +33,13 @@ export function FlowView(props: { flow: DataFlow; mascotsOn?: boolean; initialOp
       setCopied(undefined);
     }
   };
-  const figure = MASCOT_SVG.builder.replace('data-pose="rest"', 'data-pose="point"');
   return (
     <section className="krusgraph-flow" aria-label="The data flow, bronze to gold">
       <style>{MAP_CSS}</style>
       {props.mascotsOn !== false ? (
         <ul className="krusgraph-mascots">
           <li className="krusgraph-say krusgraph-say-builder" data-mascot="builder" style={{ ["--kg-mascot" as string]: MASCOT_COLOURS.builder.fill }}>
-            <span className="krusgraph-fig" dangerouslySetInnerHTML={{ __html: figure }} />
+            <MascotFigure kind="builder" pose="point" />
             <div className="krusgraph-bubble">
               <span className="krusgraph-who">{MASCOT_NAMES.builder}</span>
               <p>{flow.said}</p>

@@ -1569,7 +1569,10 @@ table.wr-table{min-width:0;width:100%;border-collapse:collapse;font-size:14.5px;
 .off-way-a:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
 @media (prefers-reduced-motion:reduce){.off-way-a{transition:none}.off-way-a:hover,.off-way-a:focus-visible{transform:none}}
 .off-pic{grid-row:1/4;display:flex;flex-direction:column;align-items:center;gap:2px;width:72px}
-.off-pic-svg{display:block;width:72px;height:68px;overflow:visible}
+/* n216: the 3D figure from the film (112 px render at 56 CSS px) with its symbol as a badge at its lower right */
+.off-pic-fig{position:relative;display:block;width:72px;height:66px}
+.off-pic-img{position:absolute;left:2px;top:2px;width:56px;height:56px;display:block}
+.off-pic-prop{position:absolute;right:0;bottom:0;width:30px;height:22px;display:block;overflow:visible;filter:drop-shadow(0 1px 1.5px rgba(40,30,30,.22))}
 .off-pic-for{font-family:var(--font-head);font-weight:600;font-size:12.5px;line-height:1.1;color:var(--ci);text-align:center}
 html[data-mascots=off] .off-way-a{grid-template-columns:minmax(0,1fr)}
 .off-way-h{display:flex;align-items:center;gap:8px}

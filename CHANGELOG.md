@@ -9,6 +9,19 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n216: **one look for the mascots: the glossy 3D figures of the overview film everywhere the products and the
+  workload show them**. New `tools/mascot_renders.py` cuts Onto, Thinker and Builder out of the film's closing frame
+  (112 x 112 px, transparent ground, own soft shadow so they work on dark pages) into `fabric_backend/static/mascots/`
+  and `workload/Workload/app/assets/mascots/`. The four product cards ("Choose how you work", home page and /choose) show
+  the 3D figure at 56 px (2x) with the product's prop as a small badge and one alt text per card. The workload's banner,
+  Get started card and quick look use the 3D figures (the banner at the render's own 112 px, so it stays sharp); the
+  item icon, workload icon and favicon stay the logo mark, which reads at 16-32 px. In the Krusgraph Model editor Onto,
+  Thinker and Builder are the 3D figures at 48 px, the pose kept as a small lean, tilt or hop (still under reduced
+  motion), the Mascots on/off switch as before. The Claude card no longer says "or another MCP client": with
+  /mcp/connect off it says only Claude signs in to the hosted service; with it on it names VS Code and Cursor and
+  /mcp/connect, in "Who it is for", "What you need", "How you work" and the VS Code row of the decision guide.
+  `docs/MASCOT-ART-NEEDED.md` lists what is still flat and the renders that would replace it (props, poses, 512 px,
+  transparent). The manifest images changed, so a new package is needed.
 - Round n202: **a synthetic, SAP-shaped sample for demos, /check and films, with customer-specific Z tables**. New
   `fabric_backend/sap_sample.py`: `sap_sd` (order to invoice: `T001`, `KNA1`, `MARA`, `MAKT`, `VBAK`, `VBAP`, `LIKP`,
   `LIPS`, `VBRK`, `VBRP`) and `sap_mm` (purchase to pay: `T001`, `LFA1`, `MARA`, `MAKT`, `EKKO`, `EKPO`, `EKBE`), from a

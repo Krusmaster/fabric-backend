@@ -14,7 +14,9 @@ Playwright and Chromium (as tests/test_browser.py; CHROMIUM=<path> picks the bro
   manifests have one icon per field and no dark variant (manifest-product, manifest-item, frontend-manifests on
   Microsoft Learn, read 9 November 2026), so one image has to work on both;
 - the workload page's banner and getting-started picture: the site's colours and fonts (fabric_backend/static/site.css,
-  fonts/), the logo and the three mascots (fabric_backend/mcp_apps_mascots.py). No Microsoft logos;
+  fonts/), the logo and the three mascots. n216: the mascots are the glossy 3D figures of the overview film and the
+  home page (fabric_backend/static/mascots/*.png, cut from the film by tools/mascot_renders.py), drawn at most at their
+  112 px render size so they stay sharp; the banner shows them at that size. No Microsoft logos;
 - the editor's loading view: app/assets/krusgraph-icon.png, a copy of the workload icon, in place of the kit's
   Fabric logo;
 - n183: the Krusgraph Model item's icons are Fluent-style (`fluent_item`): a rounded container with a soft gradient and a
@@ -116,12 +118,20 @@ def _page(body: str, w: int, h: int, css: str = "", transparent: bool = False) -
             f'font-family:"Nunito",sans-serif}}*{{box-sizing:border-box}}{css}</style></head><body>{body}</body></html>')
 
 
-def _mascots(height: int, poses=("rest", "rest", "rest")) -> str:
-    sys.path.insert(0, str(ROOT))
-    from fabric_backend import mcp_apps_mascots as M
-    figs = "".join(f'<span class="fig" style="height:{height}px;width:{height}px">{M.svg(k, p)}</span>'
-                   for k, p in zip(("onto", "thinker", "builder"), poses))
-    return f'<style>{M.CSS} .fig{{display:inline-block}} .fig svg{{width:100%;height:100%}}</style>{figs}'
+RENDERS = STATIC / "mascots"   # n216: the 3D figures, cut from the overview film by tools/mascot_renders.py (112 px)
+
+
+def _figure(kind: str, size: int) -> str:
+    """n216: one mascot as the film and the site draw it (glossy 3D, transparent ground), never above its 112 px render."""
+    size = min(size, 112)
+    return (f'<img class="fig3d" src="{(RENDERS / f"{kind}.png").as_uri()}" width="{size}" height="{size}" alt="" '
+            f'style="display:block;width:{size}px;height:{size}px">')
+
+
+def _mascots(height: int) -> str:
+    figs = "".join(f'<span class="fig" style="display:inline-block">{_figure(k, height)}</span>'
+                   for k in ("onto", "thinker", "builder"))
+    return f'<span style="display:inline-flex;align-items:flex-end;gap:2px">{figs}</span>'
 
 
 def banner() -> str:
@@ -135,7 +145,7 @@ def banner() -> str:
     """)
     # n183: no text and no logo: Fabric's workload page writes the name and description over the left side
     body = (f'<div class="arc"></div><div class="arc2"></div>'
-            f'<div class="mascots">{_mascots(168, ("rest", "rest", "rest"))}</div>')
+            f'<div class="mascots">{_mascots(112)}</div>')   # n216: the render's own size, so the banner stays sharp
     return _page(body, 1920, 240, css)
 
 
@@ -149,14 +159,12 @@ def getting_started() -> str:
       .fig{display:block;margin:2px auto 0}
       .foot{font-family:"Fredoka";font-weight:600;font-size:15px;text-align:center;margin-top:9px;color:#5B5660}
     """)
-    sys.path.insert(0, str(ROOT))
-    from fabric_backend import mcp_apps_mascots as M
     steps = [("1", "#9DB8A0", "Choose a lakehouse", "onto"), ("2", "#A99AD8", "Review and check", "thinker"),
              ("3", "#F2735C", "Dry run, then Create", "builder")]
     cells = "".join(f'<div class="s"><span class="n" style="background:{c}">{n}</span><div class="t">{html.escape(t)}</div>'
-                    f'<span class="fig" style="width:52px;height:52px">{M.svg(k, "rest")}</span></div>'
+                    f'<span class="fig" style="width:56px;height:56px">{_figure(k, 56)}</span></div>'
                     for n, c, t, k in steps)
-    return _page(f'<style>{M.CSS} .fig svg{{width:100%;height:100%}}</style><div class="g">{cells}</div>'
+    return _page(f'<div class="g">{cells}</div>'
                  f'<div class="foot">New item → Krusgraph Model</div>', 320, 180, css)
 
 

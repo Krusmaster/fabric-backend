@@ -74,7 +74,8 @@ import {
   readLastCreate, running, stepsTitle,
 } from "./createWords";
 import { MapData, drawPlanMap, overlay } from "./cardMap";
-import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES, MASCOT_SVG } from "./cardMap.generated";
+import { MAP_CSS, MASCOT_COLOURS, MASCOT_CSS, MASCOT_GLAD, MASCOT_NAMES } from "./cardMap.generated";
+import { MascotFigure } from "./mascotFigure";
 import {
   CheckState,
   Choice,
@@ -208,17 +209,16 @@ export function EmptyView(props: {
 
 // ------------------------------------------------------------------ the mascots (n173) -----------------------------
 
-/** One mascot with its bubble. The figure is the site's (cardMap.generated.ts, from fabric_backend/mcp_apps_mascots.py),
+/** One mascot with its bubble. n216: the figure is the 3D one from the film and the site (mascotFigure.tsx),
  * decorative (aria-hidden); the sentence is the bubble's text. Glad poses only when a check passed (MASCOT_GLAD). */
 export function MascotSays(props: { kind: MascotKind; text?: string; pose?: string; glad?: boolean; children?: React.ReactNode }) {
   if (!props.text && !props.children) return null;
   let pose = props.pose ?? "rest";
   if (!props.glad && MASCOT_GLAD.includes(pose)) pose = "explain";
-  const figure = MASCOT_SVG[props.kind].replace('data-pose="rest"', `data-pose="${pose}"`);
   return (
     <li className={`krusgraph-say krusgraph-say-${props.kind}${props.glad ? " glad" : ""}`} data-mascot={props.kind}
       style={{ ["--kg-mascot" as string]: MASCOT_COLOURS[props.kind].fill }}>
-      <span className="krusgraph-fig" dangerouslySetInnerHTML={{ __html: figure }} />
+      <MascotFigure kind={props.kind} pose={pose} />
       <div className="krusgraph-bubble">
         <Caption1 className="krusgraph-who">{MASCOT_NAMES[props.kind]}</Caption1>
         {props.text && <Body1>{props.text}</Body1>}

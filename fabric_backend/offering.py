@@ -11,7 +11,7 @@ server's note) and say no more than it and docs/LIVE-TEST.md; prices say only wh
 AI model: it is said plainly, here and in the docs.
 
 The founder, 9 November 2026 (evening): four products, named Krusgraph for Fabric (the Krusgraph Model item), Krusgraph
-for Claude (the MCP connector, which works in other MCP clients too), Krusgraph for Lovable and Krusgraph Open Source;
+for Claude (the MCP connector; other MCP clients sign in only where /mcp/connect is switched on), Krusgraph for Lovable and Krusgraph Open Source;
 one Krusgraph logo everywhere, no product logos. n183 (the founder's decision, 9 November 2026): each product card has
 its mascot hugging a symbol we draw ourselves (PICTURES); still no product logo and no partner logo. The chat on krusgraph.com and /check are ways
 to try it, not products; the drift monitor, the SAP pack and the dbt export are features; Marketplace is where you buy.
@@ -41,13 +41,40 @@ def _lovable_on() -> bool:
     return _registration_on()                     # Lovable signs in at /mcp/connect, through client registration
 
 
+def _or(names: list[str]) -> str:
+    return ", ".join(names[:-1]) + " or " + names[-1] if len(names) > 1 else "".join(names)
+
+
+# n216: what the Claude card says about other MCP clients follows one fact, whether client registration (/mcp/connect)
+# is switched on on this server (pages._registration_on, the same switch /start, /docs and tool_status read). Off: only
+# Claude signs in to the hosted service. On: the clients tool_status records as tested there are named, and nothing is
+# said about "any MCP client".
 def _claude_who() -> str:
     names = _mcp_clients()
     if names:
-        return (f"People who use Claude, or another MCP client ({', '.join(names)}, through /mcp/connect), and want to ask "
-                "about their Fabric tables in a chat.")
+        return (f"People who use Claude, or {_or(names)} (they sign in at /mcp/connect, which is switched on on this "
+                "service), and want to ask about their Fabric tables in a chat.")
     return ("People who use Claude and want to ask about their Fabric tables in a chat. Other MCP clients cannot sign in "
             "to the hosted service today; they work when you host Krusgraph yourself (not tested).")
+
+
+def _claude_short() -> str:
+    names = _mcp_clients()
+    return "The MCP connector, in Claude" + (f" and in {_or(names).replace(' or ', ' and ')}" if names else "")
+
+
+def _claude_needs() -> list[str]:
+    names = _mcp_clients()
+    first = (f"Claude with a custom connector, or {_or(names)} signing in at /mcp/connect" if names else
+             "Claude with a custom connector (other MCP clients cannot sign in to the hosted service today)")
+    return [first, "A Microsoft work account and a Fabric workspace on a capacity",
+            "Your Entra admin's consent for the Krusgraph app, once"]
+
+
+def _claude_how() -> str:
+    names = _mcp_clients()
+    return ("Chat. In Claude the answers come as text, and as cards with the map and buttons (MCP Apps) where the service "
+            "has them turned on" + (f"; in {_or(names).replace(' or ', ' and ')} as text." if names else "."))
 
 
 def _status_claude() -> str:
@@ -116,14 +143,11 @@ WAYS = (
                "Pilot only; not in Fabric's Workload Hub",
                "Runs or schedules the pipeline only when you tick Run once or Schedule and your admin has granted "
                "DataPipeline.Execute.All (n185)"]},
-    {"key": "claude", "name": "Krusgraph for Claude", "short": "The MCP connector, in Claude and other MCP clients",
+    {"key": "claude", "name": "Krusgraph for Claude", "short": _claude_short,
      "colour": "lav", "docs": "/start",
      "who": _claude_who,
-     "needs": ["Claude with a custom connector, or another MCP client that signs in with OAuth",
-               "A Microsoft work account and a Fabric workspace on a capacity",
-               "Your Entra admin's consent for the Krusgraph app, once"],
-     "how": "Chat. In Claude the answers come as text, and as cards with the map and buttons (MCP Apps) where the service "
-            "has them turned on; in other MCP clients as text.",
+     "needs": _claude_needs,
+     "how": _claude_how,
      "builds": "Plans and checks, and every item the tools create on request after a dry run: API for GraphQL, semantic "
                "model, report, ontology, views, data agent, notebooks and a pipeline; drafts such as a dbt project and a "
                "data dictionary.",
@@ -181,7 +205,7 @@ NO_AI = ("Krusgraph for Fabric (the Krusgraph Model item) uses no AI model: the 
 
 # The decision guide, in the founder's words (9 November 2026), each to a product. "Code in VS Code" goes to Krusgraph for
 # Claude: the connector works in other MCP clients too (the founder, 9 November 2026, evening). n183: the row reads "We code
-# in VS Code or Cursor" -> "Krusgraph for Claude (any MCP client)" (decide_suffix).
+# in VS Code or Cursor" -> "Krusgraph for Claude" with what is true today (decide_suffix; n216: no "any MCP client").
 DECIDE = (("I already use Claude", "claude"),
           ("We work in Fabric and do not want an AI chat", "fabric"),
           ("We build an app in Lovable", "lovable"),
@@ -194,9 +218,10 @@ def decide_suffix(q: str) -> str:
     client registration (/mcp/connect), so the row says so, or that the hosted service cannot sign them in today."""
     if q != "We code in VS Code or Cursor":
         return ""
-    if _lovable_on():                                  # client registration on
-        return " (any MCP client, through /mcp/connect)"
-    return " (any MCP client, though the hosted service cannot sign VS Code or Cursor in today: host your own Krusgraph)"
+    names = [n for n in _mcp_clients() if n in ("VS Code", "Cursor")]
+    if names:                                          # client registration on (n216: named, not "any MCP client")
+        return f" ({' and '.join(names)} sign in at /mcp/connect)"
+    return " (the hosted service cannot sign VS Code or Cursor in today: host your own Krusgraph)"
 
 # Not products: how to try it, the features, and where to buy (the founder, 9 November 2026, evening).
 NOT_PRODUCTS = ("The chat demo on this site and Check my tables (/check) are ways to try Krusgraph, not products. The drift "
@@ -236,12 +261,15 @@ def _arrow(cls: str, down_only: bool = False) -> str:
             '<svg class="off-down" viewBox="0 0 24 32" focusable="false"><path d="M12 2v26M5 21l7 7 7-7"/></svg></div>')
 
 
-# ---- the mascot pictures (n183, the founder's decision of 9 November 2026) -------------------------------------------
-# Each product card has a mascot hugging a symbol we draw ourselves, in Krusgraph's style: a data table for Fabric, a
-# speech bubble for Claude, an app screen for Lovable, code brackets for Open Source, with "for ..." under it. The figures
-# are the site's own (static/mascots.js KINDS, read by mcp_apps_mascots), drawn flat, in the heart pose's hug (the arms
-# turned inwards), with no gradient ids, so four on a page never clash. No partner logo is drawn or referenced: partner
-# names are plain text. The pictures are decoration with alt text; the site's mascot switch hides them (mascot-only).
+# ---- the mascot pictures (n183, the founder's decision of 9 November 2026; n216, 11 November 2026) --------------------
+# Each product card has a mascot with a symbol we draw ourselves, in Krusgraph's style: a data table for Fabric, a speech
+# bubble for Claude, an app screen for Lovable, code brackets for Open Source, with "for ..." under it. n216: the figure is
+# the glossy 3D one from the overview film and the home page (static/mascots/<kind>.webp, cut from the film's closing
+# frame by tools/mascot_renders.py, 112 px for a 56 px slot, so crisp at 2x), the same characters as the film and the
+# sales deck; the film has no render of a mascot holding a prop, so the symbol is a small badge at the figure's side
+# (docs/MASCOT-ART-NEEDED.md lists the renders that would let the figure hold it). No partner logo is drawn or
+# referenced: partner names are plain text. The pictures are decoration with alt text; the site's mascot switch hides
+# them (mascot-only).
 
 INK = "#3A3340"
 SYMBOLS = {      # the symbol in a 40 x 28 box
@@ -268,46 +296,32 @@ PICTURES = {"fabric": ("onto", "table", "a data table", "for Fabric"),
             "claude": ("thinker", "bubble", "a speech bubble", "for Claude"),
             "lovable": ("builder", "screen", "an app screen", "for Lovable"),
             "self": ("onto", "code", "code brackets", "Open Source")}
-# where the symbol sits on each figure (x, y, width, height in the figure's 120 x 120 box): below the eyes, between the arms
-_HUG = {"onto": (30, 77, 60, 30), "thinker": (35, 70, 50, 34), "builder": (35, 66, 50, 36)}
-_HUG_TURN = 44                  # degrees each arm turns inwards (the heart pose turns 38)
+MASCOT_RENDERS = "/static/mascots"
+RENDER_PX = 112                 # the renders' size; shown at 56 CSS px
 
 
-def picture_svg(key: str) -> str:
-    """One product's picture: the mascot hugging its symbol, flat inline SVG with alt text (role="img")."""
+def render_src(kind: str, ext: str = "webp") -> str:
+    """The 3D render of one figure (onto, thinker, builder), transparent ground."""
+    return f"{MASCOT_RENDERS}/{kind}.{ext}"
+
+
+def picture_label(key: str) -> str:
     from . import mcp_apps_mascots as M
-    kind, sym, what, _for = PICTURES[key]
-    k = M.kinds()[kind]
-    n = M._n
-    eyes = "".join(f'<circle cx="{n(x)}" cy="{n(y)}" r="{n(k["eyeR"])}" fill="#1B1B1F"/>'
-                   f'<circle cx="{n(x + 1.2)}" cy="{n(y - 1.3)}" r="1.15" fill="#fff"/>' for x, y in k["eyes"])
-    blush = "".join(f'<ellipse cx="{n(x)}" cy="{n(y)}" rx="5" ry="2.8" fill="{k["cheek"]}" opacity=".6"/>' for x, y in k["blush"])
-    hx, hy, hrx, hry, hrot = k["hl"]
-    sx, sy, srx, sry = k["shadow"]
-    bx, by, bw, bh = _HUG[kind]
-    scale = min(bw / 40, bh / 28)
-    tx, ty = bx + (bw - 40 * scale) / 2, by + (bh - 28 * scale) / 2
+    kind, _sym, what, _for = PICTURES[key]
+    return f"{M.NAMES[kind]}, the Krusgraph mascot, with {what}: Krusgraph {_for}"
 
-    def arm(a: list, turn: float) -> str:
-        x, y, angle = a
-        rx, ry = k["armRX"], k["armRY"]
-        return (f'<g transform="rotate({n(angle + turn)} {n(x)} {n(y)})">'
-                f'<ellipse cx="{n(x)}" cy="{n(y + ry - 3)}" rx="{n(rx)}" ry="{n(ry)}" fill="{k["fill"]}" stroke="{k["dark"]}" '
-                f'stroke-width="1.1" stroke-opacity=".7"/>'
-                f'<ellipse cx="{n(x - 1.5)}" cy="{n(y + 2)}" rx="2.4" ry="4" fill="#fff" opacity=".22"/></g>')
-    label = f'{M.NAMES[kind]}, the Krusgraph mascot, hugging {what}: Krusgraph {_for}'
-    return (f'<svg class="off-pic-svg" viewBox="8 16 104 98" role="img" aria-label="{_e(label)}" focusable="false">'
-            f'<ellipse cx="{n(sx)}" cy="{n(sy)}" rx="{n(srx)}" ry="{n(sry)}" fill="{k["dark"]}" opacity=".35"/>'
-            f'<path d="{k["body"]}" fill="{k["fill"]}" stroke="{k["dark"]}" stroke-width="1.2" stroke-opacity=".6"/>'
-            f'<ellipse cx="{n(hx)}" cy="{n(hy)}" rx="{n(hrx)}" ry="{n(hry)}" fill="{k["light"]}" opacity=".85" '
-            f'transform="rotate({n(hrot)} {n(hx)} {n(hy)})"/>{blush}{eyes}'
-            f'<g transform="translate({tx:.2f} {ty:.2f}) scale({scale:.3f})">{SYMBOLS[sym]}</g>'
-            + arm(k["armL"], -_HUG_TURN) + arm(k["armR"], _HUG_TURN) + "</svg>")
+
+def picture_figure(key: str) -> str:
+    """One product's picture: the 3D figure and its symbol as a badge, one image for assistive technology (role="img")."""
+    kind, sym, _what, _for = PICTURES[key]
+    return (f'<span class="off-pic-fig" role="img" aria-label="{_e(picture_label(key))}">'
+            f'<img class="off-pic-img" src="{render_src(kind)}" width="56" height="56" alt="" loading="lazy" decoding="async">'
+            f'<svg class="off-pic-prop" viewBox="-2 -2 44 32" aria-hidden="true" focusable="false">{SYMBOLS[sym]}</svg></span>')
 
 
 def picture_html(key: str) -> str:
     _kind, _sym, _what, label = PICTURES[key]
-    return (f'<span class="off-pic mascot-only">{picture_svg(key)}'
+    return (f'<span class="off-pic mascot-only">{picture_figure(key)}'
             f'<span class="off-pic-for" aria-hidden="true">{_e(label)}</span></span>')
 
 
