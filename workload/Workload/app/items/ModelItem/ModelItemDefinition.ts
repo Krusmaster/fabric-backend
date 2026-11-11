@@ -22,7 +22,7 @@ export const PARTS = {
   item: "item.json",
 } as const;
 
-export type ModelView = "empty" | "review" | "outputs" | "preview" | "result";
+export type ModelView = "empty" | "review" | "outputs" | "preview" | "result" | "product";
 export type ReviewStatus = "proposed" | "accepted" | "rejected" | "open";
 
 /** One key or relationship of the review file, as review.py writes it. */
@@ -77,6 +77,20 @@ export interface CreatedItem {
   published?: boolean;
   /** n197: in the data product, an item an earlier Create of this item built */
   earlier?: boolean;
+  /** n198: a leftover adopted on the Data product page: when and by whom */
+  adopted_at?: string;
+  adopted_by?: string;
+}
+
+/** n198: an item Retire deleted from Fabric (product_life.retire): out of created, kept here with when and by whom. */
+export interface RemovedItem {
+  id: string;
+  type: string;
+  name: string;
+  workspace: string;
+  output?: string;
+  removed_at: string;
+  by: string;
 }
 
 /** n180: what an output was built from (workload_api.plan_mark): the review's plan id and schema fingerprint, the exact
@@ -120,6 +134,8 @@ export interface ProductDefinition {
   name: string;
   owner: string | null;
   owner_note?: string;
+  /** n198: when and by whom the owner was chosen on the Data product page */
+  owner_set?: { at: string; by: string };
   plan: { plan_id?: string; schema_fingerprint?: string; review_version?: number };
   items: CreatedItem[];
   domains: { name: string; tables: string[]; why?: string }[];
@@ -140,6 +156,8 @@ export interface OutputsDefinition {
   pending?: { output: string; type: string; name: string; at?: string }[];
   /** n197: the Create in progress or last run: its id, outputs and operation ids (createRun.CreateRunRecord) */
   create_run?: unknown;
+  /** n198: items Retire deleted from Fabric, with when and by whom (productWords.withRemoved) */
+  removed?: RemovedItem[];
 }
 
 /** n184: as createWords.LastCreate; read through createWords.readLastCreate, which checks its shape. */
@@ -256,6 +274,7 @@ export function migrate(def: ModelDefinition): ModelDefinition {
       ...(isJobsRecord(def.outputs?.pipeline_jobs) ? { pipeline_jobs: def.outputs.pipeline_jobs } : {}),   // n185
       ...(Array.isArray(def.outputs?.pending) ? { pending: def.outputs.pending.filter((x) => x && typeof x.name === "string" && typeof x.type === "string") } : {}),   // n197
       ...(def.outputs?.create_run && typeof def.outputs.create_run === "object" ? { create_run: def.outputs.create_run } : {}),   // n197
+      ...(Array.isArray(def.outputs?.removed) ? { removed: def.outputs.removed.filter((x) => x && typeof x.id === "string" && typeof x.removed_at === "string") } : {}),   // n198
     },
     review: def.review,
   };

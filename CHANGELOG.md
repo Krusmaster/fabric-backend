@@ -22,6 +22,18 @@ next deploy.
   point the "Certification" link at the attestation page, which says "Draft." at the top. New: `fabric_backend/mirroring.py`,
   `docs/SAP-MIRRORING.md`, `tests/test_n201_mirrored.py`, `tests/test_n201_manifest.py`, `sourceWords.ts`. Not run
   against a mirrored database in Fabric, and no SAP Datasphere was available. A new workload package is needed.
+- Round n198: **the Data product page** in the Krusgraph Model item (the founder's question of 10 November 2026: how to
+  remove items, update ontologies and data products, and look after the workspace after Create). An item with outputs
+  opens on it: name, owner (picked from the workspace's people, kept in the item), health (n200's route when present,
+  else "not checked yet"), the pipeline's last run, the plan id and every item with its state in words (built, pending,
+  failed, changed outside Krusgraph, missing, removed) and Open in Fabric. *Check against the rows again* lists what is
+  out of date with the existing Update path (an App only under a new name). *Retire* turns off the schedules Krusgraph
+  made, then *Delete from Fabric*: a dry run of exactly what goes, the data product's name typed, Delete Item per item;
+  only items in outputs.json, never a lakehouse, a table or a view's data; each removal recorded with when and by whom.
+  *Clean up leftovers* finds items with Krusgraph's plan marker that no Krusgraph Model lists (such as demo_lh_model4)
+  and offers Adopt or Delete. `fabric_backend/product_life.py`, `POST /workload/v1/product`, `DataProductView.tsx`,
+  `productWords.ts`; `docs/PROMOTE-DESIGN.md` (dev → test → prod with Fabric's Git integration and deployment pipelines,
+  design only). Not run against a live workspace yet. Redeploy and build a new workload package to see it.
 - Round n205: **trust, honest labels, a comparison and findability** before the launch of 11 November 2026, after a
   reviewer's report of 10 November ("the biggest obstacle is trust, not technology"). `/trust` ("Security and data",
   Markdown twin `/trust.md`), written from `docs/TRUST-PACK.md`: what passes through, that no table contents are

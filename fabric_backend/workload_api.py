@@ -431,6 +431,106 @@ def pipeline_run_request(body) -> dict:
     return out
 
 
+def product_request(body) -> dict:
+    """n198: POST /workload/v1/product {action, workspace, item_id, outputs, product, plan_id, ...} (product_life.py):
+    status, retire (scope soft or delete; dry_run true by default; confirm and typed_name for the real call), leftovers
+    and adopt. outputs is the item's outputs.json; only its created, removed, pending and pipeline_jobs are read."""
+    if not isinstance(body, dict):
+        raise BadRequest("the body must be a JSON object")
+    action = body.get("action")
+    if action not in ("status", "retire", "leftovers", "adopt"):
+        raise BadRequest("'action' is status, retire, leftovers or adopt")
+    ws = body.get("workspace")
+    if not isinstance(ws, str) or not _GUID.match(ws):
+        raise BadRequest("'workspace' is the Krusgraph Model's workspace id (a GUID)")
+    out = {"action": action, "workspace": ws.lower(), "source": "", "schema": ""}
+    out.update(_ids(body))
+    o = body.get("outputs")
+    if not isinstance(o, dict):
+        raise BadRequest("'outputs' is the item's outputs.json")
+    lists = {}
+    for k in ("created", "removed", "pending"):
+        v = o.get(k) or []
+        if not isinstance(v, list) or len(v) > 500 or not all(isinstance(x, dict) for x in v):
+            raise BadRequest(f"outputs.{k} must be a list of items")
+        lists[k] = v
+    for c in lists["created"]:
+        if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"]):
+            raise BadRequest("each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded")
+    jobs = o.get("pipeline_jobs") if isinstance(o.get("pipeline_jobs"), dict) else {}
+    out["outputs"] = {**lists, "pipeline_jobs": {"schedules": [s for s in jobs.get("schedules") or [] if isinstance(s, dict)][:100]}}
+    name = body.get("product")
+    if not isinstance(name, str) or not _PRODUCT.match(name.strip()):
+        raise BadRequest("'product' is the data product's name: letters, digits, spaces, '.', '_' or '-', at most 80")
+    out["product"] = out["source_name"] = name.strip()
+    plan = body.get("plan_id")
+    out["plan_id"] = plan if isinstance(plan, str) and len(plan) <= 80 else None
+    if action in ("retire", "adopt"):
+        items = body.get("items")
+        if action == "adopt" or items is not None:
+            if not isinstance(items, list) or not items or len(items) > 200 or not all(isinstance(i, str) and _GUID.match(i) for i in items):
+                raise BadRequest("'items' is a list of Fabric item ids (GUIDs)" + ("" if action == "adopt" else ", or absent for the whole data product"))
+            items = [i.lower() for i in items]
+        out["items"] = items
+    if action == "retire":
+        if body.get("scope") not in ("soft", "delete"):
+            raise BadRequest("'scope' is soft (turn off what Krusgraph scheduled or published) or delete (Delete from Fabric)")
+        out["scope"] = body["scope"]
+        for k in ("dry_run", "leftovers"):
+            v = body.get(k, k == "dry_run")
+            if not isinstance(v, bool):
+                raise BadRequest(f"'{k}' must be true or false")
+            out[k] = v
+        for k, limit in (("confirm", 40), ("typed_name", 120)):
+            v = body.get(k)
+            if v is not None and (not isinstance(v, str) or len(v) > limit):
+                raise BadRequest(f"'{k}' is text of at most {limit} characters")
+            out[k] = v
+        if out["leftovers"] and items is None:
+            raise BadRequest("deleting leftovers needs the leftovers' ids in 'items'")
+    return out
+
+
+def run_product(req: dict) -> dict:
+    """n198: the data product page's actions as the signed-in user (product_life.py). Lists and deletes only."""
+    from . import product_life as life, server as S
+    from .deploy import send
+    from .lineage import _definition_response
+    headers = S._headers(None)
+
+    def http(method, url, **kw):
+        return send(method, url, headers, write=method != "get", timeout=30, **kw)
+
+    def read_definition(ws, item_id):
+        r = _definition_response(f"{life.FABRIC}/v1/workspaces/{ws}/items/{item_id}/getDefinition", headers)
+        return (r.json().get("definition") or {}).get("parts", [])
+
+    o = req["outputs"]
+    lefts = None
+    if req["action"] in ("leftovers", "adopt") or req.get("leftovers"):
+        lefts = life.leftovers(http, req["workspace"], o, req.get("item_id"), req.get("plan_id"), read_definition)
+    try:
+        if req["action"] == "leftovers":
+            log("product", action="leftovers", found=len(lefts["leftovers"]), unread=len(lefts["unread_models"]))
+            return {**lefts, "note": NOTHING_CHANGED}
+        if req["action"] == "adopt":
+            got = life.adopt(lefts, req["items"], req.get("by", ""))
+            log("product", action="adopt", adopted=len(got["adopted"]), refused=len(got["refused"]))
+            return {**got, "note": "Nothing was changed in Fabric; the editor adds the adopted items to outputs.json."}
+        wss = {req["workspace"]} | {c.get("workspace") for c in life.active(o) if c.get("workspace")}
+        listings = {ws: life.list_items(http, ws) for ws in sorted(wss)}
+        if req["action"] == "status":
+            rows = life.status(o, listings)
+            log("product", action="status", **{s: sum(1 for r in rows if r["state"] == s) for s in life.STATES})
+            return {"items": rows, "you": req.get("by", ""), "people": life.people(http, req["workspace"]), "note": NOTHING_CHANGED}
+        got = life.retire(http, {**req, "items": req.get("items")}, listings, lefts)
+        log("product", action="retire", scope=req["scope"], dry_run=req["dry_run"], leftovers=bool(lefts),
+            items=len(got.get("items") or got.get("results") or got.get("steps") or []), refused=len(got["refused"]))
+        return got
+    except life.Refused as e:
+        return {"error": str(e), "kind": "bad_input", "hint": "Nothing was deleted or changed in Fabric."}
+
+
 def run_pipeline_status(req: dict) -> dict:
     """The run as the card shows it (pipeline_jobs.read_run), as the signed-in user. Only reads."""
     from . import pipeline_jobs, server as S
@@ -2035,6 +2135,8 @@ def routes(cfg, validator=None, obo=None) -> list:
                 return reply(refusal, STATUS["upgrade"], origin)
 
             tokens = Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))
+            if where == "product":                     # n198: who removed or adopted an item, for outputs.json
+                req["by"] = str(claims.get("name") or claims.get("preferred_username") or claims.get("upn") or "")[:120]
             if where == "operation":                   # n197: the state of a background operation, for its owner only
                 from . import operations
                 owner = operations.owner_of(claims)
@@ -2079,4 +2181,5 @@ def routes(cfg, validator=None, obo=None) -> list:
             Route(f"{PREFIX}/check", endpoint(check_request, run_check, "check"), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/build", endpoint(build_request, run_build, "build", gate=licence), methods=["POST", "OPTIONS"]),
             Route(f"{PREFIX}/pipeline-run", endpoint(pipeline_run_request, run_pipeline_status, "pipeline-run"), methods=["POST", "OPTIONS"]),
-            Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"])]
+            Route(f"{PREFIX}/operation", endpoint(operation_request, run_operation, "operation"), methods=["POST", "OPTIONS"]),
+            Route(f"{PREFIX}/product", endpoint(product_request, run_product, "product"), methods=["POST", "OPTIONS"])]

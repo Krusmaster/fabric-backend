@@ -511,7 +511,7 @@ export function engineScope(
 
 export type Fetch = (url: string, init: RequestInit) => Promise<Response>;
 
-type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation";
+type Route = "review" | "check" | "build" | "schemas" | "pipeline-run" | "operation" | "product" | "health";
 
 /** n197: send the request in the background (202 and an operation id) and read the operation until it ends; an engine
  * that answers at once (200, an older server, or no store for operations) is taken as it answers. */
@@ -788,4 +788,19 @@ export function buildMany(
     product,
     created,
   });
+}
+
+/** n198: the Data product page (POST /workload/v1/product, fabric_backend/product_life.py): status, retire (a dry run
+ * first; the real call sends its confirm and, for Delete from Fabric, the data product's name typed), leftovers, adopt. */
+export function product<T>(workloadClient: WorkloadClientAPI, body: Record<string, unknown>, fetchImpl?: Fetch): Promise<T> {
+  return call<T>(workloadClient, "product", body, REQUEST_WAIT_MS, fetchImpl);
+}
+
+/** n198: n200's read-only health route, when the engine has it (docs/HEALTH.md); any refusal means "not checked yet". */
+export async function health(workloadClient: WorkloadClientAPI, body: Record<string, unknown>, fetchImpl?: Fetch): Promise<Record<string, any> | null> {
+  try {
+    return await callOnce<Record<string, any>>(workloadClient, "health", body, REQUEST_WAIT_MS, fetchImpl ?? ((u, i) => fetch(u, i)), false);
+  } catch {
+    return null;
+  }
 }

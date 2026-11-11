@@ -1016,6 +1016,41 @@ says, what works, what was tested and the customer's steps.
   Fabric would not show. Both names point "Certification" at the attestation page, which says "Draft." at the top
   (Learn documents no label for a support link). **A new package is needed**: build it and upload it as in "Hosted
   (no laptop)"; the version is `1.0.<commits>` as always.
+### 17. Round n198: the Data product page (see, update, retire, clean up)
+
+The first slice of the Lifecycle view (`docs/LIFECYCLE-DESIGN.md` section 6; `docs/FABRIC-IQ-AT-SCALE.md` section 8).
+An item with outputs opens on **Data product** when its last Create has finished (a Create still going on stays on its
+cards); after a Create the ribbon has **Data product**. Files: `DataProductView.tsx` (the page, native elements and its
+own CSS with Fluent's tokens), `productWords.ts` (the words and rules), the engine `fabric_backend/product_life.py` behind
+`POST /workload/v1/product` (`workload_api.product_request`, `run_product`).
+
+- **What it shows.** The name, the owner, the health (n200's `/workload/v1/health` when the engine has it; otherwise
+  "Health: not checked yet"), the pipeline's last run (outputs.json `pipeline_jobs`), the plan id, and every item with
+  its type, its state in words and a mark (built, pending, failed, changed outside Krusgraph, missing, removed) and Open
+  in Fabric. `action: status` reads List Items as the user: missing = Fabric no longer lists it; changed outside =
+  renamed, another type, or its description names another plan.
+- **Owner.** Picked from the people and groups with a role in the workspace (List Workspace Role Assignments,
+  `Workspace.Read.All`, which the app already has), or typed; kept in outputs.json `product.owner` with `owner_set`
+  (when, by whom).
+- **Update.** *Check against the rows again* runs `/check`, then a dry run of every output, and lists each as up to
+  date, out of date (Update: the dry run, then `confirm_update`, as n180), not in the workspace, or not checked. An App
+  is never updated in place: a new name, as today.
+- **Retire.** Per chosen item, or the whole data product when none is chosen. *Turn off* removes only the schedules
+  Krusgraph made (ids in outputs.json and the pipeline's description; Delete schedule, `DataPipeline.ReadWrite.All` or
+  `Item.ReadWrite.All`) and says that no API unpublishes a data agent. *Delete from Fabric* is a dry run listing exactly
+  what goes, then the data product's name typed, then Delete Item (soft delete, never `hardDelete`) per item with the
+  result per item. Only ids in this item's outputs.json and only the types Krusgraph makes; never a lakehouse, a
+  warehouse, a table or a view's data. The confirmation binds the list: a different list is refused. Each removal goes
+  into outputs.json `removed[]` with `removed_at` and `by`.
+- **Clean up leftovers.** Items in the workspace whose description carries Krusgraph's plan marker and that no Krusgraph
+  Model's outputs.json lists (the other Models are read with Get Item Definition; if one cannot be read, nothing is
+  offered for deletion). Adopt (same plan id only; recorded with `adopted_at`, `adopted_by`) or Delete (the same dry run
+  and typed name).
+- **Tests.** `tests/test_n198_product_page.py` (engine and route), `productWords.test.ts`, `dataProductPage.test.ts`
+  (renders the page in nine states into `tests/fixtures/n198/`; stale files fail it: `N198_WRITE=1 npm test`), and
+  `tests/test_n198_browser.py` (Chromium at 375 and 1280 px, light and dark, by keyboard).
+- **Not verified against Fabric.** None of the calls has run against a live workspace yet (fake Fabric only). The editor
+  changed: a new workload package is needed.
 
 ## When something does not work
 

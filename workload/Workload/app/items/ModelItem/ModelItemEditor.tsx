@@ -24,6 +24,7 @@ import {
   ArrowClockwise24Regular,
   ArrowLeft24Regular,
   ArrowRight24Regular,
+  BoxMultiple24Regular,
   CheckmarkStarburst24Regular,
   Database24Regular,
   Play24Regular,
@@ -65,8 +66,13 @@ import {
 } from "./jobsWords";
 import { AppChoices } from "./engineClient";
 import { PICKER_TYPES, ReadOnlySource, SapOffer, isReadOnly, restType, targetProblem } from "./sourceWords";
+import { DataProductView } from "./DataProductView";
+import {
+  LeftoversAnswer, OutOfDate, ProductRow, RetireAnswer, StatusAnswer, healthWords, outOfDate, withAdopted, withOwner, withRemoved,
+} from "./productWords";
+import { CreatedItem, RemovedItem } from "./ModelItemDefinition";
 
-const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result"];
+const VIEWS: ModelView[] = ["empty", "review", "outputs", "preview", "result", "product"];
 const EMPTY_RESULT = { dry_run: false, order: [], left_out_by_review: [], refused: 0, note: "", outputs: [] } as unknown as engine.ManyAnswer;
 const NOTHING_KNOWN: Known = { answers: {}, running: {}, progress: {} };
 /** n197: what a reopened item says, in one line, when Fabric or the engine is too busy to answer */
@@ -106,6 +112,9 @@ export function ModelItemEditor(props: PageProps) {
   /** n201: what the last review said about the source: read-only (where the build writes) and the SAP pack's items */
   const [sourceInfo, setSourceInfo] = useState<{ readOnly?: ReadOnlySource; sap?: SapOffer }>({});
   const [setView, setSetView] = useState<(v: string) => void>();
+  /** n198: the Data product page's state (productWords.ts, DataProductView.tsx) */
+  const [dp, setDp] = useState<{ status?: StatusAnswer; health?: string; updates?: OutOfDate[]; retire?: RetireAnswer;
+    leftovers?: LeftoversAnswer; busy?: string; problem?: string }>({});
   const view = def.item.view;
 
   const go = (v: ModelView) => {
@@ -193,8 +202,11 @@ export function ModelItemEditor(props: PageProps) {
         setProduct({ on: !!loaded.outputs.product, name: loaded.outputs.product?.name ?? got.item.displayName });
         // n197: an item with outputs (or a Create in progress) opens on its result: the summary, the flow and the cards
         const hasResult = loaded.outputs.created.length > 0 || !!readRun(loaded.outputs.create_run);
+        // n198: with the last Create finished, the item opens on its data product; a Create still going on stays on its cards
+        const lastRun = readRun(loaded.outputs.create_run);
+        const landing: ModelView = loaded.outputs.created.length > 0 && (!lastRun || lastRun.finished) ? "product" : "result";
         if (hasResult) {
-          defRef.current = { ...loaded, item: { ...loaded.item, view: "result" } };
+          defRef.current = { ...loaded, item: { ...loaded.item, view: landing } };
           metaRef.current = { id: got.item.id, workspaceId: got.item.workspaceId, displayName: got.item.displayName };
           setDef(defRef.current);
         }
@@ -202,6 +214,7 @@ export function ModelItemEditor(props: PageProps) {
         if (loaded.source) void listSchemas(loaded.source.workspaceId, loaded.source.itemId, loaded.source.displayName, loaded.source.schema);
         if (hasResult && loaded.source) {
           if (loaded.review) void replanQuietly(loaded);
+          if (landing === "product") void loadProduct();
           await reopen(defRef.current, got.item.id);
           setDirty(false);
         } else if (loaded.source && loaded.review) {
@@ -712,13 +725,124 @@ export function ModelItemEditor(props: PageProps) {
     go("outputs");
   }
 
+  // ---------------------------------------------------------------- n198: the Data product page
+  const productName = (d: ModelDefinition = defRef.current): string => {
+    const n = (d.outputs.product?.name ?? metaRef.current?.displayName ?? "data product").replace(/[^A-Za-z0-9 _.-]/g, "_").trim();
+    return /^[A-Za-z0-9]/.test(n) ? n.slice(0, 80) : `p ${n}`.slice(0, 80);
+  };
+
+  function productBody(action: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+    const d = defRef.current;
+    const o = d.outputs;
+    return { action, workspace: d.source?.workspaceId ?? metaRef.current?.workspaceId, item_id: metaRef.current?.id, product: productName(d),
+      plan_id: o.product?.plan?.plan_id ?? null,
+      outputs: { created: o.created, removed: o.removed ?? [], pending: o.pending ?? [], pipeline_jobs: o.pipeline_jobs ?? { runs: [], schedules: [] } },
+      ...extra };
+  }
+
+  const engineWords = (e: unknown) => (e instanceof engine.EngineCallError ? [e.answer.error, e.answer.hint].filter(Boolean).join(" ") : String((e as Error)?.message ?? e));
+
+  async function productStep<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
+    setDp((x) => ({ ...x, busy: label, problem: undefined }));
+    try {
+      return await fn();
+    } catch (e) {
+      setDp((x) => ({ ...x, problem: isBusy(e) ? BUSY_LINE : engineWords(e) }));
+      return undefined;
+    } finally {
+      setDp((x) => ({ ...x, busy: undefined }));
+    }
+  }
+
+  async function loadProduct() {
+    const h = engine.health(workloadClient, { workspace: defRef.current.source?.workspaceId, item_id: metaRef.current?.id, product: productName() });
+    const s = await productStep("Reading the items in Fabric…", () => engine.product<StatusAnswer>(workloadClient, productBody("status")));
+    const health = await h;
+    setDp((x) => ({ ...x, ...(s ? { status: s } : {}), health: healthWords(health as never) }));
+  }
+
+  async function saveOwner(name: string) {
+    const by = dp.status?.you ?? "";
+    await update((d) => ({ ...d, outputs: withOwner(d.outputs, name, by, new Date().toISOString(), productName(d)) }));
+    callNotificationOpen(workloadClient, "Owner saved", name.trim() ? `${name.trim()} owns ${productName()}.` : "The owner was cleared.");
+  }
+
+  /** Update: the rows counted again, then a dry run of every output; what is out of date gets the existing Update path. */
+  async function checkUpdates() {
+    const d = defRef.current;
+    if (!d.source || !d.review) return;
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const a = await productStep("Counting the rows and making a dry run of every output…", async () => {
+      const c = await engine.check(workloadClient, sourceRequest(d), d.review!);
+      setMap(c.map);
+      await update((x) => ({ ...x, review: c.review }));
+      return engine.buildMany(workloadClient, sourceRequest(defRef.current), outputs, defRef.current.review!, true, null, defRef.current.outputs.created);
+    });
+    if (a) setDp((x) => ({ ...x, updates: outOfDate(a.outputs) }));
+  }
+
+  /** Update from the page: the dry run first (its card gives confirm_update), then the write with that confirmation. */
+  async function updateFromPage(card: engine.BuildCard) {
+    const d = defRef.current;
+    const outputs = readRun(d.outputs.create_run)?.outputs ?? toRequests(choices);
+    const o = outputs.find((x) => x.kind === card.output);
+    if (!o || !d.review) return;
+    const got = await productStep(card.confirm_update ? `Updating ${card.name} in Fabric…` : `Dry run of the Update of ${card.name}…`, () =>
+      runUpdate(card, (dryRun, confirm) => engine.updateOne(workloadClient, sourceRequest(d), o, outputs, d.review!, d.outputs.created, dryRun, confirm)));
+    if (!got) return;
+    setDp((x) => ({ ...x, updates: (x.updates ?? []).map((u) => (u.output === card.output ? outOfDate([got.card])[0] : u)) }));
+    if (got.created.length) {
+      await update((x) => ({ ...x, outputs: { ...x.outputs, created: mergeCreated(x.outputs.created, got.created) } }));
+      void loadProduct();
+    }
+  }
+
+  /** Retire and Delete from Fabric: the dry run first; the real call with its confirm (and the typed name for Delete). */
+  async function retireFromPage(scope: "soft" | "delete", ids: string[] | null, opts: { leftovers?: boolean; confirm?: string; typed?: string }) {
+    const real = !!opts.confirm;
+    const label = real ? (scope === "soft" ? "Turning off what Krusgraph scheduled…" : "Deleting from Fabric…") : "Making the dry run…";
+    const a = await productStep(label, () => engine.product<RetireAnswer>(workloadClient, productBody("retire", {
+      scope, ...(ids ? { items: ids } : {}), dry_run: !real, leftovers: !!opts.leftovers, ...(real ? { confirm: opts.confirm, typed_name: opts.typed ?? "" } : {}),
+    })));
+    if (!a) return;
+    setDp((x) => ({ ...x, retire: a }));
+    if (real && a.removed?.length) {
+      const removed = a.removed as RemovedItem[];
+      if (!opts.leftovers) await update((d) => ({ ...d, outputs: withRemoved(d.outputs, removed) }));
+      callNotificationOpen(workloadClient, "Deleted from Fabric", a.words);
+    }
+    if (real) {
+      void loadProduct();
+      if (opts.leftovers) void findLeftovers();
+    }
+  }
+
+  async function findLeftovers() {
+    const a = await productStep("Looking for leftovers in the workspace…", () => engine.product<LeftoversAnswer>(workloadClient, productBody("leftovers")));
+    if (a) setDp((x) => ({ ...x, leftovers: a }));
+  }
+
+  async function adoptLeftover(id: string) {
+    const a = await productStep("Adopting it into this data product…", () =>
+      engine.product<{ adopted: CreatedItem[]; refused: { why: string }[]; words: string }>(workloadClient, productBody("adopt", { items: [id] })));
+    if (!a) return;
+    if (a.adopted.length) await update((d) => ({ ...d, outputs: withAdopted(d.outputs, a.adopted) }));
+    else setDp((x) => ({ ...x, problem: a.refused.map((r) => r.why).join(" ") || a.words }));
+    void findLeftovers();
+    void loadProduct();
+  }
+
+  function openRow(row: ProductRow) {
+    if (row.id) void openItem({ id: row.id, workspaceId: row.workspace ?? defRef.current.source?.workspaceId, type: row.type, displayName: row.name } as never);
+  }
+
   async function openItem(item: OpenLink["item"]) {
     await navigateToItem(workloadClient, item as never);
   }
 
   // ---------------------------------------------------------------- ribbon (one sticky ribbon, Home first)
   const homeActions = (): RibbonAction[] => {
-    const back: Partial<Record<ModelView, ModelView>> = { review: "empty", outputs: "review", preview: "outputs", result: "outputs" };
+    const back: Partial<Record<ModelView, ModelView>> = { review: "empty", outputs: "review", preview: "outputs", result: "outputs", product: "result" };
     const actions: RibbonAction[] = [createSaveAction(() => save(), !dirty || !itemMeta)];
     actions.push({ key: "choose-source", icon: Database24Regular, label: "Choose source", onClick: () => go("empty") });
     if (view === "review") {
@@ -727,6 +851,9 @@ export function ModelItemEditor(props: PageProps) {
       actions.push({ key: "next", icon: ArrowRight24Regular, label: "Next", onClick: () => go("outputs") });
     }
     if (view === "preview") actions.push({ key: "create", icon: Play24Regular, label: "Create", onClick: () => create(), disabled: !!busy || creating });
+    if (view !== "product" && (def.outputs.created.length > 0 || (def.outputs.removed ?? []).length > 0)) {   // n198
+      actions.push({ key: "data-product", icon: BoxMultiple24Regular, label: "Data product", onClick: () => { go("product"); void loadProduct(); }, disabled: creating });
+    }
     if (back[view]) actions.push({ key: "back", icon: ArrowLeft24Regular, label: "Back", onClick: () => go(back[view]) });
     return actions;
   };
@@ -814,6 +941,32 @@ export function ModelItemEditor(props: PageProps) {
       ),
     },
   ];
+
+  views.push({
+    name: "product",
+    component: wrap(
+      <DataProductView
+        productName={productName(def)}
+        outputs={def.outputs}
+        status={dp.status}
+        health={dp.health}
+        busy={dp.busy}
+        problem={dp.problem}
+        updates={dp.updates}
+        retire={dp.retire}
+        leftovers={dp.leftovers}
+        onRefresh={() => void loadProduct()}
+        onOpen={openRow}
+        onOwner={(n) => void saveOwner(n)}
+        onCheckUpdates={() => void checkUpdates()}
+        onUpdate={(c) => void updateFromPage(c)}
+        onNewName={newNameForCard}
+        onRetire={(s, ids, o) => void retireFromPage(s, ids, o)}
+        onFindLeftovers={() => void findLeftovers()}
+        onAdopt={(id) => void adoptLeftover(id)}
+      />
+    ),
+  });
 
   return (
     <ItemEditor
