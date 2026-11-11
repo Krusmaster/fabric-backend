@@ -264,7 +264,7 @@ def rest_graphql_definition(workspace: str, api_id: str, headers: dict) -> dict:
 
 
 # What a second read cannot change: the sign-in, the permission, whether the item exists, the server's own set-up.
-_FINAL = {"sign_in", "consent", "mfa", "no_access", "not_found", "server_config", "unsupported", "bad_input"}
+_FINAL = {"sign_in", "consent", "mfa", "no_access", "not_found", "server_config", "unsupported", "bad_input", "time_limit"}
 RETRY_PAUSE = 2          # seconds before the one second read
 
 

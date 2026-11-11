@@ -79,7 +79,7 @@ def tool_meta(on: bool | None = None) -> dict | None:
     return {"ui": {"resourceUri": CARD_URI}, "ui/resourceUri": CARD_URI}
 
 
-def call_result(text: str, extra: dict | None = None):
+def call_result(text: str, extra: dict | None = None, lead: str | None = None):
     """n137: a tool's text answer as a CallToolResult: the same text content every client gets, plus the answer as
     `structuredContent` when the text is a JSON object (an answer that is not one has no structuredContent). n170:
     `extra` (the pictures' data, mcp_apps_pictures.extras) goes into structuredContent only; the text is unchanged."""
@@ -90,8 +90,10 @@ def call_result(text: str, extra: dict | None = None):
         data = None
     if isinstance(data, dict) and extra:
         data = {**data, **{k: v for k, v in extra.items() if k not in data}}
-    return CallToolResult(content=[TextContent(type="text", text=text)],
-                          structured_content=data if isinstance(data, dict) else None)
+    content = [TextContent(type="text", text=text)]
+    if lead:                                                 # n218: the result and the next steps first, the JSON after
+        content.insert(0, TextContent(type="text", text=lead))
+    return CallToolResult(content=content, structured_content=data if isinstance(data, dict) else None)
 
 
 def structured(fn, name: str | None = None):
@@ -134,7 +136,22 @@ def structured(fn, name: str | None = None):
             extra.update(words.extras(name, answer, stash))
         except Exception:                                            # noqa: BLE001 - the card falls back to the answer's text
             pass
-        return call_result(out, extra or None)
+        lead = None
+        if isinstance(answer, dict):                                 # n218: next steps as buttons, the result first
+            from . import mcp_apps_next as nxt
+            try:
+                import inspect as _inspect
+                call = _inspect.signature(fn).bind_partial(*args, **kwargs).arguments
+                todo = nxt.steps(name, call, answer)
+                if todo:
+                    extra["next"] = todo
+                if name == "validate_plan" and stash.get("checks"):
+                    extra["checks"] = stash["checks"]
+                lead = nxt.lead(name, {**answer, **{k: v for k, v in extra.items() if k == "kg_card"}}, todo,
+                                answer.get("actions"))
+            except Exception:                                        # noqa: BLE001 - the answer stands without them
+                lead = None
+        return call_result(out, extra or None, lead)
     return wrapper
 
 
@@ -175,9 +192,10 @@ def card_html() -> str:
     allowed = json.dumps({t: list(CARRIED[t]) for t in NEXT_STEP_TOOLS}, separators=(",", ":"))
     from . import mcp_apps_pictures as pictures              # n170: the map, drawn the way the chat demo draws it
     pic = pictures.html_parts()
+    from . import mcp_apps_next as nxt                       # n218: next steps as buttons, every key and link's state
     return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
-            .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + mcp_apps_build.actions_js() + pic["js"])
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + mcp_apps_build.ACTIONS_CSS + pic["css"]).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
+            .replace("__READ_JS__", READ_JS + CALL_JS + RESULT_JS + nxt.js() + mcp_apps_build.actions_js() + pic["js"])
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", RESULT_CSS + nxt.NEXT_CSS + mcp_apps_build.ACTIONS_CSS + pic["css"]).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS))
 
 
@@ -439,7 +457,9 @@ __RESULT_CSS__
   <p class="muted" role="status"><span id="verdict">Waiting for validate_plan's answer.</span><span id="result" hidden></span></p>
   __MASCOTS__
   <dl id="counts" class="counts" hidden></dl>
+  <section id="nextsteps" hidden></section>
   __PICTURES__
+  <section id="checks" hidden></section>
   <section id="attention" hidden><h2 class="muted">Needs attention</h2><ul id="attention-list"></ul><p id="attention-none" hidden>Nothing needs attention.</p></section>
   <section id="build" hidden></section>
   <details id="next" class="more" hidden><summary>More</summary><p class="muted">Drafts that only read; nothing is created.</p><div id="steps" class="steps"></div></details>
@@ -466,7 +486,7 @@ __READ_JS__
     var data = answerOf(result);
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
-    ["counts", "result", "attention", "next", "build"].forEach(function (id) { document.getElementById(id).hidden = true; });
+    ["counts", "result", "attention", "next", "build", "nextsteps", "checks"].forEach(function (id) { document.getElementById(id).hidden = true; });
     if (!data || (!data.error && !data.summary && !data.totals)) { verdict.textContent = "The card could not read validate_plan's answer; it is in the text of the tool result."; return; }
     if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
     // n172: the card's words (mcp_apps_words.py): the summary as short sentences that Onto says once
@@ -490,6 +510,9 @@ __READ_JS__
       else { e.removeAttribute("data-echo"); e.removeAttribute("data-said"); }
     });
     drawPictures(data, isObj(input) ? input : null);                 // n170: the map, as in the chat demo
+    // n218: 2 to 4 next steps as buttons, each naming its tool; every key and link as passed, failed or not checked
+    var nsBox = document.getElementById("nextsteps"); nsBox.textContent = ""; nsBox.hidden = !renderNext(data, nsBox);
+    var ckBox = document.getElementById("checks"); ckBox.textContent = ""; ckBox.hidden = !renderChecks(data, ckBox);
 
     // n137: the overall result in words (an answer with nothing to attend to has one), never a JSON text. n138: it is
     // part of the summary line, once; the attention section then says only that nothing needs attention.
@@ -559,14 +582,7 @@ __READ_JS__
     var own = step.arguments || {};
     Object.keys(own).forEach(function (k) { args[k] = own[k]; });
     var ask = "Run " + step.tool + " with the same workspace, source and schema.";
-    out.hidden = false;
-    if (!canCallTools()) { out.textContent = callProblem({ kind: "unsupported" }, step.tool, ask); return; }
-    button.disabled = true; out.textContent = "Asked the host to run " + step.tool + ".";
-    callTool(step.tool, args, function () { out.textContent = stillWaiting(ask); }).then(function (r) {
-      out.textContent = ""; out.appendChild(resultView(step.tool, r));
-    }, function (e) {
-      out.textContent = callProblem(e, step.tool, ask);
-    }).then(function () { button.disabled = false; });
+    runOrSay(step.tool, args, ask, out, button);                    // n218: else the message goes into the chat
   }
 
   window.addEventListener("message", function (event) {

@@ -50,6 +50,9 @@ const answers = JSON.parse(fs.readFileSync(answersPath, 'utf8')), steps = JSON.p
     const create = row.locator('button.act-create').first();
     try { await create.waitFor({ state: 'visible', timeout: 5000 }); res.createVisible = true; } catch (e) { res.note = await row.innerText(); }
     if (res.createVisible) {
+      await create.click();                                                 // n218: the first click only asks
+      res.armed = await create.innerText();
+      res.callsBeforeConfirm = calls.length;
       await create.click();
       try { await row.locator('.act .out').filter({ hasText: /Created|Fabric answered|Open in Fabric/ }).first().waitFor({ timeout: 5000 }); res.created = true; } catch (e) { res.note = await row.innerText(); }
     }

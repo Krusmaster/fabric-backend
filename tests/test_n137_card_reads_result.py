@@ -126,10 +126,11 @@ def test_structured_content_with_the_flag_and_the_text_unchanged(live_shop):
         plain = getattr(server, tool)(**args)
         assert isinstance(plain, str)                                         # the module's function answers text
         r = _call(tool, args)
-        [part] = r["content"]
+        lead, part = r["content"]                                             # n218: the result and next steps first
+        assert lead["type"] == "text" and "Next steps:" in lead["text"] and not lead["text"].lstrip().startswith("{")
         assert part["type"] == "text" and json.loads(part["text"]) == json.loads(plain)
         # n170: structuredContent is the answer plus the picture's data (`map`), which the text does not carry
-        assert {k: v for k, v in r["structuredContent"].items() if k not in ("map", "kg_card")} == json.loads(plain) and not r.get("isError")   # n172: + the card's words
+        assert {k: v for k, v in r["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == json.loads(plain) and not r.get("isError")   # n172: + the card's words
         assert "map" in r["structuredContent"] and "map" not in json.loads(plain)
 
 
@@ -192,7 +193,7 @@ def test_validate_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("validate_plan", SRC)                    # what the server now returns, flag on
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card")} == data   # n170: + the map; n172: + the words
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == data   # n170: + the map; n172: + the words
     drafted = json.dumps({"tmdl": "model Model", "note": "a draft; nothing was created."})
     for name, result in shapes.items():
         out = _browse(tmp_path, "validate_plan", SRC, result,
@@ -246,7 +247,7 @@ def _check_review(view: dict, data: dict):
     assert len(d["labels"]) == 7 and all("orphan" in l for l in d["labels"]), d["labels"]   # rule and counts
     [audit] = [t for t in d["tables"] if t["name"] == "audit_log"]
     assert audit["finding"] and "no key" in audit["text"]                   # the open question is on the diagram
-    assert sorted(view["decisions"]) == sorted(i["id"] for i in rv["items"])  # 13 proposed: a decision button each
+    assert sorted(set(view["decisions"])) == sorted(i["id"] for i in rv["items"])  # n218: Accept and Reject for each of the 13
     assert view["note"] == [data["note"]]
     said = {f["kind"]: f for f in view["figures"] if f["shown"]}
     assert said["onto"]["text"] == data["summary"] and said["thinker"]["text"] == data["attention"][0]
@@ -262,7 +263,7 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
     data = json.loads(answer)
     shapes = _shapes(answer)
     shapes["hosted_server"] = _call("review_plan", args)
-    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card")} == data   # n170: + the map; n172: + the words
+    assert {k: v for k, v in shapes["hosted_server"]["structuredContent"].items() if k not in ("map", "kg_card", "checks", "next")} == data   # n170: + the map; n172: + the words
     for name, result in shapes.items():
         probe = _browse(tmp_path, "review_plan", args, result)
         _check_review(probe["before"], data)
@@ -276,6 +277,6 @@ def test_review_card_reads_every_shape(tmp_path, live_shop):
                       reply={"content": [{"type": "text", "text": decided}], "structuredContent": {"result": decided}})
         after = out["after"]
         assert after["verdict"] == json.loads(decided)["summary"] and "1 accepted" in after["verdict"], name
-        assert first not in after["decisions"] and len(after["decisions"]) == 12
-        assert after["call"][0].startswith(f"review_plan answered: {first} accepted.")
+        assert len(set(after["decisions"])) == 13                             # n218: every item keeps Accept / Reject
+        assert after["call"][0].startswith("review_plan answered with 1 decision.")
         _no_json(after)

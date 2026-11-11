@@ -21,6 +21,7 @@ from pathlib import Path
 
 import pytest
 
+from fabric_backend import mcp_apps_next  # noqa: E402  (n218)
 from fabric_backend import mcp_apps, mcp_apps_review, review, server
 
 from test_golden import SRC, fabric  # noqa: F401  (the hosted server against the synthetic shop workspace)
@@ -107,7 +108,7 @@ def test_no_external_loads():
     for banned in ("http://", "https://", "//cdn", "url(", "@import", "fetch(", "xmlhttprequest", "websocket",
                    "eventsource", "sendbeacon", "import(", "importscripts", "localstorage", "sessionstorage",
                    "document.cookie", "indexeddb", "navigator.", "innerhtml", "outerhtml", "insertadjacenthtml",
-                   "document.write", "eval(", "new function", "href", "ui/open-link", "ui/message",
+                   "document.write", "eval(", "new function", "href", "ui/open-link",
                    "ui/update-model-context"):
         assert banned not in low, banned
 
@@ -117,7 +118,8 @@ def test_the_view_uses_the_spec_method_names():
     assert 'protocolVersion: "2026-01-26"' in html and "appInfo" in html and "appCapabilities" in html
     assert set(re.findall(r'"((?:ui|tools|resources)/[a-z/-]+)"', html)) == {
         "ui/initialize", "ui/notifications/initialized", "ui/notifications/tool-input", "ui/notifications/tool-result",
-        "ui/notifications/tool-cancelled", "ui/resource-teardown", "ui/notifications/size-changed", "tools/call"}
+        "ui/notifications/tool-cancelled", "ui/resource-teardown", "ui/notifications/size-changed", "tools/call",
+        "ui/message"}                                                           # n218: the chat when the host runs no tools
 
 
 # ------------------------------------------------------------------ the buttons ---------------------------------------
@@ -126,14 +128,16 @@ def test_buttons_map_only_to_review_plan():
     html = mcp_apps_review.card_html()
     allowed = json.loads(re.search(r"var ALLOWED = (\{.*?\});", html).group(1))
     assert allowed == {"review_plan": list(mcp_apps_review.CARRIED)}
-    assert html.count('request("tools/call"') == 1 and "callTool(TOOL, args," in html     # n138: through callTool
+    assert html.count('request("tools/call"') == 1 and "runOrSay(TOOL, args," in html     # n218: callTool, else the chat
     assert 'var TOOL = "review_plan";' in html
     listing = {t.name: t for t in asyncio.run(server.mcp.list_tools())}
     rp = listing["review_plan"]
     assert rp.annotations.read_only_hint is True and not rp.annotations.destructive_hint
     assert set(mcp_apps_review.CARRIED) | {"previous", "decisions"} <= set(rp.input_schema["properties"])
+    # n218: the next steps' tools are named in NEXT_TOOLS only; each reads or drafts, none creates
     others = [n for n in listing if n != "review_plan" and re.search(rf"\b{n}\b", html)]
-    assert others == [], others                                              # no other tool is named on the card
+    assert set(others) <= set(mcp_apps_next.STEP_TOOLS), others
+    assert all(listing[n].annotations.read_only_hint is True for n in others)
     assert set(mcp_apps_review.DECISIONS) <= set(review.REVIEW) and "proposed" not in mcp_apps_review.DECISIONS
 
 
@@ -213,16 +217,16 @@ def test_the_diagram_has_every_table_and_relationship_of_the_shop(tmp_path, fabr
     for it in rv["items"]:
         assert it["check"]["verdict"] in out["text"] and it["check"]["verdict"] in text
 
-    # one button per undecided item; the first asks for review_plan with that one decision and the file on screen
+    # n218: Accept and Reject per item; Accept on the first, then Re-plan, asks for review_plan with that decision
     undecided = [it["id"] for it in rv["items"] if it["review"] in mcp_apps_review.UNDECIDED]
-    assert out["buttons"] == undecided and len(undecided) == 13
+    assert list(dict.fromkeys(out["buttons"])) == undecided and len(undecided) == 13 and len(out["buttons"]) == 26
     calls = [m["params"] for m in out["log"] if m.get("method") == "tools/call"]
     assert len(calls) == 1 and calls[0]["name"] == "review_plan"
     a = calls[0]["arguments"]
     assert set(a) <= set(mcp_apps_review.CARRIED) | {"previous", "decisions"}
     assert {k: a[k] for k in ("workspace", "source", "schema")} == SRC and "validate" not in a
     assert a["previous"] == rv and a["decisions"] == [{"item": first["id"], "review": "accepted"}]
-    assert out["after"]["buttons"] == undecided[1:]                          # the card shows the new answer
+    assert list(dict.fromkeys(out["after"]["buttons"])) == undecided          # the card shows the new answer
     assert "Nothing was created or changed in the source." in out["after"]["text"]
 
 

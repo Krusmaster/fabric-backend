@@ -342,7 +342,7 @@ ACTIONS_JS = r"""
     if (a.kind === "create") return ACT_ALLOWED[a.tool] === "build" && a.arguments.dry_run === false && fromDryRun === true;
     return false;
   }
-  function sendMessage(text) { return request("ui/message", { role: "user", content: { type: "text", text: text } }); }
+  function sendMessage(text) { return sendChat(text); }            // n218: NEXT_JS, the SDK's array form first
   function viaChat(a, out, button) {
     out.textContent = "Sent to the chat: “" + a.say + "”";
     sendMessage(a.say).then(function () { button.disabled = true; }, function () {
@@ -416,7 +416,18 @@ ACTIONS_JS = r"""
       if (a.kind === "dry_run") row.appendChild(el("span", "Dry run first: nothing is created until you press Create.", "muted act-why"));
       if (a.kind === "create") row.appendChild(el("span", "Creates " + (a.name ? a.name : "it") + " in Fabric with exactly the dry run's arguments.", "muted act-why"));
       var out = el("div", null, "out"); out.hidden = true;
-      b.addEventListener("click", function () { runAction(a, b, out, callArgs || a.arguments); });
+      if (a.kind === "create") {                                   // n218: never writes on the first click
+        var armed = false;
+        b.addEventListener("click", function () {
+          if (!armed) {
+            armed = true; b.textContent = "Yes, create " + (a.name ? a.name : "it") + " in Fabric";
+            b.setAttribute("data-armed", "true");
+            out.hidden = false; out.textContent = "Press again to create " + (a.name ? a.name : "it") + ". Nothing has been created yet.";
+            return;
+          }
+          runAction(a, b, out, callArgs || a.arguments);
+        });
+      } else b.addEventListener("click", function () { runAction(a, b, out, callArgs || a.arguments); });
       row.insertBefore(b, row.firstChild); row.appendChild(out); groups[who].appendChild(row);
     });
   }
@@ -451,10 +462,11 @@ def card_html() -> str:
     (mcp_apps_pictures): the map, the ontology proposal and the data products."""
     from . import mcp_apps_pictures as pictures
     pic = pictures.html_parts()
+    from . import mcp_apps_next as nxt                       # n218: next steps as buttons
     return (_HTML.replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION)
             .replace("__PICTURES__", pic["section"])
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + actions_js() + pic["js"] + dbt_flow_js())
-            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + ACTIONS_CSS + pic["css"])
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js() + actions_js() + pic["js"] + dbt_flow_js())
+            .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS + nxt.NEXT_CSS + ACTIONS_CSS + pic["css"])
             .replace("__MASCOT_TOGGLE__", mascots.TOGGLE).replace("__MASCOTS__", mascots.section())
             .replace("__MASCOT_JS__", mascots.JS))
 
@@ -596,6 +608,7 @@ __READ_JS__
     var pictured = drawPictures(d, isObj(input) ? input : null);
     if (pictured) onto = onto || pictured;
     renderActions(d, next, isObj(input) ? input : null);
+    renderNext(d, next);                                            // n218: 2 to 4 next steps, each naming its tool
     var acts = (Array.isArray(d.actions) ? d.actions : []).filter(isObj);   // each mascot says its first step, word for word
     var mine = function (who) { var a = acts.filter(function (x) { return x.who === who; })[0]; return a ? readable(a.say) : ""; };
     if (next.querySelector("button") && !isObj(d.kg_card)) { builder = builder || mine("builder"); thinker = thinker || mine("thinker"); }

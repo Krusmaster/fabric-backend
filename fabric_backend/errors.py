@@ -209,6 +209,10 @@ class PlatformError(Exception):
         self.kind, self.error, self.hint = kind, error, hint
 
 
+class TimeLimit(TimeoutError):
+    """n218: a tool's own time limit was reached before this read started (plan_drift): said as such, never retried."""
+
+
 def explain(exc: BaseException, where: str = "the request") -> dict:
     """Any exception from a tool → the answer the user sees. Never includes headers, tokens or a traceback."""
     try:
@@ -221,6 +225,8 @@ def explain(exc: BaseException, where: str = "the request") -> dict:
         req_exc = timeout_exc = conn_exc = http_exc = ()
     text = scrub(str(exc))
     low = text.lower()
+    if isinstance(exc, TimeLimit):
+        return {"error": text, "kind": "time_limit", "hint": "Not read: the tool's time limit was reached first."}
     if isinstance(exc, SchemaEmpty):
         return _answer("schema_not_found", text)
     if isinstance(exc, PlatformError):

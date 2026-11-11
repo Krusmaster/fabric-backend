@@ -232,6 +232,18 @@
    [
     "GET",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
    ]
   ],
   "tool": "list_tables"
@@ -267,15 +279,33 @@
    [
     "GET",
     "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
    ]
   ],
   "tool": "list_tables"
  },
  {
   "answer": {
-   "error": "Schema 'dbo' has no tables in 'demo_lh' (workspace 11111111-2222-3333-4444-555555555555); it may not exist in this source.",
-   "hint": "Use list_tables with another schema; a lakehouse's default schema is 'dbo' unless it was created with schemas. Tables created minutes ago may not be in the SQL analytics endpoint yet: open the endpoint in Fabric and refresh its metadata. Step by step: https://krusgraph.com/docs#first-time-errors",
-   "kind": "schema_not_found"
+   "choose_schema": true,
+   "hint": "Ask the user which schema they mean, then call list_tables with schema set to it.",
+   "schemas": [
+    {
+     "schema": "shop",
+     "tables": 7
+    }
+   ],
+   "summary": "'dbo' has no tables in demo_lh. demo_lh has 1 schemas with tables: shop (7 tables). Which one should be listed?"
   },
   "args": {
    "schema": "dbo",
@@ -283,6 +313,18 @@
    "workspace": "demo"
   },
   "rest": [
+   [
+    "GET",
+    "/v1/workspaces"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/items"
+   ],
+   [
+    "GET",
+    "/v1/workspaces/11111111-2222-3333-4444-555555555555/lakehouses/aaaaaaaa-0000-0000-0000-000000000001"
+   ],
    [
     "GET",
     "/v1/workspaces"

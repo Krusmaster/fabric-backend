@@ -37,7 +37,7 @@ from .deploy import FABRIC, deploy, connection_card, find_item_by_name, source_f
 from .rayfin import rayfin_files
 from . import ontology as _ontology
 from .deploy import create_ontology as _create_ontology
-from .errors import HINTS, SchemaEmpty, _fabric_body, classify_http, safe
+from .errors import HINTS, SchemaEmpty, TimeLimit, _fabric_body, classify_http, safe
 from .errors import note_schema as _note_schema
 from . import evidence as _evidence
 from . import semantic_model as _semantic_model, paths as _paths, dictionary as _dictionary, dbt as _dbt, quality_suites as _quality, drift as _drift
@@ -69,6 +69,7 @@ from . import mcp_apps_review as _mcp_apps_review  # noqa: E402  (n124: same fla
 from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
 from . import mcp_apps_pictures as _pictures  # noqa: E402  (n170: the cards' pictures; keeps nothing unless a card listens)
 from . import mcp_apps_words as _mcp_apps_words  # noqa: E402  (n172: the cards' words; computed only while a card listens)
+from . import mcp_apps_next as _mcp_apps_next  # noqa: E402  (n218: next steps and the check rows; only while a card listens)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
@@ -111,7 +112,10 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "A call that cannot be completed answers with error (plain words), "
     "kind (a stable code such as not_found, no_access, capacity, sign_in, consent, schema_not_found, timeout, "
     "rate_limited with retry_after) and "
-    "hint (the next step that fixes it). Five first questions that pay off on a lakehouse nobody has documented: "
+    "hint (the next step that fixes it). Words: \"check shop\", \"run a check\" or \"check the keys\" mean "
+    "validate_plan on that schema (plan_backend first when there is no plan yet), not app_readiness; app_readiness only "
+    "when the user names an API for GraphQL or asks what an app needs. When a word could be a schema, a source or an API, "
+    "ask which. Five first questions that pay off on a lakehouse nobody has documented: "
     "(1) analyze_schema — which tables are facts, which are dimensions, what are the subject areas; (2) plan_backend — the keys "
     "and relationships with the rule behind each; (3) validate_plan — are the keys unique and do the references hold; "
     "(4) suggest_relationships — which columns look like references but are in no relationship; (5) data_dictionary — the "
@@ -486,15 +490,47 @@ def list_sources(workspace: _p.Workspace, ctx: Context = None) -> str:
 @safe
 def list_tables(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", tables: _p.TablesShown = None, detail: _p.Detail = "auto",
                 ctx: Context = None) -> str:
-    """Lists the tables and their columns with types in one schema of a source. Requires workspace and source. Returns JSON
-    with columns and types per table, or a column count per table when the answer is a summary. Read-only. Errors:
+    """Lists the tables and columns with types in one schema of a source, and every schema of the source (schemas).
+    Requires workspace and source. Returns JSON (a column count per table in summary form). Read-only. Errors:
     {error, kind, hint}."""
-    p, _, _ = _plan(workspace, source, schema, None, None, ctx)
+    try:
+        p, _, _ = _plan(workspace, source, schema, None, None, ctx)
+    except SchemaEmpty:                                        # n218: dbo empty in a schema-enabled lakehouse: list them
+        schemas = _schemas_or_none(workspace, source, ctx)
+        if schemas:
+            return json.dumps({**_schema_choice(source, schemas),
+                               "summary": f"{schema!r} has no tables in {source}. "
+                                          + _schema_choice(source, schemas)["summary"].replace("Which one should be planned?", "Which one should be listed?"),
+                               "hint": "Ask the user which schema they mean, then call list_tables with schema set to it."}, indent=2)
+        raise
     schema = p.schema.schema                                   # n175: the name the metadata returns
     keep = _compact.match_tables(p.schema, tables)
     if _compact.pick_detail(detail, len(keep) if keep is not None else len(p.schema)) == "summary":
-        return _bounded(_compact.tables_summary(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
-    return _bounded(_compact.tables_full(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+        text = _bounded(_compact.tables_summary(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    else:
+        text = _bounded(_compact.tables_full(p.schema, keep), MAX_RESULT_CHARS, _compact.NARROW_HINT)
+    return _with_schemas(text, _schemas_or_none(workspace, source, ctx))
+
+
+def _schemas_or_none(workspace: str, source: str, ctx) -> list[dict] | None:
+    """n218: every schema of the source that holds tables, or None when they cannot be read (the answer stands)."""
+    try:
+        return _source_schemas(workspace, source, ctx)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _with_schemas(text: str, schemas: list[dict] | None) -> str:
+    """list_tables' answer with `schemas` (every schema of the source and its table count) when there is more than one."""
+    if not schemas or len(schemas) < 2:
+        return text
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return text
+    if not isinstance(data, dict):
+        return text
+    return json.dumps({**data, "schemas": schemas}, indent=2)
 
 
 @mcp.tool(title="Plan keys and relationships (nothing deployed)", annotations=RO)
@@ -599,15 +635,15 @@ def _connected(workspace: str, source: str, schema: str, ctx):
     return s, execute
 
 
-@mcp.tool(title="Check the plan against the data", annotations=RO, meta=_mcp_apps.tool_meta())
+@mcp.tool(title="Check a schema's keys and links against the rows", annotations=RO, meta=_mcp_apps.tool_meta())
 @safe
 def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema = "dbo", keys: _p.Keys = None,
                   confirmed: _p.Confirmed = None, max_items: _p.MaxItems = 60, detail: _p.ValidateDetail = "summary",
                   profile: _p.Profile = False, sql_sums: _p.SqlSums = False, fixes: _p.Fixes = False, review: _p.Review = None,
                   tables: _p.TablesShown = None, ctx: Context = None) -> str:
     """Checks the plan against the rows: is each key unique, non-null, how many references find no target (orphans).
-    Requires workspace and source; keys, confirmed as in plan_backend. Returns JSON counts, no row values: failing
-    checks in full, passing as totals. Read-only. create_backend does not run it. Errors: {error, kind, hint}."""
+    For "check shop", "run a check". Requires workspace and source; keys, confirmed as in plan_backend. Returns counts,
+    never row values. Read-only. Errors: {error, kind, hint}."""
     from . import privacy as _privacy, profile as _profile
     detail = _evidence.pick_detail(detail)
     _profile.options(profile)
@@ -634,6 +670,7 @@ def validate_plan(workspace: _p.Workspace, source: _p.Source, schema: _p.Schema 
     checked = {(k["table"], c.lower()) for k in out["keys"] for c in k["columns"]} | \
               {(r[t], c.lower()) for r in out["relationships"] for t, cs in (("source", r["columns"]), ("target", r["target_columns"])) for c in cs}
     _pictures.keep("map", lambda: _pictures.map_from_plan(p, out))              # n170: the map with each check's state
+    _pictures.keep("checks", lambda: _mcp_apps_next.check_rows(p, out))        # n218: every key and link, passed/failed/not checked
     flagged = [f for f in _privacy.findings(_privacy.personal_columns(p.schema)) if (f["table"], f["column"].lower()) in checked]
     if flagged or label:
         out["personal_data"] = {"columns": flagged, "sensitivity_label": label,
@@ -1302,8 +1339,10 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
                ctx: Context = None) -> str:
     """Compares today's plan with an existing API for GraphQL item: new tables and columns, mapped columns the source no
     longer has, relationships the plan no longer supports, and whether create_backend with that name would change
-    anything. Requires workspace, source and api. Returns JSON. Changes nothing; lineage shows what else builds on
-    the tables. Errors: {error, kind, hint}."""
+    anything. Requires workspace, source and api. Returns JSON; stops reading what builds on the tables after 40 s
+    and lists what it did not read (time_limit). Changes nothing. Errors: {error, kind, hint}."""
+    import time as _time
+    deadline = _time.monotonic() + DRIFT_SECONDS                       # n218: stop in time, say what was not read
     p, item, headers = _plan(workspace, source, schema, keys, confirmed, ctx)
     schema = p.schema.schema                                   # n175: the name the metadata returns
     check_tables(p.schema, tables)
@@ -1317,15 +1356,39 @@ def plan_drift(workspace: _p.Workspace, source: _p.Source, api: _p.DriftApi, sch
     out = _drift.compare(p, existing, api, workspace_id, source_id, source_type, writable=writable, tables=tables, confirmed=confirmed)
     touched = sorted({str(x["table"]).split(".")[-1] for x in out.get("tables_gone", []) + out.get("removed_columns", [])})
     if touched:
-        edges, skipped = _lineage_edges(workspace_id, item, schema, set(touched) | {t.name for t in p.schema}, headers, execute=None)
+        edges, skipped = _lineage_edges(workspace_id, item, schema, set(touched) | {t.name for t in p.schema}, headers, execute=None,
+                                        deadline=deadline)
         out["impact"] = _lineage.impact_of_changes(edges, touched)
         out["impact_note"] = ("objects in the workspace that use the tables a re-run would drop columns from or lose; read from the "
                               "objects' definitions (views not included here, see lineage)" + (f"; {len(skipped)} item(s) could not be read" if skipped else ""))
         from . import dax_refs as _dax_refs                              # n126: which measures the removed columns break
-        usage = _dax_refs.for_drift(edges, out, lambda mid: _item_definition_parts(workspace_id, "semanticModels", mid, headers, fmt="TMDL"))
+        usage = _dax_refs.for_drift(edges, out, _before(deadline, lambda mid: _item_definition_parts(workspace_id, "semanticModels", mid, headers, fmt="TMDL")))
         if usage:
             out["column_usage"] = usage
+        late = [x["item"] for x in skipped if x.get("reason") == "time_limit"] + \
+               [m["model"] for m in (usage or {}).get("models", []) if "time limit" in str(m.get("could_not_read_the_model", ""))]
+        if late:
+            out["time_limit"] = {"seconds": DRIFT_SECONDS, "not_read": late,
+                                 "said": f"Stopped after {DRIFT_SECONDS} s: the comparison above is complete, but {len(late)} "
+                                         "item(s) that may build on the changed tables were not read in time. lineage with "
+                                         "table= reads them one table at a time."}
     return json.dumps(out, indent=2)
+
+
+DRIFT_SECONDS = 40         # n218: below the client's own tool timeout, so the answer arrives instead of a silent cancel
+
+
+def _before(deadline: float | None, read):
+    """`read` that refuses to start once `deadline` (time.monotonic) has passed; None: no limit."""
+    if deadline is None:
+        return read
+
+    def run(*a, **k):
+        import time as _time
+        if _time.monotonic() > deadline:
+            raise TimeLimit(f"time limit of {DRIFT_SECONDS} s reached before this item was read")
+        return read(*a, **k)
+    return run
 
 
 # ------------------------------------------------------------------ creating tools ---------
@@ -2618,14 +2681,17 @@ def app_starter(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None
 @mcp.tool(title="What an app still needs on a GraphQL API", annotations=RO)
 @safe
 def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = None) -> str:
-    """Checks what an API for GraphQL item still needs before an app can use it: types without a key or relationship, write
-    access, introspection (one probe query), and permissions, reported as unknown with the portal path. Requires
-    workspace and an API that create_backend has created. Returns JSON {api, endpoint, checks, missing, unknown,
-    verdict}, each item with its next step. Changes nothing. Errors: {error, kind, hint}."""
+    """Checks what an API for GraphQL item still needs before an app can use it: keys, relationships, write access,
+    introspection, permissions. Only for an API the user names; a schema's check is validate_plan. Requires workspace
+    and an API. Returns JSON {api, endpoint, checks, missing, unknown, verdict}, each with its next step. Changes
+    nothing. Errors: {error, kind, hint}."""
     headers = _headers(ctx)
     workspace_id = _workspace_id(workspace, headers)
     api_id = _api_id(workspace_id, api, headers)
     if not api_id:
+        asked = _which_one(workspace_id, api, headers)                 # n218: a word that may mean a schema or a source
+        if asked:
+            return json.dumps(asked, indent=2)
         return json.dumps({"error": f"no API for GraphQL named {api!r} in workspace {workspace}", "kind": "not_found",
                            "hint": "list_sources lists the GraphQL APIs in a workspace; create_backend creates one."}, indent=2)
     description = describe_definition(_graphql_definition(workspace_id, api_id, headers))
@@ -2638,6 +2704,28 @@ def app_readiness(workspace: _p.Workspace, api: _p.StarterApi, ctx: Context = No
     except ValueError:
         body = {}
     return json.dumps(_readiness.assess(description, _readiness.classify_probe(status, body), endpoint, api), indent=2)
+
+
+def _which_one(workspace_id: str, word: str, headers: dict) -> dict | None:
+    """n218: app_readiness was called with a name no API has exactly ("shop", meant as the schema shop). When APIs or
+    sources carry the word, the answer asks which one the user means instead of guessing; None when nothing does."""
+    w = str(word or "").strip().lower()
+    if not w:
+        return None
+    try:
+        items = _workspace_items(workspace_id, headers)
+    except Exception:  # noqa: BLE001 - the plain not_found answer stands
+        return None
+    apis = sorted(it["displayName"] for it in items if it.get("type") == "GraphQLApi" and w in str(it.get("displayName", "")).lower())
+    sources = sorted(it["displayName"] for it in items if it.get("type") in SOURCE_ITEM_TYPES)
+    if not apis:                                                         # the plain not_found answer stands
+        return None
+    choices = [{"meaning": "an API for GraphQL", "tool": "app_readiness", "api": a} for a in apis]
+    choices += [{"meaning": f"the schema {word!r} in {s} (its keys and links)", "tool": "validate_plan", "source": s, "schema": word}
+                for s in sources[:5]]
+    return {"ask": f"Which {word!r} do you mean? No API for GraphQL is named {word!r}.", "choices": choices,
+            "hint": "Ask the user which one they mean. To check a schema's keys and links against the rows, use "
+                    "validate_plan with that source and schema; app_readiness is only for an API for GraphQL."}
 
 
 def _workspace_items(workspace: str, headers: dict) -> list[dict]:
@@ -2664,7 +2752,8 @@ def _item_definition_parts(workspace: str, route: str, item_id: str, headers: di
     return _lineage.rest_definition_parts(workspace, route, item_id, headers, fmt)
 
 
-def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, execute=None) -> tuple[list[dict], list[dict]]:
+def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str], headers: dict, execute=None,
+                   deadline: float | None = None) -> tuple[list[dict], list[dict]]:
     """Edges table -> object over every item in the workspace that can be read, plus the items that could not
     (lineage.workspace_edges, with this module's readers so the tests can stand in for Fabric)."""
     rows, view_skip = None, []
@@ -2678,7 +2767,8 @@ def _lineage_edges(workspace_id: str, item: dict, schema: str, tables: set[str],
                 rows = []
                 view_skip.append(_lineage.skipped_item("views on the SQL endpoint", "View", e, "reading view dependencies"))
     edges, skipped = _lineage.workspace_edges(workspace_id, item, schema, tables, headers, rows, items=_workspace_items,
-                                              graphql_definition=_graphql_definition, definition_parts=_item_definition_parts)
+                                              graphql_definition=_before(deadline, _graphql_definition),
+                                              definition_parts=_before(deadline, _item_definition_parts))
     return edges, skipped + view_skip
 
 

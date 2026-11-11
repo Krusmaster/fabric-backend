@@ -70,13 +70,14 @@ def card_html() -> str:
     allowed = json.dumps({TOOL: list(CARRIED)}, separators=(",", ":"))
     from . import mcp_apps_pictures as pictures              # n170: the map above the column diagram
     pic = pictures.html_parts()
+    from . import mcp_apps_next as nxt                       # n218: next steps, Accept / Reject and Re-plan
     return (_HTML.replace("__ALLOWED__", allowed).replace("__PROTOCOL__", mcp_apps.PROTOCOL_VERSION).replace("__PICTURES__", pic["section"])
             .replace("__SVGNS__", SVG_NS).replace("__DECISIONS__", json.dumps(list(DECISIONS)))
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + pic["js"]).replace("__LAYOUT_JS__", LAYOUT_JS)
-            .replace("__PICTURE_CSS__", pic["css"]))
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js() + pic["js"]).replace("__LAYOUT_JS__", LAYOUT_JS)
+            .replace("__PICTURE_CSS__", pic["css"] + nxt.NEXT_CSS))
 
 
 # n138: the ER diagram's layout as a pure function (erLayout), placed into the card. tests/test_n138_card_polish.py
@@ -430,11 +431,14 @@ __PICTURE_CSS__
   __PICTURES__
   <section id="er" hidden><h2>Tables and relationships</h2><div id="diagram"></div>
     <p class="muted">Arrows point from the referencing table to the table it refers to; the label is the rule and, when checked, the counts.</p></section>
-  <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div></section>
+  <section id="list" hidden><h2>Keys and relationships</h2><div id="items" class="items"></div>
+    <div class="replan"><button type="button" id="replan" disabled>Re-plan with my decisions</button>
+      <span id="staged" class="muted">Accept or reject keys and links above, then re-plan.</span></div></section>
+  <section id="nextsteps" hidden></section>
   <section id="next" hidden><h2>Next steps</h2><p id="note"></p></section>
   <p id="call" class="muted" role="status" hidden></p>
   <div id="call-result" hidden></div>
-  <p class="muted">The same answer is in the text of the tool result. A button asks the host to call review_plan with that one decision; the host may ask you first. review_plan writes the review file in its answer and creates nothing in Fabric.</p>
+  <p class="muted">The same answer is in the text of the tool result. Accept and Reject only mark your decision on the card; Re-plan with my decisions asks the host to call review_plan with all of them (or sends that request to the chat). review_plan writes the review file in its answer and creates nothing in Fabric.</p>
 </main>
 <script>
 (function () {
@@ -618,10 +622,14 @@ __LAYOUT_JS__
       row.appendChild(el("p", "review: " + it.review + (it.reason ? " (" + it.reason + ")" : "") + "; check: " +
                               (c.verdict ? c.status + ", " + c.verdict : checkText(it)),
                          (c.status === "failed" || c.status === "stale") ? "muted warn" : "muted"));
-      if (UNDECIDED.indexOf(it.review) >= 0) row.appendChild(decideRow(it));
+      var holds = holdsText(it);
+      if (holds) row.appendChild(el("p", holds, c.status === "failed" ? "warn" : "ok"));
+      row.appendChild(decideRow(it));
       box.appendChild(row);
     });
     document.getElementById("list").hidden = !box.children.length;
+    staged = {}; showStaged();
+    var ns = document.getElementById("nextsteps"); ns.textContent = ""; ns.hidden = !renderNext(data, ns);   // n218
 
     var note = readable(data.note);
     document.getElementById("note").textContent = note;
@@ -638,45 +646,67 @@ __LAYOUT_JS__
               builder: [note, passed ? "heart" : "explain"] }, passed);
   }
 
+  // n218: Accept / Reject per key and link only mark the decision on the card; "Re-plan with my decisions" sends them
+  // all in one review_plan call (previous: the file on screen), or, when the host does not run tools from the card,
+  // the same request as a message in the chat. Nothing is written anywhere: review_plan creates nothing in Fabric.
+  var staged = {};
+  function holdsText(it) {
+    var c = it.check || {}, r = c.result || {};
+    if (it.type === "key" || (c.status !== "passed" && c.status !== "failed")) return "";
+    return "This link holds in the rows: " + (Number(r.orphans) || 0) + " of " + (Number(r.rows_with_value) || 0) + " point at nothing.";
+  }
+  function showStaged() {
+    var ids = Object.keys(staged), b = document.getElementById("replan"), t = document.getElementById("staged");
+    b.disabled = !ids.length;
+    b.textContent = "Re-plan with my decisions" + (ids.length ? " (" + ids.length + ")" : "");
+    t.textContent = ids.length ? ids.map(function (k) { return staged[k] + ": " + k; }).join("; ")
+                               : "Accept or reject keys and links above, then re-plan.";
+  }
   function decideRow(it) {
-    var wrap = el("div", null, "decide");
-    var pick = el("select"); pick.setAttribute("aria-label", "Decision for " + it.id);
-    DECISIONS.forEach(function (d) { if (d !== it.review) { var o = el("option", d); o.value = d; pick.appendChild(o); } });
-    var why = el("input"); why.type = "text"; why.placeholder = "reason (optional)"; why.setAttribute("aria-label", "Reason for " + it.id);
-    var b = el("button", "Record decision"); b.type = "button"; b.setAttribute("data-item", it.id);
-    b.addEventListener("click", function () { decide(it.id, pick.value, why.value, b); });
-    wrap.appendChild(pick); wrap.appendChild(why); wrap.appendChild(b);
+    var wrap = el("div", null, "dec"); wrap.setAttribute("role", "group"); wrap.setAttribute("aria-label", "Decision for " + it.id);
+    [["accepted", "Accept"], ["rejected", "Reject"]].forEach(function (d) {
+      var b = el("button", d[1]); b.type = "button"; b.setAttribute("data-item", it.id); b.setAttribute("data-review", d[0]);
+      b.setAttribute("aria-pressed", it.review === d[0] ? "true" : "false");
+      b.addEventListener("click", function () {
+        var on = staged[it.id] !== d[0];
+        if (on && it.review !== d[0]) staged[it.id] = d[0]; else delete staged[it.id];
+        wrap.querySelectorAll("button").forEach(function (x) {
+          var want = staged[it.id] || it.review;
+          x.setAttribute("aria-pressed", x.getAttribute("data-review") === want ? "true" : "false");
+        });
+        showStaged();
+      });
+      wrap.appendChild(b);
+    });
     return wrap;
   }
-
-  function decide(item, review, reason, button) {
-    if (DECISIONS.indexOf(review) < 0 || !answer) return;
+  function replanSay(list) {
+    return "Re-plan " + (input.schema || input.source || "the source") + " with my decisions using review_plan: " +
+      list.map(function (d) { return (d.review === "accepted" ? "accept " : "reject ") + d.item; }).join(", ") +
+      ". Use the review file of the last review_plan answer as previous.";
+  }
+  function replan() {
+    var list = Object.keys(staged).map(function (k) { return { item: k, review: staged[k] }; });
+    if (!list.length || !answer) return;
     var args = {};
     (ALLOWED[TOOL] || []).forEach(function (k) { if (input[k] != null) args[k] = input[k]; });
     args.previous = answer.review;
-    var d = { item: item, review: review }; if (reason) d.reason = String(reason).slice(0, 500);
-    args.decisions = [d];
-    var note = document.getElementById("call"); note.hidden = false;
-    var ask = "Record " + item + " as " + review + (reason ? " (" + String(reason).slice(0, 120) + ")" : "") + " with review_plan.";
-    if (!canCallTools()) { note.textContent = callProblem({ kind: "unsupported" }, TOOL, ask); return; }
-    note.textContent = "Asked the host to call review_plan: " + item + " " + review + ".";
-    button.disabled = true;
-    callTool(TOOL, args, function () { note.textContent = stillWaiting(ask); }).then(function (r) {
+    args.decisions = list;
+    var note = document.getElementById("call"), button = document.getElementById("replan");
+    runOrSay(TOOL, args, replanSay(list), note, button, function (r) {
       var parsed = answerOf(r);
       if (parsed && isObj(parsed.review)) {
         document.getElementById("call-result").hidden = true;
         render(parsed);
-        note.textContent = "review_plan answered: " + item + " " + review + ". " + (parsed.note || "");
+        note.hidden = false;
+        note.textContent = "review_plan answered with " + list.length + (list.length === 1 ? " decision" : " decisions") + ". " + (readable(parsed.note) || "");
       } else {
         note.textContent = "review_plan answered without a review file.";
         var shown = document.getElementById("call-result"); shown.textContent = ""; shown.appendChild(resultView(TOOL, r)); shown.hidden = false;
-        button.disabled = false;
       }
-    }, function (e) {
-      note.textContent = callProblem(e, TOOL, ask);
-      button.disabled = false;
     });
   }
+  document.getElementById("replan").addEventListener("click", replan);
 
   window.addEventListener("message", function (event) {
     if (event.source !== window.parent) return;

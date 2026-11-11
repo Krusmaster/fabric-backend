@@ -115,6 +115,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   const first = frame.locator("#steps button, button[data-item]").first();
   if (mode !== "bytool" && await first.count()) {
     await first.click();
+    if (await first.getAttribute("data-item")) await frame.locator("#replan").click();   // n218: Accept, then Re-plan
     if (mode === "silent") await page.clock.runFor(60000);
     const done = mode === "silent" ? /No answer/ : /^(?!Asked the host)./;
     await frame.locator("#steps .out, #call").filter({ hasText: done }).first().waitFor({ timeout: 10000 });

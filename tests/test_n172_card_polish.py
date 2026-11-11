@@ -229,8 +229,8 @@ def test_the_plan_cards_words_are_short_sentences_from_the_plan(fabric):
     assert c["onto"] == " ".join(c["lines"])
     assert c["thinker"] == "Shall I check these links against the rows?"
     assert c["builder"] == "I can build a semantic model, an ontology or an API from this plan. Each shows a dry run first."
-    assert words.KEY not in json.loads(r.content[0].text)                   # structuredContent only: the text is unchanged
-    text_actions = json.loads(r.content[0].text)["actions"]                 # text clients keep the full next step
+    assert words.KEY not in json.loads(r.content[-1].text)                   # structuredContent only: the text is unchanged
+    text_actions = json.loads(r.content[-1].text)["actions"]                 # text clients keep the full next step
     assert any('run validate_plan with workspace="demo"' in a["say"] for a in text_actions)
 
 
@@ -495,8 +495,11 @@ def test_build_then_create_on_the_plan_card_for_all_four_builds(fabric, monkeypa
     assert out["errors"] == []
     for s in out["steps"]:
         assert s["dryShown"] and s["createVisible"] and s["created"], s
+        assert s["armed"].startswith("Yes, create ") and s["armed"].endswith(" in Fabric"), s   # n218: a second click
     for tool in ("create_semantic_model", "create_ontology", "create_backend", "create_report"):
         mine = [c for c in out["calls"] if c["name"] == tool]
         assert [c["arguments"].get("dry_run") for c in mine] == [True, False], (tool, mine)
+    for i, s in enumerate(out["steps"]):                                       # n218: the first click on Create wrote nothing
+        assert sum(1 for c in out["calls"][:s["callsBeforeConfirm"]] if c["arguments"].get("dry_run") is False) == i, s
         assert mine[0]["arguments"] == sent[tool]
         assert mine[1]["arguments"] == {**sent[tool], "dry_run": False}      # Create: the same arguments, dry_run=false

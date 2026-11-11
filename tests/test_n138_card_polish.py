@@ -292,14 +292,17 @@ def test_a_host_without_server_tools_gets_a_note_and_no_request(tmp_path, live_s
     card, args, result, called = CASES[tool](live_shop)
     out = _browse(tmp_path, card, args, result, mode="none")
     assert not [m for m in out["log"] if m.get("method") == "tools/call"]              # not asked at all
+    # n218: the request goes into the chat instead, as the user's message (the SDK's array of text blocks)
+    [msg] = [m for m in out["log"] if m.get("method") == "ui/message"]
+    assert msg["params"]["role"] == "user" and msg["params"]["content"][0]["type"] == "text"
     note = (out["after"]["outputs"] + out["after"]["call"])[0]
-    assert note.startswith("This host does not run tools from the card. Ask in the chat instead: “")
+    assert note.startswith("Sent to the chat: “") and msg["params"]["content"][0]["text"] in note
     assert called in note and not note.lstrip().startswith(("{", "["))
 
 
 @needs_browser
 @pytest.mark.parametrize("tool", sorted(CASES))
-@pytest.mark.parametrize("mode,start", [("error", "This host does not run tools from the card."),
+@pytest.mark.parametrize("mode,start", [("error", "Sent to the chat: “"),           # n218: -32601, then the chat
                                         ("iserror", "{tool} answered with an error: workspace not found."),
                                         ("silent", "No answer from the host yet; it may be asking you first.")])
 def test_a_refusal_an_error_or_silence_reads_as_a_sentence(tmp_path, live_shop, tool, mode, start):

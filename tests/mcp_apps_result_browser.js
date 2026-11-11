@@ -82,6 +82,7 @@ view.srcdoc = ${JSON.stringify(card).replace(/<\//g, "<\\/")};
   const first = frame.locator("#steps button, button[data-item]").first();
   if (await first.count()) {
     await first.click();
+    if (await first.getAttribute("data-item")) await frame.locator("#replan").click();   // n218: Accept, then Re-plan
     await frame.locator("#steps .out, #call").filter({ hasNotText: "Asked the host" }).filter({ hasText: /./ }).first().waitFor({ timeout: 10000 });
     after = await read();
   }

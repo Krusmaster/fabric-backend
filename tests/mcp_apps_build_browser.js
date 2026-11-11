@@ -31,9 +31,13 @@ const caps = process.argv[4] === 'tools' ? { serverTools: {}, openLinks: {} } : 
   const fr = page.frameLocator('#f');
   await fr.locator('button', { hasText: 'Build a semantic model' }).click({ timeout: 10000 });
   await page.waitForTimeout(300);
-  let reportButtons = 0, createEnabled = null;
+  let reportButtons = 0, createEnabled = null, callsAfterFirstCreate = null, armedText = null;
   if (caps.serverTools) {
-    await fr.locator('button.act-create').click({ timeout: 10000 });
+    await fr.locator('button.act-create').click({ timeout: 10000 });          // n218: the first click only asks
+    await page.waitForTimeout(200);
+    callsAfterFirstCreate = log.filter(m => m.method === 'tools/call').length;
+    armedText = await fr.locator('button.act-create').innerText();
+    await fr.locator('button.act-create').click({ timeout: 10000 });          // the second click creates
     await page.waitForTimeout(300);
     if (data.created && data.created.kind === 'upgrade') {        // n171: Create refused for want of a subscription
       createEnabled = await fr.locator('button.act-create').isEnabled();
@@ -47,5 +51,5 @@ const caps = process.argv[4] === 'tools' ? { serverTools: {}, openLinks: {} } : 
   }
   const text = await fr.locator('main').innerText();
   await browser.close();
-  process.stdout.write(JSON.stringify({ log: log.filter(m => m.method !== 'ui/notifications/size-changed'), text, errors, reportButtons, createEnabled }));
+  process.stdout.write(JSON.stringify({ log: log.filter(m => m.method !== 'ui/notifications/size-changed'), text, errors, reportButtons, createEnabled, callsAfterFirstCreate, armedText }));
 })().catch(e => { process.stderr.write(String(e)); process.exit(1); });

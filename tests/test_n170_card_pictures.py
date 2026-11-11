@@ -65,7 +65,7 @@ def test_plan_backends_map_is_the_plan(fabric):
 
 def test_the_text_answer_is_unchanged_and_the_map_is_only_in_structured_content(fabric):
     r, d = _sc("plan_backend", **SRC)
-    text = r.content[0].text
+    text = r.content[-1].text
     assert "map" not in json.loads(text)
     assert json.loads(text) == json.loads(build.with_actions("plan_backend", server.plan_backend, server._item_names,
                                                              server._workspace_id_ctx)(**SRC))
@@ -77,7 +77,7 @@ def test_validate_plans_map_has_each_checks_state(fabric):
     assert m["checked"] is True and {t["name"] for t in m["tables"]} == SHOP_TABLES
     assert len(m["relationships"]) == d["totals"]["relationships"]["checked"] == 7
     assert {x["state"] for x in m["relationships"]} == {"passed"} and all(x["orphans"] == 0 for x in m["relationships"])
-    assert "map" not in json.loads(r.content[0].text)
+    assert "map" not in json.loads(r.content[-1].text)
 
 
 def test_a_failed_check_is_red_with_its_orphans_and_an_unreached_one_not_checked(fabric):
@@ -123,7 +123,7 @@ def test_the_ontology_card_marks_the_entity_types_without_a_key_and_why(fabric, 
     assert "no key was found (rule K3)" in keyless["AuditLog"]["why_no_key"]
     assert all(n.split(":")[0] in keyless for n in d["summary"]["notes"])             # each reason is the tool's own note
     assert sum(1 for l in o["links"] if l["in_ontology"]) == d["summary"]["relationship_types"]
-    assert "ontology" not in json.loads(r.content[0].text)
+    assert "ontology" not in json.loads(r.content[-1].text)
 
 
 def test_a_created_ontology_has_no_proposal_picture():
@@ -134,7 +134,7 @@ def test_a_created_ontology_has_no_proposal_picture():
 
 def test_the_data_products_card_lists_only_what_domain_draft_returned(fabric):
     r, d = _sc("domain_draft", **SRC)
-    text = json.loads(r.content[0].text)
+    text = json.loads(r.content[-1].text)
     p = d["products"]
     assert [(x["slug"], x["tables"]) for x in p["products"]] == [(x["slug"], x["tables"]) for x in text["domains"]]
     assert all(x["owner"] is None for x in p["products"])                            # nobody has chosen one

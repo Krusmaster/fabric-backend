@@ -334,6 +334,8 @@ def test_in_a_browser_a_click_runs_the_dry_run_then_create_with_the_same_argumen
     assert links == [f"https://app.fabric.microsoft.com/groups/{gs.WS}/datasets/sm-new/details"]
     assert out["reportButtons"] == 1 and "Build a semantic model (shop_model_2)" in out["text"]
     assert not [m for m in out["log"] if m.get("method") == "ui/message"]
+    # n218: Create writes only on an explicit second click, which names the item first
+    assert out["callsAfterFirstCreate"] == 1 and out["armedText"] == "Yes, create shop_model_2 in Fabric"
 
 
 @pytest.mark.skipif(not _playwright(), reason="node + playwright not available")
@@ -341,5 +343,5 @@ def test_in_a_browser_a_host_without_tool_calls_gets_the_prompt_as_a_message(tmp
     out = _browser(tmp_path, "msg")
     assert out["errors"] == [] and not [m for m in out["log"] if m.get("method") == "tools/call"]
     [msg] = [m["params"] for m in out["log"] if m.get("method") == "ui/message"]
-    assert msg == {"role": "user", "content": {"type": "text", "text": out["button"]["say"]}}
-    assert "dry run" in msg["content"]["text"] and "dry_run=true" in msg["content"]["text"]
+    assert msg == {"role": "user", "content": [{"type": "text", "text": out["button"]["say"]}]}   # n218: the SDK's array form
+    assert "dry run" in msg["content"][0]["text"] and "dry_run=true" in msg["content"][0]["text"]
