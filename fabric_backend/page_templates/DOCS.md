@@ -112,6 +112,13 @@ New to a Fabric lakehouse? Start with how its tables fit together. Connect the h
    it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
    app yet. So they can't sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself. This is not tested yet.{{/IF}}
 3. **In Fabric:** you need access to the workspace you want to use. You also need a Fabric capacity. A trial is fine.
+4. **In a new chat, type `start Krusgraph`.** Claude leads you one step at a time: the workspace, the lakehouse,
+   warehouse or mirrored database, the schema, the map of keys and links with the rule behind each, the check against
+   your rows, what needs your decision, where a total doubles, and a dry run of what would be built. Up to the dry run
+   every step only reads and answers with counts, not row values. Nothing is created until you have seen the dry run and
+   said yes to the names. No Fabric data yet? Type *Show me on the synthetic shop sample*. The same path is the
+   connector's prompt **Start Krusgraph**, where your client lists a connector's prompts (in Claude Code:
+   `/<the name you gave the server>:start`).
 
 Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start). The server is
 published in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).

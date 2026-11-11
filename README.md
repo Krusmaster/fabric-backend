@@ -105,7 +105,9 @@ Add `https://krusgraph.com/mcp/connect` in Claude under Customize → Connectors
 ("Automatic client registration isn't supported"); connectors added there earlier keep working. VS Code, Cursor and
 other MCP clients that register themselves use the same `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
 the client, then the Microsoft sign-in (https://krusgraph.com/docs#other-mcp-clients; tested on 27 October 2026 with
-VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). To run your own:
+VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). The first message after
+connecting: `start Krusgraph`, a guided path one step at a time that only reads until you confirm the names after a dry
+run ([docs/START-KRUSGRAPH.md](docs/START-KRUSGRAPH.md)). To run your own:
 
 ```
 docker build -t fabric-backend-server . && docker run -p 8000:8000 \

@@ -168,3 +168,85 @@ def test_the_synthetic_shop_runs_the_same_path_without_fabric():
     assert "nothing can be created" in sf.guide(sample=True, step="create")["found"]["note"]
     first = sf.guide()
     assert any(b.get("arguments") == {"sample": True} and "synthetic shop" in b["label"] for b in first["actions"])
+
+
+# ------------------------------------------------------------------ the card (KRUSGRAPH_MCP_APPS=1) ---------------------
+
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+from fabric_backend import mcp_apps, mcp_apps_start  # noqa: E402
+
+needs_browser = pytest.mark.skipif(not shutil.which("node") or subprocess.run(["node", "-e", "require('playwright')"],
+                                                                              capture_output=True).returncode != 0,
+                                   reason="node + playwright not available")
+
+
+def test_the_card_is_there_only_with_the_flag():
+    assert mcp_apps.registration("start", on=False) == {} and mcp_apps_start.tool_meta(on=False) is None
+    reg = mcp_apps.registration("start", on=True)
+    assert reg["meta"]["ui"]["resourceUri"] == mcp_apps_start.CARD_URI and reg["structured_output"] is False
+    html = mcp_apps_start.card_html()
+    assert "<script src" not in html and "fetch(" not in html and "@import" not in html
+    assert set(mcp_apps_start.ALLOWED) == {"start", "list_workspaces", "list_sources", "plan_backend", "validate_plan",
+                                           "review_plan"} | WRITERS
+
+
+def _res(a: dict) -> dict:
+    return {"content": [{"type": "text", "text": json.dumps(a)}], "structuredContent": a}
+
+
+def _browse(tmp_path, data: dict) -> dict:
+    (tmp_path / "card.html").write_text(mcp_apps_start.card_html(), encoding="utf-8")
+    (tmp_path / "data.json").write_text(json.dumps(data), encoding="utf-8")
+    run = subprocess.run(["node", str(Path(__file__).parent / "mcp_apps_n218_browser.js"), str(tmp_path / "card.html"),
+                          str(tmp_path / "data.json")], capture_output=True, text=True, timeout=120)
+    assert run.returncode == 0, run.stderr[-2000:]
+    out = json.loads(run.stdout)
+    assert out["errors"] == [] and out["requests"] == []
+    return out
+
+
+def _calls(out, method="tools/call"):
+    return [m["params"] for m in out["log"] if m.get("method") == method]
+
+
+@needs_browser
+def test_the_card_walks_the_path_in_place(tmp_path):
+    first = sf.guide(**CHOSEN)
+    second = sf.guide(**CHOSEN, step="check")
+    out = _browse(tmp_path, {"args": CHOSEN, "result": _res(first), "caps": {"serverTools": {}}, "reply": _res(second),
+                             "clicks": [{"text": "Show the map"}, {"text": "Next: Check"}]})
+    calls = _calls(out)
+    assert calls[0] == {"name": "plan_backend", "arguments": CHOSEN}
+    assert calls[1] == {"name": "start", "arguments": first["after"]["arguments"]}
+    assert "step 5 of 9" in out["text"] and "Check against the rows" in out["text"]     # the next step, drawn in place
+
+
+@needs_browser
+def test_a_host_without_server_tools_gets_the_steps_sentence(tmp_path):
+    a = sf.guide(workspace="ws")
+    out = _browse(tmp_path, {"args": {"workspace": "ws"}, "result": _res(a), "caps": {}, "clicks": [{"text": "List the sources"}]})
+    assert not _calls(out)
+    sent = json.dumps(_calls(out, "ui/message"))
+    assert a["actions"][0]["say"] in json.loads(sent)[0]["content"][0]["text"] if isinstance(json.loads(sent)[0]["content"], list) else a["actions"][0]["say"] in sent
+
+
+@needs_browser
+def test_create_on_the_card_needs_the_confirmation_and_a_second_click(tmp_path):
+    ok = sf.guide(**CHOSEN, step="create", create=["shop_model"], confirm=True)
+    once = _browse(tmp_path, {"args": {}, "result": _res(ok), "caps": {"serverTools": {}},
+                              "clicks": [{"text": "Create shop_model"}]})
+    assert not _calls(once) and "Nothing has been created yet" in once["text"]
+    twice = _browse(tmp_path, {"args": {}, "result": _res(ok), "caps": {"serverTools": {}},
+                               "clicks": [{"text": "Create shop_model"}, {"text": "Yes, create shop_model"}]})
+    assert [c["name"] for c in _calls(twice)] == ["create_semantic_model"]
+    assert _calls(twice)[0]["arguments"]["dry_run"] is False
+    forged = sf.guide(**CHOSEN, step="create", create=["shop_model"])          # not confirmed: no writing button drawn
+    forged["actions"].append({"kind": "create", "label": "Create shop_model", "tool": "create_semantic_model",
+                              "arguments": {**CHOSEN, "name": "shop_model", "dry_run": False}, "say": "create it"})
+    out = _browse(tmp_path, {"args": {}, "result": _res(forged), "caps": {"serverTools": {}},
+                             "clicks": [{"css": "button[data-tool]"}]})
+    assert [c["name"] for c in _calls(out)] == ["start"]                       # the one button: Back to the dry run
+    assert "Creates shop_model in Fabric" not in out["text"]

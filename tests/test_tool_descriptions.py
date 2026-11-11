@@ -67,4 +67,6 @@ def test_read_only_listing_stays_small():
     size = len(json.dumps({"tools": ro}, separators=(",", ":"), ensure_ascii=False))
     # 64 000: our own growth guard (n26), not an external limit; about 4 300 above the n102 size (59 680) for headroom
     # 64 500 since n155/n156: validate_plan's fixes, review and tables and the fixes of three tools took the last headroom
-    assert size <= 64_500, f"read-only tools/list is {size} characters"
+    # 66 500 since n219: the start tool (Start Krusgraph, about 1 900 characters) came on top of n218's listing at 64 482;
+    # its descriptions and parameters were cut to the minimum first, and the guard stays tight above that
+    assert size <= 66_500, f"read-only tools/list is {size} characters"
