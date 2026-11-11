@@ -92,6 +92,20 @@ REQUIRED_SCOPES = {
         "Notebook.ReadWrite.All", "DataPipeline.ReadWrite.All", "Item.ReadWrite.All"},
     "022907d3-0f1b-48f7-badc-1ba6abab6d66": {"user_impersonation"},
 }
+# n220: opt-in permissions, demanded only when their switch is on in deploy/krusgraph.json. pipeline_execute: run and
+# schedule the pipeline create_pipeline makes, from the chat (fabric_backend/pipeline_jobs.py cites the scopes:
+# DataPipeline.Execute.All runs pipelines and nothing else; a schedule also needs DataPipeline.ReadWrite.All, above).
+OPTIONAL_SCOPES = {"pipeline_execute": {"00000009-0000-0000-c000-000000000000": {"DataPipeline.Execute.All"}}}
+
+
+def required_scopes(config) -> dict:
+    """REQUIRED_SCOPES plus the opt-in permissions whose switch is on."""
+    out = {resource: set(scopes) for resource, scopes in REQUIRED_SCOPES.items()}
+    for key, extra in OPTIONAL_SCOPES.items():
+        if config.get(key) is True:
+            for resource, scopes in extra.items():
+                out.setdefault(resource, set()).update(scopes)
+    return out
 
 
 class DeploymentError(Exception):
@@ -146,7 +160,7 @@ def check_entra(az, config):
         raise DeploymentError("Appens user_impersonation-omfång behöver vara aktiverat.")
     grants = az.run("ad", "app", "permission", "list-grants", "--id", config["client_id"])
     requested = {r["resourceAppId"]: r["resourceAccess"] for r in app.get("requiredResourceAccess", [])}
-    for resource, scopes in REQUIRED_SCOPES.items():
+    for resource, scopes in required_scopes(config).items():
         sp = az.run("ad", "sp", "show", "--id", resource)
         if not sp.get("accountEnabled"):
             raise DeploymentError(f"Tjänsteappen {sp.get('displayName', resource)} är inaktiverad.")
@@ -160,7 +174,8 @@ def check_entra(az, config):
                 granted.update(grant.get("scope", "").split())
         if not scopes <= granted:
             raise DeploymentError(f"Administratörsmedgivande saknas för {sp['displayName']}: {', '.join(sorted(scopes - granted))}")
-    print("Katalog, prenumeration och de nio API-behörigheterna är kontrollerade.", flush=True)
+    extra = " och DataPipeline.Execute.All (pipeline_execute)" if config.get("pipeline_execute") is True else ""
+    print(f"Katalog, prenumeration och de nio API-behörigheterna{extra} är kontrollerade.", flush=True)
 
 
 def assert_owned(resource, name):
@@ -203,7 +218,8 @@ REGISTRATION_ENV = ("KRUSGRAPH_CLIENT_REGISTRATION", "KRUSGRAPH_CLIENT_REGISTRAT
 # Operator switches (n159): a key in deploy/krusgraph.json → the variable set to "1" when the key is true. A switch set by
 # hand on the app whose key is missing from the config is carried over by the full run (the manifest replaces the whole
 # list) and kept by --update, with one line asking the operator to add the key; an explicit false leaves it out.
-OPERATOR_FLAGS = {"mcp_apps": "KRUSGRAPH_MCP_APPS", "read_only": "KRUSGRAPH_READ_ONLY", "no_row_values": "KRUSGRAPH_NO_ROW_VALUES"}
+OPERATOR_FLAGS = {"mcp_apps": "KRUSGRAPH_MCP_APPS", "read_only": "KRUSGRAPH_READ_ONLY", "no_row_values": "KRUSGRAPH_NO_ROW_VALUES",
+                  "pipeline_execute": "KRUSGRAPH_PIPELINE_EXECUTE"}     # n220: the app holds DataPipeline.Execute.All
 
 
 def flag_on(variable: str, value) -> bool:

@@ -22,11 +22,13 @@ Delegated permissions of the hosted app, read from the code on 7 November 2026.
 | `GraphQLApi.ReadWrite.All` (Fabric) | before 28 October 2026 | `create_backend` creates or updates the one API for GraphQL item named in the call (never deletes); reading an existing API's definition (`describe_backend`, `plan_drift`, `app_starter`, `app_readiness`, `lineage`, `answer_query_draft` with `api`), for which Fabric has no read-only permission | no |
 | `GraphQLApi.Execute.All` (Fabric) | before 28 October 2026 | `query_graphql` runs the read-only queries you ask for (mutations are refused); `app_readiness` sends one introspection query | yes: the GraphQL queries you ask for, during the call; nothing is scheduled |
 | `Notebook.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_silver_notebook`, `create_gold_views`, `create_drift_monitor` and `create_pipeline` create or update notebook definitions, only with `dry_run=false` | no: a notebook runs only when someone runs it in Fabric |
-| `DataPipeline.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; `lineage` with `runs` reads a pipeline's activities | no: a pipeline runs only when someone runs or schedules it in Fabric; adding a schedule needs `DataPipeline.Execute.All`, which the app does not request, so `create_drift_monitor` has `schedule=false` by default |
+| `DataPipeline.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; `lineage` with `runs` reads a pipeline's activities | no: a pipeline runs only when someone runs or schedules it in Fabric, or, with the opt-in `DataPipeline.Execute.All`, when you confirm Run once or Schedule; `create_drift_monitor` has `schedule=false` by default |
 | `Item.ReadWrite.All` (Fabric) | since 28 October 2026 | `create_semantic_model`, `create_ontology` and `create_data_agent` create or update one item, `create_report` creates one report, only with `dry_run=false`; `compare_semantic_model` and `lineage` read semantic model definitions | no: no model is refreshed and no item is run |
 | `user_impersonation` (Azure SQL Database) | before 28 October 2026 | reading table and column names from the SQL analytics endpoint; the counting queries of planning (rule R5) and of the checks (`validate_plan`, `suggest_relationships`, `data_dictionary` with `validate=true`); `sample_rows`; `create_views` creates a schema and views, only with `dry_run=false` | yes: SQL queries during the call (counts, up to 20 sample rows, and with `create_views` CREATE SCHEMA and CREATE OR ALTER VIEW); nothing is scheduled |
 
-Not requested: `DataPipeline.Execute.All` or `Item.Execute.All` (running or scheduling pipelines and notebooks); `Workspace.ReadWrite.All` (changing workspaces); `SensitivityLabel.Read` (reading a sensitivity label's name from Microsoft Graph (the label's id comes with the item)). The app has no application permissions: every call runs as the signed-in person.
+Opt-in: `DataPipeline.Execute.All` (Fabric), opt-in since 11 November 2026; off for this server until the operator turns on `pipeline_execute`. Used by `create_pipeline` with `run_once` or `schedule`: starts one run of the pipeline it made and reads the run's status, or adds (or updates its own) schedule, only after a dry run that shows it and your confirmation. Runs or schedules: yes: one run when you confirm Run once; a schedule when you confirm Schedule; nothing otherwise. Why: Fabric's Job Scheduler runs and schedules a pipeline only with `DataPipeline.Execute.All` or `Item.Execute.All`; Krusgraph asks for the narrower one, which runs pipelines and no other item type.
+
+Not requested: `Item.Execute.All` (running any item type; for pipelines Krusgraph asks for the narrower `DataPipeline.Execute.All`, opt-in); `Workspace.ReadWrite.All` (changing workspaces); `SensitivityLabel.Read` (reading a sensitivity label's name from Microsoft Graph (the label's id comes with the item)). The app has no application permissions: every call runs as the signed-in person.
 
 Also asked for at sign-in: `offline_access` (OpenID Connect, not an API permission of the app; Entra's consent screen shows it as keeping access), so that a sign-in can be renewed without a new login. Claude keeps its own refresh token; what is kept for other MCP clients, where they are switched on, is in the token table.
 <!-- /access:table -->
@@ -42,7 +44,7 @@ Also asked for at sign-in: `offline_access` (OpenID Connect, not an API permissi
 | `create_data_agent` | `dataAgents` create, `staging/settings`, `staging/datasources`, `…/elements`, `…/fewshots`, `staging/publish` | `Item.ReadWrite.All` (create/update); the staging routes also accept `DataAgent.ReadWrite.All`, but creating the item needs `Item.ReadWrite.All` | yes (since 28 October 2026) |
 | `create_ontology` (dry run by default) | `ontologies` create / `updateDefinition` | `Item.ReadWrite.All` | yes (since 28 October 2026); also the tenant setting "Users can create Ontology (preview) items"; created live on 28 October 2026 (`shop_ontology`) once it was on, after HTTP 403 `FeatureNotAvailable` while it was off |
 | `create_silver_notebook` (dry run by default) | `notebooks` create (`Items_CreateNotebook`) / `updateDefinition` | `Notebook.ReadWrite.All` **or** `Item.ReadWrite.All` | yes (since 28 October 2026) |
-| `create_pipeline` (dry run by default) | `notebooks` create / `updateDefinition` for its three notebooks; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition` | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`); no execute permission: it neither runs nor schedules the pipeline | yes (since 28 October 2026); created `pipeline_shop`, which was then run in Fabric on 7 November 2026 (run 9de8bc49, all three steps succeeded) |
+| `create_pipeline` (dry run by default) | `notebooks` create / `updateDefinition` for its three notebooks; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition` | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All`); with `run_once` or `schedule` (n220, after a dry run and the person's confirmation, `confirm_jobs`) also `dataPipelines/{id}/jobs/execute/instances` (`BackgroundJobs_RunOnDemandExecute`) and `.../jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`), which need `DataPipeline.Execute.All` **or** `Item.Execute.All` | yes (since 28 October 2026); created `pipeline_shop`, which was then run in Fabric on 7 November 2026 (run 9de8bc49, all three steps succeeded) |
 | `create_drift_monitor` (dry run by default) | `notebooks` create / `updateDefinition`; `dataPipelines` create (`Items_CreateDataPipeline`) / `updateDefinition`; `dataPipelines/{id}/jobs/execute/schedules` (`BackgroundJobs_ScheduleExecute`) | `Notebook.ReadWrite.All` and `DataPipeline.ReadWrite.All` (or `Item.ReadWrite.All` for both); the schedule also `DataPipeline.Execute.All` **or** `Item.Execute.All` | yes for the notebook and the pipeline (since 28 October 2026); **no** for the schedule: `DataPipeline.Execute.All` is not added, so `schedule=false` is the default |
 | `answer_query_draft`, `query_graphql` with `question` | the plan (SQL endpoint) and, with an API, `items/{id}/getDefinition`; then the GraphQL endpoint | what the app has (`GraphQLApi.ReadWrite.All` for the definition, `GraphQLApi.Execute.All`, Azure SQL `user_impersonation`) | yes |
 | `app_starter` | `items/{id}/getDefinition` on the GraphQL API | `GraphQLApi.ReadWrite.All` (getDefinition has no read-only scope) | yes |
@@ -75,6 +77,33 @@ type each. The narrow choice is the better one for a connector that is listed pu
 consent for all of them. Scheduling the drift monitor's pipeline also needs `DataPipeline.Execute.All` (or
 `Item.Execute.All`): an execute permission, so the app could then run pipelines as the user; leave `schedule=false` and
 add the schedule in the portal if that is not wanted.
+
+## Running and scheduling the pipeline from the chat: `DataPipeline.Execute.All`, opt-in (round n220)
+
+On 11 November 2026 `create_pipeline` created a pipeline from Claude, and Run once answered HTTP 403: the hosted MCP app
+had no execute permission, while the Fabric workload (its own app) already runs and schedules pipelines. Fabric's scopes,
+read 11 November 2026: microsoft/fabric-rest-api-specs `dataPipeline/swagger.json`, `BackgroundJobs_RunOnDemandExecute`
+"DataPipeline.Execute.All or Item.Execute.All"; `BackgroundJobs_ScheduleExecute` and `BackgroundJobs_UpdateExecuteSchedule`
+"(DataPipeline.Execute.All or Item.Execute.All) and (DataPipeline.ReadWrite.All or Item.ReadWrite.All)";
+`BackgroundJobs_GetExecuteJobInstance` (reading the run) "DataPipeline.Read.All or DataPipeline.ReadWrite.All or
+Item.Read.All or Item.ReadWrite.All". Learn, Job Scheduler - Run On Demand Item Job (fabric-rest-apis-docs b4d803a):
+"Generic scope: Item.Execute.All; Specific scope: itemType.Execute.All"; Create Item Schedule (89f63b1): "Item.Execute.All
+and Item.ReadWrite.All".
+
+Krusgraph asks for the narrower `DataPipeline.Execute.All` (it runs pipelines, no other item type) as an **opt-in**: the
+deploy switch `pipeline_execute` in `deploy/krusgraph.json` makes the deploy check demand it with admin consent
+(`OPTIONAL_SCOPES`) and sets `KRUSGRAPH_PIPELINE_EXECUTE=1` on the server, which says so on /it. `Item.Execute.All` in a
+token is accepted too, never asked for. Steps for an Entra admin, in the portal:
+
+1. Entra admin center > App registrations > the Krusgraph MCP app > API permissions.
+2. Add a permission > APIs my organization uses > Power BI Service > Delegated permissions > `DataPipeline.Execute.All` >
+   Add permissions.
+3. Grant admin consent for the organisation.
+4. Reconnect Krusgraph in Claude (Settings > Connectors > Krusgraph > Disconnect, then Connect), so the new permission is
+   in the token.
+
+Until then a token without it gets no bare 403: the dry run already says the permission is missing, Create makes the
+items and does not ask Fabric to run them, and the answer gives the steps above and "Run it in the Fabric portal".
 
 ## Reading an existing semantic model: why getDefinition (round n12)
 

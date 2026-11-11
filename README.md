@@ -187,7 +187,7 @@ the notebooks the creating tools below made on 28 October have not been run in F
 - `drift_monitor_draft` / `create_drift_monitor` — a notebook and a pipeline that every night compare the plan with the
   last one, save it in `krusgraph.plans`, and send a short summary of what changed and which APIs, models and views it
   reaches to a webhook set as a pipeline parameter in Fabric; plus the daily schedule. The pipeline needs `DataPipeline.ReadWrite.All` (granted since 28 October 2026); the
-  schedule needs `DataPipeline.Execute.All`, which the app does not request, so `schedule=false` is the default.
+  schedule needs `DataPipeline.Execute.All`, opt-in on the hosted app (`pipeline_execute`, round n220), so `schedule=false` is the default.
 - `answer_query_draft` — a question in Swedish or English about some tables as T-SQL over the safest join path (each
   step with its rule) and, for an existing API, as GraphQL; `query_graphql` with `question` runs the GraphQL version.
 - `gold_views_draft` / `create_gold_views` — materialized lake views in Spark SQL over the silver tables: one wide view
@@ -264,8 +264,8 @@ each user's token is validated (issuer per tenant, audience = the app, signature
 Fabric and SQL tokens — every call runs with that user's own Fabric permissions. The delegated permissions the
 Entra app asks for (7 November 2026): `User.Read`; Fabric `Workspace.Read.All`, `Item.Read.All`, `GraphQLApi.ReadWrite.All`,
 `GraphQLApi.Execute.All`, `Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All`, `Item.ReadWrite.All` (the last three
-since 28 October 2026); Azure SQL `user_impersonation`. Not requested: `DataPipeline.Execute.All` or `Item.Execute.All`,
-so nothing is run or scheduled. What each tool uses them for: [docs/SCOPES.md](docs/SCOPES.md). Metadata, the counts from the checks, requested sample rows
+since 28 October 2026); Azure SQL `user_impersonation`. Opt-in (round n220): `DataPipeline.Execute.All`, so that
+`create_pipeline` can run or schedule its pipeline after a dry run and your confirmation. Not requested: `Item.Execute.All`. What each tool uses them for: [docs/SCOPES.md](docs/SCOPES.md). Metadata, the counts from the checks, requested sample rows
 and query results pass through the server in memory only and are not kept; Claude's tokens stay in memory, and the only
 stored records are the encrypted sign-in records of other MCP clients described below. Each tool call leaves an anonymous
 usage record, and `/privacy` says which technical logs the deployment keeps. MCP clients other than Claude (VS Code, Cursor, Glama)

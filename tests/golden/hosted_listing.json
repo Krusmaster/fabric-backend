@@ -701,7 +701,7 @@
     "read_only_hint": false,
     "title": "Create or update the nightly drift monitor in Fabric (dry run by default)"
    },
-   "description": "Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place; with\nschedule=true also adds a daily schedule unless one at that time exists. Requires workspace, a lakehouse source and\nname; Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. schedule is\nfalse by default: the schedule needs DataPipeline.Execute.All, which the hosted app does not request. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes\nFabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is\ndeleted and no secret is written. Errors: {error, kind, hint}.",
+   "description": "Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place; with\nschedule=true also adds a daily schedule unless one at that time exists. Requires workspace, a lakehouse source and\nname; Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. schedule is\nfalse by default: the schedule needs DataPipeline.Execute.All, opt-in on the hosted app. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes\nFabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is\ndeleted and no secret is written. Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
      "at": {
@@ -736,7 +736,7 @@
      },
      "schedule": {
       "default": false,
-      "description": "false (default) creates the items without a schedule: a schedule needs DataPipeline.Execute.All, which the hosted app does not request; true adds the daily schedule where that permission is granted. Example: true.",
+      "description": "false (default) creates the items without a schedule: a schedule needs DataPipeline.Execute.All, opt-in on the hosted app (pipeline_execute); true adds the daily schedule where that permission is granted. Example: true.",
       "title": "Schedule",
       "type": "boolean"
      },
@@ -1043,9 +1043,15 @@
     "read_only_hint": false,
     "title": "Create or update the silver, gold and check pipeline in Fabric (dry run by default)"
    },
-   "description": "Creates the pipeline export_item_definitions drafts with items=[\"pipeline\"]: the silver and gold notebooks of\ncreate_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,\neach only after the one before succeeded, so a failed check fails the run. Items of these names are updated in\nplace. Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST\ncalls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are\nreplaced, nothing is deleted; nothing runs and no schedule is added unless run_once or schedule asks (both\noff by default; they need DataPipeline.Execute.All). Errors: {error, kind, hint}.",
+   "description": "Creates the pipeline export_item_definitions drafts with items=[\"pipeline\"]: the silver and gold notebooks of\ncreate_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,\neach only after the one before succeeded, so a failed check fails the run. Items of these names are updated in\nplace. Requires workspace, a lakehouse source with schemas and name; Notebook.ReadWrite.All and\nDataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST\ncalls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are\nreplaced, nothing is deleted; nothing runs and no schedule is added unless run_once or schedule asks (both\noff by default; they need DataPipeline.Execute.All, and confirm_jobs from the dry run after the person said\nyes). Errors: {error, kind, hint}.",
    "input_schema": {
     "properties": {
+     "confirm_jobs": {
+      "default": "",
+      "description": "The code the dry run gives in jobs.confirm, passed back only after the person has seen what runs and when and said yes. Required with dry_run=false when run_once or schedule is set; nothing runs or is scheduled without it.",
+      "title": "Confirm Jobs",
+      "type": "string"
+     },
      "confirmed": {
       "anyOf": [
        {
@@ -1107,7 +1113,7 @@
      },
      "run_once": {
       "default": false,
-      "description": "true starts one run of the pipeline after it is created and reads it for up to two minutes (per step: Succeeded, Failed or Running, with durations and a link). Default false: nothing runs. Needs DataPipeline.Execute.All.",
+      "description": "true starts one run of the pipeline after it is created and reads it for up to two minutes (per step: Succeeded, Failed or Running, with durations and a link). Default false: nothing runs. Only after a dry run and the person's confirmation (confirm_jobs). Needs DataPipeline.Execute.All, opt-in.",
       "title": "Run Once",
       "type": "boolean"
      },
@@ -1122,7 +1128,7 @@
        }
       ],
       "default": null,
-      "description": "A schedule for the pipeline. Default none: nothing is scheduled. {\"every\": \"day\", \"at\": \"06:00\"} or {\"every\": \"hours\", \"hours\": 4, \"at\": \"06:00\"}, optional \"time_zone\" (default \"Europe/Stockholm\") and \"start\" (YYYY-MM-DD, default tomorrow). A schedule Krusgraph made is updated, others are left alone. Needs DataPipeline.Execute.All.",
+      "description": "A schedule for the pipeline. Default none: nothing is scheduled. {\"every\": \"day\", \"at\": \"06:00\"} or {\"every\": \"hours\", \"hours\": 4, \"at\": \"06:00\"}, optional \"time_zone\" (default \"Europe/Stockholm\") and \"start\" (YYYY-MM-DD, default tomorrow). A schedule Krusgraph made is updated, others are left alone. Only after a dry run and the person's confirmation (confirm_jobs). Needs DataPipeline.Execute.All, opt-in.",
       "title": "Schedule"
      },
      "schema": {

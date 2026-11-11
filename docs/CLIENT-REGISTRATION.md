@@ -110,6 +110,10 @@ in both modes; tests lock it), and `https://<domain>/mcp/connect` names Krusgrap
 4. Only after Allow: the sign-in is stored (10 minutes, single use), a cookie binds it to this browser, and the browser
    goes to Entra with this server's redirect address `https://<domain>/oauth/callback`, its own state and PKCE, and the
    scope `<MCP_PUBLIC_URL>/user_impersonation offline_access`. No `prompt=consent` and no `resource` go to Entra.
+   The Fabric and SQL permissions are not in this scope: the server obtains them on-behalf-of the user with
+   `<resource>/.default`, so a token carries the delegated permissions the app registration has and an admin consented
+   to. The opt-in `DataPipeline.Execute.All` (round n220, `pipeline_execute`, `docs/SCOPES.md`) therefore needs no change
+   here: added to the app and consented, it is in the next token after the client signs in again.
 5. `/oauth/callback`: the state is taken (once), the browser must be the one that approved, Entra's code is redeemed
    with the app's secret, and the access token is validated exactly as `/mcp` validates tokens (signature, audience =
    this app, issuer per tenant, `user_impersonation`, allowed tenants). The approval is stored for this user (a keyed

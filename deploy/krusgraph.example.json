@@ -18,6 +18,7 @@
   "mcp_apps": false,
   "read_only": false,
   "no_row_values": false,
+  "pipeline_execute": false,
   "key_vault": "",
   "log_retention_days": 0,
   "log_analytics_workspace": "",

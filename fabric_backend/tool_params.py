@@ -145,15 +145,19 @@ PipelineSilverName = Annotated[str, _d('Display name of the silver notebook the 
 PipelineGoldName = Annotated[str, _d('Display name of the gold views notebook the pipeline runs, updated in place if it '
                                      'exists. Default "" (gold_<schema>). Example: "gold_shop".')]
 Schedule = Annotated[bool, _d('false (default) creates the items without a schedule: a schedule needs '
-                              'DataPipeline.Execute.All, which the hosted app does not request; true adds the daily '
+                              'DataPipeline.Execute.All, opt-in on the hosted app (pipeline_execute); true adds the daily '
                               'schedule where that permission is granted. Example: true.')]
 RunOnce = Annotated[bool, _d('true starts one run of the pipeline after it is created and reads it for up to two minutes '
                              '(per step: Succeeded, Failed or Running, with durations and a link). Default false: nothing '
-                             'runs. Needs DataPipeline.Execute.All.')]
+                             'runs. Only after a dry run and the person\'s confirmation (confirm_jobs). Needs DataPipeline.Execute.All, opt-in.')]
 PipelineSchedule = Annotated[dict | None, _d(
     'A schedule for the pipeline. Default none: nothing is scheduled. {"every": "day", "at": "06:00"} or {"every": '
     '"hours", "hours": 4, "at": "06:00"}, optional "time_zone" (default "Europe/Stockholm") and "start" (YYYY-MM-DD, '
-    'default tomorrow). A schedule Krusgraph made is updated, others are left alone. Needs DataPipeline.Execute.All.')]
+    'default tomorrow). A schedule Krusgraph made is updated, others are left alone. Only after a dry run and the '
+    'person\'s confirmation (confirm_jobs). Needs DataPipeline.Execute.All, opt-in.')]
+ConfirmJobs = Annotated[str, _d(
+    'The code the dry run gives in jobs.confirm, passed back only after the person has seen what runs and when and said '
+    'yes. Required with dry_run=false when run_once or schedule is set; nothing runs or is scheduled without it.')]
 AgentLayer = Annotated[str, _d('Which tables the agent reads, one layer only: "source" (default, the source schema), '
                                '"silver" (the silver tables create_silver_notebook writes, else the source), "gold" (the '
                                'gold views, else the source). The plan\'s tables in the other layers are deselected.')]

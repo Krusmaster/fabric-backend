@@ -267,7 +267,8 @@ def test_the_mcp_create_with_both_runs_and_schedules_after_the_pipeline(fabric, 
             return fake(method, url, **{k: v for k, v in kw.items() if k == "json"})
         return real(method, url, headers, **kw)
     monkeypatch.setattr(D, "send", send)
-    out = create(dry_run=False, run_once=True, schedule={"every": "day", "at": "06:00"})
+    dry = create(run_once=True, schedule={"every": "day", "at": "06:00"})     # n220: the dry run gives the code, then yes
+    out = create(dry_run=False, run_once=True, schedule={"every": "day", "at": "06:00"}, confirm_jobs=dry["jobs"]["confirm"])
     assert out["result"]["status"] == "Succeeded"
     assert out["result"]["schedule"]["mode"] == "created" and out["result"]["run"]["run_id"] == "run-1"
     assert json.dumps(out)                                              # the answer is JSON

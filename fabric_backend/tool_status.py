@@ -237,9 +237,10 @@ OPEN = {
     "silver_notebook_draft": "the notebook ran on a local PySpark 4.0.1; " + _PIPELINE_RAN,
     "gold_views_draft": "the SQL ran on SQLite and a local PySpark 4.0.1; " + _PIPELINE_RAN,
     "drift_monitor_draft": "the notebook ran two nights on a local PySpark, not yet in Fabric",
-    "create_drift_monitor": "neither item has been run in Fabric; the schedule needs DataPipeline.Execute.All, which the "
-                            "hosted app does not request",
-    "create_pipeline": "the tool neither runs nor schedules the pipeline; someone runs it in Fabric",
+    "create_drift_monitor": "neither item has been run in Fabric; the schedule needs DataPipeline.Execute.All, opt-in on the "
+                            "hosted app",
+    "create_pipeline": "Run once and Schedule (after a dry run and the person's confirmation) need DataPipeline.Execute.All, "
+                       "opt-in on the hosted app, and have not run live; without it someone runs the pipeline in Fabric",
     "compare_semantic_model": "comparing with a live model, and comparing from `tmdl` files, have not run live",
     "review_plan": "reading a file back is unit-tested only",
 }

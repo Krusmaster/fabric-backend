@@ -55,8 +55,8 @@ GRANTED = (
     Grant(FABRIC, "DataPipeline.ReadWrite.All", ADDED,
           "`create_drift_monitor` and `create_pipeline` create or update a pipeline definition, only with `dry_run=false`; "
           "`lineage` with `runs` reads a pipeline's activities",
-          "no: a pipeline runs only when someone runs or schedules it in Fabric; adding a schedule needs "
-          "`DataPipeline.Execute.All`, which the app does not request, so `create_drift_monitor` has `schedule=false` by default"),
+          "no: a pipeline runs only when someone runs or schedules it in Fabric, or, with the opt-in "
+          "`DataPipeline.Execute.All`, when you confirm Run once or Schedule; `create_drift_monitor` has `schedule=false` by default"),
     Grant(FABRIC, "Item.ReadWrite.All", ADDED,
           "`create_semantic_model`, `create_ontology` and `create_data_agent` create or update one item, `create_report` "
           "creates one report, only with `dry_run=false`; `compare_semantic_model` and `lineage` read semantic model "
@@ -69,9 +69,54 @@ GRANTED = (
           "CREATE OR ALTER VIEW); nothing is scheduled"),
 )
 
+# n220: opt-in permissions. Not part of GRANTED (which equals the deploy check's REQUIRED_SCOPES): the deploy check demands
+# one only when its switch is on in deploy/krusgraph.json (OPTIONAL_SCOPES in deploy/azure_containerapp.py), and the server
+# reads the same switch. The scope names are cited in fabric_backend/pipeline_jobs.py (SCOPES_READ).
+PIPELINE_EXECUTE_ENV = "KRUSGRAPH_PIPELINE_EXECUTE"
+OPT_IN_SINCE = "11 November 2026"
+
+
+@dataclass(frozen=True)
+class OptIn:
+    resource: str
+    scope: str
+    switch: str         # the key in deploy/krusgraph.json
+    variable: str       # the server's environment variable
+    tools: str
+    runs: str
+    why: str            # why it is asked for, and why this one and not a wider one
+
+
+OPT_IN = (
+    OptIn(FABRIC, "DataPipeline.Execute.All", "pipeline_execute", PIPELINE_EXECUTE_ENV,
+          "`create_pipeline` with `run_once` or `schedule`: starts one run of the pipeline it made and reads the run's "
+          "status, or adds (or updates its own) schedule, only after a dry run that shows it and your confirmation",
+          "yes: one run when you confirm Run once; a schedule when you confirm Schedule; nothing otherwise",
+          "Fabric's Job Scheduler runs and schedules a pipeline only with `DataPipeline.Execute.All` or `Item.Execute.All`; "
+          "Krusgraph asks for the narrower one, which runs pipelines and no other item type"),
+)
+
+
+def opt_in_on(o: OptIn | None = None) -> bool:
+    """Whether this server is told its Entra app holds the opt-in permission (the operator's switch)."""
+    import os
+    o = o or OPT_IN[0]
+    return os.environ.get(o.variable, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def pipeline_execute_on() -> bool:
+    return opt_in_on(OPT_IN[0])
+
+
+def _opt_in_state(o: OptIn) -> str:
+    return (f"opt-in since {OPT_IN_SINCE}; on for this server" if opt_in_on(o) else
+            f"opt-in since {OPT_IN_SINCE}; off for this server until the operator turns on `{o.switch}`")
+
+
 # Asked about, not requested (docs/SCOPES.md): what the app cannot do because of that.
 NOT_REQUESTED = (
-    ("DataPipeline.Execute.All", "Item.Execute.All", "running or scheduling pipelines and notebooks"),
+    ("Item.Execute.All", "", "running any item type; for pipelines Krusgraph asks for the narrower `DataPipeline.Execute.All`, "
+                             "opt-in"),
     ("Workspace.ReadWrite.All", "", "changing workspaces"),
     ("SensitivityLabel.Read", "", "reading a sensitivity label's name from Microsoft Graph (the label's id comes with the item)"),
 )
@@ -110,11 +155,17 @@ def not_requested_sentence() -> str:
         + ". The app has no application permissions: every call runs as the signed-in person.")
 
 
+def opt_in_md() -> str:
+    """The opt-in permissions with why, below the table (n220)."""
+    return "\n".join(f"Opt-in: `{o.scope}` ({o.resource}), {_opt_in_state(o)}. Used by {o.tools}. Runs or schedules: "
+                     f"{o.runs}. Why: {o.why}." for o in OPT_IN)
+
+
 def table_md() -> str:
     rows = [f"Delegated permissions of the hosted app, read from the code on {AS_OF}.", "",
             "| Permission | Granted | What the tools use it for | Runs or schedules anything? |", "| --- | --- | --- | --- |"]
     rows += [f"| `{g.scope}` ({g.resource}) | {_since(g)} | {g.tools} | {g.runs} |" for g in GRANTED]
-    return "\n".join(rows) + "\n\n" + not_requested_sentence() + "\n\n" + OFFLINE_ACCESS
+    return "\n".join(rows) + "\n\n" + opt_in_md() + "\n\n" + not_requested_sentence() + "\n\n" + OFFLINE_ACCESS
 
 
 def table_html() -> str:
@@ -123,7 +174,8 @@ def table_html() -> str:
     return (f'<p class="muted tiny">Delegated permissions of the hosted app, read from the code on {AS_OF}.</p>'
             '<div class="table-wrap" tabindex="0"><table class="it-scopes"><thead><tr><th>Permission</th><th>Granted</th>'
             '<th>What the tools use it for</th><th>Runs or schedules anything?</th></tr></thead>'
-            f'<tbody>{rows}</tbody></table></div><p class="muted tiny">{_html(not_requested_sentence())}</p>'
+            f'<tbody>{rows}</tbody></table></div><p class="muted tiny it-opt-in">{_html(opt_in_md())}</p>'
+            f'<p class="muted tiny">{_html(not_requested_sentence())}</p>'
             f'<p class="muted tiny">{_html(OFFLINE_ACCESS)}</p>')
 
 
@@ -135,8 +187,9 @@ def sentence() -> str:
     listed = "; ".join(f"{r}: {', '.join(s)}" for r, s in by.items())
     return (f"The hosted Entra app has these delegated permissions ({AS_OF}): {listed}. The three write permissions "
             f"`Notebook.ReadWrite.All`, `DataPipeline.ReadWrite.All` and `Item.ReadWrite.All` were added on {ADDED}; the "
-            "creating tools use them only on a call with `dry_run=false`. Nothing is run or scheduled with them: "
-            "`DataPipeline.Execute.All` and `Item.Execute.All` are not requested.")
+            "creating tools use them only on a call with `dry_run=false`. Nothing is run or scheduled with them. "
+            "`DataPipeline.Execute.All` is opt-in (" + _opt_in_state(OPT_IN[0]) + "): with it, `create_pipeline` runs or "
+            "schedules the pipeline it made, only after a dry run and your confirmation. `Item.Execute.All` is not requested.")
 
 
 # ------------------------------------------------------------------ what is kept of a sign-in -------------------------

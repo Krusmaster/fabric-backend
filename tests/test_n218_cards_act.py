@@ -121,7 +121,7 @@ def test_not_checked_when_the_budget_runs_out(fabric):
 
 def test_a_question_back_gets_no_next_steps(fabric):
     assert nxt.steps("plan_backend", SRC, {"choose_schema": True, "schemas": []}) == []
-    assert nxt.steps("validate_plan", SRC, {"error": "x"}) == []
+    assert 1 <= len(nxt.steps("validate_plan", SRC, {"error": "x"})) <= 3        # n220: an error ends with 1 to 3 steps
     assert nxt.steps("validate_plan", {"workspace": "demo"}, {"summary": "x"}) == []
 
 

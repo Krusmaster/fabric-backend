@@ -111,5 +111,6 @@ def test_from_azure_update_keeps_the_flag_and_records_it_in_the_saved_config(mon
     assert cloud.env()["KRUSGRAPH_MCP_APPS"] == "1" and cloud.env()["KRUSGRAPH_NO_ROW_VALUES"] == "yes"
 
 
-def test_the_example_documents_the_three_keys_as_false():
-    assert {k: BASE[k] for k in d.OPERATOR_FLAGS} == {"mcp_apps": False, "read_only": False, "no_row_values": False}
+def test_the_example_documents_the_switches_as_false():                  # n220: pipeline_execute, the fourth
+    assert {k: BASE[k] for k in d.OPERATOR_FLAGS} == {"mcp_apps": False, "read_only": False, "no_row_values": False,
+                                                       "pipeline_execute": False}

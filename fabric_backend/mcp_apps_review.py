@@ -76,7 +76,7 @@ def card_html() -> str:
             .replace("__UNDECIDED__", json.dumps(list(UNDECIDED)))
             .replace("__MASCOT_CSS__", mascots.CSS).replace("__RESULT_CSS__", mcp_apps.RESULT_CSS).replace("__MASCOT_TOGGLE__", mascots.TOGGLE)
             .replace("__MASCOTS__", mascots.section()).replace("__MASCOT_JS__", mascots.JS)
-            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js() + pic["js"]).replace("__LAYOUT_JS__", LAYOUT_JS)
+            .replace("__READ_JS__", mcp_apps.READ_JS + mcp_apps.CALL_JS + mcp_apps.RESULT_JS + nxt.js(links=False) + pic["js"]).replace("__LAYOUT_JS__", LAYOUT_JS)
             .replace("__PICTURE_CSS__", pic["css"] + nxt.NEXT_CSS))
 
 
@@ -598,7 +598,8 @@ __LAYOUT_JS__
     var verdict = document.getElementById("verdict");
     mascotsQuiet();
     if (!isObj(data)) { verdict.textContent = "The card could not read review_plan's answer; it is in the text of the tool result."; return; }
-    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : ""); return; }
+    if (data.error) { verdict.textContent = readable(data.error) + (readable(data.hint) ? " " + data.hint : "");
+      var errBox = document.getElementById("nextsteps"); errBox.textContent = ""; errBox.hidden = !renderNext(data, errBox); return; }   // n220
     var rv = data.review;
     if (!isObj(rv) || !isObj(rv.snapshot) || !rv.snapshot.tables) { verdict.textContent = "The answer holds no review file; it is in the text of the tool result."; return; }
     answer = data;
