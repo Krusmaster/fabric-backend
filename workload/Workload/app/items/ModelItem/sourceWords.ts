@@ -19,16 +19,25 @@ export const SOURCE_TYPES = ["Lakehouse", "Warehouse", "SQLDatabase", "MirroredD
 export const PICKER_TYPES = ["Lakehouse", "Warehouse", "SQLDbNative", "SQLDatabase", "MirroredDatabase", "MountedRelationalDatabase", "mounted-warehouse"];
 
 const SAME: Record<string, string> = {
-  SQLDbNative: "SQLDatabase",
-  MountedRelationalDatabase: "MirroredDatabase",
+  sqldbnative: "SQLDatabase",
+  mountedrelationaldatabase: "MirroredDatabase",
   "mounted-warehouse": "MirroredDatabase",
   "data-warehouse": "Warehouse",
   "lake-warehouse": "Lakehouse",
+  lakehouse: "Lakehouse",
+  warehouse: "Warehouse",
+  sqldatabase: "SQLDatabase",
+  mirroreddatabase: "MirroredDatabase",
 };
 
-/** The picker's item type as the REST API names it. */
-export function restType(type?: string): string | undefined {
-  return type ? (SAME[type] ?? type) : type;
+/** n215: the picker's item type as the REST API names it, or undefined when it is not a name. The host's datahub item
+ * carries its type in fabricItemType (a string) and in itemType, which the workload client types as `any` and which
+ * can be Fabric's numeric enum: a number stored as the source's type made isReadOnly true and sourceLabel(...)
+ * .toLowerCase() throw during render, and the editor went white after a lakehouse was picked. Case is ignored. */
+export function restType(type?: unknown): string | undefined {
+  if (typeof type !== "string" || !type.trim()) return undefined;
+  const t = type.trim();
+  return SAME[t.toLowerCase()] ?? t;
 }
 
 const LABELS: Record<string, string> = {
@@ -38,16 +47,18 @@ const LABELS: Record<string, string> = {
   MirroredDatabase: "Mirrored database",
 };
 
-export function sourceLabel(type?: string): string {
-  return LABELS[type ?? ""] ?? (type ? type : "Source");
+export function sourceLabel(type?: unknown): string {
+  const t = restType(type);
+  return (t && LABELS[t]) ?? t ?? "Source";
 }
 
 /** Spark cannot write into it: everything but a lakehouse. An unknown type (an item saved before n201) is a lakehouse. */
-export function isReadOnly(type?: string): boolean {
-  return !!type && type !== "Lakehouse" && type !== "TODO";
+export function isReadOnly(type?: unknown): boolean {
+  const t = restType(type);
+  return !!t && t !== "Lakehouse" && t !== "TODO";
 }
 
-export function sourceButton(source?: { itemType?: string; displayName: string }): string {
+export function sourceButton(source?: { itemType?: unknown; displayName: string }): string {
   return source ? `${sourceLabel(source.itemType)}: ${source.displayName}` : "Choose a source";
 }
 
@@ -60,7 +71,7 @@ export function targetButton(target?: TargetChoice): string {
   return target ? `Target lakehouse: ${target.displayName}` : "Target lakehouse: the first of this workspace (default)";
 }
 
-export function targetLine(source: { itemType?: string; displayName: string }, target?: TargetChoice): string {
+export function targetLine(source: { itemType?: unknown; displayName: string }, target?: TargetChoice): string {
   const what = sourceLabel(source.itemType).toLowerCase();
   return (
     `A ${what} is read-only: Krusgraph reads ${source.displayName} and writes the silver tables, the gold views and the ` +
@@ -70,8 +81,9 @@ export function targetLine(source: { itemType?: string; displayName: string }, t
 }
 
 /** The target must be a lakehouse of the source's workspace: what Create builds lives there. */
-export function targetProblem(sourceWorkspace: string, picked: { workspaceId: string; type?: string }): string | undefined {
-  if (picked.type && picked.type !== "Lakehouse") return "Choose a lakehouse as the target.";
+export function targetProblem(sourceWorkspace: string, picked: { workspaceId: string; type?: unknown }): string | undefined {
+  const t = restType(picked.type);
+  if (t && t !== "Lakehouse") return "Choose a lakehouse as the target.";
   if (picked.workspaceId !== sourceWorkspace) return "Choose a lakehouse in the same workspace as the source.";
   return undefined;
 }

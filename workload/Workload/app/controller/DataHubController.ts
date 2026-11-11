@@ -102,13 +102,19 @@ export async function callDatahubOpen(
     }
 
     const selectedItem = result.selectedDatahubItem[0];
+    if (!selectedItem) {
+        return null;
+    }
     const { itemObjectId, workspaceObjectId } = selectedItem;
-    const { displayName, description } = selectedItem.datahubItemUI;
+    // Krusgraph n215: datahubItemUI is optional, and its itemType is typed `any` (Fabric's own enum, a number); the
+    // item's type name is fabricItemType. Only a string is passed on as the type.
+    const ui = selectedItem.datahubItemUI;
+    const named = [ui?.fabricItemType, ui?.itemType].find((t) => typeof t === "string" && t.trim() !== "");
     return {
         id: itemObjectId,
         workspaceId: workspaceObjectId,
-        type: selectedItem.datahubItemUI.itemType,
-        displayName,
-        description
+        type: named as string | undefined,
+        displayName: ui?.displayName ?? "",
+        description: ui?.description
     };
 }

@@ -3,6 +3,7 @@ import { Route, Router, Switch } from "react-router-dom";
 import { History } from "history";
 import { WorkloadClientAPI } from "@ms-fabric/workload-client";
 import { ModelItemEditor } from "./items/ModelItem";
+import { EditorErrorBoundary } from "./items/ModelItem/EditorErrorBoundary";
 import { ConditionalPlaygroundRoutes } from "./playground/ConditionalPlaygroundRoutes";
 
 /*
@@ -45,8 +46,11 @@ export function App({ history, workloadClient }: AppProps) {
         <Switch>
             {/* The Krusgraph Model editor (renamed from the starter kit's HelloWorld item) */}
             <Route path="/ModelItem-editor/:itemObjectId">
-                <ModelItemEditor
-                    workloadClient={workloadClient} data-testid="ModelItem-editor" />
+                {/* n215: a render error shows its text and Reload instead of a white page */}
+                <EditorErrorBoundary>
+                    <ModelItemEditor
+                        workloadClient={workloadClient} data-testid="ModelItem-editor" />
+                </EditorErrorBoundary>
             </Route>
 
             {/* Conditionally loaded playground routes (only in development) */}
