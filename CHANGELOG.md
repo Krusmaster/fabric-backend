@@ -22,6 +22,20 @@ next deploy.
   /mcp/connect, in "Who it is for", "What you need", "How you work" and the VS Code row of the decision guide.
   `docs/MASCOT-ART-NEEDED.md` lists what is still flat and the renders that would replace it (props, poses, 512 px,
   transparent). The manifest images changed, so a new package is needed.
+- Round n220: **run and schedule the pipeline from the chat, and a report name already taken**, after the founder's
+  chat of 11 November 2026 (Run once answered 403; create_report refused a name the dry run had found free). The hosted
+  MCP app may now hold `DataPipeline.Execute.All` as an **opt-in** permission (deploy switch `pipeline_execute`, server
+  `KRUSGRAPH_PIPELINE_EXECUTE`; the deploy check then demands it with admin consent), listed with why on /it, in
+  `docs/SCOPES.md` and `docs/TRUST-PACK.md` section 5; scope names cited from microsoft/fabric-rest-api-specs
+  `dataPipeline/swagger.json` and Learn's Job Scheduler pages (read 11 November 2026). `create_pipeline` runs or schedules
+  only after a dry run that shows what runs and when and the person's yes: the dry run's `jobs.confirm` passed back as
+  `confirm_jobs` (the Model editor confirms in its own review); the run is read by polling the job instance. A token
+  without the permission gets no bare 403: the dry run already says so, Create makes the items without asking Fabric to
+  run them, and the answer names the app, the permission, admin consent and reconnecting, with "Run it in the Fabric
+  portal". `create_report` with a taken name offers the next free name (checked), the existing report, says whether
+  Krusgraph made it on this model and whether the name was free at the dry run, and checks the name again right before
+  the create. Each of these answers ends with 1 to 3 next steps. `tests/test_n220_run_from_chat.py`. Redeploy; the
+  founder adds the permission in Entra (`docs/SCOPES.md`).
 - Round n202: **a synthetic, SAP-shaped sample for demos, /check and films, with customer-specific Z tables**. New
   `fabric_backend/sap_sample.py`: `sap_sd` (order to invoice: `T001`, `KNA1`, `MARA`, `MAKT`, `VBAK`, `VBAP`, `LIKP`,
   `LIPS`, `VBRK`, `VBRP`) and `sap_mm` (purchase to pay: `T001`, `LFA1`, `MARA`, `MAKT`, `EKKO`, `EKPO`, `EKBE`), from a

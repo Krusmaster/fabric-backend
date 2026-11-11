@@ -635,3 +635,134 @@ def definition_payload(name: str, parts: dict[str, str], description: str = "") 
     if description:
         body["description"] = description[:256]
     return body
+
+
+# ------------------------------------------------------------------ a name already taken (round n220) ----------------
+# On 11 November 2026 create_report answered "a report named demo_lh_report_2 already exists ... nothing was created"
+# although the dry run a quarter of an hour before had found the name free, and the card showed only the refusal. Now
+# the answer says whether the name was free at the dry run, whether the report there is one Krusgraph made on this model
+# (the description create_report writes, below), and offers the next free name, checked, and the existing report.
+DESCRIPTION_PREFIX = "Created by Krusgraph on the semantic model "
+FREE_NAME_TRIES = 50
+DRY_RUN_MEMORY = 2000
+_free_at: dict[tuple[str, str], float] = {}
+
+
+def description_for(model_name: str) -> str:
+    return f"{DESCRIPTION_PREFIX}{model_name}"
+
+
+def next_free_name(name: str, taken) -> str:
+    """demo_lh_report_2 -> demo_lh_report_3 (the next number up), report -> report_2: the first that no name in `taken`
+    has, case-insensitive. Raises ValueError after FREE_NAME_TRIES."""
+    low = {str(t).lower() for t in taken}
+    m = re.match(r"^(.*?)_(\d+)$", name)
+    stem, n = (m.group(1), int(m.group(2))) if m else (name, 1)
+    for i in range(n + 1, n + 1 + FREE_NAME_TRIES):
+        cand = f"{stem}_{i}"
+        if cand.lower() not in low:
+            return cand
+    raise ValueError(f"no free name after {name!r}")
+
+
+def provenance(item: dict | None, model_name: str) -> dict:
+    """Whether the report there was made by Krusgraph, and on this model: read from its description, which create_report
+    writes as description_for(model). A description someone changed afterwards reads as not Krusgraph's."""
+    desc = str((item or {}).get("description") or "")
+    if not desc.startswith(DESCRIPTION_PREFIX):
+        return {"by_krusgraph": False, "same_model": False,
+                "words": "It was not made by Krusgraph (its description is not the one Krusgraph writes)."}
+    on = desc[len(DESCRIPTION_PREFIX):].strip()
+    same = on.lower() == str(model_name).strip().lower()
+    return {"by_krusgraph": True, "same_model": same, "model": on,
+            "words": (f"Krusgraph made it on the same semantic model {on}: most likely an earlier Create from this plan that "
+                      "finished. Open it before making another." if same else
+                      f"Krusgraph made it, on another semantic model ({on}).")}
+
+
+def _key(workspace_id: str, name: str) -> tuple[str, str]:
+    return (str(workspace_id).lower(), str(name).lower())
+
+
+def remember_free(workspace_id: str, name: str, now: float | None = None) -> None:
+    """A dry run found the name free: kept in memory (this server only, bounded) so a later Create can say so."""
+    import time as _time
+    _free_at[_key(workspace_id, name)] = now if now is not None else _time.time()
+    if len(_free_at) > DRY_RUN_MEMORY:
+        for k in sorted(_free_at, key=_free_at.get)[: len(_free_at) // 2]:
+            _free_at.pop(k, None)
+
+
+def free_at_dry_run(workspace_id: str, name: str) -> float | None:
+    return _free_at.get(_key(workspace_id, name))
+
+
+def since_dry_run(workspace_id: str, name: str, now: float | None = None) -> str:
+    """One sentence on what the dry run found, for the Create that finds the name taken."""
+    import time as _time
+    t = free_at_dry_run(workspace_id, name)
+    if t is None:
+        return "Whether the name was free at the dry run is not known here (the dry run ran elsewhere or long ago)."
+    minutes = max(0, round(((now if now is not None else _time.time()) - t) / 60))
+    when = _time.strftime("%H:%M UTC", _time.gmtime(t))
+    return (f"The name was free at the dry run at {when} ({minutes} minute{'s' if minutes != 1 else ''} ago); the report was "
+            "made since then.")
+
+
+def conflict(workspace: str, workspace_id: str, model_name: str, name: str, existing: dict, taken, open_url: str,
+             args: dict | None = None, stage: str = "dry run") -> dict:
+    """The answer when the name is taken: what is there, whether Krusgraph made it, whether it changed since the dry run,
+    and 1 to 3 next steps (the next free name, opening the existing report)."""
+    prov = provenance(existing, model_name)
+    try:
+        alt = next_free_name(name, set(taken) | {name})
+    except ValueError:
+        alt = None
+    changed = since_dry_run(workspace_id, name) if stage == "create" else None
+    words = [f"A report named {name!r} already exists in workspace {workspace} (id {existing.get('id')}); nothing was created.",
+             prov["words"]]
+    if changed:
+        words.append(changed)
+    steps = []
+    if alt:
+        steps.append({"label": f"Use {alt}", "tool": "create_report",
+                      "args": {**(args or {}), "name": alt, "dry_run": True},
+                      "ask": f"Create the report as {alt} instead (dry run first).", "checked_free": True})
+    steps.append({"label": "Open the existing report", "url": open_url})
+    if not prov["same_model"]:
+        steps.append({"label": "Choose another name", "ask": "Create the report under a name I choose (dry run first)."})
+    out = {"error": " ".join(words), "kind": "already_exists",
+           "existing": {"id": existing.get("id"), "name": existing.get("displayName") or name, "url": open_url,
+                        "by_krusgraph": prov["by_krusgraph"], "same_model": prov["same_model"]},
+           "hint": (f"Use {alt} (free when checked just now), or open the existing report. " if alt else
+                    "Choose another name, or open the existing report. ") + "This tool never updates or deletes a report.",
+           "next_steps": steps[:3]}
+    if alt:
+        out["free_name"] = alt
+    if changed:
+        out["since_dry_run"] = changed
+    return out
+
+
+def list_reports(workspace_id: str, headers: dict) -> list[dict]:
+    """The workspace's reports ({id, displayName, description}), every page: the same call find_item makes."""
+    from .deploy import send
+    out, url = [], f"{FABRIC}/v1/workspaces/{workspace_id}/items?type={ITEM_TYPE}"
+    while url:
+        r = send("get", url, headers, write=False, timeout=30)
+        r.raise_for_status()
+        body = r.json() or {}
+        out += [it for it in body.get("value", []) if isinstance(it, dict)]
+        url = body.get("continuationUri")
+    return out
+
+
+def named(reports: list[dict], name: str) -> dict | None:
+    """The report of that name, case-insensitive (Fabric keeps display names unique per type regardless of case)."""
+    low = str(name).lower()
+    return next((r for r in reports if str(r.get("displayName", "")).lower() == low), None)
+
+
+def name_in_use(result: dict) -> bool:
+    """Fabric refused the create because the name was taken in the meantime (errorCode ItemDisplayNameAlreadyInUse)."""
+    return result.get("status") == "Failed" and "ItemDisplayNameAlreadyInUse" in str(result.get("body") or "")

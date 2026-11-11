@@ -137,8 +137,16 @@ Generated from `fabric_backend/access.py`, equal to `REQUIRED_SCOPES` in `deploy
 | `Item.ReadWrite.All` (Fabric) | Create or update a semantic model, report, ontology or data agent, only with `dry_run=false`; read semantic model definitions |
 | `user_impersonation` (Azure SQL Database) | Column names, counting queries, up to 20 sample rows on request, and `create_views` with `dry_run=false` |
 
-Not requested on this app: `DataPipeline.Execute.All`, `Item.Execute.All`, `Workspace.ReadWrite.All`. The hosted MCP
-app cannot run or schedule pipelines (`docs/SCOPES.md`).
+Opt-in on this app (round n220, 11 November 2026), demanded by the deploy check only when `pipeline_execute` is on in
+`deploy/krusgraph.json` (`OPTIONAL_SCOPES` in `deploy/azure_containerapp.py`, `OPT_IN` in `fabric_backend/access.py`):
+
+| Permission (API) | Why |
+| --- | --- |
+| `DataPipeline.Execute.All` (Fabric, shown as Power BI Service in Entra) | Run once or Schedule the pipeline `create_pipeline` made, from the chat, only after a dry run that shows what runs and when and the person's confirmation. Fabric's Job Scheduler runs and schedules a pipeline only with `DataPipeline.Execute.All` or `Item.Execute.All` (microsoft/fabric-rest-api-specs `dataPipeline/swagger.json`; Learn, Job Scheduler, read 11 November 2026); the narrower one runs pipelines and no other item type. A schedule also needs `DataPipeline.ReadWrite.All`, granted above |
+
+Without it the hosted MCP app creates the pipeline but does not run or schedule it: the answer names the permission, the
+admin's steps (API permissions, add the delegated permission, grant admin consent, reconnect) and "Run it in the Fabric
+portal". Not requested on this app: `Item.Execute.All`, `Workspace.ReadWrite.All` (`docs/SCOPES.md`).
 
 ## 6. "No AI" by default, and the opt-in paths
 

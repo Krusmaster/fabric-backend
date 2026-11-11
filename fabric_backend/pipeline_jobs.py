@@ -397,19 +397,120 @@ def mark_schedule(http, workspace: str, pipeline_id: str, schedule_id: str) -> b
         return False
 
 
-def consent(scope_missing_why: str) -> dict:
-    """The answer when Fabric refuses for want of the Execute permission."""
-    return {"kind": "consent", "scope": EXECUTE_SCOPE,
-            "why": scope_missing_why,
-            "hint": f"An administrator adds the delegated permission {EXECUTE_SCOPE} (Power BI Service) to the app and grants "
-                    "admin consent; until then run and schedule the pipeline in Fabric.", "manual": list(MANUAL)}
+# ------------------------------------------------------------------ the permission to run (n220) --------------------
+# Round n220, after the founder's chat of 11 November 2026: create_pipeline created the four items from the hosted MCP
+# app, and Run once answered 403, because that app had no Execute permission. The scopes, read 11 November 2026:
+#   microsoft/fabric-rest-api-specs (main) dataPipeline/swagger.json: BackgroundJobs_RunOnDemandExecute "DataPipeline.
+#     Execute.All or Item.Execute.All"; BackgroundJobs_ScheduleExecute and _UpdateExecuteSchedule "(DataPipeline.Execute.All
+#     or Item.Execute.All) and (DataPipeline.ReadWrite.All or Item.ReadWrite.All)"; GetExecuteJobInstance and
+#     ListExecuteSchedules "DataPipeline.Read.All or DataPipeline.ReadWrite.All or Item.Read.All or Item.ReadWrite.All".
+#   Microsoft Learn, Job Scheduler - Run On Demand Item Job (fabric-rest-apis-docs b4d803a): "Generic scope:
+#     Item.Execute.All; Specific scope: itemType.Execute.All"; Create Item Schedule (89f63b1, updated 10 November 2026):
+#     "Item.Execute.All and Item.ReadWrite.All" on the generic route.
+# So one delegated permission is added: DataPipeline.Execute.All (Power BI Service), which runs pipelines and nothing
+# else; DataPipeline.ReadWrite.All, which a schedule also needs, the app has had since 28 October 2026. Item.Execute.All
+# would also do, but it runs every item type (notebooks, Spark jobs, ...), so it is accepted in a token, never asked for.
+SCOPES_READ = ("microsoft/fabric-rest-api-specs main, dataPipeline/swagger.json (RunOnDemandExecute, ScheduleExecute, "
+               "UpdateExecuteSchedule, GetExecuteJobInstance), and Microsoft Learn Job Scheduler - Run On Demand Item Job "
+               "(fabric-rest-apis-docs b4d803a) and Create Item Schedule (89f63b1), read 11 November 2026")
+POWER_BI_SERVICE = "Power BI Service"          # how Entra's API picker names the Fabric API (00000009-0000-0000-c000-000000000000)
+PORTAL_LABEL = "Run it in the Fabric portal"
+
+
+def token_scopes(token: str | None) -> set[str] | None:
+    """The delegated permissions (`scp`) of a Fabric token the server obtained itself, or None when it cannot be read.
+    Not a validation (Fabric validates the token); only to say before a call that it would be refused for want of a
+    permission. A token is three base64url parts; the middle one is JSON."""
+    import base64
+    import json as _json
+    try:
+        part = str(token or "").split(".")[1]
+        claims = _json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+    except Exception:  # noqa: BLE001 — an opaque or odd token: no pre-check, Fabric answers
+        return None
+    scp = claims.get("scp") if isinstance(claims, dict) else None
+    return set(scp.split()) if isinstance(scp, str) else None
+
+
+def can_execute(scopes: set[str] | None) -> bool | None:
+    """True or False when the token's permissions are known, None when they are not (then Fabric is asked)."""
+    if scopes is None:
+        return None
+    return EXECUTE_SCOPE in scopes or EXECUTE_ALT in scopes
+
+
+def admin_steps(app_id: str | None = None, consent_url: str | None = None) -> list[str]:
+    """The exact steps for the Entra admin, in order: the permission on the app, admin consent, a new sign-in."""
+    app = f"the Krusgraph MCP app (application id {app_id})" if app_id else "the Krusgraph MCP app (this server's ENTRA_CLIENT_ID)"
+    return [
+        f"Entra admin center > App registrations > {app} > API permissions.",
+        f"Add a permission > APIs my organization uses > {POWER_BI_SERVICE} > Delegated permissions > tick "
+        f"{EXECUTE_SCOPE} > Add permissions.",
+        "Grant admin consent for the organisation (the button on the same page)"
+        + (f"; in another organisation its admin opens {consent_url}" if consent_url else "") + ".",
+        "Reconnect Krusgraph in Claude (Settings > Connectors > Krusgraph > Disconnect, then Connect) so the new permission "
+        "is in the token.",
+    ]
+
+
+def consent(scope_missing_why: str, app_id: str | None = None, consent_url: str | None = None,
+            portal_url: str | None = None) -> dict:
+    """The answer when the run or the schedule is refused for want of the Execute permission: which permission, the
+    admin's steps, and the way that needs none (the Fabric portal)."""
+    steps = admin_steps(app_id, consent_url)
+    out = {"kind": "consent", "scope": EXECUTE_SCOPE, "also_accepted": EXECUTE_ALT,
+           "why": scope_missing_why,
+           "hint": f"An administrator adds the delegated permission {EXECUTE_SCOPE} ({POWER_BI_SERVICE}) to the Krusgraph MCP "
+                   "app and grants admin consent, then you reconnect Krusgraph in Claude; until then run and schedule the "
+                   "pipeline in the Fabric portal.",
+           "admin": {"app_id": app_id, "api": POWER_BI_SERVICE, "permission": EXECUTE_SCOPE, "type": "Delegated",
+                     "admin_consent": True, "steps": steps, "scopes_read": SCOPES_READ},
+           "manual": list(MANUAL)}
+    if consent_url:
+        out["admin"]["consent_url"] = consent_url
+    if portal_url:
+        out["alternative"] = {"label": PORTAL_LABEL, "url": portal_url}
+    out["next_steps"] = consent_next_steps(portal_url)
+    return out
+
+
+def consent_next_steps(portal_url: str | None = None) -> list[dict]:
+    """1 to 3 next steps for a refusal for want of the permission (round n220 d)."""
+    out = []
+    if portal_url:
+        out.append({"label": PORTAL_LABEL, "url": portal_url})
+    out.append({"label": "What the admin must add", "ask": f"Which Entra steps give Krusgraph {EXECUTE_SCOPE}?"})
+    out.append({"label": "Try again after consent", "ask": "I have reconnected Krusgraph; run the pipeline once again (dry run first)."})
+    return out[:3]
+
+
+def confirm_code(workspace: str, pipeline_name: str, run_once: bool, spec: dict | None) -> str:
+    """The code a dry run gives for exactly these jobs; the call that runs or schedules must bring it back, so nothing
+    runs or is scheduled that a dry run did not show first and the person did not confirm (round n220 b)."""
+    import hashlib
+    import json as _json
+    key = _json.dumps([str(workspace).lower(), str(pipeline_name).lower(), bool(run_once), spec or None], sort_keys=True)
+    return "run-" + hashlib.sha256(key.encode()).hexdigest()[:10]
 
 
 def apply(http, workspace: str, pipeline_id: str, pipeline_name: str, run_once: bool, spec: dict | None,
-          ours=(), wait_seconds: float = RUN_WAIT_SECONDS, sleep=time.sleep, clock=time.monotonic) -> dict:
+          ours=(), wait_seconds: float = RUN_WAIT_SECONDS, sleep=time.sleep, clock=time.monotonic,
+          scopes: set[str] | None = None, app_id: str | None = None, consent_url: str | None = None) -> dict:
     """After the pipeline exists: the schedule (created or updated), then the run (started, then read until it ends or
-    the wait is over). Each part answers on its own; a refusal for want of the permission says which and what to do."""
+    the wait is over). Each part answers on its own; a refusal for want of the permission says which and what to do.
+    `scopes` are the token's delegated permissions when known (token_scopes): without an Execute permission nothing is
+    sent and the answer says so at once (round n220), instead of a 403 from Fabric."""
     out: dict = {}
+    portal = run_link(workspace, pipeline_id, pipeline_name, None)["pipeline"]
+    if (run_once or spec) and can_execute(scopes) is False:
+        missing = consent(f"The sign-in token has no {EXECUTE_SCOPE} (nor {EXECUTE_ALT}), so Krusgraph did not ask Fabric to "
+                          "run or schedule the pipeline; it exists and is unchanged.", app_id, consent_url, portal)
+        if spec:
+            out["schedule"] = {"status": "NotStarted", "checked": "the sign-in token", **missing}
+        if run_once:
+            out["run"] = {"status": "NotStarted", "checked": "the sign-in token", **missing,
+                          "note": f"The run did not start: the permission {EXECUTE_SCOPE} is missing."}
+        return out
     if spec:
         listed = None
         try:
@@ -420,14 +521,16 @@ def apply(http, workspace: str, pipeline_id: str, pipeline_name: str, run_once: 
         mine = set(ours) | set(schedule_ids_of(listed))
         s = ensure_schedule(http, workspace, pipeline_id, spec, mine)
         if s.get("status") == "Failed" and s.get("http") in (401, 403):
-            s.update(consent("Fabric refused the schedule: adding or changing a schedule needs " + EXECUTE_SCOPE + "."))
+            s.update(consent("Fabric refused the schedule: adding or changing a schedule needs " + EXECUTE_SCOPE + ".",
+                             app_id, consent_url, portal))
         elif s.get("status") == "Succeeded" and s.get("id"):
             s["marked"] = mark_schedule(http, workspace, pipeline_id, s["id"])
         out["schedule"] = s
     if run_once:
         run = start_run(http, workspace, pipeline_id, pipeline_name)
         if run.get("http") in (401, 403):
-            run.update(consent("Fabric refused to start the run: running a pipeline needs " + EXECUTE_SCOPE + "."))
+            run.update(consent("Fabric refused to start the run: running a pipeline needs " + EXECUTE_SCOPE + ".",
+                               app_id, consent_url, portal))
         elif run.get("status") == "Running":
             run = wait_run(http, workspace, pipeline_id, pipeline_name, run, wait_seconds, sleep=sleep, clock=clock)
         run["note"] = run_note(run) if not run.get("note") else run["note"]

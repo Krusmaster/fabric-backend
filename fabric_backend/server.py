@@ -1645,13 +1645,24 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
             return json.dumps({"error": f"no semantic model named {model!r} in workspace {workspace}", "kind": "not_found",
                                "hint": "Check the name in the Fabric portal (the model's own name, not its report's), or pass its id. "
                                        "create_semantic_model creates a model from the plan."}, indent=2)
-    existing = _find_item(workspace_id, name, headers, _report.ITEM_TYPE)
-    if existing:
-        return json.dumps({"error": f"a report named {name!r} already exists in workspace {workspace} (id {existing}); nothing was created.",
-                           "kind": "already_exists", "existing": {"id": existing, "name": name},
-                           "hint": "Choose another name, or open the existing report in the Fabric portal. This tool never updates or "
-                                   "deletes a report."}, indent=2)
-    description = f"Created by Krusgraph on the semantic model {model_item['displayName']}"
+    report_args = {"workspace": workspace, "model": model, "name": name, **({"empty_page": True} if empty_page else {})}
+
+    def _taken(stage: str) -> str | None:
+        """n220: the name taken: the next free name (checked), the existing report, whether Krusgraph made it from this
+        model, and whether it changed since the dry run. None when the name is free."""
+        reports = _report.list_reports(workspace_id, headers)
+        existing = _report.named(reports, name)
+        if not existing:
+            return None
+        from .mcp_apps_build import open_url as _open_url
+        return json.dumps(_report.conflict(workspace, workspace_id, model_item["displayName"], name, existing,
+                                           [r.get("displayName") for r in reports],
+                                           _open_url(workspace_id, "create_report", existing.get("id")), report_args,
+                                           stage="dry run" if dry_run else "create"), indent=2)
+    taken = _taken("dry run" if dry_run else "create")
+    if taken:
+        return taken
+    description = _report.description_for(model_item["displayName"])
     drawn = None
     if not empty_page:
         try:
@@ -1710,8 +1721,18 @@ def create_report(workspace: _p.Workspace, model: _p.ReportModel, name: _p.Repor
     if dry_run:
         if drawn and drawn["visuals"]:
             out["parts"] = drawn["parts"]
+        _report.remember_free(workspace_id, name)                  # n220: a later Create can say what the dry run found
+        out["name_check"] = {"name": name, "free": True, "checked_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                             "again": "Create checks the name again right before it creates the report."}
         return json.dumps(out, indent=2)
+    taken = _taken("create")                                        # n220: again right before the create
+    if taken:
+        return taken
     result = _report.create(body, workspace_id, token_provider=lambda: auth.fabric(ctx))
+    if _report.name_in_use(result):                                 # taken between the check and the create
+        taken = _taken("create")
+        if taken:
+            return taken
     return _finish_create(out, result, "Report.ReadWrite.All (or Item.ReadWrite.All)", f"creating the report {name!r}")
 
 
@@ -2215,7 +2236,7 @@ def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
     """Creates drift_monitor_draft's notebook and pipeline, or updates the items of those names in place; with
     schedule=true also adds a daily schedule unless one at that time exists. Requires workspace, a lakehouse source and
     name; Notebook.ReadWrite.All and DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. schedule is
-    false by default: the schedule needs DataPipeline.Execute.All, which the hosted app does not request. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes
+    false by default: the schedule needs DataPipeline.Execute.All, opt-in on the hosted app. Returns JSON with the items and REST calls; with dry_run=false also each step's result. Changes
     Fabric only with dry_run=false: the two items' definitions are replaced, existing schedules are kept, nothing is
     deleted and no secret is written. Errors: {error, kind, hint}."""
     import requests as _requests
@@ -2258,7 +2279,7 @@ def create_drift_monitor(workspace: _p.Workspace, source: _p.Source, name: _p.Mo
         return _step_failed(out, "pipeline", pl, PIPELINE_SCOPE, f"creating the pipeline {name + '_nightly'!r}")
     if not schedule:
         out["result"]["schedule"] = {"status": "Skipped", "why": "schedule=false (the default: a schedule needs DataPipeline.Execute.All, "
-                                                                 "which the hosted app does not request); schedule the pipeline in Fabric, or pass schedule=true"}
+                                                                 "opt-in on the hosted app); schedule the pipeline in Fabric, or pass schedule=true"}
     else:
         headers = _headers(ctx)
         url = f"{FABRIC}/v1/workspaces/{ws}/dataPipelines/{pl['id']}/jobs/execute/schedules"
@@ -2363,7 +2384,7 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                     silver_name: _p.PipelineSilverName = "", gold_name: _p.PipelineGoldName = "", keys: _p.Keys = None,
                     confirmed: _p.Confirmed = None, tables: _p.TablesOnly = None, show_personal_data: _p.ShowPersonalData = False,
                     dry_run: _p.DryRun = True, run_once: _p.RunOnce = False, schedule: _p.PipelineSchedule = None,
-                    ctx: Context = None) -> str:
+                    confirm_jobs: _p.ConfirmJobs = "", ctx: Context = None) -> str:
     """Creates the pipeline export_item_definitions drafts with items=["pipeline"]: the silver and gold notebooks of
     create_silver_notebook and create_gold_views, a check notebook, and a data pipeline that runs them in that order,
     each only after the one before succeeded, so a failed check fails the run. Items of these names are updated in
@@ -2371,7 +2392,8 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
     DataPipeline.ReadWrite.All (or Item.ReadWrite.All), and Contributor. Returns JSON with the definitions and REST
     calls; with dry_run=false also each step's result. Changes Fabric only with dry_run=false: four definitions are
     replaced, nothing is deleted; nothing runs and no schedule is added unless run_once or schedule asks (both
-    off by default; they need DataPipeline.Execute.All). Errors: {error, kind, hint}."""
+    off by default; they need DataPipeline.Execute.All, and confirm_jobs from the dry run after the person said
+    yes). Errors: {error, kind, hint}."""
     from . import notebook as _notebook, pipeline as _pipeline, pipeline_jobs as _jobs
     try:
         spec = _jobs.schedule_spec(schedule)
@@ -2435,7 +2457,28 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
                                     "body": _jobs.schedule_body(spec),
                                     "rule": "GET the schedules first; the one Krusgraph made is updated, others are left alone"}]
                                   if spec else []),
-                       "delegated_scope": f"{_jobs.EXECUTE_SCOPE} (or {_jobs.EXECUTE_ALT})", "spec": _jobs.SPEC}
+                       "delegated_scope": f"{_jobs.EXECUTE_SCOPE} (or {_jobs.EXECUTE_ALT})", "spec": _jobs.SPEC,
+                       "scopes_read": _jobs.SCOPES_READ}
+        code = _jobs.confirm_code(ws, name, run_once, spec)       # n220: nothing runs that the person did not confirm
+        out["jobs"]["confirm"] = code
+        out["jobs"]["ask"] = ("Show the person exactly what runs and when (jobs.words) and ask. Only after they say yes, call "
+                              f"again with dry_run=false and confirm_jobs={code!r}.")
+        missing = _execute_missing(ctx, name, ws)
+        if missing:
+            out["jobs"]["permission"] = missing
+    # the Model editor (PIPELINE_JOBS set by workload_api) confirms in its own review: the ticked choices and Create
+    if (run_once or spec) and not dry_run and PIPELINE_JOBS.get() is None and str(confirm_jobs or "").strip() != out["jobs"]["confirm"]:
+        return json.dumps({"error": "Run once and Schedule start only after a dry run that shows them and the person's "
+                                    "confirmation; confirm_jobs " + ("does not match these jobs" if confirm_jobs else "is missing")
+                                    + ". Nothing was created, run or scheduled.",
+                           "kind": "needs_confirmation", "jobs": {k: out["jobs"][k] for k in ("words", "confirm", "ask")},
+                           "hint": "Run the dry run with the same run_once and schedule, show jobs.words, and on a yes pass "
+                                   "jobs.confirm as confirm_jobs.",
+                           "next_steps": [{"label": "Show what runs (dry run)", "tool": "create_pipeline",
+                                           "ask": "Show me the dry run of the pipeline with Run once / Schedule."},
+                                          {"label": "Create without running", "ask": "Create the pipeline without running or "
+                                                                                      "scheduling it (dry run first)."}]},
+                          indent=2)
     if dry_run:
         # n200: the largest notebook first (the check, with its health step), so the others still show when they fit
         for n in sorted(out["notebooks"], key=lambda n: -len(n.get("content", ""))):
@@ -2474,8 +2517,41 @@ def create_pipeline(workspace: _p.Workspace, source: _p.Source, name: _p.Pipelin
         def http(method, url, **kw):
             return send(method, url, headers, write=method != "get", timeout=30, **kw)
         out["result"].update(_jobs.apply(http, ws, pl["id"], name, run_once, spec, ours=jobs_ctx.get("schedule_ids") or (),
-                                         wait_seconds=jobs_ctx.get("wait", _jobs.RUN_WAIT_SECONDS)))
+                                         wait_seconds=jobs_ctx.get("wait", _jobs.RUN_WAIT_SECONDS),
+                                         scopes=_jobs.token_scopes(token()), **_execute_admin()))
+        refused = [p for p in ("run", "schedule") if (out["result"].get(p) or {}).get("kind") == "consent"]
+        if refused:                                                # n220: the items stand; say what the admin adds
+            first = out["result"][refused[0]]
+            out.update({"error": f"The pipeline {name} and its notebooks were created, but the {' and the '.join(refused)} "
+                                 f"did not start: {first['why']}", "kind": "consent", "scope": first["scope"],
+                        "hint": first["hint"], "admin": first["admin"], "next_steps": first["next_steps"]})
+            if first.get("alternative"):
+                out["alternative"] = first["alternative"]
     return json.dumps(out, indent=2, default=str)
+
+
+def _execute_admin() -> dict:
+    """The Krusgraph MCP app's id and the admin-consent link, for the steps an admin follows (n220)."""
+    cfg = getattr(auth, "entra", None)
+    if not cfg:
+        return {"app_id": None, "consent_url": None}
+    from .entra import admin_consent_url
+    return {"app_id": cfg.client_id, "consent_url": admin_consent_url(cfg)}
+
+
+def _execute_missing(ctx, name: str, workspace_id: str) -> dict | None:
+    """In a dry run with Run once or Schedule: when the sign-in token is known to lack the Execute permission, what the
+    admin adds, said before anything is created (n220). None when the token has it or cannot be read."""
+    from . import pipeline_jobs as _jobs
+    try:
+        scopes = _jobs.token_scopes(auth.fabric(ctx))
+    except Exception:  # noqa: BLE001 — no token in a dry run: Fabric is asked at Create
+        return None
+    if _jobs.can_execute(scopes) is not False:
+        return None
+    ans = _jobs.consent(f"Your sign-in token has no {_jobs.EXECUTE_SCOPE}: Create would make the pipeline but not run or "
+                        "schedule it.", portal_url=f"{_jobs.FABRIC_APP}/groups/{workspace_id}/list", **_execute_admin())
+    return {k: ans[k] for k in ("why", "hint", "admin", "alternative", "next_steps") if k in ans}
 
 
 EXPORTABLE = ("create_backend", "create_semantic_model", "create_views", "create_silver_notebook", "create_drift_monitor", "create_gold_views")

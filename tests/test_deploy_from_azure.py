@@ -30,7 +30,7 @@ EXPECTED = {
     "registry": "krusgraphtest", "identity": "krusgraph-pull", "product_name": "Krusgraph",
     "contact_email": "hello@krusgraph.com", "company_orgnr": "556000-0000", "include_www": True, "min_replicas": 1,
     "ontology_write": True, "key_vault": "kv-krusgraph-test", "log_retention_days": 30, "log_analytics_workspace": "",
-    "budget_amount": 0, "budget_email": "", "mcp_apps": False, "read_only": False, "no_row_values": False,
+    "budget_amount": 0, "budget_email": "", "mcp_apps": False, "read_only": False, "no_row_values": False, "pipeline_execute": False,
     "workload_client_id": "", "workload_app_id_uri": "", "workload_allowed_tenants": "", "workload_host": "",   # n168
     "marketplace": False, "entitlements": False, "marketplace_tenant_id": "", "marketplace_client_id": "",       # n171
     "marketplace_offer_url": "", "marketplace_secret_keyvault_uri": "", "entitlements_source": "", "entitlements_table": "",

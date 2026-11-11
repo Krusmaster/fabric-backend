@@ -165,7 +165,7 @@ def test_403_without_the_scope_is_consent_naming_it(fabric):
 @pytest.mark.parametrize("dry_run", [True, False])
 def test_a_report_of_that_name_is_left_alone(fabric, dry_run):
     out = json.loads(server.create_report("Sales", "shop_model", "old_report", dry_run=dry_run))
-    assert out["kind"] == "already_exists" and out["existing"] == {"id": "rp-0", "name": "old_report"}
+    assert out["kind"] == "already_exists" and {k: out["existing"][k] for k in ("id", "name")} == {"id": "rp-0", "name": "old_report"}
     assert "nothing was created" in out["error"] and "never updates or deletes" in out["hint"]
     assert fabric["posts"] == [] and "rest" not in out
 
