@@ -73,10 +73,11 @@ async function site(base) {
                 && Math.abs(mid(src) - mid(eng)) < eng.height && Math.abs(mid(built) - mid(eng)) < built.height,
           rects: [ins, src, eng, built].map((r) => [Math.round(r.left), Math.round(r.top), Math.round(r.right), Math.round(r.bottom)]),
           details: det && { open: det.open, summary: det.querySelector('summary').textContent.trim(), items: det.querySelectorAll('.off-words-l li').length },
-          pics: [...box.querySelectorAll('.off-pic-svg')].map((s) => ({ role: s.getAttribute('role'), label: s.getAttribute('aria-label'), w: Math.round(s.getBoundingClientRect().width) })),
+          pics: [...box.querySelectorAll('.off-pic-fig')].map((s) => ({ role: s.getAttribute('role'), label: s.getAttribute('aria-label'), w: Math.round(s.getBoundingClientRect().width),
+            nat: s.querySelector('img').naturalWidth, imgW: Math.round(s.querySelector('img').getBoundingClientRect().width) })),
           overflow: document.documentElement.scrollWidth - innerWidth,
           bg: getComputedStyle(document.body).backgroundColor, ink: getComputedStyle(box.querySelector('.off-engine-n')).color,
-          img: box.querySelectorAll('img').length,
+          img: [...box.querySelectorAll('img')].filter((i) => !i.getAttribute('src').startsWith('/static/mascots/')).length,   // n216: the mascots' renders only
         };
       });
       // keyboard: Tab reaches each way, with a visible focus ring

@@ -92,7 +92,8 @@ def test_home_keeps_hero_diagram_short_guide_and_demo_and_one_status_line(client
     foot = h[h.index('<footer class="site-footer">'):]
     assert 'Krusgraph is a preview service. <a href="/docs#test-status">Test status per tool</a>' in foot
     choose = _plain(client.get("/choose").text)
-    assert "“We code in VS Code or Cursor” → Krusgraph for Claude (any MCP client" in choose
+    assert "“We code in VS Code or Cursor” → Krusgraph for Claude (" in choose
+    assert "any MCP client" not in choose                   # n216: the clients that sign in today are named, or none
 
 
 @pytest.mark.parametrize("registration", ["", "1"])
@@ -101,9 +102,10 @@ def test_the_vs_code_row_never_claims_more_than_the_hosted_service_signs_in(monk
     from fabric_backend import pages
     suffix = offering.decide_suffix("We code in VS Code or Cursor")
     if pages._registration_on():
-        assert suffix == " (any MCP client, through /mcp/connect)"
+        assert suffix == " (VS Code and Cursor sign in at /mcp/connect)"
     else:
         assert "cannot sign VS Code or Cursor in today" in suffix
+    assert "any MCP client" not in suffix                   # n216: never more than the hosted service signs in
     assert offering.decide_suffix("I already use Claude") == ""
 
 
@@ -132,14 +134,19 @@ def test_every_link_on_the_home_diagram_guide_and_status_answers(client):
 
 # ------------------------------------------------------------------ 3. mascot pictures per product --------------------
 
-def test_each_product_card_has_its_mascot_hugging_our_own_symbol_with_alt_text(client):
+def test_each_product_card_has_its_3d_mascot_and_our_own_symbol_with_alt_text(client):
+    # n216: the figure is the 3D render cut from the overview film (static/mascots/), the symbol a badge we draw
     box = _box(client.get("/choose").text)
-    pics = re.findall(r'<span class="off-pic mascot-only"><svg class="off-pic-svg" viewBox="[^"]+" role="img" '
-                      r'aria-label="([^"]+)" focusable="false">(.*?)</svg><span class="off-pic-for" aria-hidden="true">([^<]+)</span>',
+    pics = re.findall(r'<span class="off-pic mascot-only"><span class="off-pic-fig" role="img" aria-label="([^"]+)">'
+                      r'<img class="off-pic-img" src="(/static/mascots/(?:onto|thinker|builder)\.webp)" width="56" height="56" alt=""[^>]*>'
+                      r'<svg class="off-pic-prop" [^>]*>(.*?)</svg></span><span class="off-pic-for" aria-hidden="true">([^<]+)</span>',
                       box, re.S)
-    assert [f for _, _, f in pics] == ["for Fabric", "for Claude", "for Lovable", "Open Source"]
-    for (label, body, _f), w in zip(pics, offering.WAYS):
-        assert label.endswith(w["name"]) and "hugging" in label, label
+    assert [f for *_, f in pics] == ["for Fabric", "for Claude", "for Lovable", "Open Source"]
+    for (label, src, body, _f), w in zip(pics, offering.WAYS):
+        kind = offering.PICTURES[w["key"]][0]
+        assert label.endswith(w["name"]) and label.startswith(kind.capitalize()) and " with " in label, label
+        assert src == offering.render_src(kind)
+        assert client.get(src).status_code == 200
         assert "<image" not in body and "href" not in body and "url(" not in body       # drawn here: no file, no shared id
     assert [offering.PICTURES[k][1] for k in ("fabric", "claude", "lovable", "self")] == ["table", "bubble", "screen", "code"]
 
@@ -149,7 +156,8 @@ def test_no_third_party_logo_file_or_mark_next_to_the_mascots_or_our_logo(client
     assert not [n for n in names if re.search(r"microsoft|anthropic|claude|lovable|fabric-logo|copilot", n)], names
     for path in ("/", "/choose"):
         box = _box(client.get(path).text)
-        assert "<img" not in box
+        # n216: the only images are the mascots' 3D renders
+        assert set(re.findall(r'<img [^>]*src="([^"]+)"', box)) <= {offering.render_src(k) for k in ("onto", "thinker", "builder")}
         refs = re.findall(r'(?:src|href)="([^"]+)"', box)
         assert not [r for r in refs if re.search(r"microsoft|anthropic|lovable\.(?:dev|app)|logo", r, re.I)], refs
     # partner names stay plain text in the pictures' captions

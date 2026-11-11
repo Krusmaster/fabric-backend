@@ -294,6 +294,8 @@ def test_browser_the_diagram_renders_stacks_on_a_phone_and_every_way_is_a_focusa
         assert (d["flow"], d["stacked"]) == ((True, False) if width == "1280" else (False, True)), (key, d["rects"])
         assert d["details"] == {"open": False, "summary": "The diagram in words", "items": 4}, key
         assert len(d["pics"]) == 4 and all(p["role"] == "img" and p["label"] and p["w"] >= 48 for p in d["pics"]), key
+        # n216: each 3D render loaded, 112 px shown at 56 CSS px (2x)
+        assert all(p["nat"] == 112 and p["imgW"] == 56 for p in d["pics"]), (key, d["pics"])
         assert [f["href"] for f in d["focus"]] == [w["href"] for w in d["ways"]] and all(f["ring"] for f in d["focus"]), key
         assert d["bg"] == ("rgb(31, 27, 25)" if scheme == "dark" else "rgb(251, 248, 245)"), key
     assert set(browser_site["linkStatus"].values()) == {200}, browser_site["linkStatus"]
@@ -378,7 +380,9 @@ def test_the_four_product_names_appear_on_the_which_krusgraph_page(client):
     box = h[h.index('id="offering"'):]
     box = box[:box.index("</section>")]
     assert box.count('class="logo-mark"') == 1 and pages._LOGO in box       # the one Krusgraph logo, on the engine
-    assert 'class="off-i ' not in box and "<img" not in box       # n183: the product cards' mascots are inline SVG
+    assert 'class="off-i ' not in box
+    # n216: the product cards' mascots are the 3D renders (static/mascots/); no other image
+    assert set(re.findall(r'<img [^>]*src="([^"]+)"', box)) == {offering.render_src(k) for k in ("onto", "thinker", "builder")}
     for path in [p["path"] for p in pages.docs_pages() if p["gpath"] == "/docs/krusgraph-for-fabric"]:
         t = _plain(client.get(path).text)
         assert "Krusgraph in Fabric" not in t, path

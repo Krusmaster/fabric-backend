@@ -74,7 +74,7 @@ def _claude_needs() -> list[str]:
 def _claude_how() -> str:
     names = _mcp_clients()
     return ("Chat. In Claude the answers come as text, and as cards with the map and buttons (MCP Apps) where the service "
-            "has them turned on" + (f"; in {_or(names).replace(' or ', ' and ')} as text." if names else "."))
+            "has them turned on" + (f"; in {_or(names).replace(' or ', ' and ')}, signed in at /mcp/connect, as text." if names else "."))
 
 
 def _status_claude() -> str:
@@ -315,7 +315,7 @@ def picture_figure(key: str) -> str:
     """One product's picture: the 3D figure and its symbol as a badge, one image for assistive technology (role="img")."""
     kind, sym, _what, _for = PICTURES[key]
     return (f'<span class="off-pic-fig" role="img" aria-label="{_e(picture_label(key))}">'
-            f'<img class="off-pic-img" src="{render_src(kind)}" width="56" height="56" alt="" loading="lazy" decoding="async">'
+            f'<img class="off-pic-img" src="{render_src(kind)}" width="56" height="56" alt="" decoding="async">'
             f'<svg class="off-pic-prop" viewBox="-2 -2 44 32" aria-hidden="true" focusable="false">{SYMBOLS[sym]}</svg></span>')
 
 
