@@ -75,6 +75,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timezone
 import sys
 import time
 
@@ -309,7 +310,8 @@ def build_request(body) -> dict:
     if (not isinstance(pending, list) or len(pending) > 60
             or not all(isinstance(x, dict) and isinstance(x.get("name"), str) and isinstance(x.get("type"), str) for x in pending)):
         raise BadRequest("'pending' must be outputs.json's pending list ({output, type, name}) or empty")
-    flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40]} for x in pending]
+    flags["pending"] = [{"type": x["type"][:40], "name": x["name"][:123], "output": str(x.get("output") or "")[:40],
+                         "at": str(x.get("at") or "")[:40]} for x in pending]   # n207: when the step was sent
     flags.update(_ids(body))
     chosen.sort(key=lambda c: ORDER.index(c["kind"]))
     return {**req, "outputs": chosen, "dry_run": dry_run, "review": body["review"], "product": product,
@@ -780,10 +782,60 @@ def _names(o: dict, chosen: dict, schema: str) -> list[tuple[str, str]]:
 
 
 def _pending(req: dict, typ: str, name: str) -> bool:
-    """n197: outputs.json records every item as pending the moment its create is sent. An item of that type and name in
-    the workspace was then sent by this Model: Fabric finished it after the editor's wait (demo_lh_model4, 10 November
-    2026, was refused as "not built by this Krusgraph Model"). It is adopted as built by this Model."""
+    """n197: outputs.json records every item as pending the moment its create is sent (the editor's withPending)."""
     return any(p.get("type") == typ and p.get("name", "").lower() == name.lower() for p in req.get("pending") or [])
+
+
+def _when(text) -> datetime | None:
+    """An ISO 8601 time (the editor's toISOString, Fabric's createdDate) as an aware UTC datetime; None when unreadable."""
+    if not isinstance(text, str) or not text.strip():
+        return None
+    t = text.strip().replace("Z", "+00:00").replace("z", "+00:00")
+    m = re.match(r"^(.*T\d{2}:\d{2}:\d{2})(\.\d+)?(.*)$", t)    # at most microseconds: Fabric may send seven digits
+    if m and m.group(2):
+        t = m.group(1) + m.group(2)[:7] + m.group(3)
+    try:
+        d = datetime.fromisoformat(t)
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
+
+
+def _pending_at(req: dict, typ: str, name: str) -> list[datetime]:
+    """n207: the times this item's pending entries were recorded (entries without a readable `at` give none)."""
+    return [w for p in req.get("pending") or []
+            if p.get("type") == typ and p.get("name", "").lower() == name.lower() and (w := _when(p.get("at")))]
+
+
+CREATED_KEYS = ("createdDate", "createdDateTime", "createdAt")
+
+
+def _created_at(item: dict | None) -> datetime | None:
+    """n207: the item's creation time when Fabric's listing gives one; None otherwise."""
+    for k in CREATED_KEYS:
+        w = _when((item or {}).get(k))
+        if w:
+            return w
+    return None
+
+
+def _adoptable(req: dict, workspace: str, name: str, headers: dict, typ: str) -> bool:
+    """n207: whether an existing item that outputs.json does not list may be adopted as built by this Model. A pending
+    entry alone is not enough: the editor records each step's own names as pending before it sends the step, so a
+    colleague's item of the same name would be taken (and its definition updated). It is adopted only when it is pending
+    and Krusgraph made it (its description: a create this Model sent, finished by Fabric after the wait, n197's
+    demo_lh_model4), or Fabric gives its creation time and that is later than the pending entry's `at`. With no creation
+    time and no Krusgraph description it is not adopted: Create says what the dry run says, not built by this Model."""
+    if not _pending(req, typ, name):
+        return False
+    from .deploy import find_item_by_name
+    it = find_item_by_name(workspace, name, headers, (typ,))
+    if not it:
+        return False
+    if "krusgraph" in str(it.get("description") or "").lower():
+        return True
+    made, sent = _created_at(it), _pending_at(req, typ, name)
+    return bool(made and sent and made > min(sent))
 
 
 def _krusgraph_made(workspace: str, name: str, headers: dict, typ: str) -> dict | None:
@@ -805,7 +857,7 @@ def _already_built(o: dict, chosen: dict, req: dict, workspace: str, headers: di
         existing = S._find_item(workspace, name, headers, typ)
         if not existing:
             return None
-        adopted = existing not in ours and _pending(req, typ, name)
+        adopted = existing not in ours and _adoptable(req, workspace, name, headers, typ)   # n207: never a colleague's
         if existing not in ours and not adopted and not _krusgraph_made(workspace, name, headers, typ):
             return None                                            # someone else's: _ownership refuses it as before
         found.append({"type": typ, "id": existing, "name": name, "workspace": workspace, "output": o["kind"],
@@ -825,7 +877,7 @@ def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, 
         if not existing:
             continue
         found[name] = existing
-        if existing not in ours and _pending(req, typ, name):     # n197: sent by this Model, finished by Fabric later
+        if existing not in ours and _adoptable(req, workspace, name, headers, typ):   # n197/n207: sent by this Model, finished later
             ours.add(existing)
         if existing not in ours:
             return would, {"error": f"{typ} {name!r} already exists in this workspace and was not built by this Krusgraph Model; "
@@ -1763,7 +1815,8 @@ def run_build_step(req: dict, sleep=time.sleep, clock=time.monotonic) -> dict:
     o = next(x for x in req["outputs"] if x["kind"] == kind)
     label = KINDS[kind]["label"]
     chosen = {x["kind"]: x["name"] for x in req["outputs"]}
-    mine = [{"type": t, "name": n, "output": kind} for t, n in _names(o, chosen, req["schema"])]
+    sent = datetime.now(timezone.utc).isoformat()                 # n207: before the first attempt, so only what it made is newer
+    mine = [{"type": t, "name": n, "output": kind, "at": sent} for t, n in _names(o, chosen, req["schema"])]
     attempt, followed = 0, 0
     while True:
         out = run_build_many(req)

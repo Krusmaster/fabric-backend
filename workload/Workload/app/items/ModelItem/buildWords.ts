@@ -413,6 +413,14 @@ export interface CreateRun {
   created: CreatedRef[];
 }
 
+/** n207: the dry run's card for this output when the dry run refused it under the same name (an item of that name this
+ * Model did not build, or a report that is never updated in place), as Create's card: status done, nothing written.
+ * undefined when the dry run did not refuse it, or refused another name (the name was changed since). */
+export function dryRunRefused(said: BuildCard | undefined, o: OutputRequest): BuildCard | undefined {
+  if (!said?.refusal || said.output !== o.kind || said.name.toLowerCase() !== o.name.toLowerCase()) return undefined;
+  return { ...said, status: "done", dry_run: false, created: [] };
+}
+
 /** Create, one output after another (n179): each its own request, so a slow output or a closed connection costs only
  * that output, never the answers of the others. `send` is the engine call; `onCard` shows each card as it changes.
  * `created` starts with outputs.json's list, so a re-run skips what is built and retries the rest. */
@@ -430,9 +438,18 @@ export async function createEach(
   onCard(cards);
   for (let i = 0; i < order.length; i++) {
     const o = requestFor(order[i], order, made);
+    let card: BuildCard;
+    const refused = dryRunRefused(before(o.kind), o);
+    if (refused) {
+      // n207: the dry run refused this output (an item of its name that this Model did not build): it is never sent, so
+      // its names are never recorded as pending and nothing of someone else's is adopted or overwritten
+      card = refused;
+      cards = cards.map((c, j) => (j === i ? card : c));
+      onCard(cards);
+      continue;
+    }
     cards = cards.map((c, j) => (j === i ? pendingCard(o, "running", before(o.kind)) : c));
     onCard(cards);
-    let card: BuildCard;
     try {
       const a = await send(o, made);
       const got = a.outputs[0] ?? failedCard(o, new Error("the engine answered without a card"), before(o.kind));

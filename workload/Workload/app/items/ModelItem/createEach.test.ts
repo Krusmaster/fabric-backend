@@ -158,3 +158,40 @@ describe("schemaToUse", () => {
     expect(schemaToUse(two, "Shop")).toBe("Shop");
   });
 });
+
+// n207: the audit of 11 November 2026. The dry run refused an output (an item of its name that this Model did not build),
+// Create sent it anyway with its names recorded as pending, and the engine adopted the colleague's item. Create now never
+// sends a step its dry run refused: its card is the dry run's refusal, and the other outputs go on.
+describe("createEach after a dry run that refused an output", () => {
+  const refusal = { error: "SemanticModel 'demo_lh_model' already exists in this workspace and was not built by this Krusgraph Model; nothing was written.",
+    kind: "already_exists", hint: "Choose another name." };
+  const preview = (outputs: OutputRequest[], refused: OutputRequest["kind"][]): ManyAnswer => ({
+    dry_run: true, order: outputs.map((o) => o.kind), left_out_by_review: [], refused: refused.length, note: "", created: [],
+    outputs: outputs.map((o) => ({ ...answer(o).outputs[0], dry_run: true, ...(refused.includes(o.kind) ? { refusal } : {}) })),
+  } as ManyAnswer);
+
+  it("does not send the refused step and shows the dry run's refusal; the others are sent", async () => {
+    const sent: OutputRequest[] = [];
+    const run = await createEach(ALL, [], async (o) => { sent.push(o); return answer(o); }, () => undefined, preview(ALL, ["semantic_model"]));
+    expect(sent.map((o) => o.kind)).toEqual(["silver_notebook", "report", "graphql"]);
+    const card = run.cards.find((c) => c.output === "semantic_model")!;
+    expect(card.status).toBe("done");
+    expect(card.refusal?.kind).toBe("already_exists");
+    expect(card.dry_run).toBe(false);
+    expect(card.created).toEqual([]);
+  });
+
+  it("sends nothing when the dry run refused every output", async () => {
+    const send = vi.fn(async (o: OutputRequest) => answer(o));
+    const run = await createEach(ALL, [], send, () => undefined, preview(ALL, ALL.map((o) => o.kind)));
+    expect(send).not.toHaveBeenCalled();
+    expect(run.cards.every((c) => c.refusal?.kind === "already_exists" && c.status === "done")).toBe(true);
+  });
+
+  it("sends the step when its name was changed after the dry run", async () => {
+    const sent: OutputRequest[] = [];
+    const renamed = ALL.map((o) => (o.kind === "semantic_model" ? { ...o, name: "demo_lh_model_2" } : o));
+    await createEach(renamed, [], async (o) => { sent.push(o); return answer(o); }, () => undefined, preview(ALL, ["semantic_model"]));
+    expect(sent.map((o) => o.name)).toContain("demo_lh_model_2");
+  });
+});

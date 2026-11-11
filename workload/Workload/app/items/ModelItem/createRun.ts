@@ -4,8 +4,10 @@
  *
  * outputs.json keeps, besides the created ids:
  *   pending     every item a Create step sent, recorded before the step is sent (output, type, name). An item Fabric
- *               finishes after a wait is then adopted as built by this Model by the engine (workload_api._pending),
- *               not refused as "not built by this Krusgraph Model" (demo_lh_model4, 10 November 2026).
+ *               finishes after a wait is then adopted as built by this Model by the engine (workload_api._adoptable),
+ *               not refused as "not built by this Krusgraph Model" (demo_lh_model4, 10 November 2026). n207: only when
+ *               Krusgraph made it (its description) or Fabric's creation time is later than the entry's `at`; a step
+ *               the dry run refused is never sent, so its names are never recorded (createEach, buildWords.ts).
  *   create_run  the Create in progress: its id, its outputs and the engine's operation id per output, and whether it
  *               has finished. A reopened item reads the operations (POST /workload/v1/operation {item_id}) and shows
  *               the same run, going on where it is.
