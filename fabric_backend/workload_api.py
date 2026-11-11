@@ -990,6 +990,75 @@ def _already_built(o: dict, chosen: dict, req: dict, workspace: str, headers: di
     return found
 
 
+def existing_decision(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str], mark: dict, listed,
+                      dry_run: bool) -> dict | None:
+    """n209: the one decision the dry run and Create (skip_built) both take for an output whose items are all in the
+    workspace and were built by Krusgraph (this Model's outputs.json, a pending item Fabric finished, or Krusgraph's
+    description, which another Krusgraph Model item's Create also writes). None when Create would call the tool (nothing
+    there, or an item someone else made: _ownership refuses it, n207). Otherwise {outcome, card, adopted}: built from this
+    plan -> already built, skipped; built from another plan or plan unknown -> the person chooses (nothing written)."""
+    kind = o["kind"]
+    done = _already_built(o, chosen, req, workspace, headers, ours)
+    if done is None:
+        return None
+    marks = [recorded_mark(c["id"], req, listed()) or (mark if c.get("adopted") else None) for c in done]
+    counts = existing_counts(kind, done, workspace, headers)
+    if all(same_plan(m, mark) for m in marks):                    # built from this plan: as n179 showed it
+        adopted = [c for c in done if c.pop("adopted", False)]
+        done = [{**c, "plan": mark} for c in done]
+        note = ("Already built from this plan; Create will skip it." if dry_run else
+                "Fabric finished it after the wait; it is kept as built by this Model, and nothing was written "
+                "again." if adopted else
+                "Already in the workspace, built from this plan by an earlier Create; nothing "
+                "was written. Choose a new name to make another one.")
+        ours.update(c["id"] for c in done)
+        return {"outcome": "already_built", "adopted": adopted,
+                "card": {"would": "create", "created": done, "already_built": True, "existing": counts,
+                         "answer": {"dry_run": dry_run, "already_built": True, "note": note,
+                                    **({"adopted": len(adopted)} if adopted else {})}}}
+    was = next((m for m in marks if m and not same_plan(m, mark)), None)   # n180: another plan, or none recorded
+    bf = built_from(was, mark)
+    choices = ["update", "new_name"] if KINDS[kind]["updates"] else ["new_name"]
+    for c in done:
+        c.pop("adopted", None)
+    return {"outcome": "built_from_" + bf["status"], "adopted": [],
+            "card": {"would": "update" if KINDS[kind]["updates"] else "create", "built_from": bf, "existing_items": done,
+                     "existing": counts, "choices": choices,
+                     "answer": {"dry_run": dry_run, "plan_differs": True,
+                                "note": f"{KINDS[kind]['label']} {o['name']} was {bf['words']}; nothing was written. "
+                                        + ("Update it (a dry run first) or choose a new name." if "update" in choices
+                                           else "A report is never updated in place: choose a new name.")}}}
+
+
+DECISION_WORDS = {
+    "skip": ("Already built from this plan; Create will skip it.", "Already built from this plan; nothing was written again."),
+    "create": ("Create will create it.", "Created."),
+    "update": ("Create will update it in place.", "Updated in place."),
+}
+
+
+def decision_of(card: dict) -> dict:
+    """n209: what Create does (or did) for one card, in one word and one sentence, the same for the dry run and Create:
+    skip (already built from this plan), choose (built from another plan or plan unknown: nothing is written until the
+    person picks Update or a new name), refuse (an item someone else made, n207; a report never updated; a missing
+    permission), error (the tool's own error), update (Create writes into the existing item), create."""
+    dry = bool(card.get("dry_run"))
+    if card.get("refusal"):
+        r = card["refusal"]
+        return {"action": "refuse", "words": " ".join(x for x in (r.get("error"), r.get("hint")) if x)}
+    if card.get("already_built"):
+        return {"action": "skip", "words": DECISION_WORDS["skip"][0 if dry else 1]}
+    if card.get("built_from") and card.get("choices"):
+        what = ("Update (a dry run first) or a new name" if "update" in card["choices"] else "a new name")
+        lead = "Create writes nothing and asks" if dry else "Nothing was written; choose"
+        return {"action": "choose", "words": f"{card['built_from']['words'][:1].upper()}{card['built_from']['words'][1:]}. {lead}: {what}."}
+    a = card.get("answer") or {}
+    if a.get("error"):
+        return {"action": "error", "words": " ".join(x for x in (a.get("error"), a.get("hint")) if x)}
+    action = "update" if card.get("would") == "update" else "create"
+    return {"action": action, "words": DECISION_WORDS[action][0 if dry else 1]}
+
+
 def _ownership(o: dict, chosen: dict, req: dict, workspace: str, headers: dict, ours: set[str]) -> tuple[str, dict | None, dict]:
     """("create" or "update", a refusal or None, {name: existing id}). The Model updates only items it built itself
     (outputs.json's created ids, and those this build created); an item of that name made by anyone else is refused, and
@@ -1601,7 +1670,8 @@ def _product(req: dict, rv: dict, p, cards: list[dict], dry_run: bool) -> dict:
         if c.get("refusal") or (c.get("answer") or {}).get("error"):
             continue
         if dry_run:
-            items.append({"output": c["output"], "type": c["type"], "name": c["name"], "would": c["would"]})
+            items.append({"output": c["output"], "type": c["type"], "name": c["name"], "would": c["would"],
+                          "decision": (c.get("decision") or decision_of(c))["action"]})   # n209: skip and choose are not "would be updated"
         else:
             items += [{**x, "label": c["label"]} for x in c.get("created", [])]
     return {"name": req["product"]["name"], "owner": None, "owner_note": "Nobody has chosen an owner yet.",
@@ -1738,50 +1808,25 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                 if not made:
                     card["refusal"] = {"error": f"{KINDS[kind]['label']} {o['name']!r} was not created in this Create.", "kind": "not_built",
                                        "hint": "Its own card said why; choose Create again to retry it."}
+                card["decision"] = decision_of(card)
                 built[kind] = card
                 cards.append(card)
                 continue
             started = time.monotonic()
             updating = kind in req.get("update", [])
-            # n197: the dry run asks the same question Create asks (skip_built), so it predicts what Create does: an item
-            # built from this plan is "already built, skipped" in both, never "would be updated" in the dry run only
+            # n197/n209: the dry run asks the same question Create asks (skip_built), through one function, so it predicts what
+            # Create does: an item built from this plan is "already built, will be skipped" in both, never "would be updated"
             if (req.get("skip_built") or dry_run) and not updating:
-                done = _already_built(o, chosen, req, workspace, headers, ours)
-                if done is not None:
-                    marks = [recorded_mark(c["id"], req, listed()) or (mark if c.get("adopted") else None) for c in done]
-                    counts = existing_counts(kind, done, workspace, headers)
-                    if all(same_plan(m, mark) for m in marks):    # built from this plan: as n179 showed it
-                        adopted = [c for c in done if c.pop("adopted", False)]
-                        done = [{**c, "plan": mark} for c in done]
-                        note = ("Already built from this plan by an earlier Create; Create skips it." if dry_run else
-                                "Fabric finished it after the wait; it is kept as built by this Model, and nothing was written "
-                                "again." if adopted else
-                                "Already in the workspace, built from this plan by an earlier Create; nothing "
-                                "was written. Choose a new name to make another one.")
-                        card.update(would="create", created=done, already_built=True, existing=counts,
-                                    answer={"dry_run": dry_run, "already_built": True, "note": note,
-                                            **({"adopted": len(adopted)} if adopted else {})})
-                        if adopted and not dry_run:
-                            mark_items(workspace, headers, adopted, mark)
-                        ours.update(c["id"] for c in done)
-                        if kind == "pipeline":                    # n197: Run once and Schedule still do what they say
-                            card["jobs"] = _jobs_on_built(o, done, jobs_permission(scopes, app_id), dry_run, workspace, headers,
-                                                          req.get("schedule_ids") or [])
-                        outcome = "already_built"
-                    else:                                         # n180: another plan, or none recorded: the person chooses
-                        was = next((m for m in marks if m and not same_plan(m, mark)), None)
-                        bf = built_from(was, mark)
-                        choices = ["update", "new_name"] if KINDS[kind]["updates"] else ["new_name"]
-                        for c in done:
-                            c.pop("adopted", None)
-                        card.update(would="update" if KINDS[kind]["updates"] else "create", built_from=bf, existing_items=done,
-                                    existing=counts, choices=choices,
-                                    answer={"dry_run": dry_run, "plan_differs": True,
-                                            "note": f"{KINDS[kind]['label']} {o['name']} was {bf['words']}; nothing was written. "
-                                                    + ("Update it (a dry run first) or choose a new name." if "update" in choices
-                                                       else "A report is never updated in place: choose a new name.")})
-                        outcome = "built_from_" + bf["status"]
-                    log("build_output", output=kind, dry_run=dry_run, outcome=outcome, seconds=round(time.monotonic() - started, 1))
+                said = existing_decision(o, chosen, req, workspace, headers, ours, mark, listed, dry_run)
+                if said is not None:
+                    card.update(said["card"])
+                    if said["adopted"] and not dry_run:
+                        mark_items(workspace, headers, said["adopted"], mark)
+                    if said["outcome"] == "already_built" and kind == "pipeline":   # n197: Run once and Schedule still do what they say
+                        card["jobs"] = _jobs_on_built(o, card["created"], jobs_permission(scopes, app_id), dry_run, workspace, headers,
+                                                      req.get("schedule_ids") or [])
+                    card["decision"] = decision_of(card)
+                    log("build_output", output=kind, dry_run=dry_run, outcome=said["outcome"], seconds=round(time.monotonic() - started, 1))
                     built[kind] = card
                     cards.append(card)
                     continue
@@ -1860,6 +1905,7 @@ def _build_many(req, S, rv, keys, confirmed, dry_run, scopes, app_id, chosen, ou
                         card["refresh"] = refresh_new_model(workspace, new_model, scopes, app_id)
                         if card["refresh"]["status"] == "refreshed":
                             card["portal_steps"] = [x for x in card["portal_steps"] if not x.startswith(REFRESH_STEP)]
+            card["decision"] = decision_of(card)                  # n209: one action per card, the same in the dry run and Create
             built[kind] = card
             cards.append(card)
         out = {"dry_run": dry_run, "outputs": cards, "order": [c["output"] for c in cards],

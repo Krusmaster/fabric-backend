@@ -190,8 +190,8 @@ describe("truthful words", () => {
     const built = card(ALL[0], { dry_run: true, already_built: true });
     const pipe = card(ALL[2], { dry_run: true, jobs: { run_once: true, schedule: null, permission: { granted: true, scope: "DataPipeline.Execute.All", or: "Item.Execute.All" }, words: [] } });
     const a = { dry_run: true, outputs: [built, pipe, card(ALL[3], { dry_run: true })], order: [] as string[], left_out_by_review: [] as unknown[], refused: 0, note: "" };
-    expect(cardTitle(built)).toBe("silver_notebook demo_lh_silver: already built, skipped");
-    expect(previewLine(a as never)).toBe("This is the dry run: nothing is written yet. Create makes 2 of 3; 1 already built from this plan, skipped, then runs the pipeline once.");
+    expect(cardTitle(built)).toBe("silver_notebook demo_lh_silver: already built from this plan, will be skipped");
+    expect(previewLine(a as never)).toBe("This is the dry run: nothing is written yet. Create makes 2 of 3; 1 already built from this plan, will be skipped, then runs the pipeline once.");
   });
 
   it("one name suffix per Create, and the product marks what an earlier Create built", () => {

@@ -354,7 +354,7 @@ export function ModelItemEditor(props: PageProps) {
     const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
     setDef(d);
     const a = await runEngine("Preparing the dry run of each output…", () =>
-      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created)
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [])
     );
     if (!a) return;
     setPreview(a);
@@ -776,7 +776,7 @@ export function ModelItemEditor(props: PageProps) {
       const c = await engine.check(workloadClient, sourceRequest(d), d.review!);
       setMap(c.map);
       await update((x) => ({ ...x, review: c.review }));
-      return engine.buildMany(workloadClient, sourceRequest(defRef.current), outputs, defRef.current.review!, true, null, defRef.current.outputs.created);
+      return engine.buildMany(workloadClient, sourceRequest(defRef.current), outputs, defRef.current.review!, true, null, defRef.current.outputs.created, defRef.current.outputs.pending ?? []);
     });
     if (a) setDp((x) => ({ ...x, updates: outOfDate(a.outputs) }));
   }

@@ -286,6 +286,8 @@ export interface BuildCard {
   after_run_words?: string;
   /** n179: every item of the output was already in the workspace from an earlier Create; nothing was written */
   already_built?: boolean;
+  /** n209: what Create does (or did) for this output, the same word in the dry run and in Create (workload_api.decision_of) */
+  decision?: { action: "skip" | "choose" | "refuse" | "error" | "update" | "create"; words: string };
   label: string;
   type: string;
   name: string;
@@ -778,8 +780,10 @@ export function buildMany(
   reviewFile: ReviewFile,
   dryRun: boolean,
   product: { name: string } | null,
-  created: CreatedRef[]
+  created: CreatedRef[],
+  pending: PendingItem[] = []
 ): Promise<ManyAnswer> {
+  // n209: the dry run sends outputs.json's pending list too, so it adopts exactly what Create would adopt (n207's rule)
   return call<ManyAnswer>(workloadClient, "build", {
     ...source,
     outputs,
@@ -787,6 +791,7 @@ export function buildMany(
     dry_run: dryRun,
     product,
     created,
+    ...(pending.length ? { pending } : {}),
   });
 }
 

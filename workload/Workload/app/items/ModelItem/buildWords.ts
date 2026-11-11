@@ -223,7 +223,9 @@ export function cardTitle(c: BuildCard): string {
   if (c.status === "running") return `${c.label} ${c.name}: creating in Fabric…`;
   if (c.status === "lost") return `${c.label} ${c.name}: no answer yet`;
   if (c.after_run === "stopped") return `${c.label} ${c.name}: not built, the pipeline's run did not succeed`;
-  if (c.already_built && c.dry_run) return `${c.label} ${c.name}: already built, skipped`;
+  if (c.already_built && c.dry_run) return `${c.label} ${c.name}: already built from this plan, will be skipped`;
+  if (c.dry_run && c.built_from && c.choices?.length)                // n209: Create writes nothing for it and asks
+    return `${c.label} ${c.name}: ${c.built_from.words}; Create will ask: ${c.choices.includes("update") ? "Update or a new name" : "a new name"}`;
   if (c.already_built) return `${c.label} ${c.name}: already built`;
   if (needsChoice(c)) return `${c.label} ${c.name}: ${c.built_from!.words}`;
   if (c.refusal) return `${c.label} ${c.name}: not built`;
@@ -472,16 +474,19 @@ export function previewLine(a: ManyAnswer): string {
   const total = a.outputs.length;
   const verbs = a.outputs.filter((c) => !c.refusal && !c.answer?.error);
   const skipped = verbs.filter((c) => c.already_built).length;    // n197: what Create skips, as Create says it
-  const upd = verbs.filter((c) => c.would === "update" && !c.already_built && !needsChoice(c)).length;
+  // n209: a card built from another plan waits for a choice in Create (nothing written): never "updated in place" here
+  const waits = verbs.filter((c) => !c.already_built && c.built_from && c.choices?.length).length;
+  const upd = verbs.filter((c) => c.would === "update" && !c.already_built && !(c.built_from && c.choices?.length)).length;
   if (!ok) return "Nothing can be built as it stands: each card below says why.";
   const jobs = a.outputs.find((c) => c.output === "pipeline")?.jobs;
   const runs = jobs && jobs.permission?.granted !== false
     ? [jobs.run_once ? "runs the pipeline once" : "", jobs.schedule ? "sets its schedule" : ""].filter(Boolean)
     : [];
   return (
-    `This is the dry run: nothing is written yet. Create makes ${ok - skipped} of ${total}` +
+    `This is the dry run: nothing is written yet. Create makes ${ok - skipped - waits} of ${total}` +
     (upd ? ` (${upd} updated in place)` : "") +
-    (skipped ? `; ${skipped} already built from this plan, skipped` : "") +
+    (skipped ? `; ${skipped} already built from this plan, will be skipped` : "") +
+    (waits ? `; ${waits} built from another plan, Create will ask: Update or a new name` : "") +
     (runs.length ? `, then ${runs.join(" and ")}.` : ". Nothing is run or scheduled.")
   );
 }

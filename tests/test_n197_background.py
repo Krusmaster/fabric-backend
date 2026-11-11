@@ -282,6 +282,6 @@ def test_the_dry_run_predicts_create_for_an_item_built_from_the_same_plan(make):
                                  "dry_run": True, "created": created}, priv)
     card = r.json()["outputs"][0]
     assert card["already_built"] and card["answer"]["dry_run"] is True, card
-    assert card["answer"]["note"] == "Already built from this plan by an earlier Create; Create skips it."
+    assert card["answer"]["note"] == "Already built from this plan; Create will skip it."
     assert card["would"] == "create"                                                  # never "would be updated"
 

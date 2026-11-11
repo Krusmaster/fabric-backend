@@ -889,7 +889,7 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
         </MessageBar>
       )}
       {c.after_run_words && c.after_run === "waiting" && <Body1>{c.after_run_words}</Body1>}
-      {c.already_built && <Body1>{c.dry_run ? "Already built from this plan by an earlier Create; Create skips it." :
+      {c.already_built && <Body1>{c.dry_run ? "Already built from this plan; Create will skip it." :
         (c.answer?.note as string | undefined) ?? "Already in the workspace, built from this plan by an earlier Create; nothing was written again."}</Body1>}
       {!c.dry_run && props.onRetry && canRetry(c) && (
         <div className="krusgraph-actions">
@@ -947,13 +947,20 @@ export function OutputCard(props: { card: BuildCard; onOpen?: (item: OpenLink["i
   );
 }
 
+/** n209: a dry run's data product item in the words its card uses: skipped and "Create will ask" are not "would be updated". */
+export function productWould(x: { would?: string; decision?: string }): string {
+  if (x.decision === "skip") return "already built from this plan, will be skipped";
+  if (x.decision === "choose") return "built from another plan: Create will ask";
+  return x.would === "update" ? "would be updated" : "would be created";
+}
+
 export function ProductView(props: {
   product: ProductDefinition | DataProduct;
   onOpen?: (item: OpenLink["item"]) => void;
   title?: string;
 }) {
   const p = props.product;
-  const items = p.items as (CreatedItem & { would?: string; output?: string })[];
+  const items = p.items as (CreatedItem & { would?: string; output?: string; decision?: string })[];
   const withIds = items.filter((x) => x.id);
   return (
     <section className="krusgraph-product" aria-label={`Data product ${p.name}`}>
@@ -965,7 +972,7 @@ export function ProductView(props: {
           <li key={x.id || `${x.output}:${x.name}`}>
             <Body1>
               {itemTypeLabel(x.type, x.output)} {x.name}
-              {x.would ? ` (${x.would === "update" ? "would be updated" : "would be created"})` : ""}
+              {x.would ? ` (${productWould(x)})` : ""}
               {(x as { earlier?: boolean }).earlier ? " (earlier Create)" : ""}
             </Body1>
           </li>
