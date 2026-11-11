@@ -10,11 +10,11 @@ still validate against the kit's XSDs.
 import importlib.util
 import json
 import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
 import pytest
-from lxml import etree
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "workload" / "Workload" / "Manifest"
@@ -63,6 +63,7 @@ def test_an_undocumented_or_repeated_type_is_refused(tmp_path, bad):
         _package("Org.Krusgraph", tmp_path, manifest)
 
 
+@pytest.mark.skipif(not shutil.which("xmllint"), reason="xmllint not installed")
 @pytest.mark.parametrize("name", B.NAMES)
 def test_both_packages_validate_against_the_xsds(tmp_path, name):
     files = _package(name, tmp_path)
@@ -73,9 +74,10 @@ def test_both_packages_validate_against_the_xsds(tmp_path, name):
     for x in MANIFEST.glob("*.xsd"):
         (xsds / x.name).write_text(x.read_text(encoding="utf-8").replace("(?:", "("), encoding="utf-8")
     for path, xsd in (("BE/WorkloadManifest.xml", "WorkloadDefinition.xsd"), ("BE/ModelItem.xml", "ItemDefinition.xsd")):
-        schema = etree.XMLSchema(etree.parse(str(xsds / xsd)))
-        doc = etree.fromstring(files[path])
-        assert schema.validate(doc), f"{name} {path}: {schema.error_log}"
+        out = tmp_path / Path(path).name
+        out.write_bytes(files[path])
+        check = subprocess.run(["xmllint", "--noout", "--schema", str(xsds / xsd), str(out)], capture_output=True, text=True)
+        assert check.returncode == 0, f"{name} {path}: {check.stderr}"
 
 
 def test_the_film_stays_first():
