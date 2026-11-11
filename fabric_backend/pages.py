@@ -1035,7 +1035,13 @@ def _home_vars() -> dict[str, str]:
     # four-products diagram (HOME_OFFERING) says. hub_html stays for anyone who needs it.
     return {"HOME_BEFORE_AFTER": before_after_html(),
             "HOME_FILM": film_html(hero=True),                                    # n157; n196: under the headline
-            "HOME_OFFERING": _offering().diagram_html()}                         # n177
+            "HOME_OFFERING": _offering().diagram_html(),                         # n177
+            "HOME_REPLAY_FLOW": _replay_flow_html()}                             # n217: the flow of the replay's build
+
+
+def _replay_flow_html() -> str:
+    from .replay_flow import replay_flow_html
+    return replay_flow_html()
 
 
 def _offering():
