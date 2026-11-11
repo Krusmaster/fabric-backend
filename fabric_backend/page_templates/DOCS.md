@@ -723,7 +723,9 @@ output, with the steps for your administrator.
 <!-- figure:workload-permissions -->
 <!-- /figure -->
 
-Krusgraph for Fabric never deletes anything, never runs or schedules a notebook or pipeline, and keeps no table contents. What is
+Krusgraph for Fabric deletes only from the data product page (Delete from Fabric: a dry run, then the data product's name
+typed, and only items its Model built), runs or schedules the pipeline only when you tick Run once or Schedule, and keeps
+no table contents. What is
 stored and for how long is on [For your IT department](/it#permissions); to withdraw consent, your administrator
 removes the app under **Enterprise applications** in Entra.
 

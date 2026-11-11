@@ -456,8 +456,10 @@ def test_server_json_matches_the_package_and_the_card():
 
 def test_ai_crawlers_are_named_in_robots_and_the_full_text_is_one_fetch(client):
     t = client.get("/robots.txt").text
-    for bot in ("GPTBot", "ClaudeBot", "PerplexityBot", "Google-Extended"):
-        assert f"User-agent: {bot}\nAllow: /\n" in t, bot
+    for bot in ("OAI-SearchBot", "ChatGPT-User", "Claude-SearchBot", "Claude-User"):    # n212: answer fetchers read the site
+        assert f"User-agent: {bot}\nDisallow: /mascots\n" in t and t.split(f"User-agent: {bot}\n")[1].split("\n\n")[0].endswith("Allow: /"), bot
+    for bot in ("GPTBot", "ClaudeBot", "Google-Extended", "CCBot"):                       # n212: training crawlers asked out
+        assert f"User-agent: {bot}\n" in t and "Allow: /\n" not in t.split(f"User-agent: {bot}\n")[1].split("\n\n")[0], bot
     assert t.count("Disallow: /mcp\n") >= 5 and t.strip().endswith("sitemap.xml")
     full = client.get("/llms-full.txt")
     assert full.status_code == 200 and full.headers["content-type"].startswith("text/plain")

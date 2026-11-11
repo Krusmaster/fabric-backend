@@ -16,7 +16,9 @@ can be checked in the code.
   service's memory to your own tool and are not kept.
 - Every call runs as the signed-in person, with that person's own Fabric rights (delegated permissions only).
 - The hosted service runs in Microsoft Azure, Sweden Central (EU).
-- Nothing is created in Fabric without a dry run first and your explicit go-ahead. No tool deletes anything.
+- Nothing is created in Fabric without a dry run first and your explicit go-ahead. The MCP tools never delete. In
+  Fabric, only the data product page's Delete from Fabric removes items, and only items that Krusgraph Model built,
+  after a dry run that lists them and the data product's name typed by you.
 - An administrator can revoke access in Microsoft Entra at any time.
 
 ## What passes through, and what is stored
@@ -31,7 +33,7 @@ them.
 | --- | --- | --- | --- |
 | Table contents | Nowhere | Nothing: rows and results pass through memory during the call | Not kept |
 | The reviewed plan (Krusgraph for Fabric) | The Krusgraph Model item, in your own Fabric workspace | Accepted keys and relationships, the chosen source, the ids of items built. No token, no row value | Until you delete the item |
-| Items {{PRODUCT}} builds | Your own Fabric workspace | Ordinary Fabric items (notebooks, views, pipeline, semantic model, report, API, ontology, data agent) | Until you delete them; {{PRODUCT}} never does |
+| Items {{PRODUCT}} builds | Your own Fabric workspace | Ordinary Fabric items (notebooks, views, pipeline, semantic model, report, API, ontology, data agent) | Until you delete them, yourself or with Delete from Fabric on the data product page (a dry run, then the data product's name typed); never a lakehouse, a warehouse or a table |
 | Access tokens | Server memory only | On-behalf-of tokens for Fabric and SQL | Until shortly before they expire; never written to disk or logs |
 | Usage and route logs | Azure Log Analytics, Sweden Central, when switched on | Tool or route, outcome, duration. No user id, no IP address, no table contents, no item names | The configured retention (shown on [For your IT department](/it#stored)) |
 | Sign-in records for MCP clients other than Claude | Azure Table Storage, Sweden Central, encrypted with {{PRODUCT}}'s own key | The sign-in in progress and Microsoft's tokens | 10 minutes for a sign-in; at most 90 days for a refresh token |
@@ -78,7 +80,7 @@ The permissions the Krusgraph app asks for, and why each one, are listed on
 | --- | --- | --- |
 | Remove admin consent, or delete the app (Entra admin centre → Enterprise applications → the Krusgraph app) | Your Entra admin | No new tokens; a token already issued expires within 60 to 90 minutes |
 | Disconnect the connector | The person | Their AI client stops calling {{PRODUCT}} |
-| Delete the Krusgraph Model items and anything {{PRODUCT}} built | A user or workspace admin | Removes the stored plan and the items; {{PRODUCT}} never deletes them itself |
+| Delete the Krusgraph Model items and anything {{PRODUCT}} built | A user or workspace admin | Removes the stored plan and the items; {{PRODUCT}} deletes nothing on its own |
 | Turn off the tenant setting for additional workloads | Your Fabric admin | The workload is hidden |
 | Ask us to remove your tenant from the allow-list | Kruse Consulting AB | The engine stops answering your tenant at once |
 
@@ -98,6 +100,29 @@ The permissions the Krusgraph app asks for, and why each one, are listed on
 | Data processing agreement | A project draft exists; the legal text is to be written with a lawyer |
 | Business continuity and disaster recovery plan | Not written; no RTO or RPO |
 | Service level agreement | None. Support by email, best effort, one person |
+
+## Standards
+
+Buyers ask first about certifications and standards. The short answer: {{PRODUCT}} holds no certification and has had
+no external audit and no penetration test. What it has is written down in the open, so you can read it before you
+ask. A self-assessment below is the maintainer's own reading of the repository, not an auditor's.
+
+| Standard or requirement | What {{PRODUCT}} has | What it does not have | What would come next |
+| --- | --- | --- | --- |
+| ISO/IEC 27001:2022 | A [self-assessment against the 93 Annex A controls]({{GITHUB}}/blob/main/docs/ISO27001-SELF-ASSESSMENT.md), each marked in place, partly, missing or not applicable, with the file that shows it | No certification, no certification body, no external audit; several controls are marked missing (for example access review and the maintainer's own devices) | Close the missing rows, then an independent review (control 5.35) before any certification is considered |
+| NIS2 and the Swedish cybersecurity act (SFS 2025:1506) | A [supplier security pack]({{GITHUB}}/blob/main/docs/SECURITY-SUPPLIER.md) with roles, subcontractors and the Article 21 measures against what is in place, and a written [incident process]({{GITHUB}}/blob/main/docs/INCIDENT-RESPONSE.md) | No assessment by an authority or a lawyer; the time to notify customers is a proposal; no penetration test; no service level agreement | Re-read the legal sources against the primary texts, confirm the notification time, then an external penetration test |
+| GDPR | The [privacy policy](/privacy), no table contents stored, a list of sub-processors, data in Azure Sweden Central (EU), and a [data processing agreement draft]({{GITHUB}}/blob/main/docs/DPA-DRAFT.md) | The data processing agreement is a draft, not legal text and not signed; no privacy review by a lawyer | The agreement written with a lawyer and offered for signature |
+| Microsoft's publisher requirements for Fabric workloads and Marketplace | Entra publisher verification for the Krusgraph app (MCP), shown on [For your IT department](/it#verified-publisher); the [vendor attestation of the Fabric workload](/workload/attestation), following Microsoft's template | The attestation is a draft: not signed and not accepted by Microsoft; the workload app has no publisher verification yet; the workload name Krusgraph.Modeler is not registered; no Marketplace listing | Publisher verification of the workload app, the name registered, the attestation signed and sent with the workload for Microsoft's review |
+
+Publisher verification confirms who publishes an app, not its security. None of these documents states that
+{{PRODUCT}} meets a standard; each says what exists and what does not.
+
+## Search engines and AI crawlers
+
+Our [robots.txt](/robots.txt) lets search engines and the fetchers an AI assistant uses to answer a person's question
+read this site, and asks the crawlers that collect AI training data (named by their vendors, for example GPTBot,
+ClaudeBot, Google-Extended and CCBot) not to; robots.txt is a request that well-behaved crawlers follow, not a
+technical block.
 
 ## Answers to a standard security questionnaire
 
@@ -141,7 +166,7 @@ writing.
 
 If your organisation is covered by NIS2 or the Swedish cybersecurity act (cybersäkerhetslagen, SFS 2025:1506), you
 have to manage security in your supply chain and will ask {{PRODUCT}}, as a supplier, what is in place. Kruse
-Consulting AB is a one-person company and probably not itself covered; {{PRODUCT}} holds no certification and no approval
+Consulting AB is a one-person company and probably not itself covered; {{PRODUCT}} holds no certification and no decision
 from any authority, and this is not legal advice.
 
 | Document | What it says | Status |

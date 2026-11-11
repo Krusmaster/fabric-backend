@@ -1,6 +1,6 @@
 """Discovery documents for search engines and agents. All public, all derived from the same settings as the site.
 
-    /robots.txt                     crawl rules + sitemap (AI crawlers spelled out)
+    /robots.txt                     crawl rules + sitemap (AI answer fetchers allowed, AI training crawlers asked out)
     /llms-full.txt                  every Markdown page in one file
     /sitemap.xml                    the public pages (not /mascots)
     /llms.txt                       llmstxt.org summary with links to the Markdown versions of the pages
@@ -112,16 +112,39 @@ def sitemap_xml() -> str:
     return f'<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n{urls}</urlset>\n'
 
 
-AI_CRAWLERS = ("GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot", "Claude-User", "PerplexityBot",
-               "Google-Extended", "Applebot-Extended", "Bingbot", "DuckAssistBot", "CCBot")
+# n212 (the founder, 11 November 2026): search engines and the fetchers an AI assistant uses to answer a person's
+# question may read the site; the crawlers whose vendors document them as collecting AI training data are asked not to.
+# robots.txt is a request, not a block. Only user-agent names from each vendor's own public documentation, read
+# 11 November 2026; "Unverified" = that vendor's host could not be opened from the session that wrote this, and the name
+# rests on search results that quote it ([snippet]). docs/SITE.md, "robots.txt and AI crawlers", has the table.
+#   OpenAI     developers.openai.com/api/docs/bots (Unverified): GPTBot trains; OAI-SearchBot (search) and ChatGPT-User
+#              (a person's request) do not
+#   Anthropic  support.claude.com/en/articles/8896518 (opened): ClaudeBot trains; Claude-User (a person's question) and
+#              Claude-SearchBot (search) do not
+#   Google     developers.google.com/search/docs/crawling-indexing/google-common-crawlers (Unverified): Google-Extended is
+#              a token for Gemini training and grounding, no effect on Search
+#   Apple      support.apple.com/en-us/119829 (Unverified): Applebot-Extended is a token for training Apple's foundation
+#              models; Applebot (search) is not named here and follows the * group
+#   Common Crawl  commoncrawl.org/ccbot (Unverified): CCBot builds the open crawl that is widely used to train models
+#   Meta       developers.facebook.com/docs/sharing/webmasters/web-crawlers (Unverified): Meta-ExternalAgent collects
+#              for training; facebookexternalhit (link previews) is not named here
+AI_ANSWER_FETCHERS = ("OAI-SearchBot", "ChatGPT-User", "Claude-SearchBot", "Claude-User")
+AI_TRAINING_CRAWLERS = ("GPTBot", "ClaudeBot", "Google-Extended", "Applebot-Extended", "CCBot", "Meta-ExternalAgent")
+AI_CRAWLERS = AI_ANSWER_FETCHERS + AI_TRAINING_CRAWLERS
 
 
 def robots_txt() -> str:
-    """Everyone may read the site, AI crawlers and answer engines spelled out so the policy is explicit; the mascot review
-    page and the MCP endpoint itself stay out (the server card is the machine-readable entry)."""
-    rules = "User-agent: *\nDisallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
-    for bot in AI_CRAWLERS:
-        rules += f"\nUser-agent: {bot}\nAllow: /\nDisallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+    """Everyone may read the site except the mascot review page, the example pages and the MCP endpoint itself (the server
+    card is the machine-readable entry); the AI assistants' answer fetchers are named with the same rules so the policy
+    is explicit; the AI training crawlers are asked to stay out of everything (n212)."""
+    keep_out = "Disallow: /mascots\nDisallow: /example/\nDisallow: /mcp\nAllow: /mcp/server-card\n"
+    rules = ("# Search engines and AI assistants answering a person's question may read this site.\n"
+             "# Crawlers that collect AI training data are asked not to. This is a request, not a technical block.\n\n"
+             "User-agent: *\n" + keep_out)
+    for bot in AI_ANSWER_FETCHERS:
+        rules += f"\nUser-agent: {bot}\n{keep_out}Allow: /\n"           # Allow last: first-match parsers agree too
+    rules += "\n# AI training crawlers, named by their vendors\n"
+    rules += "".join(f"User-agent: {bot}\n" for bot in AI_TRAINING_CRAWLERS) + "Disallow: /\n"
     return rules + f"\nSitemap: {site_url()}/sitemap.xml\n"
 
 
