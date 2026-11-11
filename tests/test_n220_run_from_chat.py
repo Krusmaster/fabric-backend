@@ -281,6 +281,7 @@ def test_any_other_error_gets_one_to_three_steps():
 def test_the_cards_draw_the_steps_of_an_error_too():
     js = nxt.js()
     assert "__DRY_TOOLS__" not in js and '"create_report"' in js and "ui/open-link" in js
+    assert set(nxt.DRY_RUN_TOOLS) == set(mcp_apps_build.BUILD_TOOLS)           # only the creating tools that have a card
     for html in (mcp_apps.card_html(), mcp_apps_review.card_html(), mcp_apps_build.card_html()):
         assert "n220" in html and "renderNext" in html
 

@@ -82,7 +82,9 @@ def _failed(answer: dict) -> int:
 
 # n220 (d): an error or a refusal ends with 1 to 3 next steps too. A step may also be a dry run of a creating tool (it
 # writes nothing; Create stays behind its own card), a link (ui/open-link), or a sentence sent to the chat.
-DRY_RUN_TOOLS = ("create_report", "create_pipeline", "create_semantic_model", "create_ontology", "create_backend")
+# The build card's creating tools (mcp_apps_build.BUILD_TOOLS); create_pipeline has no card, its answer's next_steps are read
+# by the model from the JSON.
+DRY_RUN_TOOLS = ("create_semantic_model", "create_ontology", "create_backend", "create_report")
 ERROR_MAX = 3
 
 
