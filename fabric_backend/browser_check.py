@@ -29,7 +29,7 @@ import time
 import zipfile
 from pathlib import Path
 
-KINDS = ("sample", "sap", "crm", "billing", "mill", "files", "columns")
+KINDS = ("sample", "sap", "crm", "billing", "mill", "sap_sd", "sap_mm", "files", "columns")
 _RULE = re.compile(r"\brule ([KR]\d|confirmed|[A-Z][A-Za-z0-9 +]*? pack)\b")     # a pack by its own name (n79)
 _SHOWN = {"problem", "warning", "question", "info"}            # suggestions are listed apart: they are not something wrong
 
@@ -95,6 +95,9 @@ def _source(kind: str, files: list | None, text: str):
     if kind == "mill":                                            # n192: the synthetic manufacturing company
         from . import mill
         return mill.source(), None
+    if kind in ("sap_sd", "sap_mm"):                              # n202: the SAP-shaped samples (synthetic, not SAP data)
+        from . import sap_sample
+        return sap_sample.source(kind), None
     if kind == "columns":
         return pasted_source(text or ""), None
     folder = Path(tempfile.mkdtemp(prefix="check-"))                # in the browser: Pyodide's memory, nothing on a disk
@@ -404,7 +407,8 @@ def decide(kind: str = "sample", files: list | None = None, text: str = "", acce
             src.close()
 
 
-NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing", "mill": "mill"}   # the downloads' file names
+NAMES = {"sample": "shop", "sap": "sap_sales", "crm": "crm_erp", "billing": "subscription_billing", "mill": "mill",
+         "sap_sd": "sap_sd", "sap_mm": "sap_mm"}   # the downloads' file names
 
 
 def _evidence_report(p, src, validation: dict | None, kind: str, candidates: list[dict] | None = None) -> dict:

@@ -4,6 +4,7 @@
     from fabric_backend.seed import seed
     seed(spark, schema="shop")
     seed(spark, schema="shop", mill=True)      # also the synthetic manufacturing company in its own schema 'mill'
+    seed(spark, schema="shop", sap=True)       # also the SAP-shaped samples sap_sd and sap_mm (synthetic, not SAP data)
 
 Seven tables shaped like examples/columns.csv (plus a list price on the products), deterministic (same rows every run), no real names or companies
 beyond obviously invented ones. This is what reviewers of the Claude directory listing connect to — never a
@@ -100,11 +101,14 @@ def schemas_enabled(spark) -> bool:
     return "dbo" in names
 
 
-def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, mill_schema: str = "mill") -> dict[str, int]:
+def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, mill_schema: str = "mill",
+         sap: bool = False) -> dict[str, int]:
     """Create (or replace) the seven tables in `schema` of the attached lakehouse. Returns row counts.
 
     mill=True (default off) also writes the sixteen tables of the synthetic manufacturing company in fabric_backend/mill.py
     to `mill_schema`; their counts come back as "mill.<table>". The shop is written either way and stays the default.
+    sap=True (default off, n202) also writes the two SAP-shaped samples of fabric_backend/sap_sample.py, synthetic and
+    not SAP data, to the schemas `sap_sd` (order to invoice) and `sap_mm` (purchase to pay); counts as "sap_sd.VBAK".
 
     On a lakehouse without schemas the tables go to the default schema (`dbo` as seen by the SQL endpoint) instead,
     with a printed note, so they are visible to Krusgraph; use schema="dbo" in the tools then. The mill's tables are
@@ -127,4 +131,11 @@ def seed(spark, schema: str = "shop", seed_value: int = 42, mill: bool = False, 
         else:
             from . import mill as _mill
             counts.update({f"{mill_schema}.{k}": n for k, n in _mill.seed(spark, mill_schema).items()})
+    if sap:
+        if target is None:
+            print("The SAP-shaped samples need a lakehouse with 'Lakehouse schemas'; they were not written.")
+        else:
+            from . import sap_sample as _sap
+            for sample in _sap.SAMPLES:
+                counts.update({f"{sample}.{k}": n for k, n in _sap.seed(spark, sample).items()})
     return counts
