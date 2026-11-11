@@ -55,8 +55,10 @@ import {
 } from "./buildWords";
 import {
   CreateRunRecord, Known, heldCard, knownOf, markEarlier, namesWithOneSuffix, newCreateId, readRun, settlePending, startRun, stoppedCard,
-  toRetry, waitsForRun, withOperation, withPending, withProgress,
+  inOrder, toRetry, waitsForRun, withOperation, withPending, withProgress,
 } from "./createRun";
+import { PREPARING, Ticked, chosenProducts, preparingLine, ticked } from "./productSuggestions";
+import { SuggestedProductsPanel } from "./SuggestedProductsView";
 import { Busy, EmptyView, ErrorBar, OutputsView, PreviewView, ResultView, ReviewView } from "./ModelItemViews";
 import { MapData } from "./cardMap";
 import { Choice, acceptAll } from "./modelWords";
@@ -109,6 +111,7 @@ export function ModelItemEditor(props: PageProps) {
   const [updating, setUpdating] = useState(false);
   /** n197: a Create (or its follow-up) is going on: Create is not offered twice */
   const [creating, setCreating] = useState(false);
+  const [suggested, setSuggested] = useState<engine.SuggestedProducts | null | undefined>(undefined);   // n222
   /** n197: one line on the result when the saved state or the engine could not be read */
   const [notice, setNotice] = useState<string>();
   /** n201: what the last review said about the source: read-only (where the build writes) and the SAP pack's items */
@@ -168,6 +171,7 @@ export function ModelItemEditor(props: PageProps) {
     );
     if (!a) return;
     setMap(a.map);
+    setSuggested(a.suggested_products);                       // n222
     d = withKind(exactSchema(d, a.schema_used), a);
     announceSchema(a.schema_used);
     setDef({ ...d, review: a.review, item: { ...d.item, view: "review" } });
@@ -181,6 +185,7 @@ export function ModelItemEditor(props: PageProps) {
     try {
       const a = await engine.review(workloadClient, sourceRequest(d), d.review, {});
       setMap(a.map);
+      setSuggested(a.suggested_products);                     // n222
       setDef((x) => ({ ...withKind(exactSchema(x, a.schema_used), a), review: a.review }));
     } catch (e) {
       if (isBusy(e)) setNotice(BUSY_LINE);
@@ -321,6 +326,7 @@ export function ModelItemEditor(props: PageProps) {
     );
     if (!a) return;
     setMap(a.map);
+    setSuggested(a.suggested_products);                       // n222: weighed by what the rows hold
     setDef((d) => ({ ...exactSchema(d, a.schema_used), review: a.review }));
     announceSchema(a.schema_used);
     setDirty(true);
@@ -356,8 +362,10 @@ export function ModelItemEditor(props: PageProps) {
   async function previewBuild() {
     const d = { ...def, outputs: { ...def.outputs, outputs: choices } };
     setDef(d);
-    const a = await runEngine("Preparing the dry run of each output…", () =>
-      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [])
+    // n222: the engine prepares the outputs side by side and says how many are ready; the busy line shows it as it comes
+    const a = await runEngine(PREPARING, () =>
+      engine.buildMany(workloadClient, sourceRequest(d), toRequests(choices), d.review, true, product.on ? { name: product.name.trim() } : null, d.outputs.created, d.outputs.pending ?? [],
+        { onProgress: (st) => setBusy(preparingLine(st)), products: chosenProducts(d) })
     );
     if (!a) return;
     setPreview(a);
@@ -453,7 +461,16 @@ export function ModelItemEditor(props: PageProps) {
   /** n179/n197: one step per output in the engine's order, each card with its own progress and result. A lost answer
    * costs one card, never the others; the created ids and the pending items are saved as each step ends. Then the data
    * product and the flow, from the created ids, and the pipeline's run followed with what waits for it. */
+  // n222: the dry run page's own Create button "did nothing" in the founder's live test of 11 November 2026: Create first
+  // waited for the item's save (Fabric's updateItemDefinition, after any save still on its way) before it showed anything,
+  // so a click looked lost, and a second click (the toolbar's) could start a second Create. Now the click shows the
+  // Create's cards and locks both buttons at once; the save goes on behind them. One Create at a time.
+  const creatingRef = useRef(false);
+
   async function create(resumeFrom?: { run: CreateRunRecord; known: Known }) {
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    setCreating(true);
     setError(undefined);
     setBusy(undefined);
     const d0 = defRef.current;
@@ -463,12 +480,11 @@ export function ModelItemEditor(props: PageProps) {
     const run = resumeFrom?.run ?? startRun(newCreateId(), outputs, new Date().toISOString());
     const known: Known = resumeFrom?.known ?? { answers: {}, running: {}, progress: {} };
     const held = waitsForRun(outputs);
-    await persist({ ...d0, item: { ...d0.item, view: "result" }, outputs: { ...d0.outputs, outputs: resumeFrom ? d0.outputs.outputs : choices,
-      create_run: run } });
-    showCards([]);
+    showCards(inOrder(outputs).map((o) => pendingCard(o, "waiting", preview?.outputs.find((c) => c.output === o.kind))));
     go("result");
-    setCreating(true);
     try {
+      await persist({ ...d0, item: { ...d0.item, view: "result" }, outputs: { ...d0.outputs, outputs: resumeFrom ? d0.outputs.outputs : choices,
+        create_run: run } });
       const done = await createEach(
         outputs,
         defRef.current.outputs.created,
@@ -493,6 +509,7 @@ export function ModelItemEditor(props: PageProps) {
       );
       await finishCreate(done.cards, src, outputs, productReq);
     } finally {
+      creatingRef.current = false;
       setCreating(false);
     }
     await followRun(cardsRef.current, src, outputs);           // Try again stays open on the other cards meanwhile
@@ -931,12 +948,14 @@ export function ModelItemEditor(props: PageProps) {
           onOpen={openItem}
           onPreview={previewBuild}
           jobsBlocked={jobsBlocked(preview?.outputs)}
+          extra={<SuggestedProductsPanel suggested={suggested} ticked={ticked(def)} disabled={!!busy || creating}
+            onTicked={(list: Ticked[]) => void update((d) => ({ ...d, outputs: { ...d.outputs, products: list } }))} />}
         />
       ),
     },
     {
       name: "preview",
-      component: wrap(preview ? <PreviewView answer={preview} onCreate={() => { if (!creating) void create(); }} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
+      component: wrap(preview ? <PreviewView answer={preview} onCreate={() => void create()} creating={creating || !!busy} mascotsOn={mascotsOn} createLabel={createLabel(preview)}
         appChoices={choices.find((c) => c.type === "rayfin_app")?.app} onAppChoices={chooseApp}
         appRecord={readAppRecord(choices.find((c) => c.type === "rayfin_app")?.app_package, choices.find((c) => c.type === "rayfin_app")?.name)} /> : null),
     },

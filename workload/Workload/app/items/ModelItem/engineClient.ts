@@ -42,6 +42,49 @@ export interface ReviewAnswer {
   read_only?: ReadOnlySource;
   /** n201: the SAP pack's keys and links in this review, each "from the SAP pack" with its public sources */
   sap?: SapOffer;
+  /** n222: domain_draft's proposal as suggested data products (workload_api.suggest_products); null if not made */
+  suggested_products?: SuggestedProducts | null;
+}
+
+/** n222: one link that crosses to another suggestion: this one provides the key, or consumes the other's. */
+export interface ProductInterface {
+  product: string;
+  id: string;
+  link: string;
+  rule: string;
+}
+
+export interface SuggestedProduct {
+  id: string;
+  name: string;
+  tables: string[];
+  /** the rule that grouped the tables */
+  rule: string;
+  name_reason: string;
+  /** per table: why it is in this suggestion */
+  why: Record<string, string>;
+  interface: { provides: ProductInterface[]; consumes: ProductInterface[] };
+  /** the keys and links inside, each with its rule and the check's verdict */
+  evidence: string[];
+}
+
+export interface SuggestedProducts {
+  products: SuggestedProduct[];
+  unassigned: { table: string; reason: string }[];
+  checked: boolean;
+  from: string;
+  note: string;
+}
+
+/** n222: a ticked suggestion on the dry run (or Create): its tables, interface and the build's items. */
+export interface ChosenProductAnswer {
+  id: string;
+  name: string;
+  tables?: string[];
+  interface?: { provides: ProductInterface[]; consumes: ProductInterface[] };
+  items?: { output?: string; type: string; name: string; would?: string }[];
+  gone?: boolean;
+  words: string;
 }
 
 export interface SchemaUsed {
@@ -388,6 +431,8 @@ export interface ManyAnswer {
   left_out_by_review: LeftOut[];
   row_check?: CheckTotals;
   product?: DataProduct;
+  /** n222: the ticked suggested data products */
+  products?: ChosenProductAnswer[];
   flow?: DataFlow | null;
   refused: number;
   /** n180: outputs whose existing items wait for Update or a new name */
@@ -783,7 +828,8 @@ export function buildMany(
   dryRun: boolean,
   product: { name: string } | null,
   created: CreatedRef[],
-  pending: PendingItem[] = []
+  pending: PendingItem[] = [],
+  opts: { onProgress?: (state: OperationState) => void; products?: { id: string; name: string }[] } = {}
 ): Promise<ManyAnswer> {
   // n209: the dry run sends outputs.json's pending list too, so it adopts exactly what Create would adopt (n207's rule)
   return call<ManyAnswer>(workloadClient, "build", {
@@ -794,7 +840,8 @@ export function buildMany(
     product,
     created,
     ...(pending.length ? { pending } : {}),
-  });
+    ...(opts.products?.length ? { products: opts.products } : {}),   // n222: the ticked suggestions
+  }, REQUEST_WAIT_MS, undefined, { onProgress: opts.onProgress });
 }
 
 /** n198: the Data product page (POST /workload/v1/product, fabric_backend/product_life.py): status, retire (a dry run
