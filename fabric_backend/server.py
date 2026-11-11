@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-nine, from list_workspaces to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): forty, from start to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -70,10 +70,14 @@ from . import mcp_apps_build as _mcp_apps_build  # noqa: E402  (n169: same flag)
 from . import mcp_apps_pictures as _pictures  # noqa: E402  (n170: the cards' pictures; keeps nothing unless a card listens)
 from . import mcp_apps_words as _mcp_apps_words  # noqa: E402  (n172: the cards' words; computed only while a card listens)
 from . import mcp_apps_next as _mcp_apps_next  # noqa: E402  (n218: next steps and the check rows; only while a card listens)
+from . import start_flow as _start_flow  # noqa: E402  (n219: Start Krusgraph)
 
 mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_apps.extensions(), instructions=(
     "Tables in a Microsoft Fabric lakehouse/warehouse → a GraphQL API with inferred keys and relationships, "
-    "plus Rayfin connector entities. Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
+    "plus Rayfin connector entities. When the user's first message is vague ('start', 'start Krusgraph', 'help', "
+    "'what can you do', 'check my data'), offer Start Krusgraph: call the start tool and follow its steps one at a time; "
+    "a user without Fabric data can see it on the synthetic shop ('Show me on the synthetic shop sample', sample=true). "
+    "Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows (create_backend does not run it), then create_backend. Before query_graphql, describe_backend gives the exact field "
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "
@@ -451,6 +455,34 @@ def _titled_tool(register):
 
 
 mcp.tool = _titled_tool(mcp.tool)
+
+
+# n219: Start Krusgraph, a guided path through the tools (start_flow.py). The tool reads nothing and calls nothing: it
+# answers where the user is, what was chosen and the next step as a call of an existing tool; the prompt starts it.
+START = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=False)
+
+
+@mcp.tool(title="Start Krusgraph: a guided path", annotations=START, structured_output=False)
+@safe
+def start(workspace: _p.StartPick = "", source: _p.StartPick = "", schema: _p.StartPick = "", step: _p.StartStep = "",
+          plan: _p.StartPlan = None, create: _p.StartCreate = None, confirm: _p.StartConfirm = False,
+          sample: _p.StartSample = False, ctx: Context = None) -> str:
+    """A guided path for a first or vague message ('start', 'start Krusgraph', 'help', 'what can you do', 'check my
+    data'): workspace, source, schema, map, check, decide, doubled totals, a dry run of all builds with the data flow,
+    then create after a second confirmation of the names. Returns JSON {step, path, actions: [{tool, arguments, say}],
+    after}: each action is an existing tool; after is the next start call. Changes nothing. Errors: {error, kind, hint}."""
+    plan = plan if isinstance(plan, dict) else {}
+    return json.dumps(_start_flow.guide(workspace=workspace, source=source, schema=schema, step=step,
+                                        keys=plan.get("keys"), confirmed=plan.get("confirmed"),
+                                        decisions=plan.get("decisions"), create=create, confirm=confirm,
+                                        sample=sample), indent=2)
+
+
+@mcp.prompt(name=_start_flow.PROMPT, title=_start_flow.PROMPT_TITLE,
+            description="A guided path from your workspace to a checked plan and a dry run of what would be built; "
+                        "nothing is created until you confirm the names. sample=yes runs it on the synthetic shop.")
+def start_prompt(sample: str = "") -> str:
+    return _start_flow.prompt_text(str(sample).strip().lower() in ("yes", "true", "1", "sample"))
 
 
 @mcp.tool(title="List workspaces", annotations=RO)

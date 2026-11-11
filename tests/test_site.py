@@ -511,7 +511,7 @@ def test_docs_list_every_tool_the_server_defines_and_home_states_the_verificatio
     assert "Check the plan against the data" in home and f"Tested end to end on {ts.LIVE_RUN_DATE}" in docs and "no new item was created" in docs
     llms = client.get("/llms.txt").text
     assert "`validate_plan`" in llms and "`describe_backend`" in llms and "/demo/validation.json" in llms
-    assert "Thirty-nine tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
+    assert "Forty tools" in llms and "K0–K5 for keys, R0–R4 for relationships" in llms and "Eleven" not in llms
     assert not re.search(r"\b[KR]0–[KR]\d", home) and "K0–K3" not in docs              # no rule ranges in the marketing text
 
 
@@ -552,7 +552,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
     tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(tools) == 39, sorted(tools)
+    assert len(tools) == 40, sorted(tools)        # n219: start
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
         assert not status.startswith("Available when enabled by the operator"), tool

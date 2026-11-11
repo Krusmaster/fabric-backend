@@ -105,14 +105,16 @@ Add `https://krusgraph.com/mcp/connect` in Claude under Customize → Connectors
 ("Automatic client registration isn't supported"); connectors added there earlier keep working. VS Code, Cursor and
 other MCP clients that register themselves use the same `https://krusgraph.com/mcp/connect`: Krusgraph shows its own approval page for
 the client, then the Microsoft sign-in (https://krusgraph.com/docs#other-mcp-clients; tested on 27 October 2026 with
-VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). To run your own:
+VS Code, Cursor and Glama; [docs/CLIENT-REGISTRATION.md](docs/CLIENT-REGISTRATION.md)). The first message after
+connecting: `start Krusgraph`, a guided path one step at a time that only reads until you confirm the names after a dry
+run ([docs/START-KRUSGRAPH.md](docs/START-KRUSGRAPH.md)). To run your own:
 
 ```
 docker build -t fabric-backend-server . && docker run -p 8000:8000 \
   -e FABRIC_TENANT_ID=... -e FABRIC_CLIENT_ID=... -e FABRIC_CLIENT_SECRET=... fabric-backend-server
 ```
 
-Streamable HTTP at `/mcp`, thirty-nine tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
+Streamable HTTP at `/mcp`, forty tools, every one with a `title` and a `readOnlyHint`/`destructiveHint`
 (the directory requires it): `list_workspaces`, `list_sources`, `list_tables`, `plan_backend` (nothing deployed; suggests
 composite keys), `sample_rows`, `validate_plan` (keys and relationships checked against the rows; by default a summary with every failing check in full, `detail="full"` for every check), `create_backend`
 (creates or updates one item, never deletes), `describe_backend`, `query_graphql` (read-only; mutations refused),
@@ -536,6 +538,7 @@ nor "created live" has "(experimental)" at the end of its title in the tool list
 <!-- tool-status:begin (generated from fabric_backend/tool_status.py by readme_status_md(); do not edit by hand) -->
 | Tool | Status | Title in the tool list |
 | --- | --- | --- |
+| `start` | experimental | ends in (experimental) |
 | `list_workspaces` | tested end to end | no label |
 | `list_sources` | tested end to end | no label |
 | `list_tables` | tested end to end | no label |

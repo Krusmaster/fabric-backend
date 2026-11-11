@@ -59,7 +59,8 @@ def test_the_resource_is_declared_like_the_n119_card():
     m = _app_server()
     res = {str(r.uri): r for r in asyncio.run(m.list_resources())}
     from fabric_backend import mcp_apps_build                            # n169: the build card
-    assert set(res) == {mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI}
+    from fabric_backend import mcp_apps_start                            # n219: the start card
+    assert set(res) == {mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI, mcp_apps_start.CARD_URI}
     card = res[mcp_apps_review.CARD_URI]
     assert mcp_apps_review.CARD_URI.startswith("ui://krusgraph/")
     assert card.mime_type == "text/html;profile=mcp-app" == mcp_apps.APP_MIME_TYPE
@@ -135,7 +136,7 @@ def test_buttons_map_only_to_review_plan():
     assert rp.annotations.read_only_hint is True and not rp.annotations.destructive_hint
     assert set(mcp_apps_review.CARRIED) | {"previous", "decisions"} <= set(rp.input_schema["properties"])
     # n218: the next steps' tools are named in NEXT_TOOLS only; each reads or drafts, none creates
-    others = [n for n in listing if n != "review_plan" and re.search(rf"\b{n}\b", html)]
+    others = [n for n in listing if n not in ("review_plan", "start") and re.search(rf"\b{n}\b", html)]   # n219: "start" is also a word
     assert set(others) <= set(mcp_apps_next.STEP_TOOLS), others
     assert all(listing[n].annotations.read_only_hint is True for n in others)
     assert set(mcp_apps_review.DECISIONS) <= set(review.REVIEW) and "proposed" not in mcp_apps_review.DECISIONS

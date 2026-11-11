@@ -201,3 +201,15 @@ SapVariant = Annotated[str | None, _d('"ecc" or "s4hana" to consider only that v
                                       'present decide. Example: "s4hana".')]
 SapExport = Annotated[str, _d('"none" (default), or one export of the plan: "krusgraph" (keys/confirmed), "dab" (Data '
                               'API builder config), "extraction" (tables, keys, delta columns) or "dbt". Example: "dbt".')]
+
+
+
+# ------------------------------------------------------------------ start (n219) ---------------------
+# Short on purpose: the read-only listing has a size cap (tests/test_tool_descriptions.py).
+
+StartPick = Annotated[str, _d('Chosen so far; "" if not yet.')]
+StartStep = Annotated[str, _d('Step to show: map, check, decide, totals, dry_run or create (the answer\'s after names it).')]
+StartPlan = Annotated[dict | None, _d('{keys, confirmed, decisions} so far, as review_plan takes them.')]
+StartCreate = Annotated[list[str] | None, _d('Step create: dry-run item names the user asked to create.')]
+StartConfirm = Annotated[bool, _d('Step create: true only after the user said yes to exactly those names.')]
+StartSample = Annotated[bool, _d('true: the synthetic shop sample; no Fabric.')]

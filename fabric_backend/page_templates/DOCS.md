@@ -112,6 +112,13 @@ New to a Fabric lakehouse? Start with how its tables fit together. Connect the h
    it has been tested with. Claude Code and Cursor sign in through a local redirect that is not registered on the Entra
    app yet. So they can't sign in to {{DOMAIN}} today. Other MCP clients should work when you host {{PRODUCT}} yourself. This is not tested yet.{{/IF}}
 3. **In Fabric:** you need access to the workspace you want to use. You also need a Fabric capacity. A trial is fine.
+4. **In a new chat, type `start Krusgraph`.** Claude leads you one step at a time: the workspace, the lakehouse,
+   warehouse or mirrored database, the schema, the map of keys and links with the rule behind each, the check against
+   your rows, what needs your decision, where a total doubles, and a dry run of what would be built. Up to the dry run
+   every step only reads and answers with counts, not row values. Nothing is created until you have seen the dry run and
+   said yes to the names. No Fabric data yet? Type *Show me on the synthetic shop sample*. The same path is the
+   connector's prompt **Start Krusgraph**, where your client lists a connector's prompts (in Claude Code:
+   `/<the name you gave the server>:start`).
 
 Every call runs with your own Fabric permissions. The step-by-step version is on [/start](/start). The server is
 published in the official [MCP Registry](https://registry.modelcontextprotocol.io/v0.1/servers?search=com.krusgraph%2Fkrusgraph) as `com.krusgraph/krusgraph` (verified 26 October 2026).
@@ -827,6 +834,7 @@ unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries
 
 | Tool | Status | What it changes | Does | Arguments |
 | --- | --- | --- | --- | --- |
+| `start` | {{status}} | {{changes}} | Start Krusgraph: where you are on the path (workspace, source, schema, map, check, decide, doubled totals, dry run, create), what was chosen, and the next step as a call of one of the tools below; writing only after the dry run and a second confirmation of the names; `sample=true` for the synthetic shop | workspace, source, schema, step, plan, create, confirm, sample |
 | `list_workspaces` | {{status}} | {{changes}} | the workspaces the signed-in account can see, with id, name and capacity | — |
 | `list_sources` | {{status}} | {{changes}} | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | `workspace` |
 | `list_tables` | {{status}} | {{changes}} | tables and columns with types in one schema; `tables` narrows to names or patterns (`["sales_*"]`), `detail` is `auto` (full up to 60 tables, then the column count per table), `full` or `summary` | `workspace`, `source`, `schema`, `tables`, `detail` |
