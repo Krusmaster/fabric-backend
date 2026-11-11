@@ -64,7 +64,9 @@ NEVER = ("Lakehouse", "Warehouse", "SQLEndpoint", "SQLDatabase", "MirroredDataba
 # Dependents first: a report before its model, the agent and the API before what they read, the pipeline before its notebooks.
 DELETE_ORDER = ("Report", "AppBackend", "DataAgent", "GraphQLApi", "Ontology", "SemanticModel", "DataPipeline", "Notebook")
 MODEL_TYPES = re.compile(r"^(Org\.Krusgraph|Krusgraph\.Modeler)\.Model$")
-SCHEDULE_MARK = re.compile(r"\[Krusgraph schedule ([0-9a-fA-F-]{36})\]")
+SCHEDULE_MARK = re.compile(r"\[Krusgraph schedule ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\]")
+# n210: a schedule id goes into a DELETE path, so only a GUID is ever used; anything else could walk the path elsewhere.
+GUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 DELETE_DOC = "https://learn.microsoft.com/rest/api/fabric/core/items/delete-item"
 KEEP_DATA = ("Krusgraph never deletes a lakehouse, a warehouse, a table or a view's data. The views and tables the "
              "notebooks wrote stay in the lakehouse; drop them in the lakehouse yourself if you no longer want them.")
@@ -235,7 +237,7 @@ def confirm_token(scope: str, ids: list[str], product: str) -> str:
 def _schedules_of(outputs: dict, pipeline: dict, listed: dict) -> list[dict]:
     """The schedules Krusgraph made on this pipeline: outputs.json's pipeline_jobs and the pipeline's description."""
     recs = [s for s in ((outputs.get("pipeline_jobs") or {}).get("schedules") or [])
-            if isinstance(s, dict) and s.get("pipeline_id") == pipeline["id"] and s.get("id")]
+            if isinstance(s, dict) and s.get("pipeline_id") == pipeline["id"] and isinstance(s.get("id"), str) and GUID.match(s["id"])]
     ids = {s["id"] for s in recs}
     desc = (listed.get(pipeline["id"]) or {}).get("description")
     recs += [{"id": sid, "pipeline_id": pipeline["id"], "every": "", "from": "description"}

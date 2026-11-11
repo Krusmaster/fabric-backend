@@ -461,7 +461,10 @@ def product_request(body) -> dict:
         if not isinstance(c.get("id"), str) or not _GUID.match(c["id"]) or not isinstance(c.get("workspace"), str) or not _GUID.match(c["workspace"]):
             raise BadRequest("each of outputs.created has the Fabric id and workspace (GUIDs) Create recorded")
     jobs = o.get("pipeline_jobs") if isinstance(o.get("pipeline_jobs"), dict) else {}
-    out["outputs"] = {**lists, "pipeline_jobs": {"schedules": [s for s in jobs.get("schedules") or [] if isinstance(s, dict)][:100]}}
+    # n210: a schedule's id goes into a DELETE path, so one that is not a GUID is never used (it is left out, not followed)
+    schedules = [s for s in jobs.get("schedules") or [] if isinstance(s, dict)
+                 and all(isinstance(s.get(k), str) and _GUID.match(s[k]) for k in ("id", "pipeline_id"))][:100]
+    out["outputs"] = {**lists, "pipeline_jobs": {"schedules": schedules}}
     name = body.get("product")
     if not isinstance(name, str) or not _PRODUCT.match(name.strip()):
         raise BadRequest("'product' is the data product's name: letters, digits, spaces, '.', '_' or '-', at most 80")
@@ -2143,6 +2146,26 @@ def cors_headers(origin: str | None) -> dict:
     return {"Vary": "Origin"}
 
 
+def who(claims: dict) -> str:
+    """n210: the signed-in person's name for outputs.json ('by whom') and the page's Me button. A B2B guest's token can
+    lack name and preferred_username and carry only email; its upn, when present, is the guest form
+    eva_contoso.com#EXT#@publisher.onmicrosoft.com, and unique_name may start with the identity provider (live.com#).
+    Never the tenant or object id."""
+    for key in ("name", "preferred_username", "email", "upn", "unique_name"):
+        v = claims.get(key)
+        if not isinstance(v, str) or not v.strip():
+            continue
+        v = v.strip()
+        if "#EXT#" in v.upper():                                  # eva_contoso.com#EXT#@pub... -> eva@contoso.com
+            local = v[:v.upper().index("#EXT#")]
+            v = local[:local.rfind("_")] + "@" + local[local.rfind("_") + 1:] if "_" in local else local
+        elif "#" in v:                                            # live.com#eva@contoso.com -> eva@contoso.com
+            v = v.rsplit("#", 1)[1]
+        if v:
+            return v[:120]
+    return ""
+
+
 PILOT_PAGE = "https://krusgraph.com/pilot/fabric"
 
 
@@ -2221,7 +2244,7 @@ def routes(cfg, validator=None, obo=None) -> list:
 
             tokens = Tokens(obo, token, claims["tid"], getattr(cfg, "client_id", None))
             if where == "product":                     # n198: who removed or adopted an item, for outputs.json
-                req["by"] = str(claims.get("name") or claims.get("preferred_username") or claims.get("upn") or "")[:120]
+                req["by"] = who(claims)
             if where == "operation":                   # n197: the state of a background operation, for its owner only
                 from . import operations
                 owner = operations.owner_of(claims)
