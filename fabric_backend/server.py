@@ -15,7 +15,7 @@ Authentication, in order:
      "custom connection" model Lovable's Fabric connector uses: one principal, no per-user identity.
 The server stores nothing: no tokens beyond their lifetime, no data, no query results.
 
-Tools (all annotated for the Claude directory): thirty-nine, from list_workspaces to sap_pack_draft; docs page
+Tools (all annotated for the Claude directory): forty, from start to sap_pack_draft; docs page
 /docs lists them. Around every tool: fair-use limits (limits.py), anonymous usage counts (usage.py) and the dormant paid-plan
 check (entitlements.py).
 """
@@ -77,7 +77,7 @@ mcp = MCPServer("fabric-backend", version=_package_version(), extensions=_mcp_ap
     "plus Rayfin connector entities. When the user's first message is vague ('start', 'start Krusgraph', 'help', "
     "'what can you do', 'check my data'), offer Start Krusgraph: call the start tool and follow its steps one at a time; "
     "a user without Fabric data can see it on the synthetic shop ('Show me on the synthetic shop sample', sample=true). "
-    "Otherwise start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
+    "Start with list_workspaces (or list_sources if you know the workspace), then plan_backend (nothing is deployed; "
     "it also suggests composite keys), sample_rows when a column's meaning is unclear, validate_plan to check keys and "
     "relationships against the rows (create_backend does not run it), then create_backend. Before query_graphql, describe_backend gives the exact field "
     "names. Every inferred key/relationship carries the rule that produced it (K0–K5, R0–R5, or \"SAP pack\" for SAP tables such as "

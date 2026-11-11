@@ -108,7 +108,9 @@ print(json.dumps({"cards": asyncio.run(go()), "listing": json.dumps([t.model_dum
                                     capture_output=True, text=True, check=True).stdout)
     assert off["cards"] == [] and "mascot" not in off["listing"].lower()
     from fabric_backend import mcp_apps_build                            # n169: the build card has them too
-    assert [u for u, _ in on["cards"]] == [mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI]
+    from fabric_backend import mcp_apps_start                            # n219: and the start card
+    assert [u for u, _ in on["cards"]] == [mcp_apps.CARD_URI, mcp_apps_review.CARD_URI, mcp_apps_build.CARD_URI,
+                                           mcp_apps_start.CARD_URI]
     for _, html in on["cards"]:
         assert html.count('<svg class="mascot ') == 3 and 'id="kg-toggle"' in html
     assert "mascot" not in on["listing"].lower()                            # nothing about them in the tool listing
@@ -152,7 +154,7 @@ print(json.dumps({"n": len(tools), "ro_size": len(json.dumps({"tools": ro}, sepa
                                    capture_output=True, text=True, check=True).stdout)
     off = json.loads(subprocess.run([sys.executable, "-c", code], env=env, cwd=ROOT,
                                     capture_output=True, text=True, check=True).stdout)
-    assert on["n"] == off["n"] and on["ro_size"] <= 64_500 and on["ro_size"] - off["ro_size"] < 400
+    assert on["n"] == off["n"] and on["ro_size"] <= 66_500 and on["ro_size"] - off["ro_size"] < 400
 
 
 # ------------------------------------------------------------------ only the image's files ----------------------------

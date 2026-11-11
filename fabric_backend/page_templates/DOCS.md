@@ -834,6 +834,7 @@ unless `confirmed` names them otherwise, and their `keep_with_confirmed` entries
 
 | Tool | Status | What it changes | Does | Arguments |
 | --- | --- | --- | --- | --- |
+| `start` | {{status}} | {{changes}} | Start Krusgraph: where you are on the path (workspace, source, schema, map, check, decide, doubled totals, dry run, create), what was chosen, and the next step as a call of one of the tools below; writing only after the dry run and a second confirmation of the names; `sample=true` for the synthetic shop | workspace, source, schema, step, plan, create, confirm, sample |
 | `list_workspaces` | {{status}} | {{changes}} | the workspaces the signed-in account can see, with id, name and capacity | — |
 | `list_sources` | {{status}} | {{changes}} | lakehouses, warehouses, SQL databases, Snowflake databases, mirrored databases and catalogs in the workspace, plus existing API for GraphQL items | `workspace` |
 | `list_tables` | {{status}} | {{changes}} | tables and columns with types in one schema; `tables` narrows to names or patterns (`["sales_*"]`), `detail` is `auto` (full up to 60 tables, then the column count per table), `full` or `summary` | `workspace`, `source`, `schema`, `tables`, `detail` |

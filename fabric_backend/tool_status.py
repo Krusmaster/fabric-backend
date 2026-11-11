@@ -141,6 +141,7 @@ _ITEM = "creates/updates one item; never deletes"
 # n146: the qualifiers that used to follow the status word are now separate fields (LIVE: the last operation tried
 # live, its date and its result; OPEN: what is still open), so `note` stays empty and label() builds the text.
 _RAW = {
+    "start": (HOSTED, READS, "nothing (answers the next step; calls no tool itself)", "unit tests"),   # n219
     "list_workspaces": (HOSTED, READS, _NO, "unit tests"),
     "list_sources": (HOSTED, READS, _NO, "unit tests"),
     "list_tables": (HOSTED, READS, _NO, "unit tests"),

@@ -552,7 +552,7 @@ def test_docs_give_every_tool_a_status_in_the_shared_words(client):
     rows = [r for r in md.splitlines() if r.startswith("| `") and r.count("|") >= 6]
     assert "| Tool | Status | What it changes | Does | Arguments |" in md                      # status visible without scrolling
     tools = {r.split("|")[1].strip().strip("`"): r.split("|")[2].strip() for r in rows}
-    assert len(tools) == 39, sorted(tools)
+    assert len(tools) == 40, sorted(tools)        # n219: start
     for tool, status in tools.items():
         assert status.startswith(STATUS_WORDS), (tool, status)
         assert not status.startswith("Available when enabled by the operator"), tool

@@ -67,7 +67,7 @@ regardless. After the listing: turn security defaults back on or disable the rev
 
 **1 Connection** — `https://krusgraph.com/mcp`, one URL for every user.
 
-**2 Tools** — read from the server's code: 39 tools, 29 read-only, 10 write (`create_backend`, `create_views`,
+**2 Tools** — read from the server's code: 40 tools, 30 read-only, 10 write (`create_backend`, `create_views`,
 `create_semantic_model`, `create_data_agent`, `create_ontology`, `create_silver_notebook`, `create_gold_views`,
 `create_drift_monitor`, `create_report`, `create_pipeline`: destructive, idempotent, never delete; all dry-run by default). New since
 the earlier submission (22 tools, 18 read-only, 4 write) include `sap_pack_draft` and `domain_draft` (in main, not yet deployed). `tests/test_submission.py` keeps

@@ -128,7 +128,8 @@ def test_experimental_follows_the_short_status_the_site_uses():
         assert ts.experimental(name) == (not (s.startswith("tested end to end") or s.startswith("created live"))), name
     # as the record stands on 10 November 2026
     assert {n for n in ts.STATUS if ts.experimental(n)} == {"domain_draft", "sap_pack_draft", "create_views",
-                                                            "create_data_agent", "compare_semantic_model"}
+                                                            "create_data_agent", "compare_semantic_model",
+                                                            "start"}                     # n219: unit tests only
     # create_pipeline created pipeline_shop live and it ran in Fabric (RAN_LIVE): created live, not a draft
     assert ts.short("create_pipeline") == "created live"
 
