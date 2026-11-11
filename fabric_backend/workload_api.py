@@ -2191,10 +2191,19 @@ def routes(cfg, validator=None, obo=None) -> list:
 # ------------------------------------------------------------------ n200: health per data product -------------------
 
 def health_request(body) -> dict:
-    """n200: POST /workload/v1/health {workspace, source, products: [{name, plan_id}]} (docs/HEALTH.md). Read-only."""
+    """n200: POST /workload/v1/health (docs/HEALTH.md). Read-only. Two forms: {workspace, source, products: [{name,
+    plan_id}]}; or the Data product page's {workspace, item_id, product}, where the lakehouse and the plan id are read
+    from the Krusgraph Model item's own definition (source.json and outputs.json)."""
     from . import health as H
     if not isinstance(body, dict):
         raise BadRequest("the body must be a JSON object")
+    if "products" not in body and "source" not in body and body.get("item_id") is not None:
+        ws, item = body.get("workspace"), body.get("item_id")
+        if not isinstance(ws, str) or not _GUID.match(ws) or not isinstance(item, str) or not _GUID.match(item):
+            raise BadRequest("'workspace' and 'item_id' are the Krusgraph Model's workspace and item ids (GUIDs)")
+        name = body.get("product")
+        name = name.strip()[:200] if isinstance(name, str) and name.strip() else "this data product"
+        return {"workspace": ws.lower(), "item_id": item.lower(), "source": "", "source_name": "", "product_name": name}
     req = {"workspace": _text(body, "workspace"), "source": _text(body, "source"),
            "source_name": _text(body, "source_name", body.get("source"))}
     products = body.get("products")
@@ -2217,6 +2226,13 @@ def run_health(req: dict) -> dict:
     Fabric changes; the answer holds names, rules, statuses and counts, never a row value."""
     from . import health as H, server as S
     headers = S._headers(None)
+    if req.get("item_id"):                                        # the Data product page's form
+        found = _health_target(req, headers)
+        if found is None:
+            return _with_word({"products": H.summarize([], [{"name": req["product_name"], "plan_id": "plan-000000"}]),
+                               "table": "krusgraph.health", "read_as": "the signed-in user",
+                               "note": "This Krusgraph Model has no plan or lakehouse recorded yet: nothing to read. " + NOTHING_CHANGED})
+        return _with_word(run_health({**req, **found, "item_id": None}))
     workspace = S._workspace_id(req["workspace"], headers)
     item = S._resolve_source(workspace, req["source"], headers)
     enabled = bool(item.get("schemas_enabled", True))
@@ -2232,3 +2248,43 @@ def run_health(req: dict) -> dict:
             "note": (("" if there else f"The table {table} does not exist yet: the pipeline has not run since it got its health "
                                        "step. ") + NOTHING_CHANGED + " The health table holds names, rules, statuses and counts, "
                      "never a row value.")}
+
+
+def _health_target(req: dict, headers: dict) -> dict | None:
+    """n200: the lakehouse whose health table the pipeline writes (source.json's target for a read-only source, else the
+    source lakehouse) and the data product's plan id (outputs.json), read from the Model item's definition as the user."""
+    import base64
+    from . import health as H, product_life as life
+    from .lineage import _definition_response
+    r = _definition_response(f"{life.FABRIC}/v1/workspaces/{req['workspace']}/items/{req['item_id']}/getDefinition", headers)
+    parts = (r.json().get("definition") or {}).get("parts", [])
+    outputs = life.outputs_of_definition(parts) or {}
+    source = {}
+    for p in parts:
+        if p.get("path") == "source.json":
+            try:
+                source = json.loads(base64.b64decode(p.get("payload") or "").decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                source = {}
+    plan = ((outputs.get("product") or {}).get("plan") or {}).get("plan_id")
+    if not plan:
+        marks = [(c.get("plan") or {}).get("plan_id") for c in outputs.get("created") or [] if isinstance(c, dict)]
+        plan = next((m for m in reversed(marks) if m), None)
+    target = source.get("target") or {}
+    lakehouse = target.get("itemId") or (source.get("itemId") if str(source.get("itemType", "")).lower() == "lakehouse" else None)
+    ws = source.get("workspaceId") or req["workspace"]
+    if not plan or not H.PLAN_ID.match(str(plan)) or not lakehouse:
+        return None
+    return {"workspace": ws, "source": lakehouse, "source_name": target.get("displayName") or source.get("displayName") or lakehouse,
+            "products": [{"name": req["product_name"], "plan_id": plan}]}
+
+
+def _with_word(out: dict) -> dict:
+    """n200: the one product's word at the top, as the Data product page reads it (word, words, checked_at)."""
+    p = (out.get("products") or [{}])[0]
+    fails = sum(f["status"] == "fail" for f in p.get("findings", []))
+    warns = sum(f["status"] == "warn" for f in p.get("findings", []))
+    words = ("every check passed in the latest run" if p.get("health") == "green" else
+             ", ".join(x for x in (f"{fails} failed" if fails else "", f"{warns} warning(s)" if warns else "") if x) + " in the latest run"
+             if p.get("findings") else "the pipeline has not written a health row for this plan yet")
+    return {**out, "word": p.get("health"), "status": p.get("health"), "words": words, "checked_at": p.get("checked_at")}

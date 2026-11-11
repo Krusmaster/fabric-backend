@@ -572,3 +572,50 @@ def test_an_answer_over_the_limit_leaves_out_the_largest_notebook_first(lakehous
     left = [n["name"] for n in small["notebooks"] if "omitted" in n]
     assert left == sorted(sizes, key=lambda n: -sizes[n])[:len(left)]                     # the largest first
     assert 0 < len(left) < len(sizes) and all(n.get("content") for n in small["notebooks"] if n["name"] not in left)
+
+
+def test_the_data_product_page_s_own_request_reads_the_model_s_definition(api, monkeypatch):
+    """n198's page sends {workspace, item_id, product}; the engine reads source.json (the lakehouse, or the target of a
+    read-only source) and outputs.json (the plan id) from the Model item's definition, as the user, and answers with the
+    word, a sentence and checked_at at the top, which productWords.healthWords shows."""
+    import base64
+    from fabric_backend import lineage
+    client, lh, seen, _obo, token = api
+    item, ws = "22222222-3333-4444-5555-666666666666", hc.WS
+    parts = {"source.json": {"version": 1, "platform": "fabric", "workspaceId": ws, "itemId": "lh-1", "itemType": "Lakehouse",
+                             "displayName": "shop_lh", "schema": "shop"},
+             "outputs.json": {"product": {"name": "Sales", "plan": {"plan_id": hc.MARK["plan_id"]}}, "created": []}}
+    asked = []
+
+    class R:
+        def __init__(self, body):
+            self._b = body
+
+        def json(self):
+            return self._b
+
+    def definition(url, headers):
+        asked.append(url)
+        return R({"definition": {"parts": [{"path": k, "payload": base64.b64encode(json.dumps(v).encode()).decode()}
+                                           for k, v in parts.items()]}})
+    monkeypatch.setattr(lineage, "_definition_response", definition)
+    body = {"workspace": ws, "item_id": item, "product": "Sales"}
+    r = post_health(client, token, body)
+    assert r.status_code == 200, r.text
+    assert (r.json()["word"], r.json()["checked_at"]) == ("not checked yet", None)
+    assert asked == [f"https://api.fabric.microsoft.com/v1/workspaces/{ws}/items/{item}/getDefinition"]
+    one_run(lh)
+    out = post_health(client, token, body).json()
+    assert out["word"] == out["status"] == "amber" and out["words"] == "5 warning(s) in the latest run"
+    assert out["checked_at"].startswith("2026-11-11") and out["products"][0]["name"] == "Sales"
+    assert seen["item"]["id"] == "lh-1" or seen["item"].get("displayName") == "lh-1"
+    # a read-only source: the health table is in the target lakehouse the build wrote to
+    parts["source.json"] = dict(parts["source.json"], itemId="mirror-1", itemType="MirroredDatabase",
+                                target={"itemId": "lh-2", "displayName": "target_lh"})
+    post_health(client, token, body)
+    assert seen["item"]["displayName"] == "lh-2"
+    # nothing recorded yet: not checked yet, and no SQL is sent
+    parts["outputs.json"] = {"created": []}
+    seen.pop("sql", None)
+    out = post_health(client, token, body).json()
+    assert out["word"] == "not checked yet" and "sql" not in seen

@@ -155,6 +155,14 @@ Answer (HTTP 200):
 }
 ```
 
+**The Data product page's form** (n198's editor sends it): `{"workspace": "<the Model's workspace id>", "item_id":
+"<the Model item's id>", "product": "Sales"}`. The engine reads the Model item's own definition (Get Item Definition,
+as the user): `source.json` gives the lakehouse (its `target` for a read-only source such as a mirrored database, the
+lakehouse the build wrote to) and `outputs.json` the plan id (`product.plan.plan_id`, else the latest `created[].plan`).
+The answer is the one above plus, at the top, the one product's `word` (also as `status`), `words` (a short sentence,
+"1 failed, 5 warning(s) in the latest run") and `checked_at`. Without a recorded plan or lakehouse the word is
+`not checked yet` and no SQL is sent.
+
 | `health` | When |
 |---|---|
 | `red` | a row of the latest run of this plan has `fail` |
