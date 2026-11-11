@@ -36,5 +36,9 @@
   "marketplace_signin_client_id": "",
   "marketplace_signin_secret_keyvault_uri": "",
   "entitlements_source": "",
-  "entitlements_table": ""
+  "entitlements_table": "",
+  "trial": false,
+  "publisher_tenant_id": "",
+  "trial_exempt_tenants": "",
+  "plan_user_caps": ""
 }

@@ -263,6 +263,29 @@ price of the first request after a quiet spell waiting for a cold start.
 To test the alerts without breaking anything: `az monitor metrics alert show -n krusgraph-5xx -g $RG` shows the rule;
 the action group's "Test" button in the portal sends a sample e-mail.
 
+**The founder's trial notices (n213, `docs/BILLING-MODEL.md`).** With `KRUSGRAPH_TRIAL=1` the server writes one console
+line per event, starting `{"krusgraph":"billing"`: `trial_started` (a new organisation's first call), `trial_ends_soon`
+(7 days before a trial ends) and `plan_over_cap` (more users in 30 days than the plan covers). The lines carry the
+tenant id, dates and counts, never a name or an e-mail address. A log search alert on the Log Analytics workspace of
+step 3.2 e-mails them through the same action group (`$AG_ID` above), checked every 15 minutes:
+
+```bash
+LAW_RES=$(az monitor log-analytics workspace show -g $RG -n $LAW --query id -o tsv)
+az monitor scheduled-query create -n krusgraph-billing -g $RG --scopes $LAW_RES \
+  --condition "count 'Billing' > 0" \
+  --condition-query Billing="ContainerAppConsoleLogs_CL | where ContainerAppName_s == '$APP' and Log_s startswith '{\"krusgraph\":\"billing\"' | extend e = parse_json(Log_s) | project TimeGenerated, event = tostring(e.event), tenant = tostring(e.tenant), trial_ends = tostring(e.trial_ends), days_left = toint(e.days_left), plan = tostring(e.plan), users_30_days = toint(e.users_30_days)" \
+  --window-size 15m --evaluation-frequency 15m --severity 3 --action-groups $AG_ID \
+  --description "Krusgraph trial: a new organisation, a trial ending in 7 days, or a plan over its users"
+```
+
+`az monitor scheduled-query` needs the az extension `scheduled-query` (`az extension add --name scheduled-query
+--yes`). If the table in your workspace is `ContainerAppConsoleLogs` (without `_CL`), use `ContainerAppName` and `Log`.
+The rule has not been created against Azure in this round; `az monitor scheduled-query show -n krusgraph-billing -g $RG`
+shows it once made. The e-mail says that the rule fired; the rows (the event, the tenant id, the dates) are in the
+alert's "View query results". Optional, as in n200: the container-app secret `founder-webhook` (a Teams workflow or
+Power Automate HTTP trigger; `bash deploy/krusgraph.sh --update --dry-run` prints the command) makes the server post the
+same event as an Adaptive Card; the address is never logged.
+
 ## 5. More MCP clients: Claude Code, VS Code (GitHub Copilot agent mode) and Cursor (prepared, not switched on)
 
 Today the hosted service is used from Claude, and the site says so until the clients below have been tried. Each of
@@ -624,6 +647,10 @@ each line says where one lives.
 | `KRUSGRAPH_LOG_RETENTION_DAYS` | unset | tells `/privacy` that console logs are kept that many days |
 | `KRUSGRAPH_ACCESS_LOG` | on | `0` drops uvicorn's per-request line with the client IP |
 | `KRUSGRAPH_ENTITLEMENTS` | `0` | the dormant paid-plan check, see `docs/PRICING-NOTES.md` |
+| `KRUSGRAPH_TRIAL` | `0` | n213: the 30-day trial per organisation, then a Marketplace subscription (`docs/BILLING-MODEL.md`) |
+| `KRUSGRAPH_PUBLISHER_TENANT_ID`, `KRUSGRAPH_TRIAL_EXEMPT_TENANTS` | `KRUSGRAPH_MARKETPLACE_TENANT_ID`, unset | the tenants the trial never gates |
+| `KRUSGRAPH_PLAN_USER_CAPS` | unset | `{"<plan id>": <users>}`: the warning over a plan's users |
+| `KRUSGRAPH_USER_HASH_SALT`, `KRUSGRAPH_FOUNDER_WEBHOOK_URL` | unset | container-app secrets: the user count's salt; the founder's Teams/Power Automate address |
 | `KRUSGRAPH_CLIENT_REGISTRATION` | `0` | sign-in at `/mcp/connect` for MCP clients other than Claude (section 6) |
 | `KRUSGRAPH_CLIENT_REGISTRATION_DCR` | `0` | also dynamic client registration at `/oauth/register` |
 | `KRUSGRAPH_REGISTRATION_STORE` | unset | `memory` (one replica) or `https://<account>.table.core.windows.net/<table>` |

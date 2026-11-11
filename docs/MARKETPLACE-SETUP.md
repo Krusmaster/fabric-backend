@@ -18,6 +18,8 @@ It continues `docs/WORKLOAD-LISTING-AND-PAYMENT.md` (n167), sections 2b and 2e; 
 sources `[Mn]` below were read on learn.microsoft.com on **8 November 2026**; the code builds only what they document.
 Prices are not decided and appear nowhere in the code: plans and prices live in Partner Center only.
 
+> n213: the 30-day trial before a subscription, and what Learn allows for terms and notice: `docs/BILLING-MODEL.md`.
+
 ## 1. What happens, end to end
 
 1. A buyer subscribes in Microsoft Marketplace and presses **Configure account**. Microsoft sends the browser to

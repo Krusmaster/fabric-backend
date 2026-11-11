@@ -114,6 +114,20 @@ which of its buttons you clicked and whether it was open in your browser's `sess
 only: the names of its own steps, nothing from your files or from the page. That storage stays in your browser and is
 never sent to us; it is gone when you close the tab, and *Start over* in the chat clears the steps.
 
+## Trial and subscription
+
+This section applies only when the hosted service's 30-day trial is switched on; it is not switched on yet. Then the
+service keeps, per organisation, one row in its own Azure table: your organisation's Microsoft Entra tenant id, the date
+of its first use, the date its trial ends, which product was used first, and the dates notices were sent. It keeps no
+names, no e-mail addresses and no object ids. To count how many people in your organisation used the service in the
+last 30 days (plans are by number of users), each person is kept only as a salted hash: the first 24 characters of an
+HMAC-SHA256 of the tenant id and the person's object id, with a secret salt that stays on the server, and the last day
+seen. Entries older than 30 days are deleted at the next use. With the salt, a known object id could be hashed and
+compared; without it, the hashes say nothing. Kruse Consulting receives a notice with the tenant id when an organisation
+starts a trial, 7 days before it ends, and when an organisation uses more people than its plan covers. If you subscribe,
+Microsoft Marketplace handles the purchase and billing; what the service keeps of the subscription is described in
+`docs/MARKETPLACE-SETUP.md` (subscription id, offer, plan and status per tenant, no user data).
+
 ## Technical logs
 
 {{#IF LOGS_NOT_KEPT}}The server writes a technical access line per request to its console (time, method, path, HTTP status and

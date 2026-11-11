@@ -270,7 +270,8 @@ def workload_secret_commands(config) -> str:
 # value set by hand on the app whose key is missing from the config is carried over, with one line asking for the key.
 # The secret is never here: it is the container-app secret marketplace-secret (KRUSGRAPH_MARKETPLACE_CLIENT_SECRET) or a
 # Key Vault reference (marketplace_secret_keyvault_uri), which also survives a full run.
-MARKETPLACE_FLAGS = {"marketplace": "KRUSGRAPH_MARKETPLACE", "entitlements": "KRUSGRAPH_ENTITLEMENTS"}
+MARKETPLACE_FLAGS = {"marketplace": "KRUSGRAPH_MARKETPLACE", "entitlements": "KRUSGRAPH_ENTITLEMENTS",
+                     "trial": "KRUSGRAPH_TRIAL"}      # n213: the 30-day trial per organisation (fabric_backend/billing.py)
 MARKETPLACE_ENV = {"marketplace_tenant_id": "KRUSGRAPH_MARKETPLACE_TENANT_ID", "marketplace_client_id": "KRUSGRAPH_MARKETPLACE_CLIENT_ID",
                    "marketplace_offer_url": "KRUSGRAPH_MARKETPLACE_OFFER_URL",
                    "marketplace_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET_KEYVAULT_URI",
@@ -278,7 +279,12 @@ MARKETPLACE_ENV = {"marketplace_tenant_id": "KRUSGRAPH_MARKETPLACE_TENANT_ID", "
                    # n204: the landing page's own sign-in app (work and personal Microsoft accounts, through /common).
                    # Empty keeps the site's app on the landing page. The main app (client_id) keeps AzureADMultipleOrgs.
                    "marketplace_signin_client_id": "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_ID",
-                   "marketplace_signin_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI"}
+                   "marketplace_signin_secret_keyvault_uri": "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET_KEYVAULT_URI",
+                   # n213: the trial. The publisher's own tenant (default marketplace_tenant_id) and the pilot tenants are
+                   # exempt; the plan caps are {"<plan id>": <users>} as text.
+                   "publisher_tenant_id": "KRUSGRAPH_PUBLISHER_TENANT_ID",
+                   "trial_exempt_tenants": "KRUSGRAPH_TRIAL_EXEMPT_TENANTS",
+                   "plan_user_caps": "KRUSGRAPH_PLAN_USER_CAPS"}
 MARKETPLACE_SECRET_ENV, MARKETPLACE_SECRET = "KRUSGRAPH_MARKETPLACE_CLIENT_SECRET", "marketplace-secret"
 SIGNIN_SECRET_ENV, SIGNIN_SECRET = "KRUSGRAPH_MARKETPLACE_SIGNIN_CLIENT_SECRET", "marketplace-signin-secret"   # n204
 
@@ -355,6 +361,47 @@ def signin_checklist(config, env: dict, has_secret: bool) -> list[str]:
             f"(Key Vault) eller container-apphemligheten {SIGNIN_SECRET}",
             f"manuellt Omdirigerings-URI {callback} (Web) på inloggningsappen; kontotyper: alla organisationer och personliga "
             "Microsoft-konton"]
+
+
+# n213: the trial's two secrets are container-app secrets only (never in the config or in code): the salt the user count
+# hashes with, and the optional Teams / Power Automate address for the founder's notices.
+SALT_ENV, SALT_SECRET = "KRUSGRAPH_USER_HASH_SALT", "user-hash-salt"
+FOUNDER_WEBHOOK_ENV, FOUNDER_WEBHOOK_SECRET = "KRUSGRAPH_FOUNDER_WEBHOOK_URL", "founder-webhook"
+
+
+def trial_secret_commands(config) -> str:
+    """The commands that store the salt (generated, never shown) and, optionally, the founder's webhook address."""
+    app, rg = config["app"], config["resource_group"]
+    return (f'  az containerapp secret set -n {app} -g {rg} --secrets {SALT_SECRET}="$(openssl rand -hex 32)" --output none\n'
+            f'  read -rsp "Teams/Power Automate-adressen för grundarens notiser (VÄRDE, döljs; valfri): " FW; echo\n'
+            f'  az containerapp secret set -n {app} -g {rg} --secrets {FOUNDER_WEBHOOK_SECRET}="$FW" --output none; unset FW\n')
+
+
+def trial_checklist(config, env: dict, has_salt: bool, has_webhook: bool) -> list[str]:
+    """n213: what the trial needs, by name only (never a value): each line "ok", "saknas", "valfri" or "manuellt"."""
+    def state(ok: bool, word: str = "saknas ") -> str:
+        return "ok     " if ok else word
+    publisher = env.get("KRUSGRAPH_PUBLISHER_TENANT_ID") or env.get("KRUSGRAPH_MARKETPLACE_TENANT_ID")
+    return [
+        state(flag_on("KRUSGRAPH_TRIAL", env.get("KRUSGRAPH_TRIAL"))) + "KRUSGRAPH_TRIAL=1 (\"trial\": true), annars startar ingen provperiod och inget spärras",
+        state(flag_on("KRUSGRAPH_MARKETPLACE", env.get("KRUSGRAPH_MARKETPLACE"))) + "KRUSGRAPH_MARKETPLACE=1: utan den kan ingen prenumerera, och alla utom undantagen spärras efter 30 dagar",
+        state(env.get("KRUSGRAPH_ENTITLEMENTS_SOURCE") == "table" and bool(env.get("KRUSGRAPH_ENTITLEMENTS_TABLE")))
+        + "KRUSGRAPH_ENTITLEMENTS_TABLE: provperioderna ligger i samma tabell som prenumerationerna (PartitionKey trial)",
+        state(bool(publisher)) + "KRUSGRAPH_PUBLISHER_TENANT_ID (\"publisher_tenant_id\") eller marketplace_tenant_id: Kruse Consultings egen katalog, undantagen",
+        state(bool(env.get("KRUSGRAPH_TRIAL_EXEMPT_TENANTS")), "valfri  ") + "KRUSGRAPH_TRIAL_EXEMPT_TENANTS (\"trial_exempt_tenants\"): pilotkundernas katalog-id, undantagna",
+        state(bool(env.get("KRUSGRAPH_PLAN_USER_CAPS")), "valfri  ") + "KRUSGRAPH_PLAN_USER_CAPS (\"plan_user_caps\"): {\"<plan-id>\": <användare>}, för varningen över taket",
+        state(has_salt) + f"Container-apphemligheten {SALT_SECRET} ({SALT_ENV}): saltet för användarräkningen; utan den räknas inga användare",
+        state(has_webhook, "valfri  ") + f"Container-apphemligheten {FOUNDER_WEBHOOK_SECRET} ({FOUNDER_WEBHOOK_ENV}): Teams/Power Automate för grundarens notiser",
+        "manuellt Larmet i Azure Monitor på händelserna trial_started, trial_ends_soon och plan_over_cap (docs/OPERATIONS.md)",
+    ]
+
+
+def print_trial_checklist(config, env: dict, has_salt: bool, has_webhook: bool) -> None:
+    print("\nProvperioden (KRUSGRAPH_TRIAL=1) – det här ska vara satt (inga värden visas; docs/BILLING-MODEL.md):", flush=True)
+    for line in trial_checklist(config, env, has_salt, has_webhook):
+        print("  " + line, flush=True)
+    if not has_salt:
+        print("  Saltet och (valfritt) adressen läggs in så här:\n" + trial_secret_commands(config), flush=True)
 
 
 def print_marketplace_checklist(config, env: dict, has_secret: bool, has_signin_secret: bool = False) -> None:
@@ -516,6 +563,11 @@ def make_manifest(config, env_id, identity_id, login_server, image, secret, exis
         print(f"En full körning tar bort container-appens hemlighet {SIGNIN_SECRET}, så landningssidan loggar in med webbplatsens "
               "app (bara arbetskonton) tills du kör dessa och sedan --update (eller använder marketplace_signin_secret_keyvault_uri):\n"
               + signin_secret_commands(config), flush=True)
+    if flag_on("KRUSGRAPH_TRIAL", values.get("KRUSGRAPH_TRIAL")):
+        # n213: the manifest drops the salt and the founder's webhook too; the trial runs without them (no user count, log
+        # events only) until --update attaches them again.
+        print(f"En full körning tar bort container-apphemligheterna {SALT_SECRET} och {FOUNDER_WEBHOOK_SECRET}: provperioden "
+              "fungerar, men användare räknas inte förrän du kört --update (som kopplar dem igen).", flush=True)
     if names & {"KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI"}:
         # The manifest replaces the secret list with entra-secret alone, so workload-secret is gone after a full run; the
         # server refuses to start with a workload id but no secret. Keep only the host (the editor's files) and say so.
@@ -814,6 +866,13 @@ def update(az, config, keep_settings=False, workload_host=None, dry_run=False):
             else:
                 env[SIGNIN_SECRET_ENV] = f"secretref:{SIGNIN_SECRET}"
         print_marketplace_checklist(config, {**after, **env}, secret, signin_secret)
+    if not keep_settings and flag_on("KRUSGRAPH_TRIAL", after.get("KRUSGRAPH_TRIAL")):     # n213
+        salt, webhook = has_marketplace_secret(existing, SALT_SECRET), has_marketplace_secret(existing, FOUNDER_WEBHOOK_SECRET)
+        if salt:
+            env[SALT_ENV] = f"secretref:{SALT_SECRET}"
+        if webhook:
+            env[FOUNDER_WEBHOOK_ENV] = f"secretref:{FOUNDER_WEBHOOK_SECRET}"
+        print_trial_checklist(config, {**after, **env}, salt, webhook)
     engine = ("KRUSGRAPH_WORKLOAD_CLIENT_ID", "KRUSGRAPH_WORKLOAD_APP_ID_URI")
     if any(env.get(v) or old_env.get(v) for v in engine):
         if not all(env.get(v) or old_env.get(v) for v in engine):

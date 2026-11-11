@@ -6,6 +6,8 @@ run; no user ids; see docs/OPERATIONS.md) and a dormant entitlement check (`fabr
 `KRUSGRAPH_ENTITLEMENTS=1`; how to switch it on is at the end of this note). Nothing bills, nothing knows about
 accounts, there is no pricing page.
 
+> n213 (11 November 2026): the founder decided a 30-day trial per organisation, then a Marketplace subscription by number of users; with `KRUSGRAPH_TRIAL=1` that replaces the free/paid split below. See `docs/BILLING-MODEL.md`.
+
 ## What a free tier and a paid tier could contain
 
 The split that follows the product's own shape: reading is free, creating and operating is paid. Reading is what

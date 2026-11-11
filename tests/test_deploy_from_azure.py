@@ -35,6 +35,7 @@ EXPECTED = {
     "marketplace": False, "entitlements": False, "marketplace_tenant_id": "", "marketplace_client_id": "",       # n171
     "marketplace_offer_url": "", "marketplace_secret_keyvault_uri": "", "entitlements_source": "", "entitlements_table": "",
     "marketplace_signin_client_id": "", "marketplace_signin_secret_keyvault_uri": "",                             # n204
+    "trial": False, "publisher_tenant_id": "", "trial_exempt_tenants": "", "plan_user_caps": "",                  # n213
 }
 
 

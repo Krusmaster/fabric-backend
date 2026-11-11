@@ -9,6 +9,16 @@ Rounds n114, n115, n116 and n120 are listed under 0.8.0 below and are not deploy
 the list after it was written (round n127). `docs/DEPLOY-NEXT.md` is the checklist for the
 next deploy.
 
+- Round n213: **a 30-day trial per organisation, then a Microsoft Marketplace subscription**, off until
+  `KRUSGRAPH_TRIAL=1` (`docs/BILLING-MODEL.md`). The first authenticated call from an Entra tenant on the hosted MCP
+  server or the Fabric workload starts its trial (one row in the subscriptions' table, no names or e-mail); after 30 days
+  without a subscription, writing to Fabric is refused in plain words with the offer link and reading, checks and dry
+  runs still run (`fabric_backend/billing.py`, one decision for tools and routes). The publisher's tenant (and a guest in
+  it) and the pilot tenants are exempt. Users per organisation are counted as salted hashes only (`/privacy`); over a
+  plan's cap the users and the founder are told, nothing is blocked. Founder events with an Azure Monitor alert in
+  `docs/OPERATIONS.md`; `POST /workload/v1/access` and one quiet line in the editor; `/pricing` says it is planned;
+  `deploy/krusgraph.sh --update --dry-run` lists what is missing. What Microsoft Learn allows for terms and notice, with
+  sources, and a recommendation (no monthly plan with a three-month notice exists) are in the doc. No prices.
 - Round n212: **standards on `/trust`, an opt-out for AI training crawlers, and a trust page comparison**. `/trust`
   and `docs/TRUST-PACK.md` get a Standards table: one row each for ISO/IEC 27001, NIS2 and the Swedish cybersecurity
   act, GDPR and Microsoft's publisher requirements (publisher verification, the workload attestation), each with what
